@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>はぁにデザイン工房</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --y: #E1DD60;
+      --yl: #EFEC99;
+      --yp: #FAFAE8;
+      --white: #fff;
+      --cream: #FFFEF5;
+      --ink: #1e1c14;
+      --muted: #8a8470;
+      --border: rgba(30,28,20,0.1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--cream);
+      color: var(--ink);
+      font-family: 'Noto Sans JP', sans-serif;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    .cursor {
+      width: 10px; height: 10px;
+      background: var(--y); border-radius: 50%;
+      position: fixed; pointer-events: none; z-index: 9999;
+      transform: translate(-50%,-50%);
+      transition: width .2s, height .2s;
+      mix-blend-mode: multiply;
+    }
+    .cursor.big { width: 34px; height: 34px; }
+
+    /* ヘッダー */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 1rem 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,254,245,.93);
+      backdrop-filter: blur(12px);
+      border-bottom: 2.5px solid var(--y);
+    }
+    .logo {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900; font-size: 1.3rem;
+      letter-spacing: -0.01em;
+      color: var(--ink); text-decoration: none;
+      display: flex; align-items: center; gap: 0;
+    }
+    .logo .accent-box {
+      display: inline-block;
+      background: var(--y);
+      padding: 0 5px 1px;
+      border-radius: 5px;
+      font-style: italic;
+      color: var(--ink);
+    }
+    nav { display: flex; gap: 2rem; }
+    nav a {
+      font-size: 0.8rem; letter-spacing: 0.05em;
+      color: var(--muted); text-decoration: none;
+      position: relative; transition: color .2s;
+    }
+    nav a::after {
+      content: ''; position: absolute;
+      bottom: -3px; left: 0; right: 0;
+      height: 2px; background: var(--y);
+      transform: scaleX(0); transition: transform .22s;
+    }
+    nav a:hover { color: var(--ink); }
+    nav a:hover::after { transform: scaleX(1); }
+
+    /* ヒーロー */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 5rem;
+      position: relative; overflow: hidden;
+    }
+    .blob {
+      position: absolute; border-radius: 50%;
+      background: var(--y); opacity: .15;
+      filter: blur(70px); pointer-events: none;
+      animation: bfloat 7s ease-in-out infinite;
+    }
+    .blob:nth-child(1){ width:480px;height:480px;top:-120px;left:-160px; }
+    .blob:nth-child(2){ width:280px;height:280px;bottom:60px;right:-60px;animation-delay:2.5s; }
+    .blob:nth-child(3){ width:180px;height:180px;top:45%;left:65%;animation-delay:5s; }
+    @keyframes bfloat {
+      0%,100%{ transform:scale(1) translateY(0); }
+      50%{ transform:scale(1.08) translateY(-18px); }
+    }
+    .deco {
+      position: absolute; pointer-events: none; z-index: 1;
+      font-size: .9rem; opacity: .3;
+      animation: dfloat 4s ease-in-out infinite;
+    }
+    .deco:nth-child(4){ top:22%;left:7%; }
+    .deco:nth-child(5){ top:28%;right:9%;animation-delay:1.5s;font-size:.7rem; }
+    .deco:nth-child(6){ bottom:28%;left:11%;animation-delay:3s; }
+    .deco:nth-child(7){ bottom:22%;right:7%;animation-delay:.8s; }
+    @keyframes dfloat {
+      0%,100%{ transform:translateY(0) rotate(0deg); }
+      50%{ transform:translateY(-10px) rotate(8deg); }
+    }
+
+    /* ヒーロータイトル */
+    .hero-inner { position: relative; z-index: 1; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: var(--y); color: var(--ink);
+      font-size: .68rem; letter-spacing: .2em;
+      padding: .35rem 1rem; border-radius: 100px;
+      margin-bottom: 1.8rem;
+      animation: fadeUp .7s .1s both;
+    }
+    .hero-name {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(3rem, 8vw, 6.5rem);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      animation: fadeUp .7s .25s both;
+    }
+    .hero-name .highlight {
+      display: inline-block;
+      position: relative;
+    }
+    .hero-name .highlight::after {
+      content: '';
+      position: absolute;
+      bottom: 6px; left: -2px; right: -2px;
+      height: 14px;
+      background: var(--y);
+      z-index: -1;
+      border-radius: 4px;
+    }
+    .hero-name-jp {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+      letter-spacing: .15em;
+      color: var(--muted);
+      margin-top: .6rem;
+      animation: fadeUp .7s .38s both;
+    }
+    .hero-desc {
+      font-size: .88rem; line-height: 2.1; color: var(--muted);
+      margin: 1.5rem auto 0; max-width: 360px;
+      animation: fadeUp .7s .5s both;
+    }
+    .hero-cta {
+      margin-top: 2.5rem;
+      display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+      animation: fadeUp .7s .62s both;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .75rem 1.7rem; border-radius: 100px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: .8rem; letter-spacing: .08em;
+      text-decoration: none; border: none; cursor: none;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn:hover { transform: translateY(-3px); }
+    .btn-dark { background: var(--ink); color: var(--cream); box-shadow: 4px 4px 0 var(--y); }
+    .btn-dark:hover { box-shadow: 6px 6px 0 var(--y); }
+    .btn-light { background: var(--white); color: var(--ink); border: 1.5px solid var(--border); box-shadow: 3px 3px 0 var(--yl); }
+    .btn-light:hover { box-shadow: 5px 5px 0 var(--yl); }
+
+    /* 区切り */
+    .dots { text-align: center; padding: 1.5rem 0; color: var(--y); letter-spacing: .6em; font-size: .75rem; }
+
+    /* 共通 */
+    section { padding: 5.5rem 2rem; }
+    .sec-tag {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font-family: 'Nunito', sans-serif; font-weight: 700;
+      font-size: .62rem; letter-spacing: .4em;
+      color: var(--muted); text-transform: uppercase; margin-bottom: .6rem;
+    }
+    .sec-tag::before { content: ''; width: 18px; height: 2px; background: var(--y); display: block; border-radius: 1px; }
+    .sec-title { font-weight: 700; font-size: clamp(1.7rem, 2.5vw, 2.2rem); letter-spacing: .04em; line-height: 1.3; }
+
+    /* 作品 */
+    #works { background: var(--white); }
+    .works-head { text-align: center; margin-bottom: 3rem; }
+    .works-grid {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 1.4rem; max-width: 980px; margin: 0 auto;
+    }
+    .wcard {
+      background: var(--cream); border-radius: 18px;
+      overflow: hidden; border: 1.5px solid var(--border);
+      transition: transform .3s, box-shadow .3s;
+    }
+    .wcard:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(225,221,96,.3); }
+    .wcard.wide { grid-column: span 2; }
+    .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .wcard.wide .wimg { aspect-ratio: 16/9; }
+    .wimg img { width: 100%; height: 100%; object-fit: cover; }
+    .wph .n { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 3.5rem; color: var(--y); line-height: 1; }
+    .wph .h { font-size: .6rem; letter-spacing: .2em; color: var(--muted); margin-top: .2rem; }
+    .winfo { padding: .9rem 1.1rem 1.1rem; }
+    .wtag { display: inline-block; font-size: .58rem; letter-spacing: .2em; background: var(--y); color: var(--ink); padding: .18rem .65rem; border-radius: 100px; margin-bottom: .35rem; }
+    .winfo h3 { font-size: .9rem; font-weight: 700; letter-spacing: .04em; }
+    .winfo p { font-size: .7rem; color: var(--muted); margin-top: .25rem; line-height: 1.6; }
+
+    /* プロフィール */
+    #about { background: var(--yp); }
+    .about-wrap { max-width: 780px; margin: 0 auto; display: grid; grid-template-columns: 150px 1fr; gap: 3rem; align-items: start; }
+    .avatar { width: 150px; height: 150px; border-radius: 50%; background: var(--yp); display: flex; align-items: center; justify-content: center; border: 4px solid var(--white); box-shadow: 5px 5px 0 var(--yl); flex-shrink: 0; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-placeholder { font-size: .62rem; letter-spacing: .08em; color: var(--muted); text-align: center; line-height: 1.9; }
+    .about-name { font-weight: 700; font-size: 1.9rem; letter-spacing: .04em; margin-bottom: .2rem; }
+    .about-role { font-size: .72rem; letter-spacing: .2em; color: var(--muted); margin-bottom: 1.1rem; }
+    .about-bio { font-size: .86rem; line-height: 2.1; margin-bottom: 1.4rem; }
+    .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
+    .stat { background: var(--white); border-radius: 12px; padding: .75rem 1.1rem; border: 1.5px solid var(--border); text-align: center; }
+    .stat-n { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1; }
+    .stat-l { font-size: .58rem; letter-spacing: .15em; color: var(--muted); margin-top: .25rem; }
+    .links { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .lbtn { display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .9rem; background: var(--white); border: 1.5px solid var(--border); border-radius: 100px; font-size: .7rem; letter-spacing: .05em; color: var(--ink); text-decoration: none; transition: background .2s, transform .18s; }
+    .lbtn:hover { background: var(--y); transform: translateY(-2px); }
+
+    /* お問い合わせ */
+    #contact { background: var(--ink); color: var(--cream); text-align: center; position: relative; overflow: hidden; }
+    #contact::before { content: ''; position: absolute; top: -100px; left: 50%; transform: translateX(-50%); width: 500px; height: 500px; background: var(--y); border-radius: 50%; opacity: .07; filter: blur(80px); pointer-events: none; }
+    #contact .sec-tag { color: rgba(255,254,245,.35); }
+    #contact .sec-tag::before { background: var(--y); }
+    #contact .sec-title { color: var(--cream); }
+    .contact-desc { font-size: .85rem; line-height: 2.1; color: rgba(255,254,245,.55); margin: 1rem auto 2.5rem; max-width: 400px; }
+    .contact-form { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1; text-align: left; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: .4rem; }
+    .form-group label { font-size: .68rem; letter-spacing: .15em; color: rgba(255,254,245,.5); }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      background: rgba(255,254,245,.07); border: 1.5px solid rgba(255,254,245,.15); border-radius: 10px;
+      padding: .75rem 1rem; font-family: 'Noto Sans JP', sans-serif; font-size: .82rem; color: var(--cream);
+      outline: none; transition: border-color .2s, background .2s; appearance: none;
+    }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(255,254,245,.25); }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--y); background: rgba(255,254,245,.1); }
+    .form-group select option { background: #1e1c14; color: #fffef5; }
+    .form-group textarea { resize: vertical; min-height: 130px; }
+    .form-submit {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      padding: .9rem 2rem; background: var(--y); color: var(--ink);
+      border: none; border-radius: 100px;
+      font-family: 'Noto Sans JP', sans-serif; font-size: .82rem; letter-spacing: .12em; font-weight: 700;
+      cursor: none; box-shadow: 4px 4px 0 rgba(225,221,96,.25);
+      transition: transform .2s, box-shadow .2s; align-self: center; margin-top: .5rem;
+    }
+    .form-submit:hover { transform: translateY(-3px); box-shadow: 6px 6px 0 rgba(225,221,96,.25); }
+    .form-note { font-size: .65rem; letter-spacing: .1em; color: rgba(255,254,245,.3); text-align: center; }
+    .form-thanks { display: none; background: rgba(225,221,96,.12); border: 1.5px solid rgba(225,221,96,.3); border-radius: 14px; padding: 2rem; text-align: center; }
+    .form-thanks.show { display: block; }
+    .form-thanks p { font-size: .88rem; line-height: 2; color: var(--cream); }
+
+    /* フッター */
+    footer { background: var(--ink); border-top: 1px solid rgba(255,254,245,.07); padding: 1.5rem 2.5rem; display: flex; align-items: center; justify-content: space-between; }
+    .footer-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: rgba(255,254,245,.3); }
+    .footer-copy { font-size: .6rem; letter-spacing: .1em; color: rgba(255,254,245,.2); }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
+    .reveal { opacity:0;transform:translateY(18px);transition:opacity .6s,transform .6s; }
+    .reveal.on { opacity:1;transform:none; }
+
+    @media(max-width:768px){
+      header{padding:.9rem 1.2rem;} nav{gap:1.2rem;}
+      section{padding:4rem 1.2rem;}
+      .works-grid{grid-template-columns:1fr 1fr;}
+      .wcard.wide{grid-column:span 2;}
+      .about-wrap{grid-template-columns:1fr;gap:1.8rem;}
+      .form-row{grid-template-columns:1fr;}
+      footer{flex-direction:column;gap:.5rem;text-align:center;}
+    }
+    @media(max-width:480px){
+      .works-grid{grid-template-columns:1fr;}
+      .wcard.wide{grid-column:span 1;}
+    }
+  </style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+
+<header>
+  <a href="#" class="logo">h<span class="accent-box">aani</span></a>
+  <nav>
+    <a href="#works">作品</a>
+    <a href="#about">プロフィール</a>
+    <a href="#contact">お仕事依頼</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="blob"></div><div class="blob"></div><div class="blob"></div>
+  <span class="deco">✦</span><span class="deco">◇</span><span class="deco">✦</span><span class="deco">◇</span>
+
+  <div class="hero-inner">
+    <div class="hero-badge">漫画家・イラストレーター</div>
+    <h1 class="hero-name">
+      はぁに<span class="highlight">デザイン</span>工房
+    </h1>
+    <p class="hero-name-jp">Manga & Illustration</p>
+    <p class="hero-desc">
+      ラブコメ・ファンタジーを中心に<br>
+      オリジナル漫画・イラストを制作しています。<br>
+      お仕事のご依頼もお気軽にどうぞ。
+    </p>
+    <div class="hero-cta">
+      <a href="#works" class="btn btn-dark">✦ 作品を見る</a>
+      <a href="#contact" class="btn btn-light">お仕事の依頼</a>
+    </div>
+  </div>
+</section>
+
+<div class="dots">✦ ✦ ✦</div>
+
+<section id="works">
+  <div class="works-head reveal">
+    <div class="sec-tag">Works</div>
+    <h2 class="sec-title">作品一覧</h2>
+  </div>
+  <div class="works-grid">
+    <div class="wcard wide reveal">
+      <div class="wimg"><div class="wph"><div class="n">01</div><div class="h">横長画像を配置</div></div></div>
+      <div class="winfo"><span class="wtag">連載漫画</span><h3>悪役令嬢、旅に出る。</h3><p>pixiv・ジャンプルーキーにて連載中のラブコメファンタジー</p></div>
+    </div>
+    <div class="wcard reveal"><div class="wimg"><div class="wph"><div class="n">02</div></div></div><div class="winfo"><span class="wtag">イラスト</span><h3>作品タイトル</h3></div></div>
+    <div class="wcard reveal"><div class="wimg"><div class="wph"><div class="n">03</div></div></div><div class="winfo"><span class="wtag">漫画</span><h3>作品タイトル</h3></div></div>
+    <div class="wcard reveal"><div class="wimg"><div class="wph"><div class="n">04</div></div></div><div class="winfo"><span class="wtag">アニメーション</span><h3>作品タイトル</h3></div></div>
+    <div class="wcard reveal"><div class="wimg"><div class="wph"><div class="n">05</div></div></div><div class="winfo"><span class="wtag">イラスト</span><h3>作品タイトル</h3></div></div>
+    <div class="wcard reveal"><div class="wimg"><div class="wph"><div class="n">06</div></div></div><div class="winfo"><span class="wtag">漫画</span><h3>作品タイトル</h3></div></div>
+  </div>
+</section>
+
+<div class="dots">✦ ✦ ✦</div>
+
+<section id="about">
+  <div class="about-wrap">
+    <div class="avatar reveal">
+      <img src="アイコン (1).jpg" alt="はぁに">
+    </div>
+    <div>
+      <div class="sec-tag reveal">Profile</div>
+      <h2 class="about-name reveal">はぁに</h2>
+      <p class="about-role reveal">漫画家 / イラストレーター / アニメーター</p>
+      <p class="about-bio reveal">日本を拠点に活動するクリエイター。<br>ラブコメ・ファンタジー漫画の連載や短編アニメ制作を行っています。<br>代表作「悪役令嬢、旅に出る。」はpixivにて好評連載中。<br>装丁イラスト・キャラクターデザイン・漫画原稿のご依頼も受付中です。</p>
+      <div class="stats reveal">
+        <div class="stat"><div class="stat-n">749万</div><div class="stat-l">pixiv累計閲覧数</div></div>
+        <div class="stat"><div class="stat-n">24K+</div><div class="stat-l">ブックマーク数</div></div>
+        <div class="stat"><div class="stat-n">27話</div><div class="stat-l">連載数（継続中）</div></div>
+      </div>
+      <div class="links reveal">
+        <a href="https://x.com/haanidesign" target="_blank" class="lbtn">X @haanidesign</a>
+        <a href="https://www.pixiv.net/users/8184383" target="_blank" class="lbtn">pixiv</a>
+        <a href="https://youtube.com/@haanianime" target="_blank" class="lbtn">YouTube</a>
+        <a href="https://www.tiktok.com/@haanianime" target="_blank" class="lbtn">TikTok</a>
+        <a href="https://www.chatwork.com/ha_ni" target="_blank" class="lbtn">Chatwork</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div style="position:relative;z-index:1;">
+    <div class="sec-tag" style="justify-content:center;">Contact</div>
+    <h2 class="sec-title" style="margin-bottom:0;">お仕事のご依頼</h2>
+    <p class="contact-desc">漫画・イラスト・キャラクターデザインなど<br>フォームからお気軽にご連絡ください。</p>
+    <form class="contact-form" id="cForm" action="https://formspree.io/f/mgoqavzy" method="POST">
+      <div class="form-row">
+        <div class="form-group"><label>お名前 *</label><input type="text" name="name" placeholder="山田 太郎" required></div>
+        <div class="form-group"><label>メールアドレス *</label><input type="email" name="email" placeholder="mail@example.com" required></div>
+      </div>
+      <div class="form-group">
+        <label>ご依頼の種類</label>
+        <select name="type">
+          <option value="">選択してください</option>
+          <option>漫画原稿</option><option>キャラクターデザイン</option>
+          <option>装丁・表紙イラスト</option><option>アニメーション</option><option>その他</option>
+        </select>
+      </div>
+      <div class="form-group"><label>ご依頼内容 *</label><textarea name="message" placeholder="ご依頼の内容・ご予算・納期などをお知らせください" required></textarea></div>
+      <button type="submit" class="form-submit">✦ 送信する</button>
+      <p class="form-note">通常2〜3営業日以内にご返信いたします。</p>
+    </form>
+    <div class="form-thanks" id="fThanks"><p>✦ お問い合わせありがとうございます ✦<br>内容を確認のうえ、ご登録のメールアドレスへご返信いたします。</p></div>
+  </div>
+</section>
+
+<footer>
+  <span class="footer-logo">はぁにデザイン工房</span>
+  <span class="footer-copy">© 2026 はぁにデザイン工房. All rights reserved.</span>
+</footer>
+
+<script>
+  const cur = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => { cur.style.left=e.clientX+'px'; cur.style.top=e.clientY+'px'; });
+  document.querySelectorAll('a,button').forEach(el => {
+    el.addEventListener('mouseenter',()=>cur.classList.add('big'));
+    el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
+  });
+  const obs = new IntersectionObserver(entries=>{
+    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.add('on'),i*80); });
+  },{threshold:.08});
+  document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+  document.getElementById('cForm').addEventListener('submit',function(){
+    setTimeout(()=>{
+      this.style.display='none';
+      document.getElementById('fThanks').classList.add('show');
+    },500);
+  });
+</script>
+</bo
