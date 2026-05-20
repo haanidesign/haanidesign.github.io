@@ -84,6 +84,7 @@
       text-align: center;
       padding: 8rem 2rem 5rem;
       position: relative; overflow: hidden;
+      background: var(--white);
     }
     .blob {
       position: absolute; border-radius: 50%;
@@ -314,7 +315,7 @@
       はぁに<span class="highlight">デザイン</span>工房
     </h1>
     <p class="hero-name-jp">Manga & Illustration</p>
-    <video src="kami.mp4" autoplay muted loop playsinline style="width:100%; max-width:500px; border-radius:20px; margin-top:2rem; box-shadow: 0 12px 40px rgba(225,221,96,0.3);"></video>
+    <video src="kami.mp4" autoplay muted loop playsinline style="width:100%; max-width:500px; border-radius:20px; margin-top:2rem; mix-blend-mode:multiply;"></video>
     <p class="hero-desc">
       ラブコメ・ファンタジーを中心に<br>
       オリジナル漫画・イラストを制作しています。<br>
@@ -417,4 +418,4 @@
     entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.add('on'),i*80); });
   },{threshold:.08});
   document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
-  document.getElementById('cForm').addEven
+  document.getElementById('cFor
