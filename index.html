@@ -274,8 +274,8 @@
     .footer-copy { font-size: .6rem; letter-spacing: .1em; color: rgba(255,254,245,.2); }
 
     @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
-    .reveal { opacity:0;transform:translateY(18px);transition:opacity .6s,transform .6s; }
-    .reveal.on { opacity:1;transform:none; }
+    .reveal { opacity:1; transform:none; transition: opacity 0.6s, transform 0.6s; }
+    .reveal.hidden { opacity:0; transform:translateY(18px); }
 
     @media(max-width:768px){
       header{padding:.9rem 1.2rem;} nav{gap:1.2rem;}
@@ -415,7 +415,6 @@
     el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
   });
   const obs = new IntersectionObserver(entries=>{
-    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.add('on'),i*80); });
+    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.remove('hidden'),i*80); });
   },{threshold:.08});
-  document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
-  document.getElementById('cFor
+  document.querySelectorAll('.reveal').forEach(el=>{ el.classList.add('hidden'); o
