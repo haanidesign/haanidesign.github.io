@@ -314,6 +314,7 @@
       はぁに<span class="highlight">デザイン</span>工房
     </h1>
     <p class="hero-name-jp">Manga & Illustration</p>
+    <video src="kami.mp4" autoplay muted loop playsinline style="width:100%; max-width:500px; border-radius:20px; margin-top:2rem; box-shadow: 0 12px 40px rgba(225,221,96,0.3);"></video>
     <p class="hero-desc">
       ラブコメ・ファンタジーを中心に<br>
       オリジナル漫画・イラストを制作しています。<br>
@@ -351,8 +352,7 @@
 <section id="about">
   <div class="about-wrap">
     <div class="avatar reveal">
-      <!-- イラストを入れる場合: <img src="avatar.png" alt="はぁに"> -->
-      <div class="avatar-placeholder">イラストを<br>ここに配置</div>
+      <img src="ai.jpg" alt="はぁに">
     </div>
     <div>
       <div class="sec-tag reveal">Profile</div>
@@ -360,9 +360,9 @@
       <p class="about-role reveal">漫画家 / イラストレーター / アニメーター</p>
       <p class="about-bio reveal">日本を拠点に活動するクリエイター。<br>ラブコメ・ファンタジー漫画の連載や短編アニメ制作を行っています。<br>代表作「悪役令嬢、旅に出る。」はpixivにて好評連載中。<br>装丁イラスト・キャラクターデザイン・漫画原稿のご依頼も受付中です。</p>
       <div class="stats reveal">
-        <div class="stat"><div class="stat-n">749万</div><div class="stat-l">pixiv累計閲覧数</div></div>
-        <div class="stat"><div class="stat-n">24K+</div><div class="stat-l">ブックマーク数</div></div>
-        <div class="stat"><div class="stat-n">27話</div><div class="stat-l">連載数（継続中）</div></div>
+        <div class="stat"><div class="stat-n">337万</div><div class="stat-l">pixiv累計閲覧数</div></div>
+        <div class="stat"><div class="stat-n">123K</div><div class="stat-l">ブックマーク数</div></div>
+        <div class="stat"><div class="stat-n">28話</div><div class="stat-l">連載数（継続中）</div></div>
       </div>
       <div class="links reveal">
         <a href="https://x.com/haanidesign" target="_blank" class="lbtn">X @haanidesign</a>
@@ -417,12 +417,4 @@
     entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.add('on'),i*80); });
   },{threshold:.08});
   document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
-  document.getElementById('cForm').addEventListener('submit',function(){
-    setTimeout(()=>{
-      this.style.display='none';
-      document.getElementById('fThanks').classList.add('show');
-    },500);
-  });
-</script>
-</body>
-</html>
+  document.getElementById('cForm').addEven
