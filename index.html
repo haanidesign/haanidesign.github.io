@@ -487,6 +487,12 @@
   },{threshold:.08});
   document.querySelectorAll('.reveal').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
 
+  // 動画ホバーで音ON/OFF
+  document.querySelectorAll('.wcard video').forEach(v => {
+    v.addEventListener('mouseenter', () => { v.muted = false; v.volume = 0.7; });
+    v.addEventListener('mouseleave', () => { v.muted = true; });
+  });
+
   // 漫画カルーセル
   function mangaSlide(id, dir) {
     const wrap = document.getElementById(id);
