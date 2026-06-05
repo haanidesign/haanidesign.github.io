@@ -216,7 +216,7 @@
     .wcard:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(225,221,96,.3); }
     .wcard.wide { grid-column: span 2; }
     .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .wcard.wide .wimg { aspect-ratio: 16/9; }
+    .wcard.wide .wimg { height: 340px; aspect-ratio: unset; }
     .wimg img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
     .wph .n { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 3.5rem; color: var(--y); line-height: 1; }
     .wph .h { font-size: .6rem; letter-spacing: .2em; color: var(--muted); margin-top: .2rem; }
@@ -243,7 +243,7 @@
     .lbtn:hover { background: var(--y); transform: translateY(-2px); }
 
     /* 漫画カルーセル */
-    .manga-carousel { position: relative; overflow: hidden; background: #fff; aspect-ratio: unset !important; height: auto !important; }
+    .manga-carousel { position: relative; overflow: hidden; background: #fff; aspect-ratio: unset !important; height: 340px !important; }
     .manga-slide { display: none; width: 100%; height: auto; object-fit: contain; }
     .manga-slide.active { display: block; }
     .manga-btn {
