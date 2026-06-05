@@ -494,8 +494,8 @@
 
   // トップ猫GIFホバーで切り替え
   const heroNeko = document.getElementById('hero-neko');
-  heroNeko.addEventListener('mouseenter', () => heroNeko.src = 'neko_hover.gif');
-  heroNeko.addEventListener('mouseleave', () => heroNeko.src = 'neko.gif');
+  heroNeko.addEventListener('mouseenter', () => { heroNeko.src = 'neko_hover.gif'; heroNeko.style.width='180px'; heroNeko.style.height='180px'; });
+  heroNeko.addEventListener('mouseleave', () => { heroNeko.src = 'neko.gif'; heroNeko.style.width='240px'; heroNeko.style.height='240px'; });
 
   // 動画ホバーで音ON/OFF
   document.querySelectorAll('.wcard video').forEach(v => {
