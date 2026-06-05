@@ -33,8 +33,7 @@
       position: fixed; pointer-events: none; z-index: 9999;
       transform: translate(-50%,-50%);
       transition: width .2s, height .2s;
-      mix-blend-mode: multiply;
-    }
+      }
     .cursor.big { width: 34px; height: 34px; }
 
     /* ヘッダー */
@@ -315,7 +314,7 @@
       はぁに<span class="highlight">デザイン</span>工房
     </h1>
     <p class="hero-name-jp">Manga & Illustration</p>
-    <video src="kami.mp4" autoplay muted loop playsinline style="width:100%; max-width:500px; border-radius:20px; margin-top:2rem; mix-blend-mode:multiply;"></video>
+    <img src="neko.gif" alt="キャラクター" style="width:100%; max-width:360px; border-radius:20px; margin-top:2rem;">
     <p class="hero-desc">
       ラブコメ・ファンタジーを中心に<br>
       オリジナル漫画・イラストを制作しています。<br>
@@ -353,7 +352,7 @@
 <section id="about">
   <div class="about-wrap">
     <div class="avatar reveal">
-      <img src="neko.gif" alt="はぁに">
+      <img src="ai.jpg" alt="はぁに">
     </div>
     <div>
       <div class="sec-tag reveal">Profile</div>
@@ -417,4 +416,17 @@
   const obs = new IntersectionObserver(entries=>{
     entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.remove('hidden'),i*80); });
   },{threshold:.08});
-  document.querySelectorAll('.reveal').forEach(el=>{ el.classList.add('hidden'); o
+  document.querySelectorAll('.reveal').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
+
+  // フォーム送信
+  const form = document.getElementById('cForm');
+  if(form){
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const res = await fetch(form.action, { method:'POST', body: new FormData(form), headers:{Accept:'application/json'} });
+      if(res.ok){ form.style.display='none'; document.getElementById('fThanks').classList.add('show'); }
+    });
+  }
+</script>
+</body>
+</html>
