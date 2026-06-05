@@ -228,7 +228,8 @@
     .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .winfo { margin-top: auto; }
     .wcard.wide .wimg { height: 340px; aspect-ratio: unset; }
-    .wimg img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+    .wimg img { width: 100%; height: 100%; object-fit: contain; object-position: center center; background: #fff; }
+    .wimg video { object-position: center center; }
     .wph .n { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 3.5rem; color: var(--y); line-height: 1; }
     .wph .h { font-size: .6rem; letter-spacing: .2em; color: var(--muted); margin-top: .2rem; }
     .winfo { padding: .9rem 1.1rem 1.1rem; }
@@ -257,7 +258,7 @@
     .manga-carousel { position: relative; overflow: hidden; background: #fff; aspect-ratio: 4/3; height: auto; }
     #carousel-fanart { aspect-ratio: 4/3; }
     #carousel-tachibana { aspect-ratio: unset; height: 340px; }
-    .manga-slide { display: none; width: 100%; height: auto; object-fit: contain; }
+    .manga-slide { display: none; width: 100%; height: 100%; object-fit: contain; object-position: center center; }
     .manga-slide.active { display: block; }
     .manga-btn {
       position: absolute; top: 50%; transform: translateY(-50%);
