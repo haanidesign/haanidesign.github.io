@@ -354,7 +354,7 @@
       はぁに<span class="highlight">デザイン</span>工房
     </h1>
     <p class="hero-name-jp">Manga & Illustration</p>
-    <img src="neko.gif" alt="キャラクター" style="width:100%; max-width:240px; margin-top:1.5rem;">
+    <img id="hero-neko" src="neko.gif" alt="キャラクター" style="width:100%; max-width:240px; margin-top:1.5rem;">
     <p class="hero-desc">
       ラブコメ・ギャグを中心に<br>
       オリジナル漫画・イラストを制作しています。<br>
@@ -491,6 +491,11 @@
     entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.remove('hidden'),i*80); });
   },{threshold:.08});
   document.querySelectorAll('.reveal').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
+
+  // トップ猫GIFホバーで切り替え
+  const heroNeko = document.getElementById('hero-neko');
+  heroNeko.addEventListener('mouseenter', () => heroNeko.src = 'neko_hover.gif');
+  heroNeko.addEventListener('mouseleave', () => heroNeko.src = 'neko.gif');
 
   // 動画ホバーで音ON/OFF
   document.querySelectorAll('.wcard video').forEach(v => {
