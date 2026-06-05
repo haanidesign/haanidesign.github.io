@@ -213,10 +213,12 @@
       background: var(--cream); border-radius: 18px;
       overflow: hidden; border: 1.5px solid var(--border);
       transition: transform .3s, box-shadow .3s;
+      display: flex; flex-direction: column;
     }
     .wcard:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(225,221,96,.3); }
     .wcard.wide { grid-column: span 2; }
-    .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+    .winfo { margin-top: auto; }
     .wcard.wide .wimg { height: 340px; aspect-ratio: unset; }
     .wimg img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
     .wph .n { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 3.5rem; color: var(--y); line-height: 1; }
@@ -412,7 +414,7 @@
     </div>
     <div class="wcard reveal"><div class="wimg"><div class="wph"><div class="h">準備中</div></div></div><div class="winfo"><span class="wtag">イラスト</span><h3>作品タイトル</h3></div></div>
     <!-- 行3：WEB漫画 ＋ 空き枠 -->
-    <div class="wcard reveal"><div class="wimg" style="aspect-ratio:unset;height:auto;"><img src="host.jpg" alt="WEB漫画" style="width:100%;height:auto;display:block;"></div><div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3></div></div>
+    <div class="wcard reveal"><div class="wimg"><img src="host.jpg" alt="WEB漫画"></div><div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3></div></div>
     <div class="wcard reveal"><div class="wimg"><img src="webad.jpg" alt="WEB広告"></div><div class="winfo"><span class="wtag">漫画</span><h3>WEB広告</h3></div></div>
     <div class="wcard reveal"><div class="wimg"><img src="dharma.jpg" alt="ダーマーミステリー表紙"></div><div class="winfo"><span class="wtag">イラスト</span><h3>ダーマーミステリー表紙</h3></div></div>
   </div>
