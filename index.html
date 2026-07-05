@@ -42,8 +42,9 @@
       position: fixed; pointer-events: none; z-index: 9999;
       transform: translate(-50%,-50%);
       transition: width .2s, height .2s;
-      }
+    }
     .cursor.big { width: 34px; height: 34px; }
+    @media(hover:none){ .cursor { display: none; } body { cursor: auto; } }
 
     /* ヘッダー */
     header {
@@ -85,13 +86,13 @@
     nav a:hover { color: var(--ink); }
     nav a:hover::after { transform: scaleX(1); }
 
-    /* ヒーロー */
+    /* ========== ヒーロー（案C） ========== */
     .hero {
       min-height: 100vh;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       text-align: center;
-      padding: 8rem 2rem 5rem;
+      padding: 7rem 2rem 5rem;
       position: relative; overflow: hidden;
       background: var(--white);
     }
@@ -122,14 +123,13 @@
       50%{ transform:translateY(-10px) rotate(8deg); }
     }
 
-    /* ヒーロータイトル */
-    .hero-inner { position: relative; z-index: 1; }
+    .hero-inner { position: relative; z-index: 1; max-width: 680px; width: 100%; }
     .hero-badge {
       display: inline-flex; align-items: center; gap: .5rem;
       background: var(--y); color: var(--ink);
       font-size: .68rem; letter-spacing: .2em;
       padding: .35rem 1rem; border-radius: 100px;
-      margin-bottom: 1.8rem;
+      margin-bottom: 1rem;
       animation: fadeUp .7s .1s both;
     }
     .hero-name {
@@ -138,32 +138,76 @@
       font-size: clamp(1.6rem, 4vw, 2.8rem);
       letter-spacing: 0.08em;
       line-height: 1.2;
-      margin-top: 0;
       animation: fadeUp .7s .25s both;
     }
-    .hero-name .highlight {
-      display: inline-block;
-      color: var(--y);
-    }
+    .hero-name .highlight { color: var(--y); }
     .hero-name-jp {
       font-family: 'Nunito', sans-serif;
       font-weight: 400;
       font-size: clamp(.75rem, 1.5vw, .95rem);
       letter-spacing: .35em;
       color: var(--muted);
-      margin-top: .5rem;
+      margin-top: .4rem;
       text-transform: uppercase;
-      animation: fadeUp .7s .38s both;
+      animation: fadeUp .7s .35s both;
     }
+
+    /* キービジュアル横並び */
+    .hero-kv {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: .6rem;
+      margin: 1.6rem 0 1.2rem;
+      border-radius: 16px;
+      overflow: hidden;
+      animation: fadeUp .7s .45s both;
+    }
+    .hero-kv-item {
+      position: relative;
+      overflow: hidden;
+      background: var(--yp);
+      aspect-ratio: 3/4;
+    }
+    .hero-kv-item:first-child { aspect-ratio: 3/4; border-radius: 14px 0 0 14px; }
+    .hero-kv-item:last-child { border-radius: 0 14px 14px 0; }
+    .hero-kv-item img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: top center;
+      display: block;
+      transition: transform .5s ease;
+    }
+    .hero-kv-item:hover img { transform: scale(1.04); }
+    .hero-kv-badge {
+      position: absolute; bottom: 8px; left: 8px;
+      background: var(--ink); color: var(--y);
+      font-size: .6rem; letter-spacing: .1em;
+      padding: .2rem .6rem; border-radius: 20px;
+    }
+
     .hero-desc {
-      font-size: .88rem; line-height: 2.1; color: var(--muted);
-      margin: 1.5rem auto 0; max-width: 360px;
-      animation: fadeUp .7s .5s both;
+      font-size: .85rem; line-height: 2; color: var(--muted);
+      animation: fadeUp .7s .55s both;
     }
+    .hero-social {
+      display: flex; gap: .55rem; flex-wrap: wrap; justify-content: center;
+      margin-top: 1.4rem;
+      animation: fadeUp .7s .6s both;
+    }
+    .hero-slink {
+      display: inline-flex; align-items: center;
+      padding: .38rem .9rem;
+      border: 1.5px solid var(--border);
+      border-radius: 100px;
+      font-size: .68rem; letter-spacing: .08em;
+      color: var(--muted); text-decoration: none;
+      background: var(--white);
+      transition: background .2s, color .2s, transform .18s;
+    }
+    .hero-slink:hover { background: var(--y); color: var(--ink); transform: translateY(-2px); }
     .hero-cta {
-      margin-top: 2.5rem;
+      margin-top: 1.6rem;
       display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
-      animation: fadeUp .7s .62s both;
+      animation: fadeUp .7s .68s both;
     }
     .btn {
       display: inline-flex; align-items: center; gap: .4rem;
@@ -179,23 +223,6 @@
     .btn-light { background: var(--white); color: var(--ink); border: 1.5px solid var(--border); box-shadow: 3px 3px 0 var(--yl); }
     .btn-light:hover { box-shadow: 5px 5px 0 var(--yl); }
 
-    .hero-social {
-      display: flex; gap: .55rem; flex-wrap: wrap; justify-content: center;
-      margin-top: 1.8rem;
-      animation: fadeUp .7s .55s both;
-    }
-    .hero-slink {
-      display: inline-flex; align-items: center;
-      padding: .38rem .9rem;
-      border: 1.5px solid var(--border);
-      border-radius: 100px;
-      font-size: .68rem; letter-spacing: .08em;
-      color: var(--muted); text-decoration: none;
-      background: var(--white);
-      transition: background .2s, color .2s, transform .18s;
-    }
-    .hero-slink:hover { background: var(--y); color: var(--ink); transform: translateY(-2px); }
-
     /* 区切り */
     .dots { text-align: center; padding: 1.5rem 0; color: var(--y); letter-spacing: .6em; font-size: .75rem; }
 
@@ -210,7 +237,7 @@
     .sec-tag::before { content: ''; width: 18px; height: 2px; background: var(--y); display: block; border-radius: 1px; }
     .sec-title { font-weight: 700; font-size: clamp(1.7rem, 2.5vw, 2.2rem); letter-spacing: .04em; line-height: 1.3; }
 
-    /* 作品 */
+    /* ========== 作品 ========== */
     #works { background: var(--white); }
     .works-head { text-align: center; margin-bottom: 3rem; }
     .works-grid {
@@ -220,36 +247,68 @@
     .wcard {
       background: var(--cream); border-radius: 18px;
       overflow: hidden; border: 1.5px solid var(--border);
-      transition: transform .3s, box-shadow .3s;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s;
       display: flex; flex-direction: column;
+      position: relative;
     }
-    .wcard:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(225,221,96,.3); }
+    /* マイクロアニメーション */
+    .wcard::after {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 18px;
+      box-shadow: inset 0 0 0 0 rgba(225,221,96,.4);
+      transition: box-shadow .3s;
+      pointer-events: none;
+    }
+    .wcard:hover {
+      transform: translateY(-8px) scale(1.01);
+      box-shadow: 0 18px 48px rgba(225,221,96,.28), 0 4px 12px rgba(30,28,20,.08);
+    }
+    .wcard:hover::after {
+      box-shadow: inset 0 0 0 2px rgba(225,221,96,.6);
+    }
+    .wcard:active { transform: translateY(-4px) scale(1.005); }
     .wcard.wide { grid-column: span 2; }
     .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
     .winfo { margin-top: auto; }
     .wcard.wide .wimg { height: 340px; aspect-ratio: unset; }
-    .wimg img { width: 100%; height: 100%; object-fit: contain; object-position: center center; background: #fff; }
+    .wimg img {
+      width: 100%; height: 100%;
+      object-fit: contain; object-position: center center; background: #fff;
+      transition: transform .4s ease;
+    }
+    .wcard:hover .wimg img { transform: scale(1.03); }
     .wimg video { object-position: center center; }
-    .wph .n { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 3.5rem; color: var(--y); line-height: 1; }
-    .wph .h { font-size: .6rem; letter-spacing: .2em; color: var(--muted); margin-top: .2rem; }
     .winfo { padding: .9rem 1.1rem 1.1rem; }
     .wtag { display: inline-block; font-size: .58rem; letter-spacing: .2em; background: var(--y); color: var(--ink); padding: .18rem .65rem; border-radius: 100px; margin-bottom: .35rem; }
     .winfo h3 { font-size: .9rem; font-weight: 700; letter-spacing: .04em; }
     .winfo p { font-size: .7rem; color: var(--muted); margin-top: .25rem; line-height: 1.6; }
+
+    /* ========== 動画ミュートボタン ========== */
+    .video-wrap { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #fff; }
+    .mute-btn {
+      position: absolute; bottom: 8px; right: 8px;
+      width: 32px; height: 32px;
+      background: rgba(30,28,20,.65);
+      border: none; border-radius: 50%;
+      color: #fff; font-size: .8rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 3;
+      transition: background .2s, transform .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mute-btn:hover { background: var(--ink); transform: scale(1.1); }
+    .mute-btn.unmuted { background: var(--y); color: var(--ink); }
 
     /* プロフィール */
     #about { background: var(--yp); }
     .about-wrap { max-width: 780px; margin: 0 auto; display: grid; grid-template-columns: 150px 1fr; gap: 3rem; align-items: start; }
     .avatar { width: 150px; height: 150px; border-radius: 50%; background: var(--yp); display: flex; align-items: center; justify-content: center; border: 4px solid var(--white); box-shadow: 5px 5px 0 var(--yl); flex-shrink: 0; overflow: hidden; }
     .avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .avatar-placeholder { font-size: .62rem; letter-spacing: .08em; color: var(--muted); text-align: center; line-height: 1.9; }
     .about-name { font-weight: 700; font-size: 1.9rem; letter-spacing: .04em; margin-bottom: .2rem; }
     .about-role { font-size: .72rem; letter-spacing: .2em; color: var(--muted); margin-bottom: 1.1rem; }
     .about-bio { font-size: .86rem; line-height: 2.1; margin-bottom: 1.4rem; }
-    .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
-    .stat { background: var(--white); border-radius: 12px; padding: .75rem 1.1rem; border: 1.5px solid var(--border); text-align: center; }
-    .stat-n { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1.5rem; line-height: 1; }
-    .stat-l { font-size: .58rem; letter-spacing: .15em; color: var(--muted); margin-top: .25rem; }
     .links { display: flex; flex-wrap: wrap; gap: .6rem; }
     .lbtn { display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .9rem; background: var(--white); border: 1.5px solid var(--border); border-radius: 100px; font-size: .7rem; letter-spacing: .05em; color: var(--ink); text-decoration: none; transition: background .2s, transform .18s; }
     .lbtn:hover { background: var(--y); transform: translateY(-2px); }
@@ -272,13 +331,46 @@
     .manga-prev { left: 8px; }
     .manga-next { right: 8px; }
     .manga-dots { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 2; }
-    .sound-hint {
-      display: inline-flex; align-items: center; gap: .3rem;
-      font-size: .6rem; letter-spacing: .08em; color: var(--muted);
-      margin-top: .3rem;
-    }
     .mdot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s; }
     .mdot.active { background: var(--y); }
+
+    /* ========== YouTube Shorts セクション（将来用） ========== */
+    #shorts { background: var(--ink); color: var(--cream); text-align: center; }
+    .shorts-inner { max-width: 780px; margin: 0 auto; }
+    #shorts .sec-tag { color: rgba(255,254,245,.35); justify-content: center; }
+    #shorts .sec-tag::before { background: var(--y); }
+    #shorts .sec-title { color: var(--cream); margin-bottom: .8rem; }
+    .shorts-desc { font-size: .85rem; line-height: 2; color: rgba(255,254,245,.5); margin-bottom: 2rem; }
+    /* 動画を追加するときはここを差し替える */
+    .shorts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .shorts-placeholder {
+      aspect-ratio: 9/16;
+      background: rgba(255,254,245,.06);
+      border: 1.5px dashed rgba(255,254,245,.15);
+      border-radius: 14px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: .5rem;
+      color: rgba(255,254,245,.25);
+      font-size: .7rem; letter-spacing: .08em;
+    }
+    .shorts-placeholder-icon { font-size: 1.8rem; }
+    .shorts-yt-link {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .7rem 1.6rem;
+      background: var(--y); color: var(--ink);
+      border-radius: 100px;
+      font-size: .8rem; font-weight: 700; letter-spacing: .08em;
+      text-decoration: none;
+      transition: transform .2s, box-shadow .2s;
+      box-shadow: 4px 4px 0 rgba(225,221,96,.3);
+    }
+    .shorts-yt-link:hover { transform: translateY(-3px); box-shadow: 6px 6px 0 rgba(225,221,96,.3); }
 
     /* お問い合わせ */
     #contact { background: var(--ink); color: var(--cream); text-align: center; position: relative; overflow: hidden; }
@@ -321,10 +413,14 @@
     .footer-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: rgba(255,254,245,.3); }
     .footer-copy { font-size: .6rem; letter-spacing: .1em; color: rgba(255,254,245,.2); }
 
+    /* ========== フェードイン ========== */
     @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
-    .reveal { opacity:1; transform:none; transition: opacity 0.6s, transform 0.6s; }
-    .reveal.hidden { opacity:0; transform:translateY(18px); }
+    .reveal { opacity:1; transform:none; transition: opacity 0.55s ease, transform 0.55s cubic-bezier(.22,1,.36,1); }
+    .reveal.hidden { opacity:0; transform:translateY(24px); }
+    .reveal.hidden-left { opacity:0; transform:translateX(-24px); }
+    .reveal.hidden-scale { opacity:0; transform:scale(.96); }
 
+    /* レスポンシブ */
     @media(max-width:768px){
       header{padding:.9rem 1.2rem;} nav{gap:1.2rem;}
       section{padding:4rem 1.2rem;}
@@ -333,10 +429,14 @@
       .about-wrap{grid-template-columns:1fr;gap:1.8rem;}
       .form-row{grid-template-columns:1fr;}
       footer{flex-direction:column;gap:.5rem;text-align:center;}
+      .shorts-grid{grid-template-columns:repeat(3,1fr);}
+      .hero-kv { gap: .35rem; }
     }
     @media(max-width:480px){
       .works-grid{grid-template-columns:1fr;}
       .wcard.wide{grid-column:span 1;}
+      .shorts-grid{grid-template-columns:repeat(3,1fr);}
+      .hero-kv { margin: 1.2rem 0 1rem; }
     }
   </style>
 </head>
@@ -349,19 +449,19 @@
   <nav>
     <a href="#works">作品</a>
     <a href="#about">プロフィール</a>
+    <a href="#shorts">YouTube</a>
     <a href="#contact">お仕事依頼</a>
   </nav>
 </header>
 
+<!-- ========== ヒーロー（元のデザイン） ========== -->
 <section class="hero">
   <div class="blob"></div><div class="blob"></div><div class="blob"></div>
   <span class="deco">✦</span><span class="deco">◇</span><span class="deco">✦</span><span class="deco">◇</span>
 
   <div class="hero-inner">
     <div class="hero-badge">漫画家・イラストレーター</div>
-    <h1 class="hero-name">
-      はぁに<span class="highlight">デザイン</span>工房
-    </h1>
+    <h1 class="hero-name">はぁに<span class="highlight">デザイン</span>工房</h1>
     <p class="hero-name-jp">Manga & Illustration</p>
     <img id="hero-neko" src="neko.gif" alt="キャラクター" style="width:240px; height:240px; object-fit:contain; margin-top:1.5rem;">
     <p class="hero-desc">
@@ -385,17 +485,19 @@
 
 <div class="dots">✦ ✦ ✦</div>
 
+<!-- ========== 作品 ========== -->
 <section id="works">
   <div class="works-head reveal">
     <div class="sec-tag">Works</div>
     <h2 class="sec-title">作品一覧</h2>
   </div>
   <div class="works-grid">
-    <!-- 行1：悪役令嬢(wide) ＋ 橘先輩漫画 -->
+    <!-- 悪役令嬢(wide) -->
     <a href="https://www.pixiv.net/user/8184383/series/276382" target="_blank" class="wcard wide reveal" style="text-decoration:none;color:inherit;display:block;">
       <div class="wimg"><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></div>
       <div class="winfo"><span class="wtag">連載漫画</span><h3>悪役令嬢、旅に出る。</h3><p>pixiv・ジャンプルーキーにて連載中のラブコメファンタジー</p><p style="font-size:.7rem;margin-top:.4rem;color:var(--ink);font-weight:700;">📈 累計80万PV突破 &nbsp;👀 5,000人以上がウォッチ中</p></div>
     </a>
+    <!-- 橘先輩カルーセル -->
     <div class="wcard reveal">
       <div class="wimg manga-carousel" id="carousel-tachibana">
         <img src="manga/tachibanasenpai_01.jpg" class="manga-slide active" alt="笑顔を見せてよ、橘先輩 p1">
@@ -410,8 +512,17 @@
       </div>
       <div class="winfo"><span class="wtag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3></div>
     </div>
-    <!-- 行2：ことばの教科書 ＋ ファンアート -->
-    <div class="wcard reveal"><div class="wimg" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#fff;"><video src="kotono.mp4" autoplay muted loop playsinline style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;"></video></div><div class="winfo"><span class="wtag">アニメーション</span><h3>ことばの教科書</h3><p class="sound-hint">🔊 カーソルを合わせると音が出ます</p></div></div>
+    <!-- ことばの教科書（動画＋ミュートボタン） -->
+    <div class="wcard reveal">
+      <div class="wimg" style="aspect-ratio:4/3;">
+        <div class="video-wrap">
+          <video id="vid-kotono" src="kotono.mp4" autoplay muted loop playsinline style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;"></video>
+          <button class="mute-btn" data-vid="vid-kotono" aria-label="ミュート切替">🔇</button>
+        </div>
+      </div>
+      <div class="winfo"><span class="wtag">アニメーション</span><h3>ことばの教科書</h3><p style="font-size:.65rem;color:var(--muted);">🔊 ボタンで音ON/OFF</p></div>
+    </div>
+    <!-- ファンアートカルーセル -->
     <div class="wcard reveal">
       <div class="wimg manga-carousel" id="carousel-fanart">
         <img src="manga/fanart_01.jpg" class="manga-slide active" alt="ファンアート1">
@@ -427,8 +538,17 @@
       </div>
       <div class="winfo"><span class="wtag">イラスト</span><h3>ファンアート</h3></div>
     </div>
-    <div class="wcard reveal"><div class="wimg" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#fff;"><video src="diy.mp4" autoplay muted loop playsinline style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;"></video></div><div class="winfo"><span class="wtag">アニメーション</span><h3>ただいまDIY中</h3><p class="sound-hint">🔊 カーソルを合わせると音が出ます</p></div></div>
-    <!-- 行3：WEB漫画 ＋ 空き枠 -->
+    <!-- DIY動画（動画＋ミュートボタン） -->
+    <div class="wcard reveal">
+      <div class="wimg" style="aspect-ratio:4/3;">
+        <div class="video-wrap">
+          <video id="vid-diy" src="diy.mp4" autoplay muted loop playsinline style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;"></video>
+          <button class="mute-btn" data-vid="vid-diy" aria-label="ミュート切替">🔇</button>
+        </div>
+      </div>
+      <div class="winfo"><span class="wtag">アニメーション</span><h3>ただいまDIY中</h3><p style="font-size:.65rem;color:var(--muted);">🔊 ボタンで音ON/OFF</p></div>
+    </div>
+    <!-- WEB漫画カルーセル -->
     <div class="wcard reveal">
       <div class="wimg manga-carousel" id="carousel-host" style="aspect-ratio:unset;height:340px;">
         <img src="host.jpg" class="manga-slide active" alt="WEB漫画1">
@@ -450,6 +570,7 @@
 
 <div class="dots">✦ ✦ ✦</div>
 
+<!-- ========== プロフィール ========== -->
 <section id="about">
   <div class="about-wrap">
     <div class="avatar reveal">
@@ -471,6 +592,46 @@
   </div>
 </section>
 
+<div class="dots">✦ ✦ ✦</div>
+
+<!-- ========== YouTube Shorts（将来用プレースホルダー） ========== -->
+<section id="shorts">
+  <div class="shorts-inner">
+    <div class="sec-tag reveal">YouTube Shorts</div>
+    <h2 class="sec-title reveal">動画で見る作品</h2>
+    <p class="shorts-desc reveal">YouTube Shortsで制作の裏側や作品をショート動画で公開中。<br>チャンネル登録もぜひ！</p>
+    <!--
+      ===== 動画を追加するときはここを編集 =====
+      shorts-placeholder を iframe に差し替えるだけでOK。
+      例:
+      <iframe src="https://www.youtube.com/embed/VIDEO_ID"
+              title="動画タイトル"
+              style="width:100%;aspect-ratio:9/16;border:none;border-radius:14px;"
+              allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+              allowfullscreen></iframe>
+      ==========================================
+    -->
+    <div class="shorts-grid reveal">
+      <div class="shorts-placeholder">
+        <span class="shorts-placeholder-icon">▶</span>
+        <span>動画 準備中</span>
+      </div>
+      <div class="shorts-placeholder">
+        <span class="shorts-placeholder-icon">▶</span>
+        <span>動画 準備中</span>
+      </div>
+      <div class="shorts-placeholder">
+        <span class="shorts-placeholder-icon">▶</span>
+        <span>動画 準備中</span>
+      </div>
+    </div>
+    <div class="reveal">
+      <a href="https://youtube.com/@haanianime" target="_blank" class="shorts-yt-link">▶ YouTubeチャンネルを見る</a>
+    </div>
+  </div>
+</section>
+
+<!-- ========== お問い合わせ ========== -->
 <section id="contact">
   <div style="position:relative;z-index:1;">
     <div class="sec-tag" style="justify-content:center;">Contact</div>
@@ -503,26 +664,43 @@
 </footer>
 
 <script>
+  // カスタムカーソル（タッチデバイスでは非表示）
   const cur = document.getElementById('cursor');
-  document.addEventListener('mousemove', e => { cur.style.left=e.clientX+'px'; cur.style.top=e.clientY+'px'; });
-  document.querySelectorAll('a,button').forEach(el => {
-    el.addEventListener('mouseenter',()=>cur.classList.add('big'));
-    el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
-  });
+  if(cur && window.matchMedia('(hover:hover)').matches){
+    document.addEventListener('mousemove', e => { cur.style.left=e.clientX+'px'; cur.style.top=e.clientY+'px'; });
+    document.querySelectorAll('a,button').forEach(el => {
+      el.addEventListener('mouseenter',()=>cur.classList.add('big'));
+      el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
+    });
+  }
+
+  // スクロールフェードイン（IntersectionObserver）
   const obs = new IntersectionObserver(entries=>{
-    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.remove('hidden'),i*80); });
-  },{threshold:.08});
-  document.querySelectorAll('.reveal').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
+    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>{ e.target.classList.remove('hidden','hidden-left','hidden-scale'); }, i*70); });
+  },{threshold:.07, rootMargin:'0px 0px -30px 0px'});
+  document.querySelectorAll('.reveal').forEach((el,i)=>{
+    el.classList.add('hidden');
+    obs.observe(el);
+  });
 
-  // トップ猫GIFホバーで切り替え
+  // 猫GIFホバー切り替え
   const heroNeko = document.getElementById('hero-neko');
-  heroNeko.addEventListener('mouseenter', () => { heroNeko.src = 'neko_hover.gif'; heroNeko.style.objectPosition = 'bottom'; });
-  heroNeko.addEventListener('mouseleave', () => { heroNeko.src = 'neko.gif'; heroNeko.style.objectPosition = 'center'; });
+  if(heroNeko){
+    heroNeko.addEventListener('mouseenter', () => { heroNeko.src = 'neko_hover.gif'; heroNeko.style.objectPosition = 'bottom'; });
+    heroNeko.addEventListener('mouseleave', () => { heroNeko.src = 'neko.gif'; heroNeko.style.objectPosition = 'center'; });
+  }
 
-  // 動画ホバーで音ON/OFF
-  document.querySelectorAll('.wcard video').forEach(v => {
-    v.addEventListener('mouseenter', () => { v.muted = false; v.volume = 0.7; });
-    v.addEventListener('mouseleave', () => { v.muted = true; });
+  // 動画ミュートボタン
+  document.querySelectorAll('.mute-btn').forEach(btn => {
+    const vid = document.getElementById(btn.dataset.vid);
+    btn.addEventListener('click', () => {
+      vid.muted = !vid.muted;
+      if(!vid.muted){ vid.volume = 0.7; }
+      btn.textContent = vid.muted ? '🔇' : '🔊';
+      btn.classList.toggle('unmuted', !vid.muted);
+    });
+    // タップで再生も保証（autoplayがブロックされた場合）
+    btn.addEventListener('click', () => { if(vid.paused) vid.play(); });
   });
 
   // 漫画カルーセル
@@ -532,16 +710,14 @@
     const dots = wrap.querySelectorAll('.mdot');
     let cur = [...slides].findIndex(s => s.classList.contains('active'));
     const next = cur + dir;
-    if (next < 0 || next >= slides.length) return; // 端で止まる
+    if (next < 0 || next >= slides.length) return;
     slides[cur].classList.remove('active');
     dots[cur].classList.remove('active');
     slides[next].classList.add('active');
     dots[next].classList.add('active');
-    // ボタンの表示切替
     wrap.querySelector('.manga-prev').style.opacity = next === 0 ? '0.3' : '1';
     wrap.querySelector('.manga-next').style.opacity = next === slides.length - 1 ? '0.3' : '1';
   }
-  // 初期状態：戻るボタンを薄く
   document.querySelectorAll('.manga-carousel').forEach(wrap => {
     wrap.querySelector('.manga-prev').style.opacity = '0.3';
   });
