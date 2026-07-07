@@ -334,43 +334,25 @@
     .mdot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s; }
     .mdot.active { background: var(--y); }
 
-    /* ========== YouTube Shorts セクション（将来用） ========== */
+    /* ========== YouTube Shorts セクション ========== */
     #shorts { background: var(--ink); color: var(--cream); text-align: center; }
-    .shorts-inner { max-width: 780px; margin: 0 auto; }
+    .shorts-inner { max-width: 580px; margin: 0 auto; }
     #shorts .sec-tag { color: rgba(255,254,245,.35); justify-content: center; }
     #shorts .sec-tag::before { background: var(--y); }
     #shorts .sec-title { color: var(--cream); margin-bottom: .8rem; }
     .shorts-desc { font-size: .85rem; line-height: 2; color: rgba(255,254,245,.5); margin-bottom: 2rem; }
-    /* 動画を追加するときはここを差し替える */
-    .shorts-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .shorts-placeholder {
-      aspect-ratio: 9/16;
-      background: rgba(255,254,245,.06);
-      border: 1.5px dashed rgba(255,254,245,.15);
-      border-radius: 14px;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: .5rem;
-      color: rgba(255,254,245,.25);
-      font-size: .7rem; letter-spacing: .08em;
-    }
-    .shorts-placeholder-icon { font-size: 1.8rem; }
     .shorts-yt-link {
-      display: inline-flex; align-items: center; gap: .5rem;
-      padding: .7rem 1.6rem;
+      display: inline-flex; align-items: center; gap: .6rem;
+      padding: .85rem 2rem;
       background: var(--y); color: var(--ink);
       border-radius: 100px;
-      font-size: .8rem; font-weight: 700; letter-spacing: .08em;
+      font-size: .85rem; font-weight: 700; letter-spacing: .08em;
       text-decoration: none;
       transition: transform .2s, box-shadow .2s;
       box-shadow: 4px 4px 0 rgba(225,221,96,.3);
     }
     .shorts-yt-link:hover { transform: translateY(-3px); box-shadow: 6px 6px 0 rgba(225,221,96,.3); }
+    .shorts-yt-link .yt-icon { font-size: 1.1rem; }
 
     /* お問い合わせ */
     #contact { background: var(--ink); color: var(--cream); text-align: center; position: relative; overflow: hidden; }
@@ -594,39 +576,16 @@
 
 <div class="dots">✦ ✦ ✦</div>
 
-<!-- ========== YouTube Shorts（将来用プレースホルダー） ========== -->
+<!-- ========== YouTube Shorts ========== -->
 <section id="shorts">
   <div class="shorts-inner">
     <div class="sec-tag reveal">YouTube Shorts</div>
     <h2 class="sec-title reveal">動画で見る作品</h2>
-    <p class="shorts-desc reveal">YouTube Shortsで制作の裏側や作品をショート動画で公開中。<br>チャンネル登録もぜひ！</p>
-    <!--
-      ===== 動画を追加するときはここを編集 =====
-      shorts-placeholder を iframe に差し替えるだけでOK。
-      例:
-      <iframe src="https://www.youtube.com/embed/VIDEO_ID"
-              title="動画タイトル"
-              style="width:100%;aspect-ratio:9/16;border:none;border-radius:14px;"
-              allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
-              allowfullscreen></iframe>
-      ==========================================
-    -->
-    <div class="shorts-grid reveal">
-      <div class="shorts-placeholder">
-        <span class="shorts-placeholder-icon">▶</span>
-        <span>動画 準備中</span>
-      </div>
-      <div class="shorts-placeholder">
-        <span class="shorts-placeholder-icon">▶</span>
-        <span>動画 準備中</span>
-      </div>
-      <div class="shorts-placeholder">
-        <span class="shorts-placeholder-icon">▶</span>
-        <span>動画 準備中</span>
-      </div>
-    </div>
+    <p class="shorts-desc reveal">制作の裏側やアニメ作品をショート動画で公開中。<br>最新動画はYouTubeチャンネルでチェック！</p>
     <div class="reveal">
-      <a href="https://youtube.com/@haanianime" target="_blank" class="shorts-yt-link">▶ YouTubeチャンネルを見る</a>
+      <a href="https://youtube.com/@haanianime/shorts" target="_blank" class="shorts-yt-link">
+        <span class="yt-icon">▶</span> 最新Shortsを見る
+      </a>
     </div>
   </div>
 </section>
