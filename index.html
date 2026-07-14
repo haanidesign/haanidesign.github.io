@@ -112,9 +112,11 @@
     .hero-chara-wrap {
       display: flex; align-items: flex-end; justify-content: center;
       align-self: stretch;
+      overflow: hidden;
     }
     .hero-chara {
-      height: clamp(480px, 88vh, 820px);
+      height: 100%;
+      max-height: calc(100vh - 64px);
       width: auto;
       max-width: 100%;
       object-fit: contain;
