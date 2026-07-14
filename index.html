@@ -92,9 +92,10 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .hero {
+      min-height: 100vh;
       display: flex; align-items: stretch;
       padding-top: 64px;
-      position: relative;
+      position: relative; overflow: hidden;
       background: var(--cream);
     }
     .hero-inner {
@@ -105,18 +106,21 @@
       align-items: center;
       gap: 0;
       padding: 0 2rem;
+      min-height: calc(100vh - 64px);
     }
     /* 左：キャラ画像 */
     .hero-chara-wrap {
-      display: flex; align-items: flex-end; justify-content: center;
+      align-self: stretch;
+      overflow: hidden;
+      position: relative;
     }
     .hero-chara {
-      height: clamp(480px, 86vh, 880px);
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 128%;
       width: auto;
-      max-width: 100%;
-      object-fit: contain;
-      object-position: bottom center;
-      display: block;
       animation: heroIn 0.8s ease-out forwards;
     }
     /* 右：テキスト */
