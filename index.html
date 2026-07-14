@@ -192,16 +192,17 @@
 
     /* スマホ：タイトル→イラスト→タグ・ボタン・SNS */
     @media(max-width:768px){
-      .hero { align-items: stretch; }
+      .hero { align-items: stretch; min-height: auto; }
       .hero-inner {
         display: flex;
         flex-direction: column;
         align-items: center;
         padding: 0 1.2rem 2rem;
+        min-height: auto;
       }
       /* hero-textの子を直接flex itemとして並べる */
       .hero-text { display: contents; }
-      .hero-badge  { order: 1; align-self: center; margin-top: 2rem; }
+      .hero-badge  { order: 1; align-self: center; margin-top: 1.5rem; }
       .hero-name   { order: 2; text-align: center; font-size: clamp(1.6rem, 7vw, 2.4rem); }
       .hero-name-jp{ order: 3; text-align: center; }
       .hero-chara-wrap {
@@ -213,16 +214,16 @@
       .hero-chara {
         position: static;
         transform: none;
-        height: clamp(260px, 70vw, 380px);
+        height: clamp(300px, 82vw, 460px);
         width: auto;
-        max-width: 90%;
+        max-width: 95%;
         object-fit: contain;
       }
-      .hero-tags   { order: 5; justify-content: center; margin-top: .8rem; }
+      .hero-tags   { order: 5; justify-content: center; margin-top: 1.2rem; }
       .hero-tag    { font-size: .58rem; padding: .15rem .55rem; }
-      .hero-cta    { order: 6; justify-content: center; }
+      .hero-cta    { order: 6; justify-content: center; margin-top: .8rem; }
       .hero-cta .btn { font-size: .72rem; padding: .6rem 1.3rem; }
-      .hero-social { order: 7; justify-content: center; }
+      .hero-social { order: 7; justify-content: center; margin-top: .6rem; }
       .hero-slink  { font-size: .6rem; padding: .28rem .7rem; }
     }
     .btn {
