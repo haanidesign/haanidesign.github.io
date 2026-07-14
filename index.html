@@ -96,7 +96,7 @@
       display: flex; align-items: stretch;
       padding-top: 64px;
       position: relative; overflow: hidden;
-      background: linear-gradient(135deg, #ffffff 0%, #FAFAE8 45%, #E1DD60 100%);
+      background: var(--cream);
     }
     .hero-inner {
       position: relative; z-index: 1;
@@ -111,10 +111,12 @@
     /* 左：キャラ画像 */
     .hero-chara-wrap {
       display: flex; align-items: flex-end; justify-content: center;
+      align-self: stretch;
     }
     .hero-chara {
-      height: clamp(380px, 65vh, 580px);
+      height: clamp(480px, 88vh, 820px);
       width: auto;
+      max-width: 100%;
       object-fit: contain;
       object-position: bottom center;
       display: block;
