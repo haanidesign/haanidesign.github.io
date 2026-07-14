@@ -96,23 +96,7 @@
       display: flex; align-items: stretch;
       padding-top: 64px;
       position: relative; overflow: hidden;
-      background: linear-gradient(135deg, #1e1c14 0%, #252211 60%, #2e2a10 100%);
-    }
-    .hero::before {
-      content: '';
-      position: absolute;
-      width: 700px; height: 700px;
-      background: radial-gradient(circle, rgba(225,221,96,.18) 0%, transparent 65%);
-      right: -80px; bottom: -100px;
-      pointer-events: none;
-    }
-    .hero::after {
-      content: '';
-      position: absolute;
-      width: 400px; height: 400px;
-      background: radial-gradient(circle, rgba(225,221,96,.1) 0%, transparent 65%);
-      left: 10%; top: 10%;
-      pointer-events: none;
+      background: linear-gradient(135deg, #ffffff 0%, #FAFAE8 45%, #E1DD60 100%);
     }
     .hero-inner {
       position: relative; z-index: 1;
@@ -145,7 +129,7 @@
     }
     .hero-badge {
       display: inline-flex; align-items: center; gap: .5rem;
-      background: var(--y); color: var(--ink);
+      background: var(--ink); color: var(--y);
       font-size: .68rem; letter-spacing: .2em;
       padding: .35rem 1rem; border-radius: 100px;
       align-self: flex-start;
@@ -157,16 +141,16 @@
       font-size: clamp(1.8rem, 3.5vw, 3rem);
       letter-spacing: 0.06em;
       line-height: 1.2;
-      color: var(--cream);
+      color: var(--ink);
       animation: fadeUp .7s .2s both;
     }
-    .hero-name .highlight { color: var(--y); }
+    .hero-name .highlight { color: #6b6800; }
     .hero-name-jp {
       font-family: 'Nunito', sans-serif;
       font-weight: 400;
       font-size: clamp(.72rem, 1.2vw, .9rem);
       letter-spacing: .35em;
-      color: rgba(255,254,245,.4);
+      color: var(--muted);
       text-transform: uppercase;
       animation: fadeUp .7s .28s both;
     }
@@ -176,9 +160,9 @@
     }
     .hero-tag {
       font-size: .65rem; letter-spacing: .06em;
-      background: rgba(225,221,96,.12);
-      border: 1px solid rgba(225,221,96,.35);
-      color: var(--y);
+      background: rgba(255,255,255,.6);
+      border: 1px solid rgba(30,28,20,.15);
+      color: var(--ink);
       padding: .2rem .7rem; border-radius: 100px;
     }
     .hero-cta {
@@ -193,14 +177,14 @@
     .hero-slink {
       display: inline-flex; align-items: center;
       padding: .35rem .85rem;
-      border: 1.5px solid rgba(255,254,245,.2);
+      border: 1.5px solid rgba(30,28,20,.2);
       border-radius: 100px;
       font-size: .68rem; letter-spacing: .08em;
-      color: rgba(255,254,245,.6); text-decoration: none;
-      background: rgba(255,254,245,.07);
+      color: var(--muted); text-decoration: none;
+      background: rgba(255,255,255,.55);
       transition: background .2s, color .2s, border-color .2s, transform .18s;
     }
-    .hero-slink:hover { background: var(--y); color: var(--ink); border-color: var(--y); transform: translateY(-2px); }
+    .hero-slink:hover { background: var(--ink); color: var(--y); border-color: var(--ink); transform: translateY(-2px); }
 
     /* スマホ：縦積み（テキスト上・キャラ下） */
     @media(max-width:768px){
