@@ -207,16 +207,16 @@
       .hero-chara-wrap {
         order: 4;
         width: 100%;
-        position: relative;
-        overflow: hidden;
-        height: clamp(280px, 52vw, 420px);
+        display: flex;
+        justify-content: center;
       }
       .hero-chara {
-        position: absolute;
-        bottom: 0; left: 50%;
-        transform: translateX(-50%);
-        height: 128%;
+        position: static;
+        transform: none;
+        height: clamp(200px, 55vw, 300px);
         width: auto;
+        max-width: 90%;
+        object-fit: contain;
       }
       .hero-tags   { order: 5; justify-content: center; margin-top: .8rem; }
       .hero-cta    { order: 6; justify-content: center; }
