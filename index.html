@@ -106,14 +106,14 @@
       align-items: end;
       gap: 0;
       padding: 0 2rem;
+      min-height: calc(100vh - 64px);
     }
     /* 左：キャラ画像 */
     .hero-chara-wrap {
       display: flex; align-items: flex-end; justify-content: center;
-      padding-top: 2rem;
     }
     .hero-chara {
-      height: 320px;
+      height: clamp(380px, 65vh, 580px);
       width: auto;
       object-fit: contain;
       object-position: bottom center;
@@ -195,7 +195,7 @@
         align-items: center;
       }
       .hero-chara-wrap { order: 2; padding-top: 0; padding-bottom: 1rem; }
-      .hero-chara { height: 260px; }
+      .hero-chara { height: clamp(260px, 45vh, 380px); }
       .hero-text { order: 1; padding: 2.5rem 0 1rem; align-items: center; text-align: center; }
       .hero-badge { align-self: center; }
       .hero-tags { justify-content: center; }
