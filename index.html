@@ -110,17 +110,18 @@
     }
     /* 左：キャラ画像 */
     .hero-chara-wrap {
+      display: flex; align-items: flex-end; justify-content: center;
       align-self: stretch;
       overflow: hidden;
-      position: relative;
     }
     .hero-chara {
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      height: 115%;
+      height: 100%;
+      max-height: calc(100vh - 64px);
       width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      object-position: bottom center;
+      display: block;
       animation: heroIn 0.8s ease-out forwards;
     }
     /* 右：テキスト */
@@ -206,7 +207,7 @@
       .hero-chara-wrap {
         order: 4;
         width: 100%;
-        position: static;
+        position: relative;
         overflow: hidden;
         height: clamp(280px, 52vw, 420px);
       }
