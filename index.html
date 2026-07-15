@@ -190,6 +190,43 @@
     }
     .hero-slink:hover { background: var(--ink); color: var(--y); border-color: var(--ink); transform: translateY(-2px); }
 
+    /* タブレット縦（769px〜1024px）：1カラム縦積み */
+    @media(min-width:769px) and (max-width:1024px){
+      .hero { min-height: auto; align-items: stretch; }
+      .hero-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem 2.5rem 3rem;
+        min-height: auto;
+        gap: 0;
+      }
+      .hero-text { display: contents; }
+      .hero-badge  { order: 1; align-self: center; margin-top: 1rem; }
+      .hero-name   { order: 2; text-align: center; font-size: clamp(2rem, 5vw, 3rem); }
+      .hero-name-jp{ order: 3; text-align: center; }
+      .hero-chara-wrap {
+        order: 4;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-self: auto;
+        overflow: visible;
+      }
+      .hero-chara {
+        position: static;
+        transform: none;
+        height: clamp(360px, 55vw, 560px);
+        width: auto;
+        max-width: 80%;
+        object-fit: contain;
+        max-height: none;
+      }
+      .hero-tags  { order: 5; justify-content: center; margin-top: 1rem; }
+      .hero-cta   { order: 6; justify-content: center; margin-top: .8rem; }
+      .hero-social{ order: 7; justify-content: center; margin-top: .6rem; }
+    }
+
     /* スマホ：タイトル→イラスト→タグ・ボタン・SNS */
     @media(max-width:768px){
       .hero { align-items: stretch; min-height: auto; }
