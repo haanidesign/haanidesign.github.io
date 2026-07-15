@@ -92,7 +92,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .hero {
-      min-height: 100vh;
       display: flex; align-items: stretch;
       padding-top: 64px;
       position: relative; overflow: hidden;
@@ -106,17 +105,14 @@
       align-items: center;
       gap: 0;
       padding: 0 2rem;
-      min-height: calc(100vh - 64px);
     }
     /* 左：キャラ画像 */
     .hero-chara-wrap {
       display: flex; align-items: flex-end; justify-content: center;
-      align-self: stretch;
       overflow: hidden;
     }
     .hero-chara {
-      height: 100%;
-      max-height: calc(100vh - 64px);
+      height: clamp(500px, 88vh, 900px);
       width: auto;
       max-width: 100%;
       object-fit: contain;
@@ -190,8 +186,8 @@
     }
     .hero-slink:hover { background: var(--ink); color: var(--y); border-color: var(--ink); transform: translateY(-2px); }
 
-    /* スマホ・タブレット縦（〜1024px）：1カラム縦積み */
-    @media(max-width:1024px){
+    /* スマホ・タブレット（〜1280px）：1カラム縦積み */
+    @media(max-width:1280px){
       .hero { min-height: auto; align-items: stretch; }
       .hero-inner {
         display: flex;
