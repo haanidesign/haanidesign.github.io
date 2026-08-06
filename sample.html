@@ -139,18 +139,75 @@
         <p class="wstat">累計 90万PV　／　5,000人以上がウォッチ中</p>
       </div>
     </a>
+    <!-- 橘先輩：ページめくり -->
     <div class="wcard rv">
-      <div class="wimg"><img src="manga/tachibanasenpai_01.jpg" alt="笑顔を見せてよ、橘先輩"></div>
-      <div class="winfo"><span class="wtag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3></div>
+      <div class="wimg carousel" data-carousel>
+        <span class="cturn">ページをめくる</span>
+        <span class="cnum"><b>1</b> / 4</span>
+        <img src="manga/tachibanasenpai_01.jpg" class="cslide on" alt="笑顔を見せてよ、橘先輩 1ページ目">
+        <img src="manga/tachibanasenpai_02.jpg" class="cslide" alt="笑顔を見せてよ、橘先輩 2ページ目">
+        <img src="manga/tachibanasenpai_03.jpg" class="cslide" alt="笑顔を見せてよ、橘先輩 3ページ目">
+        <img src="manga/tachibanasenpai_04.jpg" class="cslide" alt="笑顔を見せてよ、橘先輩 4ページ目">
+        <button class="cbtn cprev" aria-label="前のページ">‹</button>
+        <button class="cbtn cnext" aria-label="次のページ">›</button>
+        <div class="cbar"></div>
+      </div>
+      <div class="winfo"><span class="wtag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3><p>全4ページ・フルカラー</p></div>
     </div>
+
+    <!-- ことばの教科書：動画 -->
     <div class="wcard rv">
-      <div class="wimg"><img src="manga/fanart_01.jpg" alt="ファンアート"></div>
-      <div class="winfo"><span class="wtag">イラスト</span><h3>ファンアート</h3></div>
+      <div class="wimg videobox">
+        <span class="vlabel">動画サンプル</span>
+        <video id="v-kotono" src="kotono.mp4" autoplay muted loop playsinline preload="metadata"></video>
+        <button class="vbtn" data-vid="v-kotono" aria-label="音声の切り替え"><span class="vic">🔇</span>音を出す</button>
+      </div>
+      <div class="winfo"><span class="wtag">アニメーション</span><h3>ことばの教科書</h3><p>企画・作画・編集まで一貫制作</p></div>
     </div>
+
+    <!-- ファンアート：ページめくり -->
     <div class="wcard rv">
-      <div class="wimg"><img src="host.jpg" alt="WEB漫画"></div>
-      <div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3></div>
+      <div class="wimg carousel" data-carousel>
+        <span class="cturn">めくる</span>
+        <span class="cnum"><b>1</b> / 5</span>
+        <img src="manga/fanart_01.jpg" class="cslide on" alt="ファンアート 1">
+        <img src="manga/fanart_03.jpg" class="cslide" alt="ファンアート 2">
+        <img src="manga/fanart_04.jpg" class="cslide" alt="ファンアート 3">
+        <img src="manga/fanart_05.jpg" class="cslide" alt="ファンアート 4">
+        <img src="manga/fanart_02.jpg" class="cslide" alt="ファンアート 5">
+        <button class="cbtn cprev" aria-label="前へ">‹</button>
+        <button class="cbtn cnext" aria-label="次へ">›</button>
+        <div class="cbar"></div>
+      </div>
+      <div class="winfo"><span class="wtag">イラスト</span><h3>ファンアート</h3><p>全5点</p></div>
     </div>
+
+    <!-- ただいまDIY中：動画 -->
+    <div class="wcard rv">
+      <div class="wimg videobox">
+        <span class="vlabel">動画サンプル</span>
+        <video id="v-diy" src="diy.mp4" autoplay muted loop playsinline preload="metadata"></video>
+        <button class="vbtn" data-vid="v-diy" aria-label="音声の切り替え"><span class="vic">🔇</span>音を出す</button>
+      </div>
+      <div class="winfo"><span class="wtag">アニメーション</span><h3>ただいまDIY中</h3><p>キャラクターアニメーション</p></div>
+    </div>
+
+    <!-- WEB漫画：ページめくり -->
+    <div class="wcard rv">
+      <div class="wimg carousel" data-carousel>
+        <span class="cturn">ページをめくる</span>
+        <span class="cnum"><b>1</b> / 4</span>
+        <img src="host.jpg" class="cslide on" alt="WEB漫画 1ページ目">
+        <img src="manga/host_02.jpg" class="cslide" alt="WEB漫画 2ページ目">
+        <img src="manga/host_03.jpg" class="cslide" alt="WEB漫画 3ページ目">
+        <img src="manga/host_04.jpg" class="cslide" alt="WEB漫画 4ページ目">
+        <button class="cbtn cprev" aria-label="前のページ">‹</button>
+        <button class="cbtn cnext" aria-label="次のページ">›</button>
+        <div class="cbar"></div>
+      </div>
+      <div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3><p>全4ページ</p></div>
+    </div>
+
     <div class="wcard rv">
       <div class="wimg"><img src="webad.jpg" alt="WEB広告"></div>
       <div class="winfo"><span class="wtag">広告漫画</span><h3>WEB広告</h3></div>
@@ -247,10 +304,69 @@
 </footer>
 
 <script>
+  /* ---- スクロールフェードイン ---- */
   const io = new IntersectionObserver((es)=>{
     es.forEach((e,i)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'), i*80); io.unobserve(e.target); } });
   },{threshold:.08, rootMargin:'0px 0px -40px 0px'});
   document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+
+  /* ---- 漫画カルーセル（ページめくり） ---- */
+  document.querySelectorAll('[data-carousel]').forEach(box => {
+    const slides = [...box.querySelectorAll('.cslide')];
+    const bar    = box.querySelector('.cbar');
+    const numEl  = box.querySelector('.cnum b');
+    let cur = 0;
+
+    // インジケーターを枚数分つくる
+    slides.forEach((_, i) => {
+      const el = document.createElement('i');
+      if (i === 0) el.classList.add('on');
+      el.addEventListener('click', () => go(i));
+      bar.appendChild(el);
+    });
+    const bars = [...bar.children];
+
+    function go(next){
+      cur = (next + slides.length) % slides.length;
+      slides.forEach((s, i) => s.classList.toggle('on', i === cur));
+      bars.forEach((b, i) => b.classList.toggle('on', i === cur));
+      if (numEl) numEl.textContent = cur + 1;
+    }
+
+    box.querySelector('.cprev').addEventListener('click', () => go(cur - 1));
+    box.querySelector('.cnext').addEventListener('click', () => go(cur + 1));
+
+    // スワイプでめくる
+    let x0 = null;
+    box.addEventListener('touchstart', e => { x0 = e.changedTouches[0].clientX; }, {passive:true});
+    box.addEventListener('touchend', e => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 45) go(dx < 0 ? cur + 1 : cur - 1);
+      x0 = null;
+    }, {passive:true});
+  });
+
+  /* ---- 動画サンプルの音声切り替え ---- */
+  document.querySelectorAll('.vbtn').forEach(btn => {
+    const vid = document.getElementById(btn.dataset.vid);
+    const ic  = btn.querySelector('.vic');
+    btn.addEventListener('click', () => {
+      // 他の動画は必ずミュートに戻す（同時再生の音被りを防ぐ）
+      document.querySelectorAll('.vbtn').forEach(other => {
+        if (other === btn) return;
+        const ov = document.getElementById(other.dataset.vid);
+        ov.muted = true;
+        other.querySelector('.vic').textContent = '🔇';
+        other.lastChild.textContent = '音を出す';
+      });
+
+      vid.muted = !vid.muted;
+      if (!vid.muted) vid.volume = 0.7;
+      ic.textContent = vid.muted ? '🔇' : '🔊';
+      btn.lastChild.textContent = vid.muted ? '音を出す' : '音を消す';
+    });
+  });
 </script>
 
 </body>

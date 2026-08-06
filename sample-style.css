@@ -332,7 +332,7 @@ details.pdetail .pdetail-body{
 .wcard{display:block;background:var(--white);border:1px solid var(--line);border-radius:2px;overflow:hidden;transition:border-color .35s;}
 .wcard:hover{border-color:var(--y-mid);}
 .wcard.wide{grid-column:span 2;}
-.wimg{overflow:hidden;background:var(--y-soft);aspect-ratio:4/3;}
+.wimg{overflow:hidden;background:var(--cream);aspect-ratio:3/4;position:relative;}
 .wcard.wide .wimg{aspect-ratio:16/9;}
 .wimg img{width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.22,.8,.28,1);}
 .wcard:hover .wimg img{transform:scale(1.05);}
@@ -350,6 +350,85 @@ details.pdetail .pdetail-body{
   border-bottom:1px solid var(--y-mid);padding-bottom:.35rem;transition:letter-spacing .35s;
 }
 .more:hover{letter-spacing:.32em;}
+
+/* ============ 漫画カルーセル（ページめくり） ============ */
+.wimg.carousel{position:relative;background:var(--cream);}
+.cslide{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;opacity:0;
+  transition:opacity .55s cubic-bezier(.22,.8,.28,1);
+  pointer-events:none;
+}
+.cslide.on{opacity:1;pointer-events:auto;}
+
+.cbtn{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(255,255,255,.9);
+  color:var(--y-deep);font-size:.9rem;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:3;
+  opacity:0;transition:opacity .3s,background .3s,border-color .3s;
+}
+.wcard:hover .cbtn{opacity:1;}
+.cbtn:hover{background:var(--y-deep);color:var(--cream);border-color:var(--y-deep);}
+.cprev{left:.7rem;}
+.cnext{right:.7rem;}
+
+.cbar{
+  position:absolute;left:0;right:0;bottom:.7rem;z-index:3;
+  display:flex;gap:.3rem;justify-content:center;
+}
+.cbar i{
+  display:block;width:16px;height:2px;border-radius:1px;
+  background:rgba(107,104,0,.22);transition:background .35s;cursor:pointer;
+}
+.cbar i.on{background:var(--y-deep);}
+
+.cnum{
+  position:absolute;top:.7rem;right:.8rem;z-index:3;
+  font-family:'Shippori Mincho',serif;
+  font-size:.62rem;letter-spacing:.1em;color:var(--muted);
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);border-radius:2px;
+  padding:.1rem .45rem;
+}
+.cturn{
+  position:absolute;left:.8rem;top:.7rem;z-index:3;
+  font-size:.55rem;letter-spacing:.16em;color:var(--y-deep);
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);border-radius:2px;
+  padding:.1rem .45rem;
+}
+
+/* ============ 動画サンプル ============ */
+.wimg.videobox{position:relative;background:var(--cream);display:flex;align-items:center;justify-content:center;}
+.wimg.videobox video{
+  max-width:100%;max-height:100%;width:auto;height:auto;
+  object-fit:contain;display:block;
+}
+.vbtn{
+  position:absolute;right:.7rem;bottom:.7rem;z-index:3;
+  min-width:34px;height:34px;padding:0 .6rem;border-radius:100px;
+  border:1px solid var(--line);background:rgba(255,255,255,.9);
+  color:var(--y-deep);font-family:inherit;
+  font-size:.6rem;letter-spacing:.1em;
+  display:flex;align-items:center;gap:.3rem;
+  cursor:pointer;transition:background .3s,color .3s,border-color .3s;
+}
+.vbtn:hover{background:var(--y-deep);color:var(--cream);border-color:var(--y-deep);}
+.vlabel{
+  position:absolute;left:.8rem;top:.7rem;z-index:3;
+  font-size:.55rem;letter-spacing:.16em;color:var(--y-deep);
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);border-radius:2px;
+  padding:.1rem .45rem;
+}
+
+/* タッチ端末では操作ボタンを常時表示 */
+@media(hover:none){
+  .cbtn{opacity:1;}
+}
 
 /* ============ Profile ============ */
 #about{background:var(--white);}
