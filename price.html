@@ -5,20 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>料金表｜はぁにデザイン工房（サンプル案）</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+JP:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="sample-style.css">
 </head>
 <body>
 
+<div class="cursor" id="cursor"></div>
+
 <header>
-  <a href="sample.html" class="logo">はぁにデザイン工房<small>HAANI DESIGN</small></a>
+  <a href="sample.html" class="logo"><span class="accent-box">haani</span></a>
   <nav>
     <a href="sample.html#works">作品</a>
     <a href="price.html" class="on">料金表</a>
-    <a href="flow.html">ご依頼の流れ</a>
-    <a href="sample.html#contact">お問い合わせ</a>
+    <a href="flow.html">依頼の流れ</a>
+    <a href="sample.html#contact">お仕事依頼</a>
   </nav>
 </header>
 
@@ -254,29 +256,36 @@
     通常2〜3営業日以内にご返信いたします。
   </p>
   <div class="cta-actions">
-    <a href="sample.html#contact" class="btn btn-fill">お問い合わせ <span class="arw">→</span></a>
-    <a href="flow.html" class="btn btn-line">ご依頼の流れを見る</a>
+    <a href="sample.html#contact" class="btn btn-dark">✦ お問い合わせ</a>
+    <a href="flow.html" class="btn btn-light">ご依頼の流れを見る</a>
   </div>
 </div>
 
 <footer>
-  <div class="f-logo">はぁにデザイン工房</div>
+  <span class="footer-logo">はぁにデザイン工房</span>
   <div class="f-links">
     <a href="sample.html">TOP</a>
     <a href="price.html">料金表</a>
     <a href="flow.html">ご依頼の流れ</a>
     <a href="https://x.com/haanidesign" target="_blank">X</a>
     <a href="https://www.pixiv.net/users/8184383" target="_blank">pixiv</a>
-    <a href="https://rookie.shonenjump.com/users/1325423796296168200" target="_blank">ジャンプルーキー</a>
   </div>
-  <div class="f-copy">© 2026 はぁにデザイン工房. All rights reserved.</div>
+  <span class="footer-copy">© 2026 はぁにデザイン工房. All rights reserved.</span>
 </footer>
 
 <script>
-  const io = new IntersectionObserver((es)=>{
-    es.forEach((e,i)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'), i*80); io.unobserve(e.target); } });
-  },{threshold:.06, rootMargin:'0px 0px -40px 0px'});
-  document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+  const cur = document.getElementById('cursor');
+  if(cur && window.matchMedia('(hover:hover)').matches){
+    document.addEventListener('mousemove', e => { cur.style.left=e.clientX+'px'; cur.style.top=e.clientY+'px'; });
+    document.querySelectorAll('a,button,summary').forEach(el => {
+      el.addEventListener('mouseenter',()=>cur.classList.add('big'));
+      el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
+    });
+  }
+  const obs = new IntersectionObserver(es=>{
+    es.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.remove('hidden'), i*70); });
+  },{threshold:.06, rootMargin:'0px 0px -30px 0px'});
+  document.querySelectorAll('.rv').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
 </script>
 
 </body>
