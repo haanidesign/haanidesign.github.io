@@ -380,11 +380,11 @@ details.pdetail .pdetail-body{padding:0 1rem 1rem;font-size:.7rem;color:var(--mu
 .wcard:hover::after{box-shadow:inset 0 0 0 2px rgba(225,221,96,.6);}
 .wcard.wide{grid-column:span 2;}
 .wimg{
-  width:100%;aspect-ratio:4/3;background:var(--yp);
+  width:100%;height:340px;background:var(--yp);
   display:flex;align-items:center;justify-content:center;
   overflow:hidden;flex-shrink:0;position:relative;
 }
-.wcard.wide .wimg{height:340px;aspect-ratio:unset;}
+.wcard.wide .wimg{height:340px;}
 .wimg img{
   width:100%;height:100%;object-fit:contain;object-position:center;
   background:#fff;transition:transform .4s ease;
@@ -605,7 +605,11 @@ footer{
   .hero-social{order:8;justify-content:center;margin-top:.6rem;}
   .hero-slink{font-size:.62rem;padding:.3rem .75rem;}
 }
+@media(max-width:768px){
+  .wimg,.wcard.wide .wimg{height:260px;}
+}
 @media(max-width:480px){
   .works-grid{grid-template-columns:1fr;}
   .wcard.wide{grid-column:span 1;}
+  .wimg,.wcard.wide .wimg{height:320px;}
 }
