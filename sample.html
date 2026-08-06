@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>はぁにデザイン工房｜Portfolio（サンプル案）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+JP:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* 黄緑1色の濃淡だけで構成 */
+    --y:      #E1DD60;   /* メイン */
+    --y-deep: #6B6800;   /* 濃 */
+    --y-mid:  #C4C04A;   /* 中 */
+    --y-soft: #EFEDC4;   /* 淡 */
+    --cream:  #FBFAF0;   /* 極淡（面） */
+    --white:  #FFFFFF;
+    --ink:    #2E2E1C;   /* 墨（黒より柔らかい） */
+    --muted:  #8C8A72;
+    --line:   rgba(107,104,0,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Noto Sans JP',sans-serif;
+    font-weight:300;
+    color:var(--ink);
+    background:var(--white);
+    line-height:1.9;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  img{display:block;max-width:100%;}
+
+  /* ============ ヘッダー ============ */
+  header{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:1.1rem clamp(1.2rem,4vw,3.5rem);
+    background:rgba(255,255,255,.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .logo{
+    font-family:'Shippori Mincho',serif;
+    font-size:1.05rem;letter-spacing:.22em;color:var(--y-deep);
+  }
+  .logo small{
+    display:block;font-family:'Noto Sans JP',sans-serif;
+    font-size:.55rem;letter-spacing:.3em;color:var(--muted);
+    font-weight:300;margin-top:.1rem;
+  }
+  nav{display:flex;gap:clamp(1rem,2.5vw,2.2rem);}
+  nav a{
+    font-size:.74rem;letter-spacing:.16em;color:var(--ink);
+    position:relative;padding-bottom:.2rem;
+  }
+  nav a::after{
+    content:'';position:absolute;left:0;bottom:0;
+    width:0;height:1px;background:var(--y-deep);
+    transition:width .35s cubic-bezier(.25,.8,.25,1);
+  }
+  nav a:hover::after{width:100%;}
+
+  /* ============ 受付状況ボード ============ */
+  .status-bar{
+    margin-top:60px;
+    background:var(--cream);
+    border-bottom:1px solid var(--line);
+    padding:1.4rem clamp(1.2rem,4vw,3.5rem);
+  }
+  .status-inner{
+    max-width:1000px;margin:0 auto;
+    display:flex;align-items:center;justify-content:center;
+    gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;
+  }
+  .status-date{font-size:.66rem;letter-spacing:.14em;color:var(--muted);}
+  .status-main{display:flex;align-items:center;gap:.7rem;}
+  .status-label{font-size:.68rem;letter-spacing:.2em;color:var(--muted);}
+  .status-dot{
+    width:7px;height:7px;border-radius:50%;background:var(--y-deep);
+    box-shadow:0 0 0 4px rgba(107,104,0,.13);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(107,104,0,.13);}50%{box-shadow:0 0 0 8px rgba(107,104,0,.05);}}
+  .status-text{
+    font-family:'Shippori Mincho',serif;
+    font-size:.95rem;letter-spacing:.1em;color:var(--y-deep);
+  }
+  .status-note{font-size:.62rem;color:var(--muted);letter-spacing:.06em;}
+
+  /* ============ ヒーロー ============ */
+  .hero{
+    padding:clamp(2.5rem,6vw,5rem) clamp(1.2rem,4vw,3.5rem) clamp(2rem,5vw,4rem);
+    background:var(--white);
+  }
+  .hero-inner{
+    max-width:1080px;margin:0 auto;
+    display:grid;grid-template-columns:1fr 1fr;
+    align-items:center;gap:clamp(1.5rem,4vw,3.5rem);
+  }
+  .hero-copy{display:flex;flex-direction:column;gap:1.1rem;}
+  .hero-eyebrow{
+    font-size:.62rem;letter-spacing:.34em;color:var(--muted);
+    display:flex;align-items:center;gap:.8rem;
+  }
+  .hero-eyebrow::before{
+    content:'';width:32px;height:1px;background:var(--y-mid);
+  }
+  .hero-title{
+    font-family:'Shippori Mincho',serif;
+    font-weight:500;
+    font-size:clamp(2rem,4.4vw,3.3rem);
+    letter-spacing:.09em;line-height:1.4;
+    color:var(--y-deep);
+  }
+  .hero-title span{color:var(--ink);}
+  .hero-en{
+    font-size:.66rem;letter-spacing:.36em;color:var(--muted);
+    text-transform:uppercase;
+  }
+  .hero-lead{
+    font-size:.82rem;line-height:2.2;color:var(--ink);
+    max-width:26em;
+  }
+  .hero-tags{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.2rem;}
+  .hero-tags span{
+    font-size:.62rem;letter-spacing:.1em;color:var(--y-deep);
+    border:1px solid var(--line);border-radius:2px;
+    padding:.25rem .7rem;
+  }
+  .hero-actions{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.6rem;}
+  .btn{
+    display:inline-flex;align-items:center;gap:.6rem;
+    font-size:.74rem;letter-spacing:.14em;
+    padding:.85rem 1.9rem;border-radius:2px;
+    transition:background .3s,color .3s,border-color .3s;
+  }
+  .btn-fill{background:var(--y-deep);color:var(--cream);border:1px solid var(--y-deep);}
+  .btn-fill:hover{background:transparent;color:var(--y-deep);}
+  .btn-line{border:1px solid var(--y-deep);color:var(--y-deep);}
+  .btn-line:hover{background:var(--y-deep);color:var(--cream);}
+  .btn .arw{transition:transform .3s;}
+  .btn:hover .arw{transform:translateX(4px);}
+
+  .hero-visual{position:relative;display:flex;justify-content:center;}
+  .hero-visual::before{
+    content:'';position:absolute;inset:auto 0 0 0;
+    height:74%;background:var(--cream);border-radius:2px;z-index:0;
+  }
+  .hero-visual img{
+    position:relative;z-index:1;
+    height:clamp(320px,46vw,520px);width:auto;object-fit:contain;
+  }
+
+  .hero-social{
+    display:flex;gap:1.4rem;flex-wrap:wrap;
+    margin-top:.4rem;padding-top:1.1rem;
+    border-top:1px solid var(--line);
+  }
+  .hero-social a{
+    font-size:.64rem;letter-spacing:.16em;color:var(--muted);
+    transition:color .25s;
+  }
+  .hero-social a:hover{color:var(--y-deep);}
+
+  /* ============ 依頼導線 3カード ============ */
+  .routes{
+    background:var(--cream);
+    padding:clamp(3rem,6vw,5rem) clamp(1.2rem,4vw,3.5rem);
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  }
+  .routes-grid{
+    max-width:1000px;margin:0 auto;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    background:var(--line);border:1px solid var(--line);
+  }
+  .route{
+    background:var(--cream);padding:2.4rem 1.6rem;
+    text-align:center;transition:background .35s;
+  }
+  .route:hover{background:var(--white);}
+  .route-no{
+    font-family:'Shippori Mincho',serif;
+    font-size:.7rem;letter-spacing:.2em;color:var(--y-mid);
+  }
+  .route-ttl{
+    font-family:'Shippori Mincho',serif;
+    font-size:1.15rem;letter-spacing:.12em;color:var(--y-deep);
+    margin:.7rem 0 .5rem;
+  }
+  .route-desc{font-size:.68rem;color:var(--muted);line-height:2;}
+  .route-link{
+    display:inline-block;margin-top:1.1rem;
+    font-size:.64rem;letter-spacing:.18em;color:var(--ink);
+    border-bottom:1px solid var(--y-mid);padding-bottom:.2rem;
+  }
+
+  /* ============ セクション共通 ============ */
+  section{padding:clamp(3.5rem,7vw,6.5rem) clamp(1.2rem,4vw,3.5rem);}
+  .sec-head{max-width:1000px;margin:0 auto clamp(2rem,4vw,3.2rem);}
+  .sec-head.center{text-align:center;}
+  .sec-en{
+    font-family:'Shippori Mincho',serif;
+    font-size:clamp(1.5rem,3vw,2.1rem);
+    letter-spacing:.16em;color:var(--y-deep);font-weight:400;
+  }
+  .sec-jp{
+    font-size:.62rem;letter-spacing:.3em;color:var(--muted);
+    margin-top:.3rem;
+  }
+  .sec-head.center .sec-en::after{
+    content:'';display:block;width:34px;height:1px;
+    background:var(--y-mid);margin:1rem auto 0;
+  }
+
+  /* ============ お知らせ ============ */
+  #news{background:var(--white);}
+  .news-list{max-width:860px;margin:0 auto;border-top:1px solid var(--line);}
+  .news-item{
+    display:grid;grid-template-columns:120px 1fr;
+    gap:1.4rem;padding:1.5rem .4rem;
+    border-bottom:1px solid var(--line);
+    transition:background .3s;
+  }
+  .news-item:hover{background:var(--cream);}
+  .news-date{font-size:.66rem;letter-spacing:.12em;color:var(--y-mid);padding-top:.15rem;}
+  .news-ttl{font-size:.86rem;letter-spacing:.05em;color:var(--ink);margin-bottom:.3rem;}
+  .news-body{font-size:.7rem;color:var(--muted);line-height:2;}
+
+  /* ============ Works ============ */
+  #works{background:var(--cream);}
+  .works-grid{
+    max-width:1080px;margin:0 auto;
+    display:grid;grid-template-columns:repeat(3,1fr);
+    gap:clamp(1rem,2.2vw,1.8rem);
+  }
+  .wcard{display:block;background:var(--white);border:1px solid var(--line);border-radius:2px;overflow:hidden;transition:border-color .35s;}
+  .wcard:hover{border-color:var(--y-mid);}
+  .wcard.wide{grid-column:span 2;}
+  .wimg{overflow:hidden;background:var(--y-soft);aspect-ratio:4/3;}
+  .wcard.wide .wimg{aspect-ratio:16/9;}
+  .wimg img{width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.22,.8,.28,1);}
+  .wcard:hover .wimg img{transform:scale(1.05);}
+  .winfo{padding:1.2rem 1.3rem 1.4rem;}
+  .wtag{
+    font-size:.58rem;letter-spacing:.2em;color:var(--y-deep);
+    display:block;margin-bottom:.45rem;
+  }
+  .winfo h3{
+    font-family:'Shippori Mincho',serif;font-weight:500;
+    font-size:1rem;letter-spacing:.08em;color:var(--ink);
+  }
+  .winfo p{font-size:.68rem;color:var(--muted);margin-top:.45rem;line-height:1.9;}
+  .wstat{
+    font-size:.64rem;color:var(--y-deep);letter-spacing:.06em;
+    margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--line);
+  }
+  .more{
+    display:block;width:fit-content;margin:clamp(2rem,4vw,3rem) auto 0;
+    font-size:.66rem;letter-spacing:.24em;color:var(--y-deep);
+    border-bottom:1px solid var(--y-mid);padding-bottom:.35rem;
+    transition:letter-spacing .35s;
+  }
+  .more:hover{letter-spacing:.32em;}
+
+  /* ============ Profile ============ */
+  #about{background:var(--white);}
+  .about-wrap{
+    max-width:900px;margin:0 auto;
+    display:grid;grid-template-columns:230px 1fr;
+    gap:clamp(1.8rem,4vw,3.5rem);align-items:start;
+  }
+  .about-photo{border:1px solid var(--line);border-radius:2px;overflow:hidden;}
+  .about-photo img{width:100%;aspect-ratio:1;object-fit:cover;}
+  .about-name{
+    font-family:'Shippori Mincho',serif;font-weight:500;
+    font-size:1.7rem;letter-spacing:.14em;color:var(--y-deep);
+  }
+  .about-en{font-size:.62rem;letter-spacing:.3em;color:var(--muted);margin:.3rem 0 1.3rem;}
+  .about-bio{font-size:.78rem;line-height:2.3;color:var(--ink);}
+  .about-meta{
+    margin-top:1.6rem;padding-top:1.3rem;border-top:1px solid var(--line);
+    display:grid;grid-template-columns:80px 1fr;gap:.5rem 1rem;
+    font-size:.7rem;
+  }
+  .about-meta dt{color:var(--muted);letter-spacing:.12em;}
+  .about-meta dd{color:var(--ink);}
+
+  /* ============ Contact ============ */
+  #contact{background:var(--cream);border-top:1px solid var(--line);}
+  .cform{max-width:620px;margin:0 auto;}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .fgroup{margin-bottom:1.1rem;}
+  .fgroup label{
+    display:block;font-size:.62rem;letter-spacing:.18em;
+    color:var(--muted);margin-bottom:.45rem;
+  }
+  .fgroup input,.fgroup select,.fgroup textarea{
+    width:100%;padding:.8rem .9rem;
+    border:1px solid var(--line);border-radius:2px;
+    background:var(--white);color:var(--ink);
+    font-family:inherit;font-size:.78rem;font-weight:300;
+    transition:border-color .3s;
+  }
+  .fgroup input:focus,.fgroup select:focus,.fgroup textarea:focus{
+    outline:none;border-color:var(--y-deep);
+  }
+  .fgroup textarea{min-height:130px;resize:vertical;}
+  .fsubmit{
+    width:100%;margin-top:.5rem;
+    background:var(--y-deep);color:var(--cream);
+    border:1px solid var(--y-deep);border-radius:2px;
+    padding:.95rem;font-family:inherit;
+    font-size:.74rem;letter-spacing:.24em;cursor:pointer;
+    transition:background .3s,color .3s;
+  }
+  .fsubmit:hover{background:transparent;color:var(--y-deep);}
+  .fnote{text-align:center;font-size:.62rem;color:var(--muted);margin-top:1rem;}
+
+  /* ============ フッター ============ */
+  footer{
+    background:var(--ink);color:var(--y-soft);
+    padding:2.6rem clamp(1.2rem,4vw,3.5rem);
+    text-align:center;
+  }
+  .f-logo{
+    font-family:'Shippori Mincho',serif;
+    font-size:.92rem;letter-spacing:.24em;color:var(--y);
+  }
+  .f-links{display:flex;gap:1.3rem;justify-content:center;flex-wrap:wrap;margin:1.2rem 0;}
+  .f-links a{font-size:.62rem;letter-spacing:.14em;opacity:.72;transition:opacity .25s;}
+  .f-links a:hover{opacity:1;}
+  .f-copy{font-size:.58rem;letter-spacing:.1em;opacity:.5;}
+
+  /* ============ フェードイン ============ */
+  .rv{opacity:0;transform:translateY(22px);transition:opacity .9s cubic-bezier(.22,.8,.28,1),transform .9s cubic-bezier(.22,.8,.28,1);}
+  .rv.in{opacity:1;transform:none;}
+
+  /* ============ レスポンシブ ============ */
+  @media(max-width:900px){
+    .hero-inner{grid-template-columns:1fr;}
+    .hero-visual{order:-1;}
+    .hero-visual img{height:clamp(280px,56vw,420px);}
+    .hero-eyebrow{justify-content:center;}
+    .hero-copy{align-items:center;text-align:center;}
+    .hero-tags,.hero-actions,.hero-social{justify-content:center;}
+    .hero-social{width:100%;}
+    .routes-grid{grid-template-columns:1fr;}
+    .works-grid{grid-template-columns:repeat(2,1fr);}
+    .wcard.wide{grid-column:span 2;}
+    .about-wrap{grid-template-columns:1fr;justify-items:center;text-align:center;}
+    .about-photo{max-width:200px;}
+    .about-meta{grid-template-columns:1fr;gap:.1rem;text-align:center;}
+    .about-meta dt{margin-top:.6rem;}
+  }
+  @media(max-width:600px){
+    nav{gap:.9rem;}
+    nav a{font-size:.66rem;}
+    .status-inner{flex-direction:column;gap:.5rem;text-align:center;}
+    .works-grid{grid-template-columns:1fr;}
+    .wcard.wide{grid-column:span 1;}
+    .frow{grid-template-columns:1fr;}
+    .news-item{grid-template-columns:1fr;gap:.3rem;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="#" class="logo">はぁにデザイン工房<small>HAANI DESIGN</small></a>
+  <nav>
+    <a href="#news">お知らせ</a>
+    <a href="#works">作品</a>
+    <a href="#about">プロフィール</a>
+    <a href="#contact">ご依頼</a>
+  </nav>
+</header>
+
+<!-- 受付状況ボード -->
+<div class="status-bar">
+  <div class="status-inner">
+    <span class="status-date">最終更新：2026.08.06</span>
+    <div class="status-main">
+      <span class="status-label">ご依頼受付状況</span>
+      <span class="status-dot"></span>
+      <span class="status-text">納期ご相談の上 受付中</span>
+    </div>
+    <span class="status-note">※通常納期の場合。お急ぎの方はご相談ください。</span>
+  </div>
+</div>
+
+<!-- ヒーロー -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy rv">
+      <div class="hero-eyebrow">Manga ・ Illustration ・ Animation</div>
+      <h1 class="hero-title">はぁに<span>デザイン工房</span></h1>
+      <p class="hero-en">Haani Design Studio</p>
+      <p class="hero-lead">
+        北海道を拠点に、ラブコメ・ギャグのオリジナル漫画から
+        広告漫画、アニメーション制作まで。
+        表情豊かなカラー漫画を得意としています。
+      </p>
+      <div class="hero-tags">
+        <span>カラー漫画</span><span>ラブコメ</span><span>ギャグ</span><span>アニメーション</span>
+      </div>
+      <div class="hero-actions">
+        <a href="#works" class="btn btn-fill">作品を見る <span class="arw">→</span></a>
+        <a href="#contact" class="btn btn-line">ご依頼はこちら</a>
+      </div>
+      <div class="hero-social">
+        <a href="https://x.com/haanidesign" target="_blank">X</a>
+        <a href="https://www.pixiv.net/users/8184383" target="_blank">pixiv</a>
+        <a href="https://rookie.shonenjump.com/users/1325423796296168200" target="_blank">ジャンプルーキー</a>
+        <a href="https://youtube.com/@haanianime" target="_blank">YouTube</a>
+        <a href="https://www.tiktok.com/@haanianime" target="_blank">TikTok</a>
+      </div>
+    </div>
+    <div class="hero-visual rv">
+      <img src="hero_chara.png" alt="キャラクター">
+    </div>
+  </div>
+</section>
+
+<!-- 依頼導線 -->
+<div class="routes">
+  <div class="routes-grid rv">
+    <div class="route">
+      <div class="route-no">01</div>
+      <div class="route-ttl">漫画制作</div>
+      <p class="route-desc">広告漫画・WEB漫画<br>ネームから仕上げまで一貫対応</p>
+      <a href="#contact" class="route-link">料金・依頼の流れ</a>
+    </div>
+    <div class="route">
+      <div class="route-no">02</div>
+      <div class="route-ttl">イラスト</div>
+      <p class="route-desc">装丁・表紙イラスト<br>キャラクターデザイン</p>
+      <a href="#contact" class="route-link">料金・依頼の流れ</a>
+    </div>
+    <div class="route">
+      <div class="route-no">03</div>
+      <div class="route-ttl">アニメーション</div>
+      <p class="route-desc">ショートアニメ・PR動画<br>企画から制作まで</p>
+      <a href="#contact" class="route-link">料金・依頼の流れ</a>
+    </div>
+  </div>
+</div>
+
+<!-- お知らせ -->
+<section id="news">
+  <div class="sec-head rv">
+    <div class="sec-en">News</div>
+    <div class="sec-jp">お知らせ</div>
+  </div>
+  <div class="news-list">
+    <div class="news-item rv">
+      <div class="news-date">2026.08.06</div>
+      <div>
+        <div class="news-ttl">「悪役令嬢、旅に出る。」累計90万PV突破</div>
+        <p class="news-body">pixiv・ジャンプルーキーにて連載中の本作が、累計90万PVを突破しました。いつも応援ありがとうございます。</p>
+      </div>
+    </div>
+    <div class="news-item rv">
+      <div class="news-date">2026.07.20</div>
+      <div>
+        <div class="news-ttl">ご依頼受付を再開しました</div>
+        <p class="news-body">スケジュールに空きが出ましたので、漫画・イラスト・アニメーション制作のご依頼受付を再開いたします。</p>
+      </div>
+    </div>
+    <div class="news-item rv">
+      <div class="news-date">2026.06.02</div>
+      <div>
+        <div class="news-ttl">アニメーション作品を公開しました</div>
+        <p class="news-body">YouTube・TikTokにてショートアニメーションを公開中です。ぜひご覧ください。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 作品 -->
+<section id="works">
+  <div class="sec-head center rv">
+    <div class="sec-en">Works</div>
+    <div class="sec-jp">作品一覧</div>
+  </div>
+  <div class="works-grid">
+    <a href="https://www.pixiv.net/user/8184383/series/276382" target="_blank" class="wcard wide rv">
+      <div class="wimg"><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></div>
+      <div class="winfo">
+        <span class="wtag">連載漫画</span>
+        <h3>悪役令嬢、旅に出る。</h3>
+        <p>pixiv・ジャンプルーキーにて連載中のラブコメファンタジー</p>
+        <p class="wstat">累計 90万PV　／　5,000人以上がウォッチ中</p>
+      </div>
+    </a>
+    <div class="wcard rv">
+      <div class="wimg"><img src="manga/tachibanasenpai_01.jpg" alt="笑顔を見せてよ、橘先輩"></div>
+      <div class="winfo"><span class="wtag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3></div>
+    </div>
+    <div class="wcard rv">
+      <div class="wimg"><img src="manga/fanart_01.jpg" alt="ファンアート"></div>
+      <div class="winfo"><span class="wtag">イラスト</span><h3>ファンアート</h3></div>
+    </div>
+    <div class="wcard rv">
+      <div class="wimg"><img src="host.jpg" alt="WEB漫画"></div>
+      <div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3></div>
+    </div>
+    <div class="wcard rv">
+      <div class="wimg"><img src="webad.jpg" alt="WEB広告"></div>
+      <div class="winfo"><span class="wtag">広告漫画</span><h3>WEB広告</h3></div>
+    </div>
+    <div class="wcard rv">
+      <div class="wimg"><img src="dharma.jpg" alt="マーダーミステリー表紙"></div>
+      <div class="winfo"><span class="wtag">イラスト</span><h3>マーダーミステリー表紙</h3></div>
+    </div>
+  </div>
+  <a href="#works" class="more rv">MORE</a>
+</section>
+
+<!-- プロフィール -->
+<section id="about">
+  <div class="sec-head rv">
+    <div class="sec-en">Profile</div>
+    <div class="sec-jp">プロフィール</div>
+  </div>
+  <div class="about-wrap">
+    <div class="about-photo rv"><img src="ai.jpg" alt="はぁに"></div>
+    <div class="rv">
+      <div class="about-name">はぁに</div>
+      <div class="about-en">Haani</div>
+      <p class="about-bio">
+        北海道を拠点に活動するクリエイター。<br>
+        ラブコメ・ギャグのオリジナル漫画制作やアニメ制作、広告漫画制作を行っています。
+        表情豊かなカラー漫画が得意です。<br>
+        装丁イラスト・キャラクターデザイン・漫画原稿のご依頼も受付中です。
+      </p>
+      <dl class="about-meta">
+        <dt>拠点</dt><dd>北海道</dd>
+        <dt>職種</dt><dd>漫画家 / イラストレーター / アニメーター</dd>
+        <dt>得意</dt><dd>カラー漫画・ラブコメ・ギャグ・表情芝居</dd>
+        <dt>連絡</dt><dd>Chatwork / お問い合わせフォーム</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- お問い合わせ -->
+<section id="contact">
+  <div class="sec-head center rv">
+    <div class="sec-en">Contact</div>
+    <div class="sec-jp">お仕事のご依頼</div>
+  </div>
+  <form class="cform rv" action="https://formspree.io/f/mgoqavzy" method="POST">
+    <div class="frow">
+      <div class="fgroup"><label>お名前 *</label><input type="text" name="name" required></div>
+      <div class="fgroup"><label>メールアドレス *</label><input type="email" name="email" required></div>
+    </div>
+    <div class="fgroup">
+      <label>ご依頼の種類</label>
+      <select name="type">
+        <option value="">選択してください</option>
+        <option>漫画原稿</option><option>キャラクターデザイン</option>
+        <option>装丁・表紙イラスト</option><option>アニメーション</option><option>その他</option>
+      </select>
+    </div>
+    <div class="fgroup"><label>ご依頼内容 *</label><textarea name="message" required></textarea></div>
+    <button type="submit" class="fsubmit">送信する</button>
+    <p class="fnote">通常2〜3営業日以内にご返信いたします。</p>
+  </form>
+</section>
+
+<footer>
+  <div class="f-logo">はぁにデザイン工房</div>
+  <div class="f-links">
+    <a href="https://x.com/haanidesign" target="_blank">X</a>
+    <a href="https://www.pixiv.net/users/8184383" target="_blank">pixiv</a>
+    <a href="https://rookie.shonenjump.com/users/1325423796296168200" target="_blank">ジャンプルーキー</a>
+    <a href="https://youtube.com/@haanianime" target="_blank">YouTube</a>
+    <a href="https://www.tiktok.com/@haanianime" target="_blank">TikTok</a>
+  </div>
+  <div class="f-copy">© 2026 はぁにデザイン工房. All rights reserved.</div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((es)=>{
+    es.forEach((e,i)=>{ if(e.isIntersecting){ setTimeout(()=>e.target.classList.add('in'), i*80); io.unobserve(e.target); } });
+  },{threshold:.08, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>
