@@ -1,472 +1,52 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>はぁにデザイン工房</title>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-DS7M3F9ZWB"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-DS7M3F9ZWB');
-  </script>
-  <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --y: #E1DD60;
-      --yl: #EFEC99;
-      --yp: #FAFAE8;
-      --white: #fff;
-      --cream: #FFFEF5;
-      --ink: #1e1c14;
-      --muted: #8a8470;
-      --border: rgba(30,28,20,0.1);
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--cream);
-      color: var(--ink);
-      font-family: 'Noto Sans JP', sans-serif;
-      overflow-x: hidden;
-      cursor: none;
-    }
-
-    .cursor {
-      width: 10px; height: 10px;
-      background: var(--y); border-radius: 50%;
-      position: fixed; pointer-events: none; z-index: 9999;
-      transform: translate(-50%,-50%);
-      transition: width .2s, height .2s;
-    }
-    .cursor.big { width: 34px; height: 34px; }
-    @media(hover:none){ .cursor { display: none; } body { cursor: auto; } }
-
-    /* ヘッダー */
-    header {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      padding: 1rem 2.5rem;
-      display: flex; align-items: center; justify-content: space-between;
-      background: rgba(255,254,245,.93);
-      backdrop-filter: blur(12px);
-      border-bottom: 2.5px solid var(--y);
-    }
-    .logo {
-      font-family: 'Nunito', sans-serif;
-      font-weight: 900; font-size: 1.3rem;
-      letter-spacing: 0;
-      color: var(--ink); text-decoration: none;
-      display: flex; align-items: center; gap: 2px;
-    }
-    .logo .accent-box {
-      display: inline-block;
-      background: var(--y);
-      padding: 1px 6px 2px;
-      border-radius: 5px;
-      font-style: normal;
-      color: var(--ink);
-      line-height: 1;
-    }
-    nav { display: flex; gap: 2rem; }
-    nav a {
-      font-size: 0.8rem; letter-spacing: 0.05em;
-      color: var(--muted); text-decoration: none;
-      position: relative; transition: color .2s;
-    }
-    nav a::after {
-      content: ''; position: absolute;
-      bottom: -3px; left: 0; right: 0;
-      height: 2px; background: var(--y);
-      transform: scaleX(0); transition: transform .22s;
-    }
-    nav a:hover { color: var(--ink); }
-    nav a:hover::after { transform: scaleX(1); }
-
-    /* ========== ヒーロー ========== */
-    @keyframes heroIn {
-      from { opacity: 0; transform: translateY(30px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .hero {
-      display: flex; align-items: stretch;
-      padding-top: 64px;
-      position: relative; overflow: hidden;
-      background: var(--cream);
-    }
-    .hero-inner {
-      position: relative; z-index: 1;
-      width: 100%; max-width: 1100px; margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      align-items: center;
-      gap: 0;
-      padding: 0 2rem;
-    }
-    /* 左：キャラ画像 */
-    .hero-chara-wrap {
-      display: flex; align-items: flex-end; justify-content: center;
-      overflow: hidden;
-    }
-    .hero-chara {
-      height: clamp(500px, 88vh, 900px);
-      width: auto;
-      max-width: 100%;
-      object-fit: contain;
-      object-position: bottom center;
-      display: block;
-      animation: heroIn 0.8s ease-out forwards;
-    }
-    /* 右：テキスト */
-    .hero-text {
-      display: flex; flex-direction: column;
-      justify-content: center;
-      padding: 4rem 0 4rem 2rem;
-      gap: .8rem;
-    }
-    .hero-badge {
-      display: inline-flex; align-items: center; gap: .5rem;
-      background: var(--ink); color: var(--y);
-      font-size: .68rem; letter-spacing: .2em;
-      padding: .35rem 1rem; border-radius: 100px;
-      align-self: flex-start;
-      animation: fadeUp .7s .1s both;
-    }
-    .hero-name {
-      font-family: 'Nunito', sans-serif;
-      font-weight: 800;
-      font-size: clamp(1.8rem, 3.5vw, 3rem);
-      letter-spacing: 0.06em;
-      line-height: 1.2;
-      color: var(--ink);
-      animation: fadeUp .7s .2s both;
-    }
-    .hero-name .highlight { color: #6b6800; }
-    .hero-name-jp {
-      font-family: 'Nunito', sans-serif;
-      font-weight: 400;
-      font-size: clamp(.72rem, 1.2vw, .9rem);
-      letter-spacing: .35em;
-      color: var(--muted);
-      text-transform: uppercase;
-      animation: fadeUp .7s .28s both;
-    }
-    .hero-tags {
-      display: flex; gap: .4rem; flex-wrap: wrap;
-      animation: fadeUp .7s .36s both;
-    }
-    .hero-tag {
-      font-size: .65rem; letter-spacing: .06em;
-      background: rgba(255,255,255,.6);
-      border: 1px solid rgba(30,28,20,.15);
-      color: var(--ink);
-      padding: .2rem .7rem; border-radius: 100px;
-    }
-    .hero-cta {
-      display: flex; gap: .8rem; flex-wrap: wrap;
-      animation: fadeUp .7s .44s both;
-      margin-top: .4rem;
-    }
-    .hero-social {
-      display: flex; gap: .5rem; flex-wrap: wrap;
-      animation: fadeUp .7s .52s both;
-    }
-    .hero-slink {
-      display: inline-flex; align-items: center;
-      padding: .35rem .85rem;
-      border: 1.5px solid rgba(30,28,20,.2);
-      border-radius: 100px;
-      font-size: .68rem; letter-spacing: .08em;
-      color: var(--muted); text-decoration: none;
-      background: rgba(255,255,255,.55);
-      transition: background .2s, color .2s, border-color .2s, transform .18s;
-    }
-    .hero-slink:hover { background: var(--ink); color: var(--y); border-color: var(--ink); transform: translateY(-2px); }
-
-    /* スマホのみ（〜767px）：1カラム縦積み */
-    @media(max-width:767px){
-      .hero { min-height: auto; align-items: stretch; }
-      .hero-inner {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 0 clamp(1.2rem, 4vw, 2.5rem) .3rem;
-        min-height: auto;
-      }
-      .hero-text { display: contents; }
-      .hero-badge  { order: 1; align-self: center; margin-top: clamp(1rem, 3vw, 2rem); }
-      .hero-name   { order: 2; text-align: center; font-size: clamp(1.6rem, 6vw, 2.8rem); }
-      .hero-name-jp{ order: 3; text-align: center; }
-      .hero-chara-wrap {
-        order: 4;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        overflow: visible;
-      }
-      .hero-chara {
-        position: static;
-        transform: none;
-        /* スマホ:〜340px / タブレット縦:〜560px */
-        height: clamp(340px, 70vw, 560px);
-        width: auto;
-        max-width: 90%;
-        object-fit: contain;
-        max-height: none;
-      }
-      .hero-tags   { order: 5; justify-content: center; margin-top: 1.2rem; }
-      .hero-tag    { font-size: .6rem; padding: .18rem .6rem; }
-      .hero-cta    { order: 6; justify-content: center; margin-top: .8rem; }
-      .hero-cta .btn { font-size: .78rem; padding: .65rem 1.4rem; }
-      .hero-social { order: 7; justify-content: center; margin-top: .6rem; }
-      .hero-slink  { font-size: .62rem; padding: .3rem .75rem; }
-      .dots { padding: .6rem 0; }
-    }
-    @media(min-width:768px) and (max-width:1280px) and (orientation:portrait){
-      .dots { padding: .6rem 0; }
-      .hero-inner { align-items: center; margin-top: -6rem; }
-    }
-    .btn {
-      display: inline-flex; align-items: center; gap: .4rem;
-      padding: .75rem 1.7rem; border-radius: 100px;
-      font-family: 'Noto Sans JP', sans-serif;
-      font-size: .8rem; letter-spacing: .08em;
-      text-decoration: none; border: none; cursor: none;
-      transition: transform .2s, box-shadow .2s;
-    }
-    .btn:hover { transform: translateY(-3px); }
-    .btn-dark { background: var(--ink); color: var(--cream); box-shadow: 4px 4px 0 var(--y); }
-    .btn-dark:hover { box-shadow: 6px 6px 0 var(--y); }
-    .btn-light { background: var(--white); color: var(--ink); border: 1.5px solid var(--border); box-shadow: 3px 3px 0 var(--yl); }
-    .btn-light:hover { box-shadow: 5px 5px 0 var(--yl); }
-
-    /* 区切り */
-    .dots { text-align: center; padding: .6rem 0; color: var(--y); letter-spacing: .6em; font-size: .75rem; }
-
-    /* 共通 */
-    section { padding: 3.5rem 2rem 5.5rem; }
-    .sec-tag {
-      display: inline-flex; align-items: center; gap: .5rem;
-      font-family: 'Nunito', sans-serif; font-weight: 700;
-      font-size: .62rem; letter-spacing: .4em;
-      color: var(--muted); text-transform: uppercase; margin-bottom: .6rem;
-    }
-    .sec-tag::before { content: ''; width: 18px; height: 2px; background: var(--y); display: block; border-radius: 1px; }
-    .sec-title { font-weight: 700; font-size: clamp(1.7rem, 2.5vw, 2.2rem); letter-spacing: .04em; line-height: 1.3; }
-
-    /* ========== 作品 ========== */
-    #works { background: var(--white); }
-    .works-head { text-align: center; margin-bottom: 3rem; }
-    .works-grid {
-      display: grid; grid-template-columns: repeat(3,1fr);
-      gap: 1.4rem; max-width: 980px; margin: 0 auto;
-    }
-    .wcard {
-      background: var(--cream); border-radius: 18px;
-      overflow: hidden; border: 1.5px solid var(--border);
-      transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s;
-      display: flex; flex-direction: column;
-      position: relative;
-    }
-    /* マイクロアニメーション */
-    .wcard::after {
-      content: '';
-      position: absolute; inset: 0;
-      border-radius: 18px;
-      box-shadow: inset 0 0 0 0 rgba(225,221,96,.4);
-      transition: box-shadow .3s;
-      pointer-events: none;
-    }
-    .wcard:hover {
-      transform: translateY(-8px) scale(1.01);
-      box-shadow: 0 18px 48px rgba(225,221,96,.28), 0 4px 12px rgba(30,28,20,.08);
-    }
-    .wcard:hover::after {
-      box-shadow: inset 0 0 0 2px rgba(225,221,96,.6);
-    }
-    .wcard:active { transform: translateY(-4px) scale(1.005); }
-    .wcard.wide { grid-column: span 2; }
-    .wimg { width: 100%; aspect-ratio: 4/3; background: var(--yp); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
-    .winfo { margin-top: auto; }
-    .wcard.wide .wimg { height: 340px; aspect-ratio: unset; }
-    .wimg img {
-      width: 100%; height: 100%;
-      object-fit: contain; object-position: center center; background: #fff;
-      transition: transform .4s ease;
-    }
-    .wcard:hover .wimg img { transform: scale(1.03); }
-    .wimg video { object-position: center center; }
-    .winfo { padding: .9rem 1.1rem 1.1rem; }
-    .wtag { display: inline-block; font-size: .58rem; letter-spacing: .2em; background: var(--y); color: var(--ink); padding: .18rem .65rem; border-radius: 100px; margin-bottom: .35rem; }
-    .winfo h3 { font-size: .9rem; font-weight: 700; letter-spacing: .04em; }
-    .winfo p { font-size: .7rem; color: var(--muted); margin-top: .25rem; line-height: 1.6; }
-
-    /* ========== 動画ミュートボタン ========== */
-    .video-wrap { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #fff; }
-    .mute-btn {
-      position: absolute; bottom: 8px; right: 8px;
-      width: 32px; height: 32px;
-      background: rgba(30,28,20,.65);
-      border: none; border-radius: 50%;
-      color: #fff; font-size: .8rem;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      z-index: 3;
-      transition: background .2s, transform .15s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .mute-btn:hover { background: var(--ink); transform: scale(1.1); }
-    .mute-btn.unmuted { background: var(--y); color: var(--ink); }
-
-    /* プロフィール */
-    #about { background: var(--yp); }
-    .about-wrap { max-width: 780px; margin: 0 auto; display: grid; grid-template-columns: 150px 1fr; gap: 3rem; align-items: start; }
-    .avatar { width: 150px; height: 150px; border-radius: 50%; background: var(--yp); display: flex; align-items: center; justify-content: center; border: 4px solid var(--white); box-shadow: 5px 5px 0 var(--yl); flex-shrink: 0; overflow: hidden; }
-    .avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .about-name { font-weight: 700; font-size: 1.9rem; letter-spacing: .04em; margin-bottom: .2rem; }
-    .about-role { font-size: .72rem; letter-spacing: .2em; color: var(--muted); margin-bottom: 1.1rem; }
-    .about-bio { font-size: .86rem; line-height: 2.1; margin-bottom: 1.4rem; }
-    .links { display: flex; flex-wrap: wrap; gap: .6rem; }
-    .lbtn { display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .9rem; background: var(--white); border: 1.5px solid var(--border); border-radius: 100px; font-size: .7rem; letter-spacing: .05em; color: var(--ink); text-decoration: none; transition: background .2s, transform .18s; }
-    .lbtn:hover { background: var(--y); transform: translateY(-2px); }
-
-    /* 漫画カルーセル */
-    .manga-carousel { position: relative; overflow: hidden; background: #fff; aspect-ratio: 4/3; height: auto; }
-    #carousel-fanart { aspect-ratio: 4/3; }
-    #carousel-tachibana { aspect-ratio: unset; height: 340px; }
-    .manga-slide { display: none; width: 100%; height: 100%; object-fit: contain; object-position: center center; }
-    .manga-slide.active { display: block; }
-    .manga-btn {
-      position: absolute; top: 50%; transform: translateY(-50%);
-      background: rgba(255,254,245,.85); border: 1.5px solid var(--border);
-      border-radius: 50%; width: 32px; height: 32px;
-      font-size: 1.2rem; line-height: 1; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .2s; z-index: 2; padding: 0;
-    }
-    .manga-btn:hover { background: var(--y); }
-    .manga-prev { left: 8px; }
-    .manga-next { right: 8px; }
-    .manga-dots { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 2; }
-    .mdot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .2s; }
-    .mdot.active { background: var(--y); }
-
-    /* ========== YouTube Shorts セクション ========== */
-    #shorts { background: var(--ink); color: var(--cream); text-align: center; }
-    .shorts-inner { max-width: 580px; margin: 0 auto; }
-    #shorts .sec-tag { color: rgba(255,254,245,.35); justify-content: center; }
-    #shorts .sec-tag::before { background: var(--y); }
-    #shorts .sec-title { color: var(--cream); margin-bottom: .8rem; }
-    .shorts-desc { font-size: .85rem; line-height: 2; color: rgba(255,254,245,.5); margin-bottom: 2rem; }
-    .shorts-yt-link {
-      display: inline-flex; align-items: center; gap: .6rem;
-      padding: .85rem 2rem;
-      background: var(--y); color: var(--ink);
-      border-radius: 100px;
-      font-size: .85rem; font-weight: 700; letter-spacing: .08em;
-      text-decoration: none;
-      transition: transform .2s, box-shadow .2s;
-      box-shadow: 4px 4px 0 rgba(225,221,96,.3);
-    }
-    .shorts-yt-link:hover { transform: translateY(-3px); box-shadow: 6px 6px 0 rgba(225,221,96,.3); }
-    .shorts-yt-link .yt-icon { font-size: 1.1rem; }
-
-    /* お問い合わせ */
-    #contact { background: var(--ink); color: var(--cream); text-align: center; position: relative; overflow: hidden; }
-    #contact::before { content: ''; position: absolute; top: -100px; left: 50%; transform: translateX(-50%); width: 500px; height: 500px; background: var(--y); border-radius: 50%; opacity: .07; filter: blur(80px); pointer-events: none; }
-    #contact .sec-tag { color: rgba(255,254,245,.35); }
-    #contact .sec-tag::before { background: var(--y); }
-    #contact .sec-title { color: var(--cream); }
-    .contact-desc { font-size: .85rem; line-height: 2.1; color: rgba(255,254,245,.55); margin: 1rem auto 2.5rem; max-width: 400px; }
-    .contact-form { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; position: relative; z-index: 1; text-align: left; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .form-group { display: flex; flex-direction: column; gap: .4rem; }
-    .form-group label { font-size: .68rem; letter-spacing: .15em; color: rgba(255,254,245,.5); }
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
-      background: rgba(255,254,245,.07); border: 1.5px solid rgba(255,254,245,.15); border-radius: 10px;
-      padding: .75rem 1rem; font-family: 'Noto Sans JP', sans-serif; font-size: .82rem; color: var(--cream);
-      outline: none; transition: border-color .2s, background .2s; appearance: none;
-    }
-    .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(255,254,245,.25); }
-    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--y); background: rgba(255,254,245,.1); }
-    .form-group select option { background: #1e1c14; color: #fffef5; }
-    .form-group textarea { resize: vertical; min-height: 130px; }
-    .form-submit {
-      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-      padding: .9rem 2rem; background: var(--y); color: var(--ink);
-      border: none; border-radius: 100px;
-      font-family: 'Noto Sans JP', sans-serif; font-size: .82rem; letter-spacing: .12em; font-weight: 700;
-      cursor: none; box-shadow: 4px 4px 0 rgba(225,221,96,.25);
-      transition: transform .2s, box-shadow .2s; align-self: center; margin-top: .5rem;
-    }
-    .form-submit:hover { transform: translateY(-3px); box-shadow: 6px 6px 0 rgba(225,221,96,.25); }
-    .form-note { font-size: .65rem; letter-spacing: .1em; color: rgba(255,254,245,.3); text-align: center; }
-    .form-thanks { display: none; background: rgba(225,221,96,.12); border: 1.5px solid rgba(225,221,96,.3); border-radius: 14px; padding: 2rem; text-align: center; }
-    .form-thanks.show { display: block; }
-    .form-thanks p { font-size: .88rem; line-height: 2; color: var(--cream); }
-
-    /* フッター */
-    footer { background: var(--ink); border-top: 1px solid rgba(255,254,245,.07); padding: 1.5rem 2.5rem; display: flex; align-items: center; justify-content: space-between; }
-    .footer-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: .9rem; color: rgba(255,254,245,.3); }
-    .footer-copy { font-size: .6rem; letter-spacing: .1em; color: rgba(255,254,245,.2); }
-
-    /* ========== フェードイン ========== */
-    @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:none} }
-    .reveal { opacity:1; transform:none; transition: opacity 0.55s ease, transform 0.55s cubic-bezier(.22,1,.36,1); }
-    .reveal.hidden { opacity:0; transform:translateY(24px); }
-    .reveal.hidden-left { opacity:0; transform:translateX(-24px); }
-    .reveal.hidden-scale { opacity:0; transform:scale(.96); }
-
-    /* レスポンシブ */
-    @media(max-width:768px){
-      header{padding:.9rem 1.2rem;} nav{gap:1.2rem;}
-      section{padding:4rem 1.2rem;}
-      .works-grid{grid-template-columns:1fr 1fr;}
-      .wcard.wide{grid-column:span 2;}
-      .about-wrap{grid-template-columns:1fr;gap:1.8rem;}
-      .form-row{grid-template-columns:1fr;}
-      footer{flex-direction:column;gap:.5rem;text-align:center;}
-      .shorts-grid{grid-template-columns:repeat(3,1fr);}
-      .hero-kv { gap: .35rem; }
-    }
-    @media(max-width:480px){
-      .works-grid{grid-template-columns:1fr;}
-      .wcard.wide{grid-column:span 1;}
-      .shorts-grid{grid-template-columns:repeat(3,1fr);}
-      .hero-kv { margin: 1.2rem 0 1rem; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>はぁにデザイン工房</title>
+<meta name="description" content="北海道を拠点に活動する漫画家・イラストレーター「はぁに」のポートフォリオ。ラブコメ・ギャグのカラー漫画、広告漫画、キャラクターデザイン、アニメーション制作を承っています。">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DS7M3F9ZWB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-DS7M3F9ZWB');
+</script>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="cursor" id="cursor"></div>
 
 <header>
-  <a href="#" class="logo"><span class="accent-box">haani</span></a>
+  <a href="#" class="logo">
+    <span class="accent-box">haani</span>
+    <span class="logo-sub">はぁにデザイン工房</span>
+  </a>
   <nav>
-    <a href="#works">作品</a>
-    <a href="#about">プロフィール</a>
-    <a href="#contact">お仕事依頼</a>
+    <a href="#works"><b>Works</b><span>作品</span></a>
+    <a href="price.html"><b>Price</b><span>料金表</span></a>
+    <a href="flow.html"><b>Flow</b><span>依頼の流れ</span></a>
+    <a href="#about"><b>Profile</b><span>プロフィール</span></a>
   </nav>
+  <a href="#contact" class="head-cta">✦ ご依頼</a>
 </header>
 
 <!-- ========== ヒーロー ========== -->
 <section class="hero">
   <div class="hero-inner">
-    <!-- 左：キャラ画像 -->
     <div class="hero-chara-wrap">
       <img src="hero_chara.png" alt="キャラクター" class="hero-chara">
     </div>
-    <!-- 右：テキスト -->
     <div class="hero-text">
-      <div class="hero-badge">✦ Manga & Illustration ✦</div>
+      <div class="hero-badge">✦ Manga &amp; Illustration ✦</div>
       <h1 class="hero-name">はぁに<span class="highlight">デザイン</span>工房</h1>
       <p class="hero-name-jp">Manga · Illustration · Animation</p>
+      <p class="hero-lead">北海道を拠点に、ラブコメ・ギャグのオリジナル漫画から広告漫画、アニメーション制作まで。表情豊かなカラー漫画が得意です。</p>
       <div class="hero-tags">
         <span class="hero-tag">#カラー漫画</span>
         <span class="hero-tag">#ラブコメ</span>
@@ -475,7 +55,7 @@
       </div>
       <div class="hero-cta">
         <a href="#works" class="btn btn-dark">✦ 作品を見る</a>
-        <a href="#contact" class="btn btn-light">依頼する</a>
+        <a href="price.html" class="btn btn-light">料金表を見る</a>
       </div>
       <div class="hero-social">
         <a href="https://x.com/haanidesign" target="_blank" class="hero-slink">X</a>
@@ -490,86 +70,125 @@
 
 <div class="dots">✦ ✦ ✦</div>
 
+<!-- ========== 依頼メニュー ========== -->
+<div class="routes">
+  <div class="routes-grid">
+    <a class="route rv" href="price.html">
+      <div class="route-no">01</div>
+      <div class="route-ttl">漫画制作</div>
+      <p class="route-desc">広告漫画・WEB漫画<br>ネームから仕上げまで一貫対応</p>
+      <span class="route-link">¥8,000／1P〜</span>
+    </a>
+    <a class="route rv" href="price.html">
+      <div class="route-no">02</div>
+      <div class="route-ttl">イラスト</div>
+      <p class="route-desc">装丁・表紙イラスト<br>キャラクターデザイン</p>
+      <span class="route-link">¥10,000〜</span>
+    </a>
+    <a class="route rv" href="price.html">
+      <div class="route-no">03</div>
+      <div class="route-ttl">アニメーション</div>
+      <p class="route-desc">ショートアニメ・PR動画<br>企画から制作まで</p>
+      <span class="route-link">¥10,000〜</span>
+    </a>
+  </div>
+</div>
+
+<div class="dots">✦ ✦ ✦</div>
+
 <!-- ========== 作品 ========== -->
 <section id="works">
-  <div class="works-head reveal">
+  <div class="sec-head center rv">
     <div class="sec-tag">Works</div>
     <h2 class="sec-title">作品一覧</h2>
   </div>
   <div class="works-grid">
-    <!-- 悪役令嬢(wide) -->
-    <a href="https://www.pixiv.net/user/8184383/series/276382" target="_blank" class="wcard wide reveal" style="text-decoration:none;color:inherit;display:block;">
+
+    <a href="https://www.pixiv.net/user/8184383/series/276382" target="_blank" class="wcard wide rv">
       <div class="wimg"><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></div>
-      <div class="winfo"><span class="wtag">連載漫画</span><h3>悪役令嬢、旅に出る。</h3><p>pixiv・ジャンプルーキーにて連載中のラブコメファンタジー</p><p style="font-size:.7rem;margin-top:.4rem;color:var(--ink);font-weight:700;">📈 累計90万PV突破 &nbsp;👀 5,000人以上がウォッチ中</p></div>
+      <div class="winfo">
+        <span class="wtag">連載漫画</span>
+        <h3>悪役令嬢、旅に出る。</h3>
+        <p>pixiv・ジャンプルーキーにて連載中のラブコメファンタジー</p>
+        <p class="wstat">📈 累計90万PV突破 &nbsp;👀 5,000人以上がウォッチ中</p>
+      </div>
     </a>
-    <!-- 橘先輩カルーセル -->
-    <div class="wcard reveal">
-      <div class="wimg manga-carousel" id="carousel-tachibana">
-        <img src="manga/tachibanasenpai_01.jpg" class="manga-slide active" alt="笑顔を見せてよ、橘先輩 p1">
-        <img src="manga/tachibanasenpai_02.jpg" class="manga-slide" alt="笑顔を見せてよ、橘先輩 p2">
-        <img src="manga/tachibanasenpai_03.jpg" class="manga-slide" alt="笑顔を見せてよ、橘先輩 p3">
-        <img src="manga/tachibanasenpai_04.jpg" class="manga-slide" alt="笑顔を見せてよ、橘先輩 p4">
-        <button class="manga-btn manga-prev" onclick="mangaSlide('carousel-tachibana',-1)">&#8249;</button>
-        <button class="manga-btn manga-next" onclick="mangaSlide('carousel-tachibana', 1)">&#8250;</button>
-        <div class="manga-dots">
-          <span class="mdot active"></span><span class="mdot"></span><span class="mdot"></span><span class="mdot"></span>
-        </div>
+
+    <!-- 橘先輩：ページめくり -->
+    <div class="wcard rv">
+      <div class="wimg carousel" data-carousel>
+        <span class="cnum"><b>1</b>/4</span>
+        <img src="manga/tachibanasenpai_01.jpg" class="cslide on" alt="笑顔を見せてよ、橘先輩 1ページ目">
+        <img src="manga/tachibanasenpai_02.jpg" class="cslide" alt="笑顔を見せてよ、橘先輩 2ページ目">
+        <img src="manga/tachibanasenpai_03.jpg" class="cslide" alt="笑顔を見せてよ、橘先輩 3ページ目">
+        <img src="manga/tachibanasenpai_04.jpg" class="cslide" alt="笑顔を見せてよ、橘先輩 4ページ目">
+        <button class="cbtn cprev" aria-label="前のページ">&#8249;</button>
+        <button class="cbtn cnext" aria-label="次のページ">&#8250;</button>
+        <div class="cbar"></div>
       </div>
-      <div class="winfo"><span class="wtag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3></div>
+      <div class="winfo"><span class="wtag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3><p>全4ページ・フルカラー</p></div>
     </div>
-    <!-- ことばの教科書（動画＋ミュートボタン） -->
-    <div class="wcard reveal">
-      <div class="wimg" style="aspect-ratio:4/3;">
-        <div class="video-wrap">
-          <video id="vid-kotono" src="kotono.mp4" autoplay muted loop playsinline style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;"></video>
-          <button class="mute-btn" data-vid="vid-kotono" aria-label="ミュート切替">🔇</button>
-        </div>
+
+    <!-- ことばの教科書：動画 -->
+    <div class="wcard rv">
+      <div class="wimg videobox">
+        <span class="vlabel">動画</span>
+        <video id="v-kotono" src="kotono.mp4" autoplay muted loop playsinline preload="metadata"></video>
+        <button class="vbtn" data-vid="v-kotono" aria-label="音声の切り替え"><span class="vic">🔇</span><span class="vtx">音を出す</span></button>
       </div>
-      <div class="winfo"><span class="wtag">アニメーション</span><h3>ことばの教科書</h3><p style="font-size:.65rem;color:var(--muted);">🔊 ボタンで音ON/OFF</p></div>
+      <div class="winfo"><span class="wtag">アニメーション</span><h3>ことばの教科書</h3><p>企画・作画・編集まで一貫制作</p></div>
     </div>
-    <!-- ファンアートカルーセル -->
-    <div class="wcard reveal">
-      <div class="wimg manga-carousel" id="carousel-fanart">
-        <img src="manga/fanart_01.jpg" class="manga-slide active" alt="ファンアート1">
-        <img src="manga/fanart_03.jpg" class="manga-slide" alt="ファンアート3">
-        <img src="manga/fanart_04.jpg" class="manga-slide" alt="ファンアート4">
-        <img src="manga/fanart_05.jpg" class="manga-slide" alt="ファンアート5">
-        <img src="manga/fanart_02.jpg" class="manga-slide" alt="ファンアート2">
-        <button class="manga-btn manga-prev" onclick="mangaSlide('carousel-fanart',-1)">&#8249;</button>
-        <button class="manga-btn manga-next" onclick="mangaSlide('carousel-fanart', 1)">&#8250;</button>
-        <div class="manga-dots">
-          <span class="mdot active"></span><span class="mdot"></span><span class="mdot"></span><span class="mdot"></span><span class="mdot"></span>
-        </div>
+
+    <!-- ファンアート：ページめくり -->
+    <div class="wcard rv">
+      <div class="wimg carousel" data-carousel>
+        <span class="cnum"><b>1</b>/5</span>
+        <img src="manga/fanart_01.jpg" class="cslide on" alt="ファンアート 1">
+        <img src="manga/fanart_03.jpg" class="cslide" alt="ファンアート 2">
+        <img src="manga/fanart_04.jpg" class="cslide" alt="ファンアート 3">
+        <img src="manga/fanart_05.jpg" class="cslide" alt="ファンアート 4">
+        <img src="manga/fanart_02.jpg" class="cslide" alt="ファンアート 5">
+        <button class="cbtn cprev" aria-label="前へ">&#8249;</button>
+        <button class="cbtn cnext" aria-label="次へ">&#8250;</button>
+        <div class="cbar"></div>
       </div>
-      <div class="winfo"><span class="wtag">イラスト</span><h3>ファンアート</h3></div>
+      <div class="winfo"><span class="wtag">イラスト</span><h3>ファンアート</h3><p>全5点</p></div>
     </div>
-    <!-- DIY動画（動画＋ミュートボタン） -->
-    <div class="wcard reveal">
-      <div class="wimg" style="aspect-ratio:4/3;">
-        <div class="video-wrap">
-          <video id="vid-diy" src="diy.mp4" autoplay muted loop playsinline style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;"></video>
-          <button class="mute-btn" data-vid="vid-diy" aria-label="ミュート切替">🔇</button>
-        </div>
+
+    <!-- ただいまDIY中：動画 -->
+    <div class="wcard rv">
+      <div class="wimg videobox">
+        <span class="vlabel">動画</span>
+        <video id="v-diy" src="diy.mp4" autoplay muted loop playsinline preload="metadata"></video>
+        <button class="vbtn" data-vid="v-diy" aria-label="音声の切り替え"><span class="vic">🔇</span><span class="vtx">音を出す</span></button>
       </div>
-      <div class="winfo"><span class="wtag">アニメーション</span><h3>ただいまDIY中</h3><p style="font-size:.65rem;color:var(--muted);">🔊 ボタンで音ON/OFF</p></div>
+      <div class="winfo"><span class="wtag">アニメーション</span><h3>ただいまDIY中</h3><p>キャラクターアニメーション</p></div>
     </div>
-    <!-- WEB漫画カルーセル -->
-    <div class="wcard reveal">
-      <div class="wimg manga-carousel" id="carousel-host" style="aspect-ratio:unset;height:340px;">
-        <img src="host.jpg" class="manga-slide active" alt="WEB漫画1">
-        <img src="manga/host_02.jpg" class="manga-slide" alt="WEB漫画2">
-        <img src="manga/host_03.jpg" class="manga-slide" alt="WEB漫画3">
-        <img src="manga/host_04.jpg" class="manga-slide" alt="WEB漫画4">
-        <button class="manga-btn manga-prev" onclick="mangaSlide('carousel-host',-1)">&#8249;</button>
-        <button class="manga-btn manga-next" onclick="mangaSlide('carousel-host', 1)">&#8250;</button>
-        <div class="manga-dots">
-          <span class="mdot active"></span><span class="mdot"></span><span class="mdot"></span><span class="mdot"></span>
-        </div>
+
+    <!-- WEB漫画：ページめくり -->
+    <div class="wcard rv">
+      <div class="wimg carousel" data-carousel>
+        <span class="cnum"><b>1</b>/4</span>
+        <img src="host.jpg" class="cslide on" alt="WEB漫画 1ページ目">
+        <img src="manga/host_02.jpg" class="cslide" alt="WEB漫画 2ページ目">
+        <img src="manga/host_03.jpg" class="cslide" alt="WEB漫画 3ページ目">
+        <img src="manga/host_04.jpg" class="cslide" alt="WEB漫画 4ページ目">
+        <button class="cbtn cprev" aria-label="前のページ">&#8249;</button>
+        <button class="cbtn cnext" aria-label="次のページ">&#8250;</button>
+        <div class="cbar"></div>
       </div>
-      <div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3></div>
+      <div class="winfo"><span class="wtag">漫画</span><h3>WEB漫画</h3><p>全4ページ</p></div>
     </div>
-    <div class="wcard reveal"><div class="wimg" style="aspect-ratio:unset;height:340px;"><img src="webad.jpg" alt="WEB広告"></div><div class="winfo"><span class="wtag">漫画</span><h3>WEB広告</h3></div></div>
-    <div class="wcard reveal"><div class="wimg" style="aspect-ratio:unset;height:340px;"><img src="dharma.jpg" alt="マーダーミステリー表紙"></div><div class="winfo"><span class="wtag">イラスト</span><h3>マーダーミステリー表紙</h3></div></div>
+
+    <div class="wcard rv">
+      <div class="wimg"><img src="webad.jpg" alt="WEB広告"></div>
+      <div class="winfo"><span class="wtag">広告漫画</span><h3>WEB広告</h3></div>
+    </div>
+    <div class="wcard rv">
+      <div class="wimg"><img src="dharma.jpg" alt="マーダーミステリー表紙"></div>
+      <div class="winfo"><span class="wtag">イラスト</span><h3>マーダーミステリー表紙</h3></div>
+    </div>
+
   </div>
 </section>
 
@@ -578,15 +197,18 @@
 <!-- ========== プロフィール ========== -->
 <section id="about">
   <div class="about-wrap">
-    <div class="avatar reveal">
-      <img src="ai.jpg" alt="はぁに">
-    </div>
+    <div class="avatar rv"><img src="ai.jpg" alt="はぁに"></div>
     <div>
-      <div class="sec-tag reveal">Profile</div>
-      <h2 class="about-name reveal">はぁに</h2>
-      <p class="about-role reveal">漫画家 / イラストレーター / アニメーター</p>
-      <p class="about-bio reveal">北海道を拠点に活動するクリエイター。<br>ラブコメ・ギャグのオリジナル漫画制作やアニメ制作、<br>広告漫画制作を行っています。<br>表情豊かなカラー漫画が得意です。<br>装丁イラスト・キャラクターデザイン・漫画原稿のご依頼も受付中です。</p>
-      <div class="links reveal">
+      <div class="sec-tag rv">Profile</div>
+      <h2 class="about-name rv">はぁに</h2>
+      <p class="about-role rv">漫画家 / イラストレーター / アニメーター</p>
+      <p class="about-bio rv">北海道を拠点に活動するクリエイター。<br>ラブコメ・ギャグのオリジナル漫画制作やアニメ制作、<br>広告漫画制作を行っています。<br>表情豊かなカラー漫画が得意です。</p>
+      <dl class="about-meta rv">
+        <dt>拠点</dt><dd>北海道</dd>
+        <dt>得意</dt><dd>カラー漫画・ラブコメ・ギャグ・表情芝居</dd>
+        <dt>連絡</dt><dd>Chatwork / お問い合わせフォーム</dd>
+      </dl>
+      <div class="links rv">
         <a href="https://x.com/haanidesign" target="_blank" class="lbtn">X @haanidesign</a>
         <a href="https://www.pixiv.net/users/8184383" target="_blank" class="lbtn">pixiv</a>
         <a href="https://rookie.shonenjump.com/users/1325423796296168200" target="_blank" class="lbtn">ジャンプルーキー</a>
@@ -601,88 +223,135 @@
 <!-- ========== お問い合わせ ========== -->
 <section id="contact">
   <div style="position:relative;z-index:1;">
-    <div class="sec-tag" style="justify-content:center;">Contact</div>
-    <h2 class="sec-title" style="margin-bottom:0;">お仕事のご依頼</h2>
-    <p class="contact-desc">漫画・イラスト・キャラクターデザインなど<br>フォームからお気軽にご連絡ください。</p>
+    <div class="sec-tag">Contact</div>
+    <h2 class="sec-title">お仕事のご依頼</h2>
+    <p class="contact-desc">
+      ご依頼前に<a href="price.html">料金表</a>と<a href="flow.html">ご依頼の流れ</a>をご確認ください。<br>
+      お見積もりのみのご相談も歓迎しております。
+    </p>
     <form class="contact-form" id="cForm" action="https://formspree.io/f/mgoqavzy" method="POST">
       <div class="form-row">
         <div class="form-group"><label>お名前 *</label><input type="text" name="name" placeholder="山田 太郎" required></div>
         <div class="form-group"><label>メールアドレス *</label><input type="email" name="email" placeholder="mail@example.com" required></div>
       </div>
-      <div class="form-group">
-        <label>ご依頼の種類</label>
-        <select name="type">
-          <option value="">選択してください</option>
-          <option>漫画原稿</option><option>キャラクターデザイン</option>
-          <option>装丁・表紙イラスト</option><option>アニメーション</option><option>その他</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ご依頼の種類</label>
+          <select name="type">
+            <option value="">選択してください</option>
+            <option>広告・PR漫画</option><option>WEB漫画・ショート漫画</option>
+            <option>キャラクターデザイン</option><option>装丁・表紙イラスト</option>
+            <option>アニメーション</option><option>その他・まだ決まっていない</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ご予算</label>
+          <select name="budget">
+            <option value="">選択してください</option>
+            <option>〜3万円</option><option>3〜10万円</option>
+            <option>10〜20万円</option><option>20万円以上</option>
+            <option>相談したい</option>
+          </select>
+        </div>
       </div>
-      <div class="form-group"><label>ご依頼内容 *</label><textarea name="message" placeholder="ご依頼の内容・ご予算・納期などをお知らせください" required></textarea></div>
+      <div class="form-group"><label>ご希望納期</label><input type="text" name="deadline" placeholder="例：2026年10月末頃 ／ 特になし"></div>
+      <div class="form-group"><label>ご依頼内容 *</label><textarea name="message" placeholder="ご依頼の内容・使用媒体・実績公開の可否などをお知らせください" required></textarea></div>
       <button type="submit" class="form-submit">✦ 送信する</button>
       <p class="form-note">通常2〜3営業日以内にご返信いたします。</p>
     </form>
-    <div class="form-thanks" id="fThanks"><p>✦ お問い合わせありがとうございます ✦<br>内容を確認のうえ、ご登録のメールアドレスへご返信いたします。</p></div>
+    <div class="form-thanks" id="fThanks">
+      <p>✦ お問い合わせありがとうございます ✦<br>内容を確認のうえ、ご登録のメールアドレスへご返信いたします。</p>
+    </div>
   </div>
 </section>
 
 <footer>
   <span class="footer-logo">はぁにデザイン工房</span>
+  <div class="f-links">
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+    <a href="https://x.com/haanidesign" target="_blank">X</a>
+    <a href="https://www.pixiv.net/users/8184383" target="_blank">pixiv</a>
+  </div>
   <span class="footer-copy">© 2026 はぁにデザイン工房. All rights reserved.</span>
 </footer>
 
 <script>
-  // カスタムカーソル（タッチデバイスでは非表示）
+  /* ---- カスタムカーソル ---- */
   const cur = document.getElementById('cursor');
   if(cur && window.matchMedia('(hover:hover)').matches){
     document.addEventListener('mousemove', e => { cur.style.left=e.clientX+'px'; cur.style.top=e.clientY+'px'; });
-    document.querySelectorAll('a,button').forEach(el => {
+    document.querySelectorAll('a,button,summary').forEach(el => {
       el.addEventListener('mouseenter',()=>cur.classList.add('big'));
       el.addEventListener('mouseleave',()=>cur.classList.remove('big'));
     });
   }
 
-  // スクロールフェードイン（IntersectionObserver）
+  /* ---- スクロールフェードイン ---- */
   const obs = new IntersectionObserver(entries=>{
-    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>{ e.target.classList.remove('hidden','hidden-left','hidden-scale'); }, i*70); });
+    entries.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>{ e.target.classList.remove('hidden'); }, i*70); });
   },{threshold:.07, rootMargin:'0px 0px -30px 0px'});
-  document.querySelectorAll('.reveal').forEach((el,i)=>{
-    el.classList.add('hidden');
-    obs.observe(el);
+  document.querySelectorAll('.rv').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
+
+  /* ---- 漫画カルーセル（ページめくり） ---- */
+  document.querySelectorAll('[data-carousel]').forEach(box => {
+    const slides = [...box.querySelectorAll('.cslide')];
+    const bar    = box.querySelector('.cbar');
+    const numEl  = box.querySelector('.cnum b');
+    let cur = 0;
+
+    slides.forEach((_, i) => {
+      const el = document.createElement('i');
+      if(i === 0) el.classList.add('on');
+      el.addEventListener('click', () => go(i));
+      bar.appendChild(el);
+    });
+    const bars = [...bar.children];
+
+    function go(next){
+      cur = (next + slides.length) % slides.length;
+      slides.forEach((s,i) => s.classList.toggle('on', i === cur));
+      bars.forEach((b,i) => b.classList.toggle('on', i === cur));
+      if(numEl) numEl.textContent = cur + 1;
+    }
+
+    box.querySelector('.cprev').addEventListener('click', () => go(cur - 1));
+    box.querySelector('.cnext').addEventListener('click', () => go(cur + 1));
+
+    // スワイプでめくる
+    let x0 = null;
+    box.addEventListener('touchstart', e => { x0 = e.changedTouches[0].clientX; }, {passive:true});
+    box.addEventListener('touchend', e => {
+      if(x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      if(Math.abs(dx) > 45) go(dx < 0 ? cur + 1 : cur - 1);
+      x0 = null;
+    }, {passive:true});
   });
 
-  // 動画ミュートボタン
-  document.querySelectorAll('.mute-btn').forEach(btn => {
+  /* ---- 動画の音声切り替え ---- */
+  document.querySelectorAll('.vbtn').forEach(btn => {
     const vid = document.getElementById(btn.dataset.vid);
     btn.addEventListener('click', () => {
+      // 他の動画はミュートに戻す（音の被りを防ぐ）
+      document.querySelectorAll('.vbtn').forEach(other => {
+        if(other === btn) return;
+        document.getElementById(other.dataset.vid).muted = true;
+        other.classList.remove('on');
+        other.querySelector('.vic').textContent = '🔇';
+        other.querySelector('.vtx').textContent = '音を出す';
+      });
       vid.muted = !vid.muted;
-      if(!vid.muted){ vid.volume = 0.7; }
-      btn.textContent = vid.muted ? '🔇' : '🔊';
-      btn.classList.toggle('unmuted', !vid.muted);
+      if(!vid.muted) vid.volume = 0.7;
+      btn.classList.toggle('on', !vid.muted);
+      btn.querySelector('.vic').textContent = vid.muted ? '🔇' : '🔊';
+      btn.querySelector('.vtx').textContent = vid.muted ? '音を出す' : '音を消す';
+      // autoplayがブロックされていた場合の再生保証
+      if(vid.paused) vid.play();
     });
-    // タップで再生も保証（autoplayがブロックされた場合）
-    btn.addEventListener('click', () => { if(vid.paused) vid.play(); });
   });
 
-  // 漫画カルーセル
-  function mangaSlide(id, dir) {
-    const wrap = document.getElementById(id);
-    const slides = wrap.querySelectorAll('.manga-slide');
-    const dots = wrap.querySelectorAll('.mdot');
-    let cur = [...slides].findIndex(s => s.classList.contains('active'));
-    const next = cur + dir;
-    if (next < 0 || next >= slides.length) return;
-    slides[cur].classList.remove('active');
-    dots[cur].classList.remove('active');
-    slides[next].classList.add('active');
-    dots[next].classList.add('active');
-    wrap.querySelector('.manga-prev').style.opacity = next === 0 ? '0.3' : '1';
-    wrap.querySelector('.manga-next').style.opacity = next === slides.length - 1 ? '0.3' : '1';
-  }
-  document.querySelectorAll('.manga-carousel').forEach(wrap => {
-    wrap.querySelector('.manga-prev').style.opacity = '0.3';
-  });
-
-  // フォーム送信
+  /* ---- フォーム送信（ページ遷移せずお礼を表示） ---- */
   const form = document.getElementById('cForm');
   if(form){
     form.addEventListener('submit', async e => {
@@ -692,5 +361,6 @@
     });
   }
 </script>
+
 </body>
 </html>
