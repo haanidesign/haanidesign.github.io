@@ -420,13 +420,6 @@ details.pdetail .pdetail-body{padding:0 1rem 1rem;font-size:.7rem;color:var(--mu
   background:rgba(255,254,245,.85);border:1.5px solid var(--border);
   border-radius:100px;padding:.1rem .5rem;color:var(--muted);
 }
-.cturn{
-  position:absolute;top:8px;left:8px;z-index:3;
-  font-size:.58rem;letter-spacing:.08em;
-  background:var(--y);color:var(--ink);
-  border-radius:100px;padding:.12rem .55rem;
-}
-
 /* ============ 動画サンプル ============ */
 .wimg.videobox{background:#fff;}
 .wimg.videobox video{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;}
