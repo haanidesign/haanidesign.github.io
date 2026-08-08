@@ -529,6 +529,25 @@ footer{
 .f-links a:hover{color:var(--y);}
 .footer-copy{font-size:.6rem;letter-spacing:.1em;color:rgba(255,254,245,.2);}
 
+/* ============ 上へ戻るボタン ============ */
+.totop{
+  position:fixed;z-index:90;
+  right:clamp(1rem,3vw,2rem);bottom:clamp(1rem,3vw,2rem);
+  width:48px;height:48px;border-radius:50%;
+  background:var(--ink);color:var(--y);border:none;
+  box-shadow:3px 3px 0 var(--y);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Nunito',sans-serif;font-size:1.15rem;line-height:1;
+  cursor:none;
+  opacity:0;visibility:hidden;transform:translateY(12px);
+  transition:opacity .3s,transform .3s,visibility .3s,box-shadow .2s;
+}
+.totop.show{opacity:1;visibility:visible;transform:translateY(0);}
+.totop.show:hover{transform:translateY(-3px);box-shadow:5px 5px 0 var(--y);}
+@media(hover:none){
+  .totop{cursor:auto;width:44px;height:44px;}
+}
+
 /* ============ フェードイン ============ */
 .rv{opacity:1;transform:none;transition:opacity .55s ease,transform .55s cubic-bezier(.22,1,.36,1);}
 .rv.hidden{opacity:0;transform:translateY(24px);}

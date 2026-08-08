@@ -220,6 +220,8 @@
   <span class="footer-copy">© 2026 はぁにデザイン工房. All rights reserved.</span>
 </footer>
 
+<button class="totop" id="toTop" aria-label="ページ上部へ戻る">&#8593;</button>
+
 <script>
   const cur = document.getElementById('cursor');
   if(cur && window.matchMedia('(hover:hover)').matches){
@@ -233,6 +235,15 @@
     es.forEach((e,i)=>{ if(e.isIntersecting) setTimeout(()=>e.target.classList.remove('hidden'), i*70); });
   },{threshold:.06, rootMargin:'0px 0px -30px 0px'});
   document.querySelectorAll('.rv').forEach(el=>{ el.classList.add('hidden'); obs.observe(el); });
+
+  /* ---- 上へ戻るボタン ---- */
+  const toTop = document.getElementById('toTop');
+  if(toTop){
+    const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+    toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+  }
 </script>
 
 </body>

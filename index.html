@@ -276,6 +276,8 @@
   <span class="footer-copy">© 2026 はぁにデザイン工房. All rights reserved.</span>
 </footer>
 
+<button class="totop" id="toTop" aria-label="ページ上部へ戻る">&#8593;</button>
+
 <script>
   /* ---- カスタムカーソル ---- */
   const cur = document.getElementById('cursor');
@@ -359,6 +361,15 @@
       const res = await fetch(form.action, { method:'POST', body: new FormData(form), headers:{Accept:'application/json'} });
       if(res.ok){ form.style.display='none'; document.getElementById('fThanks').classList.add('show'); }
     });
+  }
+
+  /* ---- 上へ戻るボタン ---- */
+  const toTop = document.getElementById('toTop');
+  if(toTop){
+    const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+    toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
   }
 </script>
 
