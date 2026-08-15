@@ -176,6 +176,7 @@ const PARAM_DEFS = [
   {id:"chestBounce",label:"胸の揺れ",  min:0,  max:10, def:4},
   {id:"swayGain",   label:"揺れの強さ",min:0,  max:1,  def:0.3},
   {id:"hairSway",   label:"髪の揺れ",  min:0,  max:3,  def:1},
+  {id:"breathDepth",label:"呼吸の深さ",min:0,  max:3,  def:1},
   {id:"softness",   label:"柔らかさ",  min:0,  max:4,  def:2},
 ];
 const TOGGLES = [
@@ -837,7 +838,9 @@ function step(t, dt, loop){
   const ck = 70 / (1 + soft*0.8);
   const cc = 2*Math.sqrt(ck)*0.32;
   const idleBob = T.idle ? (Math.sin(t*W(2.3,loop)) + Math.sin(t*W(3.7,loop)+1)*0.4) : 0;
-  springs.chestY.step(dt, ck, cc, (idleBob*42 - velY*12) * cb * chestGain);
+  // 胸も呼吸に合わせて持ち上がると、息をしている感じが強く出る
+  const breathLift = (breath - 0.5) * 34 * P.breathDepth;
+  springs.chestY.step(dt, ck, cc, (idleBob*42 - velY*12) * cb * chestGain - breathLift);
   springs.chestX.step(dt, ck, cc, (Math.sin(t*W(1.7,loop))*9 - velX*10) * cb * chestGain);
   // 腕: 肩を支点にした振り子。体の傾きと頭の動きに遅れてついてくる。
   const ak = 55/(1 + soft*0.8), ac = 2*Math.sqrt(ak)*0.5;
@@ -985,8 +988,15 @@ function draw(S){
                       R: hasEyeClose && eyeOpen.R < EYE_SWAP};
   const mouthIsOpen = S.mouthOpen >= MOUTH_SWAP;
 
-  // 全体(体の傾き + 呼吸)。親を持たないレイヤーの根元になる。
-  const G = mAround(mul(mRotate(S.bodyTilt*0.09), mScale(1, 1 + S.breath*0.004)), bx, by);
+  /* 全体(体の傾き + 呼吸)。親を持たないレイヤーの根元になる。
+     呼吸は3つを重ねる: 腰を支点に縦へ伸び、わずかに横へ膨らみ、体ごと浮く。
+     縦だけだと引き伸ばしに、上下だけだと平行移動に見えるので、両方いる。 */
+  const br = S.breath, bd = P.breathDepth;
+  const bSy = 1 + br * 0.011 * bd;    // 胸が持ち上がる
+  const bSx = 1 + br * 0.004 * bd;    // 息を吸って横に膨らむ
+  const bBob = -br * 3.4 * bd;        // 体ごとわずかに浮く(px)
+  const G = mul(mTranslate(0, bBob),
+                mAround(mul(mRotate(S.bodyTilt*0.09), mScale(bSx, bSy)), bx, by));
 
   // グループ追従: 頭系は首ピボットで回転+視差、それ以外はわずかに追従
   function groupMat(l){
