@@ -2,12 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>PSD Avatar Viewer</title>
+<title>PSD アバタースタジオ</title>
 <script src="lib/ag-psd.js"></script>
 <style>
   :root{
     --bg:#14161b; --panel:#1b1e26; --panel2:#232733; --text:#d7dae2; --dim:#8b90a0;
-    --accent:#6ea8ff; --chip:#262b38; --chip-on:#31406b;
+    --accent:#6ea8ff; --chip:#262b38; --chip-on:#31406b; --hot:#ff8a4a;
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{height:100%}
@@ -18,6 +18,9 @@
   #stage.dark{background:#101216}
   canvas{max-width:100%; max-height:100vh; image-rendering:auto}
   #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(30,50,90,.5); font-size:20px; pointer-events:none}
+  #recbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000; font-weight:600;
+    padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:5}
+  #recbar.on{display:flex}
   #panel{width:330px; overflow-y:auto; background:var(--panel); padding:14px 16px 40px; flex-shrink:0}
   #panel::-webkit-scrollbar{width:8px}
   #panel::-webkit-scrollbar-thumb{background:#333a4a; border-radius:4px}
@@ -29,11 +32,15 @@
   .btn{padding:5px 13px; border-radius:6px; background:var(--panel2); border:1px solid #333a4a; color:var(--text); cursor:pointer; font-size:12px}
   .btn:hover{border-color:var(--accent)}
   .btn.on{background:var(--chip-on); border-color:var(--accent)}
+  .btn.go{background:var(--accent); border-color:var(--accent); color:#0b1020; font-weight:700}
+  .btn.go:hover{background:#8bb9ff}
+  .btn:disabled{opacity:.4; cursor:default}
   .row{display:flex; align-items:center; gap:8px; margin:5px 0}
   .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px}
   .row input[type=range]{flex:1; accent-color:var(--accent); height:4px}
   .row .val{width:36px; text-align:right; color:var(--dim); font-size:11px}
   select{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font-size:11px; padding:1px 4px}
+  input[type=number]{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font:inherit; font-size:12px; padding:3px 5px; width:62px}
   #layerlist .row label{width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   #note{color:var(--dim); font-size:11px; margin-top:6px}
   #fileInput{display:none}
@@ -41,41 +48,62 @@
     color:var(--dim); cursor:pointer; margin-bottom:12px; font-size:12px; user-select:none}
   #psdBox:hover, #psdBox.dragging{border-color:var(--accent); color:#dfe9ff; background:rgba(110,168,255,.06)}
   #psdInfo{margin-top:4px; font-size:11px; color:var(--accent); word-break:break-all}
+  .hint{color:var(--dim); font-size:11px; line-height:1.6; margin-top:6px}
 </style>
 </head>
 <body>
 <div id="stage" class="transparent">
   <canvas id="cv"></canvas>
-  <div id="drop">PSDをドロップ</div>
+  <div id="drop">PSD / PNG をドロップ</div>
+  <div id="recbar"><span>書き出し中</span><span id="recinfo"></span></div>
 </div>
 <div id="panel">
-  <h3 style="margin-top:0">PSD読み込み</h3>
+  <h3 style="margin-top:0">読み込み</h3>
   <div id="psdBox">
-    <div>クリック または ここにPSDをドロップ</div>
+    <div>クリック、または PSD / PNG複数枚 をドロップ</div>
     <div id="psdInfo">未読込</div>
   </div>
   <div class="chips" id="chips"></div>
   <div id="controls"></div>
-  <h3>テクスチャ</h3>
-  <div class="btns">
-    <button class="btn" id="reloadBtn">PSDから更新</button>
-    <input type="file" id="fileInput" accept=".psd">
+
+  <h3>ループ書き出し</h3>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">秒</label><input type="number" id="dur" value="3" min="1" max="15" step="0.5">
+    <label style="width:auto">fps</label><input type="number" id="fps" value="30" min="10" max="60" step="1">
   </div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">まばたき間隔</label><input type="number" id="bi" value="2.5" min="0.5" step="0.1">
+  </div>
+  <div class="btns">
+    <button class="btn" id="loopBtn">ループ確認</button>
+    <button class="btn go" id="recBtn">WebMを書き出す</button>
+  </div>
+  <div class="hint">書き出し中はマウス追従・マイク・ランダム動作が自動でオフになり、揺れが落ち着いてから録画されるので、先頭と末尾が繋がります。</div>
+
+  <h3>設定</h3>
+  <div class="btns">
+    <button class="btn" id="saveJson">設定を保存</button>
+    <button class="btn" id="loadJson">設定を読む</button>
+  </div>
+
   <h3>背景</h3>
   <div class="btns" id="bgBtns">
     <button class="btn on" data-bg="transparent">透過</button>
     <button class="btn" data-bg="gb">GB</button>
     <button class="btn" data-bg="dark">ダーク</button>
   </div>
+
   <h3>レイヤー(役割の割り当て)</h3>
   <div id="layerlist"></div>
   <div id="note"></div>
+  <input type="file" id="fileInput" accept=".psd,.png" multiple>
 </div>
 
 <script>
 "use strict";
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
+const $ = id => document.getElementById(id);
 
 /* ---------------- パラメータ定義 ---------------- */
 const PARAM_DEFS = [
@@ -103,10 +131,10 @@ const PARAM_DEFS = [
 const TOGGLES = [
   {id:"idle",       label:"アイドル",     def:true},
   {id:"autoBlink",  label:"自動まばたき", def:true},
-  {id:"randomMotion",label:"ランダム動作",def:false},
-  {id:"randomLip",  label:"ランダムリップ",def:false},
-  {id:"mouseTrack", label:"マウス追従",   def:false},
-  {id:"micLip",     label:"マイクリップ", def:false},
+  {id:"randomMotion",label:"ランダム動作",def:false, live:true},
+  {id:"randomLip",  label:"ランダムリップ",def:false, live:true},
+  {id:"mouseTrack", label:"マウス追従",   def:false, live:true},
+  {id:"micLip",     label:"マイクリップ", def:false, live:true},
   {id:"hairPhys",   label:"髪の物理",     def:true},
 ];
 const PRESETS = {
@@ -127,7 +155,8 @@ const T = {};
 TOGGLES.forEach(t=> T[t.id]=t.def);
 
 /* ---------------- UI構築 ---------------- */
-const chipsEl = document.getElementById("chips");
+const chipEls = {};
+const chipsEl = $("chips");
 TOGGLES.forEach(t=>{
   const el = document.createElement("div");
   el.className = "chip" + (t.def ? " on" : "");
@@ -135,9 +164,11 @@ TOGGLES.forEach(t=>{
   el.onclick = ()=>{ T[t.id] = !T[t.id]; el.classList.toggle("on", T[t.id]);
     if(t.id==="micLip" && T.micLip) startMic(); };
   chipsEl.appendChild(el);
+  chipEls[t.id] = el;
 });
+function syncChips(){ TOGGLES.forEach(t=> chipEls[t.id].classList.toggle("on", T[t.id])); }
 
-const controlsEl = document.getElementById("controls");
+const controlsEl = $("controls");
 {
   const h = document.createElement("h3"); h.textContent = "表情プリセット";
   controlsEl.appendChild(h);
@@ -166,15 +197,16 @@ function syncSlider(id){
   const s = sliderEls[id]; if(!s) return;
   s.inp.value = P[id]; s.val.textContent = P[id].toFixed(1);
 }
+function syncAllSliders(){ Object.keys(sliderEls).forEach(syncSlider); }
 
-document.getElementById("bgBtns").addEventListener("click", e=>{
+$("bgBtns").addEventListener("click", e=>{
   const b = e.target.closest("[data-bg]"); if(!b) return;
   document.querySelectorAll("#bgBtns .btn").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");
-  document.getElementById("stage").className = b.dataset.bg;
+  $("stage").className = b.dataset.bg;
 });
 
-/* ---------------- PSD読み込み ---------------- */
+/* ---------------- 素材読み込み ---------------- */
 let layers = [];       // {name, canvas, left, top, width, height, role}
 let psdW = 768, psdH = 768, psdName = "output_layers.psd";
 let facePivot = {x:384, y:400};
@@ -237,6 +269,25 @@ async function loadPsdFile(file){
   try{ await idbPut("lastPsd", {name: file.name, buf}); }catch(e){ /* 保存失敗は無視 */ }
 }
 
+function finishLoad(){
+  // 前髪が後髪より先(下)に来ていたら配列は上→下順とみなして反転
+  const fi = layers.findIndex(l=>l.role==="frontHair");
+  const bi = layers.findIndex(l=>l.role==="backHair");
+  if(fi >= 0 && bi >= 0 && fi < bi) layers.reverse();
+  // 頭の回転ピボット: faceレイヤーの顎あたり
+  const face = layers.find(l=>/face|顔/.test(l.name.toLowerCase()));
+  facePivot = face
+    ? {x: face.left + face.width/2, y: face.top + face.height*0.95}
+    : {x: psdW/2, y: psdH*0.5};
+  cv.width = psdW; cv.height = psdH;
+  buildLayerList();
+  $("psdInfo").textContent = `${psdName} — ${layers.length}レイヤー (${psdW}×${psdH})`;
+  const hasChest = layers.some(l=>l.role==="chest");
+  $("note").textContent = hasChest
+    ? "胸レイヤー検出: 物理演算が有効です"
+    : "胸レイヤー未検出 — レイヤー名に chest / 胸 を含めるか、下のリストで役割を「胸」にすると揺れ物理が有効になります";
+}
+
 function applyPsd(buf){
   const psd = agPsd.readPsd(buf, {skipCompositeImageData:true, skipThumbnail:true});
   psdW = psd.width; psdH = psd.height;
@@ -250,26 +301,46 @@ function applyPsd(buf){
     width: (l.right||0)-(l.left||0), height: (l.bottom||0)-(l.top||0),
     role: ov[l.name] || guessRole(l.name||""),
   }));
-  // 前髪が後髪より先(下)に来ていたら配列は上→下順とみなして反転
-  const fi = layers.findIndex(l=>l.role==="frontHair");
-  const bi = layers.findIndex(l=>l.role==="backHair");
-  if(fi >= 0 && bi >= 0 && fi < bi) layers.reverse();
-  // 頭の回転ピボット: faceレイヤーの顎あたり
-  const face = layers.find(l=>/face|顔/.test(l.name.toLowerCase()));
-  facePivot = face
-    ? {x: face.left + face.width/2, y: face.top + face.height*0.95}
-    : {x: psdW/2, y: psdH*0.5};
-  cv.width = psdW; cv.height = psdH;
-  buildLayerList();
-  document.getElementById("psdInfo").textContent = `${psdName} — ${layers.length}レイヤー (${psdW}×${psdH})`;
-  const hasChest = layers.some(l=>l.role==="chest");
-  document.getElementById("note").textContent = hasChest
-    ? "胸レイヤー検出: 物理演算が有効です"
-    : "胸レイヤー未検出 — レイヤー名に chest / 胸 を含めるか、下のリストで役割を「胸」にすると揺れ物理が有効になります";
+  finishLoad();
+}
+
+/* PNG複数枚: ファイル名をレイヤー名として扱う。不透明部分の外接矩形を取り、
+   PSDレイヤーと同じ left/top/width/height を持たせる(ピボット計算のため)。 */
+function contentBox(c){
+  const d = c.getContext("2d").getImageData(0,0,c.width,c.height).data;
+  let x0=c.width, y0=c.height, x1=-1, y1=-1;
+  for(let y=0; y<c.height; y++) for(let x=0; x<c.width; x++){
+    if(d[(y*c.width+x)*4+3] > 8){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  }
+  return x1 < 0 ? null : [x0,y0,x1,y1];
+}
+async function applyPngs(files){
+  const arr = [...files].sort((a,b)=> a.name.localeCompare(b.name, "ja"));
+  const ov = roleOverrides();
+  const out = [];
+  psdW = 0; psdH = 0;
+  for(const f of arr){
+    const img = await new Promise(r=>{ const i = new Image(); i.onload = ()=>r(i); i.src = URL.createObjectURL(f); });
+    psdW = Math.max(psdW, img.width); psdH = Math.max(psdH, img.height);
+    const full = document.createElement("canvas");
+    full.width = img.width; full.height = img.height;
+    full.getContext("2d", {willReadFrequently:true}).drawImage(img, 0, 0);
+    const box = contentBox(full) || [0, 0, img.width-1, img.height-1];
+    const [x0,y0,x1,y1] = box, w = x1-x0+1, h = y1-y0+1;
+    const crop = document.createElement("canvas");
+    crop.width = w; crop.height = h;
+    crop.getContext("2d").drawImage(full, x0, y0, w, h, 0, 0, w, h);
+    const name = f.name.replace(/\.png$/i, "");
+    out.push({ name, canvas: crop, left:x0, top:y0, width:w, height:h,
+               role: ov[name] || guessRole(name) });
+  }
+  layers = out;
+  psdName = "png:" + arr.length + "枚";
+  finishLoad();
 }
 
 function buildLayerList(){
-  const el = document.getElementById("layerlist");
+  const el = $("layerlist");
   el.innerHTML = "";
   const ov = roleOverrides();
   [...layers].reverse().forEach(l=>{   // 上のレイヤーから表示
@@ -281,7 +352,7 @@ function buildLayerList(){
       sel.appendChild(o);
     });
     sel.value = ov[l.name] ? l.role : "auto";
-    if(sel.value === "auto"){ /* 表示は自動でも実役割をツールチップに */ sel.title = ROLE_LABELS[l.role]; }
+    if(sel.value === "auto"){ sel.title = ROLE_LABELS[l.role]; }
     sel.onchange = ()=>{
       const o2 = roleOverrides();
       if(sel.value === "auto"){ delete o2[l.name]; l.role = guessRole(l.name); }
@@ -294,44 +365,38 @@ function buildLayerList(){
 }
 
 async function loadDefault(){
-  // 1) 前回読んだPSDを復元 → 2) 同じフォルダの output_layers.psd → 3) 手動読み込み待ち
   try{
     const saved = await idbGet("lastPsd");
     if(saved && saved.buf){ psdName = saved.name; applyPsd(saved.buf); return; }
   }catch(e){ /* IndexedDB不可なら次へ */ }
-  try{
-    const r = await fetch("output_layers.psd");
-    if(!r.ok) throw 0;
-    applyPsd(await r.arrayBuffer());
-  }catch(e){
-    document.getElementById("note").textContent = "PSDが未読込です。上の「PSD読み込み」ボックスから読み込んでください。";
-  }
+  $("note").textContent = "素材が未読込です。上のボックスから PSD か PNG複数枚を読み込んでください。";
 }
-const fileInput = document.getElementById("fileInput");
-document.getElementById("reloadBtn").onclick = ()=> fileInput.click();
-document.getElementById("psdBox").onclick = ()=> fileInput.click();
-fileInput.onchange = e=>{
-  const f = e.target.files[0]; if(!f) return;
-  loadPsdFile(f);
-  fileInput.value = "";  // 同じファイルの再選択(PSDから更新)を可能にする
-};
-const psdBox = document.getElementById("psdBox");
+
+function handleFiles(files){
+  const fs = [...files];
+  if(!fs.length) return;
+  const psd = fs.find(f=>/\.psd$/i.test(f.name));
+  if(psd) loadPsdFile(psd);
+  else if(fs.some(f=>/\.png$/i.test(f.name))) applyPngs(fs.filter(f=>/\.png$/i.test(f.name)));
+}
+const fileInput = $("fileInput");
+$("psdBox").onclick = ()=> fileInput.click();
+fileInput.onchange = e=>{ handleFiles(e.target.files); fileInput.value = ""; };
+const psdBox = $("psdBox");
 psdBox.addEventListener("dragover", e=>{ e.preventDefault(); e.stopPropagation(); psdBox.classList.add("dragging"); });
 psdBox.addEventListener("dragleave", ()=> psdBox.classList.remove("dragging"));
 psdBox.addEventListener("drop", e=>{
   e.preventDefault(); e.stopPropagation();
   psdBox.classList.remove("dragging");
-  const f = e.dataTransfer.files[0];
-  if(f && /\.psd$/i.test(f.name)) loadPsdFile(f);
+  handleFiles(e.dataTransfer.files);
 });
-const stage = document.getElementById("stage");
-stage.addEventListener("dragover", e=>{ e.preventDefault(); document.getElementById("drop").style.display="flex"; });
-stage.addEventListener("dragleave", ()=> document.getElementById("drop").style.display="none");
+const stage = $("stage");
+stage.addEventListener("dragover", e=>{ e.preventDefault(); $("drop").style.display="flex"; });
+stage.addEventListener("dragleave", ()=> $("drop").style.display="none");
 stage.addEventListener("drop", e=>{
   e.preventDefault();
-  document.getElementById("drop").style.display="none";
-  const f = e.dataTransfer.files[0];
-  if(f && /\.psd$/i.test(f.name)) loadPsdFile(f);
+  $("drop").style.display="none";
+  handleFiles(e.dataTransfer.files);
 });
 
 /* ---------------- 物理(バネ・ダンパー) ---------------- */
@@ -344,8 +409,9 @@ class Spring{
   }
 }
 const springs = { frontHair: new Spring(), backHair: new Spring(), chestY: new Spring(), chestX: new Spring() };
+function resetSprings(){ Object.values(springs).forEach(s=>{ s.x = 0; s.v = 0; }); }
 
-/* ---------------- アニメーション状態 ---------------- */
+/* ---------------- 入力 ---------------- */
 let mouse = {x:0, y:0};
 addEventListener("pointermove", e=>{
   mouse.x = (e.clientX / innerWidth) * 2 - 1;
@@ -367,90 +433,102 @@ async function startMic(){
       micLevel = Math.min(1, Math.sqrt(s/buf.length) * 12);
       requestAnimationFrame(poll);
     })();
-  }catch(e){ micStarted = false; T.micLip = false; }
+  }catch(e){ micStarted = false; T.micLip = false; syncChips(); }
 }
 
+/* ---------------- アニメーション ---------------- */
 let blink = 0, blinkTimer = 2.5;   // 0=開 1=閉
 let prevHead = {x:0, y:0};
 let lipPhase = 0;
 
 function smooth(cur, tgt, dt, speed){ return cur + (tgt - cur) * Math.min(1, dt*speed); }
 
-let last = performance.now();
-function frame(now){
-  const dt = Math.min(1/30, (now - last)/1000); last = now;
-  const t = now/1000;
+// ループモード用: 角速度を「尺の整数分の1周」に丸め、先頭と末尾を必ず一致させる
+const durVal = ()=> Math.max(1, +$("dur").value || 3);
+function W(w, loop){
+  if(!loop) return w;
+  const D = durVal();
+  const n = Math.max(1, Math.round(w * D / (2*Math.PI)));
+  return 2*Math.PI*n / D;
+}
+// 山型のまばたきカーブ (q:0→1 で 開→閉→開)
+function blinkShape(q){ return q < 0.4 ? q/0.4 : 1-(q-0.4)/0.6; }
 
+/**
+ * 1フレーム進める。loop=true なら時刻 t だけで決まる決定論的な動きになり、
+ * 乱数・マウス・マイクは一切混ざらない(= 何度回しても同じ絵になる)。
+ */
+function step(t, dt, loop){
   // プリセットへのイージング
   for(const k in target){
     if(target[k] === null) continue;
     P[k] = smooth(P[k], target[k], dt, 10);
     if(Math.abs(P[k]-target[k]) < .005){ P[k] = target[k]; target[k] = null; }
-    syncSlider(k);
+    if(!loop) syncSlider(k);
   }
 
-  // 自動モーションを加算した実効値
   let headX = P.headX, headY = P.headY, headZ = P.headZ, bodyTilt = P.bodyTilt;
   let gazeX = P.gazeX, gazeY = P.gazeY;
   if(T.idle){
-    headX += Math.sin(t*0.55)*0.045 + Math.sin(t*1.31)*0.02;
-    headY += Math.sin(t*0.42+1)*0.035;
-    headZ += Math.sin(t*0.35+2)*0.03;
-    bodyTilt += Math.sin(t*0.3)*0.02;
+    headX += Math.sin(t*W(0.55,loop))*0.045 + Math.sin(t*W(1.31,loop))*0.02;
+    headY += Math.sin(t*W(0.42,loop)+1)*0.035;
+    headZ += Math.sin(t*W(0.35,loop)+2)*0.03;
+    bodyTilt += Math.sin(t*W(0.3,loop))*0.02;
   }
-  if(T.randomMotion){
+  if(T.randomMotion && !loop){
     headX += Math.sin(t*0.9)*0.25 + Math.sin(t*0.23+4)*0.2;
     headY += Math.sin(t*0.7+2)*0.18;
     headZ += Math.sin(t*0.5+1)*0.12;
   }
-  if(T.mouseTrack){
+  if(T.mouseTrack && !loop){
     headX += mouse.x*0.6; headY += mouse.y*0.4;
     gazeX += mouse.x*0.8; gazeY += mouse.y*0.8;
   }
-  const breath = T.idle ? Math.sin(t*1.9)*0.5+0.5 : 0;  // 呼吸 0..1
+  const breath = T.idle ? Math.sin(t*W(1.9,loop))*0.5+0.5 : 0;
 
-  // まばたき
+  // まばたき: ループ時は等間隔、通常時はランダム間隔
   if(T.autoBlink){
-    blinkTimer -= dt;
-    if(blinkTimer <= 0){ blinkTimer = 1.8 + Math.random()*3.5; }
-    if(blinkTimer > 0 && blinkTimer < 0.28){
-      const q = 1 - blinkTimer/0.28;             // 0→1
-      blink = q < 0.4 ? q/0.4 : 1-(q-0.4)/0.6;   // 山型
-    } else blink = 0;
+    if(loop){
+      const D = durVal();
+      const per = D / Math.max(1, Math.round(D / Math.max(0.5, +$("bi").value || 2.5)));
+      const tp = t % per;
+      blink = tp < 0.28 ? blinkShape(tp/0.28) : 0;
+    } else {
+      blinkTimer -= dt;
+      if(blinkTimer <= 0){ blinkTimer = 1.8 + Math.random()*3.5; }
+      blink = (blinkTimer > 0 && blinkTimer < 0.28) ? blinkShape(1 - blinkTimer/0.28) : 0;
+    }
   } else blink = 0;
 
   // リップ
   let mouthOpen = P.mouthOpen;
-  if(T.randomLip){
+  if(T.randomLip && !loop){
     lipPhase += dt * (4 + Math.sin(t*0.8)*2);
     mouthOpen = Math.max(mouthOpen, (Math.sin(lipPhase)*0.5+0.5) * (Math.sin(t*0.47)*0.5+0.5) * 0.9);
   }
-  if(T.micLip) mouthOpen = Math.max(mouthOpen, micLevel);
+  if(T.micLip && !loop) mouthOpen = Math.max(mouthOpen, micLevel);
 
   // 物理入力: 頭の移動速度を揺れ物へ伝える
   const hx = headX*30, hy = headY*20;
   const velX = (hx - prevHead.x)/Math.max(dt,1e-4), velY = (hy - prevHead.y)/Math.max(dt,1e-4);
   prevHead = {x:hx, y:hy};
   const soft = P.softness;
-  const k = 260/(1 + soft*1.1), c = 2*Math.sqrt(k)*0.55;
   const gain = P.swayGain;
-  // 髪も専用の柔らかいバネにし、静止時もそよ風でゆったり揺れるようにする
   const hk = 90/(1 + soft*0.9), hc = 2*Math.sqrt(hk)*0.4;
-  const wind = T.idle ? (Math.sin(t*1.4) + Math.sin(t*2.3+1)*0.5) : 0;   // ~±1.5
+  const wind = T.idle ? (Math.sin(t*W(1.4,loop)) + Math.sin(t*W(2.3,loop)+1)*0.5) : 0;
   if(T.hairPhys){
     springs.frontHair.step(dt, hk,      hc,     (-velX*1.1*gain + wind*100*gain));
     springs.backHair.step( dt, hk*0.85, hc*0.9, (-velX*1.4*gain + wind*140*gain));
   } else { springs.frontHair.x = springs.frontHair.v = 0; springs.backHair.x = springs.backHair.v = 0; }
-  // 胸: 専用の柔らかいバネ。アイドル中もはっきり上下バウンスさせる。
-  const cb = P.chestBounce;                 // 0..10 揺れの大きさ
-  const chestGain = 0.25 + gain;            // 揺れの強さ0でも最低限は動く
-  const ck = 70 / (1 + soft*0.8);           // 柔らかいほど大きく長く揺れる
-  const cc = 2*Math.sqrt(ck)*0.32;          // 減衰弱め=よく揺れる
-  const idleBob = T.idle ? (Math.sin(t*2.3) + Math.sin(t*3.7+1)*0.4) : 0;
+  const cb = P.chestBounce;
+  const chestGain = 0.25 + gain;
+  const ck = 70 / (1 + soft*0.8);
+  const cc = 2*Math.sqrt(ck)*0.32;
+  const idleBob = T.idle ? (Math.sin(t*W(2.3,loop)) + Math.sin(t*W(3.7,loop)+1)*0.4) : 0;
   springs.chestY.step(dt, ck, cc, (idleBob*42 - velY*12) * cb * chestGain);
-  springs.chestX.step(dt, ck, cc, (Math.sin(t*1.7)*9 - velX*10) * cb * chestGain);
+  springs.chestX.step(dt, ck, cc, (Math.sin(t*W(1.7,loop))*9 - velX*10) * cb * chestGain);
 
-  draw({headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink});
+  return {headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink};
 }
 
 /* ---------------- 描画 ---------------- */
@@ -482,27 +560,23 @@ function draw(S){
       ctx.translate(-px, -py);
       ctx.translate(S.headX*26*depth, S.headY*16*depth + S.headY*4);
     } else {
-      // 体パーツもわずかに追従
       ctx.translate(S.headX*3, S.headY*1.5);
     }
 
-    // --- 役割ごとの変形 ---
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
 
     if(role === "frontHair" || role === "backHair"){
-      // 上端ピン留めシアー(下ほど揺れる)
       const s = springs[role].x;
       ctx.translate(cx, l.top);
-      ctx.transform(1, 0, s*0.02, 1, 0, 0);   // 下ほど大きく横に流れる
+      ctx.transform(1, 0, s*0.02, 1, 0, 0);
       ctx.rotate(s*0.006);
       ctx.translate(-cx, -l.top);
     }
     else if(role === "chest"){
-      // 上端ピン留め: 縦バウンス + わずかな横揺れ
       const sy = springs.chestY.x, sx = springs.chestX.x;
       ctx.translate(cx, l.top);
       ctx.translate(sx*1.5, P.chestHeight*-8 + sy*1.0);
-      ctx.scale(1 - sy*0.015, 1 + sy*0.03);   // 下ほど伸縮(上端ピン留め)
+      ctx.scale(1 - sy*0.015, 1 + sy*0.03);
       ctx.rotate(sx*0.004);
       ctx.translate(-cx, -l.top);
     }
@@ -510,7 +584,6 @@ function draw(S){
       ctx.translate(0, P.browY*-7);
     }
     else if(role === "mouth"){
-      // スライダー0で原画そのまま(恒等変換)
       ctx.translate(cx, cy);
       ctx.scale(1 + P.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4);
       ctx.translate(-cx, -cy);
@@ -519,8 +592,6 @@ function draw(S){
       ctx.translate(S.gazeX*7, S.gazeY*4);
     }
 
-    // --- 目系レイヤーは左右半分ずつ独立描画 ---
-    // ただし片目分しかない幅の狭いレイヤーは分割せず、位置で左右を判定
     if(role === "eyelash" || role === "eyeWhite" || role === "iris"){
       const face = layers.find(x=>x.role==="head" && /face|顔/.test(x.name.toLowerCase()));
       const faceW = face ? face.width : psdW*0.25;
@@ -542,9 +613,7 @@ function draw(S){
           const icx = singleEye ? cx : (side==="L" ? (l.left+midX)/2 : (midX+l.left+l.width)/2);
           ctx.translate(icx, cy); ctx.scale(P.irisScale, P.irisScale); ctx.translate(-icx, -cy);
         }
-        if(open > 1){ // 見開き: まつ毛ごと少し上へ
-          ctx.translate(0, -(open-1)*6);
-        }
+        if(open > 1){ ctx.translate(0, -(open-1)*6); }
         ctx.drawImage(l.canvas, l.left, l.top);
         ctx.restore();
       }
@@ -555,11 +624,141 @@ function draw(S){
   }
 }
 
+/* ---------------- 再生ループ ---------------- */
+let loopPreview = false;   // ループ確認モード
+let exporting = false;
+let last = performance.now();
+let loopT0 = performance.now();
+
+$("loopBtn").onclick = ()=>{
+  loopPreview = !loopPreview;
+  $("loopBtn").classList.toggle("on", loopPreview);
+  loopT0 = performance.now();
+  resetSprings();
+};
+
+function realtimeFrame(now){
+  if(exporting) { last = now; return; }
+  const dt = Math.min(1/30, (now - last)/1000); last = now;
+  const t = loopPreview ? ((now - loopT0)/1000) % durVal() : now/1000;
+  draw(step(t, dt, loopPreview));
+}
+
+/* ---------------- 書き出し ---------------- */
+const sleep = ms => new Promise(r=> setTimeout(r, ms));
+function pickMime(){
+  for(const m of ["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"])
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return null;
+}
+$("recBtn").onclick = async ()=>{
+  if(!layers.length){ $("note").textContent = "先に PSD か PNG を読み込んでください。"; return; }
+  const mime = pickMime();
+  if(!mime){ $("note").textContent = "このブラウザは WebM 書き出しに対応していません。"; return; }
+
+  const D = durVal(), fps = Math.max(10, +$("fps").value || 30);
+  const N = Math.round(D * fps), dt = 1/fps;
+
+  // ライブ入力系は録画中だけ退避してオフに(毎回結果が変わるため)
+  const savedT = {...T};
+  TOGGLES.filter(t=>t.live).forEach(t=> T[t.id] = false);
+  syncChips();
+
+  exporting = true;
+  $("recBtn").disabled = true;
+  $("recbar").classList.add("on");
+
+  try{
+    // 揺れ物を定常状態にするための空回し(3周)。これで先頭と末尾が繋がる。
+    resetSprings();
+    $("recinfo").textContent = "揺れを安定させています…";
+    await sleep(0);
+    for(let i = 0; i < N*3; i++) step((i % N) * dt, dt, true);
+
+    const stream = cv.captureStream(0);
+    const track = stream.getVideoTracks()[0];
+    const rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 8e6});
+    const chunks = [];
+    rec.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+    const stopped = new Promise(r=> rec.onstop = r);
+    rec.start();
+
+    for(let i = 0; i < N; i++){
+      draw(step(i * dt, dt, true));
+      if(track.requestFrame) track.requestFrame();
+      $("recinfo").textContent = `${i+1} / ${N} フレーム`;
+      await sleep(1000/fps);
+    }
+    rec.stop();
+    await stopped;
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(chunks, {type: mime}));
+    a.download = "avatar_loop.webm";
+    a.click();
+    $("note").textContent = `avatar_loop.webm を書き出しました（${D}秒 / ${fps}fps / ${N}フレーム）。WebMの透過はブラウザ依存なので、必要なら背景を GB にして書き出してください。`;
+  } finally {
+    exporting = false;
+    $("recBtn").disabled = false;
+    $("recbar").classList.remove("on");
+    Object.assign(T, savedT);
+    syncChips();
+    resetSprings();
+    last = performance.now();
+    loopT0 = performance.now();
+  }
+};
+
+/* ---------------- 設定の保存 / 読み込み ---------------- */
+$("saveJson").onclick = ()=>{
+  const data = {
+    version: 1,
+    source: psdName,
+    duration: +$("dur").value, fps: +$("fps").value, blinkInterval: +$("bi").value,
+    params: {...P},
+    toggles: {...T},
+    roles: Object.fromEntries(layers.map(l=>[l.name, l.role])),
+  };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
+  a.download = "avatar_setup.json";
+  a.click();
+};
+$("loadJson").onclick = ()=>{
+  const i = document.createElement("input");
+  i.type = "file"; i.accept = ".json";
+  i.onchange = async ()=>{
+    try{
+      const d = JSON.parse(await i.files[0].text());
+      if(d.params) Object.entries(d.params).forEach(([k,v])=>{ if(k in P){ P[k] = v; target[k] = null; } });
+      if(d.toggles) Object.entries(d.toggles).forEach(([k,v])=>{ if(k in T) T[k] = !!v; });
+      if(d.duration) $("dur").value = d.duration;
+      if(d.fps) $("fps").value = d.fps;
+      if(d.blinkInterval) $("bi").value = d.blinkInterval;
+      if(d.roles){
+        const ov = roleOverrides();
+        let hit = 0;
+        layers.forEach(l=>{ if(d.roles[l.name]){ l.role = d.roles[l.name]; ov[l.name] = l.role; hit++; } });
+        localStorage.setItem("psdRoles:"+psdName, JSON.stringify(ov));
+        buildLayerList();
+        $("note").textContent = `設定を読み込みました（役割 ${hit}/${layers.length} 件が一致）`;
+      } else {
+        $("note").textContent = "設定を読み込みました";
+      }
+      syncAllSliders(); syncChips();
+    }catch(e){
+      $("note").textContent = "設定の読み込みに失敗しました: " + e.message;
+    }
+  };
+  i.click();
+};
+
+/* ---------------- 起動 ---------------- */
 loadDefault();
 // rAFが止まる環境(非表示タブ等)でも動くようフォールバック付きでループ
 let rafAlive = false;
-(function loop(now){ rafAlive = true; frame(now); requestAnimationFrame(loop); })(performance.now());
-setInterval(()=>{ if(!rafAlive) frame(performance.now()); rafAlive = false; }, 33);
+(function loop(now){ rafAlive = true; realtimeFrame(now); requestAnimationFrame(loop); })(performance.now());
+setInterval(()=>{ if(!rafAlive) realtimeFrame(performance.now()); rafAlive = false; }, 33);
 </script>
 </body>
 </html>

@@ -26,13 +26,13 @@ const TOOLS = [
   },
   {
     no: 3,
-    slug: "psd-parts-anime",
-    title: "PSD パーツアニメ",
-    desc: "PSDかレイヤー名付きPNGを放り込み、パーツごとに揺れ・まばたき・口パクを割り当てて動かす。WebMと割り当てJSONで書き出し。",
+    slug: "psd-avatar-studio",
+    title: "PSD アバタースタジオ",
+    desc: "PSD立ち絵に表情・視線・髪と胸の物理を当ててリアルタイムに動かし、そのままループWebMとして書き出す。マウス追従とマイク口パクにも対応。",
     tags: ["PSD", "立ち絵", "WebM書き出し"],
     cat: "anime",
-    thumb: "thumbs/psd-parts-anime.png",
-    url: "tools/psd-parts-anime/index.html",
+    thumb: "thumbs/psd-avatar-studio.png",
+    url: "tools/psd-avatar-studio/index.html",
     status: "live"
   },
   {
@@ -55,17 +55,6 @@ const TOOLS = [
     cat: "other",
     thumb: "thumbs/dot-maker.png",
     url: "tools/dot-maker/index.html",
-    status: "live"
-  },
-  {
-    no: 6,
-    slug: "avatar-viewer",
-    title: "PSD Avatar Viewer",
-    desc: "PSD立ち絵に表情プリセットと頭の向き・視線・髪の物理を当てて動かすビューア。マウス追従とマイクの口パクにも対応。",
-    tags: ["PSD", "立ち絵", "リアルタイム"],
-    cat: "anime",
-    thumb: "thumbs/avatar-viewer.png",
-    url: "tools/avatar-viewer/index.html",
     status: "live"
   }
 ];
