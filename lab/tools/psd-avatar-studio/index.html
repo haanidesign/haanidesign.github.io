@@ -69,6 +69,9 @@
   #layerlist .bulkbar{gap:6px; margin:0 0 8px; flex-wrap:wrap}
   #layerlist .bulkbar .btn{flex:1; min-width:0}
   #layerlist .reftag{font-size:10.5px; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #layerlist .gbrow{background:var(--panel2); border-radius:6px; padding:8px 10px; margin-bottom:8px; border-bottom:none}
+  #layerlist .gbrow > .row:first-child label{color:var(--text); font-size:12px; font-weight:600}
+  #layerlist .gbrow .hint{margin-top:4px}
   #note{color:var(--dim); font-size:11px; margin-top:6px}
   #fileInput{display:none}
   #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
@@ -133,6 +136,7 @@
   <div class="btns">
     <button class="btn" id="saveJson">設定を保存</button>
     <button class="btn" id="loadJson">設定を読む</button>
+    <button class="btn" id="resetBtn">初期に戻す</button>
   </div>
 
   <h3>背景</h3>
@@ -309,10 +313,15 @@ function saveRig(){
   layers.forEach(l=>{
     if(l.parent || l.on === false || (l.bone && l.bone.length) || l.boneRef) o[l.name] = rigOf(l);
   });
+  if(globalBone.bone.length) o.__global = {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
+                                           bprm: {...globalBone.bprm}};
   localStorage.setItem("psdRig:"+psdName, JSON.stringify(o));
 }
 function applyRig(){
   const rg = rigOverrides();
+  const gb = rg.__global;
+  globalBone.bone = (gb && Array.isArray(gb.bone)) ? gb.bone.map(p=>({x:+p.x, y:+p.y})) : [];
+  globalBone.bprm = Object.assign({amp:6, speed:1, phase:0, lag:0.25}, (gb && gb.bprm) || {});
   layers.forEach(l=>{
     const r = rg[l.name];
     l.parent = (r && r.parent) || null;
@@ -507,6 +516,57 @@ function buildLayerList(){
   const el = $("layerlist");
   el.innerHTML = "";
   const ov = roleOverrides();
+
+  // --- 全体ボーン ---
+  const gb = document.createElement("div"); gb.className = "lrow gbrow";
+  const gTitle = document.createElement("div"); gTitle.className = "row";
+  const gLab = document.createElement("label"); gLab.style.width = "auto";
+  gLab.textContent = globalBoneActive() ? `全体ボーン（${globalBone.bone.length}点）` : "全体ボーン";
+  gTitle.appendChild(gLab);
+  gb.appendChild(gTitle);
+
+  const gBar = document.createElement("div"); gBar.className = "row sub bonebar";
+  const gDraw = document.createElement("button");
+  gDraw.className = "btn tiny" + (globalBoneActive() ? "" : " go");
+  gDraw.textContent = globalBoneActive() ? "引き直す" : "キャラ全体に1本引く";
+  gDraw.onclick = ()=>{
+    startBoneEdit(globalBone);
+    $("note").textContent = "腰から頭へ向かって、根元→先端の順にクリックしてください。";
+  };
+  gBar.appendChild(gDraw);
+  if(globalBoneActive()){
+    Object.entries(BONE_PRESETS).forEach(([k,v])=>{
+      const b = document.createElement("button");
+      b.className = "btn tiny"; b.textContent = v.label;
+      b.onclick = ()=>{ Object.assign(globalBone.bprm, {amp:v.amp, speed:v.speed, phase:v.phase, lag:v.lag}); saveRig(); buildLayerList(); };
+      gBar.appendChild(b);
+    });
+    const del = document.createElement("button");
+    del.className = "btn tiny"; del.textContent = "消す";
+    del.onclick = ()=>{ globalBone.bone = []; saveRig(); buildLayerList(); };
+    gBar.appendChild(del);
+  }
+  gb.appendChild(gBar);
+  if(globalBoneActive()){
+    [["amp","曲がり角度",0,45,0.5],["speed","周期",1,8,1],["phase","位相",0,1,0.05],["lag","遅延",0,0.6,0.02]]
+      .forEach(([key,label,mn,mx,st])=>{
+        const r = document.createElement("div"); r.className = "row sub";
+        const la = document.createElement("label"); la.textContent = label;
+        const inp = document.createElement("input");
+        inp.type = "range"; inp.min = mn; inp.max = mx; inp.step = st; inp.value = globalBone.bprm[key];
+        const vv = document.createElement("span"); vv.className = "val"; vv.textContent = globalBone.bprm[key];
+        inp.oninput = ()=>{ globalBone.bprm[key] = +inp.value; vv.textContent = inp.value; };
+        inp.onchange = saveRig;
+        r.append(la, inp, vv);
+        gb.appendChild(r);
+      });
+  } else {
+    const h = document.createElement("div"); h.className = "hint";
+    h.textContent = "腰から頭へ2〜6点引くと、キャラ全体がその骨に乗って揺れます。パーツ自体は歪みません。";
+    gb.appendChild(h);
+  }
+  gb.classList.toggle("editing", boneEdit === globalBone);
+  el.appendChild(gb);
 
   // --- まとめてボーン ---
   const picked = layers.filter(l=>l.pick);
@@ -859,6 +919,12 @@ const BONE_PRESETS = {
   wave:  {amp:14, speed:1, phase:0, lag:.3,  label:"くねくね"},
   sway:  {amp:7,  speed:1, phase:0, lag:.18, label:"ゆらゆら"},
 };
+/* 全体ボーン: どのレイヤーにも属さない1本。腰から頭まで引いておくと、
+   キャラ全部がこの骨の曲がりに乗る。パーツ自体は歪ませず(顔が崩れるため)、
+   各レイヤーを「その位置での骨の変形」で剛体的に動かす。 */
+const globalBone = {name:"__global", bone:[], bprm:{amp:6, speed:1, phase:0, lag:0.25}, on:true};
+const globalBoneActive = ()=> globalBone.bone.length >= 2;
+
 /* ボーンは他のレイヤーのものを借りられる。借りた側は自分のメッシュを、
    貸した側の骨で変形するので、複数枚が1本の骨でまとまって動く。 */
 function boneOwner(l){
@@ -1049,17 +1115,25 @@ function draw(S){
   /* そのレイヤー自身の変形を、点 pt の近傍でアフィン行列に均したもの。
      ボーンはメッシュ変形で行列にならないので、pt のまわりを数値微分して
      一次近似する。子はこの行列を受け取って親の動きについていく。 */
+  /* メッシュ変形を、点 pt のまわりで数値微分して一次近似したアフィン行列 */
+  function linearizeAt(pose, pt){
+    const d = 2;
+    const [x0,y0] = skin(pt.x, pt.y, pose);
+    const [xa,ya] = skin(pt.x+d, pt.y, pose);
+    const [xb,yb] = skin(pt.x, pt.y+d, pose);
+    const a = (xa-x0)/d, b = (ya-y0)/d, c = (xb-x0)/d, e = (yb-y0)/d;
+    return [a, b, c, e, x0-(a*pt.x + c*pt.y), y0-(b*pt.x + e*pt.y)];
+  }
+  const gPose = globalBoneActive() ? poseBones(globalBone, S.u) : null;
+  /* 全体ボーンぶん。各レイヤーの位置で評価するので、パーツは歪まず位置と角度だけ動く */
+  function globalMat(l){ return gPose ? linearizeAt(gPose, anchorOf(l)) : IDENT; }
+
   function ownAffineAt(l, pt){
     if(l.on === false) return IDENT;
     if(boneActive(l)){
       const pose = poseBones(boneOwner(l), S.u);
       if(!pose) return IDENT;
-      const d = 2;
-      const [x0,y0] = skin(pt.x, pt.y, pose);
-      const [xa,ya] = skin(pt.x+d, pt.y, pose);
-      const [xb,yb] = skin(pt.x, pt.y+d, pose);
-      const a = (xa-x0)/d, b = (ya-y0)/d, c = (xb-x0)/d, e = (yb-y0)/d;
-      return [a, b, c, e, x0-(a*pt.x + c*pt.y), y0-(b*pt.x + e*pt.y)];
+      return linearizeAt(pose, pt);
     }
     return roleMat(l);
   }
@@ -1071,7 +1145,7 @@ function draw(S){
     if(baseCache.has(l.name)) return baseCache.get(l.name);
     const pa = (depth||0) < 16 ? parentOf(l) : null;
     let m;
-    if(!pa) m = G;
+    if(!pa) m = mul(globalMat(l), G);   // 全体ボーンは一番外側
     else {
       const paLocal = mul(pa.parent ? IDENT : groupMat(pa), ownAffineAt(pa, anchorOf(l)));
       m = mul(baseOf(pa, (depth||0)+1), paLocal);
@@ -1223,7 +1297,7 @@ function drawBoneOverlay(){
     octx.beginPath(); octx.arc(p.x, p.y, 7/k, 0, 7); octx.fill();
     octx.strokeStyle = "#ff7a45"; octx.lineWidth = 2/k; octx.stroke();
   });
-  $("edinfo").textContent = `${boneEdit.name} / ${pts.length}点`;
+  $("edinfo").textContent = `${boneEdit === globalBone ? "全体ボーン" : boneEdit.name} / ${pts.length}点`;
 }
 
 /* ---------------- 再生ループ ---------------- */
@@ -1535,6 +1609,7 @@ $("saveJson").onclick = ()=>{
     toggles: {...T},
     roles: Object.fromEntries(layers.map(l=>[l.name, l.role])),
     rig: Object.fromEntries(layers.map(l=>[l.name, rigOf(l)])),
+    globalBone: {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})), bprm: {...globalBone.bprm}},
   };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
@@ -1561,6 +1636,10 @@ $("loadJson").onclick = ()=>{
       } else {
         $("note").textContent = "設定を読み込みました";
       }
+      if(d.globalBone && Array.isArray(d.globalBone.bone)){
+        globalBone.bone = d.globalBone.bone.map(p=>({x:+p.x, y:+p.y}));
+        if(d.globalBone.bprm) Object.assign(globalBone.bprm, d.globalBone.bprm);
+      }
       if(d.rig){
         layers.forEach(l=>{
           const r = d.rig[l.name];
@@ -1583,6 +1662,49 @@ $("loadJson").onclick = ()=>{
     }
   };
   i.click();
+};
+
+/* ---------------- 初期化 ----------------
+   読み込んだ素材はそのままに、割り当て・親子・ボーン・数値を全部戻す。
+   取り返しがつかないので2回押させる。 */
+let resetArmed = 0;
+$("resetBtn").onclick = ()=>{
+  const btn = $("resetBtn");
+  if(Date.now() > resetArmed){
+    resetArmed = Date.now() + 4000;
+    btn.textContent = "もう一度押すと全部消えます";
+    btn.classList.add("on");
+    setTimeout(()=>{
+      if(Date.now() > resetArmed - 100){ btn.textContent = "初期に戻す"; btn.classList.remove("on"); }
+    }, 4000);
+    return;
+  }
+  resetArmed = 0;
+  btn.textContent = "初期に戻す"; btn.classList.remove("on");
+
+  if(boneEdit){ boneEdit = null; bulkTargets = null; $("edbar").classList.remove("on"); ov.classList.remove("edit"); }
+  PARAM_DEFS.filter(d=>d.id).forEach(d=>{ P[d.id] = d.def; target[d.id] = null; });
+  TOGGLES.forEach(t=> T[t.id] = t.def);
+  $("dur").value = 3; $("fps").value = 30; $("bi").value = 2.5;
+  $("fmt").value = "webm"; $("gifW").value = "480";
+  document.querySelector('#bgBtns [data-bg="transparent"]').click();
+  loopPreview = false; $("loopBtn").classList.remove("on");
+
+  globalBone.bone = [];
+  globalBone.bprm = {amp:6, speed:1, phase:0, lag:0.25};
+  layers.forEach(l=>{
+    l.role = guessRole(l.name || "");
+    l.parent = null; l.on = true; l.pick = false;
+    l.bone = []; l.boneRef = null;
+    l.rows = 12; l.cols = Math.max(4, Math.round(12 * l.width / Math.max(l.height,1)));
+    l.bprm = {amp:8, speed:1, phase:0, lag:0.2};
+  });
+  localStorage.removeItem("psdRoles:" + psdName);
+  localStorage.removeItem("psdRig:" + psdName);
+
+  resetSprings();
+  syncAllSliders(); syncChips(); syncFormatUI(); buildLayerList();
+  $("note").textContent = "初期状態に戻しました（読み込んだ素材はそのままです）。";
 };
 
 /* ---------------- 起動 ---------------- */
