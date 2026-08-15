@@ -48,17 +48,6 @@ const TOOLS = [
   },
   {
     no: 5,
-    slug: "line-talk",
-    title: "架空LINE風トーク作成",
-    desc: "台詞を打つだけでLINE風のトーク画面を組み立て、画像として書き出す。動画に差し込むチャット演出用。",
-    tags: ["漫画", "動画演出", "画像書き出し"],
-    cat: "manga",
-    thumb: "thumbs/line-talk.png",
-    url: "tools/line-talk/index.html",
-    status: "live"
-  },
-  {
-    no: 6,
     slug: "dot-maker",
     title: "DOT MAKER",
     desc: "イラストをドット絵に変換。粗さ・色数・ディザ・レトロ機風パレットを選んで、等倍〜8倍のPNGで保存できる。",
@@ -69,7 +58,7 @@ const TOOLS = [
     status: "live"
   },
   {
-    no: 7,
+    no: 6,
     slug: "avatar-viewer",
     title: "PSD Avatar Viewer",
     desc: "PSD立ち絵に表情プリセットと頭の向き・視線・髪の物理を当てて動かすビューア。マウス追従とマイクの口パクにも対応。",
