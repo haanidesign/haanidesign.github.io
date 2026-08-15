@@ -58,6 +58,9 @@
   #layerlist .row input[type=checkbox]{accent-color:var(--accent); width:14px; height:14px; flex-shrink:0}
   #layerlist .sub{padding-left:20px}
   #layerlist .sub label{width:auto; color:var(--dim); font-size:11px}
+  #layerlist .rootchk{display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer}
+  #layerlist .rootchk:hover{color:var(--text)}
+  #layerlist .lrow.isroot .rootchk{color:var(--accent)}
   #layerlist .sub select{flex:1; min-width:0}
   #layerlist .sub .val{width:32px}
   #layerlist .lrow.editing{outline:1px solid var(--hot); outline-offset:2px; border-radius:4px}
@@ -304,6 +307,29 @@ function applyRig(){
   layers.forEach(l=>{ if(hasCycle(l)) l.parent = null; });
 }
 function parentOf(l){ return l.parent ? layers.find(x=>x.name===l.parent) : null; }
+function childrenOf(name){ return layers.filter(x=>x.parent === name); }
+/* 「親レイヤー」= 自分は親を持たず、2枚以上を従えているレイヤー。
+   別に状態を持たず、その時の親子関係から判定する。 */
+function isRoot(l){ return !l.parent && childrenOf(l.name).length >= 2; }
+/* ワンクリックで、ぶら下がり先のないレイヤーを全部このレイヤーの子にする */
+function toggleRoot(l){
+  if(isRoot(l)){
+    childrenOf(l.name).forEach(x=> x.parent = null);
+  } else {
+    const prev = layers.find(isRoot);
+    l.parent = null;
+    layers.forEach(x=>{
+      if(x === l) return;
+      if(x.parent == null || (prev && x.parent === prev.name)) x.parent = l.name;
+    });
+  }
+  layers.forEach(x=>{ if(hasCycle(x)) x.parent = null; });
+  saveRig();
+  buildLayerList();
+  $("note").textContent = isRoot(l)
+    ? `${l.name} を親レイヤーにしました（${childrenOf(l.name).length}枚がついていきます）`
+    : "親レイヤーを解除しました";
+}
 function hasCycle(start){
   const seen = new Set();
   let cur = start;
@@ -478,6 +504,12 @@ function buildLayerList(){
     head.append(chk, lab, sel);
 
     const sub = document.createElement("div"); sub.className = "row sub";
+    const rootWrap = document.createElement("label"); rootWrap.className = "rootchk";
+    const rootChk = document.createElement("input");
+    rootChk.type = "checkbox"; rootChk.checked = isRoot(l);
+    rootChk.title = "クリック1回で、行き先のないレイヤーを全部このレイヤーの子にする";
+    rootChk.onchange = ()=> toggleRoot(l);
+    rootWrap.append(rootChk, document.createTextNode("親レイヤー"));
     const plab = document.createElement("label"); plab.textContent = "親";
     const psel = document.createElement("select");
     const none = document.createElement("option"); none.value = ""; none.textContent = "なし";
@@ -500,7 +532,8 @@ function buildLayerList(){
       saveRig();
       $("note").textContent = l.parent ? `${l.name} は ${l.parent} についていきます` : `${l.name} の親を外しました`;
     };
-    sub.append(plab, psel);
+    psel.disabled = isRoot(l);   // 親レイヤー自身は誰にもぶら下がらない
+    sub.append(rootWrap, plab, psel);
 
     // --- ボーン ---
     const bone = document.createElement("div"); bone.className = "row sub bonebar";
@@ -551,6 +584,7 @@ function buildLayerList(){
     }
 
     box.classList.toggle("off", l.on === false);
+    box.classList.toggle("isroot", isRoot(l));
     box.classList.toggle("editing", boneEdit === l);
     el.appendChild(box);
   });
