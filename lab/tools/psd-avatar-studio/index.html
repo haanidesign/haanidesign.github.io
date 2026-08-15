@@ -173,8 +173,15 @@ const PRESETS = {
   "ウインク左":{eyeL:0, eyeR:1, mouthSmile:.5},
   "ウインク右":{eyeL:1, eyeR:0, mouthSmile:.5},
 };
-const ROLES = ["auto","body","head","frontHair","backHair","chest","arm","eyeWhite","iris","eyelash","brow","mouth","hide"];
-const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", arm:"腕", eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", brow:"眉", mouth:"口", hide:"非表示"};
+const ROLES = ["auto","body","head","frontHair","backHair","chest","arm",
+               "eyeWhite","iris","eyelash","eyeClose","brow",
+               "mouth","mouthClose","mouthOpen","hide"];
+const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", arm:"腕",
+  eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", eyeClose:"閉じ目", brow:"眉",
+  mouth:"口(1枚)", mouthClose:"閉じ口", mouthOpen:"開き口", hide:"非表示"};
+/* 差し替えのしきい値 */
+const EYE_SWAP = 0.35;    // 目の開きがこれ未満なら閉じ目に差し替える
+const MOUTH_SWAP = 0.15;  // 口の開きがこれ以上なら開き口に差し替える
 
 const P = {};      // 現在値(スライダー)
 const target = {}; // プリセットのイージング先
@@ -241,9 +248,10 @@ let facePivot = {x:384, y:400};
 
 function guessRole(name){
   const n = name.toLowerCase();
-  // 差分絵(閉じ目・開き口)は、このツールでは変形で表現するので既定では隠す
-  if(/eye.*close|close.*eye|目.*閉|閉じ目/.test(n)) return "hide";
-  if(/mouth.*open|open.*mouth|口.*開|開き口/.test(n)) return "hide";
+  // 差分絵。開き/閉じで差し替えて使う
+  if(/eye.*close|close.*eye|目.*閉|閉じ目/.test(n)) return "eyeClose";
+  if(/mouth.*open|open.*mouth|口.*開|開き口/.test(n)) return "mouthOpen";
+  if(/mouth.*close|close.*mouth|口.*閉|閉じ口/.test(n)) return "mouthClose";
   if(/front.*hair|前髪/.test(n)) return "frontHair";
   if(/back.*hair|後ろ?髪/.test(n)) return "backHair";
   if(/chest|breast|bust|胸|oppai/.test(n)) return "chest";
@@ -257,8 +265,12 @@ function guessRole(name){
   if(/hair|髪/.test(n)) return "frontHair";
   return "body";
 }
-const HEAD_ROLES = new Set(["head","frontHair","backHair","eyeWhite","iris","eyelash","brow","mouth"]);
-const DEPTH = {body:0, chest:0.05, arm:0.05, backHair:0.35, head:0.7, mouth:0.8, eyeWhite:0.85, iris:0.85, eyelash:0.85, brow:0.92, frontHair:1};
+const HEAD_ROLES = new Set(["head","frontHair","backHair","eyeWhite","iris","eyelash","eyeClose","brow",
+                            "mouth","mouthClose","mouthOpen"]);
+const DEPTH = {body:0, chest:0.05, arm:0.05, backHair:0.35, head:0.7,
+               mouth:0.8, mouthClose:0.8, mouthOpen:0.8,
+               eyeWhite:0.85, iris:0.85, eyelash:0.85, eyeClose:0.85, brow:0.92, frontHair:1};
+const EYE_ROLES = new Set(["eyeWhite","iris","eyelash","eyeClose"]);
 
 function roleOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRoles:"+psdName)||"{}"); }catch(e){ return {}; } }
 /* リグ(親子付け・オンオフ)はレイヤー名をキーに保存する */
@@ -544,17 +556,23 @@ function buildLayerList(){
   });
 }
 
+let userLoaded = false;   // 起動直後にユーザーが自分で読み込んだか
+
 async function loadDefault(){
   try{
     const saved = await idbGet("lastPsd");
+    // 復元を待っている間にユーザーが別の素材を放り込んでいたら、上書きしない
+    if(userLoaded) return;
     if(saved && saved.buf){ psdName = saved.name; applyPsd(saved.buf); return; }
   }catch(e){ /* IndexedDB不可なら次へ */ }
+  if(userLoaded) return;
   $("note").textContent = "素材が未読込です。上のボックスから PSD か PNG複数枚を読み込んでください。";
 }
 
 function handleFiles(files){
   const fs = [...files];
   if(!fs.length) return;
+  userLoaded = true;   // 以降、前回PSDの自動復元に上書きさせない
   const psd = fs.find(f=>/\.psd$/i.test(f.name));
   if(psd) loadPsdFile(psd);
   else if(fs.some(f=>/\.png$/i.test(f.name))) applyPngs(fs.filter(f=>/\.png$/i.test(f.name)));
@@ -835,6 +853,13 @@ function draw(S){
   const bx = psdW/2, by = psdH;                  // 体ピボット(下端)
   const eyeOpen = {L: P.eyeL*(1-S.blink), R: P.eyeR*(1-S.blink)};
 
+  /* 閉じ目・開き口の差分絵があるときは、変形ではなく差し替えで表現する。
+     無ければ従来どおり(まぶたを縦に潰す / 口を縦に伸ばす)。 */
+  const hasEyeClose = layers.some(l => l.role === "eyeClose" && l.on !== false);
+  const closedSide = {L: hasEyeClose && eyeOpen.L < EYE_SWAP,
+                      R: hasEyeClose && eyeOpen.R < EYE_SWAP};
+  const mouthIsOpen = S.mouthOpen >= MOUTH_SWAP;
+
   // 全体(体の傾き + 呼吸)。親を持たないレイヤーの根元になる。
   const G = mAround(mul(mRotate(S.bodyTilt*0.09), mScale(1, 1 + S.breath*0.004)), bx, by);
 
@@ -871,6 +896,13 @@ function draw(S){
     if(role === "brow") return mTranslate(0, P.browY*-7);
     if(role === "mouth"){
       return mAround(mScale(1 + P.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4), cx, cy);
+    }
+    // 差分絵は形が既に描かれているので、笑いの横幅だけ効かせる
+    if(role === "mouthClose") return mAround(mScale(1 + P.mouthSmile*0.35, 1), cx, cy);
+    if(role === "mouthOpen"){
+      // 開き具合で縦だけ連続的に変える(パクパクの強弱)
+      const k = 0.45 + 0.55*Math.min(1, S.mouthOpen);
+      return mAround(mScale(1 + P.mouthSmile*0.35, k), cx, cy);
     }
     if(role === "iris") return mTranslate(S.gazeX*7, S.gazeY*4);
     return IDENT;
@@ -916,6 +948,8 @@ function draw(S){
   for(const l of layers){
     const role = l.role;
     if(role === "hide") continue;
+    if(role === "mouthOpen"  && !mouthIsOpen) continue;
+    if(role === "mouthClose" &&  mouthIsOpen) continue;
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
     const B = mul(baseOf(l, 0), l.parent ? IDENT : groupMat(l));
 
@@ -946,7 +980,7 @@ function draw(S){
     const M = mul(B, l.on === false ? IDENT : roleMat(l));
     ctx.setTransform(M[0],M[1],M[2],M[3],M[4],M[5]);
 
-    if((role === "eyelash" || role === "eyeWhite" || role === "iris") && l.on !== false){
+    if(EYE_ROLES.has(role) && l.on !== false){
       const face = layers.find(x=>x.role==="head" && /face|顔/.test(x.name.toLowerCase()));
       const faceW = face ? face.width : psdW*0.25;
       const faceCx = face ? face.left + face.width/2 : psdW/2;
@@ -954,13 +988,17 @@ function draw(S){
       const midX = cx;
       const sides = singleEye ? [cx < faceCx ? "L" : "R"] : ["L","R"];
       for(const side of sides){
+        // 閉じ目の差分絵があるなら、その側は開き絵と閉じ絵のどちらか一方だけ描く
+        if(role === "eyeClose"){ if(!closedSide[side]) continue; }
+        else if(closedSide[side]) continue;
         ctx.save();
         ctx.beginPath();
         if(singleEye)         ctx.rect(l.left-20, l.top-30, l.width+40, l.height+60);
         else if(side === "L") ctx.rect(l.left-20, l.top-30, midX-(l.left-20), l.height+60);
         else                  ctx.rect(midX, l.top-30, l.left+l.width+20-midX, l.height+60);
         ctx.clip();
-        const open = Math.max(0.02, eyeOpen[side]);
+        // 閉じ絵はそのままの形で出す。開き絵だけ開き具合で潰す。
+        const open = (role === "eyeClose") ? 1 : Math.max(0.02, eyeOpen[side]);
         const ecy = cy + (role==="eyelash" ? l.height*0.15 : l.height*0.3);
         ctx.translate(0, ecy); ctx.scale(1, Math.min(open,1)); ctx.translate(0, -ecy);
         if(role === "iris" && P.irisScale !== 1){
