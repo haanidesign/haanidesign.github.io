@@ -66,6 +66,9 @@
   #layerlist .lrow.editing{outline:1px solid var(--hot); outline-offset:2px; border-radius:4px}
   #layerlist .bonebar{gap:5px; flex-wrap:wrap}
   #layerlist .btn.tiny{padding:2px 8px; font-size:11px}
+  #layerlist .bulkbar{gap:6px; margin:0 0 8px; flex-wrap:wrap}
+  #layerlist .bulkbar .btn{flex:1; min-width:0}
+  #layerlist .reftag{font-size:10.5px; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   #note{color:var(--dim); font-size:11px; margin-top:6px}
   #fileInput{display:none}
   #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
@@ -172,6 +175,7 @@ const PARAM_DEFS = [
   {id:"chestHeight",label:"胸の高さ",  min:-1, max:1,  def:0},
   {id:"chestBounce",label:"胸の揺れ",  min:0,  max:10, def:4},
   {id:"swayGain",   label:"揺れの強さ",min:0,  max:1,  def:0.3},
+  {id:"hairSway",   label:"髪の揺れ",  min:0,  max:3,  def:1},
   {id:"softness",   label:"柔らかさ",  min:0,  max:4,  def:2},
 ];
 const TOGGLES = [
@@ -296,12 +300,13 @@ function rigOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRig:"+p
 function rigOf(l){
   return {parent: l.parent || null, on: l.on !== false,
           bone: (l.bone||[]).map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
+          boneRef: l.boneRef || null,
           rows: l.rows, cols: l.cols, bprm: {...l.bprm}};
 }
 function saveRig(){
   const o = {};
   layers.forEach(l=>{
-    if(l.parent || l.on === false || (l.bone && l.bone.length)) o[l.name] = rigOf(l);
+    if(l.parent || l.on === false || (l.bone && l.bone.length) || l.boneRef) o[l.name] = rigOf(l);
   });
   localStorage.setItem("psdRig:"+psdName, JSON.stringify(o));
 }
@@ -312,6 +317,7 @@ function applyRig(){
     l.parent = (r && r.parent) || null;
     l.on = r ? r.on !== false : true;
     l.bone = (r && Array.isArray(r.bone)) ? r.bone.map(p=>({x:+p.x, y:+p.y})) : [];
+    l.boneRef = (r && r.boneRef) || null;
     l.rows = (r && r.rows) || 12;
     l.cols = (r && r.cols) || Math.max(4, Math.round(((r && r.rows) || 12) * l.width / Math.max(l.height,1)));
     l.bprm = Object.assign({amp:8, speed:1, phase:0, lag:0.2}, (r && r.bprm) || {});
@@ -320,6 +326,12 @@ function applyRig(){
   layers.forEach(l=>{ if(l.parent && !layers.some(x=>x.name===l.parent)) l.parent = null; });
   layers.forEach(l=>{ if(l.parent === l.name) l.parent = null; });
   layers.forEach(l=>{ if(hasCycle(l)) l.parent = null; });
+  // 借り先が消えている / 自分自身 / 借り先も借りている、は無効にする
+  layers.forEach(l=>{
+    if(!l.boneRef) return;
+    const o = layers.find(x=>x.name === l.boneRef);
+    if(!o || o === l || o.boneRef || !(o.bone && o.bone.length >= 2)) l.boneRef = null;
+  });
 }
 function parentOf(l){ return l.parent ? layers.find(x=>x.name===l.parent) : null; }
 function childrenOf(name){ return layers.filter(x=>x.parent === name); }
@@ -494,6 +506,25 @@ function buildLayerList(){
   const el = $("layerlist");
   el.innerHTML = "";
   const ov = roleOverrides();
+
+  // --- まとめてボーン ---
+  const picked = layers.filter(l=>l.pick);
+  const bulk = document.createElement("div"); bulk.className = "row bulkbar";
+  const bBtn = document.createElement("button");
+  bBtn.className = "btn tiny" + (picked.length >= 2 ? " go" : "");
+  bBtn.textContent = picked.length >= 2
+    ? `選んだ${picked.length}枚にまとめてボーンを引く`
+    : "束ねたい行の「束」にチェック → まとめて引く";
+  bBtn.disabled = picked.length < 2;
+  bBtn.onclick = ()=> startBulkBone();
+  bulk.appendChild(bBtn);
+  if(picked.length){
+    const clr = document.createElement("button");
+    clr.className = "btn tiny"; clr.textContent = "選択解除";
+    clr.onclick = ()=>{ layers.forEach(l=> l.pick = false); buildLayerList(); };
+    bulk.appendChild(clr);
+  }
+  el.appendChild(bulk);
   [...layers].reverse().forEach(l=>{   // 上のレイヤーから表示
     const box = document.createElement("div"); box.className = "lrow";
 
@@ -552,19 +583,47 @@ function buildLayerList(){
 
     // --- ボーン ---
     const bone = document.createElement("div"); bone.className = "row sub bonebar";
-    const draw1 = document.createElement("button");
-    draw1.className = "btn tiny"; draw1.textContent = l.bone.length >= 2 ? `骨${l.bone.length}点を引き直す` : "ボーンを引く";
-    draw1.onclick = ()=> startBoneEdit(l);
-    bone.appendChild(draw1);
-    if(l.bone.length >= 2){
-      const clr = document.createElement("button");
-      clr.className = "btn tiny"; clr.textContent = "骨を消す";
-      clr.onclick = ()=>{ l.bone = []; saveRig(); buildLayerList(); };
-      bone.appendChild(clr);
+    const pickWrap = document.createElement("label"); pickWrap.className = "rootchk";
+    const pickChk = document.createElement("input");
+    pickChk.type = "checkbox"; pickChk.checked = !!l.pick;
+    pickChk.title = "まとめて1本のボーンで動かしたい行にチェック";
+    pickChk.onchange = ()=>{ l.pick = pickChk.checked; buildLayerList(); };
+    pickWrap.append(pickChk, document.createTextNode("束"));
+    bone.appendChild(pickWrap);
+
+    if(l.boneRef){
+      const tag = document.createElement("span"); tag.className = "reftag";
+      tag.textContent = `「${l.boneRef.trim()}」のボーンで動く`;
+      bone.appendChild(tag);
+      const off = document.createElement("button");
+      off.className = "btn tiny"; off.textContent = "外す";
+      off.onclick = ()=>{ l.boneRef = null; saveRig(); buildLayerList(); };
+      bone.appendChild(off);
+    } else {
+      const draw1 = document.createElement("button");
+      draw1.className = "btn tiny"; draw1.textContent = l.bone.length >= 2 ? `骨${l.bone.length}点を引き直す` : "ボーンを引く";
+      draw1.onclick = ()=> startBoneEdit(l);
+      bone.appendChild(draw1);
+      if(l.bone.length >= 2){
+        const users = layers.filter(x=>x.boneRef === l.name).length;
+        if(users){
+          const u = document.createElement("span"); u.className = "reftag";
+          u.textContent = `+${users}枚が同じ骨`;
+          bone.appendChild(u);
+        }
+        const clr = document.createElement("button");
+        clr.className = "btn tiny"; clr.textContent = "骨を消す";
+        clr.onclick = ()=>{
+          l.bone = [];
+          layers.forEach(x=>{ if(x.boneRef === l.name) x.boneRef = null; });
+          saveRig(); buildLayerList();
+        };
+        bone.appendChild(clr);
+      }
     }
     box.append(head, sub, bone);
 
-    if(l.bone.length >= 2){
+    if(l.bone.length >= 2 && !l.boneRef){
       const pre = document.createElement("div"); pre.className = "row sub bonebar";
       Object.entries(BONE_PRESETS).forEach(([k,v])=>{
         const b = document.createElement("button");
@@ -764,8 +823,14 @@ function step(t, dt, loop){
   const hk = 90/(1 + soft*0.9), hc = 2*Math.sqrt(hk)*0.4;
   const wind = T.idle ? (Math.sin(t*W(1.4,loop)) + Math.sin(t*W(2.3,loop)+1)*0.5) : 0;
   if(T.hairPhys){
-    springs.frontHair.step(dt, hk,      hc,     (-velX*1.1*gain + wind*100*gain));
-    springs.backHair.step( dt, hk*0.85, hc*0.9, (-velX*1.4*gain + wind*140*gain));
+    /* 速度だけで駆動すると、マウスを止めた瞬間に髪も止まってしまう。
+       首の向きそのものに引きずられる項(drag)を足すと、向けた側と逆に流れて残る。 */
+    const hg = P.hairSway;
+    const drag   = -headX * 300 * hg;
+    const kick   = -velX * 2.2 * hg;
+    const breeze = wind * 120 * hg;
+    springs.frontHair.step(dt, hk,      hc,     drag + kick + breeze);
+    springs.backHair.step( dt, hk*0.85, hc*0.9, drag*1.25 + kick*1.3 + breeze*1.35);
   } else { springs.frontHair.x = springs.frontHair.v = 0; springs.backHair.x = springs.backHair.v = 0; }
   const cb = P.chestBounce;
   const chestGain = 0.25 + gain;
@@ -791,7 +856,18 @@ const BONE_PRESETS = {
   wave:  {amp:14, speed:1, phase:0, lag:.3,  label:"くねくね"},
   sway:  {amp:7,  speed:1, phase:0, lag:.18, label:"ゆらゆら"},
 };
-const boneActive = l => l.on !== false && l.bone && l.bone.length >= 2;
+/* ボーンは他のレイヤーのものを借りられる。借りた側は自分のメッシュを、
+   貸した側の骨で変形するので、複数枚が1本の骨でまとまって動く。 */
+function boneOwner(l){
+  if(!l.boneRef) return l;
+  const o = layers.find(x => x.name === l.boneRef);
+  return (o && o !== l && o.bone && o.bone.length >= 2) ? o : l;
+}
+const boneActive = l => {
+  if(l.on === false) return false;
+  const o = boneOwner(l);
+  return !!(o.bone && o.bone.length >= 2);
+};
 
 /* 静止状態の各骨の長さ・角度・根元からの累積距離 */
 function restInfo(pts){
@@ -966,7 +1042,7 @@ function draw(S){
   function ownAffineAt(l, pt){
     if(l.on === false) return IDENT;
     if(boneActive(l)){
-      const pose = poseBones(l, S.u);
+      const pose = poseBones(boneOwner(l), S.u);
       if(!pose) return IDENT;
       const d = 2;
       const [x0,y0] = skin(pt.x, pt.y, pose);
@@ -1004,7 +1080,7 @@ function draw(S){
 
     // --- ボーン: 役割の変形を差し替えてメッシュで描く ---
     if(boneActive(l)){
-      const pose = poseBones(l, S.u);
+      const pose = poseBones(boneOwner(l), S.u);
       ctx.setTransform(B[0],B[1],B[2],B[3],B[4],B[5]);
       const cols = l.cols, rows = l.rows;
       const sxs = [], sys = [], gx = [], gy = [];
@@ -1067,18 +1143,38 @@ function draw(S){
 
 /* ---------------- ボーン編集 ---------------- */
 const ov = $("ov"), octx = ov.getContext("2d");
-let boneEdit = null;   // 編集中のレイヤー
+let boneEdit = null;    // 編集中のレイヤー
+let bulkTargets = null; // まとめて適用する相手
 
-function startBoneEdit(l){
+function startBoneEdit(l, targets){
   boneEdit = l;
+  bulkTargets = targets || null;
   l.bone = [];
+  l.boneRef = null;
   $("edbar").classList.add("on");
   ov.classList.add("edit");
   buildLayerList();
 }
+/* 選んだ複数枚のうち1枚を骨の持ち主にして、残りはその骨を借りる */
+function startBulkBone(){
+  const picked = layers.filter(l=>l.pick);
+  if(picked.length < 2){ $("note").textContent = "2枚以上チェックしてください。"; return; }
+  const owner = picked[0];
+  startBoneEdit(owner, picked.slice(1));
+  $("note").textContent = `${picked.length}枚ぶんのボーンを引きます（持ち主: ${owner.name.trim()}）。`;
+}
 function endBoneEdit(){
   if(boneEdit && boneEdit.bone.length === 1) boneEdit.bone = [];  // 1点だけでは骨にならない
-  boneEdit = null;
+  if(boneEdit && bulkTargets && boneEdit.bone.length >= 2){
+    bulkTargets.forEach(t=>{
+      if(t === boneEdit) return;
+      t.bone = [];              // 自前の骨は捨てて借りる側になる
+      t.boneRef = boneEdit.name;
+    });
+    $("note").textContent = `「${boneEdit.name.trim()}」の骨で ${bulkTargets.length + 1}枚がまとまって動きます。`;
+  }
+  layers.forEach(l=> l.pick = false);
+  boneEdit = null; bulkTargets = null;
   $("edbar").classList.remove("on");
   ov.classList.remove("edit");
   saveRig();
