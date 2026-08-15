@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>架空LINE風トーク作成ツール（AE用）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Helvetica Neue", Arial, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 24px;
+    color: #1a1a1a;
+  }
+  .header {
+    background: linear-gradient(135deg, #06c755, #04b14d);
+    color: white;
+    padding: 20px 28px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+  }
+  .header h1 { margin: 0 0 8px 0; font-size: 22px; }
+  .header .warn {
+    background: rgba(255,255,255,0.18);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .panel {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    flex: 1;
+    min-width: 480px;
+  }
+  .panel h2 {
+    font-size: 16px;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 6px;
+  }
+  .field input[type="text"], .field input[type="time"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .row2 { display: flex; gap: 16px; }
+  .row2 > div { flex: 1; }
+  .toggle-group {
+    display: inline-flex;
+    background: #f0f2f5;
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 4px;
+  }
+  .toggle-group button {
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #555;
+  }
+  .toggle-group button.active {
+    background: white;
+    color: #06c755;
+    font-weight: bold;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .btn {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-green { background: #06c755; color: white; }
+  .btn-green:hover { background: #04b14d; }
+  .btn-light { background: #f0f2f5; color: #333; }
+  .btn-light:hover { background: #e2e5e9; }
+  .btn-text { background: none; color: #06c755; padding: 6px 10px; }
+  .btn-danger-text { background: none; color: #e74c3c; padding: 6px 10px; }
+  .btn-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .msg-count {
+    background: #06c755; color: white; font-size: 12px;
+    padding: 2px 8px; border-radius: 10px; margin-left: 6px;
+  }
+
+  .msg-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    background: white;
+  }
+  .msg-list-item.selected { border-color: #06c755; background: #f3fcf6; }
+  .msg-list-item .handle { color: #bbb; cursor: grab; user-select: none; }
+  .msg-list-item .tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  .tag-date { background: #fff3cd; color: #92700a; }
+  .tag-them { background: #e3e6ea; color: #333; }
+  .tag-me { background: #d6f5e0; color: #04692e; }
+  .msg-list-item .text {
+    flex: 1;
+    font-size: 13px;
+    color: #444;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .msg-list-item .actions { display: flex; gap: 2px; }
+  .msg-list-item .actions button {
+    border: none; background: none; cursor: pointer;
+    padding: 4px 6px; border-radius: 6px; font-size: 13px; color: #888;
+  }
+  .msg-list-item .actions button:hover { background: #eee; }
+
+  .edit-box {
+    background: #fafbfc;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: -2px;
+    margin-bottom: 10px;
+  }
+  .edit-box textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .edit-box .meta-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .edit-box .meta-row input[type="time"] {
+    padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;
+  }
+  .edit-box .meta-row label {
+    font-size: 12px; color: #666; display: flex; align-items: center; gap: 4px;
+  }
+
+  /* Preview phone */
+  .phone-wrap { position: sticky; top: 24px; }
+  .phone {
+    width: 390px;
+    background: #000;
+    border-radius: 46px;
+    padding: 14px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+  }
+  .phone-screen {
+    background: #7c95cf;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    min-height: 600px;
+  }
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px 6px 24px;
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .status-bar .icons { display: flex; gap: 5px; align-items: center; font-size: 13px; }
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    padding: 6px 16px 14px 16px;
+    color: white;
+    gap: 10px;
+  }
+  .nav-bar .back { font-size: 20px; }
+  .nav-bar .name { flex: 1; font-size: 17px; font-weight: 600; }
+  .nav-bar .icons { display: flex; gap: 14px; font-size: 16px; }
+  .chat-area {
+    padding: 8px 14px 18px 14px;
+    min-height: 420px;
+  }
+  .date-divider {
+    text-align: center;
+    margin: 14px 0;
+  }
+  .date-divider span {
+    background: rgba(255,255,255,0.5);
+    color: #444;
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 10px;
+  }
+  .msg-row {
+    display: flex;
+    align-items: flex-end;
+    margin: 4px 0;
+    gap: 8px;
+  }
+  .msg-row.them { justify-content: flex-start; }
+  .msg-row.me { justify-content: flex-end; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #ccc; flex-shrink: 0;
+    background-size: cover; background-position: center;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 18px;
+  }
+  .bubble-group { display: flex; flex-direction: column; max-width: 68%; }
+  .msg-row.me .bubble-group { align-items: flex-end; }
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 15px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    position: relative;
+  }
+  .them .bubble { background: white; color: #1a1a1a; border-bottom-left-radius: 4px; }
+  .me .bubble { background: #a4e98b; color: #1a1a1a; border-bottom-right-radius: 4px; }
+  .meta-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.85);
+    margin: 2px 4px;
+    white-space: nowrap;
+  }
+  .me .meta-line { flex-direction: row-reverse; }
+  .read-label { font-size: 10px; }
+
+  .bottom-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px 16px 16px;
+    background: rgba(255,255,255,0.0);
+  }
+  .bottom-bar .circle-btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 15px; flex-shrink: 0;
+  }
+  .bottom-bar .input-pill {
+    flex: 1;
+    background: white;
+    border-radius: 18px;
+    height: 34px;
+  }
+
+  .preview-actions {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .preview-actions .btn { width: 100%; }
+  .checkbox-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: #555; justify-content: center;
+  }
+
+  .ae-note {
+    background: #eef7ff;
+    border: 1px solid #cfe6fb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #2c5d82;
+    line-height: 1.6;
+    margin-top: 14px;
+  }
+  .ae-note b { color: #1a4a6b; }
+
+  .file-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .small-thumb {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover; background: #eee;
+  }
+  input[type="file"] { display: none; }
+  .color-swatch {
+    width: 32px; height: 32px; border-radius: 8px; border: 2px solid #333;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>💬 架空LINE風トーク作成ツール（AE連携版）</h1>
+  <div class="warn">⚠️ このツールで作る画像はすべて架空のものです。実在の人物・企業へのなりすまし、誹謗中傷、詐欺など、第三者に誤解や被害を与える目的での使用は禁止です。</div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <h2>⚙️ 全体設定</h2>
+
+    <div class="field">
+      <label>トーク種別</label>
+      <div class="toggle-group">
+        <button id="type1on1" class="active">1対1</button>
+        <button id="typeGroup">グループ</button>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>相手の名前</label>
+        <input type="text" id="partnerName" value="ゆうき">
+      </div>
+      <div class="field">
+        <label>ステータスバーの時刻</label>
+        <input type="time" id="statusTime" value="21:34">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>相手のアイコン画像</label>
+      <div class="file-row">
+        <img id="partnerIconPreview" class="small-thumb" src="">
+        <button class="btn btn-light" onclick="document.getElementById('partnerIconFile').click()">画像を選択</button>
+        <input type="file" id="partnerIconFile" accept="image/*">
+        <button class="btn-text" onclick="clearPartnerIcon()">削除</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="showMyIcon"> 自分のアイコンも表示する
+      </label>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>トーク背景色</label>
+        <div class="file-row">
+          <input type="color" id="bgColor" value="#7c95cf" class="color-swatch">
+          <button class="btn-text" onclick="resetBgColor()">標準に戻す</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>背景画像（任意）</label>
+        <div class="file-row">
+          <button class="btn btn-light" onclick="document.getElementById('bgImageFile').click()">画像を選択</button>
+          <input type="file" id="bgImageFile" accept="image/*">
+          <button class="btn-text" onclick="clearBgImage()">削除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>✏️ メッセージ <span class="msg-count" id="msgCount">0</span></h2>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="addMessage('them')">＋ 相手の発言</button>
+      <button class="btn btn-green" onclick="addMessage('me')">＋ 自分の発言</button>
+      <button class="btn btn-light" onclick="addMessage('date')">＋ 日付の区切り</button>
+    </div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px;">行をクリックすると詳細を編集できます。ハンドル（⠿）でドラッグして並べ替えできます。</div>
+    <div id="msgList"></div>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone" id="phoneCapture">
+      <div class="phone-screen" id="phoneScreen">
+        <div class="status-bar">
+          <span id="statusTimeDisplay">21:34</span>
+          <div class="icons">
+            <span>📶</span><span>📡</span><span>🔋</span>
+          </div>
+        </div>
+        <div class="nav-bar">
+          <span class="back">‹</span>
+          <span class="name" id="navName">ゆうき</span>
+          <div class="icons"><span>📞</span><span>•••</span></div>
+        </div>
+        <div class="chat-area" id="chatArea"></div>
+        <div class="bottom-bar">
+          <div class="circle-btn">＋</div>
+          <div class="circle-btn">📷</div>
+          <div class="input-pill"></div>
+          <div class="circle-btn">🎤</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-actions">
+      <div class="checkbox-row">
+        <input type="checkbox" id="frameCheck"> スマホの枠込みで保存
+      </div>
+      <button class="btn btn-green" onclick="saveFullImage()">📷 全体を1枚のPNGで保存</button>
+      <button class="btn btn-green" onclick="exportForAE()">🎬 AE用：フキダシ個別PNGをZIPで書き出し</button>
+    </div>
+
+    <div class="ae-note">
+      <b>AEでの使い方：</b>ZIPを解凍すると <code>00_background.png</code>（背景・アイコン・日付のみ）と、各メッセージの透過PNG（<code>01_them.png</code>, <code>02_me.png</code>...）が連番で出てきます。AEで背景レイヤーの上に番号順に重ねて、フキダシごとにフェードイン／スライドインをつければ会話が流れるアニメになります。書き出しサイズは実画面と同じ座標なので、位置調整なしでそのまま重なります。
+    </div>
+  </div>
+</div>
+
+<script>
+let messages = [
+  { id: 1, type: 'date', text: '6月29日(日)' },
+  { id: 2, type: 'them', text: 'ねえ、今週末って空いてる？', time: '21:30', read: false },
+  { id: 3, type: 'me', text: '空いてるよ〜！どうした？', time: '21:31', read: true },
+  { id: 4, type: 'them', text: 'ちょっと相談したいことがあって🙏', time: '21:32', read: false },
+  { id: 5, type: 'me', text: 'もちろんOK！\nお茶でもしながら話そ☕', time: '21:33', read: true },
+];
+let nextId = 6;
+let selectedId = null;
+let partnerIconData = null;
+let bgImageData = null;
+
+function uid() { return nextId++; }
+
+function addMessage(type) {
+  const base = { id: uid(), type };
+  if (type === 'date') base.text = '7月1日(水)';
+  else { base.text = type === 'them' ? '新しいメッセージ' : '新しいメッセージ'; base.time = '21:35'; base.read = type === 'me'; }
+  messages.push(base);
+  selectedId = base.id;
+  render();
+}
+
+function deleteMessage(id) {
+  messages = messages.filter(m => m.id !== id);
+  if (selectedId === id) selectedId = null;
+  render();
+}
+
+function duplicateMessage(id) {
+  const idx = messages.findIndex(m => m.id === id);
+  const copy = { ...messages[idx], id: uid() };
+  messages.splice(idx + 1, 0, copy);
+  render();
+}
+
+function moveMessage(id, dir) {
+  const idx = messages.findIndex(m => m.id === id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= messages.length) return;
+  [messages[idx], messages[newIdx]] = [messages[newIdx], messages[idx]];
+  render();
+}
+
+function selectMessage(id) {
+  selectedId = (selectedId === id) ? null : id;
+  render();
+}
+
+function updateMessageField(id, field, value) {
+  const m = messages.find(m => m.id === id);
+  if (m) m[field] = value;
+  renderPreviewOnly();
+  renderListOnly();
+}
+
+function tagLabel(type) {
+  if (type === 'date') return { label: '日付', cls: 'tag-date' };
+  if (type === 'them') return { label: document.getElementById('partnerName').value || '相手', cls: 'tag-them' };
+  return { label: '自分', cls: 'tag-me' };
+}
+
+function renderListOnly() {
+  const list = document.getElementById('msgList');
+  list.innerHTML = '';
+  messages.forEach((m, idx) => {
+    const item = document.createElement('div');
+    item.className = 'msg-list-item' + (selectedId === m.id ? ' selected' : '');
+    const tag = tagLabel(m.type);
+    const icon = m.type === 'date' ? '📅' : '';
+    item.innerHTML = `
+      <span class="handle">⠿</span>
+      <span class="tag ${tag.cls}">${icon}${tag.label}</span>
+      <span class="text">${m.text.replace(/\n/g,' ')}</span>
+      <div class="actions">
+        <button onclick="event.stopPropagation();moveMessage(${m.id},-1)">↑</button>
+        <button onclick="event.stopPropagation();moveMessage(${m.id},1)">↓</button>
+        <button onclick="event.stopPropagation();duplicateMessage(${m.id})">⧉</button>
+        <button onclick="event.stopPropagation();deleteMessage(${m.id})">🗑</button>
+      </div>
+    `;
+    item.onclick = () => selectMessage(m.id);
+    list.appendChild(item);
+
+    if (selectedId === m.id) {
+      const box = document.createElement('div');
+      box.className = 'edit-box';
+      if (m.type === 'date') {
+        box.innerHTML = `
+          <textarea oninput="updateMessageField(${m.id},'text',this.value)" rows="1">${m.text}</textarea>
+        `;
+      } else {
+        box.innerHTML = `
+          <textarea oninput="updateMessageField(${m.id},'text',this.value)">${m.text}</textarea>
+          <div class="meta-row">
+            <label>時刻 <input type="time" value="${m.time||''}" onchange="updateMessageField(${m.id},'time',this.value)"></label>
+            ${m.type === 'me' ? `<label><input type="checkbox" ${m.read ? 'checked' : ''} onchange="updateMessageField(${m.id},'read',this.checked)"> 既読</label>` : ''}
+          </div>
+        `;
+      }
+      list.appendChild(box);
+    }
+  });
+  document.getElementById('msgCount').textContent = messages.length;
+}
+
+function renderPreviewOnly() {
+  document.getElementById('navName').textContent = document.getElementById('partnerName').value;
+  document.getElementById('statusTimeDisplay').textContent = document.getElementById('statusTime').value;
+
+  const bgColor = document.getElementById('bgColor').value;
+  const screen = document.getElementById('phoneScreen');
+  if (bgImageData) {
+    screen.style.background = `url(${bgImageData}) center/cover`;
+  } else {
+    screen.style.background = bgColor;
+  }
+
+  const showMyIcon = document.getElementById('showMyIcon').checked;
+  const chatArea = document.getElementById('chatArea');
+  chatArea.innerHTML = '';
+
+  messages.forEach(m => {
+    if (m.type === 'date') {
+      const div = document.createElement('div');
+      div.className = 'date-divider';
+      div.innerHTML = `<span>${m.text}</span>`;
+      chatArea.appendChild(div);
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + m.type;
+
+    let avatarHtml = '';
+    if (m.type === 'them') {
+      avatarHtml = partnerIconData
+        ? `<div class="avatar" style="background-image:url(${partnerIconData})"></div>`
+        : `<div class="avatar">👤</div>`;
+    } else if (m.type === 'me' && showMyIcon) {
+      avatarHtml = `<div class="avatar">🙂</div>`;
+    }
+
+    const metaHtml = `<div class="meta-line">${m.type==='me' && m.read ? '<span class="read-label">既読</span>' : ''}<span>${m.time||''}</span></div>`;
+
+    const bubbleGroup = `
+      <div class="bubble-group">
+        <div class="bubble">${escapeHtml(m.text)}</div>
+        ${metaHtml}
+      </div>
+    `;
+
+    if (m.type === 'them') {
+      row.innerHTML = avatarHtml + bubbleGroup;
+    } else {
+      row.innerHTML = bubbleGroup + avatarHtml;
+    }
+    chatArea.appendChild(row);
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function render() {
+  renderListOnly();
+  renderPreviewOnly();
+}
+
+// File handlers
+document.getElementById('partnerIconFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    partnerIconData = ev.target.result;
+    document.getElementById('partnerIconPreview').src = partnerIconData;
+    renderPreviewOnly();
+  };
+  reader.readAsDataURL(file);
+});
+
+function clearPartnerIcon() {
+  partnerIconData = null;
+  document.getElementById('partnerIconPreview').src = '';
+  renderPreviewOnly();
+}
+
+document.getElementById('bgImageFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    bgImageData = ev.target.result;
+    renderPreviewOnly();
+  };
+  reader.readAsDataURL(file);
+});
+
+function clearBgImage() {
+  bgImageData = null;
+  renderPreviewOnly();
+}
+
+function resetBgColor() {
+  document.getElementById('bgColor').value = '#7c95cf';
+  bgImageData = null;
+  renderPreviewOnly();
+}
+
+['partnerName','statusTime','bgColor'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderPreviewOnly);
+});
+document.getElementById('showMyIcon').addEventListener('change', renderPreviewOnly);
+
+document.getElementById('type1on1').addEventListener('click', () => {
+  document.getElementById('type1on1').classList.add('active');
+  document.getElementById('typeGroup').classList.remove('active');
+});
+document.getElementById('typeGroup').addEventListener('click', () => {
+  document.getElementById('typeGroup').classList.add('active');
+  document.getElementById('type1on1').classList.remove('active');
+});
+
+// ---- Export: full PNG ----
+function saveFullImage() {
+  const includeFrame = document.getElementById('frameCheck').checked;
+  const target = includeFrame ? document.getElementById('phoneCapture') : document.getElementById('phoneScreen');
+  html2canvas(target, { backgroundColor: null, scale: 2 }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = 'line_talk.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
+// ---- Export: AE individual transparent PNGs ----
+async function exportForAE() {
+  const chatArea = document.getElementById('chatArea');
+  const screen = document.getElementById('phoneScreen');
+  const screenRect = screen.getBoundingClientRect();
+
+  const zip = new JSZip();
+
+  // 1. Background layer: hide all msg rows, capture background+header+bottom bar
+  const rows = Array.from(chatArea.querySelectorAll('.msg-row, .date-divider'));
+  rows.forEach(r => r.style.visibility = 'hidden');
+  await sleep(50);
+  let bgCanvas = await html2canvas(screen, { backgroundColor: null, scale: 2 });
+  zip.file('00_background.png', dataURLtoBlob(bgCanvas.toDataURL('image/png')));
+  rows.forEach(r => r.style.visibility = 'visible');
+
+  // 2. Each message row individually, others hidden, transparent bg
+  const originalBg = screen.style.background;
+  for (let i = 0; i < rows.length; i++) {
+    rows.forEach((r, idx) => { r.style.visibility = idx === i ? 'visible' : 'hidden'; });
+    screen.style.background = 'transparent';
+    await sleep(30);
+    const canvas = await html2canvas(screen, { backgroundColor: null, scale: 2 });
+    const m = messages[i];
+    const prefix = String(i + 1).padStart(2, '0');
+    const typeLabel = m.type === 'date' ? 'date' : (m.type === 'them' ? 'them' : 'me');
+    zip.file(`${prefix}_${typeLabel}.png`, dataURLtoBlob(canvas.toDataURL('image/png')));
+  }
+  rows.forEach(r => r.style.visibility = 'visible');
+  screen.style.background = originalBg;
+  renderPreviewOnly();
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.download = 'line_talk_AE_layers.zip';
+  link.href = URL.createObjectURL(content);
+  link.click();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function dataURLtoBlob(dataurl) {
+  const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+    bstr = atob(arr[1]); let n = bstr.length; const u8arr = new Uint8Array(n);
+  while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+  return new Blob([u8arr], { type: mime });
+}
+
+// init
+render();
+</script>
+
+</body>
+</html>

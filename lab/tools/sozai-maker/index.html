@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>素材メーカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#17171f;--panel:#1f1f2a;--line:#32323f;--txt:#e8e6ef;--dim:#8b8899;--acc:#ff9a3c;--acc2:#ff5c8a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Zen Maru Gothic',sans-serif;padding:16px}
+h1{font-family:'Mochiy Pop One';font-size:18px;margin-bottom:12px}
+h1 span{color:var(--acc)}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:var(--panel);border:1px solid var(--line);border-radius:10px 10px 0 0;color:var(--dim);font-family:'Mochiy Pop One';font-size:13px;padding:10px 18px;cursor:pointer}
+.tabs button.on{background:var(--acc);color:#1a1005;border-color:var(--acc)}
+.main{display:grid;grid-template-columns:1fr 300px;gap:12px}
+@media(max-width:800px){.main{grid-template-columns:1fr}}
+.preview{background:repeating-conic-gradient(#222 0 25%,#1a1a1a 0 50%) 0 0/20px 20px;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:300px}
+.preview canvas{max-width:100%;max-height:70vh}
+.ctrl{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:11px;font-size:13px}
+.ctrl label{color:var(--dim);font-size:11px;display:block;margin-bottom:3px}
+.ctrl select,.ctrl input[type=number]{width:100%;background:#12121a;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:7px;font-family:inherit;font-size:13px}
+.ctrl input[type=range]{width:100%}
+.ctrl input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center}
+button.act{background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:8px;color:#fff;font-family:'Mochiy Pop One';font-size:13px;padding:10px;cursor:pointer}
+button.sub{background:#12121a;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;padding:8px;cursor:pointer;font-family:inherit}
+#status{font-size:12px;color:var(--acc);min-height:16px}
+.note{font-size:10px;color:var(--dim);line-height:1.5}
+hr{border:none;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<h1>素材メーカー <span>β</span></h1>
+<div class="tabs" id="tabs"></div>
+<div class="main">
+  <div class="preview"><canvas id="cv" width="1280" height="720"></canvas></div>
+  <div class="ctrl" id="ctrl"></div>
+</div>
+
+<script>
+'use strict';
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const TABS=["背景","パーティクル","フレーム","トランジション"];
+let tab=0;
+
+/* ========= 共通図形 ========= */
+function heart(c,x,y,s,col,rot){c.save();c.translate(x,y);c.rotate(rot||0);c.fillStyle=col;
+ c.beginPath();c.moveTo(0,s*.35);c.bezierCurveTo(-s,-s*.45,-s*.45,-s,0,-s*.35);
+ c.bezierCurveTo(s*.45,-s,s,-s*.45,0,s*.35);c.fill();c.restore()}
+function star(c,x,y,s,col,rot){c.save();c.translate(x,y);c.rotate(rot||0);c.fillStyle=col;
+ c.beginPath();for(let i=0;i<10;i++){const r=i%2?s*.45:s,a=i*Math.PI/5-Math.PI/2;
+ c[i?"lineTo":"moveTo"](Math.cos(a)*r,Math.sin(a)*r)}c.closePath();c.fill();c.restore()}
+function sparkle(c,x,y,s,col,rot){c.save();c.translate(x,y);c.rotate(rot||0);c.fillStyle=col;
+ c.beginPath();for(let i=0;i<8;i++){const r=i%2?s*.3:s,a=i*Math.PI/4;
+ c[i?"lineTo":"moveTo"](Math.cos(a)*r,Math.sin(a)*r)}c.closePath();c.fill();c.restore()}
+function circle(c,x,y,s,col){c.fillStyle=col;c.beginPath();c.arc(x,y,s,0,7);c.fill()}
+const SHAPES={heart,star:star,sparkle,circle:(c,x,y,s,col)=>circle(c,x,y,s,col)};
+// 疑似乱数(シード固定・ループ再現用)
+function prand(i){const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)}
+
+/* ========= 状態 ========= */
+const S={
+ bg:{pattern:"heart",dir:"right",speed:1,scale:100,c1:"#ffd0e0",c2:"#ff8fb3",useBg:true,bgc:"#fff5f8"},
+ pt:{shape:"heart",mode:"fall",count:24,size:50,c1:"#ff8fb3",c2:"#ffd94a",c3:"#c39bff",rotate:true,sway:30},
+ fr:{style:"fuwafuwa",thick:60,wobble:12,c1:"#ff9ec0",dots:true,c2:"#fff"},
+ tr:{style:"heartfill",c1:"#ff8fb3",c2:"#ffd0e0"},
+};
+
+/* ========= 描画: 背景 ========= */
+function tile(c,W,H,t,s){
+ const u=s.scale*1.2, sp=s.speed;
+ let ox=0,oy=0;
+ if(s.dir==="right")ox=t*sp*u*2;else if(s.dir==="left")ox=-t*sp*u*2;
+ else if(s.dir==="down")oy=t*sp*u*2;else if(s.dir==="up")oy=-t*sp*u*2;
+ else{ox=t*sp*u*2;oy=t*sp*u*2}
+ if(s.useBg){c.fillStyle=s.bgc;c.fillRect(0,0,W,H)}
+ ox=((ox%(u*2))+u*2)%(u*2);oy=((oy%(u*2))+u*2)%(u*2);
+ for(let gy=-2;gy<H/u+2;gy++)for(let gx=-2;gx<W/u+2;gx++){
+  const x=gx*u+ox-u,y=gy*u+oy-u,alt=(gx+gy)%2===0;
+  const col=alt?s.c1:s.c2;
+  if(s.pattern==="heart")heart(c,x,y,u*.3,col,alt?-.15:.15);
+  else if(s.pattern==="dot")circle(c,x,y,u*(alt?.16:.1),col);
+  else if(s.pattern==="star")star(c,x,y,u*.26,col,alt?.3:0);
+  else if(s.pattern==="gingham"){
+   c.globalAlpha=.5;c.fillStyle=s.c1;c.fillRect(x-u/2,0,u/2,H);
+   c.fillStyle=s.c2;c.fillRect(0,y-u/2,W,u/2);c.globalAlpha=1;
+  }else if(s.pattern==="stripe"){
+   c.save();c.translate(x,0);c.rotate(.3);c.fillStyle=alt?s.c1:s.c2;
+   c.fillRect(-u*.18,-H,u*.36,H*3);c.restore();
+  }else if(s.pattern==="lattice"){
+   c.strokeStyle=s.c1;c.lineWidth=u*.06;
+   c.strokeRect(x-u/2,y-u/2,u,u);
+  }else if(s.pattern==="hex"){
+   c.strokeStyle=col;c.lineWidth=u*.05;c.beginPath();
+   for(let i=0;i<6;i++){const a=i*Math.PI/3+Math.PI/6;
+    c[i?"lineTo":"moveTo"](x+Math.cos(a)*u*.42,y+Math.sin(a)*u*.42)}
+   c.closePath();c.stroke();
+  }
+ }
+}
+/* ========= 描画: パーティクル ========= */
+function particles(c,W,H,t,s){
+ const n=s.count;
+ for(let i=0;i<n;i++){
+  const r1=prand(i),r2=prand(i+500),r3=prand(i+1000);
+  const speed=Math.round(1+r2*2); // 整数周回=完全ループ
+  let ph=(t*speed+r1)%1;
+  let x=r3*W, y;
+  if(s.mode==="fall")y=ph*(H+s.size*3)-s.size*1.5;
+  else if(s.mode==="rise")y=H-ph*(H+s.size*3)+s.size*1.5-s.size*3;
+  else{y=r2*H; x=(r3*W+Math.sin(t*Math.PI*2*speed+i)*s.sway*2)}
+  if(s.mode!=="drift")x+=Math.sin(ph*Math.PI*2*2+i)*s.sway;
+  const size=s.size*(.5+r2*.8);
+  const col=[s.c1,s.c2,s.c3][i%3];
+  const rot=s.rotate?(t*Math.PI*2*speed+i*2):0;
+  const a=s.mode==="drift"?(.5+.5*Math.sin(t*Math.PI*2*speed+i*3)):1;
+  c.save();c.globalAlpha=a;
+  SHAPES[s.shape](c,x,y,size,col,rot);
+  c.restore();
+ }
+}
+/* ========= 描画: フレーム ========= */
+function frame(c,W,H,t,s){
+ const th=s.thick,wob=s.wobble;
+ c.fillStyle=s.c1;
+ c.beginPath();
+ c.moveTo(0,0);c.lineTo(W,0);c.lineTo(W,H);c.lineTo(0,H);c.closePath();
+ // 内側の穴(ふわふわ縁)
+ const seg=24;
+ const pts=[];
+ for(let i=0;i<seg;i++){const p=i/seg,x=th+p*(W-th*2);
+  pts.push([x,th+Math.sin(p*Math.PI*2*3+t*Math.PI*2)*wob])}
+ for(let i=0;i<seg;i++){const p=i/seg,y=th+p*(H-th*2);
+  pts.push([W-th+Math.sin(p*Math.PI*2*3+t*Math.PI*2+2)*wob,y])}
+ for(let i=0;i<seg;i++){const p=i/seg,x=W-th-p*(W-th*2);
+  pts.push([x,H-th+Math.sin(p*Math.PI*2*3+t*Math.PI*2+4)*wob])}
+ for(let i=0;i<seg;i++){const p=i/seg,y=H-th-p*(H-th*2);
+  pts.push([th+Math.sin(p*Math.PI*2*3+t*Math.PI*2+1)*wob,y])}
+ if(s.style==="fuwafuwa"){
+  c.moveTo(pts[0][0],pts[0][1]);
+  for(let i=0;i<pts.length;i++){
+   const p1=pts[i],p2=pts[(i+1)%pts.length];
+   c.quadraticCurveTo(p1[0],p1[1],(p1[0]+p2[0])/2,(p1[1]+p2[1])/2)}
+  c.closePath();
+ }else{ // かくかく
+  c.rect(th,th,W-th*2,H-th*2);
+ }
+ c.fill("evenodd");
+ if(s.dots){ // 縁の飾りドット
+  const dn=Math.round((W+H)/140);
+  for(let i=0;i<dn*2;i++){
+   const p=i/(dn*2),per=2*(W+H),d=p*per;
+   let x,y;
+   if(d<W){x=d;y=th/2}else if(d<W+H){x=W-th/2;y=d-W}
+   else if(d<W*2+H){x=W-(d-W-H);y=H-th/2}else{x=th/2;y=H-(d-W*2-H)}
+   const bob=Math.sin(t*Math.PI*2+i)*3;
+   circle(c,x,y+bob,th*.14,s.c2);
+  }
+ }
+}
+/* ========= 描画: トランジション(ワンショット) ========= */
+function transition(c,W,H,t,s){
+ if(s.style==="heartfill"){
+  // 前半:ハートが画面を埋める 後半:開く
+  const grid=6,u=Math.max(W,H)/grid*1.4;
+  for(let gy=0;gy<=grid;gy++)for(let gx=0;gx<=grid+2;gx++){
+   const d=(gx+gy)*.04;
+   let sc;
+   if(t<.5)sc=Math.max(0,Math.min(1,(t*2-d)*2.2));
+   else sc=Math.max(0,Math.min(1,1-((t-.5)*2-d)*2.2));
+   if(sc<=0)continue;
+   heart(c,gx*u*.8,gy*u*.8,u*.62*sc,(gx+gy)%2?s.c1:s.c2,(gx+gy)*.2);
+  }
+ }else if(s.style==="wipe"){
+  const edge=t<.5?t*2:1-(t-.5)*2;
+  c.fillStyle=s.c1;
+  c.beginPath();c.moveTo(0,0);
+  for(let i=0;i<=20;i++){const p=i/20;
+   c.lineTo(W*edge+Math.sin(p*Math.PI*6+t*10)*40-20,p*H)}
+  c.lineTo(0,H);c.closePath();c.fill();
+ }else{ // cloud
+  const edge=t<.5?t*2:1-(t-.5)*2;
+  c.fillStyle=s.c1;
+  const cy=H*(1-edge*1.3)+H*.15;
+  c.fillRect(0,cy+60,W,H);
+  for(let i=0;i<14;i++){
+   const x=i/13*W,r=60+prand(i)*70;
+   circle(c,x,cy+60,r,s.c1);
+  }
+ }
+}
+
+/* ========= UI構築 ========= */
+const ctrl=document.getElementById('ctrl');
+function opt(list){return list.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}
+const UI=[
+ ()=>`
+  <div><label>パターン</label><select data-k="bg.pattern">${opt([["heart","ハート"],["dot","ドット"],["star","星"],["gingham","ギンガムチェック"],["stripe","ストライプ"],["lattice","格子"],["hex","六角形"]])}</select></div>
+  <div><label>流れる方向</label><select data-k="bg.dir">${opt([["right","→ 右"],["left","← 左"],["down","↓ 下"],["up","↑ 上"],["diag","↘ 斜め"]])}</select></div>
+  <div><label>速さ(ループ内周回数)</label><input type="range" data-k="bg.speed" min="1" max="4" step="1" value="1"></div>
+  <div><label>パターンの大きさ</label><input type="range" data-k="bg.scale" min="40" max="240" value="100"></div>
+  <div class="row"><div><label>色1</label><input type="color" data-k="bg.c1" value="#ffd0e0"></div>
+  <div><label>色2</label><input type="color" data-k="bg.c2" value="#ff8fb3"></div>
+  <div><label>背景色</label><input type="color" data-k="bg.bgc" value="#fff5f8"></div></div>
+  <div class="row"><input type="checkbox" data-k="bg.useBg" checked id="ubg"><label for="ubg" style="margin:0">背景色を塗る(OFF=透過)</label></div>`,
+ ()=>`
+  <div><label>形</label><select data-k="pt.shape">${opt([["heart","ハート"],["star","星"],["sparkle","キラキラ"],["circle","丸"]])}</select></div>
+  <div><label>動き</label><select data-k="pt.mode">${opt([["fall","降ってくる"],["rise","のぼっていく"],["drift","ふわふわ漂う"]])}</select></div>
+  <div><label>数</label><input type="range" data-k="pt.count" min="6" max="80" value="24"></div>
+  <div><label>大きさ</label><input type="range" data-k="pt.size" min="15" max="120" value="50"></div>
+  <div><label>ゆらぎ幅</label><input type="range" data-k="pt.sway" min="0" max="100" value="30"></div>
+  <div class="row"><div><label>色1</label><input type="color" data-k="pt.c1" value="#ff8fb3"></div>
+  <div><label>色2</label><input type="color" data-k="pt.c2" value="#ffd94a"></div>
+  <div><label>色3</label><input type="color" data-k="pt.c3" value="#c39bff"></div></div>
+  <div class="row"><input type="checkbox" data-k="pt.rotate" checked id="rot"><label for="rot" style="margin:0">くるくる回転</label></div>`,
+ ()=>`
+  <div><label>スタイル</label><select data-k="fr.style">${opt([["fuwafuwa","ふわふわ"],["square","かくかく"]])}</select></div>
+  <div><label>枠の太さ</label><input type="range" data-k="fr.thick" min="20" max="160" value="60"></div>
+  <div><label>ふわふわ度</label><input type="range" data-k="fr.wobble" min="0" max="30" value="12"></div>
+  <div class="row"><div><label>枠色</label><input type="color" data-k="fr.c1" value="#ff9ec0"></div>
+  <div><label>ドット色</label><input type="color" data-k="fr.c2" value="#ffffff"></div></div>
+  <div class="row"><input type="checkbox" data-k="fr.dots" checked id="dts"><label for="dts" style="margin:0">縁ドット</label></div>`,
+ ()=>`
+  <div><label>スタイル</label><select data-k="tr.style">${opt([["heartfill","ハートで埋める"],["wipe","なみなみワイプ"],["cloud","もくもく雲"]])}</select></div>
+  <div class="row"><div><label>色1</label><input type="color" data-k="tr.c1" value="#ff8fb3"></div>
+  <div><label>色2</label><input type="color" data-k="tr.c2" value="#ffd0e0"></div></div>
+  <div class="note">トランジションはループしないワンショット素材です(前半で画面が埋まり後半で開きます)</div>`,
+];
+const COMMON=`<hr>
+ <div class="row">
+  <div style="flex:1"><label>サイズ</label><select id="exSize">
+   <option value="1280x720">HD 1280×720</option>
+   <option value="1920x1080">FHD 1920×1080</option>
+   <option value="1080x1920">縦 1080×1920</option>
+   <option value="3840x2160">4K 3840×2160</option>
+  </select></div>
+  <div style="flex:1"><label>ループ秒数</label><select id="exDur">
+   <option value="2">2秒</option><option value="3">3秒</option><option value="4">4秒</option><option value="6">6秒(ゆっくり)</option><option value="8">8秒(超ゆっくり)</option>
+  </select></div>
+  <div style="flex:1"><label>fps</label><select id="exFps">
+   <option value="24">24</option><option value="30" selected>30</option>
+  </select></div>
+ </div>
+ <button class="act" id="exPng">連番PNG書き出し(透過ZIP)</button>
+ <button class="sub" id="exStill">静止画PNG</button>
+ <div id="status"></div>
+ <div class="note">連番PNGはAEで最初のフレームを選び「PNGシーケンス」にチェックで読み込み。ループ素材はタイムリマップかループエクスプレッションで無限化できます。</div>`;
+
+function get(k){const[a,b]=k.split('.');return S[a][b]}
+function set(k,v){const[a,b]=k.split('.');S[a][b]=v}
+function buildUI(){
+ ctrl.innerHTML=UI[tab]()+COMMON;
+ ctrl.querySelectorAll('[data-k]').forEach(el=>{
+  const k=el.dataset.k,cur=get(k);
+  if(el.type==="checkbox"){el.checked=cur;el.onchange=()=>set(k,el.checked)}
+  else{el.value=cur;el.oninput=()=>set(k,el.type==="range"?+el.value:el.value)}
+ });
+ document.getElementById('exPng').onclick=exportSeq;
+ document.getElementById('exStill').onclick=exportStill;
+}
+const tabsEl=document.getElementById('tabs');
+TABS.forEach((t2,i)=>{
+ const b=document.createElement('button');b.textContent=t2;if(i===0)b.className='on';
+ b.onclick=()=>{tab=i;[...tabsEl.children].forEach((x,j)=>x.className=j===i?'on':'');buildUI()};
+ tabsEl.appendChild(b);
+});
+buildUI();
+
+/* ========= プレビューループ ========= */
+function render(c,W,H,t){
+ c.clearRect(0,0,W,H);
+ if(tab===0)tile(c,W,H,t,S.bg);
+ else if(tab===1)particles(c,W,H,t,S.pt);
+ else if(tab===2)frame(c,W,H,t,S.fr);
+ else transition(c,W,H,t,S.tr);
+}
+let t0=performance.now();
+(function loop(now){
+ const dur=+(document.getElementById('exDur')?.value||2)*1000;
+ const t=((now-t0)%dur)/dur;
+ render(ctx,cv.width,cv.height,t);
+ requestAnimationFrame(loop);
+})(t0);
+
+/* ========= 書き出し ========= */
+const statusEl=()=>document.getElementById('status');
+function makeCanvas(){
+ const[w,h]=document.getElementById('exSize').value.split('x').map(Number);
+ const c=document.createElement('canvas');c.width=w;c.height=h;return c;
+}
+async function exportSeq(){
+ const fps=+document.getElementById('exFps').value,
+       dur=+document.getElementById('exDur').value,
+       frames=fps*dur,
+       c=makeCanvas(),cc=c.getContext('2d'),zip=new JSZip();
+ for(let f=0;f<frames;f++){
+  statusEl().textContent=`書き出し中 ${f+1}/${frames}`;
+  render(cc,c.width,c.height,f/frames);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  zip.file(`sozai_${String(f).padStart(4,'0')}.png`,blob);
+  await new Promise(r=>setTimeout(r,0));
+ }
+ statusEl().textContent='ZIP圧縮中...';
+ const z=await zip.generateAsync({type:'blob'});
+ const a=document.createElement('a');
+ a.download=`sozai_${TABS[tab]}_${Date.now()}.zip`;
+ a.href=URL.createObjectURL(z);a.click();
+ statusEl().textContent='完了!';setTimeout(()=>statusEl().textContent='',3000);
+}
+function exportStill(){
+ const c=makeCanvas();render(c.getContext('2d'),c.width,c.height,0);
+ const a=document.createElement('a');a.download='sozai.png';a.href=c.toDataURL();a.click();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>PSD Avatar Viewer</title>
+<script src="lib/ag-psd.js"></script>
+<style>
+  :root{
+    --bg:#14161b; --panel:#1b1e26; --panel2:#232733; --text:#d7dae2; --dim:#8b90a0;
+    --accent:#6ea8ff; --chip:#262b38; --chip-on:#31406b;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{background:var(--bg); color:var(--text); font:13px/1.5 "Segoe UI","Hiragino Sans",sans-serif; display:flex; overflow:hidden}
+  #stage{flex:1; display:flex; align-items:center; justify-content:center; min-width:0; position:relative}
+  #stage.transparent{background-image:conic-gradient(#22252c 0 25%,#191c22 0 50%,#22252c 0 75%,#191c22 0);background-size:24px 24px}
+  #stage.gb{background:#00b140}
+  #stage.dark{background:#101216}
+  canvas{max-width:100%; max-height:100vh; image-rendering:auto}
+  #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(30,50,90,.5); font-size:20px; pointer-events:none}
+  #panel{width:330px; overflow-y:auto; background:var(--panel); padding:14px 16px 40px; flex-shrink:0}
+  #panel::-webkit-scrollbar{width:8px}
+  #panel::-webkit-scrollbar-thumb{background:#333a4a; border-radius:4px}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px}
+  .chip{padding:4px 12px; border-radius:14px; background:var(--chip); border:1px solid #333a4a; cursor:pointer; user-select:none; font-size:12px; color:var(--dim)}
+  .chip.on{background:var(--chip-on); border-color:var(--accent); color:#dfe9ff}
+  h3{font-size:11px; color:var(--dim); font-weight:600; margin:16px 0 8px; letter-spacing:.05em}
+  .btns{display:flex; flex-wrap:wrap; gap:6px}
+  .btn{padding:5px 13px; border-radius:6px; background:var(--panel2); border:1px solid #333a4a; color:var(--text); cursor:pointer; font-size:12px}
+  .btn:hover{border-color:var(--accent)}
+  .btn.on{background:var(--chip-on); border-color:var(--accent)}
+  .row{display:flex; align-items:center; gap:8px; margin:5px 0}
+  .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px}
+  .row input[type=range]{flex:1; accent-color:var(--accent); height:4px}
+  .row .val{width:36px; text-align:right; color:var(--dim); font-size:11px}
+  select{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font-size:11px; padding:1px 4px}
+  #layerlist .row label{width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #note{color:var(--dim); font-size:11px; margin-top:6px}
+  #fileInput{display:none}
+  #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
+    color:var(--dim); cursor:pointer; margin-bottom:12px; font-size:12px; user-select:none}
+  #psdBox:hover, #psdBox.dragging{border-color:var(--accent); color:#dfe9ff; background:rgba(110,168,255,.06)}
+  #psdInfo{margin-top:4px; font-size:11px; color:var(--accent); word-break:break-all}
+</style>
+</head>
+<body>
+<div id="stage" class="transparent">
+  <canvas id="cv"></canvas>
+  <div id="drop">PSDをドロップ</div>
+</div>
+<div id="panel">
+  <h3 style="margin-top:0">PSD読み込み</h3>
+  <div id="psdBox">
+    <div>クリック または ここにPSDをドロップ</div>
+    <div id="psdInfo">未読込</div>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="controls"></div>
+  <h3>テクスチャ</h3>
+  <div class="btns">
+    <button class="btn" id="reloadBtn">PSDから更新</button>
+    <input type="file" id="fileInput" accept=".psd">
+  </div>
+  <h3>背景</h3>
+  <div class="btns" id="bgBtns">
+    <button class="btn on" data-bg="transparent">透過</button>
+    <button class="btn" data-bg="gb">GB</button>
+    <button class="btn" data-bg="dark">ダーク</button>
+  </div>
+  <h3>レイヤー(役割の割り当て)</h3>
+  <div id="layerlist"></div>
+  <div id="note"></div>
+</div>
+
+<script>
+"use strict";
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+
+/* ---------------- パラメータ定義 ---------------- */
+const PARAM_DEFS = [
+  {sec:"頭の向き"},
+  {id:"headX",  label:"角度X",     min:-1,  max:1,  def:0},
+  {id:"headY",  label:"角度Y",     min:-1,  max:1,  def:0},
+  {id:"headZ",  label:"角度Z",     min:-1,  max:1,  def:0},
+  {sec:"目(左右独立)"},
+  {id:"eyeL",   label:"左目の開き", min:0,   max:1.2,def:1},
+  {id:"eyeR",   label:"右目の開き", min:0,   max:1.2,def:1},
+  {id:"gazeX",  label:"視線X",     min:-1,  max:1,  def:0},
+  {id:"gazeY",  label:"視線Y",     min:-1,  max:1,  def:0},
+  {id:"irisScale",label:"瞳スケール",min:.6, max:1.4,def:1},
+  {id:"browY",  label:"眉(上下)",  min:-1,  max:1,  def:0},
+  {sec:"口"},
+  {id:"mouthOpen", label:"開き",     min:0,  max:1, def:0},
+  {id:"mouthSmile",label:"形(笑い)", min:-1, max:1, def:0},
+  {sec:"体・物理"},
+  {id:"bodyTilt",   label:"体の傾き",  min:-1, max:1,  def:0},
+  {id:"chestHeight",label:"胸の高さ",  min:-1, max:1,  def:0},
+  {id:"chestBounce",label:"胸の揺れ",  min:0,  max:10, def:4},
+  {id:"swayGain",   label:"揺れの強さ",min:0,  max:1,  def:0.3},
+  {id:"softness",   label:"柔らかさ",  min:0,  max:4,  def:2},
+];
+const TOGGLES = [
+  {id:"idle",       label:"アイドル",     def:true},
+  {id:"autoBlink",  label:"自動まばたき", def:true},
+  {id:"randomMotion",label:"ランダム動作",def:false},
+  {id:"randomLip",  label:"ランダムリップ",def:false},
+  {id:"mouseTrack", label:"マウス追従",   def:false},
+  {id:"micLip",     label:"マイクリップ", def:false},
+  {id:"hairPhys",   label:"髪の物理",     def:true},
+];
+const PRESETS = {
+  "通常":  {eyeL:1, eyeR:1, mouthOpen:0,  mouthSmile:0,  browY:0},
+  "笑顔":  {eyeL:.12,eyeR:.12,mouthOpen:.25,mouthSmile:1, browY:.3},
+  "驚き":  {eyeL:1.2,eyeR:1.2,mouthOpen:.75,mouthSmile:0, browY:1},
+  "ジト目":{eyeL:.45,eyeR:.45,mouthOpen:0,  mouthSmile:-.3,browY:-.6},
+  "ウインク左":{eyeL:0, eyeR:1, mouthSmile:.5},
+  "ウインク右":{eyeL:1, eyeR:0, mouthSmile:.5},
+};
+const ROLES = ["auto","body","head","frontHair","backHair","chest","eyeWhite","iris","eyelash","brow","mouth"];
+const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", brow:"眉", mouth:"口"};
+
+const P = {};      // 現在値(スライダー)
+const target = {}; // プリセットのイージング先
+PARAM_DEFS.filter(d=>d.id).forEach(d=>{ P[d.id]=d.def; target[d.id]=null; });
+const T = {};
+TOGGLES.forEach(t=> T[t.id]=t.def);
+
+/* ---------------- UI構築 ---------------- */
+const chipsEl = document.getElementById("chips");
+TOGGLES.forEach(t=>{
+  const el = document.createElement("div");
+  el.className = "chip" + (t.def ? " on" : "");
+  el.textContent = t.label;
+  el.onclick = ()=>{ T[t.id] = !T[t.id]; el.classList.toggle("on", T[t.id]);
+    if(t.id==="micLip" && T.micLip) startMic(); };
+  chipsEl.appendChild(el);
+});
+
+const controlsEl = document.getElementById("controls");
+{
+  const h = document.createElement("h3"); h.textContent = "表情プリセット";
+  controlsEl.appendChild(h);
+  const bd = document.createElement("div"); bd.className = "btns";
+  Object.keys(PRESETS).forEach(name=>{
+    const b = document.createElement("button"); b.className = "btn"; b.textContent = name;
+    b.onclick = ()=>{ Object.entries(PRESETS[name]).forEach(([k,v])=> target[k]=v); };
+    bd.appendChild(b);
+  });
+  controlsEl.appendChild(bd);
+}
+const sliderEls = {};
+PARAM_DEFS.forEach(d=>{
+  if(d.sec){ const h = document.createElement("h3"); h.textContent = d.sec; controlsEl.appendChild(h); return; }
+  const row = document.createElement("div"); row.className = "row";
+  const lab = document.createElement("label"); lab.textContent = d.label;
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.min = d.min; inp.max = d.max; inp.step = 0.01; inp.value = d.def;
+  const val = document.createElement("span"); val.className = "val"; val.textContent = (+d.def).toFixed(1);
+  inp.oninput = ()=>{ P[d.id] = +inp.value; target[d.id] = null; val.textContent = (+inp.value).toFixed(1); };
+  row.append(lab, inp, val);
+  controlsEl.appendChild(row);
+  sliderEls[d.id] = {inp, val};
+});
+function syncSlider(id){
+  const s = sliderEls[id]; if(!s) return;
+  s.inp.value = P[id]; s.val.textContent = P[id].toFixed(1);
+}
+
+document.getElementById("bgBtns").addEventListener("click", e=>{
+  const b = e.target.closest("[data-bg]"); if(!b) return;
+  document.querySelectorAll("#bgBtns .btn").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  document.getElementById("stage").className = b.dataset.bg;
+});
+
+/* ---------------- PSD読み込み ---------------- */
+let layers = [];       // {name, canvas, left, top, width, height, role}
+let psdW = 768, psdH = 768, psdName = "output_layers.psd";
+let facePivot = {x:384, y:400};
+
+function guessRole(name){
+  const n = name.toLowerCase();
+  if(/front.*hair|前髪/.test(n)) return "frontHair";
+  if(/back.*hair|後ろ?髪/.test(n)) return "backHair";
+  if(/chest|breast|bust|胸|oppai/.test(n)) return "chest";
+  if(/eyewhite|sclera|白目/.test(n)) return "eyeWhite";
+  if(/iris|irides|pupil|瞳/.test(n)) return "iris";
+  if(/eyelash|lash|まつ|睫|目/.test(n)) return "eyelash";
+  if(/brow|眉/.test(n)) return "brow";
+  if(/mouth|口/.test(n)) return "mouth";
+  if(/face|nose|\bears?\b|顔|鼻|耳/.test(n)) return "head";
+  if(/hair|髪/.test(n)) return "frontHair";
+  return "body";
+}
+const HEAD_ROLES = new Set(["head","frontHair","backHair","eyeWhite","iris","eyelash","brow","mouth"]);
+const DEPTH = {body:0, chest:0.05, backHair:0.35, head:0.7, mouth:0.8, eyeWhite:0.85, iris:0.85, eyelash:0.85, brow:0.92, frontHair:1};
+
+function roleOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRoles:"+psdName)||"{}"); }catch(e){ return {}; } }
+
+function flatten(node, arr){
+  (node.children||[]).forEach(ch=>{
+    if(ch.children) flatten(ch, arr);
+    else if(ch.canvas) arr.push(ch);
+  });
+}
+
+/* 最後に読んだPSDをIndexedDBへ保存し、次回自動復元する */
+function idb(){
+  return new Promise((res, rej)=>{
+    const q = indexedDB.open("avatarViewer", 1);
+    q.onupgradeneeded = ()=> q.result.createObjectStore("files");
+    q.onsuccess = ()=> res(q.result);
+    q.onerror = ()=> rej(q.error);
+  });
+}
+async function idbPut(key, val){
+  const db = await idb();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction("files", "readwrite");
+    tx.objectStore("files").put(val, key);
+    tx.oncomplete = res; tx.onerror = ()=> rej(tx.error);
+  });
+}
+async function idbGet(key){
+  const db = await idb();
+  return new Promise((res, rej)=>{
+    const rq = db.transaction("files").objectStore("files").get(key);
+    rq.onsuccess = ()=> res(rq.result); rq.onerror = ()=> rej(rq.error);
+  });
+}
+
+async function loadPsdFile(file){
+  psdName = file.name;
+  const buf = await file.arrayBuffer();
+  applyPsd(buf);
+  try{ await idbPut("lastPsd", {name: file.name, buf}); }catch(e){ /* 保存失敗は無視 */ }
+}
+
+function applyPsd(buf){
+  const psd = agPsd.readPsd(buf, {skipCompositeImageData:true, skipThumbnail:true});
+  psdW = psd.width; psdH = psd.height;
+  const flat = [];
+  flatten(psd, flat);
+  const ov = roleOverrides();
+  layers = flat.map(l=>({
+    name: l.name || "?",
+    canvas: l.canvas,
+    left: l.left||0, top: l.top||0,
+    width: (l.right||0)-(l.left||0), height: (l.bottom||0)-(l.top||0),
+    role: ov[l.name] || guessRole(l.name||""),
+  }));
+  // 前髪が後髪より先(下)に来ていたら配列は上→下順とみなして反転
+  const fi = layers.findIndex(l=>l.role==="frontHair");
+  const bi = layers.findIndex(l=>l.role==="backHair");
+  if(fi >= 0 && bi >= 0 && fi < bi) layers.reverse();
+  // 頭の回転ピボット: faceレイヤーの顎あたり
+  const face = layers.find(l=>/face|顔/.test(l.name.toLowerCase()));
+  facePivot = face
+    ? {x: face.left + face.width/2, y: face.top + face.height*0.95}
+    : {x: psdW/2, y: psdH*0.5};
+  cv.width = psdW; cv.height = psdH;
+  buildLayerList();
+  document.getElementById("psdInfo").textContent = `${psdName} — ${layers.length}レイヤー (${psdW}×${psdH})`;
+  const hasChest = layers.some(l=>l.role==="chest");
+  document.getElementById("note").textContent = hasChest
+    ? "胸レイヤー検出: 物理演算が有効です"
+    : "胸レイヤー未検出 — レイヤー名に chest / 胸 を含めるか、下のリストで役割を「胸」にすると揺れ物理が有効になります";
+}
+
+function buildLayerList(){
+  const el = document.getElementById("layerlist");
+  el.innerHTML = "";
+  const ov = roleOverrides();
+  [...layers].reverse().forEach(l=>{   // 上のレイヤーから表示
+    const row = document.createElement("div"); row.className = "row";
+    const lab = document.createElement("label"); lab.textContent = l.name; lab.title = l.name;
+    const sel = document.createElement("select");
+    ROLES.forEach(r=>{
+      const o = document.createElement("option"); o.value = r; o.textContent = ROLE_LABELS[r];
+      sel.appendChild(o);
+    });
+    sel.value = ov[l.name] ? l.role : "auto";
+    if(sel.value === "auto"){ /* 表示は自動でも実役割をツールチップに */ sel.title = ROLE_LABELS[l.role]; }
+    sel.onchange = ()=>{
+      const o2 = roleOverrides();
+      if(sel.value === "auto"){ delete o2[l.name]; l.role = guessRole(l.name); }
+      else { o2[l.name] = sel.value; l.role = sel.value; }
+      localStorage.setItem("psdRoles:"+psdName, JSON.stringify(o2));
+    };
+    row.append(lab, sel);
+    el.appendChild(row);
+  });
+}
+
+async function loadDefault(){
+  // 1) 前回読んだPSDを復元 → 2) 同じフォルダの output_layers.psd → 3) 手動読み込み待ち
+  try{
+    const saved = await idbGet("lastPsd");
+    if(saved && saved.buf){ psdName = saved.name; applyPsd(saved.buf); return; }
+  }catch(e){ /* IndexedDB不可なら次へ */ }
+  try{
+    const r = await fetch("output_layers.psd");
+    if(!r.ok) throw 0;
+    applyPsd(await r.arrayBuffer());
+  }catch(e){
+    document.getElementById("note").textContent = "PSDが未読込です。上の「PSD読み込み」ボックスから読み込んでください。";
+  }
+}
+const fileInput = document.getElementById("fileInput");
+document.getElementById("reloadBtn").onclick = ()=> fileInput.click();
+document.getElementById("psdBox").onclick = ()=> fileInput.click();
+fileInput.onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  loadPsdFile(f);
+  fileInput.value = "";  // 同じファイルの再選択(PSDから更新)を可能にする
+};
+const psdBox = document.getElementById("psdBox");
+psdBox.addEventListener("dragover", e=>{ e.preventDefault(); e.stopPropagation(); psdBox.classList.add("dragging"); });
+psdBox.addEventListener("dragleave", ()=> psdBox.classList.remove("dragging"));
+psdBox.addEventListener("drop", e=>{
+  e.preventDefault(); e.stopPropagation();
+  psdBox.classList.remove("dragging");
+  const f = e.dataTransfer.files[0];
+  if(f && /\.psd$/i.test(f.name)) loadPsdFile(f);
+});
+const stage = document.getElementById("stage");
+stage.addEventListener("dragover", e=>{ e.preventDefault(); document.getElementById("drop").style.display="flex"; });
+stage.addEventListener("dragleave", ()=> document.getElementById("drop").style.display="none");
+stage.addEventListener("drop", e=>{
+  e.preventDefault();
+  document.getElementById("drop").style.display="none";
+  const f = e.dataTransfer.files[0];
+  if(f && /\.psd$/i.test(f.name)) loadPsdFile(f);
+});
+
+/* ---------------- 物理(バネ・ダンパー) ---------------- */
+class Spring{
+  constructor(){ this.x = 0; this.v = 0; }
+  step(dt, k, c, input){
+    this.v += (-k*this.x - c*this.v + input) * dt;
+    this.x += this.v * dt;
+    if(!isFinite(this.x)){ this.x = 0; this.v = 0; }
+  }
+}
+const springs = { frontHair: new Spring(), backHair: new Spring(), chestY: new Spring(), chestX: new Spring() };
+
+/* ---------------- アニメーション状態 ---------------- */
+let mouse = {x:0, y:0};
+addEventListener("pointermove", e=>{
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = (e.clientY / innerHeight) * 2 - 1;
+});
+let micLevel = 0, micStarted = false;
+async function startMic(){
+  if(micStarted) return; micStarted = true;
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    const ac = new AudioContext();
+    const src = ac.createMediaStreamSource(stream);
+    const an = ac.createAnalyser(); an.fftSize = 512;
+    src.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    (function poll(){
+      an.getFloatTimeDomainData(buf);
+      let s = 0; for(let i=0;i<buf.length;i++) s += buf[i]*buf[i];
+      micLevel = Math.min(1, Math.sqrt(s/buf.length) * 12);
+      requestAnimationFrame(poll);
+    })();
+  }catch(e){ micStarted = false; T.micLip = false; }
+}
+
+let blink = 0, blinkTimer = 2.5;   // 0=開 1=閉
+let prevHead = {x:0, y:0};
+let lipPhase = 0;
+
+function smooth(cur, tgt, dt, speed){ return cur + (tgt - cur) * Math.min(1, dt*speed); }
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(1/30, (now - last)/1000); last = now;
+  const t = now/1000;
+
+  // プリセットへのイージング
+  for(const k in target){
+    if(target[k] === null) continue;
+    P[k] = smooth(P[k], target[k], dt, 10);
+    if(Math.abs(P[k]-target[k]) < .005){ P[k] = target[k]; target[k] = null; }
+    syncSlider(k);
+  }
+
+  // 自動モーションを加算した実効値
+  let headX = P.headX, headY = P.headY, headZ = P.headZ, bodyTilt = P.bodyTilt;
+  let gazeX = P.gazeX, gazeY = P.gazeY;
+  if(T.idle){
+    headX += Math.sin(t*0.55)*0.045 + Math.sin(t*1.31)*0.02;
+    headY += Math.sin(t*0.42+1)*0.035;
+    headZ += Math.sin(t*0.35+2)*0.03;
+    bodyTilt += Math.sin(t*0.3)*0.02;
+  }
+  if(T.randomMotion){
+    headX += Math.sin(t*0.9)*0.25 + Math.sin(t*0.23+4)*0.2;
+    headY += Math.sin(t*0.7+2)*0.18;
+    headZ += Math.sin(t*0.5+1)*0.12;
+  }
+  if(T.mouseTrack){
+    headX += mouse.x*0.6; headY += mouse.y*0.4;
+    gazeX += mouse.x*0.8; gazeY += mouse.y*0.8;
+  }
+  const breath = T.idle ? Math.sin(t*1.9)*0.5+0.5 : 0;  // 呼吸 0..1
+
+  // まばたき
+  if(T.autoBlink){
+    blinkTimer -= dt;
+    if(blinkTimer <= 0){ blinkTimer = 1.8 + Math.random()*3.5; }
+    if(blinkTimer > 0 && blinkTimer < 0.28){
+      const q = 1 - blinkTimer/0.28;             // 0→1
+      blink = q < 0.4 ? q/0.4 : 1-(q-0.4)/0.6;   // 山型
+    } else blink = 0;
+  } else blink = 0;
+
+  // リップ
+  let mouthOpen = P.mouthOpen;
+  if(T.randomLip){
+    lipPhase += dt * (4 + Math.sin(t*0.8)*2);
+    mouthOpen = Math.max(mouthOpen, (Math.sin(lipPhase)*0.5+0.5) * (Math.sin(t*0.47)*0.5+0.5) * 0.9);
+  }
+  if(T.micLip) mouthOpen = Math.max(mouthOpen, micLevel);
+
+  // 物理入力: 頭の移動速度を揺れ物へ伝える
+  const hx = headX*30, hy = headY*20;
+  const velX = (hx - prevHead.x)/Math.max(dt,1e-4), velY = (hy - prevHead.y)/Math.max(dt,1e-4);
+  prevHead = {x:hx, y:hy};
+  const soft = P.softness;
+  const k = 260/(1 + soft*1.1), c = 2*Math.sqrt(k)*0.55;
+  const gain = P.swayGain;
+  // 髪も専用の柔らかいバネにし、静止時もそよ風でゆったり揺れるようにする
+  const hk = 90/(1 + soft*0.9), hc = 2*Math.sqrt(hk)*0.4;
+  const wind = T.idle ? (Math.sin(t*1.4) + Math.sin(t*2.3+1)*0.5) : 0;   // ~±1.5
+  if(T.hairPhys){
+    springs.frontHair.step(dt, hk,      hc,     (-velX*1.1*gain + wind*100*gain));
+    springs.backHair.step( dt, hk*0.85, hc*0.9, (-velX*1.4*gain + wind*140*gain));
+  } else { springs.frontHair.x = springs.frontHair.v = 0; springs.backHair.x = springs.backHair.v = 0; }
+  // 胸: 専用の柔らかいバネ。アイドル中もはっきり上下バウンスさせる。
+  const cb = P.chestBounce;                 // 0..10 揺れの大きさ
+  const chestGain = 0.25 + gain;            // 揺れの強さ0でも最低限は動く
+  const ck = 70 / (1 + soft*0.8);           // 柔らかいほど大きく長く揺れる
+  const cc = 2*Math.sqrt(ck)*0.32;          // 減衰弱め=よく揺れる
+  const idleBob = T.idle ? (Math.sin(t*2.3) + Math.sin(t*3.7+1)*0.4) : 0;
+  springs.chestY.step(dt, ck, cc, (idleBob*42 - velY*12) * cb * chestGain);
+  springs.chestX.step(dt, ck, cc, (Math.sin(t*1.7)*9 - velX*10) * cb * chestGain);
+
+  draw({headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink});
+}
+
+/* ---------------- 描画 ---------------- */
+function draw(S){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,psdW,psdH);
+  if(!layers.length) return;
+
+  const px = facePivot.x, py = facePivot.y;      // 首ピボット
+  const bx = psdW/2, by = psdH;                  // 体ピボット(下端)
+  const eyeOpen = {L: P.eyeL*(1-S.blink), R: P.eyeR*(1-S.blink)};
+
+  for(const l of layers){
+    ctx.save();
+
+    // --- 体の傾き + 呼吸(全体) ---
+    ctx.translate(bx, by);
+    ctx.rotate(S.bodyTilt*0.09);
+    ctx.scale(1, 1 + S.breath*0.004);
+    ctx.translate(-bx, -by);
+
+    const role = l.role;
+    const depth = DEPTH[role] ?? 0;
+
+    // --- 頭グループ: 回転(Z) + 視差(X/Y) ---
+    if(HEAD_ROLES.has(role)){
+      ctx.translate(px, py);
+      ctx.rotate(S.headZ*0.13 * (role==="backHair" ? 0.75 : 1));
+      ctx.translate(-px, -py);
+      ctx.translate(S.headX*26*depth, S.headY*16*depth + S.headY*4);
+    } else {
+      // 体パーツもわずかに追従
+      ctx.translate(S.headX*3, S.headY*1.5);
+    }
+
+    // --- 役割ごとの変形 ---
+    const cx = l.left + l.width/2, cy = l.top + l.height/2;
+
+    if(role === "frontHair" || role === "backHair"){
+      // 上端ピン留めシアー(下ほど揺れる)
+      const s = springs[role].x;
+      ctx.translate(cx, l.top);
+      ctx.transform(1, 0, s*0.02, 1, 0, 0);   // 下ほど大きく横に流れる
+      ctx.rotate(s*0.006);
+      ctx.translate(-cx, -l.top);
+    }
+    else if(role === "chest"){
+      // 上端ピン留め: 縦バウンス + わずかな横揺れ
+      const sy = springs.chestY.x, sx = springs.chestX.x;
+      ctx.translate(cx, l.top);
+      ctx.translate(sx*1.5, P.chestHeight*-8 + sy*1.0);
+      ctx.scale(1 - sy*0.015, 1 + sy*0.03);   // 下ほど伸縮(上端ピン留め)
+      ctx.rotate(sx*0.004);
+      ctx.translate(-cx, -l.top);
+    }
+    else if(role === "brow"){
+      ctx.translate(0, P.browY*-7);
+    }
+    else if(role === "mouth"){
+      // スライダー0で原画そのまま(恒等変換)
+      ctx.translate(cx, cy);
+      ctx.scale(1 + P.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4);
+      ctx.translate(-cx, -cy);
+    }
+    else if(role === "iris"){
+      ctx.translate(S.gazeX*7, S.gazeY*4);
+    }
+
+    // --- 目系レイヤーは左右半分ずつ独立描画 ---
+    // ただし片目分しかない幅の狭いレイヤーは分割せず、位置で左右を判定
+    if(role === "eyelash" || role === "eyeWhite" || role === "iris"){
+      const face = layers.find(x=>x.role==="head" && /face|顔/.test(x.name.toLowerCase()));
+      const faceW = face ? face.width : psdW*0.25;
+      const faceCx = face ? face.left + face.width/2 : psdW/2;
+      const singleEye = l.width < faceW*0.45;
+      const midX = cx;
+      const sides = singleEye ? [cx < faceCx ? "L" : "R"] : ["L","R"];
+      for(const side of sides){
+        ctx.save();
+        ctx.beginPath();
+        if(singleEye)         ctx.rect(l.left-20, l.top-30, l.width+40, l.height+60);
+        else if(side === "L") ctx.rect(l.left-20, l.top-30, midX-(l.left-20), l.height+60);
+        else                  ctx.rect(midX, l.top-30, l.left+l.width+20-midX, l.height+60);
+        ctx.clip();
+        const open = Math.max(0.02, eyeOpen[side]);
+        const ecy = cy + (role==="eyelash" ? l.height*0.15 : l.height*0.3);
+        ctx.translate(0, ecy); ctx.scale(1, Math.min(open,1)); ctx.translate(0, -ecy);
+        if(role === "iris" && P.irisScale !== 1){
+          const icx = singleEye ? cx : (side==="L" ? (l.left+midX)/2 : (midX+l.left+l.width)/2);
+          ctx.translate(icx, cy); ctx.scale(P.irisScale, P.irisScale); ctx.translate(-icx, -cy);
+        }
+        if(open > 1){ // 見開き: まつ毛ごと少し上へ
+          ctx.translate(0, -(open-1)*6);
+        }
+        ctx.drawImage(l.canvas, l.left, l.top);
+        ctx.restore();
+      }
+    } else {
+      ctx.drawImage(l.canvas, l.left, l.top);
+    }
+    ctx.restore();
+  }
+}
+
+loadDefault();
+// rAFが止まる環境(非表示タブ等)でも動くようフォールバック付きでループ
+let rafAlive = false;
+(function loop(now){ rafAlive = true; frame(now); requestAnimationFrame(loop); })(performance.now());
+setInterval(()=>{ if(!rafAlive) frame(performance.now()); rafAlive = false; }, 33);
+</script>
+</body>
+</html>

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フレアライトメーカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--bg:#101018;--panel:#1a1a26;--line:#30303f;--txt:#e8e6ef;--dim:#8b8899;--acc:#ffd94a;--acc2:#ff9a3c}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'Zen Maru Gothic',sans-serif;padding:16px}
+h1{font-family:'Mochiy Pop One';font-size:18px;margin-bottom:12px}
+h1 span{color:var(--acc)}
+.main{display:grid;grid-template-columns:170px 1fr 280px;gap:12px}
+@media(max-width:900px){.main{grid-template-columns:1fr}}
+.fxlist{display:flex;flex-direction:column;gap:6px}
+.fxlist button{background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;padding:9px 8px;cursor:pointer;font-family:inherit;text-align:left}
+.fxlist button.on{background:var(--acc);color:#1a1005;border-color:var(--acc);font-weight:700}
+.preview{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.preview.checker{background:repeating-conic-gradient(#222 0 25%,#181818 0 50%) 0 0/20px 20px}
+.preview canvas{max-width:100%;max-height:74vh}
+.ctrl{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:11px;font-size:13px}
+.ctrl label{color:var(--dim);font-size:11px;display:block;margin-bottom:3px}
+.ctrl select,.ctrl input[type=number]{width:100%;background:#0c0c14;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:7px;font-family:inherit;font-size:13px}
+.ctrl input[type=range]{width:100%}
+.ctrl input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center}
+button.act{background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:8px;color:#1a1005;font-family:'Mochiy Pop One';font-size:13px;padding:10px;cursor:pointer}
+button.sub{background:#0c0c14;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;padding:8px;cursor:pointer;font-family:inherit}
+#status{font-size:12px;color:var(--acc);min-height:16px}
+.note{font-size:10px;color:var(--dim);line-height:1.5}
+hr{border:none;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<h1>フレアライトメーカー <span>β</span> — アニメ風手描き光エフェクト</h1>
+<div class="main">
+  <div class="fxlist" id="fxlist"></div>
+  <div class="preview" id="pv"><canvas id="cv" width="800" height="800"></canvas></div>
+  <div class="ctrl">
+    <div><label>コマ打ち</label><select id="pFps">
+      <option value="8">8fps(荒い・手描き感強)</option>
+      <option value="12" selected>12fps(標準アニメ)</option>
+      <option value="24">24fps(ぬるぬる)</option></select></div>
+    <div><label>尺(秒)</label><input type="range" id="pDur" min="0.4" max="2" step="0.1" value="0.8"><span id="durV" class="note">0.8秒</span></div>
+    <div><label>ボイル(線の沸き)</label><input type="range" id="pBoil" min="0" max="20" value="8"></div>
+    <div><label>ラフさ(形の崩し)</label><input type="range" id="pRough" min="0" max="30" value="12"></div>
+    <div><label>線の太さ</label><input type="range" id="pWidth" min="2" max="30" value="10"></div>
+    <div><label>大きさ</label><input type="range" id="pSize" min="30" max="100" value="70"></div>
+    <div><label>カラーモード</label><select id="pColMode">
+      <option value="single">単色</option>
+      <option value="grad" selected>2色グラデ</option>
+      <option value="rainbow">虹</option></select></div>
+    <div class="row"><div><label>色1</label><input type="color" id="pC1" value="#fff8d0"></div>
+    <div><label>色2</label><input type="color" id="pC2" value="#ffb03a"></div></div>
+    <div class="row"><input type="checkbox" id="pGlow" checked><label for="pGlow" style="margin:0">グロー(光らせる)</label></div>
+    <div class="row"><input type="checkbox" id="pChecker" checked><label for="pChecker" style="margin:0">透過チェッカー表示</label></div>
+    <hr>
+    <div class="row">
+      <div style="flex:1"><label>書き出しサイズ</label><select id="exSize">
+        <option value="1024">1024×1024</option>
+        <option value="2112" selected>2112×2112</option></select></div>
+    </div>
+    <button class="act" id="exPng">連番PNG書き出し(透過ZIP)</button>
+    <button class="sub" id="exStill">静止画PNG(ピーク時)</button>
+    <div id="status"></div>
+    <div class="note">コマ打ちfpsで書き出されます。AEでは24fpsコンポに置いてもコマ打ちのタイミングが保持されます(1コマを複製配置)。</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const cv=document.getElementById('cv'),ctx=ctx0();
+function ctx0(){return document.getElementById('cv').getContext('2d')}
+function prand(i){const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)}
+const P={};
+["pFps","pDur","pBoil","pRough","pWidth","pSize","pColMode","pC1","pC2"].forEach(id=>{
+ const el=document.getElementById(id);
+ P[id]=el.type==="range"||el.type==="number"?+el.value:el.value;
+ el.oninput=()=>{P[id]=el.type==="range"?+el.value:el.value;
+  if(id==="pDur")document.getElementById('durV').textContent=el.value+"秒"};
+});
+const pGlow=document.getElementById('pGlow'),pChk=document.getElementById('pChecker');
+pChk.onchange=()=>document.getElementById('pv').className='preview'+(pChk.checked?' checker':'');
+document.getElementById('pv').className='preview checker';
+
+/* ==== 色 ==== */
+function colorAt(p){ // p:0-1 位置or時間
+ if(P.pColMode==="single")return P.pC1;
+ if(P.pColMode==="rainbow")return `hsl(${(p*360)%360},95%,70%)`;
+ // grad: c1→c2
+ const a=hex(P.pC1),b=hex(P.pC2);
+ return `rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*p)).join(',')})`;
+}
+function hex(h){return [1,3,5].map(i=>parseInt(h.slice(i,i+2),16))}
+
+/* ==== ラフ描画ヘルパ ==== */
+// 点列をボイル+ラフでゆがめて描く
+function jitter(x,y,seed,amt){
+ return [x+(prand(seed)-0.5)*amt*2, y+(prand(seed+9999)-0.5)*amt*2];
+}
+function roughStroke(c,pts,frame,close,width,col){
+ const amt=P.pRough*0.4+P.pBoil*0.3;
+ c.strokeStyle=col;c.lineWidth=width;c.lineJoin="round";c.lineCap="round";
+ c.beginPath();
+ pts.forEach((p,i)=>{
+  const[jx,jy]=jitter(p[0],p[1],frame*777+i*13,amt);
+  i?c.lineTo(jx,jy):c.moveTo(jx,jy);
+ });
+ if(close)c.closePath();
+ c.stroke();
+}
+function roughFill(c,pts,frame,col){
+ const amt=P.pRough*0.4+P.pBoil*0.3;
+ c.fillStyle=col;c.beginPath();
+ pts.forEach((p,i)=>{
+  const[jx,jy]=jitter(p[0],p[1],frame*777+i*13,amt);
+  i?c.lineTo(jx,jy):c.moveTo(jx,jy);
+ });
+ c.closePath();c.fill();
+}
+function ring(cx,cy,r,n,rJit,frame){
+ const pts=[];
+ for(let i=0;i<n;i++){const a=i/n*Math.PI*2;
+  const rr=r*(1+(prand(frame*31+i*7)-0.5)*rJit);
+  pts.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr])}
+ return pts;
+}
+const easeOut=t=>1-Math.pow(1-t,3);
+const clamp01=t=>Math.max(0,Math.min(1,t));
+
+/* ==== エフェクト定義 t:0-1 f:フレーム番号 ==== */
+const FX=[
+ {name:"✦ 十字フラッシュ",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200, p=t<.3?easeOut(t/.3):1-easeOut((t-.3)/.7);
+  if(p<=0)return;
+  const cx=W/2,cy=W/2,arms=4;
+  for(let i=0;i<arms;i++){
+   const a=i*Math.PI/2, L=u*1.3*p, wdt=u*.14*p;
+   const pts=[[cx+Math.cos(a-1.5708)*wdt,cy+Math.sin(a-1.5708)*wdt],
+    [cx+Math.cos(a)*L,cy+Math.sin(a)*L],
+    [cx+Math.cos(a+1.5708)*wdt,cy+Math.sin(a+1.5708)*wdt]];
+   roughFill(c,pts,f,colorAt(i/arms*.5));
+  }
+  roughFill(c,ring(cx,cy,u*.16*p,8,.3,f),f,colorAt(1));
+ }},
+ {name:"✧ 星型キラッ",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,p=t<.35?easeOut(t/.35):1-easeOut((t-.35)/.65);
+  if(p<=0)return;
+  const cx=W/2,cy=W/2,rot=t*.8;
+  const pts=[];
+  for(let i=0;i<8;i++){const r=i%2?u*.22:u*1.15*p,a=i*Math.PI/4+rot;
+   pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r])}
+  roughFill(c,pts,f,colorAt(t));
+  roughStroke(c,ring(cx,cy,u*(0.5+p*.8),12,.25,f),f,true,P.pWidth*.6,colorAt(1-t));
+ }},
+ {name:"◎ リングフラッシュ",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2;
+  const r=u*1.35*easeOut(t), wdt=P.pWidth*2.5*(1-t);
+  if(wdt<=0.5)return;
+  roughStroke(c,ring(cx,cx,r,20,.12,f),f,true,wdt,colorAt(t));
+  if(t<.4)roughFill(c,ring(cx,cx,r*.5*(1-t/.4),10,.3,f),f,colorAt(0));
+ }},
+ {name:"─ 光の走り",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cy=W/2;
+  const head=easeOut(clamp01(t/.6))*W*1.2-W*.1,
+        tail=easeOut(clamp01((t-.25)/.6))*W*1.2-W*.1;
+  const pts=[[tail,cy+P.pWidth],[head,cy],[tail,cy-P.pWidth]];
+  roughFill(c,pts,f,colorAt(t));
+  for(let i=0;i<3;i++){
+   const off=(prand(f*3+i)-0.5)*u*.5,seg=tail+(head-tail)*prand(i+40);
+   roughStroke(c,[[seg-u*.2,cy+off],[seg+u*.15,cy+off]],f,false,P.pWidth*.4,colorAt(1-t));
+  }
+ }},
+ {name:"☀ 集中光バースト",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2,n=12;
+  const p=t<.25?easeOut(t/.25):1-((t-.25)/.75);
+  if(p<=0)return;
+  for(let i=0;i<n;i++){
+   const a=i/n*Math.PI*2+prand(i)*0.3;
+   const r0=u*(.3+.9*t), r1=r0+u*(.5*p+prand(f+i)*.2);
+   roughStroke(c,[[cx+Math.cos(a)*r0,cx+Math.sin(a)*r0],
+    [cx+Math.cos(a)*r1,cx+Math.sin(a)*r1]],f,false,
+    P.pWidth*(0.5+prand(i*3)*0.8)*p,colorAt(i/n));
+  }
+ }},
+ {name:"✸ パッと開花",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2;
+  if(t<.3){ // 実円がふくらむ
+   roughFill(c,ring(cx,cx,u*1.1*easeOut(t/.3),14,.15,f),f,colorAt(0));
+  }else{ // 中が抜けて広がって消える
+   const q=(t-.3)/.7, r=u*(1.1+q*.5);
+   const wdt=Math.max(0,(1-q)*u*.45);
+   if(wdt>1)roughStroke(c,ring(cx,cx,r,16,.12,f),f,true,wdt,colorAt(q));
+  }
+ }},
+ {name:"⚡ 電撃アーク",loop:true,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2;
+  const n=3;
+  for(let k=0;k<n;k++){
+   const a0=prand(f*7+k*99)*Math.PI*2, a1=a0+1+prand(f*3+k)*2;
+   const pts=[];const segs=7;
+   for(let i=0;i<=segs;i++){
+    const a=a0+(a1-a0)*i/segs, r=u*(.7+(prand(f*11+i*5+k*77)-.5)*.5);
+    pts.push([cx+Math.cos(a)*r,cx+Math.sin(a)*r]);
+   }
+   roughStroke(c,pts,f,false,P.pWidth*.5,colorAt(prand(f+k)));
+  }
+  roughFill(c,ring(cx,cx,u*.12*(0.7+prand(f)*0.6),8,.4,f),f,colorAt(0));
+ }},
+ {name:"･ﾟ きらきら群",loop:true,fn(c,W,t,f){
+  const u=W*P.pSize/200;
+  for(let i=0;i<9;i++){
+   const ph=(t*2+prand(i))%1;
+   const sc=Math.sin(ph*Math.PI);
+   if(sc<=0.05)continue;
+   const x=prand(i+30)*W*.8+W*.1, y=prand(i+60)*W*.8+W*.1;
+   const s=u*.28*sc*(0.5+prand(i+90)*.8);
+   const pts=[];
+   for(let j=0;j<8;j++){const r=j%2?s*.3:s,a=j*Math.PI/4;
+    pts.push([x+Math.cos(a)*r,y+Math.sin(a)*r])}
+   roughFill(c,pts,f,colorAt(prand(i)));
+  }
+ }},
+ {name:"║ 光柱",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2;
+  const p=t<.25?easeOut(t/.25):1-easeOut(Math.max(0,(t-.55)/.45));
+  if(p<=0)return;
+  const wdt=u*.35*p;
+  roughFill(c,[[cx-wdt,W],[cx-wdt*.6,0],[cx+wdt*.6,0],[cx+wdt,W]],f,colorAt(.2));
+  roughStroke(c,[[cx-wdt*1.3,W],[cx-wdt*.9,0]],f,false,P.pWidth*.5*p,colorAt(.8));
+  roughStroke(c,[[cx+wdt*1.3,W],[cx+wdt*.9,0]],f,false,P.pWidth*.5*p,colorAt(.8));
+ }},
+ {name:"✺ 火花散り",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2;
+  for(let i=0;i<16;i++){
+   const a=prand(i)*Math.PI*2, sp=.5+prand(i+20)*.9;
+   const d=easeOut(t)*u*1.4*sp;
+   const g=t*t*u*.8; // 重力
+   const x=cx+Math.cos(a)*d, y=cx+Math.sin(a)*d*.7+g;
+   const len=u*.15*(1-t);
+   if(len<=1)continue;
+   roughStroke(c,[[x,y],[x-Math.cos(a)*len,y-Math.sin(a)*len+len*.3]],
+    f,false,P.pWidth*.45*(1-t*.7),colorAt(prand(i+5)));
+  }
+  if(t<.2)roughFill(c,ring(cx,cx,u*.3*(1-t/.2),8,.3,f),f,colorAt(0));
+ }},
+ {name:"◉ チャージ収束",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2,n=10;
+  for(let i=0;i<n;i++){
+   const a=i/n*Math.PI*2+prand(i)*.4+t*.5;
+   const r1=u*1.4*(1-easeOut(t)), r0=r1+u*.4;
+   if(r1<u*.15)continue;
+   roughStroke(c,[[cx+Math.cos(a)*r0,cx+Math.sin(a)*r0],
+    [cx+Math.cos(a)*r1,cx+Math.sin(a)*r1]],f,false,
+    P.pWidth*.5,colorAt(i/n));
+  }
+  roughFill(c,ring(cx,cx,u*.15+u*.25*t,10,.25,f),f,colorAt(t));
+ }},
+ {name:"✦ その場キラキラ(ループ)",loop:true,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2,cy=W/2;
+  // サイズはほぼ一定(±8%だけ呼吸)、消えない・縮まない
+  const breathe=1+Math.sin(t*Math.PI*2)*.08;
+  const rot=Math.sin(t*Math.PI*2)*.12; // ゆらゆら
+  const pts=[];
+  for(let j=0;j<8;j++){
+   // 縦横の腕を交互に長く(アニメの十字キラ)
+   const long=j%4===0?1.15:(j%4===2?.9:0);
+   const r=j%2?u*.18:u*long*breathe;
+   const a=j*Math.PI/4+rot;
+   pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);
+  }
+  roughFill(c,pts,f,colorAt((Math.sin(t*Math.PI*2)+1)/2));
+  // 中心のつぶ
+  roughFill(c,ring(cx,cy,u*.09*breathe,8,.3,f),f,colorAt(0));
+  // 周囲の小キラ2つ(位置固定、明滅のみ)
+  [[.55,-.4],[-.5,.45]].forEach((o,i)=>{
+   const tw=(Math.sin(t*Math.PI*2*2+i*2)+1)/2; // 明滅
+   if(tw<.15)return;
+   const s=u*.16*(0.6+tw*.4),x=cx+o[0]*u,y=cy+o[1]*u;
+   const sp=[];
+   for(let j=0;j<8;j++){const r=j%2?s*.28:s,a=j*Math.PI/4;
+    sp.push([x+Math.cos(a)*r,y+Math.sin(a)*r])}
+   roughFill(c,sp,f,colorAt(tw));
+  });
+ }},
+ {name:"〰 波紋",loop:false,fn(c,W,t,f){
+  const u=W*P.pSize/200,cx=W/2;
+  for(let k=0;k<3;k++){
+   const q=clamp01(t*1.3-k*.18);
+   if(q<=0||q>=1)continue;
+   const wdt=P.pWidth*(1-q)*1.5;
+   if(wdt<=0.5)continue;
+   roughStroke(c,ring(cx,cx,u*1.3*easeOut(q),18,.08,f),f,true,wdt,colorAt(q));
+  }
+ }},
+];
+
+/* ==== UI ==== */
+let cur=0;
+const list=document.getElementById('fxlist');
+FX.forEach((fx,i)=>{
+ const b=document.createElement('button');b.textContent=fx.name;
+ if(i===0)b.className='on';
+ b.onclick=()=>{cur=i;[...list.children].forEach((x,j)=>x.className=j===i?'on':'')};
+ list.appendChild(b);
+});
+
+/* ==== レンダリング(コマ打ち) ==== */
+function renderFrame(c,W,fi,totalFrames){
+ const t=fi/totalFrames;
+ c.clearRect(0,0,W,W);
+ c.save();
+ if(pGlow.checked){c.shadowBlur=W*.03;c.shadowColor=P.pColMode==="single"?P.pC1:P.pC2;}
+ FX[cur].fn(c,W,t,fi);
+ c.restore();
+ // グロー2度描き(発光感UP)
+ if(pGlow.checked){c.save();c.globalCompositeOperation="lighter";c.globalAlpha=.5;
+  FX[cur].fn(c,W,t,fi);c.restore();}
+}
+let t0=performance.now();
+(function loop(now){
+ const dur=P.pDur*1000, fps=P.pFps, total=Math.max(2,Math.round(P.pDur*fps));
+ const raw=((now-t0)%(dur+400))/dur; // 400msの間
+ const fi=Math.min(total-1,Math.floor(raw*total));
+ if(raw<=1)renderFrame(ctx,cv.width,fi,total);
+ else if(!FX[cur].loop)ctx.clearRect(0,0,cv.width,cv.height);
+ requestAnimationFrame(loop);
+})(t0);
+
+/* ==== 書き出し ==== */
+const statusEl=document.getElementById('status');
+document.getElementById('exStill').onclick=()=>{
+ const sz=+document.getElementById('exSize').value;
+ const c=document.createElement('canvas');c.width=c.height=sz;
+ const total=Math.max(2,Math.round(P.pDur*P.pFps));
+ renderFrame(c.getContext('2d'),sz,Math.floor(total*.3),total);
+ const a=document.createElement('a');a.download='flare.png';a.href=c.toDataURL();a.click();
+};
+document.getElementById('exPng').onclick=async()=>{
+ const sz=+document.getElementById('exSize').value;
+ const c=document.createElement('canvas');c.width=c.height=sz;
+ const cc=c.getContext('2d');
+ const total=Math.max(2,Math.round(P.pDur*P.pFps));
+ const zip=new JSZip();
+ for(let f=0;f<total;f++){
+  statusEl.textContent=`書き出し中 ${f+1}/${total}`;
+  renderFrame(cc,sz,f,total);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  zip.file(`flare_${String(f).padStart(4,'0')}.png`,blob);
+  await new Promise(r=>setTimeout(r,0));
+ }
+ statusEl.textContent='ZIP圧縮中...';
+ const z=await zip.generateAsync({type:'blob'});
+ const a=document.createElement('a');
+ a.download=`flare_${FX[cur].name.replace(/[^ぁ-ん一-龥a-zA-Zー]/g,'')}_${P.pFps}fps.zip`;
+ a.href=URL.createObjectURL(z);a.click();
+ statusEl.textContent='完了!';setTimeout(()=>statusEl.textContent='',3000);
+};
+</script>
+</body>
+</html>

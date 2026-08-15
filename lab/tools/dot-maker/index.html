@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOT MAKER — イラストのドット絵化</title>
+<style>
+:root{
+  --bg:#12131a; --panel:#1b1d27; --line:#2e3140;
+  --ink:#e8e6df; --dim:#8b8fa3;
+  --acc:#ffd447; --acc2:#4fd1c5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;}
+header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;letter-spacing:.16em;font-family:ui-monospace,Menlo,monospace}
+h1 b{color:var(--acc)}
+header span{font-size:12px;color:var(--dim)}
+.wrap{display:flex;gap:0;align-items:stretch;min-height:calc(100vh - 52px);flex-wrap:wrap}
+.side{width:300px;flex:0 0 300px;border-right:1px solid var(--line);padding:14px;background:var(--panel)}
+.main{flex:1 1 420px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:320px}
+@media(max-width:760px){.side{width:100%;flex:0 0 auto;border-right:none;border-bottom:1px solid var(--line)}}
+
+.drop{border:2px dashed var(--line);border-radius:6px;padding:22px 12px;text-align:center;
+  color:var(--dim);font-size:13px;cursor:pointer;transition:.15s}
+.drop:hover,.drop.on{border-color:var(--acc);color:var(--ink)}
+label.f{display:block;margin:14px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--dim);
+  font-family:ui-monospace,monospace;text-transform:uppercase}
+label.f em{float:right;font-style:normal;color:var(--acc);}
+input[type=range]{width:100%;accent-color:var(--acc)}
+select,button{width:100%;background:#22242f;color:var(--ink);border:1px solid var(--line);
+  border-radius:4px;padding:8px;font-size:13px;font-family:inherit}
+button{cursor:pointer}
+button.go{background:var(--acc);color:#12131a;font-weight:700;border:none;padding:11px;letter-spacing:.08em}
+button.go:hover{background:#ffe073}
+.row{display:flex;gap:8px;margin-top:8px}
+.chk{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:9px;color:var(--ink);cursor:pointer}
+.chk input{accent-color:var(--acc);width:16px;height:16px}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;
+  background:
+    linear-gradient(45deg,#1a1c24 25%,transparent 25%,transparent 75%,#1a1c24 75%),
+    linear-gradient(45deg,#1a1c24 25%,#161822 25%,#161822 75%,#1a1c24 75%);
+  background-size:16px 16px;background-position:0 0,8px 8px;
+  border:1px solid var(--line);border-radius:6px;padding:12px;overflow:auto}
+canvas{image-rendering:pixelated;max-width:100%;max-height:70vh;display:block}
+.meta{font-size:12px;color:var(--dim);font-family:ui-monospace,monospace;display:flex;gap:16px;flex-wrap:wrap}
+.meta b{color:var(--acc2);font-weight:500}
+.pal{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}
+.pal i{width:16px;height:16px;border-radius:2px;border:1px solid #0006}
+hr{border:none;border-top:1px solid var(--line);margin:16px 0}
+</style>
+</head>
+<body>
+<header><h1>DOT<b>MAKER</b></h1><span>イラスト → ドット絵</span></header>
+
+<div class="wrap">
+<div class="side">
+  <div class="drop" id="drop">画像をドロップ<br>またはタップして選択<br><small>PNG / JPG / WebP</small></div>
+  <input type="file" id="file" accept="image/*" hidden>
+
+  <label class="f">ドットの粗さ <em id="vScale">8 px</em></label>
+  <input type="range" id="scale" min="1" max="40" value="8">
+
+  <label class="f">色数 <em id="vColors">16 色</em></label>
+  <input type="range" id="colors" min="2" max="64" value="16">
+
+  <label class="f">パレット</label>
+  <select id="palette">
+    <option value="auto">自動（画像から抽出）</option>
+    <option value="gb">ゲームボーイ 4色</option>
+    <option value="gray">グレースケール</option>
+    <option value="pc98">16色（デジタルRGB）</option>
+    <option value="famicom">ファミコン風 24色</option>
+  </select>
+
+  <label class="f">ディザ</label>
+  <select id="dither">
+    <option value="none">なし（ベタ塗り）</option>
+    <option value="fs">誤差拡散（Floyd–Steinberg）</option>
+    <option value="bayer">組織的ディザ（Bayer 4×4）</option>
+  </select>
+
+  <label class="f">彩度 <em id="vSat">120%</em></label>
+  <input type="range" id="sat" min="0" max="250" value="120">
+  <label class="f">コントラスト <em id="vCon">110%</em></label>
+  <input type="range" id="con" min="50" max="200" value="110">
+
+  <label class="chk"><input type="checkbox" id="smooth" checked>縮小時に平均化（線がつぶれにくい）</label>
+  <label class="chk"><input type="checkbox" id="grid">ドットの格子線を表示</label>
+  <label class="chk"><input type="checkbox" id="alpha" checked>透明部分を残す</label>
+
+  <hr>
+  <label class="f">書き出し倍率</label>
+  <select id="exscale">
+    <option value="1">等倍（ドット原寸）</option>
+    <option value="4">4倍</option>
+    <option value="8" selected>8倍</option>
+    <option value="src">元画像と同じサイズ</option>
+  </select>
+  <div class="row"><button class="go" id="save">PNGで保存</button></div>
+  <div class="row"><button id="copy">クリップボードにコピー</button></div>
+  <div class="pal" id="palview"></div>
+</div>
+
+<div class="main">
+  <div class="stage"><canvas id="out"></canvas></div>
+  <div class="meta">
+    <span>元画像 <b id="mSrc">—</b></span>
+    <span>ドット数 <b id="mDot">—</b></span>
+    <span>使用色 <b id="mCol">—</b></span>
+  </div>
+</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const out=$('out'), octx=out.getContext('2d');
+let img=null, small=null, palette=[];
+
+const PALETTES={
+ gb:[[15,56,15],[48,98,48],[139,172,15],[155,188,15]],
+ gray:null,
+ pc98:(()=>{const p=[];for(let i=0;i<16;i++){p.push([(i&4)?((i&8)?255:170):0,(i&2)?((i&8)?255:170):0,(i&1)?((i&8)?255:170):0]);}return p;})(),
+ famicom:[[0,0,0],[60,60,60],[120,120,120],[188,188,188],[248,248,248],[0,0,120],[0,80,248],[60,188,252],
+   [140,80,0],[228,92,16],[248,164,60],[252,224,168],[0,80,0],[0,168,0],[88,248,88],[184,248,184],
+   [80,0,80],[168,0,168],[248,120,248],[248,184,248],[120,0,0],[216,0,0],[248,96,96],[248,184,184]]
+};
+
+// ---- median cut ----
+function medianCut(px,n){
+  let boxes=[px];
+  while(boxes.length<n){
+    boxes.sort((a,b)=>range(b)-range(a));
+    const b=boxes.shift(); if(!b||b.length<2){boxes.push(b);break;}
+    const ch=widestChannel(b);
+    b.sort((x,y)=>x[ch]-y[ch]);
+    const m=b.length>>1;
+    boxes.push(b.slice(0,m),b.slice(m));
+  }
+  return boxes.filter(b=>b&&b.length).map(b=>{
+    let r=0,g=0,bl=0; for(const p of b){r+=p[0];g+=p[1];bl+=p[2];}
+    return [Math.round(r/b.length),Math.round(g/b.length),Math.round(bl/b.length)];
+  });
+}
+function widestChannel(b){
+  let mn=[255,255,255],mx=[0,0,0];
+  for(const p of b)for(let i=0;i<3;i++){if(p[i]<mn[i])mn[i]=p[i];if(p[i]>mx[i])mx[i]=p[i];}
+  const d=[mx[0]-mn[0],(mx[1]-mn[1])*1.2,mx[2]-mn[2]];
+  return d[0]>=d[1]&&d[0]>=d[2]?0:(d[1]>=d[2]?1:2);
+}
+function range(b){if(!b||!b.length)return -1;let mn=[255,255,255],mx=[0,0,0];
+  for(const p of b)for(let i=0;i<3;i++){if(p[i]<mn[i])mn[i]=p[i];if(p[i]>mx[i])mx[i]=p[i];}
+  return Math.max(mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]);}
+function nearest(pal,r,g,b){
+  let bi=0,bd=1e9;
+  for(let i=0;i<pal.length;i++){
+    const p=pal[i],dr=r-p[0],dg=g-p[1],db=b-p[2];
+    const d=dr*dr*0.9+dg*dg*1.2+db*db*0.7;
+    if(d<bd){bd=d;bi=i;}
+  }
+  return pal[bi];
+}
+const BAYER=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+
+function render(){
+  if(!img)return;
+  const px=+$('scale').value;
+  const w=Math.max(1,Math.round(img.width/px)), h=Math.max(1,Math.round(img.height/px));
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.imageSmoothingEnabled=$('smooth').checked;
+  x.imageSmoothingQuality='high';
+  x.drawImage(img,0,0,w,h);
+  const d=x.getImageData(0,0,w,h), a=d.data;
+
+  // 彩度・コントラスト
+  const S=+$('sat').value/100, C=+$('con').value/100, keepA=$('alpha').checked;
+  for(let i=0;i<a.length;i+=4){
+    if(!keepA&&a[i+3]>0)a[i+3]=255;
+    let r=a[i],g=a[i+1],b=a[i+2];
+    const l=0.299*r+0.587*g+0.114*b;
+    r=l+(r-l)*S; g=l+(g-l)*S; b=l+(b-l)*S;
+    r=(r-128)*C+128; g=(g-128)*C+128; b=(b-128)*C+128;
+    a[i]=cl(r);a[i+1]=cl(g);a[i+2]=cl(b);
+  }
+
+  // パレット決定
+  const mode=$('palette').value, n=+$('colors').value;
+  if(mode==='auto'){
+    const samp=[];
+    for(let i=0;i<a.length;i+=4){ if(a[i+3]<128)continue; if((i/4)%1===0) samp.push([a[i],a[i+1],a[i+2]]); }
+    palette = samp.length? medianCut(samp,n) : [[0,0,0],[255,255,255]];
+  }else if(mode==='gray'){
+    palette=[]; for(let i=0;i<n;i++){const v=Math.round(i*255/(n-1));palette.push([v,v,v]);}
+  }else palette=PALETTES[mode];
+
+  // 量子化
+  const dm=$('dither').value;
+  const err=dm==='fs'?new Float32Array(w*h*3):null;
+  const used=new Set();
+  for(let y=0;y<h;y++)for(let xx=0;xx<w;xx++){
+    const i=(y*w+xx)*4;
+    if(a[i+3]<128){a[i+3]=0;continue;}
+    a[i+3]=255;
+    let r=a[i],g=a[i+1],b=a[i+2];
+    if(dm==='fs'){const k=(y*w+xx)*3;r+=err[k];g+=err[k+1];b+=err[k+2];}
+    if(dm==='bayer'){const t=(BAYER[y&3][xx&3]/16-0.5)*(255/Math.max(2,palette.length))*1.2;r+=t;g+=t;b+=t;}
+    const p=nearest(palette,cl(r),cl(g),cl(b));
+    a[i]=p[0];a[i+1]=p[1];a[i+2]=p[2];
+    used.add(p[0]+','+p[1]+','+p[2]);
+    if(dm==='fs'){
+      const er=r-p[0],eg=g-p[1],eb=b-p[2];
+      spread(err,w,h,xx+1,y,er,eg,eb,7/16);
+      spread(err,w,h,xx-1,y+1,er,eg,eb,3/16);
+      spread(err,w,h,xx,y+1,er,eg,eb,5/16);
+      spread(err,w,h,xx+1,y+1,er,eg,eb,1/16);
+    }
+  }
+  x.putImageData(d,0,0);
+  small=c;
+
+  // 表示
+  const view=Math.max(1,Math.min(16,Math.round(640/Math.max(w,h))));
+  out.width=w*view; out.height=h*view;
+  octx.imageSmoothingEnabled=false;
+  octx.clearRect(0,0,out.width,out.height);
+  octx.drawImage(c,0,0,out.width,out.height);
+  if($('grid').checked&&view>=4){
+    octx.strokeStyle='rgba(0,0,0,.18)';octx.lineWidth=1;
+    for(let i=0;i<=w;i++){octx.beginPath();octx.moveTo(i*view+.5,0);octx.lineTo(i*view+.5,out.height);octx.stroke();}
+    for(let j=0;j<=h;j++){octx.beginPath();octx.moveTo(0,j*view+.5);octx.lineTo(out.width,j*view+.5);octx.stroke();}
+  }
+  $('mSrc').textContent=img.width+'×'+img.height;
+  $('mDot').textContent=w+'×'+h;
+  $('mCol').textContent=used.size;
+  $('palview').innerHTML=palette.map(p=>`<i style="background:rgb(${p[0]},${p[1]},${p[2]})"></i>`).join('');
+}
+function spread(e,w,h,x,y,r,g,b,f){if(x<0||x>=w||y<0||y>=h)return;const k=(y*w+x)*3;e[k]+=r*f;e[k+1]+=g*f;e[k+2]+=b*f;}
+function cl(v){return v<0?0:v>255?255:v|0;}
+
+function exportCanvas(){
+  const s=$('exscale').value;
+  let mul = s==='src' ? Math.max(1,Math.round(img.width/small.width)) : +s;
+  const c=document.createElement('canvas');
+  c.width=small.width*mul; c.height=small.height*mul;
+  const x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+  x.drawImage(small,0,0,c.width,c.height);
+  return c;
+}
+$('save').onclick=()=>{ if(!small)return;
+  const a=document.createElement('a');
+  a.download='dot_'+Date.now()+'.png';
+  a.href=exportCanvas().toDataURL('image/png'); a.click();
+};
+$('copy').onclick=async()=>{ if(!small)return;
+  exportCanvas().toBlob(async b=>{
+    try{await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);
+      $('copy').textContent='コピーしました';setTimeout(()=>$('copy').textContent='クリップボードにコピー',1400);}
+    catch(e){$('copy').textContent='コピー不可（保存を使ってください）';}
+  });
+};
+
+// 入力
+const drop=$('drop'), file=$('file');
+drop.onclick=()=>file.click();
+file.onchange=e=>load(e.target.files[0]);
+['dragover','dragenter'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();drop.classList.add('on');}));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('on');}));
+document.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)load(f);});
+document.addEventListener('paste',e=>{for(const it of e.clipboardData.items)if(it.type.startsWith('image/'))load(it.getAsFile());});
+function load(f){ if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{const i=new Image();i.onload=()=>{img=i;drop.textContent='読み込み済み：'+f.name;render();};i.src=r.result;};
+  r.readAsDataURL(f);
+}
+// UI連動
+const lbl={scale:v=>v+' px',colors:v=>v+' 色',sat:v=>v+'%',con:v=>v+'%'};
+['scale','colors','sat','con'].forEach(id=>{
+  const el=$(id),v=$('v'+id[0].toUpperCase()+id.slice(1));
+  el.oninput=()=>{v.textContent=lbl[id](el.value);render();};
+});
+['palette','dither','smooth','grid','alpha'].forEach(id=>$(id).onchange=render);
+$('palette').onchange=()=>{const auto=$('palette').value==='auto'||$('palette').value==='gray';$('colors').disabled=!auto;render();};
+</script>
+</body>
+</html>

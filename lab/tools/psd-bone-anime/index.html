@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ボーン変形アニメ / BoneWiggle</title>
+<style>
+:root{--bg:#1b1d22;--pn:#24272e;--ln:#3a3f4a;--tx:#e8e8ea;--ac:#4aa3ff;--sub:#9aa0ab;--hot:#ff7a45}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Segoe UI","Yu Gothic UI",sans-serif;font-size:13px;overflow:hidden}
+header{padding:8px 12px;border-bottom:1px solid var(--ln);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+h1{font-size:15px;margin:0 8px 0 0}
+button{background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:5px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--ac)}
+button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+button.hot{background:var(--hot);border-color:var(--hot);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+input[type=number],input[type=text]{background:#1b1d22;color:var(--tx);border:1px solid var(--ln);border-radius:4px;padding:4px}
+#wrap{display:flex;height:calc(100vh - 47px)}
+#side{width:400px;overflow:auto;border-right:1px solid var(--ln);padding:10px}
+#stage{flex:1;position:relative;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#holder{position:relative}
+canvas{display:block;background:repeating-conic-gradient(#2a2a2a 0 25%,#222 0 50%) 50%/20px 20px;touch-action:none}
+#ov{position:absolute;left:0;top:0;background:none}
+.row{background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:8px;margin-bottom:6px}
+.row.sel{border-color:var(--ac);border-width:2px;padding:7px;background:#26344a;box-shadow:0 0 0 1px rgba(74,163,255,.35)}
+.row.sel .nm{color:#8fc6ff;font-weight:700}
+.ord{display:flex;flex-direction:column;gap:2px;flex:none}
+.ord button{padding:0 6px;line-height:15px;font-size:11px;border-radius:3px}
+.grab{cursor:grab;color:var(--sub);padding:0 3px;flex:none;font-size:15px}
+.row.drag{opacity:.4}
+.row.over{border-color:var(--hot);border-style:dashed}
+.top{display:flex;gap:8px;align-items:center}
+.thumb{width:38px;height:38px;object-fit:contain;background:#111;border-radius:4px;flex:none}
+.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+select{background:#1b1d22;color:var(--tx);border:1px solid var(--ln);border-radius:4px;padding:4px;max-width:150px}
+.prm{margin-top:6px;display:none;grid-template-columns:auto 1fr 42px;gap:4px 8px;align-items:center;font-size:12px;color:var(--sub)}
+.prm.on{display:grid}
+input[type=range]{width:100%}
+.hint{color:var(--sub);font-size:12px;line-height:1.7;margin:6px 0 12px}
+.tag{font-size:11px;padding:1px 6px;border-radius:9px;background:#333;color:var(--sub)}
+.tag.ok{background:#1d4a2b;color:#7fe0a0}
+#log{color:var(--sub);font-size:12px}
+#edbar{position:absolute;left:0;right:0;top:0;background:rgba(255,122,69,.92);color:#fff;padding:6px 10px;display:none;gap:8px;align-items:center;font-size:12px;z-index:5}
+#edbar.on{display:flex}
+#ov.edit{cursor:crosshair}
+#ov.move{cursor:move}
+#mvbar{position:absolute;left:0;right:0;top:0;background:rgba(74,163,255,.92);color:#fff;padding:6px 10px;display:none;gap:8px;align-items:center;font-size:12px;z-index:6}
+#mvbar.on{display:flex}
+</style>
+</head>
+<body>
+<header>
+  <h1>ボーン変形アニメ</h1>
+  <button id="btnPsd">PSDを開く</button>
+  <button id="btnPng">PNG複数</button>
+  <label>ループ<input id="frames" type="number" value="60" min="8" max="300" style="width:56px"></label>
+  <label>fps<input id="fps" type="number" value="30" min="8" max="60" style="width:46px"></label>
+  <label>繰返<input id="rep" type="number" value="3" min="1" max="30" style="width:42px"></label>
+  <label>背景<input id="bgc" type="color" value="#ffffff" style="width:32px;height:26px;background:none;border:1px solid #3a3f4a;border-radius:4px;padding:1px"></label>
+  <input id="bgHex" type="text" value="#ffffff" spellcheck="false" style="width:80px;font-family:monospace">
+  <button id="bgGreen">GB</button>
+  <label style="display:flex;gap:4px;align-items:center"><input id="bgPrev" type="checkbox">背景反映</label>
+  <label style="display:flex;gap:4px;align-items:center"><input id="showMesh" type="checkbox">メッシュ表示</label>
+  <label>継ぎ目<input id="seam" type="range" min="0.4" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle"></label>
+  <label style="display:flex;gap:4px;align-items:center"><input id="dimOther" type="checkbox" checked>他を薄く</label>
+  <button id="btnMove" disabled>移動モード</button>
+  <button id="btnVid" class="pri" disabled>動画</button>
+  <button id="btnZip" disabled>連番PNG</button>
+  <button id="btnJson" disabled>JSON</button>
+  <span id="log"></span>
+</header>
+<div id="wrap">
+  <div id="side">
+    <div class="hint">
+      レイヤー名を押して選択 →「ボーンを引く」→ 画像の上を<b>根元から先端へ順にクリック</b>（2〜6点）。<br>
+      親を設定すると、親の変形（呼吸・ボーンのうねり）に子がついていく。<br>「移動モード」でパーツをドラッグして位置調整（矢印キーで1px、Shift＋で10px）。ホイールかスライダーで拡大縮小。<br>行をクリックで選択（青枠）。<b>⠿をドラッグ or ▲▼</b>で重ね順を変更（<b>上にあるほど手前</b>）。
+    </div>
+    <div id="list"></div>
+  </div>
+  <div id="stage">
+    <div id="mvbar"><b>移動モード</b><span id="mvinfo">パーツをドラッグ</span>
+      <label>サイズ<input id="mvScale" type="range" min="0.1" max="3" step="0.01" value="1" style="width:130px;vertical-align:middle"></label>
+      <span id="mvScaleV" style="width:38px;display:inline-block">100%</span>
+      <button id="mvReset">位置とサイズをリセット</button><button id="mvDone" class="pri">完了</button></div>
+    <div id="edbar"><b>ボーン編集中</b><span id="edinfo"></span>
+      <button id="edUndo">1つ戻す</button><button id="edClear">全消し</button><button id="edDone" class="pri">完了</button></div>
+    <div id="holder"><canvas id="cv"></canvas><canvas id="ov"></canvas></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://unpkg.com/ag-psd@23.0.0/dist/bundle.js"></script>
+<script>
+const ROLES=[["none","動かさない（固定）"],["bone","ボーン変形"],["breath","呼吸（ゆっくり上下）"],
+             ["eyeOpen","目（開き）"],["eyeClose","目（閉じ）"],["hide","非表示"]];
+const PRESETS={
+  wobble:{amp:5,speed:4,phase:0,lag:.12,label:"プルプル"},
+  wave:{amp:14,speed:1,phase:0,lag:.3,label:"くねくね"},
+  sway:{amp:7,speed:1,phase:0,lag:.18,label:"ゆらゆら"}
+};
+let layers=[],W=0,H=0,rootIndex=null,sel=-1,editing=-1,t0=performance.now(),scale=1;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const ov=document.getElementById('ov'),octx=ov.getContext('2d');
+const bgc=document.getElementById('bgc'),bgHex=document.getElementById('bgHex'),
+      bgPrev=document.getElementById('bgPrev'),showMesh=document.getElementById('showMesh');
+const seamEl=document.getElementById('seam'),dimOther=document.getElementById('dimOther');
+let seamMul=1;
+seamEl.oninput=()=>{seamMul=+seamEl.value;};
+const log=m=>document.getElementById('log').textContent=m;
+
+/* ---------- 読み込み ---------- */
+function addLayer(name,c,x,y){
+  layers.push({name,canvas:c,x,y,w:c.width,h:c.height,role:'none',parent:null,bone:[],cols:8,rows:12,sc:1,
+    prm:{amp:8,speed:1,phase:0,lag:.2,rise:0}});
+}
+document.getElementById('btnPsd').onclick=()=>pick('.psd',false,async f=>{
+  const psd=agPsd.readPsd(await f[0].arrayBuffer(),{useImageData:false});
+  W=psd.width;H=psd.height;layers=[];rootIndex=null;sel=-1;editing=-1;
+  (function walk(ns){ns.forEach(n=>{ if(n.children)return walk(n.children);
+    if(n.canvas) addLayer(n.name||'layer',n.canvas,n.left||0,n.top||0);});})(psd.children||[]);
+  fit();build();log(layers.length+'レイヤー');
+});
+document.getElementById('btnPng').onclick=()=>pick('image/png',true,async fs=>{
+  const arr=[...fs].sort((a,b)=>a.name.localeCompare(b.name));
+  layers=[];W=0;H=0;rootIndex=null;sel=-1;editing=-1;
+  for(const f of arr){
+    const img=await loadImg(URL.createObjectURL(f));
+    const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+    c.getContext('2d').drawImage(img,0,0);
+    W=Math.max(W,img.width);H=Math.max(H,img.height);
+    addLayer(f.name.replace(/\.png$/i,''),c,0,0);
+  }
+  fit();build();log(layers.length+'枚');
+});
+function pick(a,m,cb){const i=document.createElement('input');i.type='file';i.accept=a;i.multiple=m;i.onchange=()=>i.files.length&&cb(i.files);i.click();}
+const loadImg=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
+function fit(){
+  cv.width=ov.width=W;cv.height=ov.height=H;
+  const st=document.getElementById('stage');
+  scale=Math.min((st.clientWidth-20)/W,(st.clientHeight-20)/H,1);
+  [cv,ov].forEach(c=>{c.style.width=(W*scale)+'px';c.style.height=(H*scale)+'px';});
+}
+addEventListener('keydown',e=>{
+  if(!moveMode||sel<0)return;
+  const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(!d)return;
+  e.preventDefault();
+  const s2=e.shiftKey?10:1,L=layers[sel];
+  if(L.ox==null){L.ox=L.x;L.oy=L.y;}
+  L.x+=d[0]*s2;L.y+=d[1]*s2;
+  if(L.bone)L.bone.forEach(b=>{b.x+=d[0]*s2;b.y+=d[1]*s2;});
+  document.getElementById('mvinfo').textContent=`${L.name}  x:${Math.round(L.x)} y:${Math.round(L.y)}`;
+});
+addEventListener('resize',()=>{if(W)fit();});
+
+/* ---------- ボーン計算 ---------- */
+function restInfo(pts){
+  const b=[];let total=0;
+  for(let i=0;i<pts.length-1;i++){
+    const dx=pts[i+1].x-pts[i].x,dy=pts[i+1].y-pts[i].y;
+    const len=Math.hypot(dx,dy)||1e-6,ang=Math.atan2(dy,dx);
+    b.push({o:pts[i],len,ang,cum:total});total+=len;
+  }
+  return {b,total};
+}
+function poseBones(L,u){
+  const pts=L.bone;if(!pts||pts.length<2)return null;
+  const {b,total}=restInfo(pts);
+  const p=L.prm,cyc=Math.max(1,Math.round(p.speed)),TAU=Math.PI*2;
+  const out=[];let cur={x:pts[0].x,y:pts[0].y},acc=0;
+  for(let i=0;i<b.length;i++){
+    acc+=Math.sin((u*cyc+p.phase-i*p.lag)*TAU)*p.amp*Math.PI/180;
+    const na=b[i].ang+acc;
+    out.push({o:{x:cur.x,y:cur.y},ang:na,len:b[i].len});
+    cur={x:cur.x+Math.cos(na)*b[i].len,y:cur.y+Math.sin(na)*b[i].len};
+  }
+  return {b,out,total};
+}
+function skin(vx,vy,pose){
+  const {b,out,total}=pose;
+  let bestD=1e18,s=0;
+  for(let i=0;i<b.length;i++){
+    const c=Math.cos(b[i].ang),si=Math.sin(b[i].ang);
+    const rx=vx-b[i].o.x,ry=vy-b[i].o.y;
+    const t=Math.max(0,Math.min(b[i].len,rx*c+ry*si));
+    const px=b[i].o.x+c*t,py=b[i].o.y+si*t;
+    const d=(vx-px)**2+(vy-py)**2;
+    if(d<bestD){bestD=d;s=b[i].cum+t;}
+  }
+  const avg=total/b.length;
+  let sx=0,sy=0,sw=0;
+  for(let i=0;i<b.length;i++){
+    const c=b[i].cum+b[i].len/2;
+    let w=1-Math.abs(s-c)/avg;
+    if(w<=0)continue;
+    w=w*w*(3-2*w);
+    const rc=Math.cos(b[i].ang),rs=Math.sin(b[i].ang);
+    const rx=vx-b[i].o.x,ry=vy-b[i].o.y;
+    const alo=rx*rc+ry*rs,per=-rx*rs+ry*rc;
+    const nc=Math.cos(out[i].ang),ns=Math.sin(out[i].ang);
+    sx+=(out[i].o.x+alo*nc-per*ns)*w;
+    sy+=(out[i].o.y+alo*ns+per*nc)*w;
+    sw+=w;
+  }
+  if(sw<1e-6){
+    const i=b.length-1,rc=Math.cos(b[i].ang),rs=Math.sin(b[i].ang);
+    const rx=vx-b[i].o.x,ry=vy-b[i].o.y;
+    const alo=rx*rc+ry*rs,per=-rx*rs+ry*rc;
+    const nc=Math.cos(out[i].ang),ns=Math.sin(out[i].ang);
+    return [out[i].o.x+alo*nc-per*ns,out[i].o.y+alo*ns+per*nc];
+  }
+  return [sx/sw,sy/sw];
+}
+
+/* ---------- 行列と親子 ---------- */
+function mul(A,B){return [A[0]*B[0]+A[2]*B[1],A[1]*B[0]+A[3]*B[1],
+                          A[0]*B[2]+A[2]*B[3],A[1]*B[2]+A[3]*B[3],
+                          A[0]*B[4]+A[2]*B[5]+A[4],A[1]*B[4]+A[3]*B[5]+A[5]];}
+const IDENT=[1,0,0,1,0,0];
+function localScale(L){
+  const k=L.sc||1;
+  if(k===1)return IDENT.slice();
+  const cx=L.x+L.w/2,cy=L.y+L.h/2;      // 画像中心を基準に拡縮
+  return [k,0,0,k,cx-cx*k,cy-cy*k];
+}
+function localBreath(L,u){
+  if(L.role!=='breath')return IDENT.slice();
+  const p=L.prm,cyc=Math.max(1,Math.round(p.speed));
+  const s=Math.sin((u*cyc+p.phase)*Math.PI*2);
+  const sy=1+s*p.amp/100, by=L.y+L.h, ty=s*p.amp*(p.rise||0)*0.6;
+  return [1,0,0,sy,0,by-by*sy+ty];
+}
+function anchorOf(L){
+  if(L.bone&&L.bone.length>=1)return {x:L.bone[0].x,y:L.bone[0].y};
+  return {x:L.x+L.w/2,y:L.y+L.h/2};
+}
+function localAt(P,pt,u){
+  // 親Pの変形を、点ptの位置で線形近似したアフィン行列にする
+  if(P.role==='bone'&&P.bone&&P.bone.length>=2){
+    const pose=poseBones(P,u);if(!pose)return IDENT.slice();
+    const d=2;
+    const [x0,y0]=skin(pt.x,pt.y,pose);
+    const [xa,ya]=skin(pt.x+d,pt.y,pose);
+    const [xb,yb]=skin(pt.x,pt.y+d,pose);
+    const a=(xa-x0)/d,b=(ya-y0)/d,c=(xb-x0)/d,e=(yb-y0)/d;
+    return mul([a,b,c,e,x0-(a*pt.x+c*pt.y),y0-(b*pt.x+e*pt.y)],localScale(P));
+  }
+  return mul(localBreath(P,u),localScale(P));
+}
+function worldTF(L,u,depth){
+  // 祖先ぶんだけの行列（自分自身の変形は含まない）
+  const pa=(L.parent!=null)?layers[L.parent]:null;
+  if(!pa||pa===L||(depth||0)>=8)return IDENT.slice();
+  return mul(worldTF(pa,u,(depth||0)+1), localAt(pa,anchorOf(L),u));
+}
+
+/* ---------- 三角形テクスチャ描画 ---------- */
+function tri(g,img,s,d,e){
+  const [x0,y0,x1,y1,x2,y2]=s,[u0,v0,u1,v1,u2,v2]=d;
+  const cx=(u0+u1+u2)/3,cy=(v0+v1+v2)/3;
+  if(!(e>0))e=0.6;
+  const ex=(x,y)=>{const dx=x-cx,dy=y-cy,l=Math.hypot(dx,dy)||1;return [x+dx/l*e,y+dy/l*e];};
+  const [a0,b0]=ex(u0,v0),[a1,b1]=ex(u1,v1),[a2,b2]=ex(u2,v2);
+  g.save();
+  g.beginPath();g.moveTo(a0,b0);g.lineTo(a1,b1);g.lineTo(a2,b2);g.closePath();g.clip();
+  const dx1=x1-x0,dy1=y1-y0,dx2=x2-x0,dy2=y2-y0;
+  const det=dx1*dy2-dx2*dy1;
+  if(Math.abs(det)>1e-8){
+    const m11=(u1-u0)*dy2/det-(u2-u0)*dy1/det;
+    const m12=(v1-v0)*dy2/det-(v2-v0)*dy1/det;
+    const m21=(u2-u0)*dx1/det-(u1-u0)*dx2/det;
+    const m22=(v2-v0)*dx1/det-(v1-v0)*dx2/det;
+    g.transform(m11,m12,m21,m22,u0-m11*x0-m21*y0,v0-m12*x0-m22*y0);
+    g.drawImage(img,0,0);
+  }
+  g.restore();
+}
+
+/* ---------- 選択ハイライト用グロー ---------- */
+const GLOW_PAD=14;
+function glow(L){
+  if(L._glow)return L._glow;
+  const c=document.createElement('canvas');
+  c.width=L.w+GLOW_PAD*2;c.height=L.h+GLOW_PAD*2;
+  const g=c.getContext('2d');
+  // アルファ形状を青一色で塗り、ぼかして外周に広げる
+  g.filter='blur(3px)';
+  for(const[dx,dy]of[[-6,0],[6,0],[0,-6],[0,6],[-4,-4],[4,-4],[-4,4],[4,4],[0,0]])
+    g.drawImage(L.canvas,GLOW_PAD+dx,GLOW_PAD+dy);
+  g.filter='none';
+  g.globalCompositeOperation='source-in';
+  g.fillStyle='#4aa3ff';g.fillRect(0,0,c.width,c.height);
+  // 元絵のぶんはくり抜いて、縁だけ残す
+  g.globalCompositeOperation='destination-out';
+  g.drawImage(L.canvas,GLOW_PAD,GLOW_PAD);
+  L._glow=c;return c;
+}
+
+/* ---------- 描画 ---------- */
+function drawFrame(f,total,c,bg,mesh,hi){
+  const g=c.getContext('2d');
+  g.setTransform(1,0,0,1,0,0);
+  g.clearRect(0,0,W,H);
+  if(bg){g.fillStyle=bg;g.fillRect(0,0,W,H);}
+  const u=f/total;
+  const blinkLen=Math.max(2,Math.round(total/20));
+  const blinkStart=Math.min(Math.floor(total*0.72),total-blinkLen-1);
+  const closed=f>=blinkStart&&f<blinkStart+blinkLen;
+  for(const L of layers){
+    if(L.role==='hide')continue;
+    if(L.role==='eyeOpen'&&closed)continue;
+    if(L.role==='eyeClose'&&!closed)continue;
+    const tgt=(editing>=0)?editing:(moveMode?sel:-1);
+    const isSel=(hi&&tgt>=0&&layers[tgt]===L);
+    const M=mul(mul(worldTF(L,u,0),localBreath(L,u)),localScale(L));
+    g.globalAlpha=(hi&&tgt>=0&&!isSel&&dimOther.checked)?((editing>=0)?0.22:0.4):1;
+    g.setTransform(M[0],M[1],M[2],M[3],M[4],M[5]);
+    if(L.role==='bone'&&L.bone.length>=2){
+      const pose=poseBones(L,u),cols=L.cols,rows=L.rows;
+      const gx=[],gy=[],sxs=[],sys=[];
+      for(let r=0;r<=rows;r++)for(let cI=0;cI<=cols;cI++){
+        const px=L.x+L.w*cI/cols,py=L.y+L.h*r/rows;
+        const [nx,ny]=skin(px,py,pose);
+        sxs.push(px);sys.push(py);gx.push(nx);gy.push(ny);
+      }
+      const idx=(r,cI)=>r*(cols+1)+cI;
+      // セルの大きさに比例して膨張させないと、大きい画像で三角形の継ぎ目が線になる
+      const EX=Math.max(0.8,(L.w/cols+L.h/rows)*0.5*0.09*seamMul);
+      for(let r=0;r<rows;r++)for(let cI=0;cI<cols;cI++){
+        const a=idx(r,cI),b=idx(r,cI+1),dd=idx(r+1,cI),e=idx(r+1,cI+1);
+        tri(g,L.canvas,[sxs[a]-L.x,sys[a]-L.y,sxs[b]-L.x,sys[b]-L.y,sxs[dd]-L.x,sys[dd]-L.y],
+                       [gx[a],gy[a],gx[b],gy[b],gx[dd],gy[dd]],EX);
+        tri(g,L.canvas,[sxs[b]-L.x,sys[b]-L.y,sxs[e]-L.x,sys[e]-L.y,sxs[dd]-L.x,sys[dd]-L.y],
+                       [gx[b],gy[b],gx[e],gy[e],gx[dd],gy[dd]],EX);
+      }
+      if(mesh){
+        g.save();g.strokeStyle='rgba(74,163,255,.5)';g.lineWidth=.7;
+        for(let r=0;r<=rows;r++){g.beginPath();for(let cI=0;cI<=cols;cI++){const i=idx(r,cI);cI?g.lineTo(gx[i],gy[i]):g.moveTo(gx[i],gy[i]);}g.stroke();}
+        for(let cI=0;cI<=cols;cI++){g.beginPath();for(let r=0;r<=rows;r++){const i=idx(r,cI);r?g.lineTo(gx[i],gy[i]):g.moveTo(gx[i],gy[i]);}g.stroke();}
+        g.strokeStyle='#ff7a45';g.lineWidth=2.5;g.beginPath();
+        pose.out.forEach((o,i)=>{i?g.lineTo(o.o.x,o.o.y):g.moveTo(o.o.x,o.o.y);});
+        const lst=pose.out[pose.out.length-1];
+        g.lineTo(lst.o.x+Math.cos(lst.ang)*lst.len,lst.o.y+Math.sin(lst.ang)*lst.len);
+        g.stroke();g.restore();
+      }
+    }else{
+      g.drawImage(L.canvas,L.x,L.y);
+    }
+    if(isSel){
+      // 絵の輪郭に沿ってグローを出す（矩形だけだと形が分からないため）
+      const gl=glow(L);
+      const pu=(Math.sin(performance.now()/260)+1)/2;
+      g.globalAlpha=0.45+pu*0.45;
+      g.drawImage(gl,L.x-GLOW_PAD,L.y-GLOW_PAD);
+      g.globalAlpha=1;
+      g.save();
+      g.strokeStyle='rgba(74,163,255,.85)';g.lineWidth=Math.max(1.5,2/scale);
+      g.setLineDash([10/scale,7/scale]);
+      g.lineDashOffset=-(performance.now()/40)%17;
+      g.strokeRect(L.x,L.y,L.w,L.h);
+      g.restore();
+    }
+    g.globalAlpha=1;
+    g.setTransform(1,0,0,1,0,0);
+  }
+}
+function loop(){
+  if(layers.length&&W){
+    const total=+document.getElementById('frames').value,fps=+document.getElementById('fps').value;
+    const f=Math.floor((performance.now()-t0)/1000*fps)%total;
+    drawFrame(f,total,cv,bgPrev.checked?bgc.value:null,showMesh.checked,editing>=0||moveMode);
+    drawEdit();
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+
+/* ---------- ボーン編集 ---------- */
+function drawEdit(){
+  octx.setTransform(1,0,0,1,0,0);octx.clearRect(0,0,W,H);
+  if(editing<0)return;
+  const L=layers[editing];
+  octx.strokeStyle='#ff7a45';octx.lineWidth=3/scale;
+  octx.beginPath();L.bone.forEach((p,i)=>i?octx.lineTo(p.x,p.y):octx.moveTo(p.x,p.y));octx.stroke();
+  L.bone.forEach((p,i)=>{
+    octx.fillStyle=i?'#fff':'#4aa3ff';
+    octx.beginPath();octx.arc(p.x,p.y,7/scale,0,7);octx.fill();
+    octx.strokeStyle='#ff7a45';octx.lineWidth=2/scale;octx.stroke();
+  });
+  document.getElementById('edinfo').textContent=`${L.name} / ${L.bone.length}点`;
+}
+function ptOf(e){const r=ov.getBoundingClientRect();return {x:(e.clientX-r.left)/scale,y:(e.clientY-r.top)/scale};}
+ov.addEventListener('pointerdown',e=>{
+  const p=ptOf(e);
+  if(editing>=0){ layers[editing].bone.push(p); return; }
+  if(!moveMode)return;
+  const i=hitTest(p.x,p.y);
+  if(i<0)return;
+  sel=i;
+  const L=layers[i];
+  if(L.ox==null){L.ox=L.x;L.oy=L.y;}
+  grabbing={i,dx:p.x-L.x,dy:p.y-L.y};
+  syncScaleUI();
+  ov.setPointerCapture(e.pointerId);
+  build();
+});
+ov.addEventListener('pointermove',e=>{
+  if(!grabbing)return;
+  const p=ptOf(e),L=layers[grabbing.i];
+  let nx=p.x-grabbing.dx, ny=p.y-grabbing.dy;
+  if(e.shiftKey){ // Shiftで水平／垂直に固定
+    if(Math.abs(nx-L.ox)>Math.abs(ny-L.oy))ny=L.y; else nx=L.x;
+  }
+  const ddx=nx-L.x, ddy=ny-L.y;
+  L.x=nx;L.y=ny;
+  if(L.bone)L.bone.forEach(b=>{b.x+=ddx;b.y+=ddy;});   // 骨も一緒に運ぶ
+  document.getElementById('mvinfo').textContent=`${L.name}  x:${Math.round(L.x)} y:${Math.round(L.y)}`;
+});
+ov.addEventListener('wheel',e=>{
+  if(!moveMode)return;
+  const p=ptOf(e);
+  const i=(sel>=0&&hitTest(p.x,p.y)===sel)?sel:hitTest(p.x,p.y);
+  if(i<0)return;
+  e.preventDefault();
+  sel=i;const L=layers[i];
+  L.sc=Math.min(3,Math.max(0.1,(L.sc||1)*(e.deltaY<0?1.05:1/1.05)));
+  syncScaleUI();
+},{passive:false});
+['pointerup','pointercancel'].forEach(ev=>ov.addEventListener(ev,()=>{if(grabbing){grabbing=null;}}));
+document.getElementById('btnMove').onclick=()=>setMoveMode(!moveMode);
+document.getElementById('mvDone').onclick=()=>setMoveMode(false);
+const mvScale=document.getElementById('mvScale'),mvScaleV=document.getElementById('mvScaleV');
+function syncScaleUI(){
+  const L=(sel>=0)?layers[sel]:null;
+  mvScale.disabled=!L;
+  mvScale.value=L?(L.sc||1):1;
+  mvScaleV.textContent=Math.round((L?(L.sc||1):1)*100)+'%';
+}
+mvScale.oninput=()=>{
+  if(sel<0)return;
+  layers[sel].sc=+mvScale.value;
+  mvScaleV.textContent=Math.round(mvScale.value*100)+'%';
+};
+document.getElementById('mvReset').onclick=()=>{
+  if(sel<0)return;const L=layers[sel];
+  const ddx=(L.ox??L.x)-L.x, ddy=(L.oy??L.y)-L.y;
+  L.x+=ddx;L.y+=ddy;
+  if(L.bone)L.bone.forEach(b=>{b.x+=ddx;b.y+=ddy;});
+  L.sc=1;syncScaleUI();build();
+};
+document.getElementById('edUndo').onclick=()=>{if(editing>=0)layers[editing].bone.pop();};
+document.getElementById('edClear').onclick=()=>{if(editing>=0)layers[editing].bone=[];};
+document.getElementById('edDone').onclick=()=>{editing=-1;document.getElementById('edbar').classList.remove('on');ov.classList.remove('edit');build();};
+
+/* ---------- UI ---------- */
+let dragFrom=null,moveMode=false,grabbing=null;
+function setMoveMode(v){
+  moveMode=v;
+  document.getElementById('mvbar').classList.toggle('on',v);
+  ov.classList.toggle('move',v);
+  if(v){editing=-1;document.getElementById('edbar').classList.remove('on');ov.classList.remove('edit');}
+  build();
+}
+function hitTest(px,py){
+  // 手前（配列末尾）から順に、不透明ピクセルに当たったレイヤーを返す
+  for(let i=layers.length-1;i>=0;i--){
+    const L=layers[i];
+    if(L.role==='hide')continue;
+    const k=L.sc||1,cx=L.x+L.w/2,cy=L.y+L.h/2;
+    const lx=Math.floor((px-cx)/k+L.w/2),ly=Math.floor((py-cy)/k+L.h/2);
+    if(lx<0||ly<0||lx>=L.w||ly>=L.h)continue;
+    if(!L._hit){L._hit=L.canvas.getContext('2d',{willReadFrequently:true});}
+    try{ if(L._hit.getImageData(lx,ly,1,1).data[3]>12)return i; }catch(e){ return i; }
+  }
+  return -1;
+}
+function remap(map){
+  layers.forEach(L=>{ L.parent=(L.parent==null)?null:map[L.parent]; });
+  if(rootIndex!=null)rootIndex=map[rootIndex];
+  if(sel>=0)sel=map[sel];
+  if(editing>=0)editing=map[editing];
+}
+function reorder(from,to){
+  const arr=layers.slice(), m=arr.map((_,i)=>i);
+  const [L]=arr.splice(from,1); const [mi]=m.splice(from,1);
+  arr.splice(to,0,L); m.splice(to,0,mi);
+  const map={}; m.forEach((old,neu)=>map[old]=neu);
+  layers=arr; remap(map); sel=map[from]; build();
+}
+function move(i,dir){
+  // ▲=前面へ = 配列の後ろへ（後で描かれる方が手前）
+  const j=i+dir;
+  if(j<0||j>=layers.length)return;
+  reorder(i,j);
+}
+function setRoot(idx){
+  const old=rootIndex;rootIndex=idx;
+  if(idx===null){layers.forEach(L=>{if(L.parent===old)L.parent=null;});}
+  else{layers[idx].parent=null;layers.forEach((L,j)=>{if(j!==idx&&(L.parent==null||L.parent===old))L.parent=idx;});}
+  build();
+}
+function build(){
+  const list=document.getElementById('list');list.innerHTML='';
+  layers.map((L,i)=>[L,i]).reverse().forEach(([L,i])=>{
+    const d=document.createElement('div');d.className='row'+(sel===i?' sel':'');
+    d.draggable=true;
+    d.innerHTML=`<div class="top">
+      <span class="grab" title="ドラッグで並べ替え">⠿</span>
+      <div class="ord"><button class="up" title="上へ（手前）">▲</button><button class="dn" title="下へ（奥）">▼</button></div>
+      <img class="thumb" src="${L.canvas.toDataURL()}">
+      <div class="nm">${i}: ${L.name} ${L.bone.length>=2?`<span class="tag ok">骨${L.bone.length}</span>`:''}</div>
+      <select class="role">${ROLES.map(r=>`<option value="${r[0]}">${r[1]}</option>`).join('')}</select>
+    </div>
+    <div class="bonebar" style="margin-top:6px;display:none;gap:6px;flex-wrap:wrap">
+      <button class="draw hot">ボーンを引く</button>
+      ${Object.keys(PRESETS).map(k=>`<button class="ps" data-k="${k}">${PRESETS[k].label}</button>`).join('')}
+      <label style="color:#9aa0ab">分割<input type="number" class="rows" value="${L.rows}" min="4" max="30" style="width:48px"></label>
+    </div>
+    <div class="prm">
+      <span class="ampL">曲がり角度</span><input type="range" class="a" min="0" max="45" step="0.5" value="${L.prm.amp}"><span class="av">${L.prm.amp}</span>
+      <span>周期</span><input type="range" class="s" min="1" max="8" step="1" value="${L.prm.speed}"><span class="sv">${L.prm.speed}</span>
+      <span>位相</span><input type="range" class="p" min="0" max="1" step="0.05" value="${L.prm.phase}"><span class="pv">${L.prm.phase}</span>
+      <span class="lagL">遅延</span><input type="range" class="g" min="0" max="0.6" step="0.02" value="${L.prm.lag}"><span class="gv">${L.prm.lag}</span>
+      <span class="riseL">上下量</span><input type="range" class="rz" min="0" max="3" step="0.1" value="${L.prm.rise||0}"><span class="rzv">${L.prm.rise||0}</span>
+    </div>
+    <div style="margin-top:5px;display:flex;gap:6px;align-items:center;font-size:12px;color:#9aa0ab">
+      <label style="display:flex;gap:4px;align-items:center;white-space:nowrap"><input type="checkbox" class="root">親レイヤー</label>
+      <span>親</span><select class="par" style="flex:1"></select>
+    </div>`;
+    const sl=d.querySelector('.role'),prm=d.querySelector('.prm'),bb=d.querySelector('.bonebar'),par=d.querySelector('.par');
+    sl.value=L.role;
+    const sync=()=>{
+      const bn=L.role==='bone',br=L.role==='breath';
+      prm.classList.toggle('on',bn||br);
+      bb.style.display=bn?'flex':'none';
+      const show=(q,v)=>d.querySelectorAll(q).forEach(el=>el.style.display=v?'':'none');
+      show('.lagL,.g,.gv',bn);show('.riseL,.rz,.rzv',br);
+      d.querySelector('.ampL').textContent=br?'伸縮量':'曲がり角度';
+      d.querySelector('.a').max=br?12:45;
+      d.querySelector('.s').max=br?4:8;
+    };
+    sync();
+    sl.onchange=()=>{
+      L.role=sl.value;
+      if(L.role==='breath'&&!L.breathInit){L.breathInit=1;Object.assign(L.prm,{amp:2,speed:1,phase:0,rise:1});build();return;}
+      sync();
+    };
+    d.onclick=e=>{ if(e.target.closest('button,select,input,label'))return; sel=i;build(); };
+    d.querySelector('.up').onclick=e=>{e.stopPropagation();move(i,+1);};   // 上=配列後方=手前
+    d.querySelector('.dn').onclick=e=>{e.stopPropagation();move(i,-1);};
+    d.ondragstart=e=>{dragFrom=i;d.classList.add('drag');e.dataTransfer.effectAllowed='move';};
+    d.ondragend=()=>{d.classList.remove('drag');document.querySelectorAll('.row').forEach(r=>r.classList.remove('over'));};
+    d.ondragover=e=>{e.preventDefault();d.classList.add('over');};
+    d.ondragleave=()=>d.classList.remove('over');
+    d.ondrop=e=>{e.preventDefault();d.classList.remove('over');if(dragFrom!=null&&dragFrom!==i)reorder(dragFrom,i);dragFrom=null;};
+    d.querySelector('.draw').onclick=e=>{e.stopPropagation();sel=editing=i;L.bone=[];document.getElementById('edbar').classList.add('on');ov.classList.add('edit');build();};
+    d.querySelectorAll('.ps').forEach(b=>b.onclick=()=>{const P=PRESETS[b.dataset.k];Object.assign(L.prm,{amp:P.amp,speed:P.speed,phase:P.phase,lag:P.lag});build();});
+    d.querySelector('.rows').oninput=e=>{L.rows=+e.target.value;L.cols=Math.max(4,Math.round(L.rows*L.w/L.h));};
+    const bind=(q,k,v)=>{const el=d.querySelector(q);el.oninput=()=>{L.prm[k]=+el.value;d.querySelector(v).textContent=el.value;};};
+    bind('.a','amp','.av');bind('.s','speed','.sv');bind('.p','phase','.pv');bind('.g','lag','.gv');bind('.rz','rise','.rzv');
+    par.innerHTML='<option value="-1">なし</option>'+layers.map((o,j)=>j===i?'':`<option value="${j}">${j}: ${o.name}</option>`).join('');
+    par.value=String(L.parent==null?-1:L.parent);
+    par.onchange=()=>{L.parent=(+par.value<0)?null:+par.value;};
+    par.disabled=(rootIndex===i);
+    const rt=d.querySelector('.root');rt.checked=(rootIndex===i);
+    rt.onchange=()=>setRoot(rt.checked?i:null);
+    list.appendChild(d);
+  });
+  if(typeof syncScaleUI==='function')syncScaleUI();
+  ['btnZip','btnVid','btnJson','btnMove'].forEach(id=>document.getElementById(id).disabled=!layers.length);
+}
+
+/* ---------- 背景 ---------- */
+function normHex(v){v=String(v).trim().replace(/^#?/,'');if(/^[0-9a-fA-F]{3}$/.test(v))v=v.split('').map(c=>c+c).join('');return /^[0-9a-fA-F]{6}$/.test(v)?'#'+v.toLowerCase():null;}
+function setBG(v,from){const h=normHex(v);if(!h)return;bgc.value=h;if(from!=='txt')bgHex.value=h;}
+bgc.oninput=()=>setBG(bgc.value);
+bgHex.oninput=()=>{const h=normHex(bgHex.value);bgHex.style.borderColor=h?'#3a3f4a':'#c05050';if(h)setBG(h,'txt');};
+document.getElementById('bgGreen').onclick=()=>setBG('#00ff00');
+
+/* ---------- 書き出し ---------- */
+function pickMime(){for(const m of ['video/mp4;codecs=avc1.42E01E','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'])if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m))return m;return null;}
+document.getElementById('btnVid').onclick=async()=>{
+  const mime=pickMime();if(!mime){log('動画非対応');return;}
+  const total=+document.getElementById('frames').value,fps=+document.getElementById('fps').value,rep=+document.getElementById('rep').value;
+  const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;
+  const st=tmp.captureStream(0),tr=st.getVideoTracks()[0];
+  const rec=new MediaRecorder(st,{mimeType:mime,videoBitsPerSecond:12000000}),ch=[];
+  rec.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  const done=new Promise(r=>rec.onstop=r);rec.start();
+  const N=total*rep;
+  for(let i=0;i<N;i++){
+    drawFrame(i%total,total,tmp,bgc.value,false);
+    tr.requestFrame&&tr.requestFrame();
+    await new Promise(r=>setTimeout(r,1000/fps));
+    if(i%10===0)log('録画 '+(i+1)+'/'+N);
+  }
+  rec.stop();await done;
+  save(new Blob(ch,{type:mime}),'bone_anime.'+(mime.startsWith('video/mp4')?'mp4':'webm'));log('完了');
+};
+document.getElementById('btnZip').onclick=async()=>{
+  const total=+document.getElementById('frames').value;
+  const zip=new JSZip(),tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;
+  for(let f=0;f<total;f++){
+    drawFrame(f,total,tmp,null,false);
+    zip.file(String(f).padStart(4,'0')+'.png',await new Promise(r=>tmp.toBlob(r,'image/png')));
+    log('書き出し '+(f+1)+'/'+total);
+  }
+  save(await zip.generateAsync({type:'blob'}),'bone_seq.zip');log('完了');
+};
+document.getElementById('btnJson').onclick=()=>{
+  save(new Blob([JSON.stringify({width:W,height:H,root:rootIndex,
+    frames:+document.getElementById('frames').value,fps:+document.getElementById('fps').value,
+    layers:layers.map((L,i)=>({index:i,name:L.name,role:L.role,parent:L.parent,x:L.x,y:L.y,scale:L.sc||1,
+      bone:L.bone,cols:L.cols,rows:L.rows,params:L.prm}))},null,2)],{type:'application/json'}),'bone_assign.json');
+};
+function save(b,n){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;a.click();}
+</script>
+</body>
+</html>
