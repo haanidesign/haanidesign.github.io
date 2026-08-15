@@ -16,8 +16,18 @@
   #stage.transparent{background-image:conic-gradient(#22252c 0 25%,#191c22 0 50%,#22252c 0 75%,#191c22 0);background-size:24px 24px}
   #stage.gb{background:#00b140}
   #stage.dark{background:#101216}
+  #holder{position:relative; line-height:0}
   canvas{max-width:100%; max-height:100vh; image-rendering:auto}
+  #ov{position:absolute; left:0; top:0; background:none}
+  #ov.edit{cursor:crosshair}
   #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(30,50,90,.5); font-size:20px; pointer-events:none}
+  #edbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000;
+    padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:6; flex-wrap:wrap}
+  #edbar.on{display:flex}
+  #edbar b{flex-shrink:0}
+  #edbar .edhint{color:#5a2c00; flex:1; min-width:140px}
+  #edbar .btn{background:rgba(255,255,255,.85); border-color:rgba(0,0,0,.2); color:#241000; padding:3px 10px}
+  #edbar .btn.go{background:#241000; border-color:#241000; color:#ffd9c2}
   #recbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000; font-weight:600;
     padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:5}
   #recbar.on{display:flex}
@@ -49,6 +59,10 @@
   #layerlist .sub{padding-left:20px}
   #layerlist .sub label{width:auto; color:var(--dim); font-size:11px}
   #layerlist .sub select{flex:1; min-width:0}
+  #layerlist .sub .val{width:32px}
+  #layerlist .lrow.editing{outline:1px solid var(--hot); outline-offset:2px; border-radius:4px}
+  #layerlist .bonebar{gap:5px; flex-wrap:wrap}
+  #layerlist .btn.tiny{padding:2px 8px; font-size:11px}
   #note{color:var(--dim); font-size:11px; margin-top:6px}
   #fileInput{display:none}
   #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
@@ -60,9 +74,16 @@
 </head>
 <body>
 <div id="stage" class="transparent">
-  <canvas id="cv"></canvas>
+  <div id="holder"><canvas id="cv"></canvas><canvas id="ov"></canvas></div>
   <div id="drop">PSD / PNG をドロップ</div>
   <div id="recbar"><span>書き出し中</span><span id="recinfo"></span></div>
+  <div id="edbar">
+    <b>ボーン編集中</b><span id="edinfo"></span>
+    <span class="edhint">根元 → 先端 の順に画像の上をクリック（2〜6点）</span>
+    <button class="btn" id="edUndo">1つ戻す</button>
+    <button class="btn" id="edClear">全消し</button>
+    <button class="btn go" id="edDone">完了</button>
+  </div>
 </div>
 <div id="panel">
   <h3 style="margin-top:0">読み込み</h3>
@@ -239,9 +260,16 @@ const DEPTH = {body:0, chest:0.05, arm:0.05, backHair:0.35, head:0.7, mouth:0.8,
 function roleOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRoles:"+psdName)||"{}"); }catch(e){ return {}; } }
 /* リグ(親子付け・オンオフ)はレイヤー名をキーに保存する */
 function rigOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRig:"+psdName)||"{}"); }catch(e){ return {}; } }
+function rigOf(l){
+  return {parent: l.parent || null, on: l.on !== false,
+          bone: (l.bone||[]).map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
+          rows: l.rows, cols: l.cols, bprm: {...l.bprm}};
+}
 function saveRig(){
   const o = {};
-  layers.forEach(l=>{ if(l.parent || l.on === false) o[l.name] = {parent: l.parent || null, on: l.on !== false}; });
+  layers.forEach(l=>{
+    if(l.parent || l.on === false || (l.bone && l.bone.length)) o[l.name] = rigOf(l);
+  });
   localStorage.setItem("psdRig:"+psdName, JSON.stringify(o));
 }
 function applyRig(){
@@ -250,6 +278,10 @@ function applyRig(){
     const r = rg[l.name];
     l.parent = (r && r.parent) || null;
     l.on = r ? r.on !== false : true;
+    l.bone = (r && Array.isArray(r.bone)) ? r.bone.map(p=>({x:+p.x, y:+p.y})) : [];
+    l.rows = (r && r.rows) || 12;
+    l.cols = (r && r.cols) || Math.max(4, Math.round(((r && r.rows) || 12) * l.width / Math.max(l.height,1)));
+    l.bprm = Object.assign({amp:8, speed:1, phase:0, lag:0.2}, (r && r.bprm) || {});
   });
   // 存在しない親・自己参照・循環を落とす
   layers.forEach(l=>{ if(l.parent && !layers.some(x=>x.name===l.parent)) l.parent = null; });
@@ -309,6 +341,7 @@ async function loadPsdFile(file){
 }
 
 function finishLoad(){
+  if(boneEdit){ boneEdit = null; $("edbar").classList.remove("on"); ov.classList.remove("edit"); }
   applyRig();
   // 前髪が後髪より先(下)に来ていたら配列は上→下順とみなして反転
   const fi = layers.findIndex(l=>l.role==="frontHair");
@@ -432,8 +465,56 @@ function buildLayerList(){
     };
     sub.append(plab, psel);
 
-    box.append(head, sub);
+    // --- ボーン ---
+    const bone = document.createElement("div"); bone.className = "row sub bonebar";
+    const draw1 = document.createElement("button");
+    draw1.className = "btn tiny"; draw1.textContent = l.bone.length >= 2 ? `骨${l.bone.length}点を引き直す` : "ボーンを引く";
+    draw1.onclick = ()=> startBoneEdit(l);
+    bone.appendChild(draw1);
+    if(l.bone.length >= 2){
+      const clr = document.createElement("button");
+      clr.className = "btn tiny"; clr.textContent = "骨を消す";
+      clr.onclick = ()=>{ l.bone = []; saveRig(); buildLayerList(); };
+      bone.appendChild(clr);
+    }
+    box.append(head, sub, bone);
+
+    if(l.bone.length >= 2){
+      const pre = document.createElement("div"); pre.className = "row sub bonebar";
+      Object.entries(BONE_PRESETS).forEach(([k,v])=>{
+        const b = document.createElement("button");
+        b.className = "btn tiny"; b.textContent = v.label;
+        b.onclick = ()=>{ Object.assign(l.bprm, {amp:v.amp, speed:v.speed, phase:v.phase, lag:v.lag}); saveRig(); buildLayerList(); };
+        pre.appendChild(b);
+      });
+      box.appendChild(pre);
+      [["amp","曲がり角度",0,45,0.5],["speed","周期",1,8,1],["phase","位相",0,1,0.05],["lag","遅延",0,0.6,0.02]]
+        .forEach(([key,label,mn,mx,st])=>{
+          const r = document.createElement("div"); r.className = "row sub";
+          const la = document.createElement("label"); la.textContent = label;
+          const inp = document.createElement("input");
+          inp.type = "range"; inp.min = mn; inp.max = mx; inp.step = st; inp.value = l.bprm[key];
+          const vv = document.createElement("span"); vv.className = "val"; vv.textContent = l.bprm[key];
+          inp.oninput = ()=>{ l.bprm[key] = +inp.value; vv.textContent = inp.value; };
+          inp.onchange = saveRig;
+          r.append(la, inp, vv);
+          box.appendChild(r);
+        });
+      const rr = document.createElement("div"); rr.className = "row sub";
+      const rl = document.createElement("label"); rl.textContent = "分割";
+      const ri = document.createElement("input");
+      ri.type = "number"; ri.min = 4; ri.max = 30; ri.value = l.rows; ri.style.width = "56px";
+      ri.oninput = ()=>{
+        l.rows = Math.max(4, Math.min(30, +ri.value || 12));
+        l.cols = Math.max(4, Math.round(l.rows * l.width / Math.max(l.height,1)));
+      };
+      ri.onchange = saveRig;
+      rr.append(rl, ri);
+      box.appendChild(rr);
+    }
+
     box.classList.toggle("off", l.on === false);
+    box.classList.toggle("editing", boneEdit === l);
     el.appendChild(box);
   });
 }
@@ -606,7 +687,102 @@ function step(t, dt, loop){
   const armDrive = T.idle ? Math.sin(t*W(1.15,loop)+0.6)*7 : 0;
   springs.arm.step(dt, ak, ac, (armDrive - velX*5 + bodyTilt*60) * (0.3 + gain));
 
-  return {headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink};
+  // ボーンの位相。尺で正規化した 0..1 なので、整数周期なら必ずループする。
+  const u = ((t / durVal()) % 1 + 1) % 1;
+
+  return {headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink, u};
+}
+
+/* ---------------- ボーン ---------------- */
+const BONE_PRESETS = {
+  wobble:{amp:5,  speed:4, phase:0, lag:.12, label:"プルプル"},
+  wave:  {amp:14, speed:1, phase:0, lag:.3,  label:"くねくね"},
+  sway:  {amp:7,  speed:1, phase:0, lag:.18, label:"ゆらゆら"},
+};
+const boneActive = l => l.on !== false && l.bone && l.bone.length >= 2;
+
+/* 静止状態の各骨の長さ・角度・根元からの累積距離 */
+function restInfo(pts){
+  const b = []; let total = 0;
+  for(let i=0; i<pts.length-1; i++){
+    const dx = pts[i+1].x-pts[i].x, dy = pts[i+1].y-pts[i].y;
+    const len = Math.hypot(dx,dy) || 1e-6;
+    b.push({o:pts[i], len, ang:Math.atan2(dy,dx), cum:total});
+    total += len;
+  }
+  return {b, total};
+}
+/* u(0..1) の位相で骨を順に曲げる。lag で先端ほど遅れて追従する。 */
+function poseBones(l, u){
+  const pts = l.bone;
+  if(!pts || pts.length < 2) return null;
+  const {b, total} = restInfo(pts);
+  const p = l.bprm, cyc = Math.max(1, Math.round(p.speed)), TAU = Math.PI*2;
+  const out = []; let cur = {x:pts[0].x, y:pts[0].y}, acc = 0;
+  for(let i=0; i<b.length; i++){
+    acc += Math.sin((u*cyc + p.phase - i*p.lag) * TAU) * p.amp * Math.PI/180;
+    const na = b[i].ang + acc;
+    out.push({o:{x:cur.x, y:cur.y}, ang:na, len:b[i].len});
+    cur = {x: cur.x + Math.cos(na)*b[i].len, y: cur.y + Math.sin(na)*b[i].len};
+  }
+  return {b, out, total};
+}
+/* 頂点を、最も近い骨に沿った距離で重み付けして動かす(リニアブレンドスキニング) */
+function skin(vx, vy, pose){
+  const {b, out, total} = pose;
+  let bestD = 1e18, s = 0;
+  for(let i=0; i<b.length; i++){
+    const c = Math.cos(b[i].ang), si = Math.sin(b[i].ang);
+    const rx = vx-b[i].o.x, ry = vy-b[i].o.y;
+    const tt = Math.max(0, Math.min(b[i].len, rx*c + ry*si));
+    const px = b[i].o.x + c*tt, py = b[i].o.y + si*tt;
+    const d = (vx-px)**2 + (vy-py)**2;
+    if(d < bestD){ bestD = d; s = b[i].cum + tt; }
+  }
+  const avg = total/b.length;
+  let sx = 0, sy = 0, sw = 0;
+  for(let i=0; i<b.length; i++){
+    const c = b[i].cum + b[i].len/2;
+    let w = 1 - Math.abs(s-c)/avg;
+    if(w <= 0) continue;
+    w = w*w*(3-2*w);
+    const rc = Math.cos(b[i].ang), rs = Math.sin(b[i].ang);
+    const rx = vx-b[i].o.x, ry = vy-b[i].o.y;
+    const alo = rx*rc + ry*rs, per = -rx*rs + ry*rc;
+    const nc = Math.cos(out[i].ang), ns = Math.sin(out[i].ang);
+    sx += (out[i].o.x + alo*nc - per*ns) * w;
+    sy += (out[i].o.y + alo*ns + per*nc) * w;
+    sw += w;
+  }
+  if(sw < 1e-6){
+    const i = b.length-1, rc = Math.cos(b[i].ang), rs = Math.sin(b[i].ang);
+    const rx = vx-b[i].o.x, ry = vy-b[i].o.y;
+    const alo = rx*rc + ry*rs, per = -rx*rs + ry*rc;
+    const nc = Math.cos(out[i].ang), ns = Math.sin(out[i].ang);
+    return [out[i].o.x + alo*nc - per*ns, out[i].o.y + alo*ns + per*nc];
+  }
+  return [sx/sw, sy/sw];
+}
+/* 三角形1枚ぶんテクスチャを貼る。e は継ぎ目を隠すための膨張量。 */
+function tri(g, img, s, d, e){
+  const [x0,y0,x1,y1,x2,y2] = s, [u0,v0,u1,v1,u2,v2] = d;
+  const cx = (u0+u1+u2)/3, cy = (v0+v1+v2)/3;
+  if(!(e > 0)) e = 0.6;
+  const ex = (x,y)=>{ const dx=x-cx, dy=y-cy, l=Math.hypot(dx,dy)||1; return [x+dx/l*e, y+dy/l*e]; };
+  const [a0,b0] = ex(u0,v0), [a1,b1] = ex(u1,v1), [a2,b2] = ex(u2,v2);
+  g.save();
+  g.beginPath(); g.moveTo(a0,b0); g.lineTo(a1,b1); g.lineTo(a2,b2); g.closePath(); g.clip();
+  const dx1 = x1-x0, dy1 = y1-y0, dx2 = x2-x0, dy2 = y2-y0;
+  const det = dx1*dy2 - dx2*dy1;
+  if(Math.abs(det) > 1e-8){
+    const m11 = (u1-u0)*dy2/det - (u2-u0)*dy1/det;
+    const m12 = (v1-v0)*dy2/det - (v2-v0)*dy1/det;
+    const m21 = (u2-u0)*dx1/det - (u1-u0)*dx2/det;
+    const m22 = (v2-v0)*dx1/det - (v1-v0)*dx2/det;
+    g.transform(m11, m12, m21, m22, u0-m11*x0-m21*y0, v0-m12*x0-m22*y0);
+    g.drawImage(img, 0, 0);
+  }
+  g.restore();
 }
 
 /* ---------------- 行列 ---------------- */
@@ -675,26 +851,73 @@ function draw(S){
     return IDENT;
   }
 
-  /* このレイヤーだけの変形。チェックを外していれば無変形になるが、
-     親からの変形は下の world() で受け取るので追従は続く。
-     親を明示したレイヤーは、自動のグループ追従を親の変形に置き換える。 */
-  function localMat(l){
+  const anchorOf = l => (l.bone && l.bone.length) ? {x:l.bone[0].x, y:l.bone[0].y}
+                                                  : {x:l.left + l.width/2, y:l.top + l.height/2};
+
+  /* そのレイヤー自身の変形を、点 pt の近傍でアフィン行列に均したもの。
+     ボーンはメッシュ変形で行列にならないので、pt のまわりを数値微分して
+     一次近似する。子はこの行列を受け取って親の動きについていく。 */
+  function ownAffineAt(l, pt){
     if(l.on === false) return IDENT;
-    return mul(l.parent ? IDENT : groupMat(l), roleMat(l));
+    if(boneActive(l)){
+      const pose = poseBones(l, S.u);
+      if(!pose) return IDENT;
+      const d = 2;
+      const [x0,y0] = skin(pt.x, pt.y, pose);
+      const [xa,ya] = skin(pt.x+d, pt.y, pose);
+      const [xb,yb] = skin(pt.x, pt.y+d, pose);
+      const a = (xa-x0)/d, b = (ya-y0)/d, c = (xb-x0)/d, e = (yb-y0)/d;
+      return [a, b, c, e, x0-(a*pt.x + c*pt.y), y0-(b*pt.x + e*pt.y)];
+    }
+    return roleMat(l);
   }
-  const cache = new Map();
-  function world(l, depth){
-    if(cache.has(l.name)) return cache.get(l.name);
+
+  /* 祖先ぶんだけの行列(自分自身の変形は含まない)。
+     親を明示したレイヤーは、自動のグループ追従を親の変形に置き換える。 */
+  const baseCache = new Map();
+  function baseOf(l, depth){
+    if(baseCache.has(l.name)) return baseCache.get(l.name);
     const pa = (depth||0) < 16 ? parentOf(l) : null;
-    const m = pa ? mul(world(pa, (depth||0)+1), localMat(l)) : mul(G, localMat(l));
-    cache.set(l.name, m);
+    let m;
+    if(!pa) m = G;
+    else {
+      const paLocal = mul(pa.parent ? IDENT : groupMat(pa), ownAffineAt(pa, anchorOf(l)));
+      m = mul(baseOf(pa, (depth||0)+1), paLocal);
+    }
+    baseCache.set(l.name, m);
     return m;
   }
 
   for(const l of layers){
     const role = l.role;
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
-    const M = world(l, 0);
+    const B = mul(baseOf(l, 0), l.parent ? IDENT : groupMat(l));
+
+    // --- ボーン: 役割の変形を差し替えてメッシュで描く ---
+    if(boneActive(l)){
+      const pose = poseBones(l, S.u);
+      ctx.setTransform(B[0],B[1],B[2],B[3],B[4],B[5]);
+      const cols = l.cols, rows = l.rows;
+      const sxs = [], sys = [], gx = [], gy = [];
+      for(let r=0; r<=rows; r++) for(let c=0; c<=cols; c++){
+        const px2 = l.left + l.width*c/cols, py2 = l.top + l.height*r/rows;
+        const [nx,ny] = skin(px2, py2, pose);
+        sxs.push(px2); sys.push(py2); gx.push(nx); gy.push(ny);
+      }
+      const idx = (r,c)=> r*(cols+1) + c;
+      // セルの大きさに比例して膨らませないと、大きい絵で三角形の継ぎ目が線になる
+      const EX = Math.max(0.8, (l.width/cols + l.height/rows) * 0.5 * 0.09);
+      for(let r=0; r<rows; r++) for(let c=0; c<cols; c++){
+        const a = idx(r,c), b = idx(r,c+1), dd = idx(r+1,c), e = idx(r+1,c+1);
+        tri(ctx, l.canvas, [sxs[a]-l.left, sys[a]-l.top, sxs[b]-l.left, sys[b]-l.top, sxs[dd]-l.left, sys[dd]-l.top],
+                           [gx[a],gy[a], gx[b],gy[b], gx[dd],gy[dd]], EX);
+        tri(ctx, l.canvas, [sxs[b]-l.left, sys[b]-l.top, sxs[e]-l.left, sys[e]-l.top, sxs[dd]-l.left, sys[dd]-l.top],
+                           [gx[b],gy[b], gx[e],gy[e], gx[dd],gy[dd]], EX);
+      }
+      continue;
+    }
+
+    const M = mul(B, l.on === false ? IDENT : roleMat(l));
     ctx.setTransform(M[0],M[1],M[2],M[3],M[4],M[5]);
 
     if((role === "eyelash" || role === "eyeWhite" || role === "iris") && l.on !== false){
@@ -729,6 +952,61 @@ function draw(S){
   ctx.setTransform(1,0,0,1,0,0);
 }
 
+/* ---------------- ボーン編集 ---------------- */
+const ov = $("ov"), octx = ov.getContext("2d");
+let boneEdit = null;   // 編集中のレイヤー
+
+function startBoneEdit(l){
+  boneEdit = l;
+  l.bone = [];
+  $("edbar").classList.add("on");
+  ov.classList.add("edit");
+  buildLayerList();
+}
+function endBoneEdit(){
+  if(boneEdit && boneEdit.bone.length === 1) boneEdit.bone = [];  // 1点だけでは骨にならない
+  boneEdit = null;
+  $("edbar").classList.remove("on");
+  ov.classList.remove("edit");
+  saveRig();
+  buildLayerList();
+}
+$("edUndo").onclick = ()=>{ if(boneEdit){ boneEdit.bone.pop(); } };
+$("edClear").onclick = ()=>{ if(boneEdit){ boneEdit.bone = []; } };
+$("edDone").onclick = endBoneEdit;
+
+/* 表示は max-width/max-height で縮むので、実際の描画倍率から PSD 座標へ戻す */
+function viewScale(){ return cv.clientWidth ? cv.clientWidth / psdW : 1; }
+function syncOverlay(){
+  if(ov.width !== psdW || ov.height !== psdH){ ov.width = psdW; ov.height = psdH; }
+  ov.style.width = cv.clientWidth + "px";
+  ov.style.height = cv.clientHeight + "px";
+}
+ov.addEventListener("pointerdown", e=>{
+  if(!boneEdit) return;
+  const r = ov.getBoundingClientRect(), k = viewScale() || 1;
+  if(boneEdit.bone.length >= 6) return;
+  boneEdit.bone.push({x:(e.clientX - r.left)/k, y:(e.clientY - r.top)/k});
+});
+function drawBoneOverlay(){
+  syncOverlay();
+  octx.setTransform(1,0,0,1,0,0);
+  octx.clearRect(0,0,ov.width,ov.height);
+  if(!boneEdit) return;
+  const k = viewScale() || 1;
+  const pts = boneEdit.bone;
+  octx.strokeStyle = "#ff7a45"; octx.lineWidth = 3/k;
+  octx.beginPath();
+  pts.forEach((p,i)=> i ? octx.lineTo(p.x,p.y) : octx.moveTo(p.x,p.y));
+  octx.stroke();
+  pts.forEach((p,i)=>{
+    octx.fillStyle = i ? "#fff" : "#6ea8ff";
+    octx.beginPath(); octx.arc(p.x, p.y, 7/k, 0, 7); octx.fill();
+    octx.strokeStyle = "#ff7a45"; octx.lineWidth = 2/k; octx.stroke();
+  });
+  $("edinfo").textContent = `${boneEdit.name} / ${pts.length}点`;
+}
+
 /* ---------------- 再生ループ ---------------- */
 let loopPreview = false;   // ループ確認モード
 let exporting = false;
@@ -747,6 +1025,7 @@ function realtimeFrame(now){
   const dt = Math.min(1/30, (now - last)/1000); last = now;
   const t = loopPreview ? ((now - loopT0)/1000) % durVal() : now/1000;
   draw(step(t, dt, loopPreview));
+  drawBoneOverlay();
 }
 
 /* ---------------- 書き出し ---------------- */
@@ -823,7 +1102,7 @@ $("saveJson").onclick = ()=>{
     params: {...P},
     toggles: {...T},
     roles: Object.fromEntries(layers.map(l=>[l.name, l.role])),
-    rig: Object.fromEntries(layers.map(l=>[l.name, {parent: l.parent || null, on: l.on !== false}])),
+    rig: Object.fromEntries(layers.map(l=>[l.name, rigOf(l)])),
   };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
@@ -856,6 +1135,10 @@ $("loadJson").onclick = ()=>{
           if(!r) return;
           l.parent = r.parent || null;
           l.on = r.on !== false;
+          if(Array.isArray(r.bone)) l.bone = r.bone.map(p=>({x:+p.x, y:+p.y}));
+          if(r.rows) l.rows = r.rows;
+          if(r.cols) l.cols = r.cols;
+          if(r.bprm) Object.assign(l.bprm, r.bprm);
         });
         layers.forEach(l=>{ if(l.parent && !layers.some(x=>x.name===l.parent)) l.parent = null; });
         layers.forEach(l=>{ if(hasCycle(l)) l.parent = null; });
