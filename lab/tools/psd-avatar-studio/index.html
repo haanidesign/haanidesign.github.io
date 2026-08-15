@@ -42,6 +42,13 @@
   select{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font-size:11px; padding:1px 4px}
   input[type=number]{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font:inherit; font-size:12px; padding:3px 5px; width:62px}
   #layerlist .row label{width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #layerlist .lrow{border-bottom:1px solid #262b38; padding:4px 0 6px}
+  #layerlist .lrow.off{opacity:.45}
+  #layerlist .row{margin:2px 0}
+  #layerlist .row input[type=checkbox]{accent-color:var(--accent); width:14px; height:14px; flex-shrink:0}
+  #layerlist .sub{padding-left:20px}
+  #layerlist .sub label{width:auto; color:var(--dim); font-size:11px}
+  #layerlist .sub select{flex:1; min-width:0}
   #note{color:var(--dim); font-size:11px; margin-top:6px}
   #fileInput{display:none}
   #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
@@ -145,8 +152,8 @@ const PRESETS = {
   "ウインク左":{eyeL:0, eyeR:1, mouthSmile:.5},
   "ウインク右":{eyeL:1, eyeR:0, mouthSmile:.5},
 };
-const ROLES = ["auto","body","head","frontHair","backHair","chest","eyeWhite","iris","eyelash","brow","mouth"];
-const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", brow:"眉", mouth:"口"};
+const ROLES = ["auto","body","head","frontHair","backHair","chest","arm","eyeWhite","iris","eyelash","brow","mouth"];
+const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", arm:"腕", eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", brow:"眉", mouth:"口"};
 
 const P = {};      // 現在値(スライダー)
 const target = {}; // プリセットのイージング先
@@ -216,6 +223,7 @@ function guessRole(name){
   if(/front.*hair|前髪/.test(n)) return "frontHair";
   if(/back.*hair|後ろ?髪/.test(n)) return "backHair";
   if(/chest|breast|bust|胸|oppai/.test(n)) return "chest";
+  if(/\barms?\b|sleeve|腕|袖|手/.test(n)) return "arm";
   if(/eyewhite|sclera|白目/.test(n)) return "eyeWhite";
   if(/iris|irides|pupil|瞳/.test(n)) return "iris";
   if(/eyelash|lash|まつ|睫|目/.test(n)) return "eyelash";
@@ -226,9 +234,40 @@ function guessRole(name){
   return "body";
 }
 const HEAD_ROLES = new Set(["head","frontHair","backHair","eyeWhite","iris","eyelash","brow","mouth"]);
-const DEPTH = {body:0, chest:0.05, backHair:0.35, head:0.7, mouth:0.8, eyeWhite:0.85, iris:0.85, eyelash:0.85, brow:0.92, frontHair:1};
+const DEPTH = {body:0, chest:0.05, arm:0.05, backHair:0.35, head:0.7, mouth:0.8, eyeWhite:0.85, iris:0.85, eyelash:0.85, brow:0.92, frontHair:1};
 
 function roleOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRoles:"+psdName)||"{}"); }catch(e){ return {}; } }
+/* リグ(親子付け・オンオフ)はレイヤー名をキーに保存する */
+function rigOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRig:"+psdName)||"{}"); }catch(e){ return {}; } }
+function saveRig(){
+  const o = {};
+  layers.forEach(l=>{ if(l.parent || l.on === false) o[l.name] = {parent: l.parent || null, on: l.on !== false}; });
+  localStorage.setItem("psdRig:"+psdName, JSON.stringify(o));
+}
+function applyRig(){
+  const rg = rigOverrides();
+  layers.forEach(l=>{
+    const r = rg[l.name];
+    l.parent = (r && r.parent) || null;
+    l.on = r ? r.on !== false : true;
+  });
+  // 存在しない親・自己参照・循環を落とす
+  layers.forEach(l=>{ if(l.parent && !layers.some(x=>x.name===l.parent)) l.parent = null; });
+  layers.forEach(l=>{ if(l.parent === l.name) l.parent = null; });
+  layers.forEach(l=>{ if(hasCycle(l)) l.parent = null; });
+}
+function parentOf(l){ return l.parent ? layers.find(x=>x.name===l.parent) : null; }
+function hasCycle(start){
+  const seen = new Set();
+  let cur = start;
+  while(cur){
+    if(seen.has(cur.name)) return true;
+    seen.add(cur.name);
+    cur = parentOf(cur);
+    if(seen.size > 64) return true;
+  }
+  return false;
+}
 
 function flatten(node, arr){
   (node.children||[]).forEach(ch=>{
@@ -270,6 +309,7 @@ async function loadPsdFile(file){
 }
 
 function finishLoad(){
+  applyRig();
   // 前髪が後髪より先(下)に来ていたら配列は上→下順とみなして反転
   const fi = layers.findIndex(l=>l.role==="frontHair");
   const bi = layers.findIndex(l=>l.role==="backHair");
@@ -344,7 +384,12 @@ function buildLayerList(){
   el.innerHTML = "";
   const ov = roleOverrides();
   [...layers].reverse().forEach(l=>{   // 上のレイヤーから表示
-    const row = document.createElement("div"); row.className = "row";
+    const box = document.createElement("div"); box.className = "lrow";
+
+    const head = document.createElement("div"); head.className = "row";
+    const chk = document.createElement("input");
+    chk.type = "checkbox"; chk.checked = l.on !== false;
+    chk.title = "チェックを外すとこのレイヤーだけ動かなくなる（親の動きにはついていく）";
     const lab = document.createElement("label"); lab.textContent = l.name; lab.title = l.name;
     const sel = document.createElement("select");
     ROLES.forEach(r=>{
@@ -359,8 +404,37 @@ function buildLayerList(){
       else { o2[l.name] = sel.value; l.role = sel.value; }
       localStorage.setItem("psdRoles:"+psdName, JSON.stringify(o2));
     };
-    row.append(lab, sel);
-    el.appendChild(row);
+    chk.onchange = ()=>{ l.on = chk.checked; box.classList.toggle("off", !chk.checked); saveRig(); };
+    head.append(chk, lab, sel);
+
+    const sub = document.createElement("div"); sub.className = "row sub";
+    const plab = document.createElement("label"); plab.textContent = "親";
+    const psel = document.createElement("select");
+    const none = document.createElement("option"); none.value = ""; none.textContent = "なし";
+    psel.appendChild(none);
+    layers.forEach(o=>{
+      if(o.name === l.name) return;
+      const op = document.createElement("option"); op.value = o.name; op.textContent = o.name;
+      psel.appendChild(op);
+    });
+    psel.value = l.parent || "";
+    psel.onchange = ()=>{
+      const prev = l.parent;
+      l.parent = psel.value || null;
+      if(hasCycle(l)){
+        l.parent = prev || null;
+        psel.value = l.parent || "";
+        $("note").textContent = "その親子付けは循環するので設定できません（親をたどると自分に戻ります）。";
+        return;
+      }
+      saveRig();
+      $("note").textContent = l.parent ? `${l.name} は ${l.parent} についていきます` : `${l.name} の親を外しました`;
+    };
+    sub.append(plab, psel);
+
+    box.append(head, sub);
+    box.classList.toggle("off", l.on === false);
+    el.appendChild(box);
   });
 }
 
@@ -408,7 +482,7 @@ class Spring{
     if(!isFinite(this.x)){ this.x = 0; this.v = 0; }
   }
 }
-const springs = { frontHair: new Spring(), backHair: new Spring(), chestY: new Spring(), chestX: new Spring() };
+const springs = { frontHair: new Spring(), backHair: new Spring(), chestY: new Spring(), chestX: new Spring(), arm: new Spring() };
 function resetSprings(){ Object.values(springs).forEach(s=>{ s.x = 0; s.v = 0; }); }
 
 /* ---------------- 入力 ---------------- */
@@ -527,9 +601,28 @@ function step(t, dt, loop){
   const idleBob = T.idle ? (Math.sin(t*W(2.3,loop)) + Math.sin(t*W(3.7,loop)+1)*0.4) : 0;
   springs.chestY.step(dt, ck, cc, (idleBob*42 - velY*12) * cb * chestGain);
   springs.chestX.step(dt, ck, cc, (Math.sin(t*W(1.7,loop))*9 - velX*10) * cb * chestGain);
+  // 腕: 肩を支点にした振り子。体の傾きと頭の動きに遅れてついてくる。
+  const ak = 55/(1 + soft*0.8), ac = 2*Math.sqrt(ak)*0.5;
+  const armDrive = T.idle ? Math.sin(t*W(1.15,loop)+0.6)*7 : 0;
+  springs.arm.step(dt, ak, ac, (armDrive - velX*5 + bodyTilt*60) * (0.3 + gain));
 
   return {headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink};
 }
+
+/* ---------------- 行列 ---------------- */
+/* canvas の setTransform 順 [a,b,c,d,e,f]。mul(m,n) は「n を適用してから m」 */
+const IDENT = [1,0,0,1,0,0];
+function mul(m, n){
+  return [ m[0]*n[0]+m[2]*n[1], m[1]*n[0]+m[3]*n[1],
+           m[0]*n[2]+m[2]*n[3], m[1]*n[2]+m[3]*n[3],
+           m[0]*n[4]+m[2]*n[5]+m[4], m[1]*n[4]+m[3]*n[5]+m[5] ];
+}
+const mTranslate = (x,y)=> [1,0,0,1,x,y];
+const mScale = (sx,sy)=> [sx,0,0,sy,0,0];
+const mRotate = a => { const c=Math.cos(a), s=Math.sin(a); return [c,s,-s,c,0,0]; };
+const mShearX = k => [1,0,k,1,0,0];
+const mAround = (m,cx,cy)=> mul(mTranslate(cx,cy), mul(m, mTranslate(-cx,-cy)));
+const mChain = (...ms)=> ms.reduce(mul, IDENT);
 
 /* ---------------- 描画 ---------------- */
 function draw(S){
@@ -541,58 +634,70 @@ function draw(S){
   const bx = psdW/2, by = psdH;                  // 体ピボット(下端)
   const eyeOpen = {L: P.eyeL*(1-S.blink), R: P.eyeR*(1-S.blink)};
 
-  for(const l of layers){
-    ctx.save();
+  // 全体(体の傾き + 呼吸)。親を持たないレイヤーの根元になる。
+  const G = mAround(mul(mRotate(S.bodyTilt*0.09), mScale(1, 1 + S.breath*0.004)), bx, by);
 
-    // --- 体の傾き + 呼吸(全体) ---
-    ctx.translate(bx, by);
-    ctx.rotate(S.bodyTilt*0.09);
-    ctx.scale(1, 1 + S.breath*0.004);
-    ctx.translate(-bx, -by);
-
-    const role = l.role;
-    const depth = DEPTH[role] ?? 0;
-
-    // --- 頭グループ: 回転(Z) + 視差(X/Y) ---
+  // グループ追従: 頭系は首ピボットで回転+視差、それ以外はわずかに追従
+  function groupMat(l){
+    const role = l.role, depth = DEPTH[role] ?? 0;
     if(HEAD_ROLES.has(role)){
-      ctx.translate(px, py);
-      ctx.rotate(S.headZ*0.13 * (role==="backHair" ? 0.75 : 1));
-      ctx.translate(-px, -py);
-      ctx.translate(S.headX*26*depth, S.headY*16*depth + S.headY*4);
-    } else {
-      ctx.translate(S.headX*3, S.headY*1.5);
+      return mul(
+        mAround(mRotate(S.headZ*0.13 * (role==="backHair" ? 0.75 : 1)), px, py),
+        mTranslate(S.headX*26*depth, S.headY*16*depth + S.headY*4)
+      );
     }
+    return mTranslate(S.headX*3, S.headY*1.5);
+  }
 
+  // そのレイヤー自身の変形(役割ごと)
+  function roleMat(l){
+    const role = l.role;
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
-
     if(role === "frontHair" || role === "backHair"){
       const s = springs[role].x;
-      ctx.translate(cx, l.top);
-      ctx.transform(1, 0, s*0.02, 1, 0, 0);
-      ctx.rotate(s*0.006);
-      ctx.translate(-cx, -l.top);
+      return mAround(mul(mShearX(s*0.02), mRotate(s*0.006)), cx, l.top);
     }
-    else if(role === "chest"){
+    if(role === "chest"){
       const sy = springs.chestY.x, sx = springs.chestX.x;
-      ctx.translate(cx, l.top);
-      ctx.translate(sx*1.5, P.chestHeight*-8 + sy*1.0);
-      ctx.scale(1 - sy*0.015, 1 + sy*0.03);
-      ctx.rotate(sx*0.004);
-      ctx.translate(-cx, -l.top);
+      return mAround(mChain(mTranslate(sx*1.5, P.chestHeight*-8 + sy*1.0),
+                            mScale(1 - sy*0.015, 1 + sy*0.03),
+                            mRotate(sx*0.004)), cx, l.top);
     }
-    else if(role === "brow"){
-      ctx.translate(0, P.browY*-7);
+    if(role === "arm"){
+      // 肩(上端)を支点に振る
+      return mAround(mRotate(springs.arm.x*0.0016), cx, l.top);
     }
-    else if(role === "mouth"){
-      ctx.translate(cx, cy);
-      ctx.scale(1 + P.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4);
-      ctx.translate(-cx, -cy);
+    if(role === "brow") return mTranslate(0, P.browY*-7);
+    if(role === "mouth"){
+      return mAround(mScale(1 + P.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4), cx, cy);
     }
-    else if(role === "iris"){
-      ctx.translate(S.gazeX*7, S.gazeY*4);
-    }
+    if(role === "iris") return mTranslate(S.gazeX*7, S.gazeY*4);
+    return IDENT;
+  }
 
-    if(role === "eyelash" || role === "eyeWhite" || role === "iris"){
+  /* このレイヤーだけの変形。チェックを外していれば無変形になるが、
+     親からの変形は下の world() で受け取るので追従は続く。
+     親を明示したレイヤーは、自動のグループ追従を親の変形に置き換える。 */
+  function localMat(l){
+    if(l.on === false) return IDENT;
+    return mul(l.parent ? IDENT : groupMat(l), roleMat(l));
+  }
+  const cache = new Map();
+  function world(l, depth){
+    if(cache.has(l.name)) return cache.get(l.name);
+    const pa = (depth||0) < 16 ? parentOf(l) : null;
+    const m = pa ? mul(world(pa, (depth||0)+1), localMat(l)) : mul(G, localMat(l));
+    cache.set(l.name, m);
+    return m;
+  }
+
+  for(const l of layers){
+    const role = l.role;
+    const cx = l.left + l.width/2, cy = l.top + l.height/2;
+    const M = world(l, 0);
+    ctx.setTransform(M[0],M[1],M[2],M[3],M[4],M[5]);
+
+    if((role === "eyelash" || role === "eyeWhite" || role === "iris") && l.on !== false){
       const face = layers.find(x=>x.role==="head" && /face|顔/.test(x.name.toLowerCase()));
       const faceW = face ? face.width : psdW*0.25;
       const faceCx = face ? face.left + face.width/2 : psdW/2;
@@ -620,8 +725,8 @@ function draw(S){
     } else {
       ctx.drawImage(l.canvas, l.left, l.top);
     }
-    ctx.restore();
   }
+  ctx.setTransform(1,0,0,1,0,0);
 }
 
 /* ---------------- 再生ループ ---------------- */
@@ -718,6 +823,7 @@ $("saveJson").onclick = ()=>{
     params: {...P},
     toggles: {...T},
     roles: Object.fromEntries(layers.map(l=>[l.name, l.role])),
+    rig: Object.fromEntries(layers.map(l=>[l.name, {parent: l.parent || null, on: l.on !== false}])),
   };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
@@ -740,11 +846,22 @@ $("loadJson").onclick = ()=>{
         let hit = 0;
         layers.forEach(l=>{ if(d.roles[l.name]){ l.role = d.roles[l.name]; ov[l.name] = l.role; hit++; } });
         localStorage.setItem("psdRoles:"+psdName, JSON.stringify(ov));
-        buildLayerList();
         $("note").textContent = `設定を読み込みました（役割 ${hit}/${layers.length} 件が一致）`;
       } else {
         $("note").textContent = "設定を読み込みました";
       }
+      if(d.rig){
+        layers.forEach(l=>{
+          const r = d.rig[l.name];
+          if(!r) return;
+          l.parent = r.parent || null;
+          l.on = r.on !== false;
+        });
+        layers.forEach(l=>{ if(l.parent && !layers.some(x=>x.name===l.parent)) l.parent = null; });
+        layers.forEach(l=>{ if(hasCycle(l)) l.parent = null; });
+        saveRig();
+      }
+      buildLayerList();
       syncAllSliders(); syncChips();
     }catch(e){
       $("note").textContent = "設定の読み込みに失敗しました: " + e.message;
