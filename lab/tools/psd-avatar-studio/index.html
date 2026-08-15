@@ -173,8 +173,8 @@ const PRESETS = {
   "ウインク左":{eyeL:0, eyeR:1, mouthSmile:.5},
   "ウインク右":{eyeL:1, eyeR:0, mouthSmile:.5},
 };
-const ROLES = ["auto","body","head","frontHair","backHair","chest","arm","eyeWhite","iris","eyelash","brow","mouth"];
-const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", arm:"腕", eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", brow:"眉", mouth:"口"};
+const ROLES = ["auto","body","head","frontHair","backHair","chest","arm","eyeWhite","iris","eyelash","brow","mouth","hide"];
+const ROLE_LABELS = {auto:"自動", body:"体", head:"頭", frontHair:"前髪", backHair:"後髪", chest:"胸", arm:"腕", eyeWhite:"白目", iris:"瞳", eyelash:"まつ毛", brow:"眉", mouth:"口", hide:"非表示"};
 
 const P = {};      // 現在値(スライダー)
 const target = {}; // プリセットのイージング先
@@ -241,16 +241,19 @@ let facePivot = {x:384, y:400};
 
 function guessRole(name){
   const n = name.toLowerCase();
+  // 差分絵(閉じ目・開き口)は、このツールでは変形で表現するので既定では隠す
+  if(/eye.*close|close.*eye|目.*閉|閉じ目/.test(n)) return "hide";
+  if(/mouth.*open|open.*mouth|口.*開|開き口/.test(n)) return "hide";
   if(/front.*hair|前髪/.test(n)) return "frontHair";
   if(/back.*hair|後ろ?髪/.test(n)) return "backHair";
   if(/chest|breast|bust|胸|oppai/.test(n)) return "chest";
-  if(/\barms?\b|sleeve|腕|袖|手/.test(n)) return "arm";
+  if(/\barms?\b|sleeve|glove|handwear|腕|袖|手/.test(n)) return "arm";
   if(/eyewhite|sclera|白目/.test(n)) return "eyeWhite";
   if(/iris|irides|pupil|瞳/.test(n)) return "iris";
   if(/eyelash|lash|まつ|睫|目/.test(n)) return "eyelash";
   if(/brow|眉/.test(n)) return "brow";
   if(/mouth|口/.test(n)) return "mouth";
-  if(/face|nose|\bears?\b|顔|鼻|耳/.test(n)) return "head";
+  if(/face|nose|\bear|顔|鼻|耳/.test(n)) return "head";   // ears / earwear も頭に追従させる
   if(/hair|髪/.test(n)) return "frontHair";
   return "body";
 }
@@ -361,19 +364,41 @@ function finishLoad(){
     : "胸レイヤー未検出 — レイヤー名に chest / 胸 を含めるか、下のリストで役割を「胸」にすると揺れ物理が有効になります";
 }
 
+/* PSDが持つレイヤー矩形は、絵の実寸とは限らない。Live2D用テンプレートなどでは
+   全レイヤーが (0,0) 始まりの大きな矩形で保存されていることがあり、そのまま使うと
+   「レイヤーの中心」「レイヤーの上端」が絵とかけ離れて、支点が全部ずれる。
+   実際に不透明な部分だけに切り詰めてから使う。 */
+function trimToContent(l){
+  const box = contentBox(l.canvas);
+  if(!box) return null;                       // 完全に透明なレイヤーは捨てる
+  const [x0,y0,x1,y1] = box, w = x1-x0+1, h = y1-y0+1;
+  if(x0 === 0 && y0 === 0 && w === l.canvas.width && h === l.canvas.height) return l;  // 既にぴったり
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  c.getContext("2d").drawImage(l.canvas, x0, y0, w, h, 0, 0, w, h);
+  l.canvas = c;
+  l.left += x0; l.top += y0; l.width = w; l.height = h;
+  return l;
+}
+
 function applyPsd(buf){
   const psd = agPsd.readPsd(buf, {skipCompositeImageData:true, skipThumbnail:true});
   psdW = psd.width; psdH = psd.height;
   const flat = [];
   flatten(psd, flat);
   const ov = roleOverrides();
-  layers = flat.map(l=>({
-    name: l.name || "?",
-    canvas: l.canvas,
-    left: l.left||0, top: l.top||0,
-    width: (l.right||0)-(l.left||0), height: (l.bottom||0)-(l.top||0),
-    role: ov[l.name] || guessRole(l.name||""),
-  }));
+  const trimmed = [];
+  flat.forEach(l=>{
+    const o = {
+      name: l.name || "?",
+      canvas: l.canvas,
+      left: l.left||0, top: l.top||0,
+      width: (l.right||0)-(l.left||0), height: (l.bottom||0)-(l.top||0),
+      role: ov[l.name] || guessRole(l.name||""),
+    };
+    if(trimToContent(o)) trimmed.push(o);
+  });
+  layers = trimmed;
   finishLoad();
 }
 
@@ -890,6 +915,7 @@ function draw(S){
 
   for(const l of layers){
     const role = l.role;
+    if(role === "hide") continue;
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
     const B = mul(baseOf(l, 0), l.parent ? IDENT : groupMat(l));
 
