@@ -105,11 +105,26 @@
   <div class="row" style="gap:6px">
     <label style="width:auto">まばたき間隔</label><input type="number" id="bi" value="2.5" min="0.5" step="0.1">
   </div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">形式</label>
+    <select id="fmt">
+      <option value="webm">WebM</option>
+      <option value="mp4">MP4</option>
+      <option value="gif">GIF</option>
+    </select>
+    <label style="width:auto" id="gifWLab">幅</label>
+    <select id="gifW">
+      <option value="320">320px</option>
+      <option value="480" selected>480px</option>
+      <option value="640">640px</option>
+      <option value="0">原寸</option>
+    </select>
+  </div>
   <div class="btns">
     <button class="btn" id="loopBtn">ループ確認</button>
-    <button class="btn go" id="recBtn">WebMを書き出す</button>
+    <button class="btn go" id="recBtn">書き出す</button>
   </div>
-  <div class="hint">書き出し中はマウス追従・マイク・ランダム動作が自動でオフになり、揺れが落ち着いてから録画されるので、先頭と末尾が繋がります。</div>
+  <div class="hint">書き出し中はマウス追従・マイク・ランダム動作が自動でオフになり、揺れが落ち着いてから録画されるので、先頭と末尾が繋がります。<span id="fmtHint"></span></div>
 
   <h3>設定</h3>
   <div class="btns">
@@ -1126,17 +1141,212 @@ function realtimeFrame(now){
   drawBoneOverlay();
 }
 
+/* ---------------- GIF エンコーダ ----------------
+   ブラウザに GIF 書き出しは無いので自前。中央値分割で共通パレットを作り、
+   LZW で GIF89a を組み立てる。透過は1bit(GIFの仕様上、半透明は持てない)。 */
+
+// --- 中央値分割 ---
+function medianCut(px, n){
+  const range = b => { let mn=[255,255,255], mx=[0,0,0];
+    for(const p of b) for(let i=0;i<3;i++){ if(p[i]<mn[i])mn[i]=p[i]; if(p[i]>mx[i])mx[i]=p[i]; }
+    return Math.max(mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]); };
+  const widest = b => { let mn=[255,255,255], mx=[0,0,0];
+    for(const p of b) for(let i=0;i<3;i++){ if(p[i]<mn[i])mn[i]=p[i]; if(p[i]>mx[i])mx[i]=p[i]; }
+    const d=[mx[0]-mn[0], (mx[1]-mn[1])*1.2, mx[2]-mn[2]];
+    return d[0]>=d[1]&&d[0]>=d[2] ? 0 : (d[1]>=d[2] ? 1 : 2); };
+  let boxes = [px];
+  while(boxes.length < n){
+    boxes.sort((a,b)=> range(b)-range(a));
+    const b = boxes.shift();
+    if(!b || b.length < 2){ if(b) boxes.push(b); break; }
+    const ch = widest(b);
+    b.sort((x,y)=> x[ch]-y[ch]);
+    const m = b.length >> 1;
+    boxes.push(b.slice(0,m), b.slice(m));
+  }
+  return boxes.filter(b=>b && b.length).map(b=>{
+    let r=0,g=0,bl=0; for(const p of b){ r+=p[0]; g+=p[1]; bl+=p[2]; }
+    return [Math.round(r/b.length), Math.round(g/b.length), Math.round(bl/b.length)];
+  });
+}
+
+// --- LZW (GIF仕様) ---
+function lzwEncode(indices, minCodeSize){
+  const out = [];
+  let cur = 0, curBits = 0;
+  const chunk = [];
+  const flushChunk = ()=>{ if(!chunk.length) return; out.push(chunk.length, ...chunk); chunk.length = 0; };
+  const push = (code, len)=>{
+    cur |= code << curBits; curBits += len;
+    while(curBits >= 8){
+      chunk.push(cur & 255); cur >>= 8; curBits -= 8;
+      if(chunk.length === 255) flushChunk();
+    }
+  };
+  const clear = 1 << minCodeSize, eoi = clear + 1;
+  let dict, next, codeSize;
+  const reset = ()=>{ dict = new Map(); next = eoi + 1; codeSize = minCodeSize + 1; };
+  reset(); push(clear, codeSize);
+  let prefix = indices[0];
+  for(let i=1;i<indices.length;i++){
+    const k = indices[i], key = prefix * 4096 + k;
+    if(dict.has(key)){ prefix = dict.get(key); continue; }
+    push(prefix, codeSize);
+    dict.set(key, next++);
+    if(next - 1 === (1 << codeSize) && codeSize < 12) codeSize++;
+    if(next > 4095){ push(clear, codeSize); reset(); }
+    prefix = k;
+  }
+  push(prefix, codeSize);
+  push(eoi, codeSize);
+  if(curBits > 0){ chunk.push(cur & 255); if(chunk.length === 255) flushChunk(); }
+  flushChunk();
+  out.push(0);   // ブロック終端
+  return out;
+}
+
+/* frames: [{index:Uint8Array}] / palette: [[r,g,b],...] / transparent: index or -1 */
+function gifBuild(frames, w, h, delayCs, palette, transparent){
+  const bytes = [];
+  const u8 = v => bytes.push(v & 255);
+  const u16 = v => { bytes.push(v & 255, (v >> 8) & 255); };
+  const str = s => { for(const c of s) bytes.push(c.charCodeAt(0)); };
+
+  let bits = 1; while((1 << bits) < palette.length) bits++;   // 色表サイズ(2^bits)
+  const tableLen = 1 << bits;
+
+  str("GIF89a");
+  u16(w); u16(h);
+  u8(0x80 | ((bits-1) << 4) | (bits-1));   // 全体色表あり
+  u8(0); u8(0);
+  for(let i=0;i<tableLen;i++){
+    const c = palette[i] || [0,0,0];
+    u8(c[0]); u8(c[1]); u8(c[2]);
+  }
+  // 無限ループ
+  u8(0x21); u8(0xFF); u8(0x0B); str("NETSCAPE2.0"); u8(0x03); u8(0x01); u16(0); u8(0);
+
+  for(const f of frames){
+    u8(0x21); u8(0xF9); u8(0x04);
+    // 透過ありなら「背景に戻す」で消してから次を描かないと絵が残る
+    u8(((transparent >= 0 ? 2 : 1) << 2) | (transparent >= 0 ? 1 : 0));
+    u16(delayCs);
+    u8(transparent >= 0 ? transparent : 0);
+    u8(0);
+    u8(0x2C); u16(0); u16(0); u16(w); u16(h); u8(0);
+    const min = Math.max(2, bits);
+    u8(min);
+    for(const b of lzwEncode(f, min)) bytes.push(b);
+  }
+  u8(0x3B);
+  return new Uint8Array(bytes);
+}
+
 /* ---------------- 書き出し ---------------- */
 const sleep = ms => new Promise(r=> setTimeout(r, ms));
-function pickMime(){
-  for(const m of ["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"])
+const MIMES = {
+  webm: ["video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"],
+  mp4:  ["video/mp4;codecs=avc1.42E01E","video/mp4;codecs=avc1","video/mp4"],
+};
+function pickMime(fmt){
+  for(const m of (MIMES[fmt] || MIMES.webm))
     if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
   return null;
 }
+const BG_COLORS = {transparent:null, gb:"#00b140", dark:"#101216"};
+function currentBg(){ const k = $("stage").className; return (k in BG_COLORS) ? BG_COLORS[k] : null; }
+const save = (blob, name)=>{
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+};
+
+/* GIF: 各フレームを縮小して読み取り、共通パレットに落としてから組み立てる */
+async function exportGif(D, fps, N, dt){
+  const targetW = +$("gifW").value || psdW;
+  const w = Math.max(16, Math.round(targetW)), h = Math.max(16, Math.round(psdH * w / psdW));
+  const bg = currentBg();
+  const tmp = document.createElement("canvas");
+  tmp.width = w; tmp.height = h;
+  const g = tmp.getContext("2d", {willReadFrequently:true});
+
+  // 1) 全フレームを描いて画素を集める
+  const raw = [];
+  const sample = [];
+  for(let i=0;i<N;i++){
+    draw(step(i*dt, dt, true));
+    g.clearRect(0,0,w,h);
+    if(bg){ g.fillStyle = bg; g.fillRect(0,0,w,h); }
+    g.drawImage(cv, 0, 0, w, h);
+    const d = g.getImageData(0,0,w,h).data;
+    raw.push(d);
+    for(let p=0;p<d.length;p+=4*Math.max(1, Math.round(N/6))*3){
+      if(d[p+3] >= 128) sample.push([d[p], d[p+1], d[p+2]]);
+    }
+    $("recinfo").textContent = `描画 ${i+1} / ${N}`;
+    if(i % 8 === 0) await sleep(0);
+  }
+
+  // 2) パレット。透過を使うなら1色ぶん空けておく
+  const useAlpha = !bg;
+  $("recinfo").textContent = "色を決めています…";
+  await sleep(0);
+  const palette = sample.length ? medianCut(sample, useAlpha ? 255 : 256) : [[0,0,0],[255,255,255]];
+  const transparent = useAlpha ? palette.length : -1;
+  if(useAlpha) palette.push([0,0,0]);
+
+  // 3) 最近色をキャッシュしながら索引化
+  const cache = new Int16Array(32768).fill(-1);
+  const nearest = (r,gg,b)=>{
+    const key = ((r>>3)<<10) | ((gg>>3)<<5) | (b>>3);
+    let v = cache[key];
+    if(v >= 0) return v;
+    let bi = 0, bd = 1e9;
+    for(let i=0;i<palette.length;i++){
+      if(i === transparent) continue;
+      const p = palette[i], dr = r-p[0], dg = gg-p[1], db = b-p[2];
+      const dd = dr*dr*0.9 + dg*dg*1.2 + db*db*0.7;
+      if(dd < bd){ bd = dd; bi = i; }
+    }
+    cache[key] = bi;
+    return bi;
+  };
+  const frames = [];
+  for(let i=0;i<N;i++){
+    const d = raw[i], idx = new Uint8Array(w*h);
+    for(let p=0, q=0; q<idx.length; p+=4, q++){
+      idx[q] = (useAlpha && d[p+3] < 128) ? transparent : nearest(d[p], d[p+1], d[p+2]);
+    }
+    frames.push(idx);
+    raw[i] = null;
+    $("recinfo").textContent = `減色 ${i+1} / ${N}`;
+    if(i % 8 === 0) await sleep(0);
+  }
+
+  // 4) 組み立て
+  $("recinfo").textContent = "GIFを組み立てています…";
+  await sleep(0);
+  const delayCs = Math.max(2, Math.round(100/fps));
+  const bytes = gifBuild(frames, w, h, delayCs, palette, transparent);
+  save(new Blob([bytes], {type:"image/gif"}), "avatar_loop.gif");
+  const mb = (bytes.length/1048576).toFixed(1);
+  $("note").textContent = `avatar_loop.gif を書き出しました（${w}×${h} / ${N}フレーム / ${mb}MB）。`
+    + (useAlpha ? "GIFの透過は1bitなので、輪郭がギザつく場合は背景をGBかダークにしてください。"
+                : "背景を塗り込んでいます。透過が要るなら背景を「透過」にしてください。");
+  return delayCs;
+}
+
 $("recBtn").onclick = async ()=>{
   if(!layers.length){ $("note").textContent = "先に PSD か PNG を読み込んでください。"; return; }
-  const mime = pickMime();
-  if(!mime){ $("note").textContent = "このブラウザは WebM 書き出しに対応していません。"; return; }
+  const fmt = $("fmt").value;
+  const mime = fmt === "gif" ? null : pickMime(fmt);
+  if(fmt !== "gif" && !mime){
+    $("note").textContent = fmt === "mp4"
+      ? "このブラウザは MP4 の録画に対応していません。WebM か GIF を選んでください。"
+      : "このブラウザは WebM 書き出しに対応していません。";
+    return;
+  }
 
   const D = durVal(), fps = Math.max(10, +$("fps").value || 30);
   const N = Math.round(D * fps), dt = 1/fps;
@@ -1157,28 +1367,33 @@ $("recBtn").onclick = async ()=>{
     await sleep(0);
     for(let i = 0; i < N*3; i++) step((i % N) * dt, dt, true);
 
-    const stream = cv.captureStream(0);
-    const track = stream.getVideoTracks()[0];
-    const rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 8e6});
-    const chunks = [];
-    rec.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
-    const stopped = new Promise(r=> rec.onstop = r);
-    rec.start();
+    if(fmt === "gif"){
+      await exportGif(D, fps, N, dt);
+    } else {
+      const stream = cv.captureStream(0);
+      const track = stream.getVideoTracks()[0];
+      const rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 8e6});
+      const chunks = [];
+      rec.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+      const stopped = new Promise(r=> rec.onstop = r);
+      rec.start();
 
-    for(let i = 0; i < N; i++){
-      draw(step(i * dt, dt, true));
-      if(track.requestFrame) track.requestFrame();
-      $("recinfo").textContent = `${i+1} / ${N} フレーム`;
-      await sleep(1000/fps);
+      for(let i = 0; i < N; i++){
+        draw(step(i * dt, dt, true));
+        if(track.requestFrame) track.requestFrame();
+        $("recinfo").textContent = `${i+1} / ${N} フレーム`;
+        await sleep(1000/fps);
+      }
+      rec.stop();
+      await stopped;
+
+      const ext = fmt === "mp4" ? "mp4" : "webm";
+      save(new Blob(chunks, {type: mime}), "avatar_loop." + ext);
+      $("note").textContent = `avatar_loop.${ext} を書き出しました（${D}秒 / ${fps}fps / ${N}フレーム）。`
+        + (fmt === "mp4"
+            ? "MP4に透過はありません。背景を GB にすると後で抜けます。"
+            : "WebMの透過はブラウザ依存なので、必要なら背景を GB にして書き出してください。");
     }
-    rec.stop();
-    await stopped;
-
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob(chunks, {type: mime}));
-    a.download = "avatar_loop.webm";
-    a.click();
-    $("note").textContent = `avatar_loop.webm を書き出しました（${D}秒 / ${fps}fps / ${N}フレーム）。WebMの透過はブラウザ依存なので、必要なら背景を GB にして書き出してください。`;
   } finally {
     exporting = false;
     $("recBtn").disabled = false;
@@ -1190,6 +1405,19 @@ $("recBtn").onclick = async ()=>{
     loopT0 = performance.now();
   }
 };
+
+/* 形式に応じて幅の欄を出し分け、対応していない形式はその場で知らせる */
+function syncFormatUI(){
+  const fmt = $("fmt").value, isGif = fmt === "gif";
+  $("gifW").style.display = isGif ? "" : "none";
+  $("gifWLab").style.display = isGif ? "" : "none";
+  let hint = "";
+  if(isGif) hint = " GIFは256色に減色され、動画よりかなり重くなります。";
+  else if(!pickMime(fmt)) hint = ` このブラウザは ${fmt.toUpperCase()} の録画に対応していません。`;
+  $("fmtHint").textContent = hint;
+}
+$("fmt").onchange = syncFormatUI;
+syncFormatUI();
 
 /* ---------------- 設定の保存 / 読み込み ---------------- */
 $("saveJson").onclick = ()=>{
