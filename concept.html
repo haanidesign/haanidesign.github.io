@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concept.css">
+<link rel="stylesheet" href="concept.css?v=3">
 </head>
 <body>
 
@@ -63,7 +63,7 @@
     <!-- 右：パネル -->
     <aside class="panel">
       <div>
-        <div class="pgroup-ttl">レイヤー（できること）</div>
+        <div class="pgroup-ttl">できること</div>
         <div style="display:flex;flex-direction:column;gap:.35rem;margin-top:.3rem;">
           <a href="#works" class="layer"><i>👁</i>漫画・コミック</a>
           <a href="#works" class="layer"><i>👁</i>イラスト・装丁</a>
@@ -86,26 +86,6 @@
     </aside>
   </div>
 
-  <!-- 下部タイムライン -->
-  <div class="timeline">
-    <div class="tl-bar">
-      <span class="btn btn-sm">⏮</span>
-      <span class="btn btn-sm">◀</span>
-      <span class="btn btn-sm btn-g">▶</span>
-      <span class="btn btn-sm">▶⏭</span>
-      <span class="tl-label dot">タイムライン ／ 最近の作品</span>
-      <a href="#works" class="btn btn-sm btn-y" style="margin-left:auto;">＋ すべて見る</a>
-    </div>
-    <div class="tl-frames">
-      <a href="#works" class="tl-frame"><b>1</b><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></a>
-      <a href="#works" class="tl-frame"><b>2</b><img src="manga/tachibanasenpai_01.jpg" alt="笑顔を見せてよ、橘先輩"></a>
-      <a href="#works" class="tl-frame"><b>3</b><img src="manga/fanart_01.jpg" alt="ファンアート"></a>
-      <a href="#works" class="tl-frame"><b>4</b><img src="host.jpg" alt="WEB漫画"></a>
-      <a href="#works" class="tl-frame"><b>5</b><img src="webad.jpg" alt="WEB広告"></a>
-      <a href="#works" class="tl-frame"><b>6</b><img src="dharma.jpg" alt="マーダーミステリー表紙"></a>
-      <span class="tl-add">＋</span>
-    </div>
-  </div>
 </div>
 
 <!-- ================= 作品 ================= -->
@@ -329,9 +309,6 @@
 
 <button class="totop" id="toTop" aria-label="ページ上部へ戻る">↑</button>
 
-<!-- サムネのホバー拡大プレビュー -->
-<div class="tl-pop" id="tlPop"><img src="" alt=""></div>
-
 <script>
   /* カルーセル */
   document.querySelectorAll('[data-carousel]').forEach(box => {
@@ -370,44 +347,6 @@
       btn.textContent = vid.muted ? '🔇 音を出す' : '🔊 音を消す';
     });
   });
-
-  /* タイムラインのサムネ：ホバーで拡大プレビュー */
-  (() => {
-    const pop = document.getElementById('tlPop');
-    const popImg = pop.querySelector('img');
-    if(!window.matchMedia('(hover:hover)').matches) return;
-
-    document.querySelectorAll('.tl-frame').forEach(fr => {
-      const src = fr.querySelector('img').getAttribute('src');
-      const alt = fr.querySelector('img').getAttribute('alt') || '';
-
-      const place = () => {
-        const r = fr.getBoundingClientRect();
-        const pw = pop.offsetWidth, ph = pop.offsetHeight;
-        // サムネの真上に置く。上に入らなければ下に回す
-        let top = r.top - ph - 12;
-        if(top < 8) top = Math.min(r.bottom + 12, window.innerHeight - ph - 8);
-        let left = r.left + r.width / 2 - pw / 2;
-        left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-        pop.style.top = top + 'px';
-        pop.style.left = left + 'px';
-      };
-
-      fr.addEventListener('mouseenter', () => {
-        popImg.alt = alt;
-        if(popImg.getAttribute('src') !== src){
-          popImg.setAttribute('src', src);
-          // 読み込み後に実寸が決まるので、そこで位置を決め直す
-          popImg.onload = () => { place(); pop.classList.add('show'); };
-        }
-        place();
-        if(popImg.complete) pop.classList.add('show');
-      });
-      fr.addEventListener('mouseleave', () => pop.classList.remove('show'));
-    });
-
-    window.addEventListener('scroll', () => pop.classList.remove('show'), {passive:true});
-  })();
 
   /* 上へ戻る */
   const toTop = document.getElementById('toTop');
