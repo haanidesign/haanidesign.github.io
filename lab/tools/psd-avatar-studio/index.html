@@ -132,6 +132,29 @@
   </div>
   <div class="hint">書き出し中はマウス追従・マイク・ランダム動作が自動でオフになり、揺れが落ち着いてから録画されるので、先頭と末尾が繋がります。<span id="fmtHint"></span></div>
 
+  <h3>出力の枠</h3>
+  <div class="row" style="gap:6px">
+    <label class="rootchk" style="width:auto"><input type="checkbox" id="cropOn">枠で切り取る</label>
+    <span class="val" id="cropSize" style="width:auto"></span>
+  </div>
+  <div id="cropUI">
+    <div class="row" style="gap:6px">
+      <label style="width:auto">X</label><input type="number" id="cropX" step="4">
+      <label style="width:auto">Y</label><input type="number" id="cropY" step="4">
+    </div>
+    <div class="row" style="gap:6px">
+      <label style="width:auto">幅</label><input type="number" id="cropW" step="4">
+      <label style="width:auto">高さ</label><input type="number" id="cropH" step="4">
+    </div>
+    <div class="btns">
+      <button class="btn" id="cropAll">全体</button>
+      <button class="btn" id="cropBust">顔まわり</button>
+      <button class="btn" id="cropUpper">上半身</button>
+      <button class="btn" id="cropSquare">正方形</button>
+      <button class="btn" id="cropVert">9:16</button>
+    </div>
+  </div>
+
   <h3>設定</h3>
   <div class="btns">
     <button class="btn" id="saveJson">設定を保存</button>
@@ -313,15 +336,22 @@ function saveRig(){
   layers.forEach(l=>{
     if(l.parent || l.on === false || (l.bone && l.bone.length) || l.boneRef) o[l.name] = rigOf(l);
   });
-  if(globalBone.bone.length) o.__global = {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
-                                           bprm: {...globalBone.bprm}};
+  if(globalMoveActive()) o.__global = {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
+                                       bprm: {...globalBone.bprm}, mesh: globalBone.mesh};
+  if(crop.on) o.__crop = {...crop};
   localStorage.setItem("psdRig:"+psdName, JSON.stringify(o));
 }
 function applyRig(){
   const rg = rigOverrides();
   const gb = rg.__global;
   globalBone.bone = (gb && Array.isArray(gb.bone)) ? gb.bone.map(p=>({x:+p.x, y:+p.y})) : [];
-  globalBone.bprm = Object.assign({amp:6, speed:1, phase:0, lag:0.25}, (gb && gb.bprm) || {});
+  globalBone.bprm = Object.assign({...GBONE_DEF}, (gb && gb.bprm) || {});
+  globalBone.mesh = gb ? !!gb.mesh : false;
+  const cr = rg.__crop;
+  cropReset();
+  crop.on = false;
+  if(cr){ crop.on = !!cr.on; crop.x = +cr.x||0; crop.y = +cr.y||0; crop.w = +cr.w||psdW; crop.h = +cr.h||psdH; }
+  cropClamp();
   layers.forEach(l=>{
     const r = rg[l.name];
     l.parent = (r && r.parent) || null;
@@ -432,6 +462,7 @@ function finishLoad(){
     : {x: psdW/2, y: psdH*0.5};
   cv.width = psdW; cv.height = psdH;
   buildLayerList();
+  if(typeof syncCropUI === "function") syncCropUI();
   $("psdInfo").textContent = `${psdName} — ${layers.length}レイヤー (${psdW}×${psdH})`;
   const hasChest = layers.some(l=>l.role==="chest");
   $("note").textContent = hasChest
@@ -521,7 +552,7 @@ function buildLayerList(){
   const gb = document.createElement("div"); gb.className = "lrow gbrow";
   const gTitle = document.createElement("div"); gTitle.className = "row";
   const gLab = document.createElement("label"); gLab.style.width = "auto";
-  gLab.textContent = globalBoneActive() ? `全体ボーン（${globalBone.bone.length}点）` : "全体ボーン";
+  gLab.textContent = globalBoneActive() ? `全体の動き（骨${globalBone.bone.length}点）` : "全体の動き";
   gTitle.appendChild(gLab);
   gb.appendChild(gTitle);
 
@@ -547,24 +578,37 @@ function buildLayerList(){
     gBar.appendChild(del);
   }
   gb.appendChild(gBar);
+  const gSlider = ([key,label,mn,mx,st])=>{
+    const r = document.createElement("div"); r.className = "row sub";
+    const la = document.createElement("label"); la.textContent = label;
+    const inp = document.createElement("input");
+    inp.type = "range"; inp.min = mn; inp.max = mx; inp.step = st; inp.value = globalBone.bprm[key];
+    const vv = document.createElement("span"); vv.className = "val"; vv.textContent = globalBone.bprm[key];
+    inp.oninput = ()=>{ globalBone.bprm[key] = +inp.value; vv.textContent = inp.value; };
+    inp.onchange = ()=>{ saveRig(); buildLayerList(); };
+    r.append(la, inp, vv);
+    gb.appendChild(r);
+  };
   if(globalBoneActive()){
-    [["amp","曲がり角度",0,45,0.5],["speed","周期",1,8,1],["phase","位相",0,1,0.05],["lag","遅延",0,0.6,0.02]]
-      .forEach(([key,label,mn,mx,st])=>{
-        const r = document.createElement("div"); r.className = "row sub";
-        const la = document.createElement("label"); la.textContent = label;
-        const inp = document.createElement("input");
-        inp.type = "range"; inp.min = mn; inp.max = mx; inp.step = st; inp.value = globalBone.bprm[key];
-        const vv = document.createElement("span"); vv.className = "val"; vv.textContent = globalBone.bprm[key];
-        inp.oninput = ()=>{ globalBone.bprm[key] = +inp.value; vv.textContent = inp.value; };
-        inp.onchange = saveRig;
-        r.append(la, inp, vv);
-        gb.appendChild(r);
-      });
+    const mrow = document.createElement("div"); mrow.className = "row sub";
+    const mw = document.createElement("label"); mw.className = "rootchk";
+    const mc = document.createElement("input");
+    mc.type = "checkbox"; mc.checked = globalBone.mesh;
+    mc.title = "オフ: パーツごとに動かす(軽い)。オン: 絵そのものを曲げる(大きく曲げるとき自然だが重い)";
+    mc.onchange = ()=>{ globalBone.mesh = mc.checked; saveRig(); buildLayerList(); };
+    mw.append(mc, document.createTextNode("絵ごと曲げる（重い）"));
+    mrow.appendChild(mw);
+    gb.appendChild(mrow);
+    [["amp","曲がり角度",0,45,0.5],["lag","遅延",0,0.6,0.02]].forEach(gSlider);
   } else {
     const h = document.createElement("div"); h.className = "hint";
-    h.textContent = "腰から頭へ2〜6点引くと、キャラ全体がその骨に乗って揺れます。パーツ自体は歪みません。";
+    h.textContent = "腰から頭へ2〜6点引くとキャラ全体がその骨に乗ります。骨なしでも下の4つは効きます。";
     gb.appendChild(h);
   }
+  // 骨が無くても使える、体ごとの動き
+  [["bob","上下バウンド",0,60,1],["slide","左右スライド",0,60,1],
+   ["tilt","傾き",0,15,0.5],["scale","伸縮",0,15,0.5]].forEach(gSlider);
+  [["speed","周期",1,8,1],["phase","位相",0,1,0.05]].forEach(gSlider);
   gb.classList.toggle("editing", boneEdit === globalBone);
   el.appendChild(gb);
 
@@ -919,11 +963,38 @@ const BONE_PRESETS = {
   wave:  {amp:14, speed:1, phase:0, lag:.3,  label:"くねくね"},
   sway:  {amp:7,  speed:1, phase:0, lag:.18, label:"ゆらゆら"},
 };
+/* 出力の枠。書き出しだけこの範囲を切り取る(画面のプレビューは全体のまま) */
+const crop = {on:false, x:0, y:0, w:0, h:0};
+function cropClamp(){
+  crop.w = Math.max(16, Math.min(psdW, Math.round(crop.w || psdW)));
+  crop.h = Math.max(16, Math.min(psdH, Math.round(crop.h || psdH)));
+  crop.x = Math.max(0, Math.min(psdW - crop.w, Math.round(crop.x)));
+  crop.y = Math.max(0, Math.min(psdH - crop.h, Math.round(crop.y)));
+}
+function cropReset(){ crop.x = 0; crop.y = 0; crop.w = psdW; crop.h = psdH; }
+/* 出力サイズ。枠オフなら素材そのままの大きさ */
+const outW = ()=> crop.on ? crop.w : psdW;
+const outH = ()=> crop.on ? crop.h : psdH;
+/* いまのキャンバスを出力用に転写する */
+function blit(g, w, h){
+  g.clearRect(0,0,w,h);
+  if(crop.on) g.drawImage(cv, crop.x, crop.y, crop.w, crop.h, 0, 0, w, h);
+  else g.drawImage(cv, 0, 0, w, h);
+}
+
 /* 全体ボーン: どのレイヤーにも属さない1本。腰から頭まで引いておくと、
    キャラ全部がこの骨の曲がりに乗る。パーツ自体は歪ませず(顔が崩れるため)、
    各レイヤーを「その位置での骨の変形」で剛体的に動かす。 */
-const globalBone = {name:"__global", bone:[], bprm:{amp:6, speed:1, phase:0, lag:0.25}, on:true};
+const GBONE_DEF = {amp:6, speed:1, phase:0, lag:0.25, bob:0, slide:0, tilt:0, scale:0};
+/* mesh=false(既定): パーツごとに剛体で動かす。絵が歪まず、実測で1フレーム0.3ms。
+   mesh=true: 絵そのものを連続的に曲げる。大きく曲げたときに自然だが 17.8ms 掛かる。 */
+const globalBone = {name:"__global", bone:[], bprm:{...GBONE_DEF}, mesh:false, on:true};
 const globalBoneActive = ()=> globalBone.bone.length >= 2;
+/* 骨を引いていなくても、上下バウンドや傾きだけは掛けられるようにする */
+const globalMoveActive = ()=>{
+  const p = globalBone.bprm;
+  return globalBoneActive() || p.bob || p.slide || p.tilt || p.scale;
+};
 
 /* ボーンは他のレイヤーのものを借りられる。借りた側は自分のメッシュを、
    貸した側の骨で変形するので、複数枚が1本の骨でまとまって動く。 */
@@ -1125,8 +1196,32 @@ function draw(S){
     return [a, b, c, e, x0-(a*pt.x + c*pt.y), y0-(b*pt.x + e*pt.y)];
   }
   const gPose = globalBoneActive() ? poseBones(globalBone, S.u) : null;
-  /* 全体ボーンぶん。各レイヤーの位置で評価するので、パーツは歪まず位置と角度だけ動く */
-  function globalMat(l){ return gPose ? linearizeAt(gPose, anchorOf(l)) : IDENT; }
+  /* 骨の曲がりとは別に、体ごとの上下・左右・傾き・伸縮。骨の根元(腰)を支点にする。 */
+  const gExtra = (()=>{
+    const p = globalBone.bprm;
+    if(!(p.bob || p.slide || p.tilt || p.scale)) return IDENT;
+    const cyc = Math.max(1, Math.round(p.speed));
+    const s = Math.sin((S.u*cyc + p.phase) * Math.PI*2);
+    const pv = globalBone.bone.length ? globalBone.bone[0] : {x: psdW/2, y: psdH};
+    return mChain(
+      mTranslate(p.slide * s, p.bob * s),
+      mAround(mRotate(p.tilt * s * Math.PI/180), pv.x, pv.y),
+      mAround(mScale(1 + p.scale/100 * s, 1 + p.scale/100 * s), pv.x, pv.y)
+    );
+  })();
+  /* メッシュで曲げる場合、全体ボーンは頂点ごとに後段で掛けるので行列には含めない。
+     目まわりだけは左右クリップの都合でメッシュに乗せず、線形近似で済ませる(小さいので誤差も小さい)。 */
+  const gMesh = gPose && globalBone.mesh;
+  function globalMat(l){
+    if(!gPose) return gExtra;
+    if(gMesh && !EYE_ROLES.has(l.role)) return IDENT;
+    return mul(gExtra, linearizeAt(gPose, anchorOf(l)));
+  }
+  /* 頂点を全体ボーンで曲げてから、体ごとの動きを掛ける */
+  function gWarp(x, y){
+    if(gMesh){ const p = skin(x, y, gPose); x = p[0]; y = p[1]; }
+    return [gExtra[0]*x + gExtra[2]*y + gExtra[4], gExtra[1]*x + gExtra[3]*y + gExtra[5]];
+  }
 
   function ownAffineAt(l, pt){
     if(l.on === false) return IDENT;
@@ -1162,16 +1257,24 @@ function draw(S){
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
     const B = mul(baseOf(l, 0), l.parent ? IDENT : groupMat(l));
 
-    // --- ボーン: 役割の変形を差し替えてメッシュで描く ---
-    if(boneActive(l)){
-      const pose = poseBones(boneOwner(l), S.u);
-      ctx.setTransform(B[0],B[1],B[2],B[3],B[4],B[5]);
-      const cols = l.cols, rows = l.rows;
+    // --- メッシュで描く場合(自前のボーン、または全体ボーンで曲げるとき) ---
+    const needMesh = boneActive(l) || (gMesh && !EYE_ROLES.has(role));
+    if(needMesh){
+      const pose = boneActive(l) ? poseBones(boneOwner(l), S.u) : null;
+      // 全体ボーンだけなら曲がりは緩いので、粗い格子で足りる
+      const rows = pose ? l.rows : Math.min(l.rows, 8);
+      const cols = pose ? l.cols : Math.max(4, Math.min(l.cols, Math.round(8 * l.width / Math.max(l.height,1)) || 8));
+      // 自前ボーンが無いレイヤーは、役割の変形を行列側で受ける
+      const Mm = pose ? B : mul(B, l.on === false ? IDENT : roleMat(l));
+      ctx.setTransform(1,0,0,1,0,0);
       const sxs = [], sys = [], gx = [], gy = [];
       for(let r=0; r<=rows; r++) for(let c=0; c<=cols; c++){
         const px2 = l.left + l.width*c/cols, py2 = l.top + l.height*r/rows;
-        const [nx,ny] = skin(px2, py2, pose);
-        sxs.push(px2); sys.push(py2); gx.push(nx); gy.push(ny);
+        let vx = px2, vy = py2;
+        if(pose){ const p = skin(px2, py2, pose); vx = p[0]; vy = p[1]; }
+        const wx = Mm[0]*vx + Mm[2]*vy + Mm[4], wy = Mm[1]*vx + Mm[3]*vy + Mm[5];
+        const [fx, fy] = gWarp(wx, wy);
+        sxs.push(px2); sys.push(py2); gx.push(fx); gy.push(fy);
       }
       const idx = (r,c)=> r*(cols+1) + c;
       // セルの大きさに比例して膨らませないと、大きい絵で三角形の継ぎ目が線になる
@@ -1285,8 +1388,25 @@ function drawBoneOverlay(){
   syncOverlay();
   octx.setTransform(1,0,0,1,0,0);
   octx.clearRect(0,0,ov.width,ov.height);
+  const vk = viewScale() || 1;
+
+  // 出力の枠。外側を暗くして、切り取られる範囲がひと目で分かるようにする
+  if(crop.on && !exporting){
+    octx.save();
+    octx.fillStyle = "rgba(10,12,16,.55)";
+    octx.beginPath();
+    octx.rect(0, 0, ov.width, ov.height);
+    octx.rect(crop.x, crop.y, crop.w, crop.h);
+    octx.fill("evenodd");
+    octx.strokeStyle = "#6ea8ff";
+    octx.lineWidth = Math.max(1, 2/vk);
+    octx.setLineDash([10/vk, 6/vk]);
+    octx.strokeRect(crop.x, crop.y, crop.w, crop.h);
+    octx.restore();
+  }
+
   if(!boneEdit) return;
-  const k = viewScale() || 1;
+  const k = vk;
   const pts = boneEdit.bone;
   octx.strokeStyle = "#ff7a45"; octx.lineWidth = 3/k;
   octx.beginPath();
@@ -1444,8 +1564,9 @@ const save = (blob, name)=>{
 
 /* GIF: 各フレームを縮小して読み取り、共通パレットに落としてから組み立てる */
 async function exportGif(D, fps, N, dt){
-  const targetW = +$("gifW").value || psdW;
-  const w = Math.max(16, Math.round(targetW)), h = Math.max(16, Math.round(psdH * w / psdW));
+  const srcW = outW(), srcH = outH();
+  const targetW = +$("gifW").value || srcW;
+  const w = Math.max(16, Math.round(targetW)), h = Math.max(16, Math.round(srcH * w / srcW));
   const bg = currentBg();
   const tmp = document.createElement("canvas");
   tmp.width = w; tmp.height = h;
@@ -1457,8 +1578,12 @@ async function exportGif(D, fps, N, dt){
   for(let i=0;i<N;i++){
     draw(step(i*dt, dt, true));
     g.clearRect(0,0,w,h);
-    if(bg){ g.fillStyle = bg; g.fillRect(0,0,w,h); }
-    g.drawImage(cv, 0, 0, w, h);
+    blit(g, w, h);
+    if(bg){                              // 背景は絵の後ろに敷く
+      g.globalCompositeOperation = "destination-over";
+      g.fillStyle = bg; g.fillRect(0,0,w,h);
+      g.globalCompositeOperation = "source-over";
+    }
     const d = g.getImageData(0,0,w,h).data;
     raw.push(d);
     for(let p=0;p<d.length;p+=4*Math.max(1, Math.round(N/6))*3){
@@ -1550,7 +1675,12 @@ $("recBtn").onclick = async ()=>{
     if(fmt === "gif"){
       await exportGif(D, fps, N, dt);
     } else {
-      const stream = cv.captureStream(0);
+      // 枠で切り取るぶん、録画は専用のキャンバスから行う
+      const ow = outW(), oh = outH();
+      const outCv = document.createElement("canvas");
+      outCv.width = ow; outCv.height = oh;
+      const og = outCv.getContext("2d");
+      const stream = outCv.captureStream(0);
       const track = stream.getVideoTracks()[0];
       const rec = new MediaRecorder(stream, {mimeType: mime, videoBitsPerSecond: 8e6});
       const chunks = [];
@@ -1560,6 +1690,7 @@ $("recBtn").onclick = async ()=>{
 
       for(let i = 0; i < N; i++){
         draw(step(i * dt, dt, true));
+        blit(og, ow, oh);
         if(track.requestFrame) track.requestFrame();
         $("recinfo").textContent = `${i+1} / ${N} フレーム`;
         await sleep(1000/fps);
@@ -1569,7 +1700,7 @@ $("recBtn").onclick = async ()=>{
 
       const ext = fmt === "mp4" ? "mp4" : "webm";
       save(new Blob(chunks, {type: mime}), "avatar_loop." + ext);
-      $("note").textContent = `avatar_loop.${ext} を書き出しました（${D}秒 / ${fps}fps / ${N}フレーム）。`
+      $("note").textContent = `avatar_loop.${ext} を書き出しました（${ow}×${oh} / ${D}秒 / ${fps}fps / ${N}フレーム）。`
         + (fmt === "mp4"
             ? "MP4に透過はありません。背景を GB にすると後で抜けます。"
             : "WebMの透過はブラウザ依存なので、必要なら背景を GB にして書き出してください。");
@@ -1586,6 +1717,54 @@ $("recBtn").onclick = async ()=>{
   }
 };
 
+/* ---------------- 出力の枠 UI ---------------- */
+function syncCropUI(){
+  cropClamp();
+  $("cropX").value = crop.x; $("cropY").value = crop.y;
+  $("cropW").value = crop.w; $("cropH").value = crop.h;
+  $("cropOn").checked = crop.on;
+  $("cropUI").style.opacity = crop.on ? "1" : ".45";
+  $("cropUI").style.pointerEvents = crop.on ? "" : "none";
+  $("cropSize").textContent = crop.on ? `${crop.w}×${crop.h}` : `${psdW}×${psdH}（全体）`;
+}
+["cropX","cropY","cropW","cropH"].forEach(id=>{
+  $(id).oninput = ()=>{ crop[id.slice(4).toLowerCase()] = +$(id).value || 0; cropClamp(); syncCropUI(); saveRig(); };
+});
+$("cropOn").onchange = ()=>{
+  crop.on = $("cropOn").checked;
+  if(crop.on && !crop.w) cropReset();
+  syncCropUI(); saveRig();
+};
+/* 顔レイヤーを基準に、よく使う枠を組み立てる */
+function faceBox(){
+  const f = layers.find(l=>l.role === "head" && /face|顔/.test(l.name.toLowerCase())) || layers.find(l=>l.role === "head");
+  return f ? {cx: f.left + f.width/2, cy: f.top + f.height/2, w: f.width, h: f.height} : null;
+}
+function setCrop(x,y,w,h){ crop.on = true; crop.x=x; crop.y=y; crop.w=w; crop.h=h; syncCropUI(); saveRig(); }
+$("cropAll").onclick = ()=>{ cropReset(); crop.on = true; syncCropUI(); saveRig(); };
+$("cropBust").onclick = ()=>{
+  const f = faceBox();
+  if(!f){ $("note").textContent = "顔レイヤーが見つからないので枠を作れません。"; return; }
+  const w = Math.round(f.w * 2.4), h = Math.round(f.h * 2.2);
+  setCrop(Math.round(f.cx - w/2), Math.round(f.cy - h*0.42), w, h);
+};
+$("cropUpper").onclick = ()=>{
+  const f = faceBox();
+  const top = f ? Math.max(0, Math.round(f.cy - f.h*1.1)) : 0;
+  setCrop(0, top, psdW, Math.round((psdH - top) * 0.62));
+};
+$("cropSquare").onclick = ()=>{
+  const s = Math.min(psdW, psdH, crop.on ? Math.max(crop.w, crop.h) : Math.min(psdW, psdH));
+  const cx = crop.on ? crop.x + crop.w/2 : psdW/2, cy = crop.on ? crop.y + crop.h/2 : psdH/2;
+  setCrop(Math.round(cx - s/2), Math.round(cy - s/2), s, s);
+};
+$("cropVert").onclick = ()=>{
+  let h = crop.on ? crop.h : psdH, w = Math.round(h * 9/16);
+  if(w > psdW){ w = psdW; h = Math.round(w * 16/9); }
+  const cx = crop.on ? crop.x + crop.w/2 : psdW/2, cy = crop.on ? crop.y + crop.h/2 : psdH/2;
+  setCrop(Math.round(cx - w/2), Math.round(cy - h/2), w, h);
+};
+
 /* 形式に応じて幅の欄を出し分け、対応していない形式はその場で知らせる */
 function syncFormatUI(){
   const fmt = $("fmt").value, isGif = fmt === "gif";
@@ -1598,6 +1777,7 @@ function syncFormatUI(){
 }
 $("fmt").onchange = syncFormatUI;
 syncFormatUI();
+syncCropUI();
 
 /* ---------------- 設定の保存 / 読み込み ---------------- */
 $("saveJson").onclick = ()=>{
@@ -1610,6 +1790,7 @@ $("saveJson").onclick = ()=>{
     roles: Object.fromEntries(layers.map(l=>[l.name, l.role])),
     rig: Object.fromEntries(layers.map(l=>[l.name, rigOf(l)])),
     globalBone: {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})), bprm: {...globalBone.bprm}},
+    crop: {...crop},
   };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
@@ -1635,6 +1816,11 @@ $("loadJson").onclick = ()=>{
         $("note").textContent = `設定を読み込みました（役割 ${hit}/${layers.length} 件が一致）`;
       } else {
         $("note").textContent = "設定を読み込みました";
+      }
+      if(d.crop){
+        crop.on = !!d.crop.on; crop.x = +d.crop.x||0; crop.y = +d.crop.y||0;
+        crop.w = +d.crop.w||psdW; crop.h = +d.crop.h||psdH;
+        syncCropUI();
       }
       if(d.globalBone && Array.isArray(d.globalBone.bone)){
         globalBone.bone = d.globalBone.bone.map(p=>({x:+p.x, y:+p.y}));
@@ -1691,7 +1877,9 @@ $("resetBtn").onclick = ()=>{
   loopPreview = false; $("loopBtn").classList.remove("on");
 
   globalBone.bone = [];
-  globalBone.bprm = {amp:6, speed:1, phase:0, lag:0.25};
+  globalBone.bprm = {...GBONE_DEF};
+  globalBone.mesh = false;
+  crop.on = false; cropReset(); syncCropUI();
   layers.forEach(l=>{
     l.role = guessRole(l.name || "");
     l.parent = null; l.on = true; l.pick = false;
