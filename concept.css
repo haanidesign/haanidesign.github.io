@@ -1,18 +1,15 @@
 /* ============================================================
    はぁにデザイン工房 — コンセプト案「お絵かきアプリ風」
-   極太の黒フチ／角丸／オレンジ×クリーム／押し込みボタン
+   メインカラー #E1DD60 ／ 下地はドット
    ============================================================ */
 :root{
-  --orange:      #E8783C;
-  --orange-deep: #C85E28;
-  --cream:       #F6F0E2;
-  --paper:       #FCF8EE;
-  --yellow:      #FFD84D;
-  --yellow-deep: #E8B92E;
-  --green:       #3DBE72;
-  --green-deep:  #2E9A59;
-  --ink:         #1B1B1B;
-  --gray:        #8E8676;
+  --main:      #E1DD60;   /* メインカラー */
+  --main-deep: #B8B43F;   /* 濃いめ（縁・影） */
+  --main-soft: #F2F0BE;   /* 淡い */
+  --cream:     #FBFAEC;
+  --paper:     #FFFEF7;
+  --ink:       #1E1C14;
+  --gray:      #8A8470;
   --bd: 2.5px solid var(--ink);
   --r: 12px;
 }
@@ -22,10 +19,10 @@ body{
   font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif;
   font-weight:700;
   color:var(--ink);
-  background:var(--cream);
-  /* 方眼＋斜線の下地 */
-  background-image:
-    repeating-linear-gradient(45deg, rgba(27,27,27,.028) 0 6px, transparent 6px 12px);
+  background-color:var(--cream);
+  /* 下地：ドット */
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
   line-height:1.8;
   -webkit-font-smoothing:antialiased;
 }
@@ -43,12 +40,12 @@ img{display:block;max-width:100%;}
   cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s;
   white-space:nowrap;
 }
-.btn:hover{background:var(--yellow);}
+.btn:hover{background:var(--main);}
 .btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink);}
-.btn-y{background:var(--yellow);}
-.btn-y:hover{background:var(--yellow-deep);}
-.btn-g{background:var(--green);color:#fff;}
-.btn-g:hover{background:var(--green-deep);}
+.btn-y{background:var(--main);}
+.btn-y:hover{background:var(--main-deep);}
+.btn-g{background:var(--ink);color:var(--main);}
+.btn-g:hover{background:#000;color:var(--main);}
 .btn-sm{padding:.35rem .75rem;font-size:.72rem;box-shadow:0 2.5px 0 var(--ink);}
 .btn-lg{padding:.85rem 1.7rem;font-size:.95rem;box-shadow:0 4px 0 var(--ink);}
 
@@ -62,7 +59,7 @@ img{display:block;max-width:100%;}
 }
 /* タイトルバー */
 .titlebar{
-  background:var(--orange);
+  background:var(--main);
   border-bottom:var(--bd);
   padding:.7rem .9rem;
   display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;
@@ -74,13 +71,13 @@ img{display:block;max-width:100%;}
   box-shadow:0 3px 0 var(--ink);font-size:1rem;
 }
 .tb-title{
-  font-size:1.05rem;color:#fff;
-  text-shadow:0 2px 0 var(--orange-deep);
+  font-size:1.05rem;color:var(--ink);
+  text-shadow:0 2px 0 rgba(255,255,255,.55);
   display:flex;align-items:center;gap:.5rem;
 }
 .tb-spec{
-  font-size:.66rem;color:#fff;
-  background:rgba(27,27,27,.28);
+  font-size:.66rem;color:var(--main);
+  background:var(--ink);
   border-radius:100px;padding:.2rem .9rem;
   letter-spacing:.05em;
 }
@@ -105,38 +102,41 @@ img{display:block;max-width:100%;}
   transition:transform .08s,box-shadow .08s,background .15s;
 }
 .tool i{font-style:normal;font-size:1.15rem;line-height:1;}
-.tool:hover{background:var(--yellow);}
+.tool:hover{background:var(--main);}
 .tool:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink);}
-.tool.on{background:var(--yellow);}
+.tool.on{background:var(--main);}
 .rail-label{
   text-align:center;font-size:.55rem;color:var(--gray);
   padding:.3rem 0 .1rem;letter-spacing:.1em;
 }
 
-/* キャンバス */
+/* キャンバス：ドットの下地 */
 .canvas{
   position:relative;padding:1.1rem;
-  background:
-    repeating-linear-gradient(45deg, rgba(27,27,27,.05) 0 7px, transparent 7px 14px),
-    var(--cream);
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.17) 1.8px, transparent 1.9px);
+  background-size:12px 12px;
   display:flex;align-items:center;justify-content:center;min-height:440px;
 }
 .canvas-frame{
   position:relative;width:100%;
   border:var(--bd);border-radius:8px;
-  background:var(--yellow);
+  background-color:var(--main);
+  /* 画面内もうっすらドット */
+  background-image:radial-gradient(circle, rgba(30,28,20,.09) 1.6px, transparent 1.7px);
+  background-size:14px 14px;
   overflow:hidden;
   display:grid;grid-template-columns:1fr 1fr;align-items:end;
   min-height:400px;
 }
 .frame-tag{
   position:absolute;top:8px;left:8px;z-index:3;
-  background:var(--ink);color:#fff;
+  background:var(--ink);color:var(--main);
   font-size:.6rem;border-radius:100px;padding:.15rem .7rem;
 }
 .frame-zoom{
   position:absolute;bottom:8px;left:8px;z-index:3;
-  background:rgba(252,248,238,.9);border:2px solid var(--ink);
+  background:rgba(255,254,247,.9);border:2px solid var(--ink);
   font-size:.58rem;border-radius:100px;padding:.1rem .6rem;
 }
 /* 吹き出し */
@@ -154,7 +154,7 @@ img{display:block;max-width:100%;}
   border:7px solid transparent;border-top-color:#fff;
 }
 .balloon h1{font-size:clamp(1.2rem,2.6vw,1.7rem);line-height:1.5;letter-spacing:.02em;}
-.balloon h1 em{font-style:normal;background:var(--yellow);padding:0 .2rem;border-radius:4px;}
+.balloon h1 em{font-style:normal;background:var(--main);padding:0 .2rem;border-radius:4px;}
 .balloon p{font-size:.75rem;font-weight:500;color:#4a453c;margin-top:.5rem;}
 .balloon .chips{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.7rem;}
 .chip{
@@ -167,7 +167,7 @@ img{display:block;max-width:100%;}
   max-height:min(56vh,430px);width:auto;
 }
 /* キラキラ */
-.spark{position:absolute;color:var(--ink);font-size:1rem;opacity:.75;z-index:2;}
+.spark{position:absolute;color:var(--ink);font-size:1rem;opacity:.7;z-index:2;}
 
 /* 右パネル */
 .panel{
@@ -176,10 +176,8 @@ img{display:block;max-width:100%;}
 }
 .pgroup-ttl{font-size:.62rem;color:var(--gray);letter-spacing:.08em;}
 .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
-.sw{
-  aspect-ratio:1;border:2px solid var(--ink);border-radius:5px;
-}
-.sw.on{outline:2.5px solid var(--orange);outline-offset:1px;}
+.sw{aspect-ratio:1;border:2px solid var(--ink);border-radius:5px;}
+.sw.on{outline:2.5px solid var(--main-deep);outline-offset:1px;}
 .layer{
   display:flex;align-items:center;gap:.4rem;
   background:var(--paper);border:var(--bd);border-radius:9px;
@@ -187,7 +185,7 @@ img{display:block;max-width:100%;}
   box-shadow:0 2.5px 0 var(--ink);
   transition:transform .08s,box-shadow .08s,background .15s;
 }
-.layer:hover{background:var(--yellow);}
+.layer:hover{background:var(--main);}
 .layer:active{transform:translateY(2.5px);box-shadow:0 0 0 var(--ink);}
 .layer i{font-style:normal;}
 .toggle{
@@ -197,7 +195,7 @@ img{display:block;max-width:100%;}
 }
 .toggle span.sw-on{
   width:34px;height:18px;border-radius:100px;
-  background:var(--green);border:2px solid var(--ink);
+  background:var(--main);border:2px solid var(--ink);
   position:relative;
 }
 .toggle span.sw-on::after{
@@ -224,15 +222,15 @@ img{display:block;max-width:100%;}
 .tl-frame img{width:100%;height:74px;object-fit:cover;}
 .tl-frame b{
   position:absolute;top:2px;left:3px;
-  font-size:.55rem;background:rgba(27,27,27,.75);color:#fff;
+  font-size:.55rem;background:rgba(30,28,20,.75);color:#fff;
   border-radius:4px;padding:0 .25rem;
 }
-.tl-frame:hover{border-color:var(--yellow);}
+.tl-frame:hover{border-color:var(--main);}
 .tl-add{
   flex:0 0 auto;width:58px;
-  border:2.5px dashed rgba(252,248,238,.6);border-radius:8px;
+  border:2.5px dashed rgba(255,254,247,.6);border-radius:8px;
   display:flex;align-items:center;justify-content:center;
-  color:rgba(252,248,238,.7);font-size:1.2rem;
+  color:rgba(255,254,247,.7);font-size:1.2rem;
 }
 
 /* ============ 下層セクション（ウィンドウ風） ============ */
@@ -242,10 +240,13 @@ img{display:block;max-width:100%;}
   box-shadow:0 5px 0 var(--ink);overflow:hidden;
 }
 .win-bar{
-  background:var(--orange);border-bottom:var(--bd);
+  background:var(--main);border-bottom:var(--bd);
   padding:.55rem .9rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
 }
-.win-bar h2{font-size:.92rem;color:#fff;text-shadow:0 2px 0 var(--orange-deep);}
+.win-bar h2{
+  font-size:.92rem;color:var(--ink);
+  text-shadow:0 2px 0 rgba(255,255,255,.55);
+}
 .win-bar .tb-spec{margin-left:auto;}
 .win-body{padding:1.2rem;}
 
@@ -268,7 +269,7 @@ img{display:block;max-width:100%;}
 .wk-info{padding:.7rem .8rem .8rem;}
 .wk-tag{
   display:inline-block;font-size:.58rem;
-  background:var(--yellow);border:2px solid var(--ink);
+  background:var(--main);border:2px solid var(--ink);
   border-radius:100px;padding:.05rem .6rem;margin-bottom:.3rem;
 }
 .wk-info h3{font-size:.85rem;}
@@ -284,25 +285,25 @@ img{display:block;max-width:100%;}
   display:flex;align-items:center;justify-content:center;
   font-size:.9rem;cursor:pointer;padding:0;font-family:inherit;
 }
-.cbtn:hover{background:var(--yellow);}
+.cbtn:hover{background:var(--main);}
 .cbtn:active{transform:translateY(calc(-50% + 2.5px));box-shadow:0 0 0 var(--ink);}
 .cprev{left:7px;} .cnext{right:7px;}
 .cnum{
   position:absolute;top:7px;right:7px;z-index:3;
-  font-size:.58rem;background:var(--ink);color:#fff;
+  font-size:.58rem;background:var(--ink);color:var(--main);
   border-radius:100px;padding:.05rem .5rem;
 }
 .vbtn{
   position:absolute;bottom:7px;right:7px;z-index:3;
   font:inherit;font-size:.62rem;
-  background:var(--ink);color:#fff;
+  background:var(--ink);color:var(--main);
   border:2.5px solid var(--ink);border-radius:100px;
   padding:.2rem .7rem;cursor:pointer;
 }
-.vbtn.on{background:var(--yellow);color:var(--ink);}
+.vbtn.on{background:var(--main);color:var(--ink);}
 .vlabel{
   position:absolute;top:7px;left:7px;z-index:3;
-  font-size:.58rem;background:var(--yellow);
+  font-size:.58rem;background:var(--main);
   border:2px solid var(--ink);border-radius:100px;padding:.02rem .5rem;
 }
 
@@ -315,7 +316,7 @@ img{display:block;max-width:100%;}
 .pcard .no{font-size:.6rem;color:var(--gray);}
 .pcard h3{font-size:.95rem;margin:.2rem 0 .5rem;}
 .pcard .yen{
-  display:inline-block;background:var(--yellow);
+  display:inline-block;background:var(--main);
   border:2.5px solid var(--ink);border-radius:100px;
   padding:.15rem .8rem;font-size:.9rem;
 }
@@ -343,7 +344,7 @@ img{display:block;max-width:100%;}
   background:#fff;border:var(--bd);border-radius:10px;
   padding:.55rem .7rem;color:var(--ink);outline:none;
 }
-.fg input:focus,.fg select:focus,.fg textarea:focus{background:var(--yellow);}
+.fg input:focus,.fg select:focus,.fg textarea:focus{background:var(--main-soft);}
 .fg textarea{min-height:110px;resize:vertical;}
 
 /* フッター */
@@ -351,17 +352,17 @@ img{display:block;max-width:100%;}
   max-width:1000px;margin:2rem auto 2.5rem;
   border:var(--bd);border-radius:14px;background:var(--ink);
   color:var(--cream);padding:1rem 1.2rem;text-align:center;
-  box-shadow:0 4px 0 rgba(27,27,27,.35);
+  box-shadow:0 4px 0 rgba(30,28,20,.35);
 }
 .foot .fl{display:flex;gap:.9rem;justify-content:center;flex-wrap:wrap;margin:.6rem 0;}
-.foot .fl a{font-size:.66rem;color:var(--yellow);}
+.foot .fl a{font-size:.66rem;color:var(--main);}
 .foot small{font-size:.58rem;opacity:.55;font-weight:500;}
 
 /* 上へ戻る */
 .totop{
   position:fixed;right:1.2rem;bottom:1.2rem;z-index:90;
   width:48px;height:48px;border-radius:12px;
-  background:var(--yellow);border:var(--bd);
+  background:var(--main);border:var(--bd);
   box-shadow:0 4px 0 var(--ink);
   display:flex;align-items:center;justify-content:center;
   font:inherit;font-size:1.1rem;cursor:pointer;
