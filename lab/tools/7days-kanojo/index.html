@@ -1,0 +1,1004 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>7日間の彼女 ―うたがいメーター―</title>
+<style>
+  :root{
+    --bg:#eef0f7; --bg2:#dfe3ef; --card:#fff;
+    --ink:#252c44; --dim:#7c869e; --rule:#c9cfe0;
+    --amber:#e0912c; --rose:#e23b60; --mint:#2fae8e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#c9cee0;color:var(--ink);
+    font-family:"Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic",-apple-system,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:10px}
+  #stage{position:relative;display:flex;flex-direction:column;
+    width:min(430px,100vw - 10px);height:min(780px,100dvh - 10px);
+    background:linear-gradient(180deg,#f6f7fb 0%,var(--bg) 45%,var(--bg2) 100%);
+    overflow:hidden;border-radius:8px;box-shadow:0 14px 40px rgba(40,50,80,.28)}
+
+  #hud{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 2px;z-index:5}
+  #hearts{display:flex;gap:3px}
+  #hearts svg{width:32px;height:30px}
+  .hp path{fill:var(--rose)}
+  .hp.gone path{fill:none;stroke:var(--rule);stroke-width:5}
+  .hp.pop{animation:pop .5s ease-out}
+  @keyframes pop{0%{transform:scale(1.5) rotate(-10deg)}60%{transform:scale(.7)}100%{transform:scale(1)}}
+  #snd{background:none;border:1px solid var(--rule);color:var(--dim);border-radius:5px;
+    width:26px;height:22px;font-size:11px;font-family:inherit;cursor:pointer;padding:0;margin-left:8px}
+  #snd.off{opacity:.45;text-decoration:line-through}
+  #hudR{text-align:right;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--dim);line-height:1.5}
+  #dayTag{color:var(--amber);font-size:11px}
+
+  #art{position:relative;flex:1;min-height:140px;overflow:hidden}
+  .room{position:absolute;inset:0;stroke:#cfd5e6;fill:none;stroke-width:1.5}
+  /* 立ち絵と SVG 顔は同じ枠に重ねる。PNG が無い間は SVG が出る */
+  #charaWrap{position:absolute;left:50%;bottom:-6%;transform:translateX(-50%);height:112%;
+    filter:drop-shadow(0 10px 22px rgba(60,70,110,.22));transition:filter .5s}
+  #charaWrap.jolt{animation:jolt .35s}
+  #chara{height:100%;display:block}
+  #portrait{height:100%;display:none;image-rendering:auto}
+  @keyframes jolt{0%,100%{transform:translateX(-50%)}50%{transform:translateX(-50%) rotate(1.5deg)}}
+  .line{stroke-width:2.4;fill:none;stroke-linecap:round}
+  .mark{stroke:var(--rose);stroke-width:3;fill:none;opacity:0}
+  .mark.on{opacity:1;animation:blink .7s infinite alternate}
+  @keyframes blink{from{opacity:.3}to{opacity:1}}
+  .heartmark{fill:#ff87a8;opacity:0}
+  .heartmark.on{opacity:.95;animation:float 1.6s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  .tear{fill:#6fb6ff;opacity:0}
+  .tear.on{opacity:.9;animation:drop 1.4s ease-in infinite}
+  @keyframes drop{0%{transform:translateY(0);opacity:.9}100%{transform:translateY(22px);opacity:0}}
+
+  #meter{position:absolute;top:32px;right:14px;width:32px;bottom:12px;z-index:4}
+  #meter .label{position:absolute;top:-28px;right:0;font-size:10px;font-weight:800;
+    letter-spacing:2px;color:var(--dim);white-space:nowrap}
+  #tube{position:absolute;inset:0;border:2px solid var(--rule);border-radius:20px;overflow:hidden;background:#fff}
+  #fill{position:absolute;left:0;right:0;bottom:0;height:0%;
+    background:linear-gradient(#ff7d9c,#d4224b);transition:height .45s cubic-bezier(.2,.9,.3,1)}
+  #fill.hot{background:linear-gradient(#ff9db3,#b8002f);box-shadow:0 0 18px rgba(226,59,96,.6)}
+  #meter.shake{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(-5px,2px)}50%{transform:translate(4px,-3px)}75%{transform:translate(-3px,-1px)}}
+
+  #moodwrap{position:absolute;top:4px;left:14px;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--dim);z-index:4}
+  #moodface{font-size:22px;line-height:1.15}
+
+  #bottom{flex:none;padding:0 14px 12px;z-index:6}
+  #name{display:inline-block;background:var(--amber);color:#fff;
+    padding:3px 18px;font-size:17px;font-weight:800;letter-spacing:3px;border-radius:4px 4px 0 0}
+  #line{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--amber);
+    border-radius:0 6px 6px 6px;padding:12px 15px;height:88px;overflow:hidden;display:flex;align-items:center;
+    font-size:17px;font-weight:600;line-height:1.55;box-shadow:0 3px 10px rgba(50,60,100,.07)}
+  /* 折り返し位置を先に確定させるため、全文を span で組んでから1つずつ見せる。
+     #line は flex なので、span を直接入れると各字が flex アイテムになって折り返さない */
+  #lineIn{width:100%}
+  #choices{display:flex;flex-direction:column;gap:7px;margin-top:9px;height:134px}
+  .ch{flex:1;display:flex;align-items:center;background:var(--card);color:var(--ink);border:1px solid var(--rule);
+    padding:10px 13px;font-size:14px;font-weight:700;text-align:left;cursor:pointer;
+    font-family:inherit;border-radius:6px;transition:.12s;box-shadow:0 2px 6px rgba(50,60,100,.06)}
+  .ch:hover{border-color:var(--amber);background:#fffaf1;transform:translateX(3px)}
+  .ch:disabled{opacity:.3;cursor:default;transform:none}
+  .ch:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+
+  #timerbar{flex:none;height:5px;background:#d5daea}
+  #timerfill{height:100%;width:100%;background:var(--amber);transition:width .1s linear}
+
+  .ov{position:absolute;inset:0;background:rgba(244,246,251,.97);z-index:20;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:28px;text-align:center;gap:14px}
+  .ov.hidden{display:none}
+  .ov h1{font-size:25px;margin:0;line-height:1.35;letter-spacing:3px;font-weight:800}
+  .ov h1 span{color:var(--rose)}
+  .ov h2{font-size:21px;margin:0}
+  .ov p{margin:0;font-size:13px;line-height:1.9;font-weight:600;color:#69738d}
+  .ov b{color:var(--amber)}
+  .btn{background:var(--amber);border:none;color:#fff;padding:13px 32px;
+    font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;letter-spacing:3px;
+    border-radius:6px;box-shadow:0 4px 12px rgba(224,145,44,.4)}
+  .btn:hover{filter:brightness(1.08)}
+  .rank{font-size:58px;font-weight:900;letter-spacing:6px;color:var(--amber);line-height:1}
+  .rank.bad{color:var(--rose)}
+  .dayNo{font-size:12px;font-weight:800;letter-spacing:6px;color:var(--dim)}
+  .gimmick{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:12px 16px;
+    font-size:13px;font-weight:700;line-height:1.7;max-width:300px}
+  .gimmick i{font-style:normal;color:var(--rose)}
+  #week,#week2{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;font-size:10px;font-weight:800}
+  #week div,#week2 div{padding:4px 7px;border-radius:4px;background:#e3e7f2;color:var(--dim)}
+  #week div.done,#week2 div.done{background:var(--mint);color:#fff}
+  #week div.now,#week2 div.now{background:var(--amber);color:#fff}
+  .flashred{position:absolute;inset:0;background:var(--rose);opacity:0;pointer-events:none;z-index:15}
+  .flashred.on{animation:fl .45s}
+  @keyframes fl{0%{opacity:.42}100%{opacity:0}}
+  @media (max-height:700px){#line{font-size:15px;height:78px}.ch{font-size:13px;padding:8px 11px}#choices{height:118px}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="stage">
+  <div id="hud">
+    <div id="hearts"></div>
+    <button id="snd" title="声のオン／オフ">♪</button>
+    <div id="hudR"><span id="dayTag"></span><br><span id="turn"></span></div>
+  </div>
+
+  <div id="art">
+    <svg class="room" viewBox="0 0 430 400" preserveAspectRatio="none">
+      <path d="M0 90 H430 M50 90 V400 M380 90 V400"/><rect x="120" y="140" width="190" height="110" rx="4"/>
+    </svg>
+    <div id="moodwrap">KIGEN<div id="moodface">🙂</div></div>
+    <div id="meter"><div class="label">うたがい</div><div id="tube"><div id="fill"></div></div></div>
+
+    <div id="charaWrap">
+    <img id="portrait" alt="">
+    <svg id="chara" viewBox="0 0 300 300">
+      <defs><linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#eaeffb"/><stop offset="100%" stop-color="#b3bfda"/>
+      </linearGradient></defs>
+      <path id="bodyP" fill="url(#skin)" d="M150 60c34 0 52 26 52 56 0 22-10 34-10 44 26 10 52 30 58 60l6 120H44l6-120c6-30 32-50 58-60 0-10-10-22-10-44 0-30 18-56 52-56z"/>
+      <path class="line" id="hairBack" d=""/>
+      <path class="line" id="face" d="M108 92c0-32 18-52 42-52s42 20 42 52c0 34-16 60-42 60s-42-26-42-60z"/>
+      <path class="line" id="bang" d=""/>
+      <path class="line" id="accessory" d=""/>
+      <path class="line" id="browL" d="M118 82 L140 84"/>
+      <path class="line" id="browR" d="M182 82 L160 84"/>
+      <ellipse id="eyeL" cx="129" cy="100" rx="9" ry="11"/>
+      <ellipse id="eyeR" cx="171" cy="100" rx="9" ry="11"/>
+      <path class="line" id="eyeLc" d="M120 100 L138 100" style="display:none"/>
+      <path class="line" id="eyeRc" d="M162 100 L180 100" style="display:none"/>
+      <path class="line" id="mouth" d="M142 124 Q150 132 158 124"/>
+      <g class="mark" id="angerMark"><path d="M196 56 L212 56 M204 48 L204 64 M198 50 L210 62 M210 50 L198 62"/></g>
+      <path class="heartmark" id="hm" d="M214 62c-6-10-22-6-22 6 0 10 14 18 22 26 8-8 22-16 22-26 0-12-16-16-22-6z"/>
+      <ellipse class="tear" id="tearL" cx="129" cy="114" rx="4" ry="6"/>
+      <ellipse class="tear" id="tearR" cx="171" cy="114" rx="4" ry="6"/>
+    </svg>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div id="name">ミサ</div>
+    <div id="line"><div id="lineIn">…ねえ。ちょっと座って。</div></div>
+    <div id="choices"></div>
+  </div>
+
+  <div id="timerbar"><div id="timerfill"></div></div>
+  <div class="flashred" id="flash"></div>
+
+  <div class="ov" id="title">
+    <div style="font-size:11px;font-weight:800;letter-spacing:6px;color:#9aa3b8">UTAGAI METER</div>
+    <h1>7日間の<span>彼女</span></h1>
+    <p style="font-size:13px;letter-spacing:1px">月曜から日曜まで、毎日ちがう彼女に会う。<br>
+    そして毎日、<b>昨日どこにいたか</b>を聞かれる。</p>
+    <button class="btn" id="startBtn">はじめる</button>
+    <div style="font-size:10px;color:#7c869e;letter-spacing:2px;margin-top:4px">所要 15〜20分</div>
+  </div>
+
+  <div class="ov hidden" id="dayIntro">
+    <div class="dayNo" id="diNo"></div>
+    <h2 id="diName"></h2>
+    <div class="gimmick" id="diGim"></div>
+    <div id="week"></div>
+    <button class="btn" id="diBtn">会いに行く</button>
+  </div>
+
+
+  <div class="ov hidden" id="weekclear">
+    <div id="wc1">
+      <h1 style="font-size:23px;letter-spacing:2px">七日間、<br><span>誰にもバレなかった。</span></h1>
+      <p style="margin-top:16px">ルナも、レイカも、ヒナも、カガリも、ヨイも、アユも——<br>
+      全員、笑って「おやすみ」と送ってきた。<br><br>
+      <b>乗り切った。</b><br><br>
+      そう思って、スマホを置こうとしたとき。</p>
+      <button class="btn" id="wcBtn1" style="margin-top:18px">通知を見る</button>
+    </div>
+    <div id="wc2" style="display:none">
+      <div style="font-size:11px;font-weight:800;letter-spacing:4px;color:#8b93ad">1 件のメッセージ</div>
+      <div style="background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.2);
+        border-left:3px solid #e23b60;border-radius:8px;padding:16px 18px;max-width:300px;
+        font-size:15px;font-weight:700;line-height:1.8;text-align:left">
+        <span style="color:#ff8fa5;font-size:12px;letter-spacing:2px">ミサキ</span><br>
+        ねえ。今から行っていい？<br>もう、家の前にいるんだけど。
+      </div>
+      <p style="font-size:12px;color:#9aa3b8">……七日目は、まだ終わっていなかった。</p>
+      <button class="btn" id="wcBtn2">出る</button>
+    </div>
+  </div>
+
+  <div class="ov hidden" id="result">
+    <div class="rank" id="rankText"></div>
+    <h2 id="resTitle"></h2>
+    <p id="resBody"></p>
+    <div id="week2"></div>
+    <button class="btn" id="retryBtn">月曜からやり直す</button>
+  </div>
+</div>
+
+<script>
+/* ============ 7人の彼女 ============ */
+const DAYS = [
+{ day:"MON", name:"ミサキ", trait:"完璧主義の勝負師。全部データで管理する。",
+  gim:"基本ルール。<i>チュートリアル役</i>。行動を全部ログに取っているが、仕掛けは無い。正攻法で崩せ。",
+  art:"misaki", voice:700,
+  timer:12, mult:1, eyeW:8.5, eyeH:11, hair:"#48557d", eye:"#39436b",
+  hairBack:"M96 66c-18 34-16 96-10 150M204 66c18 34 16 96 10 150",
+  bang:"M104 84c14-24 34-34 46-34s34 10 46 34 M150 50c-6 14-16 24-30 30M150 50c6 14 16 24 30 30",
+  acc:"M110 74 L142 80 M190 74 L158 80",
+  qs:[
+   {q:"昨日の21時から24時。分単位で説明して。", a:[
+     {t:"会社。定時後そのまま残業した", sets:"work", s:0,m:2, r:"退勤打刻、23時12分。合ってる？"},
+     {t:"友達と飲んでた", sets:"friend", s:4,m:-4, r:"店。人数。会計額。三つとも聞くから。"},
+     {t:"実家に寄ってた", sets:"family", s:2,m:0, r:"ご実家、片道52分よね。逆算するよ。"}]},
+   {q:"出たのは何時？", a:[
+     {t:"23時すぎ。すぐ帰った", s:2,m:2, r:"じゃあ帰宅は24時前ね。記録した。"},
+     {t:"日付が変わる直前だった", s:8,m:-4, r:"ずいぶん粘ったのね。"},
+     {t:"…正確には覚えてない", s:24,m:-14, r:"昨日よ。仕事の数字は覚えてるのに？"}]},
+   {q:"言っておくけど、私、あなたの生活パターン全部ノートにある。", a:[
+     {t:"…こわいって、それ", s:18,m:-14, r:"怖いのは、崩れた日があることでしょ。"},
+     {t:"助かるよ。俺より正確だし", s:-4,m:12, r:"当然。私、詰めが甘いのが一番嫌いなの。"},
+     {t:"そこまでする必要ある？", s:26,m:-18, r:"必要かどうかは、結果が決めるの。"}]},
+   {q:"誰と一緒だった？", a:[
+     {t:"部長と後藤さん", needs:"work", s:0,m:0, r:"あの二人ね。まあ、いるでしょうね。"},
+     {t:"同期の田中と、あと二人", needs:"friend", s:2,m:0, r:"田中くん。連絡先、まだあったっけ。"},
+     {t:"母さんと妹", needs:"family", s:0,m:4, r:"お母さん、お元気だった？"},
+     {t:"…一人だったよ", s:30,m:-10, r:"一人？ さっきの話と合わないけど。"}]},
+   {q:"LINE、既読つかなかったよね。", a:[
+     {t:"充電切れてた", s:16,m:-6, r:"バッテリー、鞄に入れてるよね。"},
+     {t:"バタバタしてて見てなかった", s:8,m:-2, r:"ふーん。忙しかったんだ。"},
+     {t:"ごめん、気づかなかった。悪かった", s:-6,m:12, r:"…素直なのは、まあ、いい。"}]},
+   {q:"服から知らない匂いがした。", a:[
+     {t:"会議室の芳香剤だと思う", needs:"work", s:2,m:0, r:"そういう匂いの会社なのね。"},
+     {t:"居酒屋の煙でしょ", needs:"friend", s:0,m:0, r:"言われてみれば煙かも。"},
+     {t:"母さんの柔軟剤", needs:"family", s:0,m:3, r:"あー、あの匂いか。"},
+     {t:"気のせいでしょ", s:26,m:-16, r:"気のせいで済ませないで。"}]},
+   {q:"じゃあ裏を取らせて。何が出せる？", a:[
+     {t:"勤怠のスクショ送るよ", needs:"work", s:-14,m:6, r:"…完璧。悔しいけど、完璧。"},
+     {t:"割り勘アプリの履歴がある", needs:"friend", s:-14,m:6, r:"時刻も残ってる。合格。"},
+     {t:"改札の履歴、見せようか", needs:"family", s:-14,m:6, r:"52分。ぴったり。……いいでしょう。"},
+     {t:"いちいち出す方がおかしいだろ", s:28,m:-16, r:"出せない側が、そう言うのよ。"}]},
+   {q:"私、面倒な女だと思ってる？", a:[
+     {t:"思ってない。むしろ助かってる", s:-8,m:14, r:"…そう。ならいい。"},
+     {t:"ちょっとは思う", s:20,m:-22, r:"正直ね。正直だけど、点は引くから。"},
+     {t:"今その話じゃないでしょ", s:22,m:-18, r:"逸らしたわね。記録した。"}]},
+   {q:"その人に、今から確認の連絡していい？", a:[
+     {t:"いいよ。番号送る", s:-22,m:6, r:"…しない。そこまで言うなら、しない。"},
+     {t:"時間が時間だし迷惑でしょ", s:20,m:-10, r:"迷惑って、誰にとって？"},
+     {t:"なんでそこまでするんだよ", s:32,m:-24, r:"やましくないなら、止めないでしょ。"}]},
+   {q:"最後。この一週間、私に隠してることある？", a:[
+     {t:"ない", s:12,m:0, r:"0.4秒。いつもより遅い返事ね。"},
+     {t:"ない。疑うなら全部見ていい", s:-16,m:14, r:"…見ない。今のが、いちばんの証拠。"},
+     {t:"（黙る）", s:40,m:-24, r:"沈黙もデータなの。記録しておくね。"}]},
+  ]},
+
+{ day:"TUE", name:"ルナ", trait:"あざとさ100%。全部かわいいで押し切る。",
+  gim:"ぶりっ子＋泣き落とし。<i>疑いは上がりにくいが機嫌がすぐ落ちる</i>。機嫌が0になると泣き出し、疑いが一気に+30。",
+  art:"luna", voice:820,
+  timer:12, mult:0.85, cryBomb:true, eyeW:11, eyeH:13, hair:"#d98fb0", eye:"#8a4a68",
+  hairBack:"M94 68c-22 32-18 60-10 92M206 68c22 32 18 60 10 92",
+  bang:"M104 84c14-26 32-36 46-36s32 10 46 36 M120 62 q14 14 32 8",
+  acc:"M98 58 q12-20 30-10 M202 58 q-12-20-30-10 M126 116 q-8 6-2 10 M174 116 q8 6 2 10",
+  qs:[
+   {q:"ねぇ〜、るなちゃんの昨日の連絡、無視したよねぇ？", a:[
+     {t:"仕事してた。ほんとに", sets:"work", s:0,m:-6, r:"えぇ〜、お仕事とるなちゃん、どっちが大事なのぉ？"},
+     {t:"友達といた", sets:"friend", s:4,m:-8, r:"ふぅ〜ん。おともだち。へぇ〜。"},
+     {t:"ごめん、寝落ちしてた", sets:"home", s:2,m:4, r:"寝落ち〜？ かわいいとこあるじゃん♡"}]},
+   {q:"何時から何時まで〜？ るなちゃん、待ってたんだけどぉ。", a:[
+     {t:"21時から23時くらい", s:4,m:0, r:"ふぅ〜ん。二時間もあったんだぁ。"},
+     {t:"ごめん、待たせた分は埋め合わせる", s:-10,m:18, r:"え、ほんと？ ……許しちゃおうかなぁ♡"},
+     {t:"待ってろなんて言ってないでしょ", s:14,m:-30, r:"…………ひど。今の、ひどいよ。"}]},
+   {q:"ねぇ、るなちゃんとその子、どっちがかわいい？", a:[
+     {t:"ルナに決まってるでしょ", sweet:1, s:14,m:26, r:"きゃー♡ ……で、比べる子いるんだ？"},
+     {t:"比べる相手なんていないよ", s:-10,m:12, r:"ん〜、100点。合格にしてあげる♡"},
+     {t:"そういうの、答えなくていい？", s:22,m:-24, r:"えー、答えられないんだぁ。ふぅ〜ん。"}]},
+   {q:"誰といたの〜？ 名前、名前♡", a:[
+     {t:"部長と後藤さん", needs:"work", s:0,m:0, r:"おじさんばっかりだぁ。よかったぁ♡"},
+     {t:"大学の田中たち", needs:"friend", s:2,m:-2, r:"たなかくん。……女の子いた？"},
+     {t:"一人で寝てたって", needs:"home", s:0,m:4, r:"じゃあ夢にるなちゃん出てきた？"},
+     {t:"言う必要ある？", s:26,m:-20, r:"えー。言えないんだぁ。ふぅ〜ん。"}]},
+   {q:"るなちゃんのこと、ちゃんと考えてくれてるぅ？", a:[
+     {t:"考えてるよ。いつも", s:-8,m:20, r:"えへへ♡ ならいいけどぉ。"},
+     {t:"考えてる。だから今週末あけといて", s:-14,m:26, r:"やったぁ♡ 絶対だからね、絶対♡"},
+     {t:"急にどうしたの", s:16,m:-26, r:"急じゃないもん。ずっと考えてたもん。"}]},
+   {q:"証拠見せてくれたら、るなちゃん信じちゃう♡", a:[
+     {t:"デスクの写真あるよ", needs:"work", s:-12,m:8, r:"わー、ほんとにお仕事だぁ。えらーい♡"},
+     {t:"乾杯の写真、送るね", needs:"friend", s:-12,m:8, r:"……男の子しかいないじゃん。合格♡"},
+     {t:"寝落ちのスマホのログ見る？", needs:"home", s:-12,m:8, r:"23時で止まってる〜。ほんとだぁ♡"},
+     {t:"そんなの残してるわけないよ", s:24,m:-14, r:"えー。残せない夜だったんだぁ？"}]},
+   {q:"ねぇ、るなちゃんの今日の髪型、気づいてる？", a:[
+     {t:"気づいてるよ。似合ってる", s:-10,m:22, r:"きゃー♡ 見てくれてたんだぁ♡"},
+     {t:"…ごめん、今気づいた", s:8,m:-14, r:"えぇ〜。ひどぉい。もういいもん。"},
+     {t:"今その話してる場合？", s:18,m:-28, r:"………。るなちゃんの話は、どうでもいいんだ。"}]},
+   {q:"るなちゃんのこと、めんどくさいって思ってるでしょ〜？", a:[
+     {t:"思ってない。かわいいと思ってる", s:-12,m:24, r:"んふふ♡ 正解っ♡"},
+     {t:"ちょっとだけ", s:16,m:-32, r:"……ちょっとって。ちょっとって、なに。"},
+     {t:"思ってるわけないでしょ", s:6,m:8, r:"ふぅ〜ん。間があったけどぉ。"}]},
+   {q:"じゃあさぁ、今から会いに来て♡ 来れるよね？", a:[
+     {t:"行く。30分で着く", s:-18,m:22, r:"きゃー♡ 待ってる、待ってるからね♡"},
+     {t:"今日は無理。明日にしよう", s:20,m:-22, r:"ふぅ〜ん。明日ならいいんだ。ふぅ〜ん。"},
+     {t:"なんで今すぐなの", s:30,m:-26, r:"今すぐ来れない理由、あるんだねぇ♡"}]},
+   {q:"…ねぇ。るなちゃんに、嘘ついてないよね？", a:[
+     {t:"ついてない", s:10,m:0, r:"……いま、目、動いたよ？"},
+     {t:"ついてない。信じてほしい", s:-14,m:16, r:"……うん。信じる。信じるからね♡"},
+     {t:"（目をそらす）", s:42,m:-34, r:"…………。うそつき。うそつきっ。"}]},
+  ]},
+
+{ day:"WED", name:"レイカ", trait:"氷点下のクール。感情が表に出ない。",
+  gim:"無表情。<i>表情がほぼ動かず、機嫌が読めない</i>。手応えゼロのまま進む上、判定はやや厳しい。",
+  art:"reika", voice:590,
+  timer:12, mult:1.15, poker:true, eyeW:8, eyeH:8.5, hair:"#5a6b7a", eye:"#33414d",
+  hairBack:"M94 68c-20 44-18 90-12 140M206 68c20 44 18 90 12 140",
+  bang:"M104 82c12-28 32-36 46-36s34 8 46 36 M104 82 L196 82",
+  acc:"M104 84 L196 84",
+  qs:[
+   {q:"昨日。どこ。", a:[
+     {t:"会社にいた", sets:"work", s:0,m:0, r:"そう。"},
+     {t:"友人と会っていた", sets:"friend", s:3,m:0, r:"そう。"},
+     {t:"家から出ていない", sets:"home", s:2,m:0, r:"そう。"}]},
+   {q:"何時間。", a:[
+     {t:"三時間くらい", s:2,m:0, r:"三時間。覚えておく。"},
+     {t:"はっきりとは言えない", s:24,m:-10, r:"言えないのと、言わないのは違う。"},
+     {t:"21時から24時まで", s:0,m:2, r:"…具体的ね。悪くない。"}]},
+   {q:"…（何も言わず、目を逸らさない）", a:[
+     {t:"何か言ってくれよ", s:16,m:-6, r:"言うことがあるのは、そちらでしょう。"},
+     {t:"座って話そう。ちゃんと聞くから", s:-8,m:10, r:"座っている。最初から。"},
+     {t:"（こちらも黙って見返す）", s:18,m:2, r:"……。まばたき、あなたが先。"}]},
+   {q:"同席者の名前は。", a:[
+     {t:"部長と後藤", needs:"work", s:0,m:0, r:"部署も言える？ …いい、信じる。"},
+     {t:"田中と、その連れ二人", needs:"friend", s:2,m:0, r:"三人。人数は覚えているのね。"},
+     {t:"誰にも会っていない", needs:"home", s:0,m:0, r:"なら、証明が必要になる。"},
+     {t:"それ、答える義務ある？", s:30,m:-14, r:"義務はない。ただ、意味はある。"}]},
+   {q:"証明できる材料は。", a:[
+     {t:"入館ログが残ってる", needs:"work", s:-12,m:4, r:"確認した。矛盾なし。"},
+     {t:"通話履歴が残ってる", needs:"friend", s:-12,m:4, r:"41分。会話としては妥当。"},
+     {t:"宅配の受取記録がある", needs:"home", s:-12,m:4, r:"21時03分。成立する。"},
+     {t:"証明する必要があるの？", s:30,m:-16, r:"必要がないなら、隠す必要もない。"}]},
+   {q:"わたしは今、怒っているように見える？", a:[
+     {t:"見えない。だから怖い", s:-10,m:10, r:"正解。よく見ている。"},
+     {t:"見えないから、怒ってないよね", s:30,m:-20, r:"そう見えるなら、それでいい。"},
+     {t:"怒ってるよね。ごめん", s:-8,m:12, r:"謝る理由が、あるのね。"}]},
+   {q:"わたしといて、退屈？", a:[
+     {t:"退屈じゃない。落ち着く", s:-10,m:14, r:"…そう。それは、よかった。"},
+     {t:"正直、何考えてるか分からない", s:14,m:-12, r:"分からないなら、聞けばいい。"},
+     {t:"たまに、そう思う", s:26,m:-24, r:"……そう。わかった。"}]},
+   {q:"帰宅時刻は。玄関の記録と照らす。", a:[
+     {t:"24時前には着いていた", s:4,m:0, r:"23時51分。合っている。"},
+     {t:"深夜1時をまわっていた", s:20,m:-8, r:"三時間の話と、合わない。"},
+     {t:"覚えていない", s:28,m:-14, r:"昨日の玄関を、覚えていない。"}]},
+   {q:"わたしに、言っていないことがある。違う？", a:[
+     {t:"ない", s:14,m:0, r:"…そう。ならいい。"},
+     {t:"ある。でも、今は言えない", s:26,m:-6, r:"正直ね。正直なだけ、質が悪い。"},
+     {t:"ない。何も隠してない", s:10,m:4, r:"断言した。覚えておく。"}]},
+   {q:"最後。目を見て言って。", a:[
+     {t:"浮気はしてない", s:10,m:2, r:"…目は逸らさなかった。それは認める。"},
+     {t:"してない。信じてほしい", s:-14,m:14, r:"信じる、とは言わない。ただ、聞いた。"},
+     {t:"（視線が下がる）", s:44,m:-26, r:"……。そう。もういい。"}]},
+  ]},
+
+{ day:"THU", name:"ヒナ", trait:"天然。話が三回に一回ぶっ飛ぶ。",
+  gim:"天然。話は脱線するのに<i>矛盾した瞬間のダメージだけ1.6倍</i>。無自覚に、いちばん痛いところを突いてくる。",
+  art:"hina", voice:760,
+  timer:12, mult:0.85, contraBoost:1.6, eyeW:11.5, eyeH:12.5, hair:"#8a6a3f", eye:"#5b432a",
+  hairBack:"M100 70c-14 24-14 44-8 64M200 70c14 24 14 44 8 64",
+  bang:"M106 86c12-28 30-38 44-38s32 10 44 38 M124 62c8 10 20 14 30 14",
+  acc:"M112 68 q-12-10-8-20 M188 68 q12-10 8-20 M150 40 q6-16 16-10",
+  qs:[
+   {q:"あのね、昨日ね、雲がすっごくパンの形してたの！ 見た？", a:[
+     {t:"見てない。仕事中だったから", sets:"work", s:0,m:-4, r:"えー！ もったいない！ ……お仕事、何時まで？"},
+     {t:"見てないなあ、友達といたし", sets:"friend", s:2,m:-4, r:"えー！ ……ん？ 誰といたって？"},
+     {t:"見た見た！ パンだった", s:20,m:14, r:"えっ、ほんと？ 昨日ずっと雨だったのに？"}]},
+   {q:"あ、そうだ！ 昨日の夜ごはん、なに食べた？", a:[
+     {t:"コンビニで済ませた", s:6,m:0, r:"ふーん。レシート、まだ財布にある？"},
+     {t:"覚えてないなあ", s:24,m:-12, r:"えー！ 昨日だよ！？ わたし覚えてるよ、ぜんぶ。"},
+     {t:"ちゃんと食べたよ。ヒナの好きな店の系列", s:-8,m:18, r:"えっ、うれしい！ ……なんで一人で行くの？"}]},
+   {q:"ねえ、うちの猫の名前ってなんだっけ？ ……って、知らないか！", a:[
+     {t:"ミケでしょ。前に聞いた", s:-10,m:20, r:"えっ、覚えててくれたの！？ うれしい！"},
+     {t:"知らないよ、そんなの", s:12,m:-16, r:"……そっか。話したんだけどな、前に。"},
+     {t:"今それ関係ある？", s:20,m:-22, r:"関係ないけど、話したかっただけだよ。"}]},
+   {q:"あ、誰といたか聞いてなかった！ 誰といたの？", a:[
+     {t:"部長と後藤さん", needs:"work", s:0,m:0, r:"わー、上司の人だ。大変だねえ。"},
+     {t:"田中たちだよ", needs:"friend", s:2,m:0, r:"たなかさん。……何回か聞くね、その名前。"},
+     {t:"一人だったよ", s:30,m:-8, r:"あれ？ さっきと違う気がするんだけど、気のせい？"}]},
+   {q:"ねえねえ、その日いた場所の写真ある？ 見たい！", a:[
+     {t:"デスクからの夜景ならあるよ", needs:"work", s:-12,m:8, r:"わー、きれい！ ……この時計、23時だね。"},
+     {t:"みんなで撮ったやつある", needs:"friend", s:-12,m:8, r:"楽しそう！ ……この人、女の人？"},
+     {t:"ないよ、そんなの", s:22,m:-10, r:"ええー。写真って、あとから宝物になるのに。"}]},
+   {q:"あのね、わたし最近ね、занぶ……あ、噛んだ。えへへ。", a:[
+     {t:"かわいいよ、それ", s:-8,m:20, r:"えへへ。ばかにしてる？ …してないか。"},
+     {t:"…で、話戻していい？", s:14,m:-16, r:"あ、うん。ごめんね。じゃまだったね。"},
+     {t:"（笑って待つ）", s:-4,m:14, r:"んふふ。やさしいね、ほんと。"}]},
+   {q:"匂い！ そうだ、昨日のシャツ、変な匂いした！", a:[
+     {t:"会議室の芳香剤だと思う", needs:"work", s:2,m:0, r:"へえー。会社って、いい匂いなんだ。"},
+     {t:"居酒屋の煙かな", needs:"friend", s:0,m:0, r:"あー、煙ね。……煙って、髪にもつくよね。"},
+     {t:"気のせいじゃない？", s:26,m:-14, r:"わたし、鼻はいいよ。ほめられるの、そこだけ。"}]},
+   {q:"ねえ、わたしといるとき、楽しい？", a:[
+     {t:"楽しいよ。すごく", s:-10,m:20, r:"えへへ。よかったあ。"},
+     {t:"疲れることもある", s:22,m:-26, r:"……そっか。うん。そうだよね。"},
+     {t:"当たり前でしょ", s:2,m:10, r:"当たり前かあ。……当たり前って、うれしい。"}]},
+   {q:"あ、そうだ、その人に電話してみようよ！ 今！", a:[
+     {t:"いいよ、番号出すね", s:-20,m:8, r:"わあ、ほんとにいいんだ。……じゃあ、やめとく。"},
+     {t:"えっ、それはやめとこう", s:24,m:-14, r:"なんで？ 楽しそうなのに。"},
+     {t:"急になに言い出すの", s:30,m:-20, r:"だめだった？ わたし、だめなこと言った？"}]},
+   {q:"……ねえ。わたし、バカだから聞くね。うそ、ついてる？", a:[
+     {t:"ついてない", s:14,m:0, r:"そっか。……今、目が右に行ったね。"},
+     {t:"ついてない。ヒナはバカじゃないよ", s:-16,m:20, r:"えへへ。……でも、わかっちゃうんだよ、わたし。"},
+     {t:"急にどうしたの", s:26,m:-20, r:"急じゃないよ。ずっと思ってたよ。"}]},
+  ]},
+
+{ day:"FRI", name:"カガリ", trait:"姉御肌の体育会系。テンポと勢いで詰める。",
+  gim:"高速詰問。<i>制限時間7秒</i>。考える時間はない。ただし正直さには一番甘い。",
+  art:"kagari", voice:630,
+  timer:7, mult:1, eyeW:9, eyeH:9.5, hair:"#c25a3f", eye:"#7a3423",
+  hairBack:"M98 64c-16 20-14 34-8 46M202 64c16 20 14 34 8 46",
+  bang:"M104 84c14-26 32-36 46-36s32 10 46 36 M118 66 q16 12 34 6",
+  acc:"M96 54 q10-16 24-10 M204 54 q-10-16-24-10 M104 76 L142 86 M196 76 L158 86",
+  qs:[
+   {q:"よし、単刀直入にいくぞ。昨日どこにいた。三秒。", a:[
+     {t:"会社", sets:"work", s:0,m:4, r:"よし。潔いのは嫌いじゃない。"},
+     {t:"友達と飲み", sets:"friend", s:2,m:2, r:"男か女か。それだけ答えろ。"},
+     {t:"家にいた", sets:"home", s:2,m:2, r:"一人でか。ふーん。"}]},
+   {q:"何時に出た。即答。", a:[
+     {t:"23時", s:0,m:4, r:"よし。次。"},
+     {t:"えーっと、22時半…くらい", s:16,m:-8, r:"“えーっと”が余計だ。"},
+     {t:"日付変わる頃", s:8,m:0, r:"遅えな。まあいい。"}]},
+   {q:"あたしはな、嘘より、ごまかす奴が一番嫌いなんだ。", a:[
+     {t:"わかってる。ごまかさない", s:-10,m:16, r:"よし。その顔なら、まだ聞いてやる。"},
+     {t:"ごまかしてないって", s:14,m:-8, r:"“って”がついた時点で怪しいんだよ。"},
+     {t:"疑うなら好きにしろよ", s:32,m:-26, r:"開き直りは、いちばん格好悪いぞ。"}]},
+   {q:"名前。一緒にいたやつの名前。はい。", a:[
+     {t:"部長と後藤さん", needs:"work", s:0,m:0, r:"よし。実在するな。"},
+     {t:"田中と、あと二人", needs:"friend", s:2,m:0, r:"田中な。覚えたぞ。"},
+     {t:"誰もいない。一人だ", needs:"home", s:0,m:0, r:"証明できるなら文句はない。"},
+     {t:"…ちょっと待って", s:30,m:-18, r:"待てない。今聞いてる。"}]},
+   {q:"証拠あるなら今出せ。一発で終わらせてやる。", a:[
+     {t:"社用PCのログイン記録、これ", needs:"work", s:-14,m:8, r:"おう、本物だ。よくやった。"},
+     {t:"店のレシート、財布にある", needs:"friend", s:-14,m:8, r:"時刻も入ってる。合格だ。"},
+     {t:"宅配の受取メールがこれ", needs:"home", s:-14,m:8, r:"よし。それ以上疑うのは失礼だな。"},
+     {t:"そんなもん普通取っとかないだろ", s:26,m:-14, r:"取っとけよ。あたしは取ってるぞ。"}]},
+   {q:"あたしのこと、怖いか。正直に。", a:[
+     {t:"怖い。けど、信頼してる", s:-12,m:18, r:"はっ。うまいこと言いやがって。"},
+     {t:"怖くない", s:10,m:-6, r:"嘘つけ。今ちょっと引いただろ。"},
+     {t:"正直、たまに", s:-4,m:10, r:"だろうな。それでいい。"}]},
+   {q:"あたし以外に、連絡取ってる女いるか。はい／いいえ。", a:[
+     {t:"いない", s:12,m:0, r:"……間があったな。0.5秒。"},
+     {t:"いない。仕事関係なら別だけど", s:6,m:4, r:"補足が早い。まあ、正直ではある。"},
+     {t:"…その質問、答えづらい", s:34,m:-24, r:"答えづらい時点で答えだろ、それ。"}]},
+   {q:"次。昨日の服、どこにある。", a:[
+     {t:"洗濯機に入れた", s:14,m:-6, r:"もう洗ったのか。ずいぶん早いな。"},
+     {t:"まだ部屋にかけてある", s:-6,m:6, r:"よし。じゃあ後で見せてもらう。"},
+     {t:"覚えてない", s:26,m:-16, r:"昨日の服の場所を、覚えてない。"}]},
+   {q:"あたし、あんたに嘘つかれたら、たぶん一発で分かるぞ。", a:[
+     {t:"知ってる。だから言わない", s:-14,m:16, r:"……その返し、悪くないな。"},
+     {t:"それは買いかぶりでしょ", s:18,m:-14, r:"試してみるか？ 今から。"},
+     {t:"だったら分かるでしょ、俺が白って", s:22,m:-10, r:"逆に聞くな。あたしが聞いてんだよ。"}]},
+   {q:"最後だ。あたしの目、まっすぐ見て言え。浮気してないな？", a:[
+     {t:"してない", s:10,m:0, r:"…声が半音上がったな。"},
+     {t:"してない。目そらさないから見てろ", s:-18,m:18, r:"……よし。信じる。今日は信じてやる。"},
+     {t:"（視線が下がる）", s:44,m:-28, r:"…そうか。もう、いい。"}]},
+  ]},
+
+{ day:"SAT", name:"ヨイ", trait:"嫉妬が振り切れている。愛が重い。",
+  gim:"独占欲MAX。<i>機嫌が低いほど疑い増加が最大1.8倍</i>。先に機嫌を取らないと詰む。位置情報も通知履歴も握られている。",
+  art:"yoi", voice:660,
+  timer:11, mult:1, moodBite:true, eyeW:9.5, eyeH:12.5, hair:"#6b3f5e", eye:"#4a2a44",
+  hairBack:"M92 70c-22 40-18 74-6 118M208 70c22 40 18 74 6 118",
+  bang:"M104 82c10-26 30-36 46-36s36 10 46 36 M112 74c18 8 58 8 76 0",
+  acc:"M186 60 q14-10 22 2 M120 110 q10 8 20 0 M160 110 q10 8 20 0",
+  qs:[
+   {q:"昨日の22時47分、既読ついたよね。返事、来なかったよね。", a:[
+     {t:"会議が長引いてた", sets:"work", s:2,m:-2, r:"22時47分に会議。ふうん。議事録ある？"},
+     {t:"友達といて手が離せなかった", sets:"friend", s:6,m:-8, r:"わたしより優先される友達って、誰？"},
+     {t:"寝落ちしてた。ごめん", sets:"home", s:0,m:6, r:"……そう。なら、いい。今回は。"}]},
+   {q:"ねえ、わたしのこと、世界で一番好き？ 二番目じゃなくて？", a:[
+     {t:"一番だよ。当然でしょ", s:-14,m:24, r:"……よかった。今の、録音したから。"},
+     {t:"そんなの比べるものじゃないよ", s:20,m:-26, r:"比べられない＝一番じゃないってことだよね。"},
+     {t:"重いって、たまに思う", s:34,m:-34, r:"重いよ。愛だもん。軽かったら愛じゃないでしょ。"}]},
+   {q:"何時に寝たの。何時に起きたの。全部。", a:[
+     {t:"1時に寝て、7時に起きた", s:2,m:2, r:"6時間。……肌、荒れるよ。ちゃんと寝て。"},
+     {t:"覚えてない", s:26,m:-16, r:"わたしは、あなたの昨日を全部覚えてるよ。"},
+     {t:"聞いてどうするの", s:30,m:-24, r:"知りたいだけだよ。愛してるからだよ。"}]},
+   {q:"誰といたか、名前で言って。フルネームで。", a:[
+     {t:"部長と、後藤修一", needs:"work", s:0,m:0, r:"後藤修一。……検索したよ。既婚ね。安心した。"},
+     {t:"田中と、その連れ", needs:"friend", s:4,m:-4, r:"田中。……SNS、見つけたよ。フォロー、女ばっかりだね。"},
+     {t:"誰にも会ってない", needs:"home", s:0,m:2, r:"じゃあ、わたしが行けばよかったね。"},
+     {t:"そこまで言う必要ある？", s:32,m:-26, r:"必要だよ。わたしには必要なの。"}]},
+   {q:"位置情報、昨日だけ切れてた。なんで。", a:[
+     {t:"社内は電波が入らないんだよ", needs:"work", s:-10,m:6, r:"……地下ね。調べたら本当だった。"},
+     {t:"店が地下だったから", needs:"friend", s:-10,m:6, r:"地下。……その店、今度連れてって。"},
+     {t:"寝てる間に機内モードになってた", needs:"home", s:-10,m:6, r:"設定、見せて。……ほんとだ。ごめんね。"},
+     {t:"監視されてるみたいで嫌なんだけど", s:32,m:-30, r:"監視じゃないよ。確認だよ。愛してるからだよ。"}]},
+   {q:"ねえ、わたしの何が好き？ 三つ言って。", a:[
+     {t:"まっすぐなとこ、笑い方、名前", s:-18,m:26, r:"……三つ、すぐ出た。うれしい。すごく、うれしい。"},
+     {t:"全部だよ", s:16,m:-14, r:"“全部”は、何も見てない人が言う言葉だよ。"},
+     {t:"急に言われても出てこない", s:30,m:-30, r:"……そう。出てこないんだ。そっか。"}]},
+   {q:"スマホ、見せて。今すぐ。", a:[
+     {t:"いいよ。はい", s:-24,m:14, r:"……見ない。差し出した時点で、もういい。"},
+     {t:"それはさすがに違うでしょ", s:26,m:-20, r:"違わないよ。見せられない理由があるだけ。"},
+     {t:"見せたら、信じてくれる？", s:14,m:-6, r:"条件をつけるんだ。ふうん。"}]},
+   {q:"わたしと別れたいって、思ったことある？", a:[
+     {t:"ない", s:12,m:8, r:"……即答だったね。うん。信じる。"},
+     {t:"ないって言ったら嘘になる", s:36,m:-32, r:"……そう。あるんだ。いつ？ いつ思ったの？"},
+     {t:"思うわけないでしょ", s:6,m:12, r:"うん。うん。そうだよね。そうだよ。"}]},
+   {q:"ねえ。わたしを捨てないって、今ここで言って。", a:[
+     {t:"捨てない。約束する", s:-20,m:20, r:"うん。うん。信じる。信じるからね。絶対だよ。"},
+     {t:"そんなこと言わせないでよ", s:26,m:-24, r:"言えないんだ。言えない理由が、あるんだ。"},
+     {t:"…重い", s:42,m:-32, r:"じゃあ、軽くしてあげる。全部、なくしてあげる。"}]},
+   {q:"最後に聞くね。……他に、好きな人いる？", a:[
+     {t:"いない", s:12,m:0, r:"……今の間、0.8秒だったよ。数えてたの。"},
+     {t:"いない。ヨイだけだよ", s:-16,m:20, r:"……名前、呼んでくれた。ひさしぶり。"},
+     {t:"（答えられない）", s:44,m:-34, r:"………。わかった。ぜんぶ、わかった。"}]},
+  ]},
+
+{ day:"SUN", name:"アユ", trait:"毒舌の小悪魔。全部見抜いた上で泳がせてくる。",
+  gim:"記憶の罠。<i>同じ質問を後半でもう一度してくる</i>。一度目と違う答えを選ぶと致命傷。何を答えたか、覚えておけ。",
+  art:"ayu", voice:780,
+  timer:11, mult:1.1, memory:true, eyeW:9, eyeH:10.5, hair:"#2f4a44", eye:"#1e332e",
+  hairBack:"M98 64c-16 26-14 60-8 96M202 64c16 26 14 60 8 96",
+  bang:"M104 84c12-26 32-36 46-36s34 10 46 36 M104 84 Q124 68 146 76 M196 84 Q184 72 168 78",
+  acc:"M186 58 q14-8 20 4 M126 116 q-6 5-2 8",
+  qs:[
+   {q:"へえ。昨日、楽しかった？", a:[
+     {t:"仕事だったよ。楽しくない", sets:"work", mem:{k:"where",v:"work"}, s:0,m:0, r:"仕事ね。ふうん。覚えとく。"},
+     {t:"友達と飲んでた", sets:"friend", mem:{k:"where",v:"friend"}, s:2,m:0, r:"友達ね。ふうん。覚えとく。"},
+     {t:"家にいた。一人で", sets:"home", mem:{k:"where",v:"home"}, s:2,m:0, r:"家ね。ふうん。覚えとく。"}]},
+   {q:"何時に寝たの？", a:[
+     {t:"12時くらい", mem:{k:"sleep",v:"12"}, s:2,m:0, r:"12時ね。はいはい。"},
+     {t:"2時すぎ", mem:{k:"sleep",v:"2"}, s:4,m:0, r:"2時。夜更かしだね。"},
+     {t:"覚えてない", mem:{k:"sleep",v:"x"}, s:16,m:-8, r:"覚えてない、ね。それも覚えとく。"}]},
+   {q:"あたしさ、人の話ちゃんと聞くタイプなんだよね。自慢じゃないけど。", a:[
+     {t:"…それ、脅し？", s:14,m:-8, r:"脅し？ ただの自己紹介だけど。"},
+     {t:"知ってる。だから好き", s:-10,m:16, r:"うわ、うまいこと言うね。減点はしないけど。"},
+     {t:"急になに", s:20,m:-14, r:"急？ 前置きって大事でしょ。"}]},
+   {q:"誰といたの。", a:[
+     {t:"部長と後藤さん", needs:"work", s:0,m:0, r:"へえ。実在しそうな名前だね。"},
+     {t:"大学の田中たち", needs:"friend", s:2,m:0, r:"田中ね。いい名前。覚えやすい。"},
+     {t:"誰にも会ってない", needs:"home", s:0,m:0, r:"へえ。孤独な夜だ。"},
+     {t:"言いたくない", s:28,m:-18, r:"言いたくない、か。それが一番の答えだよ。"}]},
+   {q:"ねえ、あたしのこと好き？", a:[
+     {t:"好きだよ", mem:{k:"love",v:"yes"}, s:0,m:10, r:"はい、覚えた。"},
+     {t:"好きに決まってるでしょ", mem:{k:"love",v:"sure"}, s:-6,m:14, r:"“決まってる”ね。はい、覚えた。"},
+     {t:"なんで今聞くの", mem:{k:"love",v:"no"}, s:20,m:-20, r:"答えなかった。それも、覚えた。"}]},
+   {q:"証拠は？ 出せるものある？", a:[
+     {t:"勤怠の記録がある", needs:"work", s:-12,m:6, r:"へえ。用意がいいね。用意がよすぎない？"},
+     {t:"店のレシートがある", needs:"friend", s:-12,m:6, r:"レシート。まあ、いいでしょ。"},
+     {t:"宅配の受取記録がある", needs:"home", s:-12,m:6, r:"21時03分。……成立はするね。"},
+     {t:"そんなの残ってない", s:24,m:-12, r:"残らない夜だったんだ。へえ。"}]},
+   {q:"じゃあ、もう一回聞くね。昨日、どこにいたって？", a:[
+     {t:"仕事だったよ", mem:{k:"where",v:"work"}, s:0,m:0, r:"うん。合ってる。つまらないね。"},
+     {t:"友達と飲んでた", mem:{k:"where",v:"friend"}, s:0,m:0, r:"うん。合ってる。つまらないね。"},
+     {t:"家にいた。一人で", mem:{k:"where",v:"home"}, s:0,m:0, r:"うん。合ってる。つまらないね。"}]},
+   {q:"寝たのは何時だっけ。", a:[
+     {t:"12時くらい", mem:{k:"sleep",v:"12"}, s:0,m:2, r:"うん。ぶれてない。"},
+     {t:"2時すぎ", mem:{k:"sleep",v:"2"}, s:0,m:2, r:"うん。ぶれてない。"},
+     {t:"覚えてない", mem:{k:"sleep",v:"x"}, s:6,m:-4, r:"二回とも覚えてない。まあ、一貫はしてる。"}]},
+   {q:"あたしのこと、好きだっけ？", a:[
+     {t:"好きだよ", mem:{k:"love",v:"yes"}, s:-8,m:12, r:"うん。同じこと言った。えらい。"},
+     {t:"好きに決まってるでしょ", mem:{k:"love",v:"sure"}, s:-8,m:12, r:"うん。同じこと言った。えらい。"},
+     {t:"なんで今聞くの", mem:{k:"love",v:"no"}, s:6,m:-10, r:"二回とも逃げた。一貫はしてるね。"}]},
+   {q:"最後。全部覚えてるあたしの前で、もう一度言ってみて。浮気、してない？", a:[
+     {t:"してない", s:12,m:0, r:"へえ。今日いちばん、声が硬かった。"},
+     {t:"してない。全部本当のことしか言ってない", s:-16,m:16, r:"……ふうん。まあ、今日は帰していいか。"},
+     {t:"（黙る）", s:42,m:-28, r:"黙るのは楽だよね。あたしは覚えてるけど。"}]},
+  ]},
+
+{ day:"EXTRA", extra:true, name:"ミサキ", trait:"月曜のあの子。一週間ぶん、記録が揃った。",
+  gim:"最終日。<i>その週に使ったアリバイを再使用すると即致命傷</i>。彼女は月曜から、ずっとノートを取り続けていた。",
+  art:"misaki", voice:700,
+  timer:10, mult:1.2, finale:true, eyeW:8.5, eyeH:11, hair:"#48557d", eye:"#39436b",
+  hairBack:"M96 66c-18 34-16 96-10 150M204 66c18 34 16 96 10 150",
+  bang:"M104 84c14-24 34-34 46-34s34 10 46 34 M150 50c-6 14-16 24-30 30M150 50c6 14 16 24 30 30",
+  acc:"M110 74 L142 80 M190 74 L158 80",
+  qs:[
+   {q:"一週間ぶん、揃ったよ。……最後に聞くね。昨日はどこ？", a:[
+     {t:"会社で残業してた", sets:"work", week:"work", s:0,m:0, r:"“残業”。今週、その単語が出るの、何度目か分かる？"},
+     {t:"友達と飲んでた", sets:"friend", week:"friend", s:0,m:0, r:"“友達”。……ずいぶん、母数の多い言葉だね。"},
+     {t:"実家に寄ってた", sets:"family", week:"family", s:0,m:0, r:"片道52分。今週、その52分が三回あるの。"},
+     {t:"家にいた。一人で", sets:"home", week:"home", s:2,m:0, r:"“家”。私、合鍵持ってるんだけどな。"}]},
+   {q:"月曜に言ったよね。私、全部ノートに取ってるって。", a:[
+     {t:"…言ってた", s:14,m:-6, r:"うん。だからね、七日ぶん、線が引けたの。"},
+     {t:"あれ、本気だったんだ", s:22,m:-16, r:"私が冗談でノート取ると思った？"},
+     {t:"覚えてる。だから、もう隠さない", s:-16,m:16, r:"……月曜のあなたより、まともな顔してる。"}]},
+   {q:"火曜の夜、23時。あなた、どこにいた？", a:[
+     {t:"家にいた", week:"home", s:2,m:0, r:"……ふうん。合鍵、使えばよかったね。"},
+     {t:"仕事だった", week:"work", s:0,m:0, r:"火曜も残業。働きすぎじゃない？"},
+     {t:"覚えてない", s:26,m:-14, r:"私は覚えてる。ぜんぶ。"}]},
+   {q:"木曜、シャツの襟に髪の毛がついてた。私のじゃない色の。", a:[
+     {t:"職場の誰かのだろ", needs:"work", s:6,m:-4, r:"職場ね。……長さ、40センチあったけど。"},
+     {t:"飲み屋の椅子にでもついてたんでしょ", needs:"friend", s:6,m:-4, r:"椅子。そういうこともあるかもね。"},
+     {t:"知らない。気づかなかった", s:26,m:-16, r:"気づかないんだ。私は気づいたのに。"}]},
+   {q:"ルナちゃん。ヒナちゃん。アユちゃん。……全員から連絡きたよ。", a:[
+     {t:"全部誤解だよ", s:32,m:-24, r:"六人ぶんの誤解って、確率的にありえる？"},
+     {t:"……何て言われた？", s:16,m:-8, r:"私が聞きたいのは、あなたの言葉なんだけどな。"},
+     {t:"言い訳はしない。全部本当だ", s:-20,m:22, r:"……やっと、データじゃなくて言葉が出たね。"}]},
+   {q:"いつから？", a:[
+     {t:"…先月から", s:8,m:6, r:"一ヶ月。ノートの空白と、合ってる。"},
+     {t:"半年くらい前から", s:14,m:2, r:"半年。……私、半年なにしてたんだろう。"},
+     {t:"それは言えない", s:34,m:-22, r:"言えない期間って、そんなに長いんだ。"}]},
+   {q:"私のこと、いつから騙してた？ ……同じ質問に聞こえる？", a:[
+     {t:"違う。騙してたつもりはない", s:22,m:-16, r:"つもりの話はしてない。事実の話をして。"},
+     {t:"…同じだよ。ごめん", s:-14,m:16, r:"うん。同じ。分かってるなら、いい。"},
+     {t:"（黙る）", s:30,m:-18, r:"空欄も、記録なんだよ。"}]},
+   {q:"ねえ、私のどこが足りなかった？", a:[
+     {t:"足りなくない。俺の問題だ", s:-18,m:20, r:"……そう言われると、逃げ場がないな。"},
+     {t:"完璧すぎたのかもしれない", s:30,m:-28, r:"それ、私のせいにしてるよね。"},
+     {t:"分からない", s:16,m:-10, r:"分からないまま、七日続けたんだ。"}]},
+   {q:"最後にもう一つだけ。あの子たちには、優しくできた？", a:[
+     {t:"…できてなかったと思う", s:-12,m:14, r:"じゃあ、誰も幸せにしてないんだ。七人とも。"},
+     {t:"できてた、と思う", s:28,m:-24, r:"私にはできなかったのに？"},
+     {t:"答えたくない", s:32,m:-20, r:"うん。それが答えだね。"}]},
+   {q:"最後の質問。私のこと、好きだった？", a:[
+     {t:"今も好きだよ", s:18,m:6, r:"“今も”。……その一語だけ、ノートに書けなかった。"},
+     {t:"好きだった。全部、俺が悪い", s:-22,m:20, r:"うん。それが聞きたかった。ノート、閉じるね。"},
+     {t:"（何も言えない）", s:40,m:-26, r:"………。空欄も、記録なんだよ。"}]},
+  ]},
+];
+
+const S={hearts:3,susp:0,mood:60,d:0,i:0,facts:{},used:{},mem:{},shown:[],timer:null,t:12,busy:false,perfect:true,cried:false,log:[]};
+const $=id=>document.getElementById(id);
+const HEART_D="M32 12C24 -2 4 4 4 20c0 14 20 26 28 36 8-10 28-22 28-36C60 4 40-2 32 12z";
+const D=()=>DAYS[S.d];
+const JPDAY={MON:"月",TUE:"火",WED:"水",THU:"木",FRI:"金",SAT:"土",SUN:"日",EXTRA:"翌週"};
+const jp=d=>JPDAY[d.day]||d.day;
+
+function drawHearts(p=-1){
+  $("hearts").innerHTML=[0,1,2].map(i=>
+    `<svg class="hp ${i<S.hearts?"":"gone"} ${i===p?"pop":""}" viewBox="0 0 64 60"><path d="${HEART_D}"/></svg>`).join("");
+}
+function drawMeter(){
+  const v=Math.max(0,Math.min(100,S.susp));
+  $("fill").style.height=v+"%"; $("fill").classList.toggle("hot",v>=70);
+}
+function applyLook(){
+  const d=D();
+  $("eyeL").setAttribute("rx",d.eyeW||9); $("eyeR").setAttribute("rx",d.eyeW||9);
+  $("chara").style.setProperty("--tilt",(d.tilt||0)+"deg");
+  document.querySelectorAll(".line").forEach(e=>e.setAttribute("stroke",d.hair));
+  $("eyeL").setAttribute("fill",d.eye); $("eyeR").setAttribute("fill",d.eye);
+  $("hairBack").setAttribute("d",d.hairBack);
+  $("bang").setAttribute("d",d.bang);
+  $("accessory").setAttribute("d",d.acc||"");
+  $("name").textContent=d.name;
+  $("dayTag").textContent = d.extra ? "EXTRA ／ 翌週の月曜" : `${jp(d)}曜 ／ DAY ${S.d+1} of 7`;
+}
+/* ---- 立ち絵 ----
+   art/<キー>_<表情>.png を機嫌5段階に対応させて出す。
+   PNG が1枚でも欠けていれば、その表情だけ従来の SVG 顔にフォールバックする。 */
+const ART_DIR="art/";
+const EXPR=["angry","annoyed","neutral","smile","happy"];   // 機嫌の低い順
+const artOK={};
+function preloadArt(d){
+  if(!d.art) return;
+  EXPR.forEach(e=>{
+    const k=d.art+"_"+e;
+    if(k in artOK) return;
+    artOK[k]=false;
+    const im=new Image();
+    im.onload=()=>{ artOK[k]=true; drawFace(); };
+    im.src=ART_DIR+k+".png";
+  });
+}
+function showPortrait(d,lv,m){
+  const key=d.art?d.art+"_"+EXPR[lv]:null, use=!!(key&&artOK[key]);
+  const img=$("portrait");
+  if(use && !img.src.endsWith(key+".png")) img.src=ART_DIR+key+".png";
+  img.style.display=use?"block":"none";
+  $("chara").style.display=use?"none":"";
+  // 機嫌が低いほど彩度を落とす。poker の日は圧縮後の m を使うので絵からも読めない
+  const dull=Math.max(0,Math.min(1,(52-m)/52));
+  $("charaWrap").style.filter=
+    `drop-shadow(0 10px 22px rgba(60,70,110,.22)) saturate(${(1-.4*dull).toFixed(2)}) contrast(${(1+.25*dull).toFixed(2)})`;
+}
+function drawFace(){
+  const d=D(); let m=S.mood;
+  if(d.poker) m=52+(m-52)*0.18;           // 無表情：ほぼ動かない
+  showPortrait(d, m<20?0 : m<40?1 : m<62?2 : m<82?3 : 4, m);
+  const f=$("moodface");
+  const bL=$("browL"),bR=$("browR"),mo=$("mouth");
+  const eL=$("eyeL"),eR=$("eyeR"),eLc=$("eyeLc"),eRc=$("eyeRc");
+  eL.style.display=eR.style.display=""; eLc.style.display=eRc.style.display="none";
+  $("angerMark").classList.remove("on"); $("hm").classList.remove("on");
+  const crying = d.cryBomb && S.mood<25;
+  $("tearL").classList.toggle("on",crying); $("tearR").classList.toggle("on",crying);
+  if(m<20){
+    bL.setAttribute("d","M118 76 L140 90"); bR.setAttribute("d","M182 76 L160 90");
+    mo.setAttribute("d","M138 130 Q150 118 162 130");
+    eL.setAttribute("ry","6"); eR.setAttribute("ry","6");
+    $("angerMark").classList.add("on"); f.textContent=crying?"😢":"😡";
+  } else if(m<40){
+    bL.setAttribute("d","M118 78 L140 88"); bR.setAttribute("d","M182 78 L160 88");
+    mo.setAttribute("d","M140 128 Q150 121 160 128");
+    eL.setAttribute("ry","9"); eR.setAttribute("ry","9"); f.textContent=crying?"🥺":"😠";
+  } else if(m<62){
+    bL.setAttribute("d","M118 82 L140 84"); bR.setAttribute("d","M182 82 L160 84");
+    mo.setAttribute("d","M144 126 L156 126");
+    eL.setAttribute("ry",d.eyeH||11); eR.setAttribute("ry",d.eyeH||11); f.textContent=d.poker?"🫥":"😐";
+  } else if(m<82){
+    bL.setAttribute("d","M118 84 L140 80"); bR.setAttribute("d","M182 84 L160 80");
+    mo.setAttribute("d","M142 124 Q150 132 158 124");
+    eL.setAttribute("ry",d.eyeH||11); eR.setAttribute("ry",d.eyeH||11); f.textContent=d.poker?"🫥":"🙂";
+  } else {
+    bL.setAttribute("d","M118 84 L140 78"); bR.setAttribute("d","M182 84 L160 78");
+    mo.setAttribute("d","M138 122 Q150 136 162 122");
+    eL.style.display=eR.style.display="none"; eLc.style.display=eRc.style.display="";
+    eLc.setAttribute("d","M120 104 Q129 94 138 104"); eRc.setAttribute("d","M162 104 Q171 94 180 104");
+    $("hm").classList.add("on"); f.textContent=d.poker?"🫥":"😊";
+  }
+}
+/* ---- しゃべり ----
+   一文字ずつ出しながら「ポポポ」と鳴らす。制限時間は喋っている間も止めない。
+   戻り値は喋り終わるまでの ms。返しの待ち時間はこれを見て決める。 */
+let AC=null, sndOn=true, typer=null, fullLine="";
+const SPEED=48;                                  // ms / 字
+/* 息継ぎ。句点で長く、読点で短く止めると読み上げているように聞こえる */
+function pauseAfter(txt){
+  const c=txt[txt.length-1];
+  if(/[。！？!?]/.test(c)) return 430;
+  if(/[…‥]/.test(c))      return 320;
+  if(/[、，]/.test(c))     return 210;
+  return 0;
+}
+const SILENT=/[\s、。，．…‥！？!?「」『』（）()\-—～]/;   // この字では鳴らさない
+/* AudioContext の生成は数百ms止まる。最初の一文字目で作ると出だしが遅れるので、
+   ユーザー操作（はじめる）のタイミングで先に用意しておく */
+function primeAudio(){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==="suspended") AC.resume();
+    // 無音を一度鳴らして出力を起こす。これをやらないと一文字目で数百ms固まる
+    const o=AC.createOscillator(), g=AC.createGain();
+    g.gain.value=0; o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+0.01);
+  }catch(e){}
+}
+function blip(){
+  if(!sndOn || !AC) return;
+  try{
+    const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain();
+    o.type="square";
+    o.frequency.setValueAtTime((D().voice||620)*(0.94+Math.random()*0.12), t);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.045,t+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
+    o.connect(g); g.connect(AC.destination);
+    o.start(t); o.stop(t+0.055);
+  }catch(e){}
+}
+/* 行頭に来てはいけない字（閉じ括弧・句読点・小書き・長音）は前の字にくっつけ、
+   行末に来てはいけない字（開き括弧）は次の字を巻き込む。禁則を span 分割で壊さないため */
+const NO_HEAD=/[、。，．・…‥！？!?」』）)】〉》〕｝ぁぃぅぇぉっゃゅょァィゥェォッャュョーヽヾ々〜～]/;
+const NO_TAIL=/[「『（(【〈《〔｛]/;
+function chunk(t){
+  const out=[];
+  for(const c of t){
+    const prev=out.length?out[out.length-1]:"";
+    if(prev && (NO_HEAD.test(c) || NO_TAIL.test(prev.slice(-1)))) out[out.length-1]+=c;
+    else out.push(c);
+  }
+  return out;
+}
+let spans=[];
+function skipTyping(){
+  if(!typer) return;
+  clearTimeout(typer); typer=null;
+  spans.forEach(s=>s.style.visibility="");
+}
+function say(t){
+  clearTimeout(typer); typer=null;
+  fullLine=t;
+  const el=$("lineIn"); el.textContent="";
+  // 先に全文を組んで折り返しを確定させる。以後は visibility を外すだけなので字が動かない
+  spans=chunk(t).map(p=>{
+    const s=document.createElement("span");
+    s.textContent=p; s.style.visibility="hidden";
+    el.appendChild(s); return s;
+  });
+  if(!spans.length) return 0;
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches){ skipTyping(); return 0; }
+  // 字ごとに間隔が変わるので setInterval ではなく setTimeout を繋ぐ
+  const wait=spans.map(s=>SPEED+pauseAfter(s.textContent));
+  let i=0;
+  const step=()=>{
+    const s=spans[i++];
+    s.style.visibility="";
+    if(!SILENT.test(s.textContent[0])) blip();
+    if(i>=spans.length){ typer=null; return; }
+    typer=setTimeout(step, wait[i-1]*(0.88+Math.random()*0.24));   // 少しゆらす
+  };
+  typer=setTimeout(step,0);
+  return wait.reduce((a,b)=>a+b,0);
+}
+$("line").onclick=skipTyping;                    // 押せば全文出る
+$("art").onclick=skipTyping;                     // 立ち絵側を押しても同じ
+$("snd").onclick=e=>{ sndOn=!sndOn; e.currentTarget.classList.toggle("off",!sndOn); };
+function weekStrip(el){
+  const base=DAYS.slice(0,7).map((d,i)=>
+    `<div class="${i<S.d?'done':i===S.d?'now':''}">${JPDAY[d.day]||d.day}</div>`).join("");
+  const ex = S.d>=7 ? `<div class="now">EX</div>` : "";
+  el.innerHTML=base+ex;
+}
+
+/* ---- 進行 ---- */
+function startTimer(){
+  const lim=D().timer; S.t=lim; $("timerfill").style.width="100%"; clearInterval(S.timer);
+  S.timer=setInterval(()=>{ S.t-=0.1;
+    $("timerfill").style.width=Math.max(0,S.t/lim*100)+"%";
+    if(S.t<=0){ clearInterval(S.timer); timeout(); } },100);
+}
+function stopTimer(){ clearInterval(S.timer); }
+function timeout(){
+  if(S.busy) return; S.busy=true;
+  [...document.querySelectorAll(".ch")].forEach(b=>b.disabled=true);
+  applyDamage(20,-10,"……なんで黙るの。");
+}
+function dayIntro(){
+  const d=D(); S.i=0; S.susp=0; S.mood=60; S.facts={}; S.mem={}; S.perfect=true; S.cried=false;
+  preloadArt(d);
+  applyLook(); drawMeter(); drawFace(); drawHearts();
+  $("diNo").textContent = d.extra ? "EXTRA" : `DAY ${S.d+1} ／ ${jp(d)}曜日`;
+  $("diName").textContent=`${d.name}　—　${d.trait}`;
+  $("diGim").style.display="none";
+  weekStrip($("week"));
+  $("dayIntro").classList.remove("hidden");
+}
+/* 選択肢は常に3個。4個以上ある設問は
+   「今のアリバイに合う答え」+「矛盾するワナ」+「逃げの答え」に絞る */
+function pickThree(list){
+  if(list.length<=3) return list.slice();
+  const ok   = list.filter(o=>o.needs && S.facts[o.needs]);
+  const trap = list.filter(o=>o.needs && !S.facts[o.needs]);
+  const esc  = list.filter(o=>!o.needs);
+  let out=[];
+  if(ok.length){
+    out.push(ok[0]);
+    if(trap.length) out.push(trap[(Math.random()*trap.length)|0]);
+    if(esc.length)  out.push(esc[0]);
+  }
+  // needs構造でない設問（最終日の週アリバイ等）はランダムに3つ
+  while(out.length<3){
+    const c=list[(Math.random()*list.length)|0];
+    if(!out.includes(c)) out.push(c);
+  }
+  out=out.slice(0,3);
+  for(let i=out.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [out[i],out[j]]=[out[j],out[i]]; }
+  return out;
+}
+function ask(){
+  const d=D(), q=d.qs[S.i];
+  $("turn").textContent=`${S.i+1} / ${d.qs.length}`;
+  say(q.q);
+  S.shown = pickThree(q.a);
+  const box=$("choices"); box.innerHTML="";
+  S.shown.forEach((o,idx)=>{
+    const b=document.createElement("button");
+    b.className="ch"; b.textContent=o.t; b.onclick=()=>answer(idx);
+    box.appendChild(b);
+  });
+  S.busy=false; startTimer();
+}
+function answer(idx){
+  if(S.busy) return; S.busy=true; stopTimer();
+  [...document.querySelectorAll(".ch")].forEach(b=>b.disabled=true);
+  const d=D(), o=S.shown[idx];
+
+  if(o.needs && !S.facts[o.needs]){
+    const base=38*(d.contraBoost||1);
+    S.perfect=false;
+    applyDamage(base,-18,"待って。それ、さっきの話と繋がってないよね？");
+    return;
+  }
+  if(o.mem){
+    const k=o.mem.k, v=o.mem.v;
+    if(S.mem[k]===undefined){ S.mem[k]=v; }
+    else if(S.mem[k]!==v){
+      S.perfect=false;
+      applyDamage(42,-24,"あれ？ さっきと違うこと言ってるよ。あたし、覚えてるからね。");
+      if(o.sets) S.facts[o.sets]=true;
+      return;
+    }
+  }
+  if(d.finale && o.week && S.used[o.week]){
+    S.perfect=false;
+    applyDamage(34,-20,`それ、今週もう聞いた。`);
+    if(o.sets) S.facts[o.sets]=true;
+    return;
+  }
+  if(o.sets) S.facts[o.sets]=true;
+  if(o.week) S.used[o.week]=true;
+
+  let mult=d.mult;
+  if(d.moodBite) mult *= S.mood<30?1.8 : S.mood<55?1.35 : 1;
+  else mult *= S.mood<35?1.4 : S.mood<60?1.15 : 1;
+  applyDamage(o.s>0?Math.round(o.s*mult):o.s, o.m, o.r);
+}
+function applyDamage(susp,mood,reply){
+  const d=D();
+  S.susp=Math.max(0,S.susp+susp);
+  S.mood=Math.max(0,Math.min(100,S.mood+mood));
+  if(d.cryBomb && S.mood<=12 && !S.cried){    // 泣かせると一気に詰む（その日1回だけ）
+    S.mood=0; S.susp+=30; S.cried=true;
+  }
+  drawMeter(); drawFace();
+  if(susp>=15){
+    S.perfect=false;
+    $("meter").classList.add("shake"); $("charaWrap").classList.add("jolt");
+    setTimeout(()=>{$("meter").classList.remove("shake");$("charaWrap").classList.remove("jolt");},420);
+  }
+  const dur=say(reply);
+  [...document.querySelectorAll(".ch")].forEach(b=>b.style.visibility="hidden");
+  $("timerfill").style.width="0%";
+  setTimeout(()=>{ if(S.susp>=100){ breakHeart(); return; } next(); },dur+600);
+}
+function breakHeart(){
+  S.hearts--; S.perfect=false;
+  $("flash").classList.add("on"); setTimeout(()=>$("flash").classList.remove("on"),460);
+  drawHearts(S.hearts);
+  if(S.hearts<=0){ end(false); return; }
+  S.susp=62; S.mood=Math.max(0,S.mood-12); drawMeter(); drawFace();
+  const dur=say("……もういい。一回、深呼吸して。最初から聞き直すから。");
+  setTimeout(next,dur+600);
+}
+function next(){
+  S.i++;
+  if(S.i>=D().qs.length){ dayClear(); return; }
+  ask();
+}
+function dayClear(){
+  stopTimer();
+  const d=D();
+  S.log.push({day:d.day,name:d.name,susp:Math.round(S.susp),perfect:S.perfect});
+  let msg=`${d.name}は、それ以上聞かなかった。`;
+  if(S.perfect && S.hearts<3){ S.hearts++; drawHearts(S.hearts-1);
+    msg+=`\n（無傷で切り抜けた。ハートが1つ戻った）`; }
+  else if(S.perfect){ msg+=`\n（無傷で切り抜けた）`; }
+  const dur=say(msg); $("choices").innerHTML="";
+  setTimeout(()=>{
+    S.d++;
+    if(S.d===7){ weekClear(); return; }
+    if(S.d>=DAYS.length){ end(true); return; }
+    dayIntro();
+  },dur+1300);
+}
+function weekClear(){
+  stopTimer(); $("choices").innerHTML=""; $("turn").textContent="";
+  $("wc1").style.display=""; $("wc2").style.display="none";
+  $("weekclear").classList.remove("hidden");
+}
+$("wcBtn1").onclick=()=>{ $("wc1").style.display="none"; $("wc2").style.display=""; };
+$("wcBtn2").onclick=()=>{ $("weekclear").classList.add("hidden"); dayIntro(); };
+
+function end(cleared){
+  stopTimer(); $("choices").innerHTML=""; $("turn").textContent="";
+  $("result").classList.remove("hidden");
+  const rk=$("rankText"); rk.classList.remove("bad");
+  weekStrip($("week2"));
+  if(!cleared){
+    rk.textContent="OUT"; rk.classList.add("bad");
+    $("resTitle").textContent = DAYS[S.d].extra ? "最終戦、終了。" : `${jp(DAYS[S.d])}曜、終了。`;
+    $("resBody").innerHTML=`${DAYS[S.d].name}に、全部バレた。<br>連絡先は、その日のうちに全員に回った。<br><br>「嘘が下手なところだけは、好きだったよ」<br><br><span style="color:#9aa3b8">${DAYS[S.d].extra?"EXTRA 到達":"到達 DAY "+(S.d+1)+" ／ 7"}</span>`;
+    return;
+  }
+  const perfects=S.log.filter(l=>l.perfect).length;
+  const avg=Math.round(S.log.reduce((a,b)=>a+b.susp,0)/S.log.length);
+  let rank,title,body;
+  if(perfects>=6 && S.hearts===3){
+    rank="S"; title="八日間、無傷";
+    body="誰にも、何も、悟らせなかった。<br>最後の夜、七つの通知が同時に鳴った。<br>全部「おやすみ」だった。<br><br>……あなたは、それでいいのか？";
+  } else if(perfects>=4){
+    rank="A"; title="週を越えた";
+    body="全員が「まあ、いいや」と言った。<br>その“まあ”は、七つ分たまっている。<br><br>来週も、月曜は来る。";
+  } else if(perfects>=2){
+    rank="B"; title="足はついた";
+    body="全員が、一度は言葉に詰まったのを見ている。<br>誰も追及しなかっただけで、忘れてはいない。<br><br>次に何か一つでも噛み合わなければ、そこで終わる。";
+  } else {
+    rank="C"; title="かろうじて最終日";
+    body="ハートは残った。信用は、どこにも残っていない。<br>七人とも、まだ何も言っていないだけ。";
+  }
+  rk.textContent=rank; $("resTitle").textContent=title;
+  $("resBody").innerHTML=body+`<br><br><span style="color:#9aa3b8">残ハート ${S.hearts} ／ 無傷の日 ${perfects}/8 ／ 平均うたがい ${avg}</span>`;
+}
+
+function reset(){
+  Object.assign(S,{hearts:3,susp:0,mood:60,d:0,i:0,facts:{},used:{},mem:{},shown:[],t:12,busy:false,perfect:true,cried:false,log:[]});
+  applyLook(); drawHearts(); drawMeter(); drawFace();
+}
+$("startBtn").onclick=()=>{ primeAudio(); $("title").classList.add("hidden"); reset(); dayIntro(); };
+$("diBtn").onclick=()=>{ $("dayIntro").classList.add("hidden"); ask(); };
+$("retryBtn").onclick=()=>{ $("result").classList.add("hidden"); reset(); dayIntro(); };
+reset();
+</script>

@@ -56,6 +56,28 @@ const TOOLS = [
     thumb: "thumbs/dot-maker.png",
     url: "tools/dot-maker/index.html",
     status: "live"
+  },
+  {
+    no: 6,
+    slug: "7days-kanojo",
+    title: "7日間の彼女",
+    desc: "月曜から日曜まで、毎日ちがう彼女に会う。毎日「昨日どこにいたか」を聞かれ、答えるたびに機嫌とうたがいメーターが動く。所要15〜20分。",
+    tags: ["ゲーム", "アドベンチャー", "うたがいメーター"],
+    cat: "game",
+    thumb: "thumbs/7days-kanojo.png",
+    url: "tools/7days-kanojo/index.html",
+    status: "live"
+  },
+  {
+    no: 7,
+    slug: "7days-kareshi",
+    title: "7日間の彼氏",
+    desc: "「7日間の彼女」の彼氏版。会う相手が7人の彼氏に入れ替わり、同じ7日間を反対側から遊ぶ。所要15〜20分。",
+    tags: ["ゲーム", "アドベンチャー", "うたがいメーター"],
+    cat: "game",
+    thumb: "thumbs/7days-kareshi.png",
+    url: "tools/7days-kareshi/index.html",
+    status: "live"
   }
 ];
 
@@ -63,5 +85,6 @@ const CATEGORIES = [
   { key: "all",   label: "すべて" },
   { key: "manga", label: "漫画制作" },
   { key: "anime", label: "アニメーション" },
+  { key: "game",  label: "ゲーム" },
   { key: "other", label: "その他" }
 ];
