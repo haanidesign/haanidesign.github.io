@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#3f6f7d">
 <meta name="mobile-web-app-capable" content="yes">
 <title>アニメデザイン工房 モバイル</title>
-<script src="lib/ag-psd.js"></script>
 <style>
 :root{
   --bar:#3f6f7d; --bar2:#35606c;
@@ -26,7 +25,6 @@ body{
 button,select,input{font:inherit; color:inherit}
 button{cursor:pointer}
 
-/* ---- ヘッダ（最小限） ---- */
 #hdr{
   flex-shrink:0; height:48px; display:flex; align-items:center; gap:8px; padding:0 10px;
   background:linear-gradient(180deg,var(--bar),var(--bar2)); color:#fff;
@@ -39,7 +37,6 @@ button{cursor:pointer}
 }
 .hb.g{background:#57c98a; color:#fff; width:auto; padding:0 14px}
 
-/* ---- キャンバス ---- */
 #stagewrap{
   flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center;
   background-color:#eceadf;
@@ -50,8 +47,6 @@ button{cursor:pointer}
 #stage{position:relative; box-shadow:0 0 0 2px var(--line), 0 4px 14px rgba(0,0,0,.18)}
 #stage canvas{position:absolute; left:0; top:0; image-rendering:pixelated; display:block; touch-action:none}
 #view{position:relative; z-index:3}
-#giz{z-index:4; image-rendering:auto !important; pointer-events:none}
-#giz.active{pointer-events:auto}
 #zoombar{
   position:absolute; left:8px; top:8px; background:rgba(255,255,255,.9); border:2px solid var(--line);
   border-radius:999px; padding:2px 10px; font-size:11px; font-weight:700; z-index:6;
@@ -64,21 +59,18 @@ button{cursor:pointer}
 /* 本体JSがインラインで幅190pxを指定するので、モバイルでは上書きする */
 #previewBox canvas{display:block; image-rendering:pixelated; width:100% !important; height:auto !important}
 #previewBox.off{display:none}
-#dropmsg{display:none}
 #infoBar{display:none}
 
-/* ---- コマ帯（常時表示） ---- */
 #frames{
   flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:6px;
   background:#20242a; touch-action:pan-x;
 }
 .fr{position:relative; border:2px solid #4a5158; border-radius:6px; background:#fff; flex-shrink:0}
 .fr.on{border-color:var(--btn-on); box-shadow:0 0 0 2px var(--btn-on)}
-.fr canvas{display:block; image-rendering:pixelated; border-radius:3px; height:44px; width:auto}
+.fr canvas{display:block; image-rendering:pixelated; border-radius:3px}
 .fr b{position:absolute; left:2px; top:0; font-size:9px; color:#fff; text-shadow:0 0 3px #000}
 #addfr{flex-shrink:0; width:46px; border:2px dashed #7e8790; border-radius:6px; background:transparent; color:#c9ced4; font-size:20px}
 
-/* ---- ツールバー ---- */
 #rail{
   flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:7px 8px;
   background:var(--panel); border-top:2px solid var(--line);
@@ -86,13 +78,12 @@ button{cursor:pointer}
 .tool{
   flex:0 0 auto; width:52px; height:var(--tap); background:var(--btn);
   border:2px solid var(--line); border-radius:12px;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
   font-size:9px; font-weight:700; line-height:1.1;
 }
 .tool .ic{font-size:17px}
 .tool.on{background:var(--btn-on)}
 
-/* ---- パネル切替バー ---- */
 #secbar{
   flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:0 8px 8px;
   background:var(--panel); border-bottom:2px solid var(--line);
@@ -103,7 +94,6 @@ button{cursor:pointer}
 }
 .secbtn.on{background:var(--btn-on)}
 
-/* ---- ボトムシート ---- */
 #sheet{
   position:fixed; left:0; right:0; bottom:0; z-index:40;
   background:var(--panel); border-top:2px solid var(--line); border-radius:16px 16px 0 0;
@@ -124,7 +114,6 @@ button{cursor:pointer}
 .sec{display:none}
 .sec.on{display:block}
 
-/* ---- 共通パーツ（本体JSが生成する要素の見た目） ---- */
 h4{font-size:12px; color:var(--dim); margin:14px 0 7px; letter-spacing:.03em}
 h4:first-child{margin-top:0}
 .grid{display:flex; flex-wrap:wrap; gap:7px}
@@ -163,18 +152,11 @@ select,input[type=number],input[type=text]{
 .sw-toggle::after{content:""; position:absolute; left:2px; top:2px; width:22px; height:22px; border-radius:50%; background:#fff; transition:.14s}
 .sw-toggle.on{background:#57c98a}
 .sw-toggle.on::after{left:26px}
-#psdBox{
-  border:2px dashed #9aa1ac; border-radius:12px; padding:16px; text-align:center; color:var(--dim);
-  font-size:13px; background:#fff;
-}
-#psdInfo{margin-top:4px; font-size:12px; color:var(--accent)}
 #colorPick{width:64px; height:40px; border:2px solid var(--line); border-radius:10px; background:#fff}
 .hidden{display:none !important}
 .note{font-size:11.5px; color:var(--dim); margin-top:6px}
-/* PC専用UIはモバイルでは出さない */
-#tabs,#timeline,#zoombtns{display:none}
 
-/* 横向き・低い画面では各パーツを詰めてキャンバスを広く取る */
+/* 横向き・低い画面では詰めてキャンバスを広く取る */
 @media (max-height:470px){
   :root{--tap:40px}
   #hdr{height:42px}
@@ -202,13 +184,10 @@ select,input[type=number],input[type=text]{
 <div id="stagewrap">
   <div id="stage">
     <canvas id="bgc"></canvas>
-    <canvas id="avc"></canvas>
     <canvas id="view"></canvas>
-    <canvas id="giz"></canvas>
   </div>
   <div id="zoombar">🔍 —</div>
   <div id="previewBox"><div class="cap">▶ プレビュー</div><canvas id="prev"></canvas></div>
-  <div id="dropmsg"></div>
   <div id="infoBar"></div>
 </div>
 
@@ -230,7 +209,6 @@ select,input[type=number],input[type=text]{
   <button class="secbtn" data-sec="pen">✏️ ペン</button>
   <button class="secbtn" data-sec="layer">🗂 レイヤー</button>
   <button class="secbtn" data-sec="frame">🎞 コマ</button>
-  <button class="secbtn" data-sec="rig">🦴 パーツ</button>
   <button class="secbtn" data-sec="fx">✨ しあげ</button>
   <button class="secbtn" data-sec="file">💾 ファイル</button>
 </div>
@@ -240,226 +218,130 @@ select,input[type=number],input[type=text]{
   <div id="sheetHead"><b id="sheetTitle">色</b><button class="hb" id="sheetClose">✕</button></div>
   <div id="sheetBody">
 
-    <!-- 本体JSが参照するタブ（モバイルでは非表示のまま状態切替にだけ使う） -->
-    <div id="tabs">
-      <button class="tab on" data-tab="draw">お絵かき</button>
-      <button class="tab" data-tab="avatar">パーツ＆ボーン</button>
+    <div class="sec on" data-sec="color">
+      <h4>カラー（パレット）</h4>
+      <div class="grid" id="palette"></div>
+      <h4>フルカラー</h4>
+      <div class="row">
+        <div class="sw-toggle on" id="fullColor"></div>
+        <input type="color" id="colorPick" value="#20242a">
+        <span class="val" id="curColor">#20242a</span>
+      </div>
+      <h4>紙の色</h4>
+      <div class="grid" id="papers"></div>
     </div>
 
-    <div id="tabDraw">
-      <!-- 色 -->
-      <div class="sec on" data-sec="color">
-        <h4>カラー（パレット）</h4>
-        <div class="grid" id="palette"></div>
-        <h4>フルカラー</h4>
-        <div class="row">
-          <div class="sw-toggle on" id="fullColor"></div>
-          <input type="color" id="colorPick" value="#20242a">
-          <span class="val" id="curColor">#20242a</span>
-        </div>
-        <h4>紙の色</h4>
-        <div class="grid" id="papers"></div>
-      </div>
+    <div class="sec" data-sec="pen">
+      <h4>ペンの太さ</h4>
+      <div class="grid" id="sizes"></div>
+      <h4>ペンの種類</h4>
+      <div class="grid" id="patterns"></div>
+      <h4>図形</h4>
+      <div class="grid" id="shapes"></div>
+      <h4>描き味</h4>
+      <div class="row"><label>手ブレ補正</label><div class="sw-toggle on" id="stabilize"></div></div>
+      <div class="row"><label>グリッド</label><div class="sw-toggle" id="gridSw"></div></div>
+    </div>
 
-      <!-- ペン -->
-      <div class="sec" data-sec="pen">
-        <h4>ペンの太さ</h4>
-        <div class="grid" id="sizes"></div>
-        <h4>ペンの種類</h4>
-        <div class="grid" id="patterns"></div>
-        <h4>図形</h4>
-        <div class="grid" id="shapes"></div>
-        <h4>描き味</h4>
-        <div class="row"><label>手ブレ補正</label><div class="sw-toggle on" id="stabilize"></div></div>
-        <div class="row"><label>グリッド</label><div class="sw-toggle" id="gridSw"></div></div>
+    <div class="sec" data-sec="layer">
+      <div class="grid">
+        <button class="mini" id="lAdd">＋ 追加</button>
+        <button class="mini" id="lDup">⧉ 複製</button>
+        <button class="mini" id="lDel">🗑 削除</button>
+        <button class="mini" id="lMerge">⇊ 統合</button>
+        <button class="mini" id="lUp">▲</button>
+        <button class="mini" id="lDown">▼</button>
       </div>
-
-      <!-- レイヤー -->
-      <div class="sec" data-sec="layer">
-        <div class="grid">
-          <button class="mini" id="lAdd">＋ 追加</button>
-          <button class="mini" id="lDup">⧉ 複製</button>
-          <button class="mini" id="lDel">🗑 削除</button>
-          <button class="mini" id="lMerge">⇊ 統合</button>
-          <button class="mini" id="lUp">▲</button>
-          <button class="mini" id="lDown">▼</button>
-        </div>
-        <h4>レイヤー</h4>
-        <div id="layers"></div>
-        <h4>選んだレイヤーを他のコマへ</h4>
-        <div class="grid">
-          <button class="mini" id="lPrevMove">◀ 前へ移動</button>
-          <button class="mini" id="lNextMove">次へ移動 ▶</button>
-          <button class="mini" id="lPrevCopy">◀ 前へコピー</button>
-          <button class="mini" id="lNextCopy">次へコピー ▶</button>
-          <button class="mini" id="lAllCopy">全コマへコピー</button>
-        </div>
-      </div>
-
-      <!-- コマ -->
-      <div class="sec" data-sec="frame">
-        <div class="grid">
-          <button class="mini" id="fAdd">＋ ついか</button>
-          <button class="mini" id="fDup">⧉ 複製</button>
-          <button class="mini" id="fWobble">〜 ゆらゆら</button>
-          <button class="mini" id="fCopy">コピー</button>
-          <button class="mini" id="fPaste">はりつけ</button>
-          <button class="mini" id="fDel" style="background:#f4746a;color:#fff">さくじょ</button>
-        </div>
-        <h4>再生</h4>
-        <div class="grid">
-          <button class="mini" id="pFirst">⏮</button>
-          <button class="mini" id="pPrev">◀</button>
-          <button class="mini" id="pPlay">▶</button>
-          <button class="mini" id="pNext">▶|</button>
-          <button class="mini" id="pLast">⏭</button>
-          <button class="mini" id="pLoop">🔁</button>
-        </div>
-        <div class="row">
-          <label>速さ</label>
-          <select id="fps">
-            <option>2</option><option>3</option><option selected>4</option><option>6</option>
-            <option>8</option><option>12</option><option>15</option><option>24</option>
-          </select>
-          <span class="val">fps</span>
-        </div>
-        <h4>透かす（オニオンスキン）</h4>
-        <div class="grid" id="onion"></div>
-        <h4>プレビュー窓</h4>
-        <div class="row"><label>右上に出す</label><div class="sw-toggle on" id="prevSw"></div></div>
-      </div>
-
-      <!-- しあげ -->
-      <div class="sec" data-sec="fx">
-        <h4>ドット化</h4>
-        <div class="row"><label>ドットの粗さ</label><input type="range" id="fxPixel" min="1" max="16" step="1" value="4"><span class="val">4</span></div>
-        <div class="row">
-          <label>減色</label>
-          <select id="fxQuant">
-            <option value="0">しない</option>
-            <option value="2">2色</option><option value="4">4色</option><option value="8">8色</option>
-            <option value="16" selected>16色</option><option value="32">32色</option>
-            <option value="pal">パレットに寄せる</option>
-            <option value="mono">白黒1bit</option>
-          </select>
-        </div>
-        <div class="row"><label>ディザ（網）</label><div class="sw-toggle" id="fxDither"></div></div>
-        <div class="row"><label>フチ取り</label><div class="sw-toggle" id="fxOutline"></div></div>
-        <div class="grid">
-          <button class="mini" id="fxApply">このコマに適用</button>
-          <button class="mini" id="fxApplyAll">全コマに適用</button>
-        </div>
-        <div class="note">↶ で戻せます</div>
-      </div>
-
-      <!-- ファイル -->
-      <div class="sec" data-sec="file">
-        <h4>名前</h4>
-        <input type="text" id="docName" value="新規デザイン" style="width:100%">
-        <h4>書き出し</h4>
-        <div class="grid">
-          <button class="mini" id="btnLoad">📂 よみこみ</button>
-          <button class="mini" id="btnExportPng">🖼 画像で保存</button>
-          <button class="mini" id="btnExportSeq">⬇ 連番PNG</button>
-          <button class="mini" id="btnRec">🎬 webm</button>
-        </div>
-        <h4>キャンバス</h4>
-        <div class="grid">
-          <button class="mini" id="cs320">320×240</button>
-          <button class="mini" id="cs256">256×192</button>
-          <button class="mini" id="cs512">512×512</button>
-          <button class="mini" id="csClear">このコマを消す</button>
-        </div>
-        <h4>表示</h4>
-        <div class="grid">
-          <button class="mini" id="zOut">− 縮小</button>
-          <button class="mini" id="zIn">＋ 拡大</button>
-          <button class="mini" id="zFit">⤢ 画面に合わせる</button>
-        </div>
-        <div class="note">キャンバスは2本指でつまむと拡大縮小、2本指ドラッグで移動できます。</div>
+      <h4>レイヤー</h4>
+      <div id="layers"></div>
+      <h4>選んだレイヤーを他のコマへ</h4>
+      <div class="grid">
+        <button class="mini" id="lPrevMove">◀ 前へ移動</button>
+        <button class="mini" id="lNextMove">次へ移動 ▶</button>
+        <button class="mini" id="lPrevCopy">◀ 前へコピー</button>
+        <button class="mini" id="lNextCopy">次へコピー ▶</button>
+        <button class="mini" id="lAllCopy">全コマへコピー</button>
       </div>
     </div>
 
-    <!-- パーツ＆ボーン -->
-    <div id="tabAvatar" class="hidden">
-      <div class="sec" data-sec="rig">
-        <h4>パーツを置く</h4>
-        <div id="psdBox">
-          <div>タップして PSD・PNG を選ぶ</div>
-          <div id="psdInfo">パーツ 0 個</div>
-        </div>
-        <input type="file" id="psdFile" accept=".psd,.png,.jpg,.jpeg,.webp" multiple class="hidden">
-
-        <h4>操作モード</h4>
-        <div class="grid" id="rigModes">
-          <button class="mini on" data-rm="pose">ポーズ</button>
-          <button class="mini" data-rm="part">パーツ配置</button>
-          <button class="mini" data-rm="bone">ボーン作成</button>
-          <button class="mini" data-rm="off">切</button>
-        </div>
-        <div class="note" id="rigHint"></div>
-
-        <h4>表示</h4>
-        <div class="row"><label>パーツ表示</label><div class="sw-toggle on" id="avShow"></div></div>
-        <div class="row"><label>不透明度</label><input type="range" id="avAlpha" min="0" max="1" step="0.01" value="0.85"><span class="val">85</span></div>
-        <div class="row"><label>ボーン表示</label><div class="sw-toggle on" id="boneShow"></div></div>
-
-        <h4>パーツ</h4>
-        <div id="partList"></div>
-        <div id="partEdit" class="hidden">
-          <div class="row"><label>大きさ</label><input type="range" id="pScale" min="0.05" max="3" step="0.01" value="1"><span class="val">1.0</span></div>
-          <div class="row"><label>回転</label><input type="range" id="pRot" min="-180" max="180" step="1" value="0"><span class="val">0</span></div>
-          <div class="row"><label>つなぐ骨</label><select id="pBone"></select></div>
-          <div class="grid">
-            <button class="mini" id="pUp">前へ</button>
-            <button class="mini" id="pDown">後ろへ</button>
-            <button class="mini" id="pDel">削除</button>
-          </div>
-        </div>
-
-        <h4>ボーン</h4>
-        <div id="boneList"></div>
-        <div id="boneEdit" class="hidden">
-          <div class="row"><label>角度</label><input type="range" id="bAng" min="-180" max="180" step="1" value="0"><span class="val">0</span></div>
-          <div class="row"><label>長さ</label><input type="range" id="bLen" min="4" max="300" step="1" value="40"><span class="val">40</span></div>
-          <div class="row"><label>親</label><select id="bParent"></select></div>
-          <div class="row"><label>ゆれる骨</label><div class="sw-toggle" id="bWobble"></div></div>
-          <div class="grid">
-            <button class="mini" id="bDel">削除</button>
-            <button class="mini" id="bRename">名前</button>
-          </div>
-        </div>
-        <div class="grid" style="margin-top:6px">
-          <button class="mini" id="boneReset">ポーズをリセット</button>
-          <button class="mini" id="ikSw">IK: 切</button>
-        </div>
-
-        <h4>コマにポーズを記録</h4>
-        <div class="grid">
-          <button class="mini" id="keySet">このコマに記録</button>
-          <button class="mini" id="keyDel">記録を消す</button>
-          <button class="mini" id="keyClear">全部消す</button>
-        </div>
-        <div class="row"><label>間を補間</label><div class="sw-toggle on" id="tween"></div></div>
-        <div class="note" id="keyInfo"></div>
-
-        <h4>コマに焼き付け</h4>
-        <div class="row">
-          <label>変換</label>
-          <select id="bakeMode">
-            <option value="raw">そのまま</option>
-            <option value="mono" selected>1bit（白黒）</option>
-            <option value="dither">網かけ</option>
-          </select>
-        </div>
-        <div class="row"><label>しきい値</label><input type="range" id="bakeTh" min="0" max="255" step="1" value="150"><span class="val">150</span></div>
-        <div class="grid">
-          <button class="mini" id="bakeOne">このコマに焼く</button>
-          <button class="mini" id="bakeSeq">連番でコマ化</button>
-          <input type="number" id="bakeCount" value="8" min="2" max="60" style="width:76px">
-        </div>
-        <div class="note" id="note"></div>
+    <div class="sec" data-sec="frame">
+      <div class="grid">
+        <button class="mini" id="fAdd">＋ ついか</button>
+        <button class="mini" id="fDup">⧉ 複製</button>
+        <button class="mini" id="fWobble">〜 ゆらゆら</button>
+        <button class="mini" id="fCopy">コピー</button>
+        <button class="mini" id="fPaste">はりつけ</button>
+        <button class="mini" id="fDel" style="background:#f4746a;color:#fff">さくじょ</button>
       </div>
+      <h4>再生</h4>
+      <div class="grid">
+        <button class="mini" id="pFirst">⏮</button>
+        <button class="mini" id="pPrev">◀</button>
+        <button class="mini" id="pPlay">▶</button>
+        <button class="mini" id="pNext">▶|</button>
+        <button class="mini" id="pLast">⏭</button>
+        <button class="mini" id="pLoop">🔁</button>
+      </div>
+      <div class="row">
+        <label>速さ</label>
+        <select id="fps">
+          <option>2</option><option>3</option><option selected>4</option><option>6</option>
+          <option>8</option><option>12</option><option>15</option><option>24</option>
+        </select>
+        <span class="val">fps</span>
+      </div>
+      <h4>透かす（オニオンスキン）</h4>
+      <div class="grid" id="onion"></div>
+      <h4>プレビュー窓</h4>
+      <div class="row"><label>右上に出す</label><div class="sw-toggle on" id="prevSw"></div></div>
+    </div>
+
+    <div class="sec" data-sec="fx">
+      <h4>ドット化</h4>
+      <div class="row"><label>ドットの粗さ</label><input type="range" id="fxPixel" min="1" max="16" step="1" value="4"><span class="val">4</span></div>
+      <div class="row">
+        <label>減色</label>
+        <select id="fxQuant">
+          <option value="0">しない</option>
+          <option value="2">2色</option><option value="4">4色</option><option value="8">8色</option>
+          <option value="16" selected>16色</option><option value="32">32色</option>
+          <option value="pal">パレットに寄せる</option>
+          <option value="mono">白黒1bit</option>
+        </select>
+      </div>
+      <div class="row"><label>ディザ（網）</label><div class="sw-toggle" id="fxDither"></div></div>
+      <div class="row"><label>フチ取り</label><div class="sw-toggle" id="fxOutline"></div></div>
+      <div class="grid">
+        <button class="mini" id="fxApply">このコマに適用</button>
+        <button class="mini" id="fxApplyAll">全コマに適用</button>
+      </div>
+      <div class="note">↶ で戻せます</div>
+    </div>
+
+    <div class="sec" data-sec="file">
+      <h4>名前</h4>
+      <input type="text" id="docName" value="新規デザイン" style="width:100%">
+      <h4>書き出し</h4>
+      <div class="grid">
+        <button class="mini" id="btnLoad">📂 よみこみ</button>
+        <button class="mini" id="btnExportPng">🖼 画像で保存</button>
+        <button class="mini" id="btnExportSeq">⬇ 連番PNG</button>
+        <button class="mini" id="btnRec">🎬 webm</button>
+      </div>
+      <h4>キャンバス</h4>
+      <div class="grid">
+        <button class="mini" id="cs320">320×240</button>
+        <button class="mini" id="cs256">256×192</button>
+        <button class="mini" id="cs512">512×512</button>
+        <button class="mini" id="csClear">このコマを消す</button>
+      </div>
+      <h4>表示</h4>
+      <div class="grid">
+        <button class="mini" id="zOut">− 縮小</button>
+        <button class="mini" id="zIn">＋ 拡大</button>
+        <button class="mini" id="zFit">⤢ 画面に合わせる</button>
+      </div>
+      <div class="note">キャンバスは2本指でつまむと拡大縮小、2本指ドラッグで移動できます。</div>
     </div>
 
   </div>
@@ -485,13 +367,9 @@ const view = document.getElementById("view");
 const vctx = view.getContext("2d");
 const bgc  = document.getElementById("bgc");
 const bctx = bgc.getContext("2d");
-const avc  = document.getElementById("avc");
-const actx = avc.getContext("2d");
 const stage = document.getElementById("stage");
 const prev = document.getElementById("prev");
 const pctx = prev.getContext("2d");
-const giz  = document.getElementById("giz");
-const gctx = giz.getContext("2d");
 
 const PALETTE = [
   "#20242a","#ffffff","#ee3b30","#ffd83d","#127a3a","#2ba7e0","#f08b2c","#f490b8",
@@ -543,14 +421,11 @@ function initDoc(w,h){
 
 /* ---- 表示サイズ ---- */
 function applySize(){
-  [view,bgc,avc].forEach(c=>{ c.width = W; c.height = H;
+  [view,bgc].forEach(c=>{ c.width = W; c.height = H;
     c.style.width = (W*zoom)+"px"; c.style.height = (H*zoom)+"px"; });
-  giz.width = W*zoom; giz.height = H*zoom;
-  giz.style.width = (W*zoom)+"px"; giz.style.height = (H*zoom)+"px";
   stage.style.width = (W*zoom)+"px";
   stage.style.height = (H*zoom)+"px";
   vctx.imageSmoothingEnabled = false;
-  actx.imageSmoothingEnabled = false;
   bctx.imageSmoothingEnabled = false;
   prev.width = W; prev.height = H;
   const pw = 190;
@@ -560,11 +435,7 @@ function applySize(){
   document.getElementById("infoBar").textContent =
     `${W}×${H} ドット等倍 / レイヤー無制限 / パレット＋フルカラー`;
   // canvas.width への代入は中身を消すので、必ず描き直す（拡大縮小で真っ白になるのを防ぐ）
-  if(frames.length){
-    redraw();
-    if(parts.length){ drawRig(); actx.clearRect(0,0,W,H); if(avShow) blitRig(actx, avAlpha); }
-    drawGizmo();
-  }
+  if(frames.length) redraw();
 }
 function fitZoom(){
   const wrap = document.getElementById("stagewrap");
@@ -875,17 +746,6 @@ document.querySelectorAll("#rail .tool").forEach(b=>{
   b.onclick = ()=>{
     document.querySelectorAll("#rail .tool").forEach(x=>x.classList.remove("on"));
     b.classList.add("on"); tool = b.dataset.tool;
-  };
-});
-document.querySelectorAll(".tab").forEach(t=>{
-  t.onclick = ()=>{
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
-    t.classList.add("on");
-    document.getElementById("tabDraw").classList.toggle("hidden", t.dataset.tab!=="draw");
-    document.getElementById("tabAvatar").classList.toggle("hidden", t.dataset.tab!=="avatar");
-    // リグ操作はパーツ＆ボーンタブを開いている間だけ。お絵かき中は絵を邪魔しない
-    giz.classList.toggle("active", t.dataset.tab==="avatar" && rigMode!=="off");
-    drawGizmo();
   };
 });
 { // サイズ
@@ -1305,676 +1165,8 @@ function gotoFrame(i){
   cur = Math.max(0, Math.min(frames.length-1, i));
   curLayer = Math.min(curLayer, F().layers.length-1);
   buildLayers(); buildFrames(); redraw();
-  if(typeof syncPoseToFrame === "function") syncPoseToFrame();
 }
 function fps(){ return +document.getElementById("fps").value; }
-
-/* =========================================================
-   7. パーツ＆ボーン（PSD/PNGのパーツをボーンで動かす）
-   ========================================================= */
-/* データ:
-   parts: {id,name,img,x,y,scale,rot,bone,visible}   x,y はパーツ中心のキャンバス座標
-   bones: {id,name,parent,x,y,len,ang,rest,wobble}   親なし骨は x,y が根元。ang は親からの相対角(rad)
-   バインド時にパーツのローカル座標を骨基準で保存し、以後は骨の世界変換で追従する。 */
-let parts = [], bones = [], partSeq = 0, boneSeq = 0;
-let selPart = null, selBone = null;
-let rigMode = "pose", ikOn = false, showBones = true;
-let avShow = true, avAlpha = .85;
-let poseKeys = {};           // {frameIndex: {boneId: ang}}
-let tweenOn = true;
-
-const rig = document.createElement("canvas");   // パーツ合成先（キャンバス解像度）
-const rctx = rig.getContext("2d");
-
-function byId(arr,id){ return arr.find(o=>o.id===id) || null; }
-
-/* ---- 世界変換（親→子で合成） ---- */
-function boneWorld(b, cache){
-  cache = cache || {};
-  if(cache[b.id]) return cache[b.id];
-  let ox = b.x, oy = b.y, a = b.ang;
-  const p = b.parent != null ? byId(bones, b.parent) : null;
-  if(p){
-    const pw = boneWorld(p, cache);
-    // 親の先端に根元を置く
-    ox = pw.tx; oy = pw.ty; a = pw.ang + b.ang;
-  }
-  const w = {x:ox, y:oy, ang:a, tx:ox + Math.cos(a)*b.len, ty:oy + Math.sin(a)*b.len};
-  cache[b.id] = w;
-  return w;
-}
-function worldAll(){
-  const cache = {};
-  bones.forEach(b=> boneWorld(b, cache));
-  return cache;
-}
-
-/* ---- パーツを骨にバインド（今の見た目を保ったまま結び付ける） ---- */
-function bindPart(pt, boneId){
-  if(boneId == null){
-    if(pt.bone != null){                       // 解除: 現在の世界位置を焼き込む
-      const w = boneWorld(byId(bones, pt.bone));
-      const c = Math.cos(w.ang), s = Math.sin(w.ang);
-      pt.x = w.x + pt.lx*c - pt.ly*s;
-      pt.y = w.y + pt.lx*s + pt.ly*c;
-      pt.rot = pt.rot + w.ang;
-    }
-    pt.bone = null; delete pt.lx; delete pt.ly;
-    return;
-  }
-  const b = byId(bones, boneId); if(!b) return;
-  const w = boneWorld(b);
-  const dx = pt.x - w.x, dy = pt.y - w.y;
-  const c = Math.cos(-w.ang), s = Math.sin(-w.ang);
-  pt.lx = dx*c - dy*s;
-  pt.ly = dx*s + dy*c;
-  pt.rot = pt.rot - w.ang;                     // 骨からの相対回転
-  pt.bone = boneId;
-}
-function partTransform(pt, cache){
-  if(pt.bone == null) return {x:pt.x, y:pt.y, rot:pt.rot};
-  const b = byId(bones, pt.bone);
-  if(!b) return {x:pt.x, y:pt.y, rot:pt.rot};
-  const w = cache ? cache[b.id] : boneWorld(b);
-  const c = Math.cos(w.ang), s = Math.sin(w.ang);
-  return {x: w.x + pt.lx*c - pt.ly*s, y: w.y + pt.lx*s + pt.ly*c, rot: pt.rot + w.ang};
-}
-
-/* ---- 描画 ---- */
-function drawRig(){
-  rig.width = W; rig.height = H;
-  rctx.setTransform(1,0,0,1,0,0);
-  rctx.clearRect(0,0,W,H);
-  rctx.imageSmoothingEnabled = false;
-  const cache = worldAll();
-  for(const pt of parts){
-    if(!pt.visible) continue;
-    const t = partTransform(pt, cache);
-    rctx.save();
-    rctx.translate(t.x, t.y);
-    rctx.rotate(t.rot);
-    rctx.scale(pt.scale, pt.scale);
-    rctx.drawImage(pt.img, -pt.img.width/2, -pt.img.height/2);
-    rctx.restore();
-  }
-}
-function blitRig(ctx, alpha){
-  if(!parts.length) return;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(rig, 0, 0);
-  ctx.restore();
-}
-/* ボーンのギズモ（CSS解像度・zoom倍のキャンバスへ） */
-function drawGizmo(){
-  gctx.setTransform(1,0,0,1,0,0);
-  gctx.clearRect(0,0,giz.width,giz.height);
-  if(!giz.classList.contains("active") || !showBones) return;
-  const z = zoom, cache = worldAll();
-  if(rigMode === "part"){
-    for(const pt of parts){
-      const t = partTransform(pt, cache);
-      const w = pt.img.width*pt.scale, h = pt.img.height*pt.scale;
-      gctx.save();
-      gctx.translate(t.x*z, t.y*z); gctx.rotate(t.rot);
-      gctx.strokeStyle = pt === selPart ? "#e2703a" : "rgba(32,36,42,.45)";
-      gctx.lineWidth = pt === selPart ? 2 : 1;
-      gctx.setLineDash(pt === selPart ? [] : [4,3]);
-      gctx.strokeRect(-w/2*z, -h/2*z, w*z, h*z);
-      gctx.restore();
-    }
-    gctx.setLineDash([]);
-  }
-  for(const b of bones){
-    const w = cache[b.id];
-    const sel = b === selBone;
-    gctx.strokeStyle = sel ? "#e2703a" : "#2ba7e0";
-    gctx.lineWidth = sel ? 4 : 3;
-    gctx.lineCap = "round";
-    gctx.beginPath();
-    gctx.moveTo(w.x*z, w.y*z); gctx.lineTo(w.tx*z, w.ty*z);
-    gctx.stroke();
-    gctx.strokeStyle = "rgba(255,255,255,.85)"; gctx.lineWidth = 1;
-    gctx.stroke();
-    // 根元(丸)と先端(掴むハンドル)
-    gctx.fillStyle = "#fff"; gctx.strokeStyle = "#20242a"; gctx.lineWidth = 2;
-    gctx.beginPath(); gctx.arc(w.x*z, w.y*z, 4, 0, 7); gctx.fill(); gctx.stroke();
-    gctx.fillStyle = sel ? "#ffd24a" : "#2ba7e0";
-    gctx.beginPath(); gctx.arc(w.tx*z, w.ty*z, 6, 0, 7); gctx.fill(); gctx.stroke();
-    if(b.wobble){
-      gctx.fillStyle = "#e2703a";
-      gctx.beginPath(); gctx.arc(w.tx*z+9, w.ty*z-9, 3, 0, 7); gctx.fill();
-    }
-  }
-}
-
-/* ---- パーツ読み込み（PSD = レイヤーごとにパーツ化 / 画像 = 1パーツ） ---- */
-function addPart(name, canvas){
-  // キャンバスに収まるように初期スケールを決める
-  const fit = Math.min(1, (W*0.9)/canvas.width, (H*0.9)/canvas.height);
-  parts.push({
-    id: ++partSeq, name, img: canvas, visible: true,
-    x: W/2, y: H/2, scale: fit, rot: 0, bone: null,
-  });
-}
-function flattenPsd(node, arr){
-  (node.children||[]).forEach(ch=>{
-    if(ch.children) flattenPsd(ch, arr);
-    else if(ch.canvas) arr.push(ch);
-  });
-}
-async function loadPartFile(file){
-  if(/\.psd$/i.test(file.name)){
-    const psd = agPsd.readPsd(await file.arrayBuffer(), {skipCompositeImageData:true, skipThumbnail:true});
-    const flat = []; flattenPsd(psd, flat);
-    // PSD内の相対位置を保ったまま並べる
-    const fit = Math.min(1, (W*0.9)/psd.width, (H*0.9)/psd.height);
-    flat.forEach(l=>{
-      const lw = (l.right||0)-(l.left||0), lh = (l.bottom||0)-(l.top||0);
-      if(lw<=0 || lh<=0) return;
-      parts.push({
-        id: ++partSeq, name: l.name||"パーツ", img: l.canvas, visible: true,
-        x: W/2 + ((l.left||0) + lw/2 - psd.width/2)*fit,
-        y: H/2 + ((l.top||0)  + lh/2 - psd.height/2)*fit,
-        scale: fit, rot: 0, bone: null,
-      });
-    });
-    try{ await idbPut("lastPsd", {name:file.name, buf:await file.arrayBuffer()}); }catch(e){}
-  } else {
-    const img = await new Promise((res,rej)=>{
-      const im = new Image();
-      im.onload = ()=> res(im); im.onerror = rej;
-      im.src = URL.createObjectURL(file);
-    });
-    const c = document.createElement("canvas");
-    c.width = img.width; c.height = img.height;
-    c.getContext("2d").drawImage(img,0,0);
-    addPart(file.name.replace(/\.\w+$/,""), c);
-  }
-  selPart = parts[parts.length-1] || null;
-  buildRigUI(); drawRig();
-}
-function idb(){
-  return new Promise((res,rej)=>{
-    const q = indexedDB.open("ugomemoStudio",1);
-    q.onupgradeneeded = ()=> q.result.createObjectStore("files");
-    q.onsuccess = ()=> res(q.result);
-    q.onerror = ()=> rej(q.error);
-  });
-}
-async function idbPut(k,v){
-  const db = await idb();
-  return new Promise((res,rej)=>{
-    const tx = db.transaction("files","readwrite");
-    tx.objectStore("files").put(v,k);
-    tx.oncomplete = res; tx.onerror = ()=> rej(tx.error);
-  });
-}
-const psdFile = document.getElementById("psdFile");
-document.getElementById("psdBox").onclick = ()=> psdFile.click();
-psdFile.onchange = async e=>{
-  for(const f of e.target.files) await loadPartFile(f);
-  psdFile.value = "";
-};
-const psdBox = document.getElementById("psdBox");
-psdBox.addEventListener("dragover", e=>{ e.preventDefault(); psdBox.classList.add("dragging"); });
-psdBox.addEventListener("dragleave", ()=> psdBox.classList.remove("dragging"));
-psdBox.addEventListener("drop", async e=>{
-  e.preventDefault(); psdBox.classList.remove("dragging");
-  for(const f of e.dataTransfer.files) await loadPartFile(f);
-});
-const wrapEl = document.getElementById("stagewrap"), dropmsg = document.getElementById("dropmsg");
-wrapEl.addEventListener("dragover", e=>{ e.preventDefault(); dropmsg.style.display="flex"; });
-wrapEl.addEventListener("dragleave", ()=> dropmsg.style.display="none");
-wrapEl.addEventListener("drop", async e=>{
-  e.preventDefault(); dropmsg.style.display="none";
-  for(const f of e.dataTransfer.files) await loadPartFile(f);
-});
-
-/* ---- パネルUI ---- */
-const RIG_HINTS = {
-  pose: "骨の先端(丸)をドラッグで曲げる。IK入で先端を引っぱると2本続けて曲がる。",
-  part: "パーツをドラッグで移動。選んでから大きさ・回転・つなぐ骨を設定。",
-  bone: "キャンバスをドラッグして骨を作る。選択中の骨があればその子になる。",
-  off:  "リグ操作を切って、いつも通りお絵かきします。",
-};
-document.querySelectorAll("#rigModes .mini").forEach(b=>{
-  b.onclick = ()=>{
-    document.querySelectorAll("#rigModes .mini").forEach(x=>x.classList.remove("on"));
-    b.classList.add("on");
-    rigMode = b.dataset.rm;
-    giz.classList.toggle("active", rigMode !== "off" &&
-      !document.getElementById("tabAvatar").classList.contains("hidden"));
-    document.getElementById("rigHint").textContent = RIG_HINTS[rigMode];
-    drawGizmo();
-  };
-});
-document.getElementById("rigHint").textContent = RIG_HINTS.pose;
-
-function buildRigUI(){
-  // パーツ一覧
-  const pl = document.getElementById("partList");
-  pl.innerHTML = "";
-  parts.slice().reverse().forEach(pt=>{
-    const d = document.createElement("div");
-    d.className = "lay" + (pt===selPart?" on":"");
-    const eye = document.createElement("span");
-    eye.className = "eye"; eye.textContent = pt.visible ? "👁" : "🚫";
-    eye.onclick = e=>{ e.stopPropagation(); pt.visible = !pt.visible; buildRigUI(); drawRig(); };
-    const nm = document.createElement("span");
-    nm.className = "nm";
-    nm.textContent = pt.name + (pt.bone!=null ? " 🔗"+(byId(bones,pt.bone)?.name||"") : "");
-    d.append(eye, nm);
-    d.onclick = ()=>{ selPart = pt; buildRigUI(); drawGizmo(); };
-    pl.appendChild(d);
-  });
-  document.getElementById("psdInfo").textContent = `パーツ ${parts.length} 個 / ボーン ${bones.length} 本`;
-  const pe = document.getElementById("partEdit");
-  pe.classList.toggle("hidden", !selPart);
-  if(selPart){
-    setRange("pScale", selPart.scale, 2);
-    setRange("pRot", Math.round(selPart.rot*180/Math.PI), 0);
-    const sel = document.getElementById("pBone");
-    sel.innerHTML = "";
-    const o0 = document.createElement("option"); o0.value=""; o0.textContent="（なし）"; sel.appendChild(o0);
-    bones.forEach(b=>{
-      const o = document.createElement("option"); o.value=b.id; o.textContent=b.name; sel.appendChild(o);
-    });
-    sel.value = selPart.bone!=null ? selPart.bone : "";
-  }
-  // ボーン一覧
-  const bl = document.getElementById("boneList");
-  bl.innerHTML = "";
-  bones.forEach(b=>{
-    const d = document.createElement("div");
-    d.className = "lay" + (b===selBone?" on":"");
-    const nm = document.createElement("span");
-    nm.className = "nm";
-    const depth = (function dep(x){ let n=0; while(x && x.parent!=null){ x = byId(bones,x.parent); n++; } return n; })(b);
-    nm.textContent = "　".repeat(depth) + b.name + (b.wobble?" 〜":"");
-    d.append(nm);
-    d.onclick = ()=>{ selBone = b; buildRigUI(); drawGizmo(); };
-    bl.appendChild(d);
-  });
-  const be = document.getElementById("boneEdit");
-  be.classList.toggle("hidden", !selBone);
-  if(selBone){
-    setRange("bAng", Math.round(selBone.ang*180/Math.PI), 0);
-    setRange("bLen", Math.round(selBone.len), 0);
-    const sel = document.getElementById("bParent");
-    sel.innerHTML = "";
-    const o0 = document.createElement("option"); o0.value=""; o0.textContent="（なし＝根）"; sel.appendChild(o0);
-    bones.forEach(b=>{
-      if(b === selBone || isDescendant(b, selBone)) return;
-      const o = document.createElement("option"); o.value=b.id; o.textContent=b.name; sel.appendChild(o);
-    });
-    sel.value = selBone.parent!=null ? selBone.parent : "";
-    document.getElementById("bWobble").classList.toggle("on", !!selBone.wobble);
-  }
-  document.getElementById("keyInfo").textContent =
-    Object.keys(poseKeys).length
-      ? "記録済みコマ: " + Object.keys(poseKeys).map(i=>+i+1).sort((a,b)=>a-b).join(", ")
-      : "記録なし（記録するとコマ送りでポーズが切り替わります）";
-}
-function isDescendant(b, of){
-  let x = b;
-  while(x && x.parent != null){ if(x.parent === of.id) return true; x = byId(bones, x.parent); }
-  return false;
-}
-function setRange(id, v, dec){
-  const el = document.getElementById(id);
-  el.value = v;
-  el.parentElement.querySelector(".val").textContent = dec ? (+v).toFixed(dec) : Math.round(v);
-}
-function onRange(id, fn, dec){
-  const el = document.getElementById(id);
-  el.oninput = ()=>{
-    const v = +el.value;
-    el.parentElement.querySelector(".val").textContent = dec ? v.toFixed(dec) : Math.round(v);
-    fn(v);
-  };
-}
-onRange("pScale", v=>{ if(selPart){ selPart.scale = v; drawRig(); drawGizmo(); } }, 2);
-onRange("pRot",   v=>{ if(selPart){ selPart.rot = v*Math.PI/180; drawRig(); drawGizmo(); } }, 0);
-onRange("bAng",   v=>{ if(selBone){ selBone.ang = v*Math.PI/180; drawRig(); drawGizmo(); } }, 0);
-onRange("bLen",   v=>{ if(selBone){ selBone.len = v; drawRig(); drawGizmo(); } }, 0);
-onRange("avAlpha",v=>{ avAlpha = v; }, 0);
-document.getElementById("avAlpha").oninput = e=>{
-  avAlpha = +e.target.value;
-  e.target.parentElement.querySelector(".val").textContent = Math.round(avAlpha*100);
-};
-document.getElementById("pBone").onchange = e=>{
-  if(!selPart) return;
-  bindPart(selPart, e.target.value === "" ? null : +e.target.value);
-  buildRigUI(); drawRig(); drawGizmo();
-};
-document.getElementById("bParent").onchange = e=>{
-  if(!selBone) return;
-  const pid = e.target.value === "" ? null : +e.target.value;
-  // 親が変わっても見た目が動かないよう、根元と角度を付け替え後の座標系で取り直す
-  const w = boneWorld(selBone);
-  selBone.parent = pid;
-  if(pid == null){ selBone.x = w.x; selBone.y = w.y; selBone.ang = w.ang; }
-  else {
-    const pw = boneWorld(byId(bones,pid));
-    selBone.ang = w.ang - pw.ang;
-  }
-  buildRigUI(); drawRig(); drawGizmo();
-};
-document.getElementById("bWobble").onclick = ()=>{
-  if(!selBone) return;
-  selBone.wobble = !selBone.wobble;
-  document.getElementById("bWobble").classList.toggle("on", selBone.wobble);
-  buildRigUI(); drawGizmo();
-};
-document.getElementById("bDel").onclick = ()=>{
-  if(!selBone) return;
-  const id = selBone.id;
-  bones.filter(b=>b.parent===id).forEach(b=>{
-    const w = boneWorld(b);
-    b.parent = null; b.x = w.x; b.y = w.y; b.ang = w.ang;
-  });
-  parts.filter(p=>p.bone===id).forEach(p=> bindPart(p, null));
-  bones = bones.filter(b=>b.id!==id);
-  selBone = null;
-  buildRigUI(); drawRig(); drawGizmo();
-};
-document.getElementById("bRename").onclick = ()=>{
-  if(!selBone) return;
-  const n = prompt("ボーン名", selBone.name);
-  if(n){ selBone.name = n; buildRigUI(); }
-};
-document.getElementById("boneReset").onclick = ()=>{
-  bones.forEach(b=> b.ang = b.rest);
-  buildRigUI(); drawRig(); drawGizmo();
-};
-document.getElementById("ikSw").onclick = e=>{
-  ikOn = !ikOn;
-  e.currentTarget.textContent = "IK: " + (ikOn ? "入" : "切");
-  e.currentTarget.classList.toggle("on", ikOn);
-};
-document.getElementById("pUp").onclick = ()=>{
-  const i = parts.indexOf(selPart); if(i<0 || i===parts.length-1) return;
-  [parts[i],parts[i+1]] = [parts[i+1],parts[i]];
-  buildRigUI(); drawRig();
-};
-document.getElementById("pDown").onclick = ()=>{
-  const i = parts.indexOf(selPart); if(i<=0) return;
-  [parts[i],parts[i-1]] = [parts[i-1],parts[i]];
-  buildRigUI(); drawRig();
-};
-document.getElementById("pDel").onclick = ()=>{
-  if(!selPart) return;
-  parts = parts.filter(p=>p!==selPart); selPart = null;
-  buildRigUI(); drawRig(); drawGizmo();
-};
-toggleSw("avShow", true, v=>{ avShow = v; if(!v) actx.clearRect(0,0,W,H); });
-toggleSw("boneShow", true, v=>{ showBones = v; drawGizmo(); });
-toggleSw("tween", true, v=> tweenOn = v);
-document.getElementById("bakeTh").oninput = e=>{
-  e.target.parentElement.querySelector(".val").textContent = e.target.value;
-};
-
-/* ---- キャンバス上の操作（ギズモ層でヒットテスト） ---- */
-function gizPix(e){
-  const r = giz.getBoundingClientRect();
-  return {x:(e.clientX-r.left)/zoom, y:(e.clientY-r.top)/zoom};
-}
-let dragKind = null, dragOff = null;
-giz.addEventListener("pointerdown", e=>{
-  if(rigMode === "off") return;
-  giz.setPointerCapture(e.pointerId);
-  const p = gizPix(e);
-  const cache = worldAll();
-  const hitR = 9/zoom;
-
-  if(rigMode === "bone"){
-    // 選択中の骨があればその子として、無ければ根として作る
-    const parent = selBone;
-    const pw = parent ? cache[parent.id] : null;
-    const b = {
-      id: ++boneSeq, name: "ボーン"+(bones.length+1),
-      parent: parent ? parent.id : null,
-      x: parent ? 0 : p.x, y: parent ? 0 : p.y,
-      len: 1, ang: 0, rest: 0, wobble: false,
-    };
-    if(parent) b.ang = Math.atan2(p.y-pw.ty, p.x-pw.tx) - pw.ang;
-    bones.push(b);
-    selBone = b; dragKind = "newbone"; dragOff = p;
-    buildRigUI(); drawGizmo();
-    return;
-  }
-  // 骨の先端ハンドル優先（ポーズ操作）
-  for(let i=bones.length-1; i>=0; i--){
-    const b = bones[i], w = cache[b.id];
-    if(Math.hypot(p.x-w.tx, p.y-w.ty) < hitR){
-      selBone = b; dragKind = "tip"; buildRigUI(); drawGizmo();
-      return;
-    }
-  }
-  if(rigMode === "part"){
-    for(let i=parts.length-1; i>=0; i--){
-      const pt = parts[i];
-      if(!pt.visible) continue;
-      const t = partTransform(pt, cache);
-      const hw = pt.img.width*pt.scale/2, hh = pt.img.height*pt.scale/2;
-      const c = Math.cos(-t.rot), s = Math.sin(-t.rot);
-      const dx = p.x-t.x, dy = p.y-t.y;
-      const lx = dx*c - dy*s, ly = dx*s + dy*c;
-      if(Math.abs(lx) <= hw && Math.abs(ly) <= hh){
-        selPart = pt; dragKind = "part"; dragOff = {x:lx, y:ly};
-        buildRigUI(); drawGizmo();
-        return;
-      }
-    }
-    selPart = null; buildRigUI(); drawGizmo();
-  }
-});
-giz.addEventListener("pointermove", e=>{
-  if(!dragKind) return;
-  const p = gizPix(e);
-  if(dragKind === "part" && selPart){
-    if(selPart.bone != null){
-      // 骨に付いている場合はローカル座標を動かす
-      const w = boneWorld(byId(bones, selPart.bone));
-      const c = Math.cos(-w.ang), s = Math.sin(-w.ang);
-      const dx = p.x - w.x, dy = p.y - w.y;
-      const lx = dx*c - dy*s, ly = dx*s + dy*c;
-      const rc = Math.cos(-selPart.rot), rs = Math.sin(-selPart.rot);
-      selPart.lx = lx - (dragOff.x*Math.cos(selPart.rot) - dragOff.y*Math.sin(selPart.rot));
-      selPart.ly = ly - (dragOff.x*Math.sin(selPart.rot) + dragOff.y*Math.cos(selPart.rot));
-    } else {
-      selPart.x = p.x - (dragOff.x*Math.cos(selPart.rot) - dragOff.y*Math.sin(selPart.rot));
-      selPart.y = p.y - (dragOff.x*Math.sin(selPart.rot) + dragOff.y*Math.cos(selPart.rot));
-    }
-    drawRig(); drawGizmo();
-    return;
-  }
-  if((dragKind === "tip" || dragKind === "newbone") && selBone){
-    const b = selBone;
-    const pw = b.parent != null ? boneWorld(byId(bones,b.parent)) : null;
-    const ox = pw ? pw.tx : b.x, oy = pw ? pw.ty : b.y;
-    const base = pw ? pw.ang : 0;
-    const ang = Math.atan2(p.y-oy, p.x-ox) - base;
-    if(dragKind === "newbone"){
-      b.ang = ang; b.len = Math.max(4, Math.hypot(p.x-ox, p.y-oy)); b.rest = b.ang;
-    } else if(ikOn && b.parent != null){
-      solveIK(byId(bones,b.parent), b, p);
-    } else {
-      b.ang = ang;
-    }
-    setRange("bAng", Math.round(b.ang*180/Math.PI), 0);
-    setRange("bLen", Math.round(b.len), 0);
-    drawRig(); drawGizmo();
-  }
-});
-addEventListener("pointerup", ()=>{
-  if(dragKind === "newbone"){ buildRigUI(); }
-  dragKind = null;
-});
-/* 2本チェーンのIK: 上腕(a)+前腕(b)の先端を target に寄せる */
-function solveIK(a, b, target){
-  const aw = a.parent != null ? boneWorld(byId(bones,a.parent)) : null;
-  const ox = aw ? aw.tx : a.x, oy = aw ? aw.ty : a.y;
-  const base = aw ? aw.ang : 0;
-  const dx = target.x-ox, dy = target.y-oy;
-  const l1 = a.len, l2 = b.len;
-  let d = Math.hypot(dx,dy);
-  d = Math.max(Math.abs(l1-l2)+.001, Math.min(l1+l2-.001, d));
-  const at = Math.atan2(dy,dx);
-  const cosA = (l1*l1 + d*d - l2*l2)/(2*l1*d);
-  const A = Math.acos(Math.max(-1, Math.min(1, cosA)));
-  const cosB = (l1*l1 + l2*l2 - d*d)/(2*l1*l2);
-  const B = Math.acos(Math.max(-1, Math.min(1, cosB)));
-  a.ang = (at - A) - base;
-  b.ang = Math.PI - B;
-}
-
-/* ---- ゆれる骨（バネ） ---- */
-class Spring{
-  constructor(){ this.x=0; this.v=0; }
-  step(dt,k,c,input){
-    this.v += (-k*this.x - c*this.v + input)*dt;
-    this.x += this.v*dt;
-    if(!isFinite(this.x)){ this.x=0; this.v=0; }
-  }
-}
-const wobbleSprings = {};
-function stepRig(now, dt){
-  const t = now/1000;
-  let moved = false;
-  for(const b of bones){
-    if(!b.wobble) continue;
-    const s = wobbleSprings[b.id] || (wobbleSprings[b.id] = new Spring());
-    const wind = Math.sin(t*1.4 + b.id) + Math.sin(t*2.3 + b.id*2)*.5;
-    s.step(dt, 26, 2.2, wind*26);
-    b.ang = b.rest + s.x*0.02;
-    moved = true;
-  }
-  if(moved){ drawRig(); }
-}
-
-/* ---- ポーズのキーフレーム ---- */
-function capturePose(){
-  const o = {};
-  bones.forEach(b=> o[b.id] = b.ang);
-  return o;
-}
-function applyPose(o){
-  bones.forEach(b=>{ if(o[b.id] !== undefined) b.ang = o[b.id]; });
-  drawRig(); drawGizmo();
-}
-function poseForFrame(i){
-  const keys = Object.keys(poseKeys).map(Number).sort((a,b)=>a-b);
-  if(!keys.length) return null;
-  if(poseKeys[i]) return poseKeys[i];
-  if(!tweenOn){
-    let last = keys[0];
-    for(const k of keys) if(k <= i) last = k;
-    return poseKeys[last];
-  }
-  let lo = null, hi = null;
-  for(const k of keys){ if(k < i) lo = k; if(k > i && hi === null) hi = k; }
-  if(lo === null) return poseKeys[hi];
-  if(hi === null) return poseKeys[lo];
-  const u = (i-lo)/(hi-lo), A = poseKeys[lo], B = poseKeys[hi], o = {};
-  bones.forEach(b=>{
-    const a = A[b.id] ?? b.ang, c = B[b.id] ?? b.ang;
-    let d = c - a;
-    while(d > Math.PI) d -= Math.PI*2;      // 近い方向に回す
-    while(d < -Math.PI) d += Math.PI*2;
-    o[b.id] = a + d*u;
-  });
-  return o;
-}
-function syncPoseToFrame(){
-  const p = poseForFrame(cur);
-  if(p) applyPose(p);
-}
-document.getElementById("keySet").onclick = ()=>{
-  poseKeys[cur] = capturePose();
-  buildRigUI(); buildFrames();
-};
-document.getElementById("keyDel").onclick = ()=>{
-  delete poseKeys[cur]; buildRigUI();
-};
-document.getElementById("keyClear").onclick = ()=>{
-  if(confirm("記録したポーズを全部消します。よろしいですか？")){ poseKeys = {}; buildRigUI(); }
-};
-
-/* ---- 焼き付け ---- */
-const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
-function bakeInto(layerCv){
-  const off = newLayerCanvas();
-  const o = off.getContext("2d");
-  o.imageSmoothingEnabled = false;
-  blitRig(o, 1);
-  const mode = document.getElementById("bakeMode").value;
-  const th = +document.getElementById("bakeTh").value;
-  if(mode !== "raw"){
-    const img = o.getImageData(0,0,W,H), d = img.data;
-    for(let y=0;y<H;y++){
-      for(let x=0;x<W;x++){
-        const i = (y*W+x)*4;
-        if(d[i+3] < 40){ d[i+3]=0; continue; }
-        const lum = .299*d[i] + .587*d[i+1] + .114*d[i+2];
-        const t = mode === "dither" ? (BAYER[y&3][x&3]/16*160 + th - 80) : th;
-        if(lum < t){ d[i]=32; d[i+1]=36; d[i+2]=42; d[i+3]=255; }
-        else { d[i+3]=0; }
-      }
-    }
-    o.putImageData(img,0,0);
-  }
-  layerCv.getContext("2d").drawImage(off,0,0);
-}
-document.getElementById("bakeOne").onclick = ()=>{
-  if(!parts.length){ alert("先にパーツを読み込んでください"); return; }
-  pushUndo();
-  drawRig();
-  bakeInto(L().cv);
-  redraw(); buildFrames();
-};
-document.getElementById("bakeSeq").onclick = ()=>{
-  if(!parts.length){ alert("先にパーツを読み込んでください"); return; }
-  const n = Math.max(2, Math.min(60, +document.getElementById("bakeCount").value||8));
-  const keys = Object.keys(poseKeys).map(Number);
-  const saved = capturePose();
-  const dt = 1/fps();
-  let t = performance.now();
-  for(let i=0;i<n;i++){
-    if(keys.length){
-      // 記録したポーズを n コマに割り付けて補間
-      const span = Math.max(...keys) - Math.min(...keys);
-      const at = Math.min(...keys) + (span ? span*i/(n-1) : 0);
-      const lo = Math.floor(at), hi = Math.ceil(at);
-      const A = poseForFrame(lo), B = poseForFrame(hi);
-      if(A && B){
-        const u = at-lo, o = {};
-        bones.forEach(b=>{
-          const a = A[b.id] ?? b.ang, c = B[b.id] ?? b.ang;
-          let d2 = c-a;
-          while(d2 > Math.PI) d2 -= Math.PI*2;
-          while(d2 < -Math.PI) d2 += Math.PI*2;
-          o[b.id] = a + d2*u;
-        });
-        applyPose(o);
-      }
-    } else {
-      t += dt*1000;
-      stepRig(t, dt);       // ゆれる骨だけで動かす
-    }
-    drawRig();
-    const f = newFrame();
-    bakeInto(f.layers[0].cv);
-    f.layers[0].name = "リグ";
-    frames.splice(cur + 1 + i, 0, f);
-  }
-  applyPose(saved);
-  cur = cur + n; curLayer = 0;
-  buildLayers(); buildFrames(); redraw();
-};
-buildRigUI();
 
 /* =========================================================
    8. 保存・書き出し
@@ -1993,13 +1185,6 @@ document.getElementById("btnSave").onclick = ()=>{
     frames: frames.map(f=>({layers: f.layers.map(l=>({
       name:l.name, visible:l.visible, alpha:l.alpha, png:l.cv.toDataURL("image/png")
     }))})),
-    rig: {
-      parts: parts.map(p=>({name:p.name, visible:p.visible, x:p.x, y:p.y, lx:p.lx, ly:p.ly,
-        scale:p.scale, rot:p.rot, bone:p.bone, png:p.img.toDataURL("image/png")})),
-      bones: bones.map(b=>({id:b.id, name:b.name, parent:b.parent, x:b.x, y:b.y,
-        len:b.len, ang:b.ang, rest:b.rest, wobble:!!b.wobble})),
-      keys: poseKeys,
-    }
   };
   dl(new Blob([JSON.stringify(data)], {type:"application/json"}), docNameVal()+".ugomemo");
 };
@@ -2022,25 +1207,6 @@ document.getElementById("openFile").onchange = async e=>{
     }))
   })));
   cur = 0; curLayer = 0;
-  // リグ（パーツ・ボーン・ポーズ記録）も復元する
-  parts = []; bones = []; poseKeys = {}; selPart = selBone = null;
-  if(d.rig){
-    bones = (d.rig.bones||[]).map(b=>({...b}));
-    boneSeq = bones.reduce((m,b)=>Math.max(m,b.id), 0);
-    parts = await Promise.all((d.rig.parts||[]).map(async p=>{
-      const img = document.createElement("canvas");
-      await new Promise(res=>{
-        const im = new Image();
-        im.onload = ()=>{ img.width = im.width; img.height = im.height;
-          img.getContext("2d").drawImage(im,0,0); res(); };
-        im.onerror = res; im.src = p.png;
-      });
-      return {id: ++partSeq, name:p.name, img, visible:p.visible, x:p.x, y:p.y,
-        lx:p.lx, ly:p.ly, scale:p.scale, rot:p.rot, bone:p.bone};
-    }));
-    poseKeys = d.rig.keys || {};
-  }
-  buildRigUI(); drawRig(); drawGizmo();
   fitZoom(); buildLayers(); buildFrames(); redraw();
   e.target.value = "";
 };
@@ -2112,12 +1278,6 @@ addEventListener("resize", ()=> applySize());
 let last = performance.now();
 function loopFn(now){
   const dt = Math.min(1/30, (now-last)/1000); last = now;
-  // リグ（パーツ＋ボーン）
-  if(parts.length){
-    stepRig(now, dt);
-    actx.clearRect(0,0,W,H);
-    if(avShow) blitRig(actx, avAlpha);
-  }
   // 再生
   if(playing && frames.length > 1){
     playT += dt;
@@ -2137,7 +1297,6 @@ function loopFn(now){
     prevT = 0;
     prevI = (prevI+1) % frames.length;
     compose(pctx, frames[prevI], true);
-    if(parts.length && avShow) blitRig(pctx, avAlpha);
   }
   requestAnimationFrame(loopFn);
 }
@@ -2164,8 +1323,6 @@ const secBtns = [...document.querySelectorAll(".secbtn")];
 let openSec = null;
 
 function showSec(name){
-  // リグだけは本体のタブ状態(#tabDraw/#tabAvatar と giz)を切り替える必要がある
-  document.querySelector(`.tab[data-tab="${name === "rig" ? "avatar" : "draw"}"]`).click();
   document.querySelectorAll(".sec").forEach(s=> s.classList.toggle("on", s.dataset.sec === name));
   document.getElementById("sheetTitle").textContent =
     secBtns.find(b=>b.dataset.sec === name).textContent.trim();
@@ -2177,8 +1334,6 @@ function closeSheet(){
   sheet.classList.remove("open"); scrim.classList.remove("on");
   secBtns.forEach(b=> b.classList.remove("on"));
   openSec = null;
-  // シートを閉じたらキャンバスに集中できるよう、リグ操作もお絵かきへ戻す
-  document.querySelector('.tab[data-tab="draw"]').click();
 }
 secBtns.forEach(b=>{
   b.onclick = ()=> (openSec === b.dataset.sec) ? closeSheet() : showSec(b.dataset.sec);
@@ -2203,21 +1358,17 @@ function applyPan(){ stageM.style.transform = `translate(${panX}px,${panY}px)`; 
 const pts = new Map();
 let pinch = null;
 
-function onDown(e){
+wrapM.addEventListener("pointerdown", e=>{
   pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(pts.size === 2){
-    // 2本指になった時点で描画中のストロークは打ち切る
-    if(typeof drawing !== "undefined" && drawing){ drawing = false; undo(); }
-    dragKind = null;
+    // 2本指になった時点で描画中のストロークは打ち切って取り消す
+    if(drawing){ drawing = false; undo(); }
     const [a,b] = [...pts.values()];
-    pinch = {
-      d: Math.hypot(a.x-b.x, a.y-b.y),
-      cx: (a.x+b.x)/2, cy: (a.y+b.y)/2,
-      zoom0: zoom, panX0: panX, panY0: panY,
-    };
+    pinch = {d: Math.hypot(a.x-b.x, a.y-b.y), cx:(a.x+b.x)/2, cy:(a.y+b.y)/2,
+             zoom0: zoom, panX0: panX, panY0: panY};
   }
-}
-function onMove(e){
+}, {passive:false});
+wrapM.addEventListener("pointermove", e=>{
   if(!pts.has(e.pointerId)) return;
   pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(pts.size === 2 && pinch){
@@ -2231,24 +1382,33 @@ function onMove(e){
     applyPan();
     e.preventDefault();
   }
-}
+}, {passive:false});
 function onUp(e){
   pts.delete(e.pointerId);
   if(pts.size < 2) pinch = null;
 }
-wrapM.addEventListener("pointerdown", onDown, {passive:false});
-wrapM.addEventListener("pointermove", onMove, {passive:false});
 addEventListener("pointerup", onUp);
 addEventListener("pointercancel", onUp);
 
 /* ダブルタップで画面に合わせる */
 let lastTap = 0;
-wrapM.addEventListener("pointerup", e=>{
+wrapM.addEventListener("pointerup", ()=>{
   const now = Date.now();
   if(now - lastTap < 300 && pts.size === 0){ panX = panY = 0; applyPan(); fitZoom(); }
   lastTap = now;
 });
 document.getElementById("zFit").addEventListener("click", ()=>{ panX = panY = 0; applyPan(); });
+
+/* ---- フィット倍率をモバイル用に上書き ----
+   PC版は整数倍のみだが、狭い画面だと1倍で余白だらけになるので端数も許す。
+   端末のDPRが2〜3あるため、端数倍でもドットは十分くっきり出る。 */
+fitZoom = function(){
+  const r = wrapM.getBoundingClientRect();
+  let z = Math.min((r.width-14)/W, (r.height-14)/H);
+  z = z >= 2 ? Math.floor(z) : Math.max(.35, Math.round(z*20)/20);
+  zoom = z;
+  applySize();
+};
 
 /* ---- 画面サイズが変わったら合わせ直す ---- */
 let fitTimer = null;
@@ -2260,20 +1420,6 @@ addEventListener("orientationchange", refit);
 addEventListener("resize", refit);
 if(window.visualViewport) visualViewport.addEventListener("resize", refit);
 
-/* ---- フィット倍率をモバイル用に上書き ----
-   PC版は整数倍のみだが、狭い画面だと 1倍で余白だらけになるので端数も許す。
-   端末のDPRが2〜3あるため、端数倍でもドットは十分くっきり出る。 */
-fitZoom = function(){
-  const r = wrapM.getBoundingClientRect();
-  let z = Math.min((r.width-14)/W, (r.height-14)/H);
-  z = z >= 2 ? Math.floor(z) : Math.max(.35, Math.round(z*20)/20);
-  zoom = z;
-  applySize();
-};
-
-/* ---- 起動時の調整 ---- */
-document.getElementById("rigHint").textContent = RIG_HINTS.pose;
-document.querySelector('.tab[data-tab="draw"]').click();
 fitZoom();
 </script>
 </body>
