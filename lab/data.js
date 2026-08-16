@@ -59,6 +59,17 @@ const TOOLS = [
   },
   {
     no: 6,
+    slug: "anime-design-studio",
+    title: "アニメデザイン工房",
+    desc: "ドット等倍のキャンバスにレイヤーとパレットで描き、コマを並べてタイムラインで再生しながら作るアニメ制作台。PSD/PNGを読んでボーンで動かす「パーツ＆ボーン」も同居。連番PNG・WebM・画像で書き出し。",
+    tags: ["お絵かき", "コマアニメ", "WebM書き出し"],
+    cat: "anime",
+    thumb: "thumbs/anime-design-studio.png",
+    url: "tools/anime-design-studio/index.html",
+    status: "live"
+  },
+  {
+    no: 7,
     slug: "7days-kanojo",
     title: "7日間の彼女",
     desc: "月曜から日曜まで、毎日ちがう彼女に会う。毎日「昨日どこにいたか」を聞かれ、答えるたびに機嫌とうたがいメーターが動く。所要15〜20分。",
@@ -69,7 +80,7 @@ const TOOLS = [
     status: "live"
   },
   {
-    no: 7,
+    no: 8,
     slug: "7days-kareshi",
     title: "7日間の彼氏",
     desc: "「7日間の彼女」の彼氏版。会う相手が7人の彼氏に入れ替わり、同じ7日間を反対側から遊ぶ。所要15〜20分。",
