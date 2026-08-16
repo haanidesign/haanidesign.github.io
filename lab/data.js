@@ -61,7 +61,7 @@ const TOOLS = [
     no: 6,
     slug: "anime-design-studio",
     title: "アニメデザイン工房",
-    desc: "ドット等倍のキャンバスにレイヤーとパレットで描き、コマを並べてタイムラインで再生しながら作るアニメ制作台。PSD/PNGを読んでボーンで動かす「パーツ＆ボーン」も同居。連番PNG・WebM・画像で書き出し。",
+    desc: "ドット等倍のキャンバスにレイヤーとパレットで描き、コマを並べてタイムラインで再生しながら作るアニメ制作台。レイヤーを前後のコマへ移動・コピーでき、連番PNG・WebM・画像で書き出し。",
     tags: ["お絵かき", "コマアニメ", "WebM書き出し"],
     cat: "anime",
     thumb: "thumbs/anime-design-studio.png",
