@@ -326,8 +326,10 @@ select,input[type=number],input[type=text]{
         <button class="mini" id="btnLoad">📂 よみこみ</button>
         <button class="mini" id="btnExportPng">🖼 画像で保存</button>
         <button class="mini" id="btnExportSeq">⬇ 連番PNG</button>
-        <button class="mini" id="btnRec">🎬 webm</button>
+        <button class="mini" id="btnGif">🎞 GIFで保存</button>
+        <button class="mini" id="btnRec">🎬 動画で保存</button>
       </div>
+      <div class="note">GIFはコマをそのまま出力。動画はiPhoneならMP4、AndroidはMP4かWEBMになります。</div>
       <h4>キャンバス</h4>
       <div class="grid">
         <button class="mini" id="cs320">320×240</button>
@@ -1224,21 +1226,176 @@ document.getElementById("btnExportSeq").onclick = async ()=>{
     await new Promise(r=> setTimeout(r, 220));   // 連続ダウンロードのブロック回避
   }
 };
-/* webm: 再生しながら captureStream を録る */
+/* ---- GIF書き出し（外部ライブラリなし・GIF89a + LZW） ---- */
+function framePixels(i){
+  const off = newLayerCanvas();
+  compose(off.getContext("2d"), frames[i], true);
+  return off.getContext("2d").getImageData(0,0,W,H).data;
+}
+/* 全コマから最大256色のパレットを作る。
+   ドット絵は色数が少ないので、256色以内ならそのまま使い、超えたら6×6×6の色キューブに寄せる */
+function buildGifPalette(all){
+  const set = new Map();
+  for(const d of all){
+    for(let i=0;i<d.length;i+=4){
+      const key = (d[i]<<16)|(d[i+1]<<8)|d[i+2];
+      if(!set.has(key)) set.set(key, set.size);
+      if(set.size > 256) break;
+    }
+    if(set.size > 256) break;
+  }
+  if(set.size <= 256){
+    const pal = [...set.keys()].map(k=>[(k>>16)&255,(k>>8)&255,k&255]);
+    return {pal, exact:true, index:new Map([...set.keys()].map((k,n)=>[k,n]))};
+  }
+  const pal = [];
+  const L = [0,51,102,153,204,255];
+  for(const r of L) for(const g of L) for(const b of L) pal.push([r,g,b]);
+  for(let i=0;i<40;i++){ const v = Math.round(i*255/39); pal.push([v,v,v]); }
+  return {pal, exact:false};
+}
+function gifIndexer(P){
+  if(P.exact){
+    return d=>{
+      const n = d.length/4, out = new Uint8Array(n);
+      for(let i=0,p=0;i<d.length;i+=4,p++)
+        out[p] = P.index.get((d[i]<<16)|(d[i+1]<<8)|d[i+2]) || 0;
+      return out;
+    };
+  }
+  const cache = new Map();
+  return d=>{
+    const n = d.length/4, out = new Uint8Array(n);
+    for(let i=0,p=0;i<d.length;i+=4,p++){
+      const key = (d[i]<<16)|(d[i+1]<<8)|d[i+2];
+      let idx = cache.get(key);
+      if(idx === undefined){
+        let bd = 1e9;
+        for(let c=0;c<P.pal.length;c++){
+          const q = P.pal[c];
+          const dd = (q[0]-d[i])**2 + (q[1]-d[i+1])**2 + (q[2]-d[i+2])**2;
+          if(dd < bd){ bd = dd; idx = c; }
+        }
+        cache.set(key, idx);
+      }
+      out[p] = idx;
+    }
+    return out;
+  };
+}
+/* GIFのLZW圧縮 */
+function lzwEncode(minCode, pixels, out){
+  const clear = 1 << minCode, eoi = clear + 1;
+  let dict = new Map(), next = eoi + 1, size = minCode + 1;
+  let cur = 0, curBits = 0;
+  const block = [];
+  const flush = ()=>{
+    out.push(block.length);
+    for(const b of block) out.push(b);
+    block.length = 0;
+  };
+  const push = code=>{
+    cur |= code << curBits; curBits += size;
+    while(curBits >= 8){
+      block.push(cur & 255); cur >>= 8; curBits -= 8;
+      if(block.length === 255) flush();
+    }
+  };
+  const reset = ()=>{ dict = new Map(); next = eoi + 1; size = minCode + 1; };
+  push(clear); reset();
+  let prev = pixels[0];
+  for(let i=1;i<pixels.length;i++){
+    const k = pixels[i], key = prev * 4096 + k;
+    if(dict.has(key)){ prev = dict.get(key); continue; }
+    push(prev);
+    dict.set(key, next++);
+    if(next > (1 << size)){
+      if(size < 12) size++;
+      else { push(clear); reset(); }
+    }
+    prev = k;
+  }
+  push(prev); push(eoi);
+  if(curBits > 0){ block.push(cur & 255); if(block.length === 255) flush(); }
+  if(block.length) flush();
+  out.push(0);
+}
+function makeGif(delayCs){
+  const all = frames.map((_,i)=> framePixels(i));
+  const P = buildGifPalette(all);
+  const toIdx = gifIndexer(P);
+  let bits = 1;
+  while((1 << bits) < P.pal.length) bits++;
+  bits = Math.min(8, Math.max(1, bits));
+  const size = 1 << bits;
+  const out = [];
+  const w16 = v=>{ out.push(v & 255, (v >> 8) & 255); };
+  "GIF89a".split("").forEach(c=> out.push(c.charCodeAt(0)));
+  w16(W); w16(H);
+  out.push(0xF0 | (bits-1), 0, 0);
+  for(let i=0;i<size;i++){
+    const c = P.pal[i] || [0,0,0];
+    out.push(c[0], c[1], c[2]);
+  }
+  out.push(0x21, 0xFF, 0x0B);
+  "NETSCAPE2.0".split("").forEach(c=> out.push(c.charCodeAt(0)));
+  out.push(3, 1, 0, 0, 0);                    // 無限ループ
+  for(const d of all){
+    out.push(0x21, 0xF9, 0x04, 0x04);         // 前のコマを残さない
+    w16(delayCs); out.push(0, 0);
+    out.push(0x2C); w16(0); w16(0); w16(W); w16(H); out.push(0);
+    const minCode = Math.max(2, bits);
+    out.push(minCode);
+    lzwEncode(minCode, toIdx(d), out);
+  }
+  out.push(0x3B);
+  return new Blob([new Uint8Array(out)], {type:"image/gif"});
+}
+document.getElementById("btnGif").onclick = ()=>{
+  const btn = document.getElementById("btnGif");
+  const old = btn.textContent;
+  btn.textContent = "作成中…"; btn.disabled = true;
+  setTimeout(()=>{
+    try{
+      dl(makeGif(Math.max(2, Math.round(100/fps()))), docNameVal()+".gif");
+    } finally {
+      btn.textContent = old; btn.disabled = false;
+    }
+  }, 30);
+};
+
+/* ---- 動画書き出し（MP4が使えればMP4、だめならwebm） ---- */
+function pickVideoType(){
+  const cands = [
+    "video/mp4;codecs=avc1.42E01E",
+    "video/mp4",
+    "video/webm;codecs=vp9",
+    "video/webm",
+  ];
+  for(const t of cands){
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
+}
+/* webm/mp4: 再生しながら captureStream を録る */
 let recorder = null;
 document.getElementById("btnRec").onclick = ()=>{
   const btn = document.getElementById("btnRec");
   if(recorder){ recorder.stop(); return; }
   const off = newLayerCanvas();
   const octx = off.getContext("2d"); octx.imageSmoothingEnabled = false;
+  const type = pickVideoType();
+  if(!type){ alert("この端末では動画書き出しに対応していません。GIFをお使いください。"); return; }
+  const ext = type.startsWith("video/mp4") ? "mp4" : "webm";
+  const label = "🎬 " + ext.toUpperCase();
   const stream = off.captureStream(fps());
   const chunks = [];
-  recorder = new MediaRecorder(stream, {mimeType:"video/webm"});
+  recorder = new MediaRecorder(stream, {mimeType:type});
   recorder.ondataavailable = e=> e.data.size && chunks.push(e.data);
   recorder.onstop = ()=>{
     clearInterval(iv);
-    dl(new Blob(chunks,{type:"video/webm"}), docNameVal()+".webm");
-    recorder = null; btn.textContent = "🎬 webm"; btn.classList.remove("primary");
+    dl(new Blob(chunks,{type}), docNameVal()+"."+ext);
+    recorder = null; btn.textContent = label; btn.classList.remove("primary");
   };
   let i = 0;
   const iv = setInterval(()=>{
@@ -1249,6 +1406,12 @@ document.getElementById("btnRec").onclick = ()=>{
   recorder.start();
   btn.textContent = "⏹ 停止"; btn.classList.add("primary");
 };
+/* 端末が対応している形式をボタンに出しておく */
+{
+  const t = pickVideoType();
+  document.getElementById("btnRec").textContent =
+    t ? ("🎬 " + (t.startsWith("video/mp4") ? "MP4" : "WEBM")) : "🎬 動画（非対応）";
+}
 
 /* =========================================================
    9. ショートカット・メインループ
