@@ -230,6 +230,7 @@ img{display:block;max-width:100%;}
 }
 .subrail .tool i{font-size:.95rem;}
 .crumb{
+  width:calc(100% - 1.2rem);
   max-width:1000px;margin:1.4rem auto -.6rem;
   padding:0 .6rem;font-size:.68rem;color:var(--gray);
 }
@@ -309,6 +310,8 @@ img{display:block;max-width:100%;}
 
 /* ============ 下層セクション（ウィンドウ風） ============ */
 .win{
+  /* 画面が狭いときも左右に必ず余白が残るようにする */
+  width:calc(100% - 1.2rem);
   max-width:1000px;margin:2.2rem auto;
   border:var(--bd);border-radius:16px;background:var(--paper);
   box-shadow:0 5px 0 var(--ink);overflow:hidden;
@@ -423,6 +426,7 @@ img{display:block;max-width:100%;}
 
 /* フッター */
 .foot{
+  width:calc(100% - 1.2rem);
   max-width:1000px;margin:2rem auto 2.5rem;
   border:var(--bd);border-radius:14px;background:var(--ink);
   color:var(--cream);padding:1rem 1.2rem;text-align:center;
@@ -447,6 +451,14 @@ img{display:block;max-width:100%;}
 .totop.show:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink);}
 
 /* ============ レスポンシブ ============ */
+/* 縦長・タブレット：吹き出しとキャラを上下に分ける
+   （横並びのままだと吹き出しが280px程度まで潰れて読みにくいため） */
+@media(max-width:900px){
+  .canvas-frame{grid-template-columns:1fr;min-height:auto;}
+  .balloon{margin:1rem 1rem .4rem;}
+  .canvas-chara{max-height:min(48vh,400px);}
+}
+
 @media(max-width:1000px){
   .workspace{grid-template-columns:76px 1fr;}
   .panel{
@@ -478,4 +490,15 @@ img{display:block;max-width:100%;}
   .prof{grid-template-columns:1fr;justify-items:center;text-align:center;}
   .prof .links{justify-content:center;}
   .f2{grid-template-columns:1fr;}
+  .win-body{padding:.9rem;}
+}
+
+/* スマホ：料金行とフローを縦積みにして文字が詰まらないようにする */
+@media(max-width:560px){
+  .prow2{grid-template-columns:1fr;gap:.15rem;padding:.9rem .2rem;}
+  .pp{grid-row:auto;grid-column:1;justify-self:start;margin-top:.45rem;}
+  .fstep2{grid-template-columns:46px 1fr;gap:.7rem;}
+  .fnum2{width:46px;height:46px;font-size:.9rem;box-shadow:0 3px 0 var(--ink);}
+  .fbody2{padding:.8rem .85rem;}
+  .nlist li{font-size:.72rem;}
 }
