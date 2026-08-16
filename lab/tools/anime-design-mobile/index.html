@@ -1,0 +1,2280 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#3f6f7d">
+<meta name="mobile-web-app-capable" content="yes">
+<title>アニメデザイン工房 モバイル</title>
+<script src="lib/ag-psd.js"></script>
+<style>
+:root{
+  --bar:#3f6f7d; --bar2:#35606c;
+  --bg:#eceadf; --panel:#faf8f2; --line:#20242a;
+  --btn:#fff; --btn-on:#ffd24a; --accent:#e2703a; --text:#20242a; --dim:#79808b;
+  --tap:46px;
+}
+*{box-sizing:border-box;margin:0;padding:0; -webkit-tap-highlight-color:transparent}
+html,body{height:100%; overscroll-behavior:none}
+body{
+  background:var(--bg); color:var(--text); overflow:hidden;
+  font:14px/1.45 "Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif;
+  display:flex; flex-direction:column; height:100dvh;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  touch-action:none; user-select:none;
+}
+button,select,input{font:inherit; color:inherit}
+button{cursor:pointer}
+
+/* ---- ヘッダ（最小限） ---- */
+#hdr{
+  flex-shrink:0; height:48px; display:flex; align-items:center; gap:8px; padding:0 10px;
+  background:linear-gradient(180deg,var(--bar),var(--bar2)); color:#fff;
+}
+#hdr .ttl{font-weight:700; font-size:14px; margin-right:auto; opacity:.95}
+.hb{
+  width:var(--tap); height:36px; background:#fff; color:var(--text);
+  border:2px solid var(--line); border-radius:10px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.hb.g{background:#57c98a; color:#fff; width:auto; padding:0 14px}
+
+/* ---- キャンバス ---- */
+#stagewrap{
+  flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center;
+  background-color:#eceadf;
+  background-image:radial-gradient(#d5d1c2 1.6px, transparent 1.7px);
+  background-size:12px 12px;
+  overflow:hidden; touch-action:none;
+}
+#stage{position:relative; box-shadow:0 0 0 2px var(--line), 0 4px 14px rgba(0,0,0,.18)}
+#stage canvas{position:absolute; left:0; top:0; image-rendering:pixelated; display:block; touch-action:none}
+#view{position:relative; z-index:3}
+#giz{z-index:4; image-rendering:auto !important; pointer-events:none}
+#giz.active{pointer-events:auto}
+#zoombar{
+  position:absolute; left:8px; top:8px; background:rgba(255,255,255,.9); border:2px solid var(--line);
+  border-radius:999px; padding:2px 10px; font-size:11px; font-weight:700; z-index:6;
+}
+#previewBox{
+  position:absolute; right:8px; top:8px; border:2px solid var(--line); border-radius:10px;
+  overflow:hidden; background:#fff; z-index:6; width:96px;
+}
+#previewBox .cap{background:#57c98a; color:#fff; font-size:9px; font-weight:700; padding:0 5px}
+/* 本体JSがインラインで幅190pxを指定するので、モバイルでは上書きする */
+#previewBox canvas{display:block; image-rendering:pixelated; width:100% !important; height:auto !important}
+#previewBox.off{display:none}
+#dropmsg{display:none}
+#infoBar{display:none}
+
+/* ---- コマ帯（常時表示） ---- */
+#frames{
+  flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:6px;
+  background:#20242a; touch-action:pan-x;
+}
+.fr{position:relative; border:2px solid #4a5158; border-radius:6px; background:#fff; flex-shrink:0}
+.fr.on{border-color:var(--btn-on); box-shadow:0 0 0 2px var(--btn-on)}
+.fr canvas{display:block; image-rendering:pixelated; border-radius:3px; height:44px; width:auto}
+.fr b{position:absolute; left:2px; top:0; font-size:9px; color:#fff; text-shadow:0 0 3px #000}
+#addfr{flex-shrink:0; width:46px; border:2px dashed #7e8790; border-radius:6px; background:transparent; color:#c9ced4; font-size:20px}
+
+/* ---- ツールバー ---- */
+#rail{
+  flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:7px 8px;
+  background:var(--panel); border-top:2px solid var(--line);
+}
+.tool{
+  flex:0 0 auto; width:52px; height:var(--tap); background:var(--btn);
+  border:2px solid var(--line); border-radius:12px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+  font-size:9px; font-weight:700; line-height:1.1;
+}
+.tool .ic{font-size:17px}
+.tool.on{background:var(--btn-on)}
+
+/* ---- パネル切替バー ---- */
+#secbar{
+  flex-shrink:0; display:flex; gap:6px; overflow-x:auto; padding:0 8px 8px;
+  background:var(--panel); border-bottom:2px solid var(--line);
+}
+.secbtn{
+  flex:0 0 auto; height:38px; padding:0 14px; background:#e8e5da; color:var(--text);
+  border:2px solid var(--line); border-radius:999px; font-weight:700; font-size:12.5px;
+}
+.secbtn.on{background:var(--btn-on)}
+
+/* ---- ボトムシート ---- */
+#sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  background:var(--panel); border-top:2px solid var(--line); border-radius:16px 16px 0 0;
+  max-height:64dvh; display:flex; flex-direction:column;
+  transform:translateY(102%); transition:transform .18s ease-out;
+  box-shadow:0 -6px 20px rgba(0,0,0,.2);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#sheet.open{transform:translateY(0)}
+#sheetHead{
+  flex-shrink:0; display:flex; align-items:center; gap:10px; padding:8px 12px;
+  border-bottom:2px solid var(--line);
+}
+#sheetHead b{flex:1; font-size:14px}
+#sheetBody{overflow-y:auto; padding:10px 14px 20px; touch-action:pan-y}
+#scrim{position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:39; display:none}
+#scrim.on{display:block}
+.sec{display:none}
+.sec.on{display:block}
+
+/* ---- 共通パーツ（本体JSが生成する要素の見た目） ---- */
+h4{font-size:12px; color:var(--dim); margin:14px 0 7px; letter-spacing:.03em}
+h4:first-child{margin-top:0}
+.grid{display:flex; flex-wrap:wrap; gap:7px}
+.sq{
+  width:var(--tap); height:var(--tap); border:2px solid var(--line); border-radius:12px; background:var(--btn);
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+}
+.sq.on{background:var(--btn-on)}
+.sq .dot{background:#20242a; border-radius:50%}
+.sw{width:var(--tap); height:38px; border:2px solid var(--line); border-radius:10px}
+.sw.on{outline:3px solid var(--accent); outline-offset:1px}
+.mini{
+  min-height:40px; background:var(--btn); border:2px solid var(--line); border-radius:11px;
+  padding:6px 13px; font-size:13px; font-weight:700;
+}
+.mini.on{background:var(--btn-on)}
+.row{display:flex; align-items:center; gap:9px; margin:9px 0}
+.row label{width:96px; flex-shrink:0; font-size:12.5px}
+.row input[type=range]{flex:1; accent-color:var(--accent); height:28px}
+.row .val{width:36px; text-align:right; font-size:11px; color:var(--dim)}
+select,input[type=number],input[type=text]{
+  background:#fff; border:2px solid var(--line); border-radius:10px; padding:7px 9px; min-height:40px;
+}
+.lay{
+  display:flex; align-items:center; gap:8px; border:2px solid var(--line); border-radius:11px;
+  padding:6px 8px; margin-bottom:6px; background:#fff; min-height:44px;
+}
+.lay.on{outline:3px solid var(--accent); outline-offset:1px}
+.lay .eye{width:26px; text-align:center; font-size:16px}
+.lay .nm{flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.lay input[type=range]{width:84px; accent-color:var(--accent)}
+.sw-toggle{
+  width:54px; height:30px; border-radius:999px; background:#c9c5b8; border:2px solid var(--line);
+  position:relative; flex-shrink:0;
+}
+.sw-toggle::after{content:""; position:absolute; left:2px; top:2px; width:22px; height:22px; border-radius:50%; background:#fff; transition:.14s}
+.sw-toggle.on{background:#57c98a}
+.sw-toggle.on::after{left:26px}
+#psdBox{
+  border:2px dashed #9aa1ac; border-radius:12px; padding:16px; text-align:center; color:var(--dim);
+  font-size:13px; background:#fff;
+}
+#psdInfo{margin-top:4px; font-size:12px; color:var(--accent)}
+#colorPick{width:64px; height:40px; border:2px solid var(--line); border-radius:10px; background:#fff}
+.hidden{display:none !important}
+.note{font-size:11.5px; color:var(--dim); margin-top:6px}
+/* PC専用UIはモバイルでは出さない */
+#tabs,#timeline,#zoombtns{display:none}
+
+/* 横向き・低い画面では各パーツを詰めてキャンバスを広く取る */
+@media (max-height:470px){
+  :root{--tap:40px}
+  #hdr{height:42px}
+  #frames{padding:4px}
+  .fr canvas{height:30px !important; width:auto !important}
+  .tool{width:46px; height:40px; font-size:8.5px}
+  .tool .ic{font-size:15px}
+  .secbtn{height:34px; padding:0 11px; font-size:12px}
+  #rail{padding:5px 6px}
+  #secbar{padding:0 6px 6px}
+  #sheet{max-height:78dvh}
+}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <button class="hb" id="btnUndoTop">↶</button>
+  <button class="hb" id="btnRedoTop">↷</button>
+  <span class="ttl">アニメデザイン工房</span>
+  <button class="hb" id="mPlay">▶</button>
+  <button class="hb g" id="btnSave">保存</button>
+</div>
+
+<div id="stagewrap">
+  <div id="stage">
+    <canvas id="bgc"></canvas>
+    <canvas id="avc"></canvas>
+    <canvas id="view"></canvas>
+    <canvas id="giz"></canvas>
+  </div>
+  <div id="zoombar">🔍 —</div>
+  <div id="previewBox"><div class="cap">▶ プレビュー</div><canvas id="prev"></canvas></div>
+  <div id="dropmsg"></div>
+  <div id="infoBar"></div>
+</div>
+
+<div id="frames"></div>
+
+<div id="rail">
+  <button class="tool on" data-tool="pen"><span class="ic">✏️</span>ペン</button>
+  <button class="tool" data-tool="brush"><span class="ic">🖌️</span>ブラシ</button>
+  <button class="tool" data-tool="eraser"><span class="ic">🧽</span>消し</button>
+  <button class="tool" data-tool="fill"><span class="ic">🪣</span>塗り</button>
+  <button class="tool" data-tool="shape"><span class="ic">⬛</span>図形</button>
+  <button class="tool" data-tool="text"><span class="ic">A</span>文字</button>
+  <button class="tool" data-tool="pick"><span class="ic">💧</span>スポイト</button>
+  <button class="tool" data-tool="move"><span class="ic">✥</span>移動</button>
+</div>
+
+<div id="secbar">
+  <button class="secbtn" data-sec="color">🎨 色</button>
+  <button class="secbtn" data-sec="pen">✏️ ペン</button>
+  <button class="secbtn" data-sec="layer">🗂 レイヤー</button>
+  <button class="secbtn" data-sec="frame">🎞 コマ</button>
+  <button class="secbtn" data-sec="rig">🦴 パーツ</button>
+  <button class="secbtn" data-sec="fx">✨ しあげ</button>
+  <button class="secbtn" data-sec="file">💾 ファイル</button>
+</div>
+
+<div id="scrim"></div>
+<div id="sheet">
+  <div id="sheetHead"><b id="sheetTitle">色</b><button class="hb" id="sheetClose">✕</button></div>
+  <div id="sheetBody">
+
+    <!-- 本体JSが参照するタブ（モバイルでは非表示のまま状態切替にだけ使う） -->
+    <div id="tabs">
+      <button class="tab on" data-tab="draw">お絵かき</button>
+      <button class="tab" data-tab="avatar">パーツ＆ボーン</button>
+    </div>
+
+    <div id="tabDraw">
+      <!-- 色 -->
+      <div class="sec on" data-sec="color">
+        <h4>カラー（パレット）</h4>
+        <div class="grid" id="palette"></div>
+        <h4>フルカラー</h4>
+        <div class="row">
+          <div class="sw-toggle on" id="fullColor"></div>
+          <input type="color" id="colorPick" value="#20242a">
+          <span class="val" id="curColor">#20242a</span>
+        </div>
+        <h4>紙の色</h4>
+        <div class="grid" id="papers"></div>
+      </div>
+
+      <!-- ペン -->
+      <div class="sec" data-sec="pen">
+        <h4>ペンの太さ</h4>
+        <div class="grid" id="sizes"></div>
+        <h4>ペンの種類</h4>
+        <div class="grid" id="patterns"></div>
+        <h4>図形</h4>
+        <div class="grid" id="shapes"></div>
+        <h4>描き味</h4>
+        <div class="row"><label>手ブレ補正</label><div class="sw-toggle on" id="stabilize"></div></div>
+        <div class="row"><label>グリッド</label><div class="sw-toggle" id="gridSw"></div></div>
+      </div>
+
+      <!-- レイヤー -->
+      <div class="sec" data-sec="layer">
+        <div class="grid">
+          <button class="mini" id="lAdd">＋ 追加</button>
+          <button class="mini" id="lDup">⧉ 複製</button>
+          <button class="mini" id="lDel">🗑 削除</button>
+          <button class="mini" id="lMerge">⇊ 統合</button>
+          <button class="mini" id="lUp">▲</button>
+          <button class="mini" id="lDown">▼</button>
+        </div>
+        <h4>レイヤー</h4>
+        <div id="layers"></div>
+        <h4>選んだレイヤーを他のコマへ</h4>
+        <div class="grid">
+          <button class="mini" id="lPrevMove">◀ 前へ移動</button>
+          <button class="mini" id="lNextMove">次へ移動 ▶</button>
+          <button class="mini" id="lPrevCopy">◀ 前へコピー</button>
+          <button class="mini" id="lNextCopy">次へコピー ▶</button>
+          <button class="mini" id="lAllCopy">全コマへコピー</button>
+        </div>
+      </div>
+
+      <!-- コマ -->
+      <div class="sec" data-sec="frame">
+        <div class="grid">
+          <button class="mini" id="fAdd">＋ ついか</button>
+          <button class="mini" id="fDup">⧉ 複製</button>
+          <button class="mini" id="fWobble">〜 ゆらゆら</button>
+          <button class="mini" id="fCopy">コピー</button>
+          <button class="mini" id="fPaste">はりつけ</button>
+          <button class="mini" id="fDel" style="background:#f4746a;color:#fff">さくじょ</button>
+        </div>
+        <h4>再生</h4>
+        <div class="grid">
+          <button class="mini" id="pFirst">⏮</button>
+          <button class="mini" id="pPrev">◀</button>
+          <button class="mini" id="pPlay">▶</button>
+          <button class="mini" id="pNext">▶|</button>
+          <button class="mini" id="pLast">⏭</button>
+          <button class="mini" id="pLoop">🔁</button>
+        </div>
+        <div class="row">
+          <label>速さ</label>
+          <select id="fps">
+            <option>2</option><option>3</option><option selected>4</option><option>6</option>
+            <option>8</option><option>12</option><option>15</option><option>24</option>
+          </select>
+          <span class="val">fps</span>
+        </div>
+        <h4>透かす（オニオンスキン）</h4>
+        <div class="grid" id="onion"></div>
+        <h4>プレビュー窓</h4>
+        <div class="row"><label>右上に出す</label><div class="sw-toggle on" id="prevSw"></div></div>
+      </div>
+
+      <!-- しあげ -->
+      <div class="sec" data-sec="fx">
+        <h4>ドット化</h4>
+        <div class="row"><label>ドットの粗さ</label><input type="range" id="fxPixel" min="1" max="16" step="1" value="4"><span class="val">4</span></div>
+        <div class="row">
+          <label>減色</label>
+          <select id="fxQuant">
+            <option value="0">しない</option>
+            <option value="2">2色</option><option value="4">4色</option><option value="8">8色</option>
+            <option value="16" selected>16色</option><option value="32">32色</option>
+            <option value="pal">パレットに寄せる</option>
+            <option value="mono">白黒1bit</option>
+          </select>
+        </div>
+        <div class="row"><label>ディザ（網）</label><div class="sw-toggle" id="fxDither"></div></div>
+        <div class="row"><label>フチ取り</label><div class="sw-toggle" id="fxOutline"></div></div>
+        <div class="grid">
+          <button class="mini" id="fxApply">このコマに適用</button>
+          <button class="mini" id="fxApplyAll">全コマに適用</button>
+        </div>
+        <div class="note">↶ で戻せます</div>
+      </div>
+
+      <!-- ファイル -->
+      <div class="sec" data-sec="file">
+        <h4>名前</h4>
+        <input type="text" id="docName" value="新規デザイン" style="width:100%">
+        <h4>書き出し</h4>
+        <div class="grid">
+          <button class="mini" id="btnLoad">📂 よみこみ</button>
+          <button class="mini" id="btnExportPng">🖼 画像で保存</button>
+          <button class="mini" id="btnExportSeq">⬇ 連番PNG</button>
+          <button class="mini" id="btnRec">🎬 webm</button>
+        </div>
+        <h4>キャンバス</h4>
+        <div class="grid">
+          <button class="mini" id="cs320">320×240</button>
+          <button class="mini" id="cs256">256×192</button>
+          <button class="mini" id="cs512">512×512</button>
+          <button class="mini" id="csClear">このコマを消す</button>
+        </div>
+        <h4>表示</h4>
+        <div class="grid">
+          <button class="mini" id="zOut">− 縮小</button>
+          <button class="mini" id="zIn">＋ 拡大</button>
+          <button class="mini" id="zFit">⤢ 画面に合わせる</button>
+        </div>
+        <div class="note">キャンバスは2本指でつまむと拡大縮小、2本指ドラッグで移動できます。</div>
+      </div>
+    </div>
+
+    <!-- パーツ＆ボーン -->
+    <div id="tabAvatar" class="hidden">
+      <div class="sec" data-sec="rig">
+        <h4>パーツを置く</h4>
+        <div id="psdBox">
+          <div>タップして PSD・PNG を選ぶ</div>
+          <div id="psdInfo">パーツ 0 個</div>
+        </div>
+        <input type="file" id="psdFile" accept=".psd,.png,.jpg,.jpeg,.webp" multiple class="hidden">
+
+        <h4>操作モード</h4>
+        <div class="grid" id="rigModes">
+          <button class="mini on" data-rm="pose">ポーズ</button>
+          <button class="mini" data-rm="part">パーツ配置</button>
+          <button class="mini" data-rm="bone">ボーン作成</button>
+          <button class="mini" data-rm="off">切</button>
+        </div>
+        <div class="note" id="rigHint"></div>
+
+        <h4>表示</h4>
+        <div class="row"><label>パーツ表示</label><div class="sw-toggle on" id="avShow"></div></div>
+        <div class="row"><label>不透明度</label><input type="range" id="avAlpha" min="0" max="1" step="0.01" value="0.85"><span class="val">85</span></div>
+        <div class="row"><label>ボーン表示</label><div class="sw-toggle on" id="boneShow"></div></div>
+
+        <h4>パーツ</h4>
+        <div id="partList"></div>
+        <div id="partEdit" class="hidden">
+          <div class="row"><label>大きさ</label><input type="range" id="pScale" min="0.05" max="3" step="0.01" value="1"><span class="val">1.0</span></div>
+          <div class="row"><label>回転</label><input type="range" id="pRot" min="-180" max="180" step="1" value="0"><span class="val">0</span></div>
+          <div class="row"><label>つなぐ骨</label><select id="pBone"></select></div>
+          <div class="grid">
+            <button class="mini" id="pUp">前へ</button>
+            <button class="mini" id="pDown">後ろへ</button>
+            <button class="mini" id="pDel">削除</button>
+          </div>
+        </div>
+
+        <h4>ボーン</h4>
+        <div id="boneList"></div>
+        <div id="boneEdit" class="hidden">
+          <div class="row"><label>角度</label><input type="range" id="bAng" min="-180" max="180" step="1" value="0"><span class="val">0</span></div>
+          <div class="row"><label>長さ</label><input type="range" id="bLen" min="4" max="300" step="1" value="40"><span class="val">40</span></div>
+          <div class="row"><label>親</label><select id="bParent"></select></div>
+          <div class="row"><label>ゆれる骨</label><div class="sw-toggle" id="bWobble"></div></div>
+          <div class="grid">
+            <button class="mini" id="bDel">削除</button>
+            <button class="mini" id="bRename">名前</button>
+          </div>
+        </div>
+        <div class="grid" style="margin-top:6px">
+          <button class="mini" id="boneReset">ポーズをリセット</button>
+          <button class="mini" id="ikSw">IK: 切</button>
+        </div>
+
+        <h4>コマにポーズを記録</h4>
+        <div class="grid">
+          <button class="mini" id="keySet">このコマに記録</button>
+          <button class="mini" id="keyDel">記録を消す</button>
+          <button class="mini" id="keyClear">全部消す</button>
+        </div>
+        <div class="row"><label>間を補間</label><div class="sw-toggle on" id="tween"></div></div>
+        <div class="note" id="keyInfo"></div>
+
+        <h4>コマに焼き付け</h4>
+        <div class="row">
+          <label>変換</label>
+          <select id="bakeMode">
+            <option value="raw">そのまま</option>
+            <option value="mono" selected>1bit（白黒）</option>
+            <option value="dither">網かけ</option>
+          </select>
+        </div>
+        <div class="row"><label>しきい値</label><input type="range" id="bakeTh" min="0" max="255" step="1" value="150"><span class="val">150</span></div>
+        <div class="grid">
+          <button class="mini" id="bakeOne">このコマに焼く</button>
+          <button class="mini" id="bakeSeq">連番でコマ化</button>
+          <input type="number" id="bakeCount" value="8" min="2" max="60" style="width:76px">
+        </div>
+        <div class="note" id="note"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<input type="file" id="openFile" accept=".ugomemo,.json" class="hidden">
+
+<script>
+"use strict";
+
+/* =========================================================
+   0. 基本状態
+   ========================================================= */
+let W = 320, H = 240;          // ドット解像度
+let zoom = 2;
+let paper = "#ffd83d";
+let frames = [];               // [{layers:[{name,visible,alpha,cv}]}]
+let cur = 0, curLayer = 0;
+let clipFrame = null;
+let onionN = 0, showGrid = false, stabilizeOn = true;
+
+const view = document.getElementById("view");
+const vctx = view.getContext("2d");
+const bgc  = document.getElementById("bgc");
+const bctx = bgc.getContext("2d");
+const avc  = document.getElementById("avc");
+const actx = avc.getContext("2d");
+const stage = document.getElementById("stage");
+const prev = document.getElementById("prev");
+const pctx = prev.getContext("2d");
+const giz  = document.getElementById("giz");
+const gctx = giz.getContext("2d");
+
+const PALETTE = [
+  "#20242a","#ffffff","#ee3b30","#ffd83d","#127a3a","#2ba7e0","#f08b2c","#f490b8",
+  "#8b6ef2","#8a5a34","#9aa1ac","#bfe6fb","#a9e5b8","#f6ecd2","#2f57c9","#1b3fa0",
+  "#173087","#0e1f5c","#e8dfc4","#3fbfa0","#c9366d","#5d5d5d","#00000000"
+];
+const PAPERS = ["#ffffff","#20242a","#ee3b30","#ffd83d","#127a3a","#2ba7e0","#eceadf"];
+const SIZES = [1,2,3,4,6,10];
+const PATTERNS = [
+  {id:"solid", label:"べた"},
+  {id:"net50", label:"あみ50"},
+  {id:"net25", label:"あみ25"},
+];
+const SHAPES = [
+  {id:"line", label:"線"},
+  {id:"rect", label:"□"},
+  {id:"rectf",label:"■"},
+  {id:"ell",  label:"○"},
+  {id:"ellf", label:"●"},
+];
+
+let tool = "pen", penSize = 3, pattern = "solid", shape = "rect";
+let color = "#20242a", fullColor = true;
+
+/* =========================================================
+   1. フレーム / レイヤー
+   ========================================================= */
+function newLayerCanvas(){
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  return c;
+}
+function newLayer(name){
+  return {name, visible:true, alpha:1, cv:newLayerCanvas()};
+}
+function newFrame(){
+  return {layers:[newLayer("レイヤー1")]};
+}
+function F(){ return frames[cur]; }
+function L(){ return F().layers[curLayer]; }
+
+function initDoc(w,h){
+  W = w; H = h;
+  frames = [newFrame()];
+  cur = 0; curLayer = 0;
+  fitZoom();
+  buildLayers(); buildFrames(); redraw();
+}
+
+/* ---- 表示サイズ ---- */
+function applySize(){
+  [view,bgc,avc].forEach(c=>{ c.width = W; c.height = H;
+    c.style.width = (W*zoom)+"px"; c.style.height = (H*zoom)+"px"; });
+  giz.width = W*zoom; giz.height = H*zoom;
+  giz.style.width = (W*zoom)+"px"; giz.style.height = (H*zoom)+"px";
+  stage.style.width = (W*zoom)+"px";
+  stage.style.height = (H*zoom)+"px";
+  vctx.imageSmoothingEnabled = false;
+  actx.imageSmoothingEnabled = false;
+  bctx.imageSmoothingEnabled = false;
+  prev.width = W; prev.height = H;
+  const pw = 190;
+  prev.style.width = pw+"px"; prev.style.height = Math.round(pw*H/W)+"px";
+  pctx.imageSmoothingEnabled = false;
+  document.getElementById("zoombar").textContent = `🔍 ${W}×${H} を ${zoom.toFixed(zoom<1?2:1)}倍表示`;
+  document.getElementById("infoBar").textContent =
+    `${W}×${H} ドット等倍 / レイヤー無制限 / パレット＋フルカラー`;
+  // canvas.width への代入は中身を消すので、必ず描き直す（拡大縮小で真っ白になるのを防ぐ）
+  if(frames.length){
+    redraw();
+    if(parts.length){ drawRig(); actx.clearRect(0,0,W,H); if(avShow) blitRig(actx, avAlpha); }
+    drawGizmo();
+  }
+}
+function fitZoom(){
+  const wrap = document.getElementById("stagewrap");
+  const z = Math.max(1, Math.min(
+    Math.floor((wrap.clientWidth-60)/W), Math.floor((wrap.clientHeight-60)/H)));
+  zoom = z || 1;
+  applySize();
+}
+
+/* =========================================================
+   2. 描画（ピクセル + パターンマスク）
+   ========================================================= */
+function maskOK(x,y){
+  if(pattern === "solid") return true;
+  if(pattern === "net50") return ((x + y) & 1) === 0;
+  return ((x*2 + y) % 4) === 0;         // net25 斜め
+}
+function isErase(){ return tool === "eraser"; }
+
+function stamp(ctx, cx, cy, size, erase){
+  const r = size/2;
+  const x0 = Math.floor(cx - r + .5), y0 = Math.floor(cy - r + .5);
+  for(let y=0; y<size; y++){
+    for(let x=0; x<size; x++){
+      if(size > 2){
+        const dx = x - (size-1)/2, dy = y - (size-1)/2;
+        if(dx*dx + dy*dy > r*r) continue;
+      }
+      const px = x0+x, py = y0+y;
+      if(px<0||py<0||px>=W||py>=H) continue;
+      if(!erase && !maskOK(px,py)) continue;
+      if(erase) ctx.clearRect(px,py,1,1);
+      else { ctx.fillStyle = color; ctx.fillRect(px,py,1,1); }
+    }
+  }
+}
+function lineStamp(ctx, x0,y0,x1,y1, size, erase){
+  x0=Math.round(x0); y0=Math.round(y0); x1=Math.round(x1); y1=Math.round(y1);
+  const dx = Math.abs(x1-x0), dy = -Math.abs(y1-y0);
+  const sx = x0<x1?1:-1, sy = y0<y1?1:-1;
+  let err = dx+dy;
+  for(;;){
+    stamp(ctx, x0, y0, size, erase);
+    if(x0===x1 && y0===y1) break;
+    const e2 = 2*err;
+    if(e2 >= dy){ err += dy; x0 += sx; }
+    if(e2 <= dx){ err += dx; y0 += sy; }
+  }
+}
+function ellipseOutline(ctx,x0,y0,x1,y1,size,erase){
+  const cx=(x0+x1)/2, cy=(y0+y1)/2, rx=Math.abs(x1-x0)/2, ry=Math.abs(y1-y0)/2;
+  const n = Math.max(24, Math.round((rx+ry)*4));
+  let px=null,py=null;
+  for(let i=0;i<=n;i++){
+    const a = i/n*Math.PI*2;
+    const x = cx + Math.cos(a)*rx, y = cy + Math.sin(a)*ry;
+    if(px!==null) lineStamp(ctx,px,py,x,y,size,erase);
+    px=x; py=y;
+  }
+}
+function fillRegion(ctx,x0,y0,x1,y1,kind){
+  const L2=Math.min(x0,x1), R2=Math.max(x0,x1), T2=Math.min(y0,y1), B2=Math.max(y0,y1);
+  const cx=(L2+R2)/2, cy=(T2+B2)/2, rx=(R2-L2)/2, ry=(B2-T2)/2;
+  for(let y=Math.floor(T2); y<=B2; y++){
+    for(let x=Math.floor(L2); x<=R2; x++){
+      if(x<0||y<0||x>=W||y>=H) continue;
+      if(kind==="ellf"){
+        const nx=(x-cx)/(rx||1), ny=(y-cy)/(ry||1);
+        if(nx*nx+ny*ny > 1) continue;
+      }
+      if(!maskOK(x,y)) continue;
+      ctx.fillStyle = color; ctx.fillRect(x,y,1,1);
+    }
+  }
+}
+function hexToRgba(h){
+  if(h.length===9) return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16),parseInt(h.slice(7,9),16)];
+  return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16),255];
+}
+function floodFill(cv, sx, sy){
+  sx=Math.floor(sx); sy=Math.floor(sy);
+  if(sx<0||sy<0||sx>=W||sy>=H) return;
+  const ctx = cv.getContext("2d");
+  const img = ctx.getImageData(0,0,W,H);
+  const d = img.data, i0 = (sy*W+sx)*4;
+  const t = [d[i0],d[i0+1],d[i0+2],d[i0+3]];
+  const f = hexToRgba(color);
+  if(t[0]===f[0]&&t[1]===f[1]&&t[2]===f[2]&&t[3]===f[3]) return;
+  const same = i => Math.abs(d[i]-t[0])<10 && Math.abs(d[i+1]-t[1])<10 &&
+                    Math.abs(d[i+2]-t[2])<10 && Math.abs(d[i+3]-t[3])<10;
+  // 訪問管理は別バッファで持つ(マスクで塗らない画素も探索は続けるため)
+  const seen = new Uint8Array(W*H);
+  const st = [sx,sy];
+  while(st.length){
+    const y = st.pop(), x = st.pop();
+    if(x<0||y<0||x>=W||y>=H) continue;
+    const p = y*W+x;
+    if(seen[p]) continue;
+    const i = p*4;
+    if(!same(i)) continue;
+    seen[p] = 1;
+    if(maskOK(x,y)){ d[i]=f[0]; d[i+1]=f[1]; d[i+2]=f[2]; d[i+3]=f[3]; }
+    st.push(x+1,y, x-1,y, x,y+1, x,y-1);
+  }
+  ctx.putImageData(img,0,0);
+}
+
+/* =========================================================
+   3. Undo
+   ========================================================= */
+const undoStack = [], redoStack = [];
+function grabLayers(f){
+  return f.layers.map(l=>({name:l.name, visible:l.visible, alpha:l.alpha,
+    data: l.cv.getContext("2d").getImageData(0,0,W,H)}));
+}
+function putLayers(rec){
+  return rec.map(l=>{
+    const cv = newLayerCanvas();
+    cv.getContext("2d").putImageData(l.data,0,0);
+    return {name:l.name, visible:l.visible, alpha:l.alpha, cv};
+  });
+}
+function snapshot(){ return {type:"frame", cur, layers: grabLayers(F())}; }
+function snapshotDoc(){ return {type:"doc", cur, frames: frames.map(grabLayers)}; }
+function restore(s){
+  if(s.type === "doc"){
+    frames = s.frames.map(rec=>({layers: putLayers(rec)}));
+    cur = Math.min(s.cur, frames.length-1);
+  } else {
+    cur = Math.min(s.cur, frames.length-1);
+    F().layers = putLayers(s.layers);
+  }
+  curLayer = Math.min(curLayer, F().layers.length-1);
+  buildLayers(); buildFrames(); redraw();
+}
+function pushUndo(all){
+  undoStack.push(all ? snapshotDoc() : snapshot());
+  if(undoStack.length > 40) undoStack.shift();
+  redoStack.length = 0;
+}
+/* 戻す先が全コマ記録なら、今の状態も全コマで控えておく */
+function undo(){
+  if(!undoStack.length) return;
+  const s = undoStack.pop();
+  redoStack.push(s.type === "doc" ? snapshotDoc() : snapshot());
+  restore(s);
+}
+function redo(){
+  if(!redoStack.length) return;
+  const s = redoStack.pop();
+  undoStack.push(s.type === "doc" ? snapshotDoc() : snapshot());
+  restore(s);
+}
+
+/* =========================================================
+   4. 合成・再描画
+   ========================================================= */
+function compose(ctx, frame, withPaper){
+  ctx.clearRect(0,0,W,H);
+  if(withPaper && paper !== "transparent"){ ctx.fillStyle = paper; ctx.fillRect(0,0,W,H); }
+  for(const l of frame.layers){
+    if(!l.visible) continue;
+    ctx.globalAlpha = l.alpha;
+    ctx.drawImage(l.cv,0,0);
+  }
+  ctx.globalAlpha = 1;
+}
+let tmp = null;                       // 図形プレビュー用
+function redraw(){
+  // 背景（紙 + オニオン）
+  bctx.clearRect(0,0,W,H);
+  if(paper !== "transparent"){ bctx.fillStyle = paper; bctx.fillRect(0,0,W,H); }
+  for(let i=1;i<=onionN;i++){
+    const f = frames[cur-i]; if(!f) break;
+    bctx.globalAlpha = 0.34/i;
+    for(const l of f.layers){ if(l.visible) bctx.drawImage(l.cv,0,0); }
+  }
+  bctx.globalAlpha = 1;
+  // 本体
+  vctx.clearRect(0,0,W,H);
+  for(const l of F().layers){
+    if(!l.visible) continue;
+    vctx.globalAlpha = l.alpha;
+    vctx.drawImage(l.cv,0,0);
+  }
+  vctx.globalAlpha = 1;
+  if(tmp) vctx.drawImage(tmp,0,0);
+  if(showGrid){
+    vctx.globalAlpha = .18; vctx.fillStyle = "#20242a";
+    for(let x=0;x<W;x+=8) vctx.fillRect(x,0,1,H);
+    for(let y=0;y<H;y+=8) vctx.fillRect(0,y,W,1);
+    vctx.globalAlpha = 1;
+  }
+  updateFrameThumb(cur);
+}
+
+/* =========================================================
+   5. 入力
+   ========================================================= */
+let drawing = false, lastP = null, startP = null, smoothP = null, moveOrigin = null;
+function toPix(e){
+  const r = view.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/zoom, y:(e.clientY-r.top)/zoom};
+}
+view.addEventListener("pointerdown", e=>{
+  if(e.button !== 0) return;
+  view.setPointerCapture(e.pointerId);
+  const p = toPix(e);
+  if(tool === "pick"){ pickColor(p); return; }
+  if(tool === "hand") return;
+  pushUndo();
+  drawing = true; startP = p; lastP = p; smoothP = {...p};
+  const ctx = L().cv.getContext("2d");
+  if(tool === "pen" || tool === "brush" || tool === "eraser"){
+    stamp(ctx, p.x, p.y, tool==="brush"? penSize*2 : penSize, isErase());
+  } else if(tool === "fill"){
+    floodFill(L().cv, p.x, p.y); drawing = false;
+  } else if(tool === "text"){
+    drawing = false; placeText(p);
+  } else if(tool === "shape"){
+    tmp = newLayerCanvas();
+  } else if(tool === "move"){
+    moveOrigin = {snap: ctx.getImageData(0,0,W,H)};
+  }
+  redraw();
+});
+view.addEventListener("pointermove", e=>{
+  if(!drawing) return;
+  const p = toPix(e);
+  const ctx = L().cv.getContext("2d");
+  if(tool === "pen" || tool === "brush" || tool === "eraser"){
+    let q = p;
+    if(stabilizeOn){
+      smoothP.x += (p.x - smoothP.x) * 0.42;
+      smoothP.y += (p.y - smoothP.y) * 0.42;
+      q = {x:smoothP.x, y:smoothP.y};
+    }
+    lineStamp(ctx, lastP.x, lastP.y, q.x, q.y, tool==="brush"? penSize*2 : penSize, isErase());
+    lastP = q;
+  } else if(tool === "shape"){
+    const t = tmp.getContext("2d");
+    t.clearRect(0,0,W,H);
+    drawShapeInto(t, startP, p);
+  } else if(tool === "move"){
+    const dx = Math.round(p.x - startP.x), dy = Math.round(p.y - startP.y);
+    ctx.clearRect(0,0,W,H);
+    const off = newLayerCanvas();
+    off.getContext("2d").putImageData(moveOrigin.snap,0,0);
+    ctx.drawImage(off, dx, dy);
+  }
+  redraw();
+});
+addEventListener("pointerup", ()=>{
+  if(!drawing) return;
+  drawing = false;
+  if(tool === "shape" && tmp){
+    L().cv.getContext("2d").drawImage(tmp,0,0);
+    tmp = null;
+  }
+  moveOrigin = null;
+  redraw(); buildFrames();
+});
+function drawShapeInto(t, a, b){
+  const prevFill = color;
+  if(shape === "line") lineStamp(t, a.x,a.y,b.x,b.y, penSize, false);
+  else if(shape === "rect"){
+    lineStamp(t,a.x,a.y,b.x,a.y,penSize,false); lineStamp(t,b.x,a.y,b.x,b.y,penSize,false);
+    lineStamp(t,b.x,b.y,a.x,b.y,penSize,false); lineStamp(t,a.x,b.y,a.x,a.y,penSize,false);
+  }
+  else if(shape === "rectf") fillRegion(t,a.x,a.y,b.x,b.y,"rectf");
+  else if(shape === "ell")   ellipseOutline(t,a.x,a.y,b.x,b.y,penSize,false);
+  else if(shape === "ellf")  fillRegion(t,a.x,a.y,b.x,b.y,"ellf");
+  color = prevFill;
+}
+function pickColor(p){
+  const off = newLayerCanvas();
+  compose(off.getContext("2d"), F(), true);
+  const d = off.getContext("2d").getImageData(Math.floor(p.x),Math.floor(p.y),1,1).data;
+  setColor("#" + [d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,"0")).join(""));
+}
+function placeText(p){
+  const s = prompt("文字を入力");
+  if(!s) return;
+  const size = Math.max(8, penSize*5);
+  const off = newLayerCanvas();
+  const o = off.getContext("2d");
+  o.font = `bold ${size}px "Yu Gothic UI","Hiragino Sans",sans-serif`;
+  o.textBaseline = "top";
+  o.fillStyle = "#000";
+  o.fillText(s, Math.round(p.x), Math.round(p.y));
+  // アンチエイリアスを落として1bit化 → 現在色で描く
+  const img = o.getImageData(0,0,W,H), d = img.data;
+  const c = hexToRgba(color);
+  for(let i=0;i<d.length;i+=4){
+    if(d[i+3] > 110 && maskOK((i/4)%W, Math.floor(i/4/W))){
+      d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255;
+    } else d[i+3]=0;
+  }
+  o.putImageData(img,0,0);
+  L().cv.getContext("2d").drawImage(off,0,0);
+  redraw(); buildFrames();
+}
+
+/* =========================================================
+   6. UI 構築（お絵かき）
+   ========================================================= */
+document.querySelectorAll("#rail .tool").forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll("#rail .tool").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); tool = b.dataset.tool;
+  };
+});
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+    t.classList.add("on");
+    document.getElementById("tabDraw").classList.toggle("hidden", t.dataset.tab!=="draw");
+    document.getElementById("tabAvatar").classList.toggle("hidden", t.dataset.tab!=="avatar");
+    // リグ操作はパーツ＆ボーンタブを開いている間だけ。お絵かき中は絵を邪魔しない
+    giz.classList.toggle("active", t.dataset.tab==="avatar" && rigMode!=="off");
+    drawGizmo();
+  };
+});
+{ // サイズ
+  const g = document.getElementById("sizes");
+  SIZES.forEach((s,i)=>{
+    const b = document.createElement("button");
+    b.className = "sq" + (s===penSize?" on":"");
+    const d = document.createElement("div"); d.className="dot";
+    d.style.width = d.style.height = Math.min(20, 3+s*1.8)+"px";
+    b.appendChild(d);
+    b.onclick = ()=>{ penSize = s; g.querySelectorAll(".sq").forEach(x=>x.classList.remove("on")); b.classList.add("on"); };
+    g.appendChild(b);
+  });
+}
+{ // パターン
+  const g = document.getElementById("patterns");
+  PATTERNS.forEach(p=>{
+    const b = document.createElement("button");
+    b.className = "sq" + (p.id===pattern?" on":"");
+    b.style.fontSize = "9px"; b.textContent = p.label;
+    b.onclick = ()=>{ pattern = p.id; g.querySelectorAll(".sq").forEach(x=>x.classList.remove("on")); b.classList.add("on"); };
+    g.appendChild(b);
+  });
+}
+{ // 図形
+  const g = document.getElementById("shapes");
+  SHAPES.forEach(s=>{
+    const b = document.createElement("button");
+    b.className = "sq" + (s.id===shape?" on":"");
+    b.textContent = s.label;
+    b.onclick = ()=>{
+      shape = s.id;
+      g.querySelectorAll(".sq").forEach(x=>x.classList.remove("on")); b.classList.add("on");
+      document.querySelector('[data-tool="shape"]').click();
+    };
+    g.appendChild(b);
+  });
+}
+function setColor(c){
+  color = c;
+  document.getElementById("curColor").textContent = c;
+  document.getElementById("colorPick").value = c.slice(0,7);
+  document.querySelectorAll("#palette .sw").forEach(x=>x.classList.toggle("on", x.dataset.c===c));
+}
+{ // パレット
+  const g = document.getElementById("palette");
+  PALETTE.forEach(c=>{
+    const b = document.createElement("div");
+    b.className = "sw" + (c===color?" on":"");
+    b.dataset.c = c;
+    if(c === "#00000000")
+      b.style.background = "conic-gradient(#ccc 0 25%,#fff 0 50%,#ccc 0 75%,#fff 0)", b.style.backgroundSize="8px 8px";
+    else b.style.background = c;
+    b.onclick = ()=> setColor(c);
+    g.appendChild(b);
+  });
+}
+document.getElementById("colorPick").oninput = e=> setColor(e.target.value);
+{ // 紙の色
+  const g = document.getElementById("papers");
+  PAPERS.forEach(c=>{
+    const b = document.createElement("div");
+    b.className = "sw" + (c===paper?" on":"");
+    b.style.background = c;
+    b.onclick = ()=>{ paper = c; g.querySelectorAll(".sw").forEach(x=>x.classList.remove("on")); b.classList.add("on"); redraw(); buildFrames(); };
+    g.appendChild(b);
+  });
+}
+{ // オニオン
+  const g = document.getElementById("onion");
+  [["切",0],["1",1],["2",2],["3",3]].forEach(([lab,n])=>{
+    const b = document.createElement("button");
+    b.className = "mini" + (n===onionN?" on":"");
+    b.textContent = lab;
+    b.onclick = ()=>{ onionN = n; g.querySelectorAll(".mini").forEach(x=>x.classList.remove("on")); b.classList.add("on"); redraw(); };
+    g.appendChild(b);
+  });
+}
+function toggleSw(id, init, cb){
+  const el = document.getElementById(id);
+  el.classList.toggle("on", init);
+  el.onclick = ()=>{ el.classList.toggle("on"); cb(el.classList.contains("on")); };
+}
+toggleSw("stabilize", true, v=> stabilizeOn = v);
+toggleSw("gridSw", false, v=>{ showGrid = v; redraw(); });
+toggleSw("fullColor", true, v=>{
+  fullColor = v;
+  document.getElementById("colorPick").disabled = !v;
+});
+
+/* ---- レイヤーUI ---- */
+function buildLayers(){
+  const el = document.getElementById("layers");
+  el.innerHTML = "";
+  F().layers.slice().reverse().forEach((l, ri)=>{
+    const i = F().layers.length-1-ri;
+    const d = document.createElement("div");
+    d.className = "lay" + (i===curLayer?" on":"");
+    const eye = document.createElement("span");
+    eye.className = "eye"; eye.textContent = l.visible ? "👁" : "🚫";
+    eye.onclick = e=>{ e.stopPropagation(); l.visible = !l.visible; buildLayers(); redraw(); buildFrames(); };
+    const nm = document.createElement("span");
+    nm.className = "nm"; nm.textContent = l.name; nm.title = "ダブルクリックで名前変更";
+    nm.ondblclick = ()=>{ const n = prompt("レイヤー名", l.name); if(n){ l.name = n; buildLayers(); } };
+    const rg = document.createElement("input");
+    rg.type = "range"; rg.min = 0; rg.max = 1; rg.step = .01; rg.value = l.alpha;
+    rg.oninput = ()=>{ l.alpha = +rg.value; redraw(); buildFrames(); };
+    d.append(eye, nm, rg);
+    d.onclick = ()=>{ curLayer = i; buildLayers(); };
+    el.appendChild(d);
+  });
+}
+document.getElementById("lAdd").onclick = ()=>{
+  pushUndo();
+  F().layers.push(newLayer("レイヤー"+(F().layers.length+1)));
+  curLayer = F().layers.length-1; buildLayers(); redraw();
+};
+document.getElementById("lDup").onclick = ()=>{
+  pushUndo();
+  const src = L(), c = newLayerCanvas();
+  c.getContext("2d").drawImage(src.cv,0,0);
+  F().layers.splice(curLayer+1,0,{name:src.name+" コピー", visible:true, alpha:src.alpha, cv:c});
+  curLayer++; buildLayers(); redraw();
+};
+document.getElementById("lDel").onclick = ()=>{
+  if(F().layers.length <= 1) return;
+  pushUndo();
+  F().layers.splice(curLayer,1);
+  curLayer = Math.max(0, curLayer-1); buildLayers(); redraw(); buildFrames();
+};
+document.getElementById("lMerge").onclick = ()=>{
+  if(curLayer === 0) return;
+  pushUndo();
+  const up = F().layers[curLayer], dn = F().layers[curLayer-1];
+  const c = dn.cv.getContext("2d");
+  c.globalAlpha = up.alpha; c.drawImage(up.cv,0,0); c.globalAlpha = 1;
+  F().layers.splice(curLayer,1); curLayer--; buildLayers(); redraw(); buildFrames();
+};
+document.getElementById("lUp").onclick = ()=>{
+  if(curLayer >= F().layers.length-1) return;
+  pushUndo();
+  const a = F().layers;
+  [a[curLayer],a[curLayer+1]] = [a[curLayer+1],a[curLayer]];
+  curLayer++; buildLayers(); redraw();
+};
+document.getElementById("lDown").onclick = ()=>{
+  if(curLayer === 0) return;
+  pushUndo();
+  const a = F().layers;
+  [a[curLayer],a[curLayer-1]] = [a[curLayer-1],a[curLayer]];
+  curLayer--; buildLayers(); redraw();
+};
+
+/* ---- しあげ加工（ドット化フィルタ） ---- */
+const BAYER8 = (()=>{               // 8x8 ベイヤー行列 0..63
+  const m = [[0]];
+  for(let s=1;s<8;s*=2){
+    const n = m.length, o = [];
+    for(let y=0;y<n*2;y++) o.push(new Array(n*2));
+    for(let y=0;y<n;y++) for(let x=0;x<n;x++){
+      const v = m[y][x]*4;
+      o[y][x]=v; o[y][x+n]=v+2; o[y+n][x]=v+3; o[y+n][x+n]=v+1;
+    }
+    m.length = 0; o.forEach(r=>m.push(r));
+  }
+  return m;
+})();
+const PAL_RGB = PALETTE.filter(c=>c!=="#00000000").map(hexToRgba);
+
+function fxOpts(){
+  return {
+    pixel: +document.getElementById("fxPixel").value,
+    quant: document.getElementById("fxQuant").value,
+    dither: document.getElementById("fxDither").classList.contains("on"),
+    outline: document.getElementById("fxOutline").classList.contains("on"),
+  };
+}
+function applyFx(cv, o){
+  const ctx = cv.getContext("2d");
+  // 1) モザイク（ドット化）: 縮小→等倍拡大
+  if(o.pixel > 1){
+    const sw = Math.max(1, Math.ceil(W/o.pixel)), sh = Math.max(1, Math.ceil(H/o.pixel));
+    const small = document.createElement("canvas");
+    small.width = sw; small.height = sh;
+    const sx = small.getContext("2d");
+    sx.imageSmoothingEnabled = true;          // 縮小時だけ平均化して色を拾う
+    sx.drawImage(cv, 0,0, sw, sh);
+    ctx.clearRect(0,0,W,H);
+    ctx.imageSmoothingEnabled = false;        // 拡大は補間なし＝カクカクのドット
+    ctx.drawImage(small, 0,0, sw*o.pixel, sh*o.pixel);
+  }
+  // 2) 減色 / 1bit / パレット寄せ（+ディザ）
+  if(o.quant !== "0" || o.dither){
+    const img = ctx.getImageData(0,0,W,H), d = img.data;
+    const k = /^\d+$/.test(o.quant) ? +o.quant : 0;
+    const step = k > 1 ? 255/(k-1) : 0;
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const i = (y*W+x)*4;
+        if(d[i+3] < 24){ d[i+3] = 0; continue; }
+        d[i+3] = 255;
+        // ディザのゆらぎ量（-0.5..0.5 相当）
+        const bias = o.dither ? (BAYER8[y&7][x&7]/64 - 0.5) : 0;
+        if(o.quant === "mono"){
+          const lum = .299*d[i] + .587*d[i+1] + .114*d[i+2] + bias*90;
+          const v = lum < 140 ? 0 : 255;
+          d[i]=d[i+1]=d[i+2]=v;
+        } else if(o.quant === "pal"){
+          let best = 0, bd = 1e9;
+          const r = d[i]+bias*40, g = d[i+1]+bias*40, b = d[i+2]+bias*40;
+          for(let p=0;p<PAL_RGB.length;p++){
+            const c = PAL_RGB[p];
+            const dd = (c[0]-r)**2 + (c[1]-g)**2 + (c[2]-b)**2;
+            if(dd < bd){ bd = dd; best = p; }
+          }
+          const c = PAL_RGB[best];
+          d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2];
+        } else if(k > 1){
+          for(let ch=0; ch<3; ch++){
+            const v = d[i+ch] + bias*step;
+            d[i+ch] = Math.max(0, Math.min(255, Math.round(v/step)*step));
+          }
+        }
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }
+  // 3) フチ取り: 不透明部分の外周1pxを線色で囲む
+  if(o.outline){
+    const img = ctx.getImageData(0,0,W,H), d = img.data;
+    const a = new Uint8Array(W*H);
+    for(let p=0;p<W*H;p++) a[p] = d[p*4+3] > 0 ? 1 : 0;
+    const oc = hexToRgba("#20242a");
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const p = y*W+x;
+        if(a[p]) continue;
+        const near = (x>0&&a[p-1]) || (x<W-1&&a[p+1]) || (y>0&&a[p-W]) || (y<H-1&&a[p+W]);
+        if(!near) continue;
+        const i = p*4;
+        d[i]=oc[0]; d[i+1]=oc[1]; d[i+2]=oc[2]; d[i+3]=255;
+      }
+    }
+    ctx.putImageData(img,0,0);
+  }
+}
+/* 加工は「見えているレイヤーを1枚に統合してから」かける。
+   ドット化は合成後の絵にかけないと、レイヤー境界でドットの目がズレるため。 */
+function fxFrame(f, o){
+  const flat = newLayerCanvas();
+  const fc = flat.getContext("2d");
+  for(const l of f.layers){
+    if(!l.visible) continue;
+    fc.globalAlpha = l.alpha; fc.drawImage(l.cv,0,0);
+  }
+  fc.globalAlpha = 1;
+  applyFx(flat, o);
+  const hidden = f.layers.filter(l=>!l.visible);
+  f.layers = [{name:"しあげ", visible:true, alpha:1, cv:flat}, ...hidden];
+}
+document.getElementById("fxPixel").oninput = e=>{
+  e.target.parentElement.querySelector(".val").textContent = e.target.value;
+};
+toggleSw("fxDither", false, ()=>{});
+toggleSw("fxOutline", false, ()=>{});
+document.getElementById("fxApply").onclick = ()=>{
+  pushUndo();
+  fxFrame(F(), fxOpts());
+  curLayer = 0; buildLayers(); buildFrames(); redraw();
+};
+document.getElementById("fxApplyAll").onclick = ()=>{
+  if(!confirm(`全 ${frames.length} コマにドット化加工をかけます。よろしいですか？`)) return;
+  pushUndo(true);
+  const o = fxOpts();
+  frames.forEach(f=> fxFrame(f, o));
+  curLayer = 0; buildLayers(); buildFrames(); redraw();
+};
+
+/* ---- レイヤーをコマ間で移動・コピー ---- */
+function cloneLayer(l, name){
+  const cv = newLayerCanvas();
+  cv.getContext("2d").drawImage(l.cv,0,0);
+  return {name: name || l.name, visible:l.visible, alpha:l.alpha, cv};
+}
+function sendLayer(dir, copy){
+  const src = L();
+  if(!src) return;
+  let dst = cur + dir;
+  if(dst < 0){                        // 前が無ければ先頭に空コマを作る
+    frames.unshift({layers:[]});
+    cur++; dst = 0;
+  } else if(dst >= frames.length){    // 後ろが無ければ末尾に空コマを作る
+    frames.push({layers:[]});
+    dst = frames.length-1;
+  }
+  pushUndo(true);
+  frames[dst].layers.push(cloneLayer(src));
+  if(!copy){
+    F().layers.splice(curLayer,1);
+    if(!F().layers.length) F().layers.push(newLayer("レイヤー1"));   // 空コマにしない
+    curLayer = Math.max(0, Math.min(curLayer, F().layers.length-1));
+  }
+  // 移動先のコマへ付いていく（コピーは元コマに留まる）
+  if(!copy){ cur = dst; curLayer = F().layers.length-1; }
+  frames.forEach(f=>{ if(!f.layers.length) f.layers.push(newLayer("レイヤー1")); });
+  buildLayers(); buildFrames(); redraw();
+}
+document.getElementById("lNextMove").onclick = ()=> sendLayer(+1, false);
+document.getElementById("lPrevMove").onclick = ()=> sendLayer(-1, false);
+document.getElementById("lNextCopy").onclick = ()=> sendLayer(+1, true);
+document.getElementById("lPrevCopy").onclick = ()=> sendLayer(-1, true);
+document.getElementById("lAllCopy").onclick = ()=>{
+  const src = L(); if(!src) return;
+  if(!confirm(`「${src.name}」を他の全 ${frames.length-1} コマへコピーします。よろしいですか？`)) return;
+  pushUndo(true);
+  frames.forEach((f,i)=>{ if(i !== cur) f.layers.push(cloneLayer(src)); });
+  buildFrames();
+};
+
+/* ---- コマUI ---- */
+const frameThumbs = [];
+function buildFrames(){
+  const el = document.getElementById("frames");
+  el.innerHTML = "";
+  frameThumbs.length = 0;
+  const th = 54, tw = Math.round(th * W/H);
+  frames.forEach((f,i)=>{
+    const d = document.createElement("div");
+    d.className = "fr" + (i===cur?" on":"");
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H; c.style.width = tw+"px"; c.style.height = th+"px";
+    const cx = c.getContext("2d"); cx.imageSmoothingEnabled = false;
+    compose(cx, f, true);
+    const n = document.createElement("b"); n.textContent = i+1;
+    d.append(c,n);
+    d.onclick = ()=>{ cur = i; curLayer = Math.min(curLayer, f.layers.length-1); buildLayers(); buildFrames(); redraw(); };
+    el.appendChild(d);
+    frameThumbs[i] = cx;
+  });
+  const add = document.createElement("button");
+  add.id = "addfr"; add.textContent = "＋";
+  add.onclick = ()=> addFrame();
+  el.appendChild(add);
+}
+function updateFrameThumb(i){
+  const cx = frameThumbs[i]; if(!cx) return;
+  compose(cx, frames[i], true);
+}
+function addFrame(dup){
+  const f = newFrame();
+  if(dup){
+    f.layers = F().layers.map(l=>{
+      const c = newLayerCanvas(); c.getContext("2d").drawImage(l.cv,0,0);
+      return {name:l.name, visible:l.visible, alpha:l.alpha, cv:c};
+    });
+  }
+  frames.splice(cur+1,0,f);
+  cur++; curLayer = 0;
+  buildLayers(); buildFrames(); redraw();
+}
+document.getElementById("fAdd").onclick = ()=> addFrame(false);
+document.getElementById("fDup").onclick = ()=> addFrame(true);
+document.getElementById("fDel").onclick = ()=>{
+  if(frames.length <= 1){ F().layers = [newLayer("レイヤー1")]; }
+  else { frames.splice(cur,1); cur = Math.max(0,cur-1); }
+  curLayer = 0; buildLayers(); buildFrames(); redraw();
+};
+document.getElementById("fCopy").onclick = ()=>{
+  clipFrame = F().layers.map(l=>({name:l.name, visible:l.visible, alpha:l.alpha,
+    data:l.cv.getContext("2d").getImageData(0,0,W,H)}));
+};
+document.getElementById("fPaste").onclick = ()=>{
+  if(!clipFrame) return;
+  pushUndo();
+  F().layers = clipFrame.map(l=>{
+    const c = newLayerCanvas(); c.getContext("2d").putImageData(l.data,0,0);
+    return {name:l.name, visible:l.visible, alpha:l.alpha, cv:c};
+  });
+  curLayer = 0; buildLayers(); buildFrames(); redraw();
+};
+document.getElementById("fWobble").onclick = ()=>{
+  // 現在コマを±1pxずらした2コマを後ろに足して「ゆらゆら」させる
+  const base = F();
+  [[1,0],[-1,1]].forEach(([dx,dy])=>{
+    const f = {layers: base.layers.map(l=>{
+      const c = newLayerCanvas();
+      c.getContext("2d").drawImage(l.cv, dx, dy);
+      return {name:l.name, visible:l.visible, alpha:l.alpha, cv:c};
+    })};
+    frames.splice(++cur, 0, f);
+  });
+  buildLayers(); buildFrames(); redraw();
+};
+document.getElementById("csClear").onclick = ()=>{
+  pushUndo();
+  F().layers.forEach(l=> l.cv.getContext("2d").clearRect(0,0,W,H));
+  redraw(); buildFrames();
+};
+document.getElementById("cs320").onclick = ()=> confirm("320×240 で作り直します。よろしいですか？") && initDoc(320,240);
+document.getElementById("cs256").onclick = ()=> confirm("256×192 で作り直します。よろしいですか？") && initDoc(256,192);
+document.getElementById("cs512").onclick = ()=> confirm("512×512 で作り直します。よろしいですか？") && initDoc(512,512);
+
+/* ---- 再生 ---- */
+let playing = false, loop = true, playT = 0, playI = 0;
+document.getElementById("pPlay").onclick = e=>{
+  playing = !playing;
+  e.currentTarget.textContent = playing ? "⏸" : "▶";
+  playI = cur;
+};
+document.getElementById("pLoop").onclick = e=>{ loop = !loop; e.currentTarget.classList.toggle("primary", loop); };
+document.getElementById("pLoop").classList.add("primary");
+document.getElementById("pPrev").onclick = ()=> gotoFrame(cur-1);
+document.getElementById("pNext").onclick = ()=> gotoFrame(cur+1);
+document.getElementById("pFirst").onclick = ()=> gotoFrame(0);
+document.getElementById("pLast").onclick = ()=> gotoFrame(frames.length-1);
+function gotoFrame(i){
+  cur = Math.max(0, Math.min(frames.length-1, i));
+  curLayer = Math.min(curLayer, F().layers.length-1);
+  buildLayers(); buildFrames(); redraw();
+  if(typeof syncPoseToFrame === "function") syncPoseToFrame();
+}
+function fps(){ return +document.getElementById("fps").value; }
+
+/* =========================================================
+   7. パーツ＆ボーン（PSD/PNGのパーツをボーンで動かす）
+   ========================================================= */
+/* データ:
+   parts: {id,name,img,x,y,scale,rot,bone,visible}   x,y はパーツ中心のキャンバス座標
+   bones: {id,name,parent,x,y,len,ang,rest,wobble}   親なし骨は x,y が根元。ang は親からの相対角(rad)
+   バインド時にパーツのローカル座標を骨基準で保存し、以後は骨の世界変換で追従する。 */
+let parts = [], bones = [], partSeq = 0, boneSeq = 0;
+let selPart = null, selBone = null;
+let rigMode = "pose", ikOn = false, showBones = true;
+let avShow = true, avAlpha = .85;
+let poseKeys = {};           // {frameIndex: {boneId: ang}}
+let tweenOn = true;
+
+const rig = document.createElement("canvas");   // パーツ合成先（キャンバス解像度）
+const rctx = rig.getContext("2d");
+
+function byId(arr,id){ return arr.find(o=>o.id===id) || null; }
+
+/* ---- 世界変換（親→子で合成） ---- */
+function boneWorld(b, cache){
+  cache = cache || {};
+  if(cache[b.id]) return cache[b.id];
+  let ox = b.x, oy = b.y, a = b.ang;
+  const p = b.parent != null ? byId(bones, b.parent) : null;
+  if(p){
+    const pw = boneWorld(p, cache);
+    // 親の先端に根元を置く
+    ox = pw.tx; oy = pw.ty; a = pw.ang + b.ang;
+  }
+  const w = {x:ox, y:oy, ang:a, tx:ox + Math.cos(a)*b.len, ty:oy + Math.sin(a)*b.len};
+  cache[b.id] = w;
+  return w;
+}
+function worldAll(){
+  const cache = {};
+  bones.forEach(b=> boneWorld(b, cache));
+  return cache;
+}
+
+/* ---- パーツを骨にバインド（今の見た目を保ったまま結び付ける） ---- */
+function bindPart(pt, boneId){
+  if(boneId == null){
+    if(pt.bone != null){                       // 解除: 現在の世界位置を焼き込む
+      const w = boneWorld(byId(bones, pt.bone));
+      const c = Math.cos(w.ang), s = Math.sin(w.ang);
+      pt.x = w.x + pt.lx*c - pt.ly*s;
+      pt.y = w.y + pt.lx*s + pt.ly*c;
+      pt.rot = pt.rot + w.ang;
+    }
+    pt.bone = null; delete pt.lx; delete pt.ly;
+    return;
+  }
+  const b = byId(bones, boneId); if(!b) return;
+  const w = boneWorld(b);
+  const dx = pt.x - w.x, dy = pt.y - w.y;
+  const c = Math.cos(-w.ang), s = Math.sin(-w.ang);
+  pt.lx = dx*c - dy*s;
+  pt.ly = dx*s + dy*c;
+  pt.rot = pt.rot - w.ang;                     // 骨からの相対回転
+  pt.bone = boneId;
+}
+function partTransform(pt, cache){
+  if(pt.bone == null) return {x:pt.x, y:pt.y, rot:pt.rot};
+  const b = byId(bones, pt.bone);
+  if(!b) return {x:pt.x, y:pt.y, rot:pt.rot};
+  const w = cache ? cache[b.id] : boneWorld(b);
+  const c = Math.cos(w.ang), s = Math.sin(w.ang);
+  return {x: w.x + pt.lx*c - pt.ly*s, y: w.y + pt.lx*s + pt.ly*c, rot: pt.rot + w.ang};
+}
+
+/* ---- 描画 ---- */
+function drawRig(){
+  rig.width = W; rig.height = H;
+  rctx.setTransform(1,0,0,1,0,0);
+  rctx.clearRect(0,0,W,H);
+  rctx.imageSmoothingEnabled = false;
+  const cache = worldAll();
+  for(const pt of parts){
+    if(!pt.visible) continue;
+    const t = partTransform(pt, cache);
+    rctx.save();
+    rctx.translate(t.x, t.y);
+    rctx.rotate(t.rot);
+    rctx.scale(pt.scale, pt.scale);
+    rctx.drawImage(pt.img, -pt.img.width/2, -pt.img.height/2);
+    rctx.restore();
+  }
+}
+function blitRig(ctx, alpha){
+  if(!parts.length) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(rig, 0, 0);
+  ctx.restore();
+}
+/* ボーンのギズモ（CSS解像度・zoom倍のキャンバスへ） */
+function drawGizmo(){
+  gctx.setTransform(1,0,0,1,0,0);
+  gctx.clearRect(0,0,giz.width,giz.height);
+  if(!giz.classList.contains("active") || !showBones) return;
+  const z = zoom, cache = worldAll();
+  if(rigMode === "part"){
+    for(const pt of parts){
+      const t = partTransform(pt, cache);
+      const w = pt.img.width*pt.scale, h = pt.img.height*pt.scale;
+      gctx.save();
+      gctx.translate(t.x*z, t.y*z); gctx.rotate(t.rot);
+      gctx.strokeStyle = pt === selPart ? "#e2703a" : "rgba(32,36,42,.45)";
+      gctx.lineWidth = pt === selPart ? 2 : 1;
+      gctx.setLineDash(pt === selPart ? [] : [4,3]);
+      gctx.strokeRect(-w/2*z, -h/2*z, w*z, h*z);
+      gctx.restore();
+    }
+    gctx.setLineDash([]);
+  }
+  for(const b of bones){
+    const w = cache[b.id];
+    const sel = b === selBone;
+    gctx.strokeStyle = sel ? "#e2703a" : "#2ba7e0";
+    gctx.lineWidth = sel ? 4 : 3;
+    gctx.lineCap = "round";
+    gctx.beginPath();
+    gctx.moveTo(w.x*z, w.y*z); gctx.lineTo(w.tx*z, w.ty*z);
+    gctx.stroke();
+    gctx.strokeStyle = "rgba(255,255,255,.85)"; gctx.lineWidth = 1;
+    gctx.stroke();
+    // 根元(丸)と先端(掴むハンドル)
+    gctx.fillStyle = "#fff"; gctx.strokeStyle = "#20242a"; gctx.lineWidth = 2;
+    gctx.beginPath(); gctx.arc(w.x*z, w.y*z, 4, 0, 7); gctx.fill(); gctx.stroke();
+    gctx.fillStyle = sel ? "#ffd24a" : "#2ba7e0";
+    gctx.beginPath(); gctx.arc(w.tx*z, w.ty*z, 6, 0, 7); gctx.fill(); gctx.stroke();
+    if(b.wobble){
+      gctx.fillStyle = "#e2703a";
+      gctx.beginPath(); gctx.arc(w.tx*z+9, w.ty*z-9, 3, 0, 7); gctx.fill();
+    }
+  }
+}
+
+/* ---- パーツ読み込み（PSD = レイヤーごとにパーツ化 / 画像 = 1パーツ） ---- */
+function addPart(name, canvas){
+  // キャンバスに収まるように初期スケールを決める
+  const fit = Math.min(1, (W*0.9)/canvas.width, (H*0.9)/canvas.height);
+  parts.push({
+    id: ++partSeq, name, img: canvas, visible: true,
+    x: W/2, y: H/2, scale: fit, rot: 0, bone: null,
+  });
+}
+function flattenPsd(node, arr){
+  (node.children||[]).forEach(ch=>{
+    if(ch.children) flattenPsd(ch, arr);
+    else if(ch.canvas) arr.push(ch);
+  });
+}
+async function loadPartFile(file){
+  if(/\.psd$/i.test(file.name)){
+    const psd = agPsd.readPsd(await file.arrayBuffer(), {skipCompositeImageData:true, skipThumbnail:true});
+    const flat = []; flattenPsd(psd, flat);
+    // PSD内の相対位置を保ったまま並べる
+    const fit = Math.min(1, (W*0.9)/psd.width, (H*0.9)/psd.height);
+    flat.forEach(l=>{
+      const lw = (l.right||0)-(l.left||0), lh = (l.bottom||0)-(l.top||0);
+      if(lw<=0 || lh<=0) return;
+      parts.push({
+        id: ++partSeq, name: l.name||"パーツ", img: l.canvas, visible: true,
+        x: W/2 + ((l.left||0) + lw/2 - psd.width/2)*fit,
+        y: H/2 + ((l.top||0)  + lh/2 - psd.height/2)*fit,
+        scale: fit, rot: 0, bone: null,
+      });
+    });
+    try{ await idbPut("lastPsd", {name:file.name, buf:await file.arrayBuffer()}); }catch(e){}
+  } else {
+    const img = await new Promise((res,rej)=>{
+      const im = new Image();
+      im.onload = ()=> res(im); im.onerror = rej;
+      im.src = URL.createObjectURL(file);
+    });
+    const c = document.createElement("canvas");
+    c.width = img.width; c.height = img.height;
+    c.getContext("2d").drawImage(img,0,0);
+    addPart(file.name.replace(/\.\w+$/,""), c);
+  }
+  selPart = parts[parts.length-1] || null;
+  buildRigUI(); drawRig();
+}
+function idb(){
+  return new Promise((res,rej)=>{
+    const q = indexedDB.open("ugomemoStudio",1);
+    q.onupgradeneeded = ()=> q.result.createObjectStore("files");
+    q.onsuccess = ()=> res(q.result);
+    q.onerror = ()=> rej(q.error);
+  });
+}
+async function idbPut(k,v){
+  const db = await idb();
+  return new Promise((res,rej)=>{
+    const tx = db.transaction("files","readwrite");
+    tx.objectStore("files").put(v,k);
+    tx.oncomplete = res; tx.onerror = ()=> rej(tx.error);
+  });
+}
+const psdFile = document.getElementById("psdFile");
+document.getElementById("psdBox").onclick = ()=> psdFile.click();
+psdFile.onchange = async e=>{
+  for(const f of e.target.files) await loadPartFile(f);
+  psdFile.value = "";
+};
+const psdBox = document.getElementById("psdBox");
+psdBox.addEventListener("dragover", e=>{ e.preventDefault(); psdBox.classList.add("dragging"); });
+psdBox.addEventListener("dragleave", ()=> psdBox.classList.remove("dragging"));
+psdBox.addEventListener("drop", async e=>{
+  e.preventDefault(); psdBox.classList.remove("dragging");
+  for(const f of e.dataTransfer.files) await loadPartFile(f);
+});
+const wrapEl = document.getElementById("stagewrap"), dropmsg = document.getElementById("dropmsg");
+wrapEl.addEventListener("dragover", e=>{ e.preventDefault(); dropmsg.style.display="flex"; });
+wrapEl.addEventListener("dragleave", ()=> dropmsg.style.display="none");
+wrapEl.addEventListener("drop", async e=>{
+  e.preventDefault(); dropmsg.style.display="none";
+  for(const f of e.dataTransfer.files) await loadPartFile(f);
+});
+
+/* ---- パネルUI ---- */
+const RIG_HINTS = {
+  pose: "骨の先端(丸)をドラッグで曲げる。IK入で先端を引っぱると2本続けて曲がる。",
+  part: "パーツをドラッグで移動。選んでから大きさ・回転・つなぐ骨を設定。",
+  bone: "キャンバスをドラッグして骨を作る。選択中の骨があればその子になる。",
+  off:  "リグ操作を切って、いつも通りお絵かきします。",
+};
+document.querySelectorAll("#rigModes .mini").forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll("#rigModes .mini").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    rigMode = b.dataset.rm;
+    giz.classList.toggle("active", rigMode !== "off" &&
+      !document.getElementById("tabAvatar").classList.contains("hidden"));
+    document.getElementById("rigHint").textContent = RIG_HINTS[rigMode];
+    drawGizmo();
+  };
+});
+document.getElementById("rigHint").textContent = RIG_HINTS.pose;
+
+function buildRigUI(){
+  // パーツ一覧
+  const pl = document.getElementById("partList");
+  pl.innerHTML = "";
+  parts.slice().reverse().forEach(pt=>{
+    const d = document.createElement("div");
+    d.className = "lay" + (pt===selPart?" on":"");
+    const eye = document.createElement("span");
+    eye.className = "eye"; eye.textContent = pt.visible ? "👁" : "🚫";
+    eye.onclick = e=>{ e.stopPropagation(); pt.visible = !pt.visible; buildRigUI(); drawRig(); };
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = pt.name + (pt.bone!=null ? " 🔗"+(byId(bones,pt.bone)?.name||"") : "");
+    d.append(eye, nm);
+    d.onclick = ()=>{ selPart = pt; buildRigUI(); drawGizmo(); };
+    pl.appendChild(d);
+  });
+  document.getElementById("psdInfo").textContent = `パーツ ${parts.length} 個 / ボーン ${bones.length} 本`;
+  const pe = document.getElementById("partEdit");
+  pe.classList.toggle("hidden", !selPart);
+  if(selPart){
+    setRange("pScale", selPart.scale, 2);
+    setRange("pRot", Math.round(selPart.rot*180/Math.PI), 0);
+    const sel = document.getElementById("pBone");
+    sel.innerHTML = "";
+    const o0 = document.createElement("option"); o0.value=""; o0.textContent="（なし）"; sel.appendChild(o0);
+    bones.forEach(b=>{
+      const o = document.createElement("option"); o.value=b.id; o.textContent=b.name; sel.appendChild(o);
+    });
+    sel.value = selPart.bone!=null ? selPart.bone : "";
+  }
+  // ボーン一覧
+  const bl = document.getElementById("boneList");
+  bl.innerHTML = "";
+  bones.forEach(b=>{
+    const d = document.createElement("div");
+    d.className = "lay" + (b===selBone?" on":"");
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    const depth = (function dep(x){ let n=0; while(x && x.parent!=null){ x = byId(bones,x.parent); n++; } return n; })(b);
+    nm.textContent = "　".repeat(depth) + b.name + (b.wobble?" 〜":"");
+    d.append(nm);
+    d.onclick = ()=>{ selBone = b; buildRigUI(); drawGizmo(); };
+    bl.appendChild(d);
+  });
+  const be = document.getElementById("boneEdit");
+  be.classList.toggle("hidden", !selBone);
+  if(selBone){
+    setRange("bAng", Math.round(selBone.ang*180/Math.PI), 0);
+    setRange("bLen", Math.round(selBone.len), 0);
+    const sel = document.getElementById("bParent");
+    sel.innerHTML = "";
+    const o0 = document.createElement("option"); o0.value=""; o0.textContent="（なし＝根）"; sel.appendChild(o0);
+    bones.forEach(b=>{
+      if(b === selBone || isDescendant(b, selBone)) return;
+      const o = document.createElement("option"); o.value=b.id; o.textContent=b.name; sel.appendChild(o);
+    });
+    sel.value = selBone.parent!=null ? selBone.parent : "";
+    document.getElementById("bWobble").classList.toggle("on", !!selBone.wobble);
+  }
+  document.getElementById("keyInfo").textContent =
+    Object.keys(poseKeys).length
+      ? "記録済みコマ: " + Object.keys(poseKeys).map(i=>+i+1).sort((a,b)=>a-b).join(", ")
+      : "記録なし（記録するとコマ送りでポーズが切り替わります）";
+}
+function isDescendant(b, of){
+  let x = b;
+  while(x && x.parent != null){ if(x.parent === of.id) return true; x = byId(bones, x.parent); }
+  return false;
+}
+function setRange(id, v, dec){
+  const el = document.getElementById(id);
+  el.value = v;
+  el.parentElement.querySelector(".val").textContent = dec ? (+v).toFixed(dec) : Math.round(v);
+}
+function onRange(id, fn, dec){
+  const el = document.getElementById(id);
+  el.oninput = ()=>{
+    const v = +el.value;
+    el.parentElement.querySelector(".val").textContent = dec ? v.toFixed(dec) : Math.round(v);
+    fn(v);
+  };
+}
+onRange("pScale", v=>{ if(selPart){ selPart.scale = v; drawRig(); drawGizmo(); } }, 2);
+onRange("pRot",   v=>{ if(selPart){ selPart.rot = v*Math.PI/180; drawRig(); drawGizmo(); } }, 0);
+onRange("bAng",   v=>{ if(selBone){ selBone.ang = v*Math.PI/180; drawRig(); drawGizmo(); } }, 0);
+onRange("bLen",   v=>{ if(selBone){ selBone.len = v; drawRig(); drawGizmo(); } }, 0);
+onRange("avAlpha",v=>{ avAlpha = v; }, 0);
+document.getElementById("avAlpha").oninput = e=>{
+  avAlpha = +e.target.value;
+  e.target.parentElement.querySelector(".val").textContent = Math.round(avAlpha*100);
+};
+document.getElementById("pBone").onchange = e=>{
+  if(!selPart) return;
+  bindPart(selPart, e.target.value === "" ? null : +e.target.value);
+  buildRigUI(); drawRig(); drawGizmo();
+};
+document.getElementById("bParent").onchange = e=>{
+  if(!selBone) return;
+  const pid = e.target.value === "" ? null : +e.target.value;
+  // 親が変わっても見た目が動かないよう、根元と角度を付け替え後の座標系で取り直す
+  const w = boneWorld(selBone);
+  selBone.parent = pid;
+  if(pid == null){ selBone.x = w.x; selBone.y = w.y; selBone.ang = w.ang; }
+  else {
+    const pw = boneWorld(byId(bones,pid));
+    selBone.ang = w.ang - pw.ang;
+  }
+  buildRigUI(); drawRig(); drawGizmo();
+};
+document.getElementById("bWobble").onclick = ()=>{
+  if(!selBone) return;
+  selBone.wobble = !selBone.wobble;
+  document.getElementById("bWobble").classList.toggle("on", selBone.wobble);
+  buildRigUI(); drawGizmo();
+};
+document.getElementById("bDel").onclick = ()=>{
+  if(!selBone) return;
+  const id = selBone.id;
+  bones.filter(b=>b.parent===id).forEach(b=>{
+    const w = boneWorld(b);
+    b.parent = null; b.x = w.x; b.y = w.y; b.ang = w.ang;
+  });
+  parts.filter(p=>p.bone===id).forEach(p=> bindPart(p, null));
+  bones = bones.filter(b=>b.id!==id);
+  selBone = null;
+  buildRigUI(); drawRig(); drawGizmo();
+};
+document.getElementById("bRename").onclick = ()=>{
+  if(!selBone) return;
+  const n = prompt("ボーン名", selBone.name);
+  if(n){ selBone.name = n; buildRigUI(); }
+};
+document.getElementById("boneReset").onclick = ()=>{
+  bones.forEach(b=> b.ang = b.rest);
+  buildRigUI(); drawRig(); drawGizmo();
+};
+document.getElementById("ikSw").onclick = e=>{
+  ikOn = !ikOn;
+  e.currentTarget.textContent = "IK: " + (ikOn ? "入" : "切");
+  e.currentTarget.classList.toggle("on", ikOn);
+};
+document.getElementById("pUp").onclick = ()=>{
+  const i = parts.indexOf(selPart); if(i<0 || i===parts.length-1) return;
+  [parts[i],parts[i+1]] = [parts[i+1],parts[i]];
+  buildRigUI(); drawRig();
+};
+document.getElementById("pDown").onclick = ()=>{
+  const i = parts.indexOf(selPart); if(i<=0) return;
+  [parts[i],parts[i-1]] = [parts[i-1],parts[i]];
+  buildRigUI(); drawRig();
+};
+document.getElementById("pDel").onclick = ()=>{
+  if(!selPart) return;
+  parts = parts.filter(p=>p!==selPart); selPart = null;
+  buildRigUI(); drawRig(); drawGizmo();
+};
+toggleSw("avShow", true, v=>{ avShow = v; if(!v) actx.clearRect(0,0,W,H); });
+toggleSw("boneShow", true, v=>{ showBones = v; drawGizmo(); });
+toggleSw("tween", true, v=> tweenOn = v);
+document.getElementById("bakeTh").oninput = e=>{
+  e.target.parentElement.querySelector(".val").textContent = e.target.value;
+};
+
+/* ---- キャンバス上の操作（ギズモ層でヒットテスト） ---- */
+function gizPix(e){
+  const r = giz.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/zoom, y:(e.clientY-r.top)/zoom};
+}
+let dragKind = null, dragOff = null;
+giz.addEventListener("pointerdown", e=>{
+  if(rigMode === "off") return;
+  giz.setPointerCapture(e.pointerId);
+  const p = gizPix(e);
+  const cache = worldAll();
+  const hitR = 9/zoom;
+
+  if(rigMode === "bone"){
+    // 選択中の骨があればその子として、無ければ根として作る
+    const parent = selBone;
+    const pw = parent ? cache[parent.id] : null;
+    const b = {
+      id: ++boneSeq, name: "ボーン"+(bones.length+1),
+      parent: parent ? parent.id : null,
+      x: parent ? 0 : p.x, y: parent ? 0 : p.y,
+      len: 1, ang: 0, rest: 0, wobble: false,
+    };
+    if(parent) b.ang = Math.atan2(p.y-pw.ty, p.x-pw.tx) - pw.ang;
+    bones.push(b);
+    selBone = b; dragKind = "newbone"; dragOff = p;
+    buildRigUI(); drawGizmo();
+    return;
+  }
+  // 骨の先端ハンドル優先（ポーズ操作）
+  for(let i=bones.length-1; i>=0; i--){
+    const b = bones[i], w = cache[b.id];
+    if(Math.hypot(p.x-w.tx, p.y-w.ty) < hitR){
+      selBone = b; dragKind = "tip"; buildRigUI(); drawGizmo();
+      return;
+    }
+  }
+  if(rigMode === "part"){
+    for(let i=parts.length-1; i>=0; i--){
+      const pt = parts[i];
+      if(!pt.visible) continue;
+      const t = partTransform(pt, cache);
+      const hw = pt.img.width*pt.scale/2, hh = pt.img.height*pt.scale/2;
+      const c = Math.cos(-t.rot), s = Math.sin(-t.rot);
+      const dx = p.x-t.x, dy = p.y-t.y;
+      const lx = dx*c - dy*s, ly = dx*s + dy*c;
+      if(Math.abs(lx) <= hw && Math.abs(ly) <= hh){
+        selPart = pt; dragKind = "part"; dragOff = {x:lx, y:ly};
+        buildRigUI(); drawGizmo();
+        return;
+      }
+    }
+    selPart = null; buildRigUI(); drawGizmo();
+  }
+});
+giz.addEventListener("pointermove", e=>{
+  if(!dragKind) return;
+  const p = gizPix(e);
+  if(dragKind === "part" && selPart){
+    if(selPart.bone != null){
+      // 骨に付いている場合はローカル座標を動かす
+      const w = boneWorld(byId(bones, selPart.bone));
+      const c = Math.cos(-w.ang), s = Math.sin(-w.ang);
+      const dx = p.x - w.x, dy = p.y - w.y;
+      const lx = dx*c - dy*s, ly = dx*s + dy*c;
+      const rc = Math.cos(-selPart.rot), rs = Math.sin(-selPart.rot);
+      selPart.lx = lx - (dragOff.x*Math.cos(selPart.rot) - dragOff.y*Math.sin(selPart.rot));
+      selPart.ly = ly - (dragOff.x*Math.sin(selPart.rot) + dragOff.y*Math.cos(selPart.rot));
+    } else {
+      selPart.x = p.x - (dragOff.x*Math.cos(selPart.rot) - dragOff.y*Math.sin(selPart.rot));
+      selPart.y = p.y - (dragOff.x*Math.sin(selPart.rot) + dragOff.y*Math.cos(selPart.rot));
+    }
+    drawRig(); drawGizmo();
+    return;
+  }
+  if((dragKind === "tip" || dragKind === "newbone") && selBone){
+    const b = selBone;
+    const pw = b.parent != null ? boneWorld(byId(bones,b.parent)) : null;
+    const ox = pw ? pw.tx : b.x, oy = pw ? pw.ty : b.y;
+    const base = pw ? pw.ang : 0;
+    const ang = Math.atan2(p.y-oy, p.x-ox) - base;
+    if(dragKind === "newbone"){
+      b.ang = ang; b.len = Math.max(4, Math.hypot(p.x-ox, p.y-oy)); b.rest = b.ang;
+    } else if(ikOn && b.parent != null){
+      solveIK(byId(bones,b.parent), b, p);
+    } else {
+      b.ang = ang;
+    }
+    setRange("bAng", Math.round(b.ang*180/Math.PI), 0);
+    setRange("bLen", Math.round(b.len), 0);
+    drawRig(); drawGizmo();
+  }
+});
+addEventListener("pointerup", ()=>{
+  if(dragKind === "newbone"){ buildRigUI(); }
+  dragKind = null;
+});
+/* 2本チェーンのIK: 上腕(a)+前腕(b)の先端を target に寄せる */
+function solveIK(a, b, target){
+  const aw = a.parent != null ? boneWorld(byId(bones,a.parent)) : null;
+  const ox = aw ? aw.tx : a.x, oy = aw ? aw.ty : a.y;
+  const base = aw ? aw.ang : 0;
+  const dx = target.x-ox, dy = target.y-oy;
+  const l1 = a.len, l2 = b.len;
+  let d = Math.hypot(dx,dy);
+  d = Math.max(Math.abs(l1-l2)+.001, Math.min(l1+l2-.001, d));
+  const at = Math.atan2(dy,dx);
+  const cosA = (l1*l1 + d*d - l2*l2)/(2*l1*d);
+  const A = Math.acos(Math.max(-1, Math.min(1, cosA)));
+  const cosB = (l1*l1 + l2*l2 - d*d)/(2*l1*l2);
+  const B = Math.acos(Math.max(-1, Math.min(1, cosB)));
+  a.ang = (at - A) - base;
+  b.ang = Math.PI - B;
+}
+
+/* ---- ゆれる骨（バネ） ---- */
+class Spring{
+  constructor(){ this.x=0; this.v=0; }
+  step(dt,k,c,input){
+    this.v += (-k*this.x - c*this.v + input)*dt;
+    this.x += this.v*dt;
+    if(!isFinite(this.x)){ this.x=0; this.v=0; }
+  }
+}
+const wobbleSprings = {};
+function stepRig(now, dt){
+  const t = now/1000;
+  let moved = false;
+  for(const b of bones){
+    if(!b.wobble) continue;
+    const s = wobbleSprings[b.id] || (wobbleSprings[b.id] = new Spring());
+    const wind = Math.sin(t*1.4 + b.id) + Math.sin(t*2.3 + b.id*2)*.5;
+    s.step(dt, 26, 2.2, wind*26);
+    b.ang = b.rest + s.x*0.02;
+    moved = true;
+  }
+  if(moved){ drawRig(); }
+}
+
+/* ---- ポーズのキーフレーム ---- */
+function capturePose(){
+  const o = {};
+  bones.forEach(b=> o[b.id] = b.ang);
+  return o;
+}
+function applyPose(o){
+  bones.forEach(b=>{ if(o[b.id] !== undefined) b.ang = o[b.id]; });
+  drawRig(); drawGizmo();
+}
+function poseForFrame(i){
+  const keys = Object.keys(poseKeys).map(Number).sort((a,b)=>a-b);
+  if(!keys.length) return null;
+  if(poseKeys[i]) return poseKeys[i];
+  if(!tweenOn){
+    let last = keys[0];
+    for(const k of keys) if(k <= i) last = k;
+    return poseKeys[last];
+  }
+  let lo = null, hi = null;
+  for(const k of keys){ if(k < i) lo = k; if(k > i && hi === null) hi = k; }
+  if(lo === null) return poseKeys[hi];
+  if(hi === null) return poseKeys[lo];
+  const u = (i-lo)/(hi-lo), A = poseKeys[lo], B = poseKeys[hi], o = {};
+  bones.forEach(b=>{
+    const a = A[b.id] ?? b.ang, c = B[b.id] ?? b.ang;
+    let d = c - a;
+    while(d > Math.PI) d -= Math.PI*2;      // 近い方向に回す
+    while(d < -Math.PI) d += Math.PI*2;
+    o[b.id] = a + d*u;
+  });
+  return o;
+}
+function syncPoseToFrame(){
+  const p = poseForFrame(cur);
+  if(p) applyPose(p);
+}
+document.getElementById("keySet").onclick = ()=>{
+  poseKeys[cur] = capturePose();
+  buildRigUI(); buildFrames();
+};
+document.getElementById("keyDel").onclick = ()=>{
+  delete poseKeys[cur]; buildRigUI();
+};
+document.getElementById("keyClear").onclick = ()=>{
+  if(confirm("記録したポーズを全部消します。よろしいですか？")){ poseKeys = {}; buildRigUI(); }
+};
+
+/* ---- 焼き付け ---- */
+const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+function bakeInto(layerCv){
+  const off = newLayerCanvas();
+  const o = off.getContext("2d");
+  o.imageSmoothingEnabled = false;
+  blitRig(o, 1);
+  const mode = document.getElementById("bakeMode").value;
+  const th = +document.getElementById("bakeTh").value;
+  if(mode !== "raw"){
+    const img = o.getImageData(0,0,W,H), d = img.data;
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const i = (y*W+x)*4;
+        if(d[i+3] < 40){ d[i+3]=0; continue; }
+        const lum = .299*d[i] + .587*d[i+1] + .114*d[i+2];
+        const t = mode === "dither" ? (BAYER[y&3][x&3]/16*160 + th - 80) : th;
+        if(lum < t){ d[i]=32; d[i+1]=36; d[i+2]=42; d[i+3]=255; }
+        else { d[i+3]=0; }
+      }
+    }
+    o.putImageData(img,0,0);
+  }
+  layerCv.getContext("2d").drawImage(off,0,0);
+}
+document.getElementById("bakeOne").onclick = ()=>{
+  if(!parts.length){ alert("先にパーツを読み込んでください"); return; }
+  pushUndo();
+  drawRig();
+  bakeInto(L().cv);
+  redraw(); buildFrames();
+};
+document.getElementById("bakeSeq").onclick = ()=>{
+  if(!parts.length){ alert("先にパーツを読み込んでください"); return; }
+  const n = Math.max(2, Math.min(60, +document.getElementById("bakeCount").value||8));
+  const keys = Object.keys(poseKeys).map(Number);
+  const saved = capturePose();
+  const dt = 1/fps();
+  let t = performance.now();
+  for(let i=0;i<n;i++){
+    if(keys.length){
+      // 記録したポーズを n コマに割り付けて補間
+      const span = Math.max(...keys) - Math.min(...keys);
+      const at = Math.min(...keys) + (span ? span*i/(n-1) : 0);
+      const lo = Math.floor(at), hi = Math.ceil(at);
+      const A = poseForFrame(lo), B = poseForFrame(hi);
+      if(A && B){
+        const u = at-lo, o = {};
+        bones.forEach(b=>{
+          const a = A[b.id] ?? b.ang, c = B[b.id] ?? b.ang;
+          let d2 = c-a;
+          while(d2 > Math.PI) d2 -= Math.PI*2;
+          while(d2 < -Math.PI) d2 += Math.PI*2;
+          o[b.id] = a + d2*u;
+        });
+        applyPose(o);
+      }
+    } else {
+      t += dt*1000;
+      stepRig(t, dt);       // ゆれる骨だけで動かす
+    }
+    drawRig();
+    const f = newFrame();
+    bakeInto(f.layers[0].cv);
+    f.layers[0].name = "リグ";
+    frames.splice(cur + 1 + i, 0, f);
+  }
+  applyPose(saved);
+  cur = cur + n; curLayer = 0;
+  buildLayers(); buildFrames(); redraw();
+};
+buildRigUI();
+
+/* =========================================================
+   8. 保存・書き出し
+   ========================================================= */
+function dl(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+}
+function docNameVal(){ return (document.getElementById("docName").value||"memo").replace(/[\\\/:*?"<>|]/g,"_"); }
+
+document.getElementById("btnSave").onclick = ()=>{
+  const data = {
+    v:1, w:W, h:H, paper, fps:fps(), name:docNameVal(),
+    frames: frames.map(f=>({layers: f.layers.map(l=>({
+      name:l.name, visible:l.visible, alpha:l.alpha, png:l.cv.toDataURL("image/png")
+    }))})),
+    rig: {
+      parts: parts.map(p=>({name:p.name, visible:p.visible, x:p.x, y:p.y, lx:p.lx, ly:p.ly,
+        scale:p.scale, rot:p.rot, bone:p.bone, png:p.img.toDataURL("image/png")})),
+      bones: bones.map(b=>({id:b.id, name:b.name, parent:b.parent, x:b.x, y:b.y,
+        len:b.len, ang:b.ang, rest:b.rest, wobble:!!b.wobble})),
+      keys: poseKeys,
+    }
+  };
+  dl(new Blob([JSON.stringify(data)], {type:"application/json"}), docNameVal()+".ugomemo");
+};
+document.getElementById("btnLoad").onclick = ()=> document.getElementById("openFile").click();
+document.getElementById("openFile").onchange = async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const d = JSON.parse(await f.text());
+  W = d.w; H = d.h; paper = d.paper || "#ffffff";
+  document.getElementById("docName").value = d.name || f.name.replace(/\.\w+$/,"");
+  if(d.fps) document.getElementById("fps").value = d.fps;
+  frames = await Promise.all(d.frames.map(async fr=>({
+    layers: await Promise.all(fr.layers.map(async l=>{
+      const cv = newLayerCanvas();
+      await new Promise(res=>{
+        const im = new Image();
+        im.onload = ()=>{ cv.getContext("2d").drawImage(im,0,0); res(); };
+        im.onerror = res; im.src = l.png;
+      });
+      return {name:l.name, visible:l.visible, alpha:l.alpha, cv};
+    }))
+  })));
+  cur = 0; curLayer = 0;
+  // リグ（パーツ・ボーン・ポーズ記録）も復元する
+  parts = []; bones = []; poseKeys = {}; selPart = selBone = null;
+  if(d.rig){
+    bones = (d.rig.bones||[]).map(b=>({...b}));
+    boneSeq = bones.reduce((m,b)=>Math.max(m,b.id), 0);
+    parts = await Promise.all((d.rig.parts||[]).map(async p=>{
+      const img = document.createElement("canvas");
+      await new Promise(res=>{
+        const im = new Image();
+        im.onload = ()=>{ img.width = im.width; img.height = im.height;
+          img.getContext("2d").drawImage(im,0,0); res(); };
+        im.onerror = res; im.src = p.png;
+      });
+      return {id: ++partSeq, name:p.name, img, visible:p.visible, x:p.x, y:p.y,
+        lx:p.lx, ly:p.ly, scale:p.scale, rot:p.rot, bone:p.bone};
+    }));
+    poseKeys = d.rig.keys || {};
+  }
+  buildRigUI(); drawRig(); drawGizmo();
+  fitZoom(); buildLayers(); buildFrames(); redraw();
+  e.target.value = "";
+};
+function frameBlob(i){
+  const off = newLayerCanvas();
+  compose(off.getContext("2d"), frames[i], true);
+  return new Promise(res=> off.toBlob(res, "image/png"));
+}
+document.getElementById("btnExportPng").onclick = async ()=>{
+  dl(await frameBlob(cur), `${docNameVal()}_${String(cur+1).padStart(3,"0")}.png`);
+};
+document.getElementById("btnExportSeq").onclick = async ()=>{
+  for(let i=0;i<frames.length;i++){
+    dl(await frameBlob(i), `${docNameVal()}_${String(i+1).padStart(3,"0")}.png`);
+    await new Promise(r=> setTimeout(r, 220));   // 連続ダウンロードのブロック回避
+  }
+};
+/* webm: 再生しながら captureStream を録る */
+let recorder = null;
+document.getElementById("btnRec").onclick = ()=>{
+  const btn = document.getElementById("btnRec");
+  if(recorder){ recorder.stop(); return; }
+  const off = newLayerCanvas();
+  const octx = off.getContext("2d"); octx.imageSmoothingEnabled = false;
+  const stream = off.captureStream(fps());
+  const chunks = [];
+  recorder = new MediaRecorder(stream, {mimeType:"video/webm"});
+  recorder.ondataavailable = e=> e.data.size && chunks.push(e.data);
+  recorder.onstop = ()=>{
+    clearInterval(iv);
+    dl(new Blob(chunks,{type:"video/webm"}), docNameVal()+".webm");
+    recorder = null; btn.textContent = "🎬 webm"; btn.classList.remove("primary");
+  };
+  let i = 0;
+  const iv = setInterval(()=>{
+    compose(octx, frames[i % frames.length], true);
+    i++;
+    if(i >= frames.length*3) recorder.stop();     // 3ループ分録る
+  }, 1000/fps());
+  recorder.start();
+  btn.textContent = "⏹ 停止"; btn.classList.add("primary");
+};
+
+/* =========================================================
+   9. ショートカット・メインループ
+   ========================================================= */
+addEventListener("keydown", e=>{
+  if(e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  const c = e.ctrlKey || e.metaKey;
+  if(c && e.key.toLowerCase() === "z"){ e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if(c && e.key.toLowerCase() === "y"){ e.preventDefault(); redo(); }
+  else if(c && e.key.toLowerCase() === "s"){ e.preventDefault(); document.getElementById("btnSave").click(); }
+  else if(e.key === "ArrowLeft") gotoFrame(cur-1);
+  else if(e.key === "ArrowRight") gotoFrame(cur+1);
+  else if(e.key === " "){ e.preventDefault(); document.getElementById("pPlay").click(); }
+  else {
+    const map = {p:"pen",b:"brush",e:"eraser",g:"fill",u:"shape",t:"text",i:"pick",v:"move",h:"hand"};
+    const t2 = map[e.key.toLowerCase()];
+    if(t2) document.querySelector(`[data-tool="${t2}"]`).click();
+  }
+});
+document.getElementById("btnUndoTop").onclick = undo;
+document.getElementById("btnRedoTop").onclick = redo;
+document.getElementById("zIn").onclick = ()=>{ zoom = Math.min(16, zoom+1); applySize(); };
+document.getElementById("zOut").onclick = ()=>{ zoom = Math.max(1, zoom-1); applySize(); };
+document.getElementById("zFit").onclick = ()=> fitZoom();
+addEventListener("resize", ()=> applySize());
+
+let last = performance.now();
+function loopFn(now){
+  const dt = Math.min(1/30, (now-last)/1000); last = now;
+  // リグ（パーツ＋ボーン）
+  if(parts.length){
+    stepRig(now, dt);
+    actx.clearRect(0,0,W,H);
+    if(avShow) blitRig(actx, avAlpha);
+  }
+  // 再生
+  if(playing && frames.length > 1){
+    playT += dt;
+    if(playT >= 1/fps()){
+      playT = 0;
+      playI++;
+      if(playI >= frames.length){
+        if(loop) playI = 0;
+        else { playI = frames.length-1; playing = false; document.getElementById("pPlay").textContent = "▶"; }
+      }
+      gotoFrame(playI);
+    }
+  }
+  // プレビュー(常時ループ再生)
+  prevT += dt;
+  if(prevT >= 1/fps()){
+    prevT = 0;
+    prevI = (prevI+1) % frames.length;
+    compose(pctx, frames[prevI], true);
+    if(parts.length && avShow) blitRig(pctx, avAlpha);
+  }
+  requestAnimationFrame(loopFn);
+}
+let prevT = 0, prevI = 0;
+
+/* 起動 */
+initDoc(320,240);
+document.getElementById("docName").value =
+  "新規デザイン " + new Date().toISOString().slice(0,16).replace(/[-T:]/g,"").replace(/(\d{8})(\d{4})/,"$1-$2");
+setColor("#20242a");
+requestAnimationFrame(loopFn);
+</script>
+
+<script>
+/* =========================================================
+   モバイル専用の上乗せ（本体JSのグローバルをそのまま使う）
+   ========================================================= */
+"use strict";
+
+/* ---- ボトムシート ---- */
+const sheet = document.getElementById("sheet");
+const scrim = document.getElementById("scrim");
+const secBtns = [...document.querySelectorAll(".secbtn")];
+let openSec = null;
+
+function showSec(name){
+  // リグだけは本体のタブ状態(#tabDraw/#tabAvatar と giz)を切り替える必要がある
+  document.querySelector(`.tab[data-tab="${name === "rig" ? "avatar" : "draw"}"]`).click();
+  document.querySelectorAll(".sec").forEach(s=> s.classList.toggle("on", s.dataset.sec === name));
+  document.getElementById("sheetTitle").textContent =
+    secBtns.find(b=>b.dataset.sec === name).textContent.trim();
+  secBtns.forEach(b=> b.classList.toggle("on", b.dataset.sec === name));
+  sheet.classList.add("open"); scrim.classList.add("on");
+  openSec = name;
+}
+function closeSheet(){
+  sheet.classList.remove("open"); scrim.classList.remove("on");
+  secBtns.forEach(b=> b.classList.remove("on"));
+  openSec = null;
+  // シートを閉じたらキャンバスに集中できるよう、リグ操作もお絵かきへ戻す
+  document.querySelector('.tab[data-tab="draw"]').click();
+}
+secBtns.forEach(b=>{
+  b.onclick = ()=> (openSec === b.dataset.sec) ? closeSheet() : showSec(b.dataset.sec);
+});
+document.getElementById("sheetClose").onclick = closeSheet;
+scrim.onclick = closeSheet;
+
+/* ---- ヘッダの再生ボタン ---- */
+document.getElementById("mPlay").onclick = ()=>{
+  document.getElementById("pPlay").click();
+  document.getElementById("mPlay").textContent =
+    document.getElementById("pPlay").textContent.trim() === "⏸" ? "⏸" : "▶";
+};
+/* ---- プレビュー窓の表示切替 ---- */
+toggleSw("prevSw", true, v=> document.getElementById("previewBox").classList.toggle("off", !v));
+
+/* ---- ピンチで拡大縮小 / 2本指ドラッグで移動 ---- */
+const wrapM = document.getElementById("stagewrap");
+const stageM = document.getElementById("stage");
+let panX = 0, panY = 0;
+function applyPan(){ stageM.style.transform = `translate(${panX}px,${panY}px)`; }
+const pts = new Map();
+let pinch = null;
+
+function onDown(e){
+  pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(pts.size === 2){
+    // 2本指になった時点で描画中のストロークは打ち切る
+    if(typeof drawing !== "undefined" && drawing){ drawing = false; undo(); }
+    dragKind = null;
+    const [a,b] = [...pts.values()];
+    pinch = {
+      d: Math.hypot(a.x-b.x, a.y-b.y),
+      cx: (a.x+b.x)/2, cy: (a.y+b.y)/2,
+      zoom0: zoom, panX0: panX, panY0: panY,
+    };
+  }
+}
+function onMove(e){
+  if(!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(pts.size === 2 && pinch){
+    const [a,b] = [...pts.values()];
+    const d = Math.hypot(a.x-b.x, a.y-b.y);
+    const cx = (a.x+b.x)/2, cy = (a.y+b.y)/2;
+    const k = Math.max(.35, Math.min(14, pinch.zoom0 * (d/Math.max(1,pinch.d))));
+    if(Math.abs(k - zoom) > .01){ zoom = k; applySize(); }   // applySize が描き直す
+    panX = pinch.panX0 + (cx - pinch.cx);
+    panY = pinch.panY0 + (cy - pinch.cy);
+    applyPan();
+    e.preventDefault();
+  }
+}
+function onUp(e){
+  pts.delete(e.pointerId);
+  if(pts.size < 2) pinch = null;
+}
+wrapM.addEventListener("pointerdown", onDown, {passive:false});
+wrapM.addEventListener("pointermove", onMove, {passive:false});
+addEventListener("pointerup", onUp);
+addEventListener("pointercancel", onUp);
+
+/* ダブルタップで画面に合わせる */
+let lastTap = 0;
+wrapM.addEventListener("pointerup", e=>{
+  const now = Date.now();
+  if(now - lastTap < 300 && pts.size === 0){ panX = panY = 0; applyPan(); fitZoom(); }
+  lastTap = now;
+});
+document.getElementById("zFit").addEventListener("click", ()=>{ panX = panY = 0; applyPan(); });
+
+/* ---- 画面サイズが変わったら合わせ直す ---- */
+let fitTimer = null;
+function refit(){
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(()=>{ panX = panY = 0; applyPan(); fitZoom(); }, 120);
+}
+addEventListener("orientationchange", refit);
+addEventListener("resize", refit);
+if(window.visualViewport) visualViewport.addEventListener("resize", refit);
+
+/* ---- フィット倍率をモバイル用に上書き ----
+   PC版は整数倍のみだが、狭い画面だと 1倍で余白だらけになるので端数も許す。
+   端末のDPRが2〜3あるため、端数倍でもドットは十分くっきり出る。 */
+fitZoom = function(){
+  const r = wrapM.getBoundingClientRect();
+  let z = Math.min((r.width-14)/W, (r.height-14)/H);
+  z = z >= 2 ? Math.floor(z) : Math.max(.35, Math.round(z*20)/20);
+  zoom = z;
+  applySize();
+};
+
+/* ---- 起動時の調整 ---- */
+document.getElementById("rigHint").textContent = RIG_HINTS.pose;
+document.querySelector('.tab[data-tab="draw"]').click();
+fitZoom();
+</script>
+</body>
+</html>

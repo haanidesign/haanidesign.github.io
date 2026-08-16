@@ -70,6 +70,17 @@ const TOOLS = [
   },
   {
     no: 7,
+    slug: "anime-design-mobile",
+    title: "アニメデザイン工房 モバイル",
+    desc: "工房のスマホ版。画面下のツールバーと引き出しシートに機能をまとめてあり、指だけで描いてコマを並べられる。",
+    tags: ["お絵かき", "コマアニメ", "スマホ"],
+    cat: "anime",
+    thumb: "thumbs/anime-design-mobile.png",
+    url: "tools/anime-design-mobile/index.html",
+    status: "live"
+  },
+  {
+    no: 8,
     slug: "7days-kanojo",
     title: "7日間の彼女",
     desc: "月曜から日曜まで、毎日ちがう彼女に会う。毎日「昨日どこにいたか」を聞かれ、答えるたびに機嫌とうたがいメーターが動く。所要15〜20分。",
@@ -80,7 +91,7 @@ const TOOLS = [
     status: "live"
   },
   {
-    no: 8,
+    no: 9,
     slug: "7days-kareshi",
     title: "7日間の彼氏",
     desc: "「7日間の彼女」の彼氏版。会う相手が7人の彼氏に入れ替わり、同じ7日間を反対側から遊ぶ。所要15〜20分。",
