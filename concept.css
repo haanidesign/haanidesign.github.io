@@ -218,6 +218,95 @@ img{display:block;max-width:100%;}
   width:auto;height:auto;
 }
 
+/* ============ 下層ページ用：横並びのツールバー ============ */
+.subrail{
+  display:flex;gap:.5rem;overflow-x:auto;
+  background:var(--cream);border-top:var(--bd);
+  padding:.6rem .8rem;
+}
+.subrail .tool{
+  flex:0 0 auto;flex-direction:row;align-items:center;gap:.35rem;
+  padding:.45rem .85rem;font-size:.7rem;
+}
+.subrail .tool i{font-size:.95rem;}
+.crumb{
+  max-width:1000px;margin:1.4rem auto -.6rem;
+  padding:0 .6rem;font-size:.68rem;color:var(--gray);
+}
+.crumb a:hover{color:var(--ink);}
+
+/* ============ 料金テーブル ============ */
+.ptable{margin-top:.2rem;}
+.prow2{
+  display:grid;grid-template-columns:1fr auto;
+  gap:.15rem 1rem;align-items:center;
+  padding:.85rem .3rem;
+  border-bottom:2.5px dotted rgba(30,28,20,.25);
+}
+.prow2:last-child{border-bottom:none;}
+.pn{font-size:.85rem;}
+.pd{grid-column:1;font-size:.68rem;font-weight:500;color:var(--gray);line-height:1.8;}
+.pp{
+  grid-row:1/3;grid-column:2;align-self:center;
+  background:var(--main);border:2.5px solid var(--ink);
+  border-radius:100px;padding:.15rem .85rem;
+  font-size:.9rem;white-space:nowrap;
+}
+.pp small{font-size:.58rem;font-weight:500;}
+.pp.plain{background:var(--paper);}
+
+/* 折りたたみ（料金内訳） */
+.det{
+  border:var(--bd);border-radius:12px;background:var(--cream);
+  box-shadow:0 3px 0 var(--ink);margin-top:1rem;
+}
+.det summary{
+  cursor:pointer;list-style:none;
+  padding:.6rem .9rem;font-size:.72rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.det summary::-webkit-details-marker{display:none;}
+.det summary::after{content:'＋';color:var(--gray);}
+.det[open] summary::after{content:'－';}
+.det .db{
+  padding:0 .9rem .9rem;font-size:.7rem;font-weight:500;
+  color:var(--gray);line-height:2;
+}
+
+/* ============ 注意書きリスト（四角いドット） ============ */
+.nlist li{
+  list-style:none;position:relative;padding-left:1.25rem;
+  font-size:.74rem;font-weight:500;line-height:2;color:#4a453c;
+}
+.nlist li::before{
+  content:'';position:absolute;left:2px;top:.82em;
+  width:8px;height:8px;background:var(--main);
+  border:1.5px solid var(--ink);border-radius:2px;
+}
+.nlist li b{font-weight:700;color:var(--ink);}
+
+/* ============ 制作フロー ============ */
+.fstep2{display:grid;grid-template-columns:58px 1fr;gap:1rem;margin-bottom:1.1rem;}
+.fstep2:last-child{margin-bottom:0;}
+.fnum2{
+  width:58px;height:58px;border-radius:14px;
+  background:var(--main);border:var(--bd);
+  box-shadow:0 4px 0 var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.05rem;
+}
+.fbody2{
+  border:var(--bd);border-radius:12px;background:var(--cream);
+  box-shadow:0 4px 0 var(--ink);padding:.9rem 1rem;
+}
+.fbody2 h3{font-size:.95rem;margin-bottom:.35rem;}
+.fbody2 p{font-size:.74rem;font-weight:500;color:#4a453c;line-height:2;}
+.ftag2{
+  display:inline-block;margin:.6rem .35rem 0 0;
+  font-size:.62rem;background:var(--paper);
+  border:2px solid var(--ink);border-radius:100px;padding:.1rem .7rem;
+}
+
 /* ============ 下層セクション（ウィンドウ風） ============ */
 .win{
   max-width:1000px;margin:2.2rem auto;
