@@ -64,12 +64,6 @@ img{display:block;max-width:100%;}
   padding:.7rem .9rem;
   display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;
 }
-.tb-back{
-  width:38px;height:38px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--paper);border:var(--bd);border-radius:10px;
-  box-shadow:0 3px 0 var(--ink);font-size:1rem;
-}
 .tb-title{
   font-size:1.05rem;color:var(--ink);
   text-shadow:0 2px 0 rgba(255,255,255,.55);
@@ -129,29 +123,11 @@ img{display:block;max-width:100%;}
   display:grid;grid-template-columns:1fr 1fr;align-items:end;
   min-height:400px;
 }
-.frame-tag{
-  position:absolute;top:8px;left:8px;z-index:3;
-  background:var(--ink);color:var(--main);
-  font-size:.6rem;border-radius:100px;padding:.15rem .7rem;
-}
-.frame-zoom{
-  position:absolute;bottom:8px;left:8px;z-index:3;
-  background:rgba(255,254,247,.9);border:2px solid var(--ink);
-  font-size:.58rem;border-radius:100px;padding:.1rem .6rem;
-}
 /* 吹き出し */
 .balloon{
   position:relative;align-self:center;
   background:#fff;border:var(--bd);border-radius:16px;
   padding:1.1rem 1.2rem;margin:1.2rem;
-}
-.balloon::after{
-  content:'';position:absolute;left:38px;bottom:-16px;
-  border:9px solid transparent;border-top-color:var(--ink);
-}
-.balloon::before{
-  content:'';position:absolute;left:40px;bottom:-11px;z-index:1;
-  border:7px solid transparent;border-top-color:#fff;
 }
 .balloon h1{font-size:clamp(1.2rem,2.6vw,1.7rem);line-height:1.5;letter-spacing:.02em;}
 .balloon h1 em{font-style:normal;background:var(--main);padding:0 .2rem;border-radius:4px;}
@@ -166,18 +142,12 @@ img{display:block;max-width:100%;}
   align-self:end;justify-self:center;
   max-height:min(56vh,430px);width:auto;
 }
-/* キラキラ */
-.spark{position:absolute;color:var(--ink);font-size:1rem;opacity:.7;z-index:2;}
-
 /* 右パネル */
 .panel{
   background:var(--cream);border-left:var(--bd);
   padding:.8rem .7rem;display:flex;flex-direction:column;gap:.9rem;
 }
 .pgroup-ttl{font-size:.62rem;color:var(--gray);letter-spacing:.08em;}
-.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
-.sw{aspect-ratio:1;border:2px solid var(--ink);border-radius:5px;}
-.sw.on{outline:2.5px solid var(--main-deep);outline-offset:1px;}
 .layer{
   display:flex;align-items:center;gap:.4rem;
   background:var(--paper);border:var(--bd);border-radius:9px;
@@ -226,6 +196,21 @@ img{display:block;max-width:100%;}
   border-radius:4px;padding:0 .25rem;
 }
 .tl-frame:hover{border-color:var(--main);}
+/* サムネにマウスを乗せたときの拡大プレビュー */
+.tl-pop{
+  position:fixed;z-index:200;
+  background:#fff;border:var(--bd);border-radius:14px;
+  box-shadow:0 5px 0 var(--ink);
+  padding:6px;pointer-events:none;
+  opacity:0;visibility:hidden;transform:translateY(6px) scale(.97);
+  transition:opacity .18s ease,transform .18s ease,visibility .18s;
+}
+.tl-pop.show{opacity:1;visibility:visible;transform:none;}
+.tl-pop img{
+  display:block;border-radius:8px;
+  max-width:min(380px,80vw);max-height:min(460px,64vh);
+  width:auto;height:auto;
+}
 .tl-add{
   flex:0 0 auto;width:58px;
   border:2.5px dashed rgba(255,254,247,.6);border-radius:8px;
@@ -379,7 +364,6 @@ img{display:block;max-width:100%;}
     grid-column:1/-1;border-left:none;border-top:var(--bd);
     flex-direction:row;flex-wrap:wrap;align-items:center;
   }
-  .panel .swatches{grid-template-columns:repeat(10,1fr);flex:1 1 260px;}
   .works{grid-template-columns:1fr 1fr;}
   .price-grid{grid-template-columns:1fr;}
 }

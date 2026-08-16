@@ -17,7 +17,6 @@
 
   <!-- タイトルバー -->
   <div class="titlebar">
-    <a href="#" class="tb-back">←</a>
     <div class="tb-title">はぁにデザイン工房</div>
     <span class="tb-spec dot">漫画 / イラスト / アニメーション　ご依頼受付中</span>
     <div class="tb-actions">
@@ -42,11 +41,6 @@
     <!-- 中央：キャンバス -->
     <main class="canvas">
       <div class="canvas-frame">
-        <span class="frame-tag dot">コマ 1 / 3</span>
-        <span class="spark" style="top:16%;right:12%;">✛</span>
-        <span class="spark" style="top:52%;right:6%;font-size:.8rem;">✛</span>
-        <span class="spark" style="bottom:22%;left:44%;font-size:.7rem;">✛</span>
-
         <div class="balloon">
           <h1>ラブコメも ギャグも<br><em>カラー漫画</em>で描きます</h1>
           <p>北海道を拠点に、オリジナル漫画から広告漫画、<br>アニメーション制作まで承っています。</p>
@@ -63,30 +57,11 @@
         </div>
 
         <img src="hero_chara.png" alt="キャラクター" class="canvas-chara">
-        <span class="frame-zoom dot">🔍 320×240 を 2.0倍表示</span>
       </div>
     </main>
 
     <!-- 右：パネル -->
     <aside class="panel">
-      <div>
-        <div class="pgroup-ttl">カラー（パレット）</div>
-        <div class="swatches">
-          <span class="sw on" style="background:#E1DD60"></span>
-          <span class="sw" style="background:#1E1C14"></span>
-          <span class="sw" style="background:#fff"></span>
-          <span class="sw" style="background:#B8B43F"></span>
-          <span class="sw" style="background:#F2F0BE"></span>
-          <span class="sw" style="background:#FBFAEC"></span>
-          <span class="sw" style="background:#E4453A"></span>
-          <span class="sw" style="background:#2E9A59"></span>
-          <span class="sw" style="background:#3B9BD8"></span>
-          <span class="sw" style="background:#F2A0BE"></span>
-          <span class="sw" style="background:#9B7BE0"></span>
-          <span class="sw" style="background:#8B5E3C"></span>
-        </div>
-      </div>
-
       <div>
         <div class="pgroup-ttl">レイヤー（できること）</div>
         <div style="display:flex;flex-direction:column;gap:.35rem;margin-top:.3rem;">
@@ -354,6 +329,9 @@
 
 <button class="totop" id="toTop" aria-label="ページ上部へ戻る">↑</button>
 
+<!-- サムネのホバー拡大プレビュー -->
+<div class="tl-pop" id="tlPop"><img src="" alt=""></div>
+
 <script>
   /* カルーセル */
   document.querySelectorAll('[data-carousel]').forEach(box => {
@@ -392,6 +370,44 @@
       btn.textContent = vid.muted ? '🔇 音を出す' : '🔊 音を消す';
     });
   });
+
+  /* タイムラインのサムネ：ホバーで拡大プレビュー */
+  (() => {
+    const pop = document.getElementById('tlPop');
+    const popImg = pop.querySelector('img');
+    if(!window.matchMedia('(hover:hover)').matches) return;
+
+    document.querySelectorAll('.tl-frame').forEach(fr => {
+      const src = fr.querySelector('img').getAttribute('src');
+      const alt = fr.querySelector('img').getAttribute('alt') || '';
+
+      const place = () => {
+        const r = fr.getBoundingClientRect();
+        const pw = pop.offsetWidth, ph = pop.offsetHeight;
+        // サムネの真上に置く。上に入らなければ下に回す
+        let top = r.top - ph - 12;
+        if(top < 8) top = Math.min(r.bottom + 12, window.innerHeight - ph - 8);
+        let left = r.left + r.width / 2 - pw / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+      };
+
+      fr.addEventListener('mouseenter', () => {
+        popImg.alt = alt;
+        if(popImg.getAttribute('src') !== src){
+          popImg.setAttribute('src', src);
+          // 読み込み後に実寸が決まるので、そこで位置を決め直す
+          popImg.onload = () => { place(); pop.classList.add('show'); };
+        }
+        place();
+        if(popImg.complete) pop.classList.add('show');
+      });
+      fr.addEventListener('mouseleave', () => pop.classList.remove('show'));
+    });
+
+    window.addEventListener('scroll', () => pop.classList.remove('show'), {passive:true});
+  })();
 
   /* 上へ戻る */
   const toTop = document.getElementById('toTop');
