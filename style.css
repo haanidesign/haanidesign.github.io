@@ -476,10 +476,34 @@ img{display:block;max-width:100%;}
 /* ============ レスポンシブ ============ */
 /* 縦長・タブレット：吹き出しとキャラを上下に分ける
    （横並びのままだと吹き出しが280px程度まで潰れて読みにくいため） */
+/* 縦長（768〜900px前後）：キャラを枠いっぱいに立たせ、吹き出しを上に重ねる。
+   横並びのまま縮めると吹き出しが潰れ、単純に縦積みすると
+   キャラだけ小さく残って左右が空きすぎるため。 */
 @media(max-width:900px){
-  .canvas-frame{grid-template-columns:1fr;min-height:auto;}
-  .balloon{margin:1rem 1rem .4rem;}
-  .canvas-chara{max-height:min(48vh,400px);}
+  .canvas-frame{
+    grid-template-columns:1fr;
+    grid-template-rows:1fr;
+    min-height:auto;
+    align-items:end;
+    justify-items:center;
+  }
+  /* 同じマスに重ねる */
+  .balloon,.canvas-chara{grid-area:1 / 1;}
+  .balloon{
+    align-self:start;justify-self:center;
+    margin:1.1rem;
+    max-width:min(560px,calc(100% - 2.2rem));
+    z-index:2;
+    /* 後ろのキャラがうっすら透ける */
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(2px);
+  }
+  .canvas-chara{
+    align-self:end;justify-self:center;
+    max-height:none;
+    height:clamp(420px,62vw,620px);
+    width:auto;
+  }
 }
 
 @media(max-width:1000px){
@@ -504,9 +528,21 @@ img{display:block;max-width:100%;}
   .tool{flex:0 0 auto;min-width:62px;}
   .rail-label{display:none;}
   .canvas{min-height:auto;padding:.7rem;}
-  .canvas-frame{grid-template-columns:1fr;min-height:auto;}
-  .balloon{margin:.9rem .9rem .3rem;}
-  .canvas-chara{max-height:46vh;}
+  /* スマホ：重ねると文字が読みづらいので、上下に分ける */
+  .canvas-frame{
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto;
+    min-height:auto;
+  }
+  .balloon,.canvas-chara{grid-area:auto;}
+  .balloon{
+    margin:.9rem .9rem .3rem;max-width:none;
+    background:#fff;backdrop-filter:none;
+  }
+  .canvas-chara{
+    align-self:end;justify-self:center;
+    height:auto;max-height:46vh;
+  }
   .works{grid-template-columns:1fr;}
   .wk.wide{grid-column:span 1;}
   .wk-img{height:290px;}
