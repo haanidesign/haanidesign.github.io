@@ -489,8 +489,9 @@ img{display:block;max-width:100%;}
   }
   /* 同じマスに重ねる */
   .balloon,.canvas-chara{grid-area:1 / 1;}
+  /* 吹き出しは下寄せ。上に置くとキャラの顔が隠れるため */
   .balloon{
-    align-self:start;justify-self:center;
+    align-self:end;justify-self:center;
     margin:1.1rem;
     max-width:min(560px,calc(100% - 2.2rem));
     z-index:2;
@@ -498,20 +499,28 @@ img{display:block;max-width:100%;}
     background:rgba(255,255,255,.94);
     backdrop-filter:blur(2px);
   }
+  /* 顔が吹き出しの上に出るよう、キャラは高めに */
   .canvas-chara{
     align-self:end;justify-self:center;
     max-height:none;
-    height:clamp(420px,62vw,620px);
+    height:clamp(480px,72vw,700px);
     width:auto;
   }
 }
 
 @media(max-width:1000px){
   .workspace{grid-template-columns:76px 1fr;}
+  /* 横並びになったら中央に寄せる */
   .panel{
     grid-column:1/-1;border-left:none;border-top:var(--bd);
-    flex-direction:row;flex-wrap:wrap;align-items:center;
+    flex-direction:row;flex-wrap:wrap;
+    align-items:flex-start;
+    justify-content:center;
+    gap:1.4rem;
+    padding:1rem .7rem;
   }
+  .panel > div{display:flex;flex-direction:column;align-items:center;}
+  .panel .pgroup-ttl{text-align:center;}
   .works{grid-template-columns:1fr 1fr;}
   .price-grid{grid-template-columns:1fr;}
 }
@@ -524,6 +533,9 @@ img{display:block;max-width:100%;}
   .toolrail{
     flex-direction:row;overflow-x:auto;
     border-right:none;border-bottom:var(--bd);
+    /* 中央寄せ。項目が入りきらない場合でも左端が隠れないよう safe を指定 */
+    justify-content:center;
+    justify-content:safe center;
   }
   .tool{flex:0 0 auto;min-width:62px;}
   .rail-label{display:none;}
