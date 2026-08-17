@@ -477,9 +477,16 @@ img{display:block;max-width:100%;}
 /* 縦長・タブレット：吹き出しとキャラを上下に分ける
    （横並びのままだと吹き出しが280px程度まで潰れて読みにくいため） */
 @media(max-width:900px){
+  .canvas{min-height:auto;}
   .canvas-frame{grid-template-columns:1fr;min-height:auto;}
-  .balloon{margin:1rem 1rem .4rem;}
-  .canvas-chara{max-height:min(48vh,400px);}
+  /* 吹き出しが横に伸びきらないよう上限をつけて中央に */
+  .balloon{margin:1rem auto .4rem;max-width:620px;width:calc(100% - 2rem);}
+  /* キャラは枠の幅に追従させる（固定高さだと左右が空きすぎるため） */
+  .canvas-chara{
+    width:min(72%,430px);
+    height:auto;
+    max-height:52vh;
+  }
 }
 
 @media(max-width:1000px){
@@ -505,8 +512,8 @@ img{display:block;max-width:100%;}
   .rail-label{display:none;}
   .canvas{min-height:auto;padding:.7rem;}
   .canvas-frame{grid-template-columns:1fr;min-height:auto;}
-  .balloon{margin:.9rem .9rem .3rem;}
-  .canvas-chara{max-height:46vh;}
+  .balloon{margin:.9rem auto .3rem;width:calc(100% - 1.8rem);}
+  .canvas-chara{width:min(80%,320px);max-height:46vh;}
   .works{grid-template-columns:1fr;}
   .wk.wide{grid-column:span 1;}
   .wk-img{height:290px;}
