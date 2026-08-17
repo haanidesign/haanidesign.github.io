@@ -30,15 +30,23 @@
   #hudR{text-align:right;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--dim);line-height:1.5}
   #dayTag{color:var(--amber);font-size:11px}
 
-  #art{position:relative;flex:1;min-height:140px;overflow:hidden}
+  /* 立ち絵を下端で切らずセリフ枠の裏へ流す。はみ出しは #stage 側で切られる */
+  #art{position:relative;flex:1;min-height:140px}
   .room{position:absolute;inset:0;stroke:#cfd5e6;fill:none;stroke-width:1.5}
-  /* 立ち絵と SVG 顔は同じ枠に重ねる。PNG が無い間は SVG が出る */
-  #charaWrap{position:absolute;left:50%;bottom:-6%;transform:translateX(-50%);height:112%;
+  /* 立ち絵と SVG 顔は同じ枠に重ねる。PNG が無い間は SVG が出る。
+     SVG は絵が viewBox の中央に小さく入っているので高さ112%で拡大するが、
+     立ち絵は正方形いっぱいに描かれているので object-fit で枠に収める。
+     どちらも下端を絵エリアより少し下に置き、セリフ枠の裏へ流す */
+  #charaWrap{position:absolute;inset:0;transform-origin:50% 100%;
     filter:drop-shadow(0 10px 22px rgba(60,70,110,.22));transition:filter .5s}
   #charaWrap.jolt{animation:jolt .35s}
-  #chara{height:100%;display:block}
-  #portrait{height:100%;display:none;image-rendering:auto}
-  @keyframes jolt{0%,100%{transform:translateX(-50%)}50%{transform:translateX(-50%) rotate(1.5deg)}}
+  #chara{position:absolute;left:50%;bottom:-6%;transform:translateX(-50%);height:112%}
+  /* img は width:auto だと原寸のままになるので、枠を実寸で与えて object-fit に収めさせる。
+     高さ基準（120%）で決めるのが要点。幅基準にすると低い画面で頭がHUDにめり込む。
+     下端は絵エリアの 18% ぶん下。体の切断面はセリフ枠の裏に隠れる */
+  #portrait{position:absolute;left:-6%;bottom:-18%;width:112%;height:120%;
+    object-fit:contain;object-position:center bottom;display:none}
+  @keyframes jolt{0%,100%{transform:none}50%{transform:rotate(1.5deg)}}
   .line{stroke-width:2.4;fill:none;stroke-linecap:round}
   .mark{stroke:var(--rose);stroke-width:3;fill:none;opacity:0}
   .mark.on{opacity:1;animation:blink .7s infinite alternate}
@@ -644,6 +652,17 @@ function drawMeter(){
   const v=Math.max(0,Math.min(100,S.susp));
   $("fill").style.height=v+"%"; $("fill").classList.toggle("hot",v>=70);
 }
+/* 背景をその日の髪色に寄せる。
+   髪色をそのまま薄めると青系の日が灰色になりクリームの温かみが飛ぶので、
+   色相だけ borrow して彩度・明度は固定し、淡い色紙のようにする */
+function tint(hex, sat, light){
+  const n = parseInt(hex.slice(1),16);
+  const r = (n>>16)/255, g = ((n>>8)&255)/255, b = (n&255)/255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), c = mx-mn;
+  let h = 0;
+  if(c) h = 60 * (mx===r ? ((g-b)/c+(g<b?6:0)) : mx===g ? (b-r)/c+2 : (r-g)/c+4);
+  return `hsl(${Math.round(h)} ${sat}% ${light}%)`;
+}
 function applyLook(){
   const d=D();
   $("eyeL").setAttribute("rx",d.eyeW||9); $("eyeR").setAttribute("rx",d.eyeW||9);
@@ -654,6 +673,7 @@ function applyLook(){
   $("bang").setAttribute("d",d.bang);
   $("accessory").setAttribute("d",d.acc||"");
   $("name").textContent=d.name;
+  $("stage").style.backgroundColor = tint(d.hair, 46, 94);
   $("dayTag").textContent = d.extra ? "EXTRA ／ 翌週の月曜" : `${jp(d)}曜 ／ DAY ${S.d+1} of 7`;
 }
 /* ---- 立ち絵 ----
@@ -664,8 +684,8 @@ const EXPR=["angry","annoyed","neutral","smile","happy"];   // 機嫌の低い�
 const artOK={};
 function preloadArt(d){
   if(!d.art) return;
-  EXPR.forEach(e=>{
-    const k=d.art+"_"+e;
+  // <キー>.png が表情差分の無い共通絵。<キー>_<表情>.png があればそちらを優先する
+  [d.art].concat(EXPR.map(e=>d.art+"_"+e)).forEach(k=>{
     if(k in artOK) return;
     artOK[k]=false;
     const im=new Image();
@@ -674,7 +694,9 @@ function preloadArt(d){
   });
 }
 function showPortrait(d,lv,m){
-  const key=d.art?d.art+"_"+EXPR[lv]:null, use=!!(key&&artOK[key]);
+  const per=d.art&&d.art+"_"+EXPR[lv];
+  const key = artOK[per] ? per : artOK[d.art] ? d.art : null;   // 表情差分 → 共通絵 → SVG
+  const use = !!key;
   const img=$("portrait");
   if(use && !img.src.endsWith(key+".png")) img.src=ART_DIR+key+".png";
   img.style.display=use?"block":"none";
@@ -753,10 +775,10 @@ function blip(){
     o.type="square";
     o.frequency.setValueAtTime((D().voice||620)*(0.94+Math.random()*0.12), t);
     g.gain.setValueAtTime(0.0001,t);
-    g.gain.exponentialRampToValueAtTime(0.045,t+0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
+    g.gain.exponentialRampToValueAtTime(0.13,t+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.075);
     o.connect(g); g.connect(AC.destination);
-    o.start(t); o.stop(t+0.055);
+    o.start(t); o.stop(t+0.08);
   }catch(e){}
 }
 /* 行頭に来てはいけない字（閉じ括弧・句読点・小書き・長音）は前の字にくっつけ、
@@ -778,6 +800,8 @@ function skipTyping(){
   clearTimeout(typer); typer=null;
   spans.forEach(s=>s.style.visibility="");
 }
+/* 地の文（その日を切り抜けた、の一文）は誰のセリフでもないので名前を隠す */
+function narrate(t){ $("name").style.visibility="hidden"; return say(t); }
 function say(t){
   clearTimeout(typer); typer=null;
   fullLine=t;
@@ -860,6 +884,7 @@ function pickThree(list){
 }
 function ask(){
   const d=D(), q=d.qs[S.i];
+  $("name").style.visibility="";
   $("turn").textContent=`${S.i+1} / ${d.qs.length}`;
   say(q.q);
   S.shown = pickThree(q.a);
@@ -946,7 +971,7 @@ function dayClear(){
   if(S.perfect && S.hearts<3){ S.hearts++; drawHearts(S.hearts-1);
     msg+=`\n（無傷で切り抜けた。ハートが1つ戻った）`; }
   else if(S.perfect){ msg+=`\n（無傷で切り抜けた）`; }
-  const dur=say(msg); $("choices").innerHTML="";
+  const dur=narrate(msg); $("choices").innerHTML="";
   setTimeout(()=>{
     S.d++;
     if(S.d===7){ weekClear(); return; }
