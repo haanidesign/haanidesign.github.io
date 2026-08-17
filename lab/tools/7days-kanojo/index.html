@@ -1,122 +1,167 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>7日間の彼女 ―うたがいメーター―</title>
+<title>7日間の彼女 ―うたがいメーター―（ポップ版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <style>
+  /* ===== はぁにデザイン工房 に寄せたポップ版 =====
+     2px の黒枠 ＋ ぼかしなしの落ち影 ＋ クリーム地 ＋ 黄色アクセント。
+     文字は丸ゴシック、数字や小さいラベルはドット絵フォント。 */
   :root{
-    --bg:#eef0f7; --bg2:#dfe3ef; --card:#fff;
-    --ink:#252c44; --dim:#7c869e; --rule:#c9cfe0;
-    --amber:#e0912c; --rose:#e23b60; --mint:#2fae8e;
+    --bg:#fbfaec; --card:#fffef7; --ink:#1e1c14; --muted:#8a8470;
+    --pop:#e1dd60;                 /* サイトのアクセント黄 */
+    --danger:#f2545b;              /* うたがい／ハート用。サイトに無い色だが意味づけに要る */
+    --line:#e7e3ce;
+    --shadow:0 3px 0 var(--ink);
+    --shadow-lg:0 5px 0 var(--ink);
+    --dots:radial-gradient(circle, rgba(255,255,255,.95) 1.7px, rgba(0,0,0,0) 1.8px);
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
-  body{background:#c9cee0;color:var(--ink);
-    font-family:"Hiragino Maru Gothic ProN","Yu Gothic UI","Yu Gothic",-apple-system,sans-serif;
+  /* ドットはゲーム画面の中だけ。外側は無地 */
+  body{background:var(--bg);color:var(--ink);
+    font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic UI",sans-serif;
+    font-weight:700;
     display:flex;align-items:center;justify-content:center;padding:10px}
+
   #stage{position:relative;display:flex;flex-direction:column;
     width:min(430px,100vw - 10px);height:min(780px,100dvh - 10px);
-    background:linear-gradient(180deg,#f6f7fb 0%,var(--bg) 45%,var(--bg2) 100%);
-    overflow:hidden;border-radius:8px;box-shadow:0 14px 40px rgba(40,50,80,.28)}
+    background:var(--card);background-image:var(--dots);background-size:14px 14px;
+    overflow:hidden;border:2px solid var(--ink);border-radius:14px;
+    box-shadow:0 6px 0 var(--ink)}
 
-  #hud{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 2px;z-index:5}
-  #hearts{display:flex;gap:3px}
-  #hearts svg{width:32px;height:30px}
-  .hp path{fill:var(--rose)}
-  .hp.gone path{fill:none;stroke:var(--rule);stroke-width:5}
+  /* ---- HUD ---- */
+  /* 上のバーはサイトのアクセント黄。黄地なので文字とフチは黒に戻す */
+  #hud{display:flex;align-items:center;justify-content:space-between;
+    padding:9px 12px 8px;z-index:5;
+    background:var(--pop);border-bottom:2px solid var(--ink)}
+  #hearts{display:flex;gap:4px}
+  #hearts svg{width:30px;height:28px;overflow:visible}
+  .hp path{fill:var(--danger);stroke:var(--ink);stroke-width:5;stroke-linejoin:round}
+  .hp.gone path{fill:none;stroke:rgba(30,28,20,.32);stroke-width:5}
   .hp.pop{animation:pop .5s ease-out}
   @keyframes pop{0%{transform:scale(1.5) rotate(-10deg)}60%{transform:scale(.7)}100%{transform:scale(1)}}
-  #snd{background:none;border:1px solid var(--rule);color:var(--dim);border-radius:5px;
-    width:26px;height:22px;font-size:11px;font-family:inherit;cursor:pointer;padding:0;margin-left:8px}
-  #snd.off{opacity:.45;text-decoration:line-through}
-  #hudR{text-align:right;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--dim);line-height:1.5}
-  #dayTag{color:var(--amber);font-size:11px}
+  #hudR{text-align:right;line-height:1.7}
+  #dayTag{display:inline-block;background:var(--ink);color:var(--pop);
+    font-family:"DotGothic16",monospace;font-size:11px;letter-spacing:1px;
+    padding:2px 10px;border-radius:100px}
+  #turn{font-family:"DotGothic16",monospace;font-size:11px;
+    color:rgba(30,28,20,.62);letter-spacing:1px}
 
-  /* 立ち絵を下端で切らずセリフ枠の裏へ流す。はみ出しは #stage 側で切られる */
+  /* ---- 絵エリア ---- */
   #art{position:relative;flex:1;min-height:140px}
-  .room{position:absolute;inset:0;stroke:#cfd5e6;fill:none;stroke-width:1.5}
-  /* 立ち絵と SVG 顔は同じ枠に重ねる。PNG が無い間は SVG が出る。
-     SVG は絵が viewBox の中央に小さく入っているので高さ112%で拡大するが、
-     立ち絵は正方形いっぱいに描かれているので object-fit で枠に収める。
-     どちらも下端を絵エリアより少し下に置き、セリフ枠の裏へ流す */
-  #charaWrap{position:absolute;inset:0;transform-origin:50% 100%;
-    filter:drop-shadow(0 10px 22px rgba(60,70,110,.22));transition:filter .5s}
+  .room{position:absolute;inset:0;stroke:rgba(30,28,20,.22);fill:none;
+    stroke-width:2.5;stroke-linecap:round}
+  #charaWrap{position:absolute;inset:0;transform-origin:50% 100%;transition:filter .5s}
   #charaWrap.jolt{animation:jolt .35s}
   #chara{position:absolute;left:50%;bottom:-6%;transform:translateX(-50%);height:112%}
-  /* img は width:auto だと原寸のままになるので、枠を実寸で与えて object-fit に収めさせる。
-     高さ基準（120%）で決めるのが要点。幅基準にすると低い画面で頭がHUDにめり込む。
-     下端は絵エリアの 18% ぶん下。体の切断面はセリフ枠の裏に隠れる */
   #portrait{position:absolute;left:-6%;bottom:-18%;width:112%;height:120%;
     object-fit:contain;object-position:center bottom;display:none}
   @keyframes jolt{0%,100%{transform:none}50%{transform:rotate(1.5deg)}}
-  .line{stroke-width:2.4;fill:none;stroke-linecap:round}
-  .mark{stroke:var(--rose);stroke-width:3;fill:none;opacity:0}
+  .line{stroke-width:2.6;fill:none;stroke-linecap:round}
+  .mark{stroke:var(--danger);stroke-width:3.4;fill:none;opacity:0}
   .mark.on{opacity:1;animation:blink .7s infinite alternate}
   @keyframes blink{from{opacity:.3}to{opacity:1}}
-  .heartmark{fill:#ff87a8;opacity:0}
-  .heartmark.on{opacity:.95;animation:float 1.6s ease-in-out infinite}
+  .heartmark{fill:var(--danger);stroke:var(--ink);stroke-width:3;opacity:0}
+  .heartmark.on{opacity:1;animation:float 1.6s ease-in-out infinite}
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  .tear{fill:#6fb6ff;opacity:0}
-  .tear.on{opacity:.9;animation:drop 1.4s ease-in infinite}
-  @keyframes drop{0%{transform:translateY(0);opacity:.9}100%{transform:translateY(22px);opacity:0}}
+  .tear{fill:#7fc4ff;stroke:var(--ink);stroke-width:2;opacity:0}
+  .tear.on{opacity:1;animation:drop 1.4s ease-in infinite}
+  @keyframes drop{0%{transform:translateY(0);opacity:1}100%{transform:translateY(22px);opacity:0}}
 
-  #meter{position:absolute;top:32px;right:14px;width:32px;bottom:12px;z-index:4}
-  #meter .label{position:absolute;top:-28px;right:0;font-size:10px;font-weight:800;
-    letter-spacing:2px;color:var(--dim);white-space:nowrap}
-  #tube{position:absolute;inset:0;border:2px solid var(--rule);border-radius:20px;overflow:hidden;background:#fff}
-  #fill{position:absolute;left:0;right:0;bottom:0;height:0%;
-    background:linear-gradient(#ff7d9c,#d4224b);transition:height .45s cubic-bezier(.2,.9,.3,1)}
-  #fill.hot{background:linear-gradient(#ff9db3,#b8002f);box-shadow:0 0 18px rgba(226,59,96,.6)}
+  /* ---- うたがいメーター ---- */
+  #meter{position:absolute;top:36px;right:12px;width:32px;bottom:12px;z-index:4}
+  #meter .label{position:absolute;top:-28px;right:0;
+    font-family:"DotGothic16",monospace;font-size:10px;letter-spacing:1px;
+    background:var(--pop);color:var(--ink);border:2px solid var(--ink);
+    padding:1px 7px;border-radius:100px;white-space:nowrap}
+  #tube{position:absolute;inset:0;border:2px solid var(--ink);border-radius:100px;
+    overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+  #fill{position:absolute;left:0;right:0;bottom:0;height:0%;background:var(--danger);
+    transition:height .45s cubic-bezier(.2,.9,.3,1)}
+  #fill.hot{background:var(--ink);animation:blink .5s infinite alternate}
   #meter.shake{animation:shake .4s}
   @keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(-5px,2px)}50%{transform:translate(4px,-3px)}75%{transform:translate(-3px,-1px)}}
 
-  #moodwrap{position:absolute;top:4px;left:14px;font-size:10px;font-weight:800;letter-spacing:2px;color:var(--dim);z-index:4}
-  #moodface{font-size:22px;line-height:1.15}
+  #moodwrap{position:absolute;top:6px;left:12px;z-index:4;
+    font-family:"DotGothic16",monospace;font-size:10px;letter-spacing:1px;color:var(--muted)}
+  #moodface{font-size:24px;line-height:1.15}
 
-  #bottom{flex:none;padding:0 14px 12px;z-index:6}
-  #name{display:inline-block;background:var(--amber);color:#fff;
-    padding:3px 18px;font-size:17px;font-weight:800;letter-spacing:3px;border-radius:4px 4px 0 0}
-  #line{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--amber);
-    border-radius:0 6px 6px 6px;padding:12px 15px;height:88px;overflow:hidden;display:flex;align-items:center;
-    font-size:17px;font-weight:600;line-height:1.55;box-shadow:0 3px 10px rgba(50,60,100,.07)}
-  /* 折り返し位置を先に確定させるため、全文を span で組んでから1つずつ見せる。
-     #line は flex なので、span を直接入れると各字が flex アイテムになって折り返さない */
+  #snd{background:var(--card);border:2px solid var(--ink);color:var(--ink);
+    border-radius:100px;width:32px;height:26px;font-size:12px;font-family:inherit;
+    font-weight:700;cursor:pointer;padding:0;margin-left:10px;
+    box-shadow:0 2.5px 0 var(--ink)}
+  #snd:active{transform:translateY(2.5px);box-shadow:none}
+  #snd.off{background:transparent;box-shadow:none;transform:translateY(2.5px);
+    border-color:rgba(30,28,20,.35);color:rgba(30,28,20,.35)}
+
+  /* ---- セリフ・選択肢 ---- */
+  #bottom{flex:none;padding:0 12px 12px;z-index:6}
+  /* 名前プレートは傾けない。傾けると下辺が吹き出しの上辺と平行でなくなり、
+     右側に三角の隙間ができる。左上だけ角を落として一枚の形に繋げる */
+  #name{display:inline-block;background:var(--pop);color:var(--ink);
+    border:2px solid var(--ink);border-bottom:none;
+    padding:3px 16px 4px;font-size:16px;font-weight:800;letter-spacing:2px;
+    border-radius:10px 10px 0 0;
+    position:relative;z-index:1}
+  #line{background:var(--card);border:2px solid var(--ink);
+    border-radius:0 12px 12px 12px;
+    padding:12px 15px;height:88px;overflow:hidden;display:flex;align-items:center;
+    font-size:17px;font-weight:700;line-height:1.55;box-shadow:var(--shadow-lg);
+    margin-top:-2px}
   #lineIn{width:100%}
-  #choices{display:flex;flex-direction:column;gap:7px;margin-top:9px;height:134px}
-  .ch{flex:1;display:flex;align-items:center;background:var(--card);color:var(--ink);border:1px solid var(--rule);
-    padding:10px 13px;font-size:14px;font-weight:700;text-align:left;cursor:pointer;
-    font-family:inherit;border-radius:6px;transition:.12s;box-shadow:0 2px 6px rgba(50,60,100,.06)}
-  .ch:hover{border-color:var(--amber);background:#fffaf1;transform:translateX(3px)}
-  .ch:disabled{opacity:.3;cursor:default;transform:none}
-  .ch:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+  #choices{display:flex;flex-direction:column;gap:8px;margin-top:11px;height:134px}
+  .ch{flex:1;display:flex;align-items:center;background:var(--card);color:var(--ink);
+    border:2px solid var(--ink);border-radius:10px;
+    padding:9px 13px;font-size:14px;font-weight:700;text-align:left;cursor:pointer;
+    font-family:inherit;box-shadow:var(--shadow);
+    transition:transform .08s,box-shadow .08s,background .12s}
+  .ch:hover{background:var(--pop)}
+  .ch:active{transform:translateY(3px);box-shadow:none}
+  .ch:disabled{background:var(--line);color:var(--muted);box-shadow:none;
+    transform:translateY(3px);cursor:default}
+  .ch:focus-visible{outline:3px solid var(--danger);outline-offset:2px}
 
-  #timerbar{flex:none;height:5px;background:#d5daea}
-  #timerfill{height:100%;width:100%;background:var(--amber);transition:width .1s linear}
+  #timerbar{flex:none;height:8px;background:var(--line);border-top:2px solid var(--ink)}
+  #timerfill{height:100%;width:100%;background:var(--ink);transition:width .1s linear}
 
-  .ov{position:absolute;inset:0;background:rgba(244,246,251,.97);z-index:20;
+  /* ---- オーバーレイ ---- */
+  .ov{position:absolute;inset:0;background:var(--bg);
+    background-image:var(--dots);background-size:14px 14px;z-index:20;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:28px;text-align:center;gap:14px}
+    padding:26px;text-align:center;gap:14px}
   .ov.hidden{display:none}
-  .ov h1{font-size:25px;margin:0;line-height:1.35;letter-spacing:3px;font-weight:800}
-  .ov h1 span{color:var(--rose)}
-  .ov h2{font-size:21px;margin:0}
-  .ov p{margin:0;font-size:13px;line-height:1.9;font-weight:600;color:#69738d}
-  .ov b{color:var(--amber)}
-  .btn{background:var(--amber);border:none;color:#fff;padding:13px 32px;
-    font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;letter-spacing:3px;
-    border-radius:6px;box-shadow:0 4px 12px rgba(224,145,44,.4)}
-  .btn:hover{filter:brightness(1.08)}
-  .rank{font-size:58px;font-weight:900;letter-spacing:6px;color:var(--amber);line-height:1}
-  .rank.bad{color:var(--rose)}
-  .dayNo{font-size:12px;font-weight:800;letter-spacing:6px;color:var(--dim)}
-  .gimmick{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:12px 16px;
-    font-size:13px;font-weight:700;line-height:1.7;max-width:300px}
-  .gimmick i{font-style:normal;color:var(--rose)}
-  #week,#week2{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;font-size:10px;font-weight:800}
-  #week div,#week2 div{padding:4px 7px;border-radius:4px;background:#e3e7f2;color:var(--dim)}
-  #week div.done,#week2 div.done{background:var(--mint);color:#fff}
-  #week div.now,#week2 div.now{background:var(--amber);color:#fff}
-  .flashred{position:absolute;inset:0;background:var(--rose);opacity:0;pointer-events:none;z-index:15}
+  .ov h1{font-size:25px;margin:0;line-height:1.45;letter-spacing:2px;font-weight:800}
+  .ov h1 span{background:var(--pop);border:2px solid var(--ink);border-radius:10px;
+    padding:0 10px;display:inline-block;box-shadow:var(--shadow)}
+  .ov h2{font-size:21px;margin:0;font-weight:800}
+  .ov p{margin:0;font-size:13px;line-height:1.9;font-weight:700;color:var(--ink)}
+  .ov b{background:var(--pop);padding:1px 6px;border-radius:6px}
+  .btn{background:var(--ink);border:2px solid var(--ink);color:var(--pop);
+    padding:12px 30px;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;
+    letter-spacing:2px;border-radius:12px;box-shadow:0 4px 0 rgba(30,28,20,.35)}
+  .btn:hover{background:#2c2a1e}
+  .btn:active{transform:translateY(4px);box-shadow:none}
+  .rank{font-family:"DotGothic16",monospace;font-size:58px;letter-spacing:4px;
+    color:var(--ink);background:var(--pop);border:2px solid var(--ink);border-radius:16px;
+    padding:2px 24px;line-height:1.2;box-shadow:var(--shadow-lg)}
+  .rank.bad{background:var(--danger);color:var(--card)}
+  .dayNo{font-family:"DotGothic16",monospace;font-size:12px;letter-spacing:3px;
+    background:var(--ink);color:var(--pop);padding:3px 12px;border-radius:100px}
+  .gimmick{background:var(--card);border:2px solid var(--ink);border-radius:12px;
+    padding:12px 16px;font-size:13px;font-weight:700;line-height:1.7;max-width:300px;
+    box-shadow:var(--shadow)}
+  .gimmick i{font-style:normal;background:var(--pop);padding:0 4px;border-radius:4px}
+  #week,#week2{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;
+    font-family:"DotGothic16",monospace;font-size:11px}
+  #week div,#week2 div{padding:3px 9px;border-radius:100px;background:var(--card);
+    border:2px solid var(--ink);color:var(--muted)}
+  #week div.done,#week2 div.done{background:var(--pop);color:var(--ink)}
+  #week div.now,#week2 div.now{background:var(--ink);color:var(--pop)}
+  .flashred{position:absolute;inset:0;background:var(--danger);opacity:0;pointer-events:none;z-index:15}
   .flashred.on{animation:fl .45s}
-  @keyframes fl{0%{opacity:.42}100%{opacity:0}}
+  @keyframes fl{0%{opacity:.5}100%{opacity:0}}
   @media (max-height:700px){#line{font-size:15px;height:78px}.ch{font-size:13px;padding:8px 11px}#choices{height:118px}}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -171,12 +216,12 @@
   <div class="flashred" id="flash"></div>
 
   <div class="ov" id="title">
-    <div style="font-size:11px;font-weight:800;letter-spacing:6px;color:#9aa3b8">UTAGAI METER</div>
+    <div style="font-family:DotGothic16,monospace;font-size:11px;letter-spacing:4px;color:#8a8470">UTAGAI METER</div>
     <h1>7日間の<span>彼女</span></h1>
     <p style="font-size:13px;letter-spacing:1px">月曜から日曜まで、毎日ちがう彼女に会う。<br>
     そして毎日、<b>昨日どこにいたか</b>を聞かれる。</p>
     <button class="btn" id="startBtn">はじめる</button>
-    <div style="font-size:10px;color:#7c869e;letter-spacing:2px;margin-top:4px">所要 15〜20分</div>
+    <div style="font-family:DotGothic16,monospace;font-size:10px;color:#8a8470;letter-spacing:1px;margin-top:4px">所要 15〜20分</div>
   </div>
 
   <div class="ov hidden" id="dayIntro">
@@ -198,14 +243,14 @@
       <button class="btn" id="wcBtn1" style="margin-top:18px">通知を見る</button>
     </div>
     <div id="wc2" style="display:none">
-      <div style="font-size:11px;font-weight:800;letter-spacing:4px;color:#8b93ad">1 件のメッセージ</div>
-      <div style="background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.2);
-        border-left:3px solid #e23b60;border-radius:8px;padding:16px 18px;max-width:300px;
+      <div style="font-family:DotGothic16,monospace;font-size:11px;letter-spacing:3px;color:#8a8470">1 件のメッセージ</div>
+      <div style="background:#fffef7;border:2px solid #1e1c14;border-radius:12px;
+        padding:15px 17px;max-width:300px;box-shadow:0 5px 0 #1e1c14;
         font-size:15px;font-weight:700;line-height:1.8;text-align:left">
-        <span style="color:#ff8fa5;font-size:12px;letter-spacing:2px">ミサキ</span><br>
+        <span style="font-family:DotGothic16,monospace;font-size:12px;letter-spacing:2px;background:#e1dd60;padding:1px 8px;border-radius:100px">ミサキ</span><br>
         ねえ。今から行っていい？<br>もう、家の前にいるんだけど。
       </div>
-      <p style="font-size:12px;color:#9aa3b8">……七日目は、まだ終わっていなかった。</p>
+      <p style="font-size:12px;color:#8a8470">……七日目は、まだ終わっていなかった。</p>
       <button class="btn" id="wcBtn2">出る</button>
     </div>
   </div>
@@ -317,10 +362,10 @@ const DAYS = [
      {t:"思ってない。かわいいと思ってる", s:-12,m:24, r:"んふふ♡ 正解っ♡"},
      {t:"ちょっとだけ", s:16,m:-32, r:"……ちょっとって。ちょっとって、なに。"},
      {t:"思ってるわけないでしょ", s:6,m:8, r:"ふぅ〜ん。間があったけどぉ。"}]},
-   {q:"じゃあさぁ、今から会いに来て♡ 来れるよね？", a:[
-     {t:"行く。30分で着く", s:-18,m:22, r:"きゃー♡ 待ってる、待ってるからね♡"},
-     {t:"今日は無理。明日にしよう", s:20,m:-22, r:"ふぅ〜ん。明日ならいいんだ。ふぅ〜ん。"},
-     {t:"なんで今すぐなの", s:30,m:-26, r:"今すぐ来れない理由、あるんだねぇ♡"}]},
+   {q:"じゃあさぁ、今日はもう帰らないでよ♡ 泊まってって？", a:[
+     {t:"泊まる。朝まで一緒にいる", s:-18,m:22, r:"きゃー♡ やったぁ。絶対だからね♡"},
+     {t:"今日は帰る。明日また来るよ", s:20,m:-22, r:"ふぅ〜ん。明日ならいいんだ。ふぅ〜ん。"},
+     {t:"なんで急にそんなこと言うの", s:30,m:-26, r:"帰りたい理由、あるんだねぇ♡"}]},
    {q:"…ねぇ。るなちゃんに、嘘ついてないよね？", a:[
      {t:"ついてない", s:10,m:0, r:"……いま、目、動いたよ？"},
      {t:"ついてない。信じてほしい", s:-14,m:16, r:"……うん。信じる。信じるからね♡"},
@@ -995,7 +1040,7 @@ function end(cleared){
   if(!cleared){
     rk.textContent="OUT"; rk.classList.add("bad");
     $("resTitle").textContent = DAYS[S.d].extra ? "最終戦、終了。" : `${jp(DAYS[S.d])}曜、終了。`;
-    $("resBody").innerHTML=`${DAYS[S.d].name}に、全部バレた。<br>連絡先は、その日のうちに全員に回った。<br><br>「嘘が下手なところだけは、好きだったよ」<br><br><span style="color:#9aa3b8">${DAYS[S.d].extra?"EXTRA 到達":"到達 DAY "+(S.d+1)+" ／ 7"}</span>`;
+    $("resBody").innerHTML=`${DAYS[S.d].name}に、全部バレた。<br>連絡先は、その日のうちに全員に回った。<br><br>「嘘が下手なところだけは、好きだったよ」<br><br><span style="font-family:DotGothic16,monospace;color:#8a8470">${DAYS[S.d].extra?"EXTRA 到達":"到達 DAY "+(S.d+1)+" ／ 7"}</span>`;
     return;
   }
   const perfects=S.log.filter(l=>l.perfect).length;
@@ -1015,7 +1060,7 @@ function end(cleared){
     body="ハートは残った。信用は、どこにも残っていない。<br>七人とも、まだ何も言っていないだけ。";
   }
   rk.textContent=rank; $("resTitle").textContent=title;
-  $("resBody").innerHTML=body+`<br><br><span style="color:#9aa3b8">残ハート ${S.hearts} ／ 無傷の日 ${perfects}/8 ／ 平均うたがい ${avg}</span>`;
+  $("resBody").innerHTML=body+`<br><br><span style="font-family:DotGothic16,monospace;color:#8a8470">残ハート ${S.hearts} ／ 無傷の日 ${perfects}/8 ／ 平均うたがい ${avg}</span>`;
 }
 
 function reset(){
