@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concept.css?v=7">
+<link rel="stylesheet" href="concept.css?v=8">
 </head>
 <body>
 
@@ -98,7 +98,7 @@
     </div>
     <div class="tl-frames">
       <div class="tl-track" id="tlTrack">
-        <a href="#works" class="tl-frame"><b>1</b><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></a>
+        <a href="#works" class="tl-frame on"><b>1</b><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></a>
         <a href="#works" class="tl-frame"><b>2</b><img src="manga/tachibanasenpai_01.jpg" alt="笑顔を見せてよ、橘先輩"></a>
         <a href="#works" class="tl-frame"><b>3</b><img src="manga/fanart_01.jpg" alt="ファンアート"></a>
         <a href="#works" class="tl-frame"><b>4</b><img src="host.jpg" alt="WEB漫画"></a>
@@ -106,6 +106,36 @@
         <a href="#works" class="tl-frame"><b>6</b><img src="dharma.jpg" alt="マーダーミステリー表紙"></a>
       </div>
     </div>
+  </div>
+
+  <!-- 最新ニュース（折りたたみ） -->
+  <div class="newsbox">
+    <details class="nb">
+      <summary>📢 最新ニュース <span class="nb-count">3</span></summary>
+      <div class="nb-body">
+        <div class="nb-item">
+          <span class="nb-date dot">2026.08.06</span>
+          <div>
+            <h4>「悪役令嬢、旅に出る。」累計90万PV突破</h4>
+            <p>pixiv・ジャンプルーキーにて連載中の本作が、累計90万PVを突破しました。いつも応援ありがとうございます。</p>
+          </div>
+        </div>
+        <div class="nb-item">
+          <span class="nb-date dot">2026.07.20</span>
+          <div>
+            <h4>ご依頼受付を再開しました</h4>
+            <p>スケジュールに空きが出ましたので、漫画・イラスト・アニメーション制作のご依頼受付を再開いたします。</p>
+          </div>
+        </div>
+        <div class="nb-item">
+          <span class="nb-date dot">2026.06.02</span>
+          <div>
+            <h4>アニメーション作品を公開しました</h4>
+            <p>YouTube・TikTokにてショートアニメーションを公開中です。ぜひご覧ください。</p>
+          </div>
+        </div>
+      </div>
+    </details>
   </div>
 
 </div>
@@ -370,94 +400,43 @@
     });
   });
 
-  /* 最近の作品：ボタンでサムネをくるくる送る */
+  /* 最近の作品：白い選択枠がコマからコマへ移動する */
   (() => {
     const track = document.getElementById('tlTrack');
     if(!track) return;
+    const frames = [...track.querySelectorAll('.tl-frame')];
+    const viewport = track.parentElement;      // .tl-frames（横スクロールする枠）
     const playBtn = document.querySelector('[data-tl="play"]');
-    const original = [...track.children];   // ⏮ で戻すための元の並び
-    let busy = false, timer = null;
+    let cur = 0, timer = null;
 
-    // 1コマ分の移動量（サムネ幅 + gap）
-    const stepWidth = () => {
-      const first = track.firstElementChild;
-      const gap = parseFloat(getComputedStyle(track).gap) || 0;
-      return first.getBoundingClientRect().width + gap;
-    };
+    const select = i => {
+      cur = (i + frames.length) % frames.length;
+      frames.forEach((f, n) => f.classList.toggle('on', n === cur));
 
-    const EASE = 'transform .38s cubic-bezier(.3,.7,.3,1)';
-    // transition と transform を同じフレームで指定すると発火しないので、
-    // 間に強制リフロー（offsetWidth の読み取り）を挟む
-    const reflow = () => void track.offsetWidth;
-
-    const slide = dir => {              // dir: 1=次へ / -1=前へ
-      if(busy || track.children.length < 2) return;
-      busy = true;
-      const w = stepWidth();
-      let done = false;
-
-      const finish = () => {
-        if(done) return;
-        done = true;
-        track.style.transition = 'none';
-        if(dir > 0) track.appendChild(track.firstElementChild);  // 先頭を末尾へ
-        track.style.transform = 'none';
-        reflow();
-        busy = false;
-      };
-
-      if(dir > 0){
-        track.style.transition = 'none';
-        track.style.transform = 'none';
-        reflow();
-        track.style.transition = EASE;
-        track.style.transform = `translateX(-${w}px)`;
-      }else{
-        // 末尾を先頭に移し、1コマ分ずらした状態から元に戻す
-        track.style.transition = 'none';
-        track.insertBefore(track.lastElementChild, track.firstElementChild);
-        track.style.transform = `translateX(-${w}px)`;
-        reflow();
-        track.style.transition = EASE;
-        track.style.transform = 'none';
+      // 選択中のコマが枠からはみ出していたら、中央に寄せる
+      const f = frames[cur].getBoundingClientRect();
+      const v = viewport.getBoundingClientRect();
+      if(f.left < v.left + 4 || f.right > v.right - 4){
+        viewport.scrollTo({
+          left: frames[cur].offsetLeft - (viewport.clientWidth - frames[cur].offsetWidth) / 2,
+          behavior: 'smooth'
+        });
       }
-
-      track.addEventListener('transitionend', finish, {once:true});
-      setTimeout(finish, 600);   // 発火しなかった場合の保険（固まるのを防ぐ）
     };
 
-    const stop = () => {
-      clearInterval(timer); timer = null;
-      playBtn.textContent = '▶';
-    };
-    const play = () => {
-      timer = setInterval(() => slide(1), 1800);
-      playBtn.textContent = '❚❚';
-    };
+    const stop = () => { clearInterval(timer); timer = null; playBtn.textContent = '▶'; };
+    const play = () => { timer = setInterval(() => select(cur + 1), 1200); playBtn.textContent = '❚❚'; };
 
-    document.querySelector('[data-tl="next"]').addEventListener('click', () => { stop(); slide(1); });
-    document.querySelector('[data-tl="prev"]').addEventListener('click', () => { stop(); slide(-1); });
+    document.querySelector('[data-tl="next"]').addEventListener('click', () => { stop(); select(cur + 1); });
+    document.querySelector('[data-tl="prev"]').addEventListener('click', () => { stop(); select(cur - 1); });
+    document.querySelector('[data-tl="first"]').addEventListener('click', () => { stop(); select(0); });
     playBtn.addEventListener('click', () => timer ? stop() : play());
-    document.querySelector('[data-tl="first"]').addEventListener('click', () => {
-      stop();
-      track.style.transition = 'none';
-      track.style.transform = 'none';
-      original.forEach(el => track.appendChild(el));   // 元の並びに戻す
-    });
 
-    // スワイプでも送れるように
-    let x0 = null;
-    track.addEventListener('touchstart', e => { x0 = e.changedTouches[0].clientX; }, {passive:true});
-    track.addEventListener('touchend', e => {
-      if(x0 === null) return;
-      const dx = e.changedTouches[0].clientX - x0;
-      if(Math.abs(dx) > 45){ stop(); slide(dx < 0 ? 1 : -1); }
-      x0 = null;
-    }, {passive:true});
+    // サムネを直接クリックしても選択が移る（リンク遷移は生かす）
+    frames.forEach((f, i) => f.addEventListener('click', () => { stop(); select(i); }));
 
-    // 画面外では自動送りを止める（無駄な再描画を避ける）
-    new IntersectionObserver(es => { if(!es[0].isIntersecting && timer) stop(); })
-      .observe(track);
+    // 画面外に出たら自動送りを止める
+    new IntersectionObserver(es => { if(!es[0].isIntersecting && timer) stop(); }).observe(track);
   })();
 
   /* 上へ戻る */

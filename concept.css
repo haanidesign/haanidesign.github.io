@@ -181,14 +181,16 @@ img{display:block;max-width:100%;}
 .tl-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem;}
 .tl-label{font-size:.68rem;color:var(--gray);}
 .tl-frames{
-  overflow:hidden;padding:.5rem;
+  overflow-x:auto;overflow-y:hidden;padding:.6rem .5rem;
   background:var(--ink);border-radius:10px;
+  scrollbar-width:thin;
 }
-.tl-track{display:flex;gap:.5rem;will-change:transform;}
+.tl-track{display:flex;gap:.5rem;}
 .tl-frame{
   flex:0 0 auto;width:104px;
-  border:2.5px solid var(--paper);border-radius:8px;overflow:hidden;
+  border:2.5px solid rgba(255,254,247,.22);border-radius:8px;overflow:hidden;
   background:var(--paper);position:relative;
+  transition:border-color .18s, transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
 }
 .tl-frame img{width:100%;height:74px;object-fit:cover;}
 .tl-frame b{
@@ -196,7 +198,59 @@ img{display:block;max-width:100%;}
   font-size:.55rem;background:rgba(30,28,20,.75);color:#fff;
   border-radius:4px;padding:0 .25rem;
 }
-.tl-frame:hover{border-color:var(--main);}
+.tl-frame:hover{border-color:rgba(255,254,247,.6);}
+/* 選択中：白い枠がぽんと乗る */
+@keyframes tlPop{
+  0%   {transform:scale(1);}
+  45%  {transform:scale(1.14);}
+  100% {transform:scale(1.07);}
+}
+.tl-frame.on{
+  border-color:var(--paper);
+  transform:scale(1.07);
+  box-shadow:0 0 0 3px rgba(255,254,247,.3);
+  animation:tlPop .3s cubic-bezier(.34,1.56,.64,1);
+}
+
+/* ============ 最新ニュース（折りたたみ） ============ */
+.newsbox{background:var(--cream);border-top:var(--bd);padding:.7rem .9rem;}
+.nb{
+  border:var(--bd);border-radius:12px;background:var(--paper);
+  box-shadow:0 3px 0 var(--ink);overflow:hidden;
+}
+.nb summary{
+  list-style:none;cursor:pointer;
+  padding:.65rem .9rem;font-size:.8rem;
+  display:flex;align-items:center;gap:.5rem;
+  transition:background .15s;
+}
+.nb summary::-webkit-details-marker{display:none;}
+.nb summary::after{
+  content:'▼';margin-left:auto;font-size:.65rem;
+  transition:transform .25s;
+}
+.nb[open] summary::after{transform:rotate(180deg);}
+.nb summary:hover{background:var(--main);}
+.nb-count{
+  font-size:.6rem;background:var(--main);
+  border:2px solid var(--ink);border-radius:100px;padding:0 .5rem;
+}
+.nb-body{padding:0 .9rem .8rem;}
+.nb-item{
+  display:grid;grid-template-columns:auto 1fr;gap:.7rem;
+  padding:.7rem .1rem;
+  border-top:2.5px dotted rgba(30,28,20,.22);
+}
+.nb-date{
+  font-size:.6rem;background:var(--main);
+  border:2px solid var(--ink);border-radius:100px;
+  padding:.05rem .55rem;white-space:nowrap;height:fit-content;
+}
+.nb-item h4{font-size:.8rem;margin-bottom:.15rem;}
+.nb-item p{font-size:.7rem;font-weight:500;color:var(--gray);line-height:1.8;}
+@media(max-width:560px){
+  .nb-item{grid-template-columns:1fr;gap:.25rem;}
+}
 
 /* ============ 下層ページ用：横並びのツールバー ============ */
 .subrail{
