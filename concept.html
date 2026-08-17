@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concept.css?v=8">
+<link rel="stylesheet" href="concept.css?v=9">
 </head>
 <body>
 
@@ -108,37 +108,38 @@
     </div>
   </div>
 
-  <!-- 最新ニュース（折りたたみ） -->
-  <div class="newsbox">
-    <details class="nb">
-      <summary>📢 最新ニュース <span class="nb-count">3</span></summary>
-      <div class="nb-body">
-        <div class="nb-item">
-          <span class="nb-date dot">2026.08.06</span>
-          <div>
-            <h4>「悪役令嬢、旅に出る。」累計90万PV突破</h4>
-            <p>pixiv・ジャンプルーキーにて連載中の本作が、累計90万PVを突破しました。いつも応援ありがとうございます。</p>
-          </div>
-        </div>
-        <div class="nb-item">
-          <span class="nb-date dot">2026.07.20</span>
-          <div>
-            <h4>ご依頼受付を再開しました</h4>
-            <p>スケジュールに空きが出ましたので、漫画・イラスト・アニメーション制作のご依頼受付を再開いたします。</p>
-          </div>
-        </div>
-        <div class="nb-item">
-          <span class="nb-date dot">2026.06.02</span>
-          <div>
-            <h4>アニメーション作品を公開しました</h4>
-            <p>YouTube・TikTokにてショートアニメーションを公開中です。ぜひご覧ください。</p>
-          </div>
-        </div>
-      </div>
-    </details>
-  </div>
-
 </div>
+
+<!-- ================= 最新ニュース（折りたたみウィンドウ） ================= -->
+<details class="win nbwin" id="news">
+  <summary class="win-bar">
+    <h2>📢 最新ニュース</h2>
+    <span class="tb-spec dot">クリックで開く</span>
+  </summary>
+  <div class="win-body">
+    <div class="nb-item">
+      <span class="nb-date dot">2026.08.06</span>
+      <div>
+        <h4>「悪役令嬢、旅に出る。」累計90万PV突破</h4>
+        <p>pixiv・ジャンプルーキーにて連載中の本作が、累計90万PVを突破しました。いつも応援ありがとうございます。</p>
+      </div>
+    </div>
+    <div class="nb-item">
+      <span class="nb-date dot">2026.07.20</span>
+      <div>
+        <h4>ご依頼受付を再開しました</h4>
+        <p>スケジュールに空きが出ましたので、漫画・イラスト・アニメーション制作のご依頼受付を再開いたします。</p>
+      </div>
+    </div>
+    <div class="nb-item">
+      <span class="nb-date dot">2026.06.02</span>
+      <div>
+        <h4>アニメーション作品を公開しました</h4>
+        <p>YouTube・TikTokにてショートアニメーションを公開中です。ぜひご覧ください。</p>
+      </div>
+    </div>
+  </div>
+</details>
 
 <!-- ================= 作品 ================= -->
 <section class="win" id="works">
