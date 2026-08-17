@@ -3,141 +3,205 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>HAANI LAB — 制作ツール置き場</title>
-<meta name="description" content="AIと一緒に作った制作ツールを、全部ここに並べています。">
+<title>HAANI LAB｜はぁにデザイン工房</title>
+<meta name="description" content="AIと一緒に作った制作ツールと遊びものを、全部ここに並べています。どれもブラウザだけで動きます。">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
+/* はぁにデザイン工房と同じ世界観（黄色・太枠・ハードシャドウ・ドット地） */
 :root{
-  --bg:#f5f5f0;
-  --card:#ffffff;
-  --ink:#1c1c1a;
-  --dim:#767469;
-  --line:#e3e2da;
-  --acc:#c8503c;
-  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  --main:#E1DD60;
+  --main-deep:#B8B43F;
+  --main-soft:#F2F0BE;
+  --cream:#FBFAEC;
+  --paper:#FFFEF7;
+  --ink:#1E1C14;
+  --gray:#8A8470;
+  --bd:2.5px solid var(--ink);
+  --r:12px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
 body{
-  background:var(--bg);color:var(--ink);
-  font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",YuGothic,Meiryo,sans-serif;
-  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased;
+  margin:0; color:var(--ink);
+  font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif; font-weight:700;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
+  line-height:1.8; -webkit-font-smoothing:antialiased;
 }
+img{display:block; max-width:100%}
 a{color:inherit}
-.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
 
-/* ---------- header ---------- */
-header{border-bottom:1px solid var(--line)}
-.hd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:22px 0;flex-wrap:wrap}
-.logo{font-family:var(--mono);font-size:19px;letter-spacing:.22em;font-weight:700;margin:0}
-.logo b{color:var(--acc)}
-.hd a.x{font-family:var(--mono);font-size:12px;color:var(--dim);text-decoration:none;letter-spacing:.06em}
-.hd a.x:hover{color:var(--acc)}
+/* ---------------- ボタン ---------------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+  background:var(--paper); color:var(--ink);
+  border:var(--bd); border-radius:var(--r);
+  padding:.6rem 1.1rem; font:inherit; font-weight:700; font-size:.82rem;
+  box-shadow:0 3px 0 var(--ink); cursor:pointer; text-decoration:none;
+  transition:transform .08s, box-shadow .08s, background .15s;
+}
+.btn:hover{transform:translateY(-2px); box-shadow:0 5px 0 var(--ink)}
+.btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink)}
+.btn-y{background:var(--main)}
+.btn-g{background:var(--ink); color:var(--main)}
+.btn-sm{padding:.38rem .8rem; font-size:.72rem; box-shadow:0 2px 0 var(--ink)}
 
-/* ---------- lead + stats ---------- */
-.lead{padding:40px 0 4px;font-size:16px;color:#3c3a35;max-width:34em}
-.stats{display:flex;gap:40px;padding:26px 0 34px;flex-wrap:wrap}
-.stat .n{font-family:var(--mono);font-size:30px;line-height:1.1;letter-spacing:-.02em}
-.stat .n.ok{color:#2f8a4d;font-size:22px;letter-spacing:.08em}
-.stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;margin-top:4px}
+/* ---------------- アプリ窓 ---------------- */
+.app{
+  max-width:1240px; margin:1rem auto;
+  border:var(--bd); border-radius:18px; background:var(--paper);
+  box-shadow:0 6px 0 var(--ink); overflow:hidden;
+}
+.titlebar{
+  background:var(--main); border-bottom:var(--bd);
+  padding:.7rem .9rem; display:flex; align-items:center; gap:.7rem; flex-wrap:wrap;
+}
+.tb-title{font-size:1rem; font-weight:800; letter-spacing:.06em}
+.tb-spec{
+  font-size:.62rem; color:var(--ink); background:var(--paper);
+  border:2px solid var(--ink); border-radius:999px; padding:.1rem .6rem;
+}
+.tb-actions{margin-left:auto; display:flex; gap:.5rem; flex-wrap:wrap}
+.app-body{padding:1.1rem}
 
-/* ---------- controls ---------- */
-.ctl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding-bottom:20px}
+/* ---------------- リード＋メーター ---------------- */
+.lead{margin:.2rem 0 1rem; font-size:.86rem; line-height:1.9}
+.meters{display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1.1rem}
+.meter{
+  background:var(--main-soft); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink); padding:.5rem .9rem; min-width:104px;
+}
+.meter b{display:block; font-size:1.5rem; line-height:1.2; letter-spacing:.02em}
+.meter span{font-size:.6rem; color:var(--gray); letter-spacing:.12em}
+.meter.ok b{color:#2f7d3f; font-size:1.1rem; padding-top:.32rem}
+
+/* ---------------- 検索・タブ ---------------- */
+.ctl{display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-bottom:1.1rem}
 #q{
-  flex:1 1 240px;min-width:0;background:#fff;border:1px solid var(--line);border-radius:3px;
-  padding:10px 13px;font-size:14px;font-family:inherit;color:var(--ink);
+  flex:1 1 220px; min-width:0;
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink);
+  padding:.6rem .9rem; font:inherit; font-weight:700; font-size:.82rem; color:var(--ink);
 }
-#q:focus{outline:none;border-color:var(--acc)}
-#q::placeholder{color:#a9a79c}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+#q:focus{outline:none; background:#fff}
+#q::placeholder{color:var(--gray); font-weight:700}
+.tabs{display:flex; gap:.5rem; flex-wrap:wrap}
 .tab{
-  background:none;border:1px solid var(--line);border-radius:999px;padding:7px 14px;
-  font-size:13px;font-family:inherit;color:var(--dim);cursor:pointer;white-space:nowrap;
+  background:var(--paper); border:var(--bd); border-radius:999px;
+  box-shadow:0 3px 0 var(--ink);
+  padding:.42rem .95rem; font:inherit; font-weight:700; font-size:.75rem; cursor:pointer;
+  transition:transform .08s, box-shadow .08s, background .15s;
 }
-.tab:hover{border-color:#c9c7bb;color:var(--ink)}
-.tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.tab i{font-style:normal;font-family:var(--mono);font-size:11px;opacity:.65;margin-left:6px}
+.tab:hover{transform:translateY(-2px); box-shadow:0 5px 0 var(--ink)}
+.tab.on{background:var(--main)}
+.tab i{font-style:normal; font-size:.62rem; color:var(--gray); margin-left:.35rem}
+.tab.on i{color:var(--ink)}
 
-/* ---------- grid ---------- */
-.grid{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:22px;
-  padding-bottom:64px;
+/* ---------------- カード ---------------- */
+.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; align-items:start}
+.card{
+  display:block; text-decoration:none; color:inherit;
+  background:var(--paper); border:var(--bd); border-radius:16px;
+  box-shadow:0 5px 0 var(--ink); overflow:hidden;
+  transition:transform .1s, box-shadow .1s;
 }
-@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);gap:18px}}
-@media(max-width:600px){
-  .grid{grid-template-columns:1fr;gap:16px}
-  .wrap{padding:0 16px}
-  .stats{gap:26px}
-  .lead{padding-top:28px;font-size:15px}
-  .ctl{gap:12px}
+.card:hover{transform:translateY(-3px); box-shadow:0 8px 0 var(--ink)}
+.card .shot{
+  width:100%; aspect-ratio:3/2; object-fit:cover;
+  background:var(--main-soft); border-bottom:var(--bd);
+}
+.card .body{padding:.75rem .9rem 1rem}
+.no{
+  display:flex; align-items:center; gap:.45rem;
+  font-size:.66rem; color:var(--gray); letter-spacing:.1em;
+}
+.dot{width:8px; height:8px; border-radius:50%; border:2px solid var(--ink); background:#3aa757}
+.dot.wip{background:#e0b93c}
+.dot.broken{background:#d9534f}
+.card h2{font-size:.95rem; font-weight:800; margin:.25rem 0 .35rem; line-height:1.55}
+.card p{margin:0; font-size:.74rem; font-weight:500; color:#5c5847; line-height:1.75}
+.tags{display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.6rem}
+.tags span{
+  font-size:.62rem; background:var(--main-soft);
+  border:2px solid var(--ink); border-radius:999px; padding:.08rem .55rem;
+}
+.empty{grid-column:1/-1; text-align:center; padding:3rem 0; color:var(--gray); font-size:.82rem}
+
+/* ---------------- フッター ---------------- */
+.foot{
+  max-width:1240px; margin:0 auto 2.4rem; padding:1rem;
+  display:flex; gap:.8rem; align-items:center; justify-content:center; flex-wrap:wrap;
+  font-size:.68rem; color:var(--gray);
+}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:600px){
+  .app{margin:.6rem; border-radius:14px}
+  .app-body{padding:.9rem}
+  .grid{grid-template-columns:1fr}
   #q{flex:1 1 100%}
   .tabs{width:100%}
-  .tab{padding:6px 12px;font-size:12.5px}
+  .tb-actions{width:100%; margin-left:0}
 }
-.card{
-  display:block;background:var(--card);border:1px solid var(--line);border-radius:5px;
-  overflow:hidden;text-decoration:none;color:inherit;
-  box-shadow:0 1px 2px rgba(28,28,26,.05);
-  transition:transform .16s ease,box-shadow .16s ease;
-}
-.card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(28,28,26,.10)}
-.card .shot{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;background:#eceae1;border-bottom:1px solid var(--line)}
-.card .body{padding:14px 16px 16px}
-.no{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em}
-.dot{width:7px;height:7px;border-radius:50%;background:#2f8a4d;flex:none}
-.dot.wip{background:#d8a017}
-.dot.broken{background:#c23b3b}
-.card h2{font-size:15.5px;margin:6px 0 5px;line-height:1.45}
-.card p{margin:0;font-size:13px;color:var(--dim);line-height:1.65}
-.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:11px}
-.tags span{font-size:11px;color:#5f5d54;background:#f2f1e9;border:1px solid var(--line);border-radius:3px;padding:2px 7px}
-.empty{grid-column:1/-1;padding:56px 0;text-align:center;color:var(--dim);font-size:14px}
-
-footer{border-top:1px solid var(--line);padding:22px 0 40px;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.08em}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap hd">
-    <h1 class="logo">HAANI<b>LAB</b></h1>
-    <a class="x" href="https://x.com/haanidesign" target="_blank" rel="noopener">X / @haanidesign</a>
-  </div>
-</header>
-
-<main class="wrap">
-  <p class="lead">AIと一緒に作った制作ツールと遊びものを、全部ここに並べています。<br>どれもブラウザだけで動きます。</p>
-
-  <div class="stats">
-    <div class="stat"><div class="n" id="sTools">—</div><div class="k">Tools</div></div>
-    <div class="stat"><div class="n" id="sCats">—</div><div class="k">Categories</div></div>
-    <div class="stat"><div class="n" id="sStatus">—</div><div class="k">Status</div></div>
+<div class="app">
+  <div class="titlebar">
+    <div class="tb-title">HAANI LAB</div>
+    <span class="tb-spec">つくった道具と遊びもの</span>
+    <div class="tb-actions">
+      <a href="../" class="btn btn-sm">← 工房トップ</a>
+      <a href="https://x.com/haanidesign" target="_blank" rel="noopener" class="btn btn-sm btn-g">X @haanidesign</a>
+    </div>
   </div>
 
-  <div class="ctl">
-    <input id="q" type="search" placeholder="タイトル・タグで検索" autocomplete="off">
-    <div class="tabs" id="tabs"></div>
+  <div class="app-body">
+    <p class="lead">AIと一緒に作った制作ツールと遊びものを、全部ここに並べています。<br>どれもブラウザだけで動きます。</p>
+
+    <div class="meters">
+      <div class="meter"><b id="sTools">—</b><span>TOOLS</span></div>
+      <div class="meter"><b id="sCats">—</b><span>CATEGORIES</span></div>
+      <div class="meter" id="mStatus"><b id="sStatus">—</b><span>STATUS</span></div>
+    </div>
+
+    <div class="ctl">
+      <input id="q" type="search" placeholder="タイトル・タグで検索" autocomplete="off">
+      <div class="tabs" id="tabs"></div>
+    </div>
+
+    <div class="grid" id="grid"></div>
   </div>
+</div>
 
-  <div class="grid" id="grid"></div>
-</main>
-
-<footer class="wrap">© HAANI DESIGN</footer>
+<footer class="foot">
+  <span>© 2026 はぁにデザイン工房</span>
+  <a href="../" class="btn btn-sm">工房トップ</a>
+  <a href="../price.html" class="btn btn-sm">料金表</a>
+</footer>
 
 <script src="data.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 let cat = "all", q = "";
 
-/* ---- stats ---- */
+/* ---- メーター ---- */
 (function stats(){
   $("#sTools").textContent = String(TOOLS.length).padStart(2,"0");
   $("#sCats").textContent  = String(new Set(TOOLS.map(t=>t.cat)).size).padStart(2,"0");
   const el = $("#sStatus");
-  if(TOOLS.every(t=>t.status==="live")){ el.textContent="ALL LIVE"; el.classList.add("ok"); }
+  if(TOOLS.every(t=>t.status==="live")){ el.textContent="ALL LIVE"; $("#mStatus").classList.add("ok"); }
   else { el.textContent = TOOLS.filter(t=>t.status==="live").length + "/" + TOOLS.length; }
 })();
 
-/* ---- tabs ---- */
+/* ---- タブ ---- */
 function countOf(key){ return key==="all" ? TOOLS.length : TOOLS.filter(t=>t.cat===key).length; }
 $("#tabs").innerHTML = CATEGORIES
   .filter(c => countOf(c.key) > 0)
@@ -150,10 +214,10 @@ $("#tabs").addEventListener("click", e => {
   render();
 });
 
-/* ---- search ---- */
+/* ---- 検索 ---- */
 $("#q").addEventListener("input", e => { q = e.target.value.trim().toLowerCase(); render(); });
 
-/* ---- render ---- */
+/* ---- 描画 ---- */
 function match(t){
   if(cat !== "all" && t.cat !== cat) return false;
   if(!q) return true;
