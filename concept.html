@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="concept.css?v=6">
+<link rel="stylesheet" href="concept.css?v=7">
 </head>
 <body>
 
@@ -89,21 +89,22 @@
   <!-- 最近の作品 -->
   <div class="timeline">
     <div class="tl-bar">
-      <span class="btn btn-sm">⏮</span>
-      <span class="btn btn-sm">◀</span>
-      <span class="btn btn-sm btn-g">▶</span>
-      <span class="btn btn-sm">▶⏭</span>
+      <button class="btn btn-sm" data-tl="first" aria-label="最初に戻す">⏮</button>
+      <button class="btn btn-sm" data-tl="prev" aria-label="前へ">◀</button>
+      <button class="btn btn-sm" data-tl="play" aria-label="自動送り">▶</button>
+      <button class="btn btn-sm" data-tl="next" aria-label="次へ">▶⏭</button>
       <span class="tl-label">最近の作品</span>
-      <a href="#works" class="btn btn-sm btn-y" style="margin-left:auto;">＋ すべて見る</a>
+      <a href="#works" class="btn btn-sm" style="margin-left:auto;">すべて見る</a>
     </div>
     <div class="tl-frames">
-      <a href="#works" class="tl-frame"><b>1</b><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></a>
-      <a href="#works" class="tl-frame"><b>2</b><img src="manga/tachibanasenpai_01.jpg" alt="笑顔を見せてよ、橘先輩"></a>
-      <a href="#works" class="tl-frame"><b>3</b><img src="manga/fanart_01.jpg" alt="ファンアート"></a>
-      <a href="#works" class="tl-frame"><b>4</b><img src="host.jpg" alt="WEB漫画"></a>
-      <a href="#works" class="tl-frame"><b>5</b><img src="webad.jpg" alt="WEB広告"></a>
-      <a href="#works" class="tl-frame"><b>6</b><img src="dharma.jpg" alt="マーダーミステリー表紙"></a>
-      <span class="tl-add">＋</span>
+      <div class="tl-track" id="tlTrack">
+        <a href="#works" class="tl-frame"><b>1</b><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></a>
+        <a href="#works" class="tl-frame"><b>2</b><img src="manga/tachibanasenpai_01.jpg" alt="笑顔を見せてよ、橘先輩"></a>
+        <a href="#works" class="tl-frame"><b>3</b><img src="manga/fanart_01.jpg" alt="ファンアート"></a>
+        <a href="#works" class="tl-frame"><b>4</b><img src="host.jpg" alt="WEB漫画"></a>
+        <a href="#works" class="tl-frame"><b>5</b><img src="webad.jpg" alt="WEB広告"></a>
+        <a href="#works" class="tl-frame"><b>6</b><img src="dharma.jpg" alt="マーダーミステリー表紙"></a>
+      </div>
     </div>
   </div>
 
@@ -330,9 +331,6 @@
 
 <button class="totop" id="toTop" aria-label="ページ上部へ戻る">↑</button>
 
-<!-- サムネのホバー拡大プレビュー -->
-<div class="tl-pop" id="tlPop"><img src="" alt=""></div>
-
 <script>
   /* カルーセル */
   document.querySelectorAll('[data-carousel]').forEach(box => {
@@ -372,38 +370,81 @@
     });
   });
 
-  /* 最近の作品：サムネにマウスを乗せると拡大表示 */
+  /* 最近の作品：ボタンでサムネをくるくる送る */
   (() => {
-    const pop = document.getElementById('tlPop');
-    const popImg = pop.querySelector('img');
-    if(!window.matchMedia('(hover:hover)').matches) return;
+    const track = document.getElementById('tlTrack');
+    if(!track) return;
+    const playBtn = document.querySelector('[data-tl="play"]');
+    const original = [...track.children];   // ⏮ で戻すための元の並び
+    let busy = false, timer = null;
 
-    const place = fr => {
-      const r = fr.getBoundingClientRect();
-      const pw = pop.offsetWidth, ph = pop.offsetHeight;
-      let top = r.top - ph - 12;                 // 基本はサムネの真上
-      if(top < 8) top = Math.min(r.bottom + 12, window.innerHeight - ph - 8); // 入らなければ下に
-      let left = r.left + r.width / 2 - pw / 2;
-      left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));         // 画面外に出さない
-      pop.style.top = top + 'px';
-      pop.style.left = left + 'px';
+    // 1コマ分の移動量（サムネ幅 + gap）
+    const stepWidth = () => {
+      const first = track.firstElementChild;
+      const gap = parseFloat(getComputedStyle(track).gap) || 0;
+      return first.getBoundingClientRect().width + gap;
     };
 
-    document.querySelectorAll('.tl-frame').forEach(fr => {
-      const thumb = fr.querySelector('img');
-      fr.addEventListener('mouseenter', () => {
-        popImg.alt = thumb.alt || '';
-        if(popImg.getAttribute('src') !== thumb.getAttribute('src')){
-          popImg.setAttribute('src', thumb.getAttribute('src'));
-          popImg.onload = () => { place(fr); pop.classList.add('show'); }; // 実寸確定後に位置決め
-        }
-        place(fr);
-        if(popImg.complete) pop.classList.add('show');
-      });
-      fr.addEventListener('mouseleave', () => pop.classList.remove('show'));
+    const slide = dir => {              // dir: 1=次へ / -1=前へ
+      if(busy || track.children.length < 2) return;
+      busy = true;
+      const w = stepWidth();
+
+      if(dir > 0){
+        // 左へ滑らせてから、先頭を末尾に回す
+        track.style.transition = 'transform .38s cubic-bezier(.3,.7,.3,1)';
+        track.style.transform = `translateX(-${w}px)`;
+        track.addEventListener('transitionend', () => {
+          track.style.transition = 'none';
+          track.style.transform = 'none';
+          track.appendChild(track.firstElementChild);
+          requestAnimationFrame(() => { busy = false; });
+        }, {once:true});
+      }else{
+        // 末尾を先頭に移してから、ずらした状態を元に戻す
+        track.style.transition = 'none';
+        track.insertBefore(track.lastElementChild, track.firstElementChild);
+        track.style.transform = `translateX(-${w}px)`;
+        requestAnimationFrame(() => {
+          track.style.transition = 'transform .38s cubic-bezier(.3,.7,.3,1)';
+          track.style.transform = 'none';
+          track.addEventListener('transitionend', () => { busy = false; }, {once:true});
+        });
+      }
+    };
+
+    const stop = () => {
+      clearInterval(timer); timer = null;
+      playBtn.textContent = '▶';
+    };
+    const play = () => {
+      timer = setInterval(() => slide(1), 1800);
+      playBtn.textContent = '❚❚';
+    };
+
+    document.querySelector('[data-tl="next"]').addEventListener('click', () => { stop(); slide(1); });
+    document.querySelector('[data-tl="prev"]').addEventListener('click', () => { stop(); slide(-1); });
+    playBtn.addEventListener('click', () => timer ? stop() : play());
+    document.querySelector('[data-tl="first"]').addEventListener('click', () => {
+      stop();
+      track.style.transition = 'none';
+      track.style.transform = 'none';
+      original.forEach(el => track.appendChild(el));   // 元の並びに戻す
     });
 
-    window.addEventListener('scroll', () => pop.classList.remove('show'), {passive:true});
+    // スワイプでも送れるように
+    let x0 = null;
+    track.addEventListener('touchstart', e => { x0 = e.changedTouches[0].clientX; }, {passive:true});
+    track.addEventListener('touchend', e => {
+      if(x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      if(Math.abs(dx) > 45){ stop(); slide(dx < 0 ? 1 : -1); }
+      x0 = null;
+    }, {passive:true});
+
+    // 画面外では自動送りを止める（無駄な再描画を避ける）
+    new IntersectionObserver(es => { if(!es[0].isIntersecting && timer) stop(); })
+      .observe(track);
   })();
 
   /* 上へ戻る */
