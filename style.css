@@ -120,14 +120,16 @@ img{display:block;max-width:100%;}
   background-image:radial-gradient(circle, rgba(30,28,20,.09) 1.6px, transparent 1.7px);
   background-size:14px 14px;
   overflow:hidden;
-  display:grid;grid-template-columns:1fr 1fr;align-items:end;
-  min-height:400px;
+  display:flex;align-items:center;justify-content:center;
+  padding:1.4rem;min-height:380px;
 }
-/* 吹き出し */
+/* 白い枠：左に文章・右にキャラ */
 .balloon{
-  position:relative;align-self:center;
+  position:relative;width:100%;max-width:920px;
   background:#fff;border:var(--bd);border-radius:16px;
-  padding:1.1rem 1.2rem;margin:1.2rem;
+  padding:1.3rem 1.4rem;
+  display:grid;grid-template-columns:1fr auto;
+  gap:1.4rem;align-items:center;
 }
 .balloon h1{font-size:clamp(1.2rem,2.6vw,1.7rem);line-height:1.5;letter-spacing:.02em;}
 .balloon h1 em{font-style:normal;background:var(--main);padding:0 .2rem;border-radius:4px;}
@@ -138,9 +140,10 @@ img{display:block;max-width:100%;}
   border:2px solid var(--ink);border-radius:100px;padding:.1rem .6rem;
 }
 .balloon .cta{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem;}
+/* キャラは白い枠の中に収める */
 .canvas-chara{
-  align-self:end;justify-self:center;
-  max-height:min(56vh,430px);width:auto;
+  height:clamp(200px,24vw,300px);
+  width:auto;align-self:end;
 }
 /* 右パネル */
 .panel{
@@ -476,17 +479,17 @@ img{display:block;max-width:100%;}
 /* ============ レスポンシブ ============ */
 /* 縦長・タブレット：吹き出しとキャラを上下に分ける
    （横並びのままだと吹き出しが280px程度まで潰れて読みにくいため） */
-@media(max-width:900px){
+/* 狭い画面：白い枠の中で、文章の下にキャラを置く */
+@media(max-width:760px){
   .canvas{min-height:auto;}
-  .canvas-frame{grid-template-columns:1fr;min-height:auto;}
-  /* 吹き出しが横に伸びきらないよう上限をつけて中央に */
-  .balloon{margin:1rem auto .4rem;max-width:620px;width:calc(100% - 2rem);}
-  /* キャラは枠の幅に追従させる（固定高さだと左右が空きすぎるため） */
-  .canvas-chara{
-    width:min(72%,430px);
-    height:auto;
-    max-height:52vh;
+  .canvas-frame{min-height:auto;padding:.9rem;}
+  .balloon{
+    grid-template-columns:1fr;gap:.6rem;
+    justify-items:center;text-align:center;
+    padding:1.1rem 1rem;
   }
+  .balloon .chips,.balloon .cta{justify-content:center;}
+  .canvas-chara{height:clamp(180px,42vw,260px);align-self:center;}
 }
 
 @media(max-width:1000px){
@@ -511,9 +514,7 @@ img{display:block;max-width:100%;}
   .tool{flex:0 0 auto;min-width:62px;}
   .rail-label{display:none;}
   .canvas{min-height:auto;padding:.7rem;}
-  .canvas-frame{grid-template-columns:1fr;min-height:auto;}
-  .balloon{margin:.9rem auto .3rem;width:calc(100% - 1.8rem);}
-  .canvas-chara{width:min(80%,320px);max-height:46vh;}
+  .canvas-frame{padding:.7rem;}
   .works{grid-template-columns:1fr;}
   .wk.wide{grid-column:span 1;}
   .wk-img{height:290px;}
