@@ -385,32 +385,45 @@
       return first.getBoundingClientRect().width + gap;
     };
 
+    const EASE = 'transform .38s cubic-bezier(.3,.7,.3,1)';
+    // transition と transform を同じフレームで指定すると発火しないので、
+    // 間に強制リフロー（offsetWidth の読み取り）を挟む
+    const reflow = () => void track.offsetWidth;
+
     const slide = dir => {              // dir: 1=次へ / -1=前へ
       if(busy || track.children.length < 2) return;
       busy = true;
       const w = stepWidth();
+      let done = false;
+
+      const finish = () => {
+        if(done) return;
+        done = true;
+        track.style.transition = 'none';
+        if(dir > 0) track.appendChild(track.firstElementChild);  // 先頭を末尾へ
+        track.style.transform = 'none';
+        reflow();
+        busy = false;
+      };
 
       if(dir > 0){
-        // 左へ滑らせてから、先頭を末尾に回す
-        track.style.transition = 'transform .38s cubic-bezier(.3,.7,.3,1)';
+        track.style.transition = 'none';
+        track.style.transform = 'none';
+        reflow();
+        track.style.transition = EASE;
         track.style.transform = `translateX(-${w}px)`;
-        track.addEventListener('transitionend', () => {
-          track.style.transition = 'none';
-          track.style.transform = 'none';
-          track.appendChild(track.firstElementChild);
-          requestAnimationFrame(() => { busy = false; });
-        }, {once:true});
       }else{
-        // 末尾を先頭に移してから、ずらした状態を元に戻す
+        // 末尾を先頭に移し、1コマ分ずらした状態から元に戻す
         track.style.transition = 'none';
         track.insertBefore(track.lastElementChild, track.firstElementChild);
         track.style.transform = `translateX(-${w}px)`;
-        requestAnimationFrame(() => {
-          track.style.transition = 'transform .38s cubic-bezier(.3,.7,.3,1)';
-          track.style.transform = 'none';
-          track.addEventListener('transitionend', () => { busy = false; }, {once:true});
-        });
+        reflow();
+        track.style.transition = EASE;
+        track.style.transform = 'none';
       }
+
+      track.addEventListener('transitionend', finish, {once:true});
+      setTimeout(finish, 600);   // 発火しなかった場合の保険（固まるのを防ぐ）
     };
 
     const stop = () => {
