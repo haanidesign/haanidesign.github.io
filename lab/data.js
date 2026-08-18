@@ -100,6 +100,17 @@ const TOOLS = [
     thumb: "thumbs/7days-kareshi.png",
     url: "tools/7days-kareshi/index.html",
     status: "live"
+  },
+  {
+    no: 10,
+    slug: "task-calendar",
+    title: "タスクカレンダー",
+    desc: "カテゴリー別のカンバンでタスクを並べ、やった時間をカレンダーに積んでいく作業台。その月の作業時間・記録日数・ログ数がひと目で出て、CSVでも書き出せる。書いたものはこの端末に残る。",
+    tags: ["タスク管理", "作業ログ", "カレンダー"],
+    cat: "other",
+    thumb: "thumbs/task-calendar.svg",
+    url: "tools/task-calendar/index.html",
+    status: "live"
   }
 ];
 

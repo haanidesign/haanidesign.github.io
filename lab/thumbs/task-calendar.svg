@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" role="img" aria-label="タスクカレンダー">
+  <defs>
+    <pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+  </defs>
+
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#dots)"/>
+
+  <!-- ウィンドウ -->
+  <g>
+    <rect x="26" y="30" width="548" height="340" rx="18" fill="#FFFEF7" stroke="#1E1C14" stroke-width="5"/>
+    <path d="M26 48a18 18 0 0 1 18-18h512a18 18 0 0 1 18 18v26H26z" fill="#E1DD60"/>
+    <line x1="26" y1="74" x2="574" y2="74" stroke="#1E1C14" stroke-width="5"/>
+    <text x="48" y="61" font-family="'M PLUS Rounded 1c',sans-serif" font-size="19" font-weight="800" fill="#1E1C14">タスクカレンダー</text>
+    <rect x="452" y="41" width="102" height="24" rx="12" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+    <text x="503" y="58" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="12" font-weight="700" fill="#1E1C14">この端末に保存</text>
+  </g>
+
+  <!-- 左: カンバン列 -->
+  <g>
+    <rect x="48" y="96" width="150" height="252" rx="13" fill="#FFFEF7" stroke="#1E1C14" stroke-width="4"/>
+    <circle cx="68" cy="116" r="7" fill="#E1DD60" stroke="#1E1C14" stroke-width="3"/>
+    <rect x="82" y="109" width="72" height="13" rx="6" fill="#1E1C14" opacity=".82"/>
+    <rect x="164" y="107" width="24" height="17" rx="8" fill="#F2F0BE" stroke="#1E1C14" stroke-width="3"/>
+
+    <g stroke="#1E1C14" stroke-width="3">
+      <rect x="60" y="138" width="126" height="46" rx="9" fill="#FFFEF7"/>
+      <rect x="60" y="192" width="126" height="46" rx="9" fill="#FFFEF7"/>
+      <rect x="60" y="246" width="126" height="46" rx="9" fill="#FFFEF7"/>
+      <rect x="60" y="300" width="126" height="34" rx="9" fill="#F2F0BE"/>
+    </g>
+    <g fill="#1E1C14" opacity=".72">
+      <rect x="88" y="148" width="76" height="9" rx="4.5"/>
+      <rect x="88" y="163" width="52" height="7" rx="3.5"/>
+      <rect x="88" y="202" width="66" height="9" rx="4.5"/>
+      <rect x="88" y="217" width="44" height="7" rx="3.5"/>
+      <rect x="88" y="256" width="80" height="9" rx="4.5"/>
+      <rect x="88" y="271" width="48" height="7" rx="3.5"/>
+    </g>
+    <g fill="none" stroke="#1E1C14" stroke-width="3">
+      <rect x="69" y="146" width="14" height="14" rx="4"/>
+      <rect x="69" y="200" width="14" height="14" rx="4"/>
+      <rect x="69" y="254" width="14" height="14" rx="4"/>
+    </g>
+  </g>
+
+  <!-- 右: ログカレンダー -->
+  <g>
+    <rect x="214" y="96" width="338" height="252" rx="13" fill="#FFFEF7" stroke="#1E1C14" stroke-width="4"/>
+
+    <!-- 集計タイル -->
+    <g stroke="#1E1C14" stroke-width="3">
+      <rect x="228" y="110" width="102" height="38" rx="9" fill="#F2F0BE"/>
+      <rect x="342" y="110" width="102" height="38" rx="9" fill="#F2F0BE"/>
+      <rect x="456" y="110" width="82" height="38" rx="9" fill="#F2F0BE"/>
+    </g>
+    <text x="240" y="135" font-family="'M PLUS Rounded 1c',sans-serif" font-size="17" font-weight="800" fill="#1E1C14">53時間</text>
+    <text x="354" y="135" font-family="'M PLUS Rounded 1c',sans-serif" font-size="17" font-weight="800" fill="#1E1C14">17日</text>
+    <text x="468" y="135" font-family="'M PLUS Rounded 1c',sans-serif" font-size="17" font-weight="800" fill="#1E1C14">141件</text>
+
+    <!-- 月グリッド（作業量で黄色が濃くなる） -->
+    <g stroke="#1E1C14" stroke-width="2.5">
+      <rect x="228" y="162" width="40" height="34" rx="7" fill="#FFFEF7"/>
+      <rect x="272" y="162" width="40" height="34" rx="7" fill="#FBF7D4"/>
+      <rect x="316" y="162" width="40" height="34" rx="7" fill="#F2ED9E"/>
+      <rect x="360" y="162" width="40" height="34" rx="7" fill="#E9E27A"/>
+      <rect x="404" y="162" width="40" height="34" rx="7" fill="#FBF7D4"/>
+      <rect x="448" y="162" width="40" height="34" rx="7" fill="#FFFEF7"/>
+      <rect x="492" y="162" width="46" height="34" rx="7" fill="#F2ED9E"/>
+
+      <rect x="228" y="202" width="40" height="34" rx="7" fill="#E9E27A"/>
+      <rect x="272" y="202" width="40" height="34" rx="7" fill="#F2ED9E"/>
+      <rect x="316" y="202" width="40" height="34" rx="7" fill="#FFFEF7"/>
+      <rect x="360" y="202" width="40" height="34" rx="7" fill="#E1DD60"/>
+      <rect x="404" y="202" width="40" height="34" rx="7" fill="#F2ED9E"/>
+      <rect x="448" y="202" width="40" height="34" rx="7" fill="#FBF7D4"/>
+      <rect x="492" y="202" width="46" height="34" rx="7" fill="#FFFEF7"/>
+
+      <rect x="228" y="242" width="40" height="34" rx="7" fill="#F2ED9E"/>
+      <rect x="272" y="242" width="40" height="34" rx="7" fill="#E1DD60"/>
+      <rect x="316" y="242" width="40" height="34" rx="7" fill="#FBF7D4"/>
+      <rect x="360" y="242" width="40" height="34" rx="7" fill="#FFFEF7"/>
+      <rect x="404" y="242" width="40" height="34" rx="7" fill="#E9E27A"/>
+      <rect x="448" y="242" width="40" height="34" rx="7" fill="#F2ED9E"/>
+      <rect x="492" y="242" width="46" height="34" rx="7" fill="#FBF7D4"/>
+
+      <rect x="228" y="282" width="40" height="34" rx="7" fill="#FBF7D4"/>
+      <rect x="272" y="282" width="40" height="34" rx="7" fill="#FFFEF7"/>
+      <rect x="316" y="282" width="40" height="34" rx="7" fill="#F2ED9E"/>
+      <rect x="360" y="282" width="40" height="34" rx="7" fill="#E9E27A"/>
+      <rect x="404" y="282" width="40" height="34" rx="7" fill="#FFFEF7"/>
+      <rect x="448" y="282" width="40" height="34" rx="7" fill="#FBF7D4"/>
+      <rect x="492" y="282" width="46" height="34" rx="7" fill="#FFFEF7"/>
+    </g>
+
+    <!-- 今日 -->
+    <circle cx="380" cy="219" r="12" fill="#1E1C14"/>
+    <text x="380" y="224" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="13" font-weight="800" fill="#E1DD60">23</text>
+
+    <rect x="228" y="324" width="310" height="10" rx="5" fill="#1E1C14" opacity=".14"/>
+  </g>
+</svg>
