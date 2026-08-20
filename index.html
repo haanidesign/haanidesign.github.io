@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 
@@ -119,12 +119,12 @@
 </div>
 
 <!-- ================= 最新ニュース（折りたたみウィンドウ） ================= -->
-<details class="win nbwin" id="news">
+<details class="win nbwin" id="news" open>
   <summary class="win-bar">
     <h2>📢 最新ニュース</h2>
-    <span class="tb-spec dot">クリックで開く</span>
+    <span class="tb-spec dot">クリックで開閉</span>
   </summary>
-  <div class="win-body">
+  <div class="win-body" id="newsBody">
     <div class="nb-item">
       <span class="nb-date dot">2026.08.17</span>
       <div>
@@ -455,6 +455,23 @@
 
     // 画面外に出たら自動送りを止める
     new IntersectionObserver(es => { if(!es[0].isIntersecting && timer) stop(); }).observe(track);
+  })();
+
+  /* 最新ニュース：上から3件だけ出し、それ以降は折りたたむ。
+     項目を足すだけで自動的に振り分けられるので、手作業での付け替えは不要。 */
+  (() => {
+    const body = document.getElementById('newsBody');
+    if(!body) return;
+    const rest = [...body.querySelectorAll('.nb-item')].slice(3);
+    if(!rest.length) return;
+
+    const det = document.createElement('details');
+    det.className = 'det nb-more';
+    det.innerHTML = '<summary>過去のお知らせをみる（' + rest.length + '件）</summary>'
+                  + '<div class="nb-more-body"></div>';
+    const box = det.querySelector('.nb-more-body');
+    rest.forEach(el => box.appendChild(el));
+    body.appendChild(det);
   })();
 
   /* 上へ戻る */
