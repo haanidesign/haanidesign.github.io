@@ -12,59 +12,85 @@
 
 <div id="app">
 
-  <!-- タイトルバー -->
+  <!-- ============ タイトルバー ============ -->
   <div id="titlebar">
     <div class="tb-title">🦴 ミニSpine</div>
-    <div class="tb-spec dot">ボーン / メッシュ / ウェイト / 揺れ物理</div>
+    <div class="tb-spec dot">BONE / MESH / WEIGHT / IK</div>
     <div class="tb-actions">
-      <button id="btnSpring" class="btn btn-sm" title="バネ物理のON/OFF">〰 揺れ物理</button>
+      <button id="btnUndo" class="btn btn-sm" title="元に戻す (Ctrl+Z)">↶</button>
+      <button id="btnRedo" class="btn btn-sm" title="やり直し (Ctrl+Y)">↷</button>
+      <span class="tb-sep"></span>
+      <button id="btnAddImg" class="btn btn-sm">🖼 PSD / 画像</button>
       <button id="btnSave" class="btn btn-sm">💾 保存</button>
       <button id="btnLoad" class="btn btn-sm">📂 開く</button>
       <button id="btnRec" class="btn btn-sm">⏺ 録画</button>
-      <button id="btnLive" class="btn btn-sm btn-g" title="UIを消して透過表示。OBS用">📡 配信モード</button>
+      <button id="btnLive" class="btn btn-sm btn-g">📡 配信モード</button>
       <button id="btnHelp" class="btn btn-sm btn-y">? つかいかた</button>
     </div>
-    <input type="file" id="fileImg" accept="image/*" multiple hidden>
+    <input type="file" id="fileImg" accept="image/*,.psd" multiple hidden>
     <input type="file" id="fileProj" accept=".json,application/json" hidden>
   </div>
 
-  <!-- 左：ツールレール -->
-  <div id="rail">
-    <div class="rail-label">TOOL</div>
-    <button class="tool" data-tool="select"><i>👆</i>選択<b>1</b></button>
-    <button class="tool" data-tool="bone"><i>🦴</i>ボーン<b>2</b></button>
-    <button class="tool" data-tool="weight"><i>🎨</i>ウェイト<b>3</b></button>
-    <button class="tool" data-tool="mesh"><i>🕸</i>メッシュ<b>4</b></button>
-    <div class="rail-label">MODE</div>
-    <button class="tool" id="btnMode"><i>🔁</i><span id="modeLabel">セットアップ</span><b>Tab</b></button>
-    <button class="tool" id="btnPlay"><i>▶</i><span id="playLabel">再生</span><b>Spc</b></button>
-    <div class="rail-label">FILE</div>
-    <button class="tool" id="btnAddImg"><i>🖼</i>画像追加</button>
+  <!-- ============ ツリー ============ -->
+  <div id="tree">
+    <div class="pgroup-ttl">ツリー</div>
+    <div id="treeBody" class="tree"></div>
+    <div class="pgroup-ttl">描画順（下が手前）</div>
+    <div id="orderBody" class="tree"></div>
   </div>
 
-  <!-- 左2：レイヤー -->
-  <div id="left">
-    <div class="pgroup">
-      <div class="pgroup-ttl">ボーン <span id="boneCount"></span></div>
-      <div class="tree" id="boneTree"></div>
-    </div>
-    <div class="pgroup">
-      <div class="pgroup-ttl">パーツ（下が手前）</div>
-      <div class="tree" id="slotTree"></div>
-    </div>
-  </div>
-
-  <!-- 中央：キャンバス -->
+  <!-- ============ ビューポート ============ -->
   <div id="view">
     <canvas id="cv"></canvas>
+
+    <!-- モード切替（本物と同じく左上） -->
+    <div id="modes">
+      <button id="mSetup" class="mode on">セットアップ</button>
+      <button id="mAnim" class="mode">アニメート</button>
+    </div>
+
+    <!-- 表示トグル（右上） -->
+    <div id="viewToggles">
+      <button class="vt on" data-show="bones" title="ボーンを表示">🦴</button>
+      <button class="vt on" data-show="images" title="画像を表示">🖼</button>
+      <button class="vt" data-show="mesh" title="メッシュを表示">🕸</button>
+      <button class="vt" data-show="ghost" title="セットアップポーズを薄く重ねる">👻</button>
+    </div>
+
+    <!-- メインツールバー（本物と同じくビューポート下部） -->
+    <div id="maintools">
+      <div class="mt-col">
+        <button class="tool" data-tool="pose"><i>✋</i>ポーズ</button>
+        <button class="tool" data-tool="weight"><i>🎨</i>ウェイト</button>
+        <button class="tool" data-tool="create"><i>✚</i>作成</button>
+      </div>
+      <div class="mt-col wide">
+        <button class="tool" data-tool="rotate"><i>↻</i>回転</button>
+        <button class="tool" data-tool="translate"><i>✥</i>トランスレート</button>
+        <button class="tool" data-tool="scale"><i>⤢</i>スケール</button>
+        <button class="tool" data-tool="shear"><i>⇸</i>シアー</button>
+      </div>
+      <div class="mt-sep"></div>
+      <div class="mt-col">
+        <button class="axis" data-axis="local">ローカル</button>
+        <button class="axis" data-axis="parent">親</button>
+        <button class="axis" data-axis="world">ワールド</button>
+      </div>
+      <div class="mt-col">
+        <button id="btnComp" class="opt" title="子ボーンとアタッチメントを動かさずに、このボーンだけ調整する">コンペンセイト</button>
+        <button id="btnSpring" class="opt" title="バネ物理のON/OFF">揺れ物理</button>
+        <button id="btnMesh" class="opt">メッシュ編集</button>
+      </div>
+    </div>
+
     <div id="status"></div>
-    <div id="drop"><span>PNGをドロップしてパーツ追加</span></div>
+    <div id="drop"><span>PSD / PNG をドロップ</span></div>
   </div>
 
-  <!-- 右：プロパティ -->
-  <div id="right"></div>
+  <!-- ============ プロパティ ============ -->
+  <div id="props"></div>
 
-  <!-- 下：タイムライン -->
+  <!-- ============ ドープシート ============ -->
   <div id="timeline">
     <div id="tlbar">
       <span class="tl-label">アニメ</span>
@@ -73,10 +99,20 @@
       <button id="btnAnimDel" class="btn btn-sm">－</button>
       <span class="tl-label">長さ</span><input type="number" id="animDur" class="fld w70" step="0.1" min="0.1">
       <label class="tl-chk"><input type="checkbox" id="animLoop" checked> ループ</label>
-      <span class="tl-label">時間</span><input type="number" id="curTime" class="fld w70" step="0.01" min="0">
-      <button id="btnKey" class="btn btn-sm btn-y" title="選択ボーンにキーを打つ (K)">◆ キー打ち</button>
-      <button id="btnKeyDel" class="btn btn-sm">◇ 削除</button>
-      <select id="curveSel" class="fld"><option value="smooth">スムーズ</option><option value="linear">リニア</option><option value="stepped">ステップ</option></select>
+      <span class="tb-sep"></span>
+      <button id="btnFirst" class="btn btn-sm" title="先頭へ">⏮</button>
+      <button id="btnPrevKey" class="btn btn-sm" title="前のキー">◀</button>
+      <button id="btnPlay" class="btn btn-sm btn-y" title="再生 (Space)">▶</button>
+      <button id="btnNextKey" class="btn btn-sm" title="次のキー">▶|</button>
+      <input type="number" id="curTime" class="fld w70" step="0.01" min="0">
+      <span class="tb-sep"></span>
+      <button id="btnKey" class="btn btn-sm btn-y" title="キーを打つ (K)">◆ キー</button>
+      <button id="btnKeyDel" class="btn btn-sm" title="キーを消す (Delete)">◇ 消す</button>
+      <select id="curveSel" class="fld">
+        <option value="smooth">スムーズ</option>
+        <option value="linear">リニア</option>
+        <option value="stepped">ステップ</option>
+      </select>
       <button id="btnPreset" class="btn btn-sm">✨ よくある動き</button>
     </div>
     <div id="dope"><canvas id="dopecv"></canvas></div>
@@ -86,6 +122,7 @@
 
 <div id="liveout"><button id="btnLiveExit" class="btn btn-sm btn-g">配信モード終了 (Esc)</button></div>
 
+<script src="lib/ag-psd.js"></script>
 <script src="core.js"></script>
 <script src="editor.js"></script>
 </body>

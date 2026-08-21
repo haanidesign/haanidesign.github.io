@@ -103,21 +103,10 @@ const TOOLS = [
   },
   {
     no: 10,
-    slug: "task-calendar",
-    title: "タスクカレンダー",
-    desc: "カテゴリー別のカンバンでタスクを並べ、日付を入れるとそのままカレンダーの予定表に載る。Notion に書いたタスクを取り込むこともできる。書いたものはこの端末に残る。",
-    tags: ["タスク管理", "カレンダー", "Notion連携"],
-    cat: "other",
-    thumb: "thumbs/task-calendar.svg",
-    url: "tools/task-calendar/index.html",
-    status: "live"
-  },
-  {
-    no: 11,
     slug: "mini-spine",
     title: "ミニSpine",
-    desc: "透過PNGのパーツに骨を通してメッシュを曲げる2Dリグ台。自動ウェイトとブラシ塗り、キーフレームとドープシート、髪や服のバネ物理まで入っている。UIを消した配信モードにするとOBSのブラウザソースにそのまま置け、マイクで口パク・自動まばたきするPNGTuberになる。",
-    tags: ["ボーン", "メッシュ変形", "PNGTuber", "OBS"],
+    desc: "PSDを投げ込むとレイヤーがそのままパーツになり、名前やグループから仮の骨格まで組んでくれる2Dリグ台。本家Spineに合わせて回転・移動・スケール・シアーのツールを分け、ローカル/親/ワールドの座標系、コンペンセイト、IK、Undoまで揃えてある。UIを消した配信モードにするとOBSのブラウザソースにそのまま置け、マイクで口パク・自動まばたきするPNGTuberになる。",
+    tags: ["PSD", "ボーン", "メッシュ変形", "IK", "PNGTuber"],
     cat: "anime",
     thumb: "thumbs/mini-spine.svg",
     url: "tools/mini-spine/index.html",

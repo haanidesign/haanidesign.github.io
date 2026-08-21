@@ -14,9 +14,11 @@ const M = {
       ty: p.b*q.tx + p.d*q.ty + p.ty
     };
   },
-  fromTRS(x,y,rotDeg,sx,sy){
+  /* Spine と同じ順で 平行移動→回転→シアー→スケール */
+  fromTRS(x,y,rotDeg,sx,sy,shearDeg){
     const r = rotDeg*Math.PI/180, cs = Math.cos(r), sn = Math.sin(r);
-    return { a:cs*sx, b:sn*sx, c:-sn*sy, d:cs*sy, tx:x, ty:y };
+    const sh = ((shearDeg||0) + rotDeg)*Math.PI/180;
+    return { a:cs*sx, b:sn*sx, c:-Math.sin(sh)*sy, d:Math.cos(sh)*sy, tx:x, ty:y };
   },
   apply(m,x,y){ return { x:m.a*x + m.c*y + m.tx, y:m.b*x + m.d*y + m.ty }; },
   inv(m){
@@ -28,6 +30,16 @@ const M = {
     };
   },
   rotOf(m){ return Math.atan2(m.b, m.a)*180/Math.PI; },
+  /* ワールド行列を x/y/rot/sx/sy/shear に分解（コンペンセイト用） */
+  decompose(m){
+    const rot = Math.atan2(m.b, m.a)*180/Math.PI;
+    const sx = Math.hypot(m.a, m.b);
+    const sy = Math.hypot(m.c, m.d);
+    let shear = Math.atan2(-m.c, m.d)*180/Math.PI - rot;
+    while(shear > 180) shear -= 360; while(shear < -180) shear += 360;
+    const det = m.a*m.d - m.b*m.c;
+    return { x:m.tx, y:m.ty, rot, sx, sy:(det < 0 ? -sy : sy), shear };
+  },
   scaleOf(m){ return Math.hypot(m.a, m.b); }
 };
 
@@ -42,9 +54,10 @@ function newProject(){
     name: 'untitled',
     canvas: { w: 1080, h: 1350, bg: '#FBFAEC' },
     images: {},
-    bones: [ { id:'root', name:'root', parent:null, x:540, y:1200, rot:-90, sx:1, sy:1, len:120,
+    bones: [ { id:'root', name:'root', parent:null, x:540, y:1200, rot:-90, sx:1, sy:1, shear:0, len:120,
                spring:false, stiff:0.35, damp:0.72, grav:0, inertia:1 } ],
     slots: [],
+    iks: [],
     anims: { 'idle': { dur: 2.0, loop:true, tracks:{} } },
     current: 'idle',
     mouthOpen:null, mouthClose:null, eyeOpen:null, eyeClose:null
@@ -61,7 +74,10 @@ function newSlot(imgId, img){
 }
 
 /* ---------------- animation ---------------- */
-const CH = ['rot','x','y','sx','sy'];
+const CH = ['rot','x','y','sx','sy','shear'];
+const CH_LABEL = { rot:'回転', x:'X', y:'Y', sx:'スケールX', sy:'スケールY', shear:'シアー' };
+const CH_DEFAULT = { rot:0, x:0, y:0, sx:1, sy:1, shear:0 };
+const isScaleCh = ch => ch === 'sx' || ch === 'sy';
 
 function trackOf(anim, boneId, ch, create){
   let t = anim.tracks[boneId];
@@ -120,21 +136,77 @@ function computePose(proj, anim, time, override){
   const out = {};
   for(const b of topoBones(proj)){
     const o = override && override[b.id];
-    const v = { rot:b.rot, x:b.x, y:b.y, sx:b.sx, sy:b.sy };
+    const v = { rot:b.rot, x:b.x, y:b.y, sx:b.sx, sy:b.sy, shear:b.shear||0 };
     if(anim){
       for(const ch of CH){
         const s = sample(trackOf(anim, b.id, ch, false), time);
         if(s !== null && s !== undefined){
-          v[ch] = (ch==='sx'||ch==='sy') ? s : (b[ch] + s);
+          v[ch] = isScaleCh(ch) ? s : ((b[ch]||0) + s);
         }
       }
     }
     if(o) for(const ch of CH) if(o[ch] !== undefined) v[ch] = o[ch];
-    const local = M.fromTRS(v.x, v.y, v.rot, v.sx, v.sy);
+    const local = M.fromTRS(v.x, v.y, v.rot, v.sx, v.sy, v.shear);
     const pw = (b.parent && out[b.parent]) ? out[b.parent].world : M.ident();
     out[b.id] = { world: M.mul(pw, local), v, len:b.len, bone:b };
   }
   return out;
+}
+
+/* ---------------- IK制約 ----------------
+   1ボーン: ターゲットの方を向く / 2ボーン: ひじ・ひざを曲げて届かせる  */
+function newIK(name, boneIds, targetId){
+  return { id: uid('ik'), name: name || 'ik', bones: boneIds, target: targetId,
+           mix: 1, bendPositive: true };
+}
+
+function applyIKs(proj, pose){
+  if(!proj.iks || !proj.iks.length) return;
+  const kids = childMap(proj);
+  for(const ik of proj.iks){
+    const tp = pose[ik.target]; if(!tp) continue;
+    const mix = clamp(ik.mix ?? 1, 0, 1);
+    if(mix <= 0) continue;
+    const tx = tp.world.tx, ty = tp.world.ty;
+    if(ik.bones.length === 1){
+      const p = pose[ik.bones[0]]; if(!p) continue;
+      const ox = p.world.tx, oy = p.world.ty;
+      let d = Math.atan2(ty-oy, tx-ox)*180/Math.PI - M.rotOf(p.world);
+      while(d > 180) d -= 360; while(d < -180) d += 360;
+      rotateSubtree(pose, kids, ik.bones[0], d*mix, ox, oy);
+    } else if(ik.bones.length >= 2){
+      solve2Bone(pose, kids, ik.bones[0], ik.bones[1], tx, ty, ik.bendPositive, mix);
+    }
+  }
+}
+
+function solve2Bone(pose, kids, pId, cId, tx, ty, bendPositive, mix){
+  const P = pose[pId], C = pose[cId];
+  if(!P || !C) return;
+  const ox = P.world.tx, oy = P.world.ty;
+  const l1 = Math.hypot(C.world.tx - ox, C.world.ty - oy);
+  const tip = M.apply(C.world, C.bone.len, 0);
+  const l2 = Math.hypot(tip.x - C.world.tx, tip.y - C.world.ty);
+  if(l1 < 1e-4 || l2 < 1e-4) return;
+
+  let dx = tx - ox, dy = ty - oy;
+  let dist = Math.hypot(dx, dy);
+  dist = clamp(dist, Math.abs(l1 - l2) + 1e-3, l1 + l2 - 1e-3);
+  const base = Math.atan2(dy, dx);
+  // 余弦定理で親の開き角
+  const cosA = clamp((l1*l1 + dist*dist - l2*l2) / (2*l1*dist), -1, 1);
+  const a = Math.acos(cosA) * (bendPositive ? 1 : -1);
+  const wantP = (base + a) * 180/Math.PI;
+
+  let dP = wantP - M.rotOf(P.world);
+  while(dP > 180) dP -= 360; while(dP < -180) dP += 360;
+  rotateSubtree(pose, kids, pId, dP*mix, ox, oy);
+
+  // 親を回した後の子から、ターゲットへ向ける
+  const cx = C.world.tx, cy = C.world.ty;
+  let dC = Math.atan2(ty - cy, tx - cx)*180/Math.PI - M.rotOf(C.world);
+  while(dC > 180) dC -= 360; while(dC < -180) dC += 360;
+  rotateSubtree(pose, kids, cId, dC*mix, cx, cy);
 }
 
 /* ---------------- spring physics ---------------- */
@@ -221,7 +293,8 @@ function deformSlot(slot, pose, out){
 
 /* ---------------- mesh generation ---------------- */
 function buildGridMesh(imgEl, cols, rows, placeM){
-  const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+  // HTMLImageElement でも canvas でも受け取れる（PSDレイヤーは canvas で来る）
+  const w = imgEl.naturalWidth || imgEl.width, h = imgEl.naturalHeight || imgEl.height;
   const SW = Math.min(w, 220), SH = Math.max(1, Math.round(h * SW / w));
   const cv = document.createElement('canvas');
   cv.width = SW; cv.height = SH;
