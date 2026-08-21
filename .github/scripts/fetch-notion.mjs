@@ -63,7 +63,7 @@ async function queryAll() {
  * 「名前の候補」→「型で最初に見つかったもの」の順に探す。
  * これで Notion 側のデータベースを作り替えなくても大抵そのまま繋がる。
  */
-function pick(props, names, types) {
+function pickByName(props, names, types) {
   for (const name of names) {
     const hit = Object.entries(props).find(
       ([key, value]) =>
@@ -71,7 +71,31 @@ function pick(props, names, types) {
     );
     if (hit) return hit[1];
   }
-  return Object.values(props).find((p) => types.includes(p.type)) ?? null;
+  return null;
+}
+
+function pick(props, names, types) {
+  return (
+    pickByName(props, names, types) ??
+    Object.values(props).find((p) => types.includes(p.type)) ??
+    null
+  );
+}
+
+/**
+ * 「公開サイトに載せない」印が付いている行かどうか。
+ *
+ * 書き出した JSON は公開リポジトリに入るので、ここを取りこぼすと
+ * 見せないつもりの予定がそのまま外に出る。
+ */
+function isPrivate(props) {
+  const words = ["非公開", "ひみつ", "秘密", "内緒", "下書き", "private", "hidden", "draft"];
+  for (const [key, value] of Object.entries(props)) {
+    if (value.type !== "checkbox") continue;
+    const k = key.toLowerCase();
+    if (words.some((w) => k.includes(w.toLowerCase()))) return value.checkbox === true;
+  }
+  return false;
 }
 
 const DONE_WORDS = ["完了", "done", "済", "済み", "complete", "completed", "終了"];
@@ -79,7 +103,10 @@ const DONE_WORDS = ["完了", "done", "済", "済み", "complete", "completed", 
 function mapPage(page) {
   const props = page.properties ?? {};
 
-  const titleProp = pick(props, ["名前", "タイトル", "タスク", "title", "name"], ["title"]);
+  // 非公開の印が付いていれば、ここで落とす（公開ファイルには一切書かない）
+  if (isPrivate(props)) return null;
+
+  const titleProp = pick(props, ["名前", "タイトル", "タスク", "予定名", "title", "name"], ["title"]);
   const title = (titleProp?.title ?? []).map((t) => t.plain_text ?? "").join("").trim();
   if (!title) return null; // 空行は取り込まない
 
@@ -94,11 +121,18 @@ function mapPage(page) {
   );
   const category = catProp?.select?.name ?? catProp?.multi_select?.[0]?.name ?? null;
 
-  const statusProp = pick(
-    props,
-    ["ステータス", "状態", "status", "完了", "done"],
-    ["status", "checkbox", "select"],
-  );
+  // 完了の判定は型での当て推量をしない。
+  // 名前が一致しないときに select や checkbox を拾うと、
+  // 「カテゴリ」や無関係なチェックを完了状態として誤読してしまう。
+  // 名前一致 → 無ければ status 型（Notion 専用の型なので誤爆しない）だけを見る。
+  const statusProp =
+    pickByName(
+      props,
+      ["ステータス", "状態", "status", "完了", "done", "済"],
+      ["status", "checkbox", "select"],
+    ) ??
+    Object.values(props).find((p) => p.type === "status") ??
+    null;
   let done = false;
   if (statusProp) {
     if (statusProp.type === "checkbox") {

@@ -103,13 +103,13 @@ const TOOLS = [
   },
   {
     no: 10,
-    slug: "task-calendar",
-    title: "タスクカレンダー",
-    desc: "カテゴリー別のカンバンでタスクを並べ、日付を入れるとそのままカレンダーの予定表に載る。Notion に書いたタスクを取り込むこともできる。書いたものはこの端末に残る。",
-    tags: ["タスク管理", "カレンダー", "Notion連携"],
-    cat: "other",
-    thumb: "thumbs/task-calendar.svg",
-    url: "tools/task-calendar/index.html",
+    slug: "mini-spine",
+    title: "ミニSpine",
+    desc: "透過PNGのパーツに骨を通してメッシュを曲げる2Dリグ台。自動ウェイトとブラシ塗り、キーフレームとドープシート、髪や服のバネ物理まで入っている。UIを消した配信モードにするとOBSのブラウザソースにそのまま置け、マイクで口パク・自動まばたきするPNGTuberになる。",
+    tags: ["ボーン", "メッシュ変形", "PNGTuber", "OBS"],
+    cat: "anime",
+    thumb: "thumbs/mini-spine.svg",
+    url: "tools/mini-spine/index.html",
     status: "live"
   }
 ];

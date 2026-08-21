@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" role="img" aria-label="ミニSpine">
+  <defs>
+    <pattern id="ms-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+    <pattern id="ms-dots-s" width="12" height="12" patternUnits="userSpaceOnUse">
+      <circle cx="6" cy="6" r="1.3" fill="rgba(30,28,20,.10)"/>
+    </pattern>
+  </defs>
+
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#ms-dots)"/>
+
+  <!-- タイトルバー -->
+  <rect x="0" y="0" width="600" height="52" fill="#E1DD60"/>
+  <line x1="0" y1="52" x2="600" y2="52" stroke="#1E1C14" stroke-width="3"/>
+  <text x="22" y="34" font-family="'M PLUS Rounded 1c',sans-serif" font-size="21" font-weight="800" fill="#1E1C14">🦴 ミニSpine</text>
+  <rect x="182" y="16" width="216" height="22" rx="11" fill="#1E1C14"/>
+  <text x="290" y="31" text-anchor="middle" font-family="monospace" font-size="11" fill="#E1DD60">BONE / MESH / WEIGHT</text>
+
+  <!-- 左ツールレール -->
+  <rect x="0" y="52" width="66" height="348" fill="#FBFAEC"/>
+  <line x1="66" y1="52" x2="66" y2="400" stroke="#1E1C14" stroke-width="3"/>
+  <g>
+    <rect x="10" y="70"  width="46" height="42" rx="9" fill="#E1DD60" stroke="#1E1C14" stroke-width="2.5"/>
+    <text x="33" y="97" text-anchor="middle" font-size="19">👆</text>
+    <rect x="10" y="120" width="46" height="42" rx="9" fill="#FFFEF7" stroke="#1E1C14" stroke-width="2.5"/>
+    <text x="33" y="147" text-anchor="middle" font-size="19">🦴</text>
+    <rect x="10" y="170" width="46" height="42" rx="9" fill="#FFFEF7" stroke="#1E1C14" stroke-width="2.5"/>
+    <text x="33" y="197" text-anchor="middle" font-size="19">🎨</text>
+    <rect x="10" y="220" width="46" height="42" rx="9" fill="#FFFEF7" stroke="#1E1C14" stroke-width="2.5"/>
+    <text x="33" y="247" text-anchor="middle" font-size="19">🕸</text>
+  </g>
+
+  <!-- アートボード -->
+  <rect x="92" y="76" width="286" height="248" fill="#FBFAEC" stroke="#1E1C14" stroke-width="3"/>
+  <rect x="92" y="76" width="286" height="248" fill="url(#ms-dots-s)"/>
+
+  <!-- 髪束のシルエット -->
+  <path d="M232 92 L296 118 L268 306 L204 306 L176 118 Z" fill="#EFEADF" stroke="#1E1C14" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M186 150 H286 M190 190 H282 M195 230 H276 M200 270 H270"
+        stroke="#1E1C14" stroke-width="2" opacity=".2"/>
+
+  <!-- メッシュ -->
+  <g stroke="rgba(30,28,20,.34)" stroke-width="1.4" fill="none">
+    <path d="M204 92 V306 M260 92 V306"/>
+    <path d="M180 136 H290 M186 180 H286 M192 224 H280 M198 268 H274"/>
+    <path d="M176 118 L232 180 L268 306 M296 118 L232 180 L204 306"/>
+  </g>
+
+  <!-- ボーンチェーン -->
+  <g stroke="#1E1C14" stroke-width="2.5" stroke-linejoin="round">
+    <polygon points="222,96 242,96 239,150 225,150" fill="#E1DD60"/>
+    <polygon points="225,150 239,150 237,206 227,206" fill="#F2A0B8"/>
+    <polygon points="227,206 237,206 236,258 228,258" fill="#F2A0B8"/>
+    <polygon points="228,258 236,258 235,302 229,302" fill="#F2A0B8"/>
+  </g>
+  <g stroke="#1E1C14" stroke-width="2.5">
+    <circle cx="232" cy="96"  r="7" fill="#FFFEF7"/>
+    <circle cx="232" cy="150" r="6" fill="#F2F0BE"/>
+    <circle cx="232" cy="206" r="6" fill="#F2F0BE"/>
+    <circle cx="232" cy="258" r="6" fill="#F2F0BE"/>
+  </g>
+
+  <!-- 右パネル -->
+  <rect x="396" y="76" width="188" height="248" rx="10" fill="#FBFAEC" stroke="#1E1C14" stroke-width="3"/>
+  <rect x="410" y="90" width="112" height="20" rx="10" fill="#1E1C14"/>
+  <text x="466" y="105" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="11" font-weight="700" fill="#E1DD60">揺れ（バネ物理）</text>
+  <g stroke="#1E1C14" stroke-width="2.5">
+    <rect x="410" y="122" width="160" height="24" rx="8" fill="#E1DD60"/>
+    <rect x="410" y="154" width="160" height="24" rx="8" fill="#FFFEF7"/>
+    <rect x="410" y="186" width="160" height="24" rx="8" fill="#FFFEF7"/>
+    <rect x="410" y="218" width="160" height="24" rx="8" fill="#FFFEF7"/>
+  </g>
+  <g font-family="'M PLUS Rounded 1c',sans-serif" font-size="11" font-weight="700" fill="#1E1C14">
+    <text x="422" y="139">髪1</text><text x="422" y="171">髪2</text>
+    <text x="422" y="203">髪3</text><text x="422" y="235">髪4</text>
+  </g>
+  <g fill="#B8B43F" font-size="12">
+    <text x="548" y="171">〰</text><text x="548" y="203">〰</text><text x="548" y="235">〰</text>
+  </g>
+
+  <!-- タイムライン -->
+  <rect x="92" y="338" width="492" height="48" rx="10" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+  <rect x="95" y="341" width="486" height="15" rx="7" fill="#E1DD60"/>
+  <line x1="150" y1="341" x2="150" y2="383" stroke="#1E1C14" stroke-width="2" opacity=".2"/>
+  <g stroke="#1E1C14" stroke-width="2">
+    <polygon points="196,368 204,375 196,382 188,375" fill="#E1DD60"/>
+    <polygon points="288,368 296,375 288,382 280,375" fill="#E1DD60"/>
+    <polygon points="392,368 400,375 392,382 384,375" fill="#F2A0B8"/>
+    <polygon points="496,368 504,375 496,382 488,375" fill="#E1DD60"/>
+  </g>
+  <line x1="392" y1="344" x2="392" y2="386" stroke="#1E1C14" stroke-width="2.5"/>
+  <rect x="373" y="340" width="38" height="16" rx="8" fill="#1E1C14"/>
+  <text x="392" y="352" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="10" font-weight="700" fill="#E1DD60">0.80</text>
+</svg>
