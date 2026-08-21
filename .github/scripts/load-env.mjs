@@ -14,7 +14,12 @@ import fs from "node:fs";
 export function loadEnv(file = ".notion.env") {
   if (!fs.existsSync(file)) return false;
 
-  for (const raw of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+  // メモ帳などで保存すると先頭に BOM が付くことがある。
+  // 残したままだと最初のキー名が "﻿NOTION_TOKEN" になり、読めているのに
+  // 読めていない、という分かりにくい失敗になる。
+  const text = fs.readFileSync(file, "utf8").replace(/^﻿/, "");
+
+  for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
 

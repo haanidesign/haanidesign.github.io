@@ -19,8 +19,11 @@ const API_BASE = process.env.NOTION_API_BASE ?? "https://api.notion.com";
 const API_VERSION = process.env.NOTION_VERSION ?? "2022-06-28";
 
 if (!TOKEN) {
-  console.error("NOTION_TOKEN を渡してください。");
-  process.exitCode = 1;
+  console.error("✗ NOTION_TOKEN が見つかりません。");
+  console.error("  → リポジトリ直下に .notion.env を作り、次の1行を書いてください。");
+  console.error("     NOTION_TOKEN=ntn_xxxxxxxx");
+  // ここで止める。続けても「Bearer undefined」で問い合わせるだけになる。
+  process.exit(1);
 }
 
 const headers = {
