@@ -19,7 +19,15 @@ loadEnv();
 
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_ID = process.env.NOTION_DATABASE_ID;
-const OUT = path.join("lab", "tools", "task-calendar", "data", "notion.json");
+// 同じ中身を2か所に置く。
+//   1) ラボの道具用
+//   2) サイト本体の公開カレンダー用（/schedule.html が読む）
+// ラボ側を動かしても本体が壊れないよう、参照を分けておく。
+const OUTS = [
+  path.join("lab", "tools", "task-calendar", "data", "notion.json"),
+  path.join("data", "schedule.json"),
+];
+const OUT = OUTS[0];
 const API_VERSION = process.env.NOTION_VERSION ?? "2022-06-28";
 // テスト時にモックへ向けるための逃げ道。通常は設定しない。
 const API_BASE = process.env.NOTION_API_BASE ?? "https://api.notion.com";
@@ -197,14 +205,18 @@ if (tasks !== null) {
   // process.exit() は使わない。
   // fetch の keep-alive ソケットが残ったまま強制終了すると、
   // 環境によっては終了コードが化けて、同期が失敗扱いになるため。
-  if (previousBody === body) {
+  // 片方だけ欠けている状態（新しい出力先を足した直後など）も書き直す
+  const allPresent = OUTS.every((p) => fs.existsSync(p));
+
+  if (previousBody === body && allPresent) {
     console.log(`変更なし (${tasks.length}件)`);
   } else {
-    fs.mkdirSync(path.dirname(OUT), { recursive: true });
-    fs.writeFileSync(
-      OUT,
-      JSON.stringify({ syncedAt: new Date().toISOString(), tasks }, null, 2) + "\n",
-    );
-    console.log(`書き出しました: ${OUT} (${tasks.length}件)`);
+    const json =
+      JSON.stringify({ syncedAt: new Date().toISOString(), tasks }, null, 2) + "\n";
+    for (const out of OUTS) {
+      fs.mkdirSync(path.dirname(out), { recursive: true });
+      fs.writeFileSync(out, json);
+    }
+    console.log(`書き出しました (${tasks.length}件): ${OUTS.join(" , ")}`);
   }
 }

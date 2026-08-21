@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スケジュール｜はぁにデザイン工房</title>
+<meta name="description" content="はぁにデザイン工房の公開スケジュール。漫画の更新日や、ご依頼をお受けできる空き日をカレンダーでご覧いただけます。">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DS7M3F9ZWB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-DS7M3F9ZWB');
+</script>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=8">
+<style>
+/* ============ スケジュール専用（見た目は style.css に合わせる） ============ */
+.sch-head{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem;
+}
+.sch-month{
+  font-size:1.05rem; font-weight:800; letter-spacing:.02em;
+  background:var(--main-soft); border:var(--bd); border-radius:999px;
+  box-shadow:0 3px 0 var(--ink); padding:.25rem 1rem;
+}
+.sch-legend{
+  display:flex; gap:.8rem; flex-wrap:wrap; align-items:center;
+  margin-left:auto; font-size:.7rem; color:var(--gray);
+}
+.sch-legend b{display:inline-flex; align-items:center; gap:.3rem; font-weight:700; color:var(--ink);}
+.lg-swatch{width:12px; height:12px; border-radius:4px; border:2px solid var(--ink); display:inline-block;}
+.lg-free{
+  width:14px; height:14px; border-radius:50%;
+  border:2.5px solid var(--main-deep); display:inline-block;
+}
+
+/* --- カレンダー --- */
+.cal{display:grid; grid-template-columns:repeat(7,1fr); gap:.4rem;}
+.cal .dow{
+  text-align:center; font-size:.68rem; color:var(--gray);
+  letter-spacing:.1em; padding-bottom:.25rem;
+}
+.cal .dow.sat{color:#5b8fc7;}
+.cal .dow.sun{color:#c76b6b;}
+.day{
+  min-height:104px; border:2px solid rgba(30,28,20,.16); border-radius:11px;
+  background:var(--paper); padding:.3rem .35rem;
+  display:flex; flex-direction:column; gap:.18rem; overflow:hidden;
+}
+.day.out{opacity:.3;}
+.day.past{background:#f4f2e6;}
+.day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
+.day .dnum{font-size:.74rem; font-weight:800; flex:none;}
+.day.sun .dnum{color:#c76b6b;}
+.day.sat .dnum{color:#5b8fc7;}
+.day .dnum.is-today{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:21px; height:21px; border-radius:50%; background:var(--ink); color:var(--main);
+}
+.ev{
+  font-size:.62rem; font-weight:700; line-height:1.5;
+  border:2px solid var(--ink); border-radius:7px;
+  padding:.02rem .3rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.free{
+  margin-top:auto; align-self:flex-start;
+  font-size:.6rem; color:var(--main-deep); font-weight:800;
+}
+.more{font-size:.58rem; color:var(--gray);}
+
+/* --- 直近の予定リスト --- */
+.up{list-style:none; margin:.4rem 0 0; padding:0;}
+.up li{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink);
+  padding:.5rem .8rem; margin-bottom:.5rem;
+}
+.up .when{
+  font-size:.78rem; font-weight:800; min-width:5.2em;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:8px;
+  padding:.05rem .5rem; text-align:center;
+}
+.up .what{flex:1 1 12rem; min-width:0; font-size:.86rem;}
+.up .cat{
+  font-size:.66rem; border:2px solid var(--ink); border-radius:999px;
+  padding:.02rem .6rem;
+}
+.note{font-size:.76rem; color:var(--gray); font-weight:500; line-height:1.9;}
+.sch-empty{text-align:center; color:var(--gray); font-size:.82rem; padding:2rem 0;}
+.updated{font-size:.66rem; color:var(--gray); font-weight:500;}
+
+@media (max-width:640px){
+  .cal{gap:.22rem;}
+  .day{min-height:64px; padding:.22rem .24rem; gap:.14rem;}
+  /* 幅が40px台しかなく、文字を出しても読めないので色帯だけにする。
+     予定の中身は下の「これからの予定」で読んでもらう。 */
+  .ev{
+    font-size:0; line-height:0; height:7px; padding:0;
+    border-width:1.5px; border-radius:4px;
+  }
+  .more{font-size:0; line-height:0; height:7px;}
+  .free{font-size:.62rem;}
+  .free .free-label{display:none;}
+  .sch-legend{margin-left:0; width:100%; font-size:.66rem;}
+  .up .when{min-width:4.6em; font-size:.74rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= アプリバー ================= -->
+<div class="app">
+  <div class="titlebar">
+    <div class="tb-title">スケジュール</div>
+    <span class="tb-spec dot">SCHEDULE　／　更新日と空き状況</span>
+    <div class="tb-actions">
+      <a href="price.html" class="btn btn-sm">料金表</a>
+      <a href="index.html#contact" class="btn btn-sm btn-g">✉ ご依頼</a>
+    </div>
+  </div>
+  <div class="subrail">
+    <a href="index.html#works"   class="tool"><i>✏️</i>作品</a>
+    <a href="price.html"   class="tool"><i>🎨</i>料金</a>
+    <a href="flow.html"    class="tool"><i>📋</i>流れ</a>
+    <a href="schedule.html" class="tool on"><i>📅</i>予定</a>
+    <a href="index.html#contact" class="tool"><i>✉️</i>依頼</a>
+  </div>
+</div>
+
+<div class="crumb"><a href="index.html">TOP</a> ／ スケジュール</div>
+
+<!-- ================= カレンダー ================= -->
+<section class="win">
+  <div class="win-bar">
+    <h2>📅 カレンダー</h2>
+    <span class="tb-spec dot">◯ の日は空いています</span>
+  </div>
+  <div class="win-body">
+
+    <div class="sch-head">
+      <button class="btn btn-sm" id="prev" aria-label="前の月">‹</button>
+      <span class="sch-month" id="month">—</span>
+      <button class="btn btn-sm" id="next" aria-label="次の月">›</button>
+      <button class="btn btn-sm" id="thisMonth">今月</button>
+      <div class="sch-legend" id="legend"></div>
+    </div>
+
+    <div class="cal" id="cal"></div>
+
+    <p class="note" id="note" style="margin-top:.9rem"></p>
+  </div>
+</section>
+
+<!-- ================= 直近の予定 ================= -->
+<section class="win">
+  <div class="win-bar">
+    <h2>🗒 これからの予定</h2>
+    <span class="tb-spec dot">直近8件</span>
+  </div>
+  <div class="win-body">
+    <ul class="up" id="upcoming"></ul>
+    <p class="note">
+      ご依頼のご相談はいつでも受け付けています。空き状況は目安ですので、
+      混みあっている時期でもまずは<a href="index.html#contact" style="text-decoration:underline">お問い合わせ</a>ください。
+    </p>
+  </div>
+</section>
+
+<footer class="foot">
+  <div style="font-size:.9rem;">はぁにデザイン工房</div>
+  <div class="fl">
+    <a href="index.html">TOP</a>
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+    <a href="schedule.html">スケジュール</a>
+  </div>
+  <small>© 2026 はぁにデザイン工房. All rights reserved.</small>
+</footer>
+
+<button class="totop" id="toTop" aria-label="ページ上部へ戻る">↑</button>
+
+<script>
+/* =========================================================================
+   閲覧専用のカレンダー。
+   このページからは書き込めない（保存先を一切持たない）。
+   中身は data/schedule.json だけを読む。
+   そのファイルは GitHub Actions が Notion から作っている。
+   ========================================================================= */
+const FEED = "data/schedule.json";
+
+/* カテゴリーの色。決め打ちせず、名前から安定して選ぶ。
+   Notion 側でカテゴリーを増やしても、勝手に色が付く。 */
+const PALETTE = ["#E1DD60","#F0A35E","#E8798B","#7CC4A4","#8AA9E0","#B79AE0","#EFCB68"];
+function colorOf(name){
+  if(!name) return "#EDEBDD";
+  let h = 0;
+  for(const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 100000;
+  return PALETTE[h % PALETTE.length];
+}
+
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const WDAY = ["日","月","火","水","木","金","土"];
+
+let tasks = [];
+let syncedAt = null;
+let anchor = new Date();
+
+const $ = s => document.querySelector(s);
+
+/* 今日（時刻を落として比較用に） */
+function today0(){
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+function onDay(key){
+  return tasks.filter(t => t.date === key);
+}
+
+function render(){
+  const y = anchor.getFullYear(), m = anchor.getMonth();
+  $("#month").textContent = `${y}年 ${m+1}月`;
+
+  const first = new Date(y, m, 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());          // 日曜はじまり（サイトの読者向け）
+
+  const cells = [];
+  for(let i=0;i<42;i++){
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+    if(i>=35 && d.getMonth()!==m) break;
+    cells.push(d);
+  }
+
+  const t0 = today0();
+  const todayKey = ymd(t0);
+
+  const dow = WDAY.map((w,i)=>
+    `<div class="dow${i===0?" sun":i===6?" sat":""}">${w}</div>`).join("");
+
+  const body = cells.map(d => {
+    const key = ymd(d);
+    const out = d.getMonth() !== m;
+    const past = d < t0;
+    const list = onDay(key);
+    const shown = list.slice(0,3);
+    const wd = d.getDay();
+
+    // 予定が入っていない「これからの日」を空きとして見せる
+    const free = !past && !out && list.length === 0;
+
+    return `<div class="day${out?" out":""}${past?" past":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}">
+      <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
+      ${shown.map(t => `<div class="ev" style="background:${colorOf(t.category)}" title="${esc(t.title)}">${esc(t.title)}</div>`).join("")}
+      ${list.length>shown.length ? `<div class="more">ほか${list.length-shown.length}件</div>` : ""}
+      ${free ? '<span class="free">◯<span class="free-label"> 空き</span></span>' : ""}
+    </div>`;
+  }).join("");
+
+  $("#cal").innerHTML = dow + body;
+
+  // 凡例（この月に出ているカテゴリーだけ）
+  const cats = [...new Set(
+    tasks.filter(t=>{
+      if(!t.date) return false;
+      const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+      return d.getFullYear()===y && d.getMonth()===m;
+    }).map(t=>t.category).filter(Boolean)
+  )];
+  $("#legend").innerHTML =
+    cats.map(c=>`<b><span class="lg-swatch" style="background:${colorOf(c)}"></span>${esc(c)}</b>`).join("") +
+    '<b><span class="lg-free"></span>空き</b>';
+}
+
+function renderUpcoming(){
+  const t0 = today0();
+  const list = tasks
+    .filter(t => t.date && new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10)) >= t0)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .slice(0,8);
+
+  if(list.length === 0){
+    $("#upcoming").innerHTML = '<li style="justify-content:center; color:var(--gray)">これからの予定はまだありません</li>';
+    return;
+  }
+
+  $("#upcoming").innerHTML = list.map(t => {
+    const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+    return `<li>
+      <span class="when">${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})</span>
+      <span class="what">${esc(t.title)}</span>
+      ${t.category ? `<span class="cat" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+    </li>`;
+  }).join("");
+}
+
+async function load(){
+  try{
+    const res = await fetch(FEED + "?t=" + Date.now(), {cache:"no-store"});
+    if(!res.ok) throw new Error(String(res.status));
+    const feed = await res.json();
+    tasks = (feed.tasks || []).filter(t => t.date);   // 日付のないものは載せない
+    syncedAt = feed.syncedAt || null;
+  }catch(e){
+    tasks = [];
+  }
+
+  render();
+  renderUpcoming();
+
+  $("#note").innerHTML =
+    '◯ の日は、いまのところ予定が入っていない日です。' +
+    '<br>灰色は過ぎた日、色の付いた帯はその日の予定です。' +
+    (syncedAt ? `<br><span class="updated">最終更新: ${new Date(syncedAt).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>` : "");
+}
+
+$("#prev").addEventListener("click", () => {
+  anchor = new Date(anchor.getFullYear(), anchor.getMonth()-1, 1); render();
+});
+$("#next").addEventListener("click", () => {
+  anchor = new Date(anchor.getFullYear(), anchor.getMonth()+1, 1); render();
+});
+$("#thisMonth").addEventListener("click", () => { anchor = new Date(); render(); });
+
+load();
+
+/* ページ上部へ戻る（他ページと同じ挙動） */
+const toTop = document.getElementById('toTop');
+const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
+window.addEventListener('scroll', onScroll, {passive:true});
+onScroll();
+toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+</script>
+
+</body>
+</html>
