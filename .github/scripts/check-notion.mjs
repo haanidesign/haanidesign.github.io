@@ -19,8 +19,17 @@ const API_BASE = process.env.NOTION_API_BASE ?? "https://api.notion.com";
 const API_VERSION = process.env.NOTION_VERSION ?? "2022-06-28";
 
 if (!TOKEN) {
-  console.error("✗ NOTION_TOKEN が見つかりません。");
-  console.error("  → リポジトリ直下に .notion.env を作り、次の1行を書いてください。");
+  // 「行はあるが値が空」と「そもそも無い」は原因が違うので、分けて伝える。
+  // 貼り付けに失敗して NOTION_TOKEN= だけの状態になっていることが多い。
+  const empty = TOKEN === "";
+  if (empty) {
+    console.error("✗ NOTION_TOKEN の値が空です（.notion.env に「NOTION_TOKEN=」だけの状態）。");
+    console.error("  → トークンの貼り付けが入っていません。作り直してください。");
+  } else {
+    console.error("✗ NOTION_TOKEN が見つかりません。");
+    console.error("  → リポジトリ直下に .notion.env を作ってください。");
+  }
+  console.error("     .notion.env の中身は、この1行だけです:");
   console.error("     NOTION_TOKEN=ntn_xxxxxxxx");
   // ここで止める。続けても「Bearer undefined」で問い合わせるだけになる。
   process.exit(1);
