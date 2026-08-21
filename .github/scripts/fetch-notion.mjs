@@ -48,7 +48,29 @@ async function queryAll() {
 
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(`Notion API ${res.status}: ${text.slice(0, 400)}`);
+      // 生のスタックトレースだけだと原因に辿り着けないので、
+      // Notion の返答と「次にどこを直すか」を並べて出す。
+      console.error("");
+      console.error(`✗ Notion が ${res.status} を返しました`);
+      console.error(`  返答: ${text.slice(0, 300)}`);
+      console.error("");
+      if (res.status === 401) {
+        console.error("  原因: トークンが有効ではありません。");
+        console.error("  → Secrets の NOTION_TOKEN を登録し直してください。");
+        console.error("     my-integrations → haani → 設定 → アクセストークンの");
+        console.error("     コピーボタン（⧉）で取得した値をそのまま貼ること。");
+        console.error("     手で選択すると数文字ずれます（正しい長さは50文字）。");
+      } else if (res.status === 404) {
+        console.error("  原因: そのIDのデータベースに手が届いていません。");
+        console.error("  → IDが違うか、Notion 側の「接続」がされていません。");
+        console.error(`     いま使っているID: ${DB_ID}`);
+      } else if (res.status === 400) {
+        console.error("  原因: リクエストが受け付けられませんでした。");
+        console.error(`     IDの形を確認してください（32桁）: ${DB_ID} (${DB_ID.length}桁)`);
+      }
+      console.error("");
+      process.exitCode = 1;
+      throw new Error(`Notion API ${res.status}`);
     }
     const data = JSON.parse(text);
     results.push(...(data.results ?? []));
@@ -146,31 +168,43 @@ function mapPage(page) {
   return { id: page.id, title, date, category, done, url: page.url ?? null };
 }
 
-const pages = await queryAll();
-const tasks = pages.map(mapPage).filter(Boolean);
-
-// syncedAt は毎回変わるので、中身が同じなら書き換えない。
-// 変わらないコミットが積み上がるのを防ぐため。
-const body = JSON.stringify(tasks);
-let previousBody = null;
-if (fs.existsSync(OUT)) {
-  try {
-    previousBody = JSON.stringify(JSON.parse(fs.readFileSync(OUT, "utf8")).tasks ?? []);
-  } catch {
-    previousBody = null;
-  }
+// 失敗したときにスタックトレースが後ろに続くと、上に出した説明が埋もれる。
+// 説明はすでに出しているので、ここでは静かに終える。
+let pages;
+try {
+  pages = await queryAll();
+} catch (e) {
+  if (!/^Notion API \d+$/.test(e.message)) console.error(e.message);
+  process.exitCode = 1;
+  pages = null;
 }
 
-// process.exit() は使わない。
-// fetch の keep-alive ソケットが残ったまま強制終了すると、
-// 環境によっては終了コードが化けて、同期が失敗扱いになるため。
-if (previousBody === body) {
-  console.log(`変更なし (${tasks.length}件)`);
-} else {
-  fs.mkdirSync(path.dirname(OUT), { recursive: true });
-  fs.writeFileSync(
-    OUT,
-    JSON.stringify({ syncedAt: new Date().toISOString(), tasks }, null, 2) + "\n",
-  );
-  console.log(`書き出しました: ${OUT} (${tasks.length}件)`);
+const tasks = pages === null ? null : pages.map(mapPage).filter(Boolean);
+if (tasks !== null) {
+
+  // syncedAt は毎回変わるので、中身が同じなら書き換えない。
+  // 変わらないコミットが積み上がるのを防ぐため。
+  const body = JSON.stringify(tasks);
+  let previousBody = null;
+  if (fs.existsSync(OUT)) {
+    try {
+      previousBody = JSON.stringify(JSON.parse(fs.readFileSync(OUT, "utf8")).tasks ?? []);
+    } catch {
+      previousBody = null;
+    }
+  }
+
+  // process.exit() は使わない。
+  // fetch の keep-alive ソケットが残ったまま強制終了すると、
+  // 環境によっては終了コードが化けて、同期が失敗扱いになるため。
+  if (previousBody === body) {
+    console.log(`変更なし (${tasks.length}件)`);
+  } else {
+    fs.mkdirSync(path.dirname(OUT), { recursive: true });
+    fs.writeFileSync(
+      OUT,
+      JSON.stringify({ syncedAt: new Date().toISOString(), tasks }, null, 2) + "\n",
+    );
+    console.log(`書き出しました: ${OUT} (${tasks.length}件)`);
+  }
 }
