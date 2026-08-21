@@ -187,3 +187,61 @@ body.live #liveout{display:block;}
 ::-webkit-scrollbar{width:9px;height:9px;}
 ::-webkit-scrollbar-track{background:var(--main-soft);}
 ::-webkit-scrollbar-thumb{background:var(--ink);border-radius:100px;border:2px solid var(--main-soft);}
+
+/* ==========================================================================
+   タブレット対応
+   ・指やペンでドラッグしてもブラウザ側がスクロール／ズームしないようにする
+   ・幅が足りないときは左右のパネルを引き出しに逃がして、キャンバスを広く使う
+   ========================================================================== */
+
+/* ドラッグをブラウザに横取りさせない */
+#cv, #dopecv{ touch-action:none; }
+#view{ overscroll-behavior:contain; }
+
+/* 指で押す前提のサイズに広げる（マウスのときは今までどおり） */
+@media (pointer:coarse){
+  .btn{ min-height:38px; padding:.5rem .9rem; }
+  .btn-sm{ min-height:34px; }
+  #maintools .btn, #modes .btn, #viewToggles .btn{ min-width:40px; }
+  .tree .row{ min-height:34px; }
+  input[type="number"], input[type="text"], select{ min-height:34px; font-size:16px; } /* 16px 未満は iOS が拡大する */
+}
+
+/* 横長タブレット: 左右を詰めてキャンバスを稼ぐ */
+@media (max-width:1180px){
+  #app{
+    grid-template-columns:196px 1fr 208px;
+    grid-template-rows:auto 1fr 168px;
+    margin:6px; height:calc(100% - 12px);
+  }
+}
+
+/* 引き出しのつまみ。既定は出さず、狭い画面でだけ出す */
+#paneTabs{ display:none; gap:.4rem; margin-left:.4rem; }
+
+/* 縦持ちタブレット・小さめの画面: 左右を引き出しにする */
+@media (max-width:900px){
+  #app{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr 156px;
+    grid-template-areas:"tb" "view" "tl";
+  }
+  /* パネルは画面の端から出てくる板にする */
+  #tree, #props{
+    position:absolute; top:0; bottom:0; z-index:40;
+    width:min(78vw, 300px);
+    background:var(--cream);
+    box-shadow:0 0 0 2.5px var(--ink), 0 10px 30px rgba(30,28,20,.35);
+    transition:transform .18s ease;
+  }
+  #tree{ left:0;  border-right:var(--bd); transform:translateX(-102%); }
+  #props{ right:0; border-left:var(--bd);  transform:translateX(102%); }
+  body.tree-open #tree{ transform:none; }
+  body.props-open #props{ transform:none; }
+
+  /* 引き出しを開くつまみ */
+  #paneTabs{ display:flex; }
+  /* 開いているときに外側を触ったら閉じるための膜 */
+  #paneVeil{ display:none; position:absolute; inset:0; z-index:35; background:rgba(30,28,20,.28); }
+  body.tree-open #paneVeil, body.props-open #paneVeil{ display:block; }
+}

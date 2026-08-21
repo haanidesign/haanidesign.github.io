@@ -16,6 +16,10 @@
   <div id="titlebar">
     <div class="tb-title">🦴 ミニSpine</div>
     <div class="tb-spec dot">BONE / MESH / WEIGHT / IK</div>
+    <div id="paneTabs">
+      <button id="btnPaneTree" class="btn btn-sm" title="ツリーを開く">🗂</button>
+      <button id="btnPaneProps" class="btn btn-sm" title="プロパティを開く">⚙</button>
+    </div>
     <div class="tb-actions">
       <button id="btnUndo" class="btn btn-sm" title="元に戻す (Ctrl+Z)">↶</button>
       <button id="btnRedo" class="btn btn-sm" title="やり直し (Ctrl+Y)">↷</button>
@@ -42,6 +46,7 @@
   <!-- ============ ビューポート ============ -->
   <div id="view">
     <canvas id="cv"></canvas>
+    <div id="paneVeil"></div>
 
     <!-- モード切替（本物と同じく左上） -->
     <div id="modes">

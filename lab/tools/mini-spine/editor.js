@@ -720,7 +720,7 @@ function evPos(e){
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
 
-cv.addEventListener('mousedown', e => {
+cv.addEventListener('pointerdown', e => {
   const { sx, sy } = evPos(e);
   const w = s2w(sx, sy);
 
@@ -785,7 +785,7 @@ cv.addEventListener('mousedown', e => {
   S.drag = { type:'pan', sx, sy, vx:S.view.x, vy:S.view.y };
 });
 
-window.addEventListener('mousemove', e => {
+window.addEventListener('pointermove', e => {
   const { sx, sy } = evPos(e);
   const w = s2w(sx, sy);
   S.mouseW = w;
@@ -799,7 +799,7 @@ window.addEventListener('mousemove', e => {
   if(d.type === 'slot'){ dragSlot(d, w, e); return; }
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('pointerup', () => {
   const d = S.drag; S.drag = null;
   if(!d) return;
   if(d.type === 'newbone'){
@@ -825,6 +825,55 @@ cv.addEventListener('wheel', e => {
   S.view.x += (after.x - before.x) * S.view.z;
   S.view.y += (after.y - before.y) * S.view.z;
 }, { passive:false });
+
+/* ---- タブレット: 2本指でパン＋ピンチズーム ----
+   指1本は編集（骨を掴む・塗る）に使うので、視点移動は2本指に割り当てる。
+   マウスの右／中ドラッグでのパンは今までどおり。 */
+const _pts = new Map();
+let _pinch = null;
+const _mid  = () => { const a = [..._pts.values()]; return { x:(a[0].x+a[1].x)/2, y:(a[0].y+a[1].y)/2 }; };
+const _dist = () => { const a = [..._pts.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); };
+
+cv.addEventListener('pointerdown', e => {
+  if(e.pointerType === 'mouse') return;
+  _pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(_pts.size === 2){
+    S.drag = null;          // 1本目で始まりかけた編集は捨てる（誤爆防止）
+    _pinch = null;          // 次の move で基準を取る
+  }
+});
+
+cv.addEventListener('pointermove', e => {
+  if(!_pts.has(e.pointerId)) return;
+  _pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if(_pts.size < 2) return;
+  e.preventDefault();
+
+  const m = _mid(), d = _dist();
+  if(_pinch){
+    const r = cv.getBoundingClientRect(), dpr = cv.width / r.width;
+    // パン
+    S.view.x += (m.x - _pinch.m.x) * dpr;
+    S.view.y += (m.y - _pinch.m.y) * dpr;
+    // 2本指の中点を固定したまま拡縮
+    const sx = (m.x - r.left) * dpr, sy = (m.y - r.top) * dpr;
+    const before = s2w(sx, sy);
+    S.view.z = clamp(S.view.z * (d / (_pinch.d || d)), 0.03, 20);
+    const after = s2w(sx, sy);
+    S.view.x += (after.x - before.x) * S.view.z;
+    S.view.y += (after.y - before.y) * S.view.z;
+  }
+  _pinch = { m, d };
+}, { passive:false });
+
+const _dropPt = e => {
+  if(!_pts.delete(e.pointerId)) return;
+  if(_pts.size < 2) _pinch = null;
+};
+cv.addEventListener('pointerup', _dropPt);
+cv.addEventListener('pointercancel', _dropPt);
+/* 指を画面から離す前にブラウザ側が追跡をやめた場合の取りこぼしを拾う */
+window.addEventListener('pointercancel', () => { S.drag = null; });
 
 function snapBone(b){ return { rot:b.rot, x:b.x, y:b.y, sx:b.sx, sy:b.sy, shear:b.shear||0 }; }
 
@@ -1379,7 +1428,7 @@ function drawDope(){
   dcv._t2x = t2x; dcv._x2t = x2t; dcv._rows = rows;
 }
 
-dcv.addEventListener('mousedown', e => {
+dcv.addEventListener('pointerdown', e => {
   const a = anim(); if(!a) return;
   const r = dcv.getBoundingClientRect();
   const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -1421,10 +1470,10 @@ dcv.addEventListener('mousedown', e => {
         S.time = nt; $('#curTime').value = nt.toFixed(2);
       };
       const up = () => {
-        window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
         S.drag = null; commitEdit(); refreshUI();
       };
-      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
       refreshUI();
       return;
     }
@@ -1438,8 +1487,8 @@ dcv.addEventListener('mousedown', e => {
     $('#curTime').value = S.time.toFixed(2);
   };
   scrub(e);
-  const up = () => { window.removeEventListener('mousemove', scrub); window.removeEventListener('mouseup', up); refreshUI(); };
-  window.addEventListener('mousemove', scrub); window.addEventListener('mouseup', up);
+  const up = () => { window.removeEventListener('pointermove', scrub); window.removeEventListener('pointerup', up); refreshUI(); };
+  window.addEventListener('pointermove', scrub); window.addEventListener('pointerup', up);
   refreshUI();
 });
 
@@ -1768,3 +1817,23 @@ window.addEventListener('resize', resize);
 resize(); fitView(); refreshUI();
 setStatus('PNGをドロップして開始。右上の「? つかいかた」に操作一覧があります');
 (function loop(){ render(); requestAnimationFrame(loop); })();
+
+/* ---- タブレット: 左右パネルの引き出し ----
+   狭い画面では #tree と #props を画面外に逃がしてある。つまみで出し入れする。 */
+(() => {
+  const body = document.body;
+  const veil = document.getElementById('paneVeil');
+  const close = () => body.classList.remove('tree-open', 'props-open');
+  const toggle = cls => {
+    const on = body.classList.contains(cls);
+    close();
+    if(!on) body.classList.add(cls);
+  };
+  const t = document.getElementById('btnPaneTree');
+  const p = document.getElementById('btnPaneProps');
+  if(t) t.addEventListener('click', () => toggle('tree-open'));
+  if(p) p.addEventListener('click', () => toggle('props-open'));
+  if(veil) veil.addEventListener('pointerdown', close);
+  // 画面が広くなったら開きっぱなしを解除する
+  addEventListener('resize', () => { if(innerWidth > 900) close(); });
+})();
