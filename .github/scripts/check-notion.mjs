@@ -8,6 +8,11 @@
  * 見えるデータベースが 0 件なら、「接続」がまだ済んでいません。
  */
 
+import { loadEnv } from "./load-env.mjs";
+
+// 手元で動かすときは .notion.env からも読む（Actions では環境変数が入っている）
+loadEnv();
+
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_ID = process.env.NOTION_DATABASE_ID;
 const API_BASE = process.env.NOTION_API_BASE ?? "https://api.notion.com";

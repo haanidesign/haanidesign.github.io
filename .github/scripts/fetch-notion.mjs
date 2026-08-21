@@ -12,6 +12,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { loadEnv } from "./load-env.mjs";
+
+// 手元で動かすときは .notion.env からも読む（Actions では環境変数が入っている）
+loadEnv();
 
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_ID = process.env.NOTION_DATABASE_ID;

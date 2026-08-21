@@ -1,2 +1,5 @@
 
 .claude/
+
+# Notion のトークン（コミットしない）
+.notion.env

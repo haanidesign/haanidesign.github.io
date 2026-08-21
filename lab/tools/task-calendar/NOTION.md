@@ -70,13 +70,22 @@ https://www.notion.so/<ここがDB_ID>?v=...
 
 ### 4. 設定できているか確かめる
 
-**この確認を先にやってください。** Secrets に入れる前に、手元で答え合わせができます。
+**Secrets に入れる前に、手元で答え合わせができます。**
 
-```bash
-NOTION_TOKEN=貼ったトークン node .github/scripts/check-notion.mjs
+リポジトリ直下に `.notion.env` を作り、トークンを書きます。
+（このファイルは `.gitignore` 済みなので、コミットされません）
+
+```
+NOTION_TOKEN=ntn_xxxxxxxxxxxx
 ```
 
-何も書き換えないので、何度実行しても安全です。出方は4通り。
+そして確認スクリプトを実行します。何も書き換えないので、何度実行しても安全です。
+
+```powershell
+cd C:i\haanidesign.github.io; node .github/scripts/check-notion.mjs
+```
+
+出方は4通り。どこで詰まっているかがそのまま分かります。
 
 | 出力 | 意味 | やること |
 |---|---|---|
@@ -85,12 +94,23 @@ NOTION_TOKEN=貼ったトークン node .github/scripts/check-notion.mjs
 | `✓ 見えているデータベース ◯件` | ここまでOK | 表示された ID を控える |
 | `✗ NOTION_DATABASE_ID が読めません (404)` | IDが違う | 表示された ID に差し替える |
 
-ID まで通ると、プロパティの一覧も出ます。
+ID が出たら `.notion.env` に足して、もう一度実行してください。
+
+```
+NOTION_TOKEN=ntn_xxxxxxxxxxxx
+NOTION_DATABASE_ID=（上に出たID）
+```
+
+今度はプロパティの一覧まで出ます。
 ここに **date 型**が無いと、取り込んでもカレンダーには並ばず「日付が決まっていないタスク」に入ります。
 
-```bash
-NOTION_TOKEN=... NOTION_DATABASE_ID=... node .github/scripts/check-notion.mjs
+ここまで通ったら、本番と同じ取り込みも手元で試せます。
+
+```powershell
+node .github/scripts/fetch-notion.mjs
 ```
+
+`lab/tools/task-calendar/data/notion.json` ができ、ローカルで開いたページから取り込めるようになります。
 
 ### 5. GitHub に Secrets を登録する
 
