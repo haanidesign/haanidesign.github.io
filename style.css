@@ -190,7 +190,7 @@ img{display:block;max-width:100%;}
   flex:0 0 auto;width:104px;
   border:3px solid rgba(255,254,247,.2);border-radius:8px;overflow:hidden;
   background:var(--paper);position:relative;
-  transition:border-color .18s;
+  transition:border-color .18s, transform .18s cubic-bezier(.34,1.56,.64,1);
 }
 .tl-frame img{width:100%;height:74px;object-fit:cover;}
 .tl-frame b{
@@ -199,8 +199,17 @@ img{display:block;max-width:100%;}
   border-radius:4px;padding:0 .25rem;
 }
 .tl-frame:hover{border-color:rgba(225,221,96,.6);}
-/* 選択中：メインカラーの枠だけ */
-.tl-frame.on{border-color:var(--main);}
+/* 選択中：メインカラーの枠＋ぽんと拡大 */
+@keyframes tlPop{
+  0%   {transform:scale(1);}
+  45%  {transform:scale(1.14);}
+  100% {transform:scale(1.07);}
+}
+.tl-frame.on{
+  border-color:var(--main);
+  transform:scale(1.07);
+  animation:tlPop .3s cubic-bezier(.34,1.56,.64,1);
+}
 
 /* ============ 最新ニュース（見出しをクリックで開閉するウィンドウ） ============ */
 .nbwin > summary{
