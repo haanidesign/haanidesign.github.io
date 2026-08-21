@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>スケジュール｜はぁにデザイン工房</title>
-<meta name="description" content="はぁにデザイン工房の公開スケジュール。漫画の更新日や、ご依頼をお受けできる空き日をカレンダーでご覧いただけます。">
+<meta name="description" content="はぁにデザイン工房の公開スケジュール。漫画の更新日や、お休み（土日祝）をカレンダーでご覧いただけます。">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-DS7M3F9ZWB"></script>
 <script>
@@ -33,9 +33,9 @@
 }
 .sch-legend b{display:inline-flex; align-items:center; gap:.3rem; font-weight:700; color:var(--ink);}
 .lg-swatch{width:12px; height:12px; border-radius:4px; border:2px solid var(--ink); display:inline-block;}
-.lg-free{
-  width:14px; height:14px; border-radius:50%;
-  border:2.5px solid var(--main-deep); display:inline-block;
+.lg-off{
+  width:12px; height:12px; border-radius:4px;
+  border:2px solid var(--ink); background:#F1DFDF; display:inline-block;
 }
 
 /* --- カレンダー --- */
@@ -53,6 +53,17 @@
 }
 .day.out{opacity:.3;}
 .day.past{background:#f4f2e6;}
+/* 土日祝はお休み。背景を変えて、ひと目で分かるようにする */
+.day.off{background:#F7EAEA; border-color:rgba(199,107,107,.45);}
+.day.off.past{background:#EFE3E3;}
+.hol{
+  font-size:.56rem; font-weight:700; color:#B05C5C;
+  line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.off-mark{
+  margin-top:auto; align-self:flex-start;
+  font-size:.58rem; font-weight:800; color:#B05C5C;
+}
 .day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
 .day .dnum{font-size:.74rem; font-weight:800; flex:none;}
 .day.sun .dnum{color:#c76b6b;}
@@ -66,10 +77,6 @@
   border:2px solid var(--ink); border-radius:7px;
   padding:.02rem .3rem;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-}
-.free{
-  margin-top:auto; align-self:flex-start;
-  font-size:.6rem; color:var(--main-deep); font-weight:800;
 }
 .more{font-size:.58rem; color:var(--gray);}
 
@@ -91,6 +98,15 @@
   font-size:.66rem; border:2px solid var(--ink); border-radius:999px;
   padding:.02rem .6rem;
 }
+.holbar{
+  margin-top:.8rem; font-size:.72rem; font-weight:700; color:#B05C5C;
+  display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;
+}
+.holbar:empty{display:none;}
+.holbar .hb-item{
+  background:#F7EAEA; border:2px solid rgba(199,107,107,.55); border-radius:999px;
+  padding:.02rem .6rem;
+}
 .note{font-size:.76rem; color:var(--gray); font-weight:500; line-height:1.9;}
 .sch-empty{text-align:center; color:var(--gray); font-size:.82rem; padding:2rem 0;}
 .updated{font-size:.66rem; color:var(--gray); font-weight:500;}
@@ -105,8 +121,8 @@
     border-width:1.5px; border-radius:4px;
   }
   .more{font-size:0; line-height:0; height:7px;}
-  .free{font-size:.62rem;}
-  .free .free-label{display:none;}
+  .hol{display:none;}
+  .off-mark{font-size:.54rem;}
   .sch-legend{margin-left:0; width:100%; font-size:.66rem;}
   .up .when{min-width:4.6em; font-size:.74rem;}
 }
@@ -118,7 +134,7 @@
 <div class="app">
   <div class="titlebar">
     <div class="tb-title">スケジュール</div>
-    <span class="tb-spec dot">SCHEDULE　／　更新日と空き状況</span>
+    <span class="tb-spec dot">SCHEDULE　／　更新日とお休み</span>
     <div class="tb-actions">
       <a href="price.html" class="btn btn-sm">料金表</a>
       <a href="index.html#contact" class="btn btn-sm btn-g">✉ ご依頼</a>
@@ -139,7 +155,7 @@
 <section class="win">
   <div class="win-bar">
     <h2>📅 カレンダー</h2>
-    <span class="tb-spec dot">◯ の日は空いています</span>
+    <span class="tb-spec dot">土日祝はお休みです</span>
   </div>
   <div class="win-body">
 
@@ -153,6 +169,7 @@
 
     <div class="cal" id="cal"></div>
 
+    <p class="holbar" id="holbar"></p>
     <p class="note" id="note" style="margin-top:.9rem"></p>
   </div>
 </section>
@@ -166,8 +183,8 @@
   <div class="win-body">
     <ul class="up" id="upcoming"></ul>
     <p class="note">
-      ご依頼のご相談はいつでも受け付けています。空き状況は目安ですので、
-      混みあっている時期でもまずは<a href="index.html#contact" style="text-decoration:underline">お問い合わせ</a>ください。
+      土日祝はお休みをいただいております。お返事は翌営業日以降になりますが、
+      ご依頼のご相談はいつでも<a href="index.html#contact" style="text-decoration:underline">お問い合わせ</a>から承っています。
     </p>
   </div>
 </section>
@@ -206,6 +223,71 @@ function colorOf(name){
 
 const pad = n => String(n).padStart(2,"0");
 const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+/* =========================================================================
+   日本の祝日。毎年書き換えなくていいよう計算で出す。
+   振替休日（日曜と重なったら次の平日）と、
+   祝日に挟まれた平日の国民の休日（シルバーウィーク）まで見ている。
+   ※ 法改正や五輪のような一度きりの移動は反映されない。
+      その年だけずれるときは Notion に予定として書いて上書きしてください。
+   ========================================================================= */
+function nthMonday(y, m, n){
+  const first = new Date(y, m-1, 1).getDay();   // 0=日
+  return 1 + ((8 - first) % 7) + (n-1)*7;
+}
+function equinox(y, spring){
+  // 1900〜2099 で使える近似式
+  const base = spring ? 20.8431 : 23.2488;
+  return Math.floor(base + 0.242194*(y-1980) - Math.floor((y-1980)/4));
+}
+const holidayCache = {};
+function holidaysOf(y){
+  if(holidayCache[y]) return holidayCache[y];
+  const h = {};
+  const k = (m,d) => y+"-"+pad(m)+"-"+pad(d);
+  const put = (m,d,name) => { h[k(m,d)] = name; };
+
+  put(1, 1, "元日");
+  put(1, nthMonday(y,1,2), "成人の日");
+  put(2, 11, "建国記念の日");
+  put(2, 23, "天皇誕生日");
+  put(3, equinox(y,true), "春分の日");
+  put(4, 29, "昭和の日");
+  put(5, 3, "憲法記念日");
+  put(5, 4, "みどりの日");
+  put(5, 5, "こどもの日");
+  put(7, nthMonday(y,7,3), "海の日");
+  put(8, 11, "山の日");
+  put(9, nthMonday(y,9,3), "敬老の日");
+  put(9, equinox(y,false), "秋分の日");
+  put(10, nthMonday(y,10,2), "スポーツの日");
+  put(11, 3, "文化の日");
+  put(11, 23, "勤労感謝の日");
+
+  // 振替休日
+  for(const key of Object.keys(h)){
+    const [yy,mm,dd] = key.split("-").map(Number);
+    if(new Date(yy,mm-1,dd).getDay() !== 0) continue;
+    const n = new Date(yy,mm-1,dd);
+    do { n.setDate(n.getDate()+1); }
+    while(h[ymd(n)]);
+    h[ymd(n)] = "振替休日";
+  }
+
+  // 国民の休日（祝日に挟まれた平日）
+  for(const key of Object.keys({...h})){
+    const [yy,mm,dd] = key.split("-").map(Number);
+    const mid  = new Date(yy,mm-1,dd+1);
+    const next = new Date(yy,mm-1,dd+2);
+    if(h[ymd(next)] && !h[ymd(mid)] && mid.getDay()!==0 && mid.getDay()!==6){
+      h[ymd(mid)] = "国民の休日";
+    }
+  }
+
+  holidayCache[y] = h;
+  return h;
+}
+const holidayName = d => holidaysOf(d.getFullYear())[ymd(d)] || null;
+
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const WDAY = ["日","月","火","水","木","金","土"];
 
@@ -255,14 +337,16 @@ function render(){
     const shown = list.slice(0,3);
     const wd = d.getDay();
 
-    // 予定が入っていない「これからの日」を空きとして見せる
-    const free = !past && !out && list.length === 0;
+    // 土日と祝日はお休み
+    const hol = holidayName(d);
+    const off = wd === 0 || wd === 6 || !!hol;
 
-    return `<div class="day${out?" out":""}${past?" past":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}">
+    return `<div class="day${out?" out":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" ${hol?`title="${esc(hol)}"`:""}>
       <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
+      ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
       ${shown.map(t => `<div class="ev" style="background:${colorOf(t.category)}" title="${esc(t.title)}">${esc(t.title)}</div>`).join("")}
       ${list.length>shown.length ? `<div class="more">ほか${list.length-shown.length}件</div>` : ""}
-      ${free ? '<span class="free">◯<span class="free-label"> 空き</span></span>' : ""}
+      ${off && !out ? '<span class="off-mark">休</span>' : ""}
     </div>`;
   }).join("");
 
@@ -278,7 +362,15 @@ function render(){
   )];
   $("#legend").innerHTML =
     cats.map(c=>`<b><span class="lg-swatch" style="background:${colorOf(c)}"></span>${esc(c)}</b>`).join("") +
-    '<b><span class="lg-free"></span>空き</b>';
+    '<b><span class="lg-off"></span>お休み（土日祝）</b>';
+
+  // 狭い画面ではセルに祝日名が入らないので、下にも並べておく
+  const hs = holidaysOf(y);
+  const items = Object.keys(hs)
+    .filter(k => Number(k.slice(5,7)) === m+1)
+    .sort()
+    .map(k => `<span class="hb-item">${Number(k.slice(5,7))}/${Number(k.slice(8,10))} ${esc(hs[k])}</span>`);
+  $("#holbar").innerHTML = items.length ? "今月の祝日　" + items.join("") : "";
 }
 
 function renderUpcoming(){
@@ -318,8 +410,8 @@ async function load(){
   renderUpcoming();
 
   $("#note").innerHTML =
-    '◯ の日は、いまのところ予定が入っていない日です。' +
-    '<br>灰色は過ぎた日、色の付いた帯はその日の予定です。' +
+    '色の付いた帯はその日の予定です。灰色は過ぎた日。' +
+    '<br><b style="color:#B05C5C">赤みがかった日は土日祝のお休み</b>です。祝日は名前を添えています。' +
     (syncedAt ? `<br><span class="updated">最終更新: ${new Date(syncedAt).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>` : "");
 }
 
