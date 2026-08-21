@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>タスクカレンダー｜HAANI LAB</title>
-<meta name="description" content="カテゴリー別のタスク管理と、作業時間のログカレンダー。ブラウザだけで動いて、書いたものはこの端末に残ります。">
+<meta name="description" content="カテゴリー別のタスク管理と、予定表カレンダー。Notion に書いたものを取り込めます。ブラウザだけで動いて、書いたものはこの端末に残ります。">
 <link rel="icon" type="image/png" href="../../../favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,7 +68,7 @@ a{color:inherit}
 .app-body{padding:1.1rem}
 
 /* ---------------- タブ ---------------- */
-.tabs{display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem}
+.tabs{display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center}
 .tab{
   background:var(--paper); border:var(--bd); border-radius:999px;
   box-shadow:0 3px 0 var(--ink);
@@ -77,15 +77,7 @@ a{color:inherit}
 }
 .tab:hover{transform:translateY(-2px); box-shadow:0 5px 0 var(--ink)}
 .tab.on{background:var(--main)}
-
-/* ---------------- メーター ---------------- */
-.meters{display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1.1rem}
-.meter{
-  background:var(--main-soft); border:var(--bd); border-radius:var(--r);
-  box-shadow:0 3px 0 var(--ink); padding:.5rem .9rem; min-width:118px;
-}
-.meter b{display:block; font-size:1.35rem; line-height:1.3; letter-spacing:.02em}
-.meter span{font-size:.6rem; color:var(--gray); letter-spacing:.12em}
+.sync-note{margin-left:auto; font-size:.64rem; color:var(--gray); font-weight:700}
 
 /* ---------------- 入力 ---------------- */
 .fld{
@@ -102,7 +94,7 @@ a{color:inherit}
 /* ---------------- カンバン ---------------- */
 .board{display:flex; gap:.9rem; overflow-x:auto; padding-bottom:.9rem; align-items:flex-start}
 .col{
-  flex:0 0 268px; background:var(--paper);
+  flex:0 0 272px; background:var(--paper);
   border:var(--bd); border-radius:16px; box-shadow:0 5px 0 var(--ink); padding:.7rem;
 }
 .col-head{display:flex; align-items:center; gap:.45rem; margin-bottom:.55rem}
@@ -142,6 +134,13 @@ a{color:inherit}
   font-size:.6rem; border:2px solid var(--ink); border-radius:999px;
   padding:.02rem .5rem; background:var(--main-soft);
 }
+.pill.n{background:var(--ink); color:var(--main); text-decoration:none}
+.date-fld{
+  font:inherit; font-weight:700; font-size:.6rem; color:var(--ink);
+  border:2px solid var(--ink); border-radius:999px; background:var(--paper);
+  padding:.02rem .35rem; cursor:pointer;
+}
+.date-fld:focus{outline:none; background:var(--main)}
 .icon{
   border:2px solid var(--ink); border-radius:7px; background:var(--paper);
   width:20px; height:20px; line-height:1; font-size:.68rem; padding:0;
@@ -159,30 +158,37 @@ a{color:inherit}
 }
 .cal .dow.we{color:var(--main-deep)}
 .day{
-  min-height:78px; border:2px solid rgba(30,28,20,.18); border-radius:11px;
+  min-height:108px; border:2px solid rgba(30,28,20,.18); border-radius:11px;
   background:var(--paper); padding:.3rem .35rem; text-align:left;
   font:inherit; cursor:pointer; transition:transform .08s, box-shadow .08s;
+  display:flex; flex-direction:column; gap:.2rem; overflow:hidden;
 }
 .day:hover{transform:translateY(-2px); box-shadow:0 4px 0 var(--ink)}
 .day.sel{border:var(--bd); box-shadow:0 4px 0 var(--ink)}
 .day.out{opacity:.34}
-.day .dnum{font-size:.72rem; font-weight:800}
+.day.today-cell{background:var(--main-soft)}
+.day .dnum{font-size:.72rem; font-weight:800; flex:none}
 .day .dnum.today{
   display:inline-flex; align-items:center; justify-content:center;
   width:20px; height:20px; border-radius:50%; background:var(--ink); color:var(--main);
 }
-.day .dmin{font-size:.68rem; font-weight:800; margin-top:.2rem; line-height:1.3}
-.day .dcnt{font-size:.58rem; color:var(--gray); line-height:1.3}
+.ev{
+  font-size:.6rem; font-weight:700; line-height:1.45;
+  border:2px solid var(--ink); border-radius:7px;
+  padding:.02rem .28rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ev.done{opacity:.5; text-decoration:line-through}
+.more{font-size:.56rem; color:var(--gray)}
 
-/* ---------------- リスト ---------------- */
+/* ---------------- リスト・パネル ---------------- */
 .list{list-style:none; margin:0; padding:0}
 .list li{
   display:flex; align-items:center; gap:.5rem;
   background:var(--paper); border:2px solid var(--ink); border-radius:10px;
   padding:.35rem .6rem; margin-bottom:.4rem; font-size:.76rem;
 }
-.list .time{font-size:.66rem; color:var(--gray); flex:none}
 .list .txt{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.list li.done .txt{opacity:.5; text-decoration:line-through}
 .panel{
   border:var(--bd); border-radius:16px; background:var(--paper);
   box-shadow:0 5px 0 var(--ink); padding:.9rem; margin-top:1rem;
@@ -191,25 +197,19 @@ a{color:inherit}
 .empty{text-align:center; color:var(--gray); font-size:.76rem; padding:1.6rem 0}
 .hint{font-size:.66rem; color:var(--gray); font-weight:500; line-height:1.8}
 
-.two{display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; align-items:start}
-.grid-tasks{display:grid; grid-template-columns:1fr 1fr; gap:.5rem}
-
 .foot{
   max-width:1240px; margin:0 auto 2.4rem; padding:1rem;
   display:flex; gap:.8rem; align-items:center; justify-content:center; flex-wrap:wrap;
   font-size:.68rem; color:var(--gray);
 }
 
-@media (max-width:820px){
-  .two{grid-template-columns:1fr}
-  .grid-tasks{grid-template-columns:1fr}
-}
 @media (max-width:600px){
   .app{margin:.6rem; border-radius:14px}
   .app-body{padding:.9rem}
   .tb-actions{width:100%; margin-left:0}
   .cal{gap:.25rem}
-  .day{min-height:62px}
+  .day{min-height:74px}
+  .ev{font-size:.54rem}
 }
 </style>
 </head>
@@ -220,6 +220,7 @@ a{color:inherit}
     <div class="tb-title">タスクカレンダー</div>
     <span class="tb-spec">この端末に保存</span>
     <div class="tb-actions">
+      <button class="btn btn-sm" id="btnNotion">Notionから取り込み</button>
       <button class="btn btn-sm" id="btnExport">書き出し</button>
       <button class="btn btn-sm" id="btnImport">読み込み</button>
       <a href="../../" class="btn btn-sm btn-g">← LAB</a>
@@ -228,9 +229,9 @@ a{color:inherit}
 
   <div class="app-body">
     <div class="tabs" id="tabs">
-      <button class="tab on" data-view="today">今日</button>
-      <button class="tab" data-view="board">タスク管理</button>
-      <button class="tab" data-view="log">ログカレンダー</button>
+      <button class="tab on" data-view="board">タスク</button>
+      <button class="tab" data-view="cal">カレンダー</button>
+      <span class="sync-note" id="syncNote"></span>
     </div>
     <div id="view"></div>
   </div>
@@ -247,29 +248,36 @@ a{color:inherit}
 <script>
 /* =========================================================================
    保存先はこの端末の localStorage だけ。
-   サーバーに送らないので、書いた内容が外に出ることはない。
-   端末をまたぐときは「書き出し」→「読み込み」で移す。
+   Notion 側のデータは data/notion.json から読む。
+   （このファイルは GitHub Actions が Notion API を叩いて書き出している。
+     Notion API はブラウザから直接呼べず[CORS]、トークンを公開ページに
+     置くわけにもいかないので、取得はサーバー側=Actions に寄せてある）
    ========================================================================= */
-const KEY = "haani-task-calendar-v1";
+const KEY = "haani-task-calendar-v2";
+const NOTION_FEED = "data/notion.json";
 const COLORS = ["#E1DD60","#F0A35E","#E8798B","#7CC4A4","#8AA9E0","#B79AE0"];
 const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36);
 
+/* ---------------- 小道具 ---------------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseYmd = s => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y, m-1, d); };
+
 let state = load();
-let view = "today";
-let selectedDay = null;   // ログカレンダーで選んだ日
-let anchor = new Date();  // 表示中の月
-let logTarget = null;     // 「記録」を押したタスク
+let view = "board";
+let anchor = new Date();
+let selectedDay = null;
 let showDone = false;
 
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
     if(raw){
-      const parsed = JSON.parse(raw);
-      if(parsed && Array.isArray(parsed.tasks)) return parsed;
+      const p = JSON.parse(raw);
+      if(p && Array.isArray(p.tasks)) return p;
     }
   }catch(e){ /* 壊れていたら初期データに戻す */ }
-  // 壊れた値を残したままだと毎回ここを通るので、初期データで上書きしておく
   const fresh = seed();
   try{ localStorage.setItem(KEY, JSON.stringify(fresh)); }catch(e){}
   return fresh;
@@ -284,132 +292,58 @@ function seed(){
     {id:uid(), name:"漫画制作", color:COLORS[1]},
     {id:uid(), name:"事務",     color:COLORS[2]}
   ];
-  const t = (catIdx, title, status) => ({
-    id:uid(), catId:cats[catIdx].id, title, status:status||"todo",
-    created:new Date().toISOString(), doneAt:null, due:null
+  const d = off => {
+    const x = new Date(); x.setDate(x.getDate()+off);
+    return ymd(x);
+  };
+  const t = (ci,title,date,status) => ({
+    id:uid(), catId:cats[ci].id, title, date:date||null,
+    status:status||"todo", source:"local", notionId:null, url:null,
+    created:new Date().toISOString()
   });
   return {
     cats,
     tasks:[
-      t(0,"雑談配信画面の制作"), t(0,"ゲーム配信画面の制作"), t(0,"ロゴの清書","done"),
-      t(1,"ネーム 第3話"), t(1,"ペン入れ 第2話"),
-      t(2,"請求書の発行")
+      t(0,"雑談配信画面の制作", d(1)),
+      t(0,"ゲーム配信画面の制作", d(4)),
+      t(0,"ロゴの清書", d(-1), "done"),
+      t(1,"ネーム 第3話", d(2)),
+      t(1,"ペン入れ 第2話", null),
+      t(2,"請求書の発行", d(6))
     ],
-    logs:[]
+    syncedAt:null
   };
 }
 
-/* ---------------- 小道具 ---------------- */
-const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const pad = n => String(n).padStart(2,"0");
-const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
-const sameDay = (a,b) => ymd(a)===ymd(b);
-function fmtMin(total){
-  const h = Math.floor(total/60), m = total%60;
-  if(h===0) return m+"分";
-  if(m===0) return h+"時間";
-  return h+"時間"+m+"分";
-}
 const catOf = id => state.cats.find(c=>c.id===id) || null;
-const activeTasks = () => state.tasks.filter(t=>t.status!=="done");
+const visibleTasks = () => showDone ? state.tasks : state.tasks.filter(t=>t.status!=="done");
+const tasksOn = key => state.tasks
+  .filter(t => t.date === key && (showDone || t.status!=="done"))
+  .sort((a,b)=>a.title.localeCompare(b.title,"ja"));
 
-/* =========================================================================
-   描画
-   ========================================================================= */
 const viewEl = document.getElementById("view");
 
 function render(){
-  if(view==="today") renderToday();
-  else if(view==="board") renderBoard();
-  else renderLog();
+  document.getElementById("syncNote").textContent =
+    state.syncedAt ? "Notion取込 " + state.syncedAt.slice(0,16).replace("T"," ") : "";
+  if(view==="board") renderBoard(); else renderCal();
 }
 
-/* ---------------- 今日 ---------------- */
-function renderToday(){
-  const now = new Date();
-  const todayLogs = state.logs.filter(l=>sameDay(new Date(l.at), now));
-  const mins = todayLogs.reduce((s,l)=>s+l.minutes,0);
-  const doneToday = state.tasks.filter(t=>t.doneAt && sameDay(new Date(t.doneAt), now));
-  const act = activeTasks();
-
-  viewEl.innerHTML = `
-    <div class="meters">
-      <div class="meter"><b>${(now.getMonth()+1)}月${now.getDate()}日</b><span>TODAY</span></div>
-      <div class="meter"><b>${fmtMin(mins)}</b><span>WORKED</span></div>
-      <div class="meter"><b>${doneToday.length} / ${doneToday.length+act.length}</b><span>DONE</span></div>
-    </div>
-
-    <div class="two">
-      <div class="panel">
-        <h3>進行中のタスク</h3>
-        <div class="row">
-          <input class="fld grow" id="tTitle" placeholder="やることを書く">
-          <select class="fld" id="tCat">
-            <option value="">カテゴリーなし</option>
-            ${state.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}
-          </select>
-          <button class="btn btn-sm btn-y" id="tAdd">＋ 追加</button>
-        </div>
-        ${act.length===0 ? '<p class="empty">進行中のタスクはありません</p>' :
-          '<div class="grid-tasks">'+act.map(taskCard).join("")+'</div>'}
-      </div>
-
-      <div class="panel" style="margin-top:0">
-        <h3>今日の記録</h3>
-        ${logTarget ? `
-          <div style="border:2.5px solid var(--ink); border-radius:12px; background:var(--main); padding:.5rem; margin-bottom:.7rem">
-            <div style="font-size:.74rem; font-weight:800; margin-bottom:.4rem">${esc(logTarget.title)}</div>
-            <div class="row" style="margin:0">
-              <input class="fld grow" id="lMin" placeholder="分" inputmode="numeric" style="flex:1 1 70px">
-              <button class="btn btn-sm" id="lAdd">記録</button>
-              <button class="btn btn-sm" id="lCancel">やめる</button>
-            </div>
-          </div>` : ""}
-        ${todayLogs.length===0 ? '<p class="empty">タスクの「記録」から時間を残せます</p>' :
-          '<ul class="list">'+todayLogs.map(logRow).join("")+'</ul>'}
-      </div>
-    </div>`;
-
-  const add = () => {
-    const v = document.getElementById("tTitle").value.trim();
-    if(!v) return;
-    state.tasks.push({
-      id:uid(), catId:document.getElementById("tCat").value||null, title:v,
-      status:"todo", created:new Date().toISOString(), doneAt:null, due:null
-    });
-    save(); render();
-  };
-  document.getElementById("tAdd").onclick = add;
-  document.getElementById("tTitle").onkeydown = e => { if(e.key==="Enter") add(); };
-
-  if(logTarget){
-    const commit = () => {
-      const m = parseInt(document.getElementById("lMin").value,10);
-      if(!(m>0)) return;
-      state.logs.unshift({id:uid(), title:logTarget.title, minutes:m, at:new Date().toISOString()});
-      logTarget = null; save(); render();
-    };
-    document.getElementById("lAdd").onclick = commit;
-    document.getElementById("lMin").onkeydown = e => { if(e.key==="Enter") commit(); };
-    document.getElementById("lCancel").onclick = () => { logTarget = null; render(); };
-    document.getElementById("lMin").focus();
-  }
-  bindTasks();
-  bindLogRows();
-}
-
-/* ---------------- タスク管理 ---------------- */
+/* =========================================================================
+   タスク（カテゴリー別カンバン）
+   ========================================================================= */
 function renderBoard(){
   const uncategorized = state.tasks.filter(t=>!t.catId);
   const cols = state.cats.map(c=>({cat:c, tasks:state.tasks.filter(t=>t.catId===c.id)}));
   if(uncategorized.length) cols.push({cat:null, tasks:uncategorized});
+  const active = state.tasks.filter(t=>t.status!=="done").length;
 
   viewEl.innerHTML = `
     <div class="row">
       <input class="fld grow" id="cName" placeholder="カテゴリーを追加">
       <button class="btn btn-sm btn-y" id="cAdd">＋ 追加</button>
       <button class="btn btn-sm ${showDone?"btn-y":""}" id="cDone">完了も表示</button>
-      <span class="pill">${activeTasks().length}件 の進行中タスク</span>
+      <span class="pill">${active}件 の進行中タスク</span>
     </div>
 
     ${cols.length===0 ? '<p class="empty">まずカテゴリーを1つ作ってください</p>' : `
@@ -450,10 +384,9 @@ function renderBoard(){
   viewEl.querySelectorAll("[data-rename]").forEach(el => {
     const commit = () => {
       const c = catOf(el.dataset.rename);
-      const v = el.value.trim();
       if(!c) return;
-      if(v && v!==c.name){ c.name = v; save(); render(); }
-      else el.value = c.name;
+      const v = el.value.trim();
+      if(v && v!==c.name){ c.name = v; save(); render(); } else el.value = c.name;
     };
     el.onblur = commit;
     el.onkeydown = e => {
@@ -480,8 +413,8 @@ function renderBoard(){
       const v = input.value.trim();
       if(!v) return;
       state.tasks.push({
-        id:uid(), catId:cid||null, title:v, status:"todo",
-        created:new Date().toISOString(), doneAt:null, due:null
+        id:uid(), catId:cid||null, title:v, date:null, status:"todo",
+        source:"local", notionId:null, url:null, created:new Date().toISOString()
       });
       save(); render();
     };
@@ -492,37 +425,31 @@ function renderBoard(){
   bindTasks();
 }
 
-/* ---------------- ログカレンダー ---------------- */
-function renderLog(){
+/* =========================================================================
+   カレンダー（予定表）
+   ========================================================================= */
+function renderCal(){
   const y = anchor.getFullYear(), m = anchor.getMonth();
-  const monthLogs = state.logs.filter(l => {
-    const d = new Date(l.at);
-    return d.getFullYear()===y && d.getMonth()===m;
-  });
-  const total = monthLogs.reduce((s,l)=>s+l.minutes,0);
-  const days = new Set(monthLogs.map(l=>ymd(new Date(l.at)))).size;
-
-  // 月曜はじまりのマス目を作る
   const first = new Date(y, m, 1);
   const start = new Date(first);
-  start.setDate(1 - ((first.getDay()+6) % 7));
+  start.setDate(1 - ((first.getDay()+6) % 7));   // 月曜はじまり
+
   const cells = [];
   for(let i=0;i<42;i++){
     const d = new Date(start);
     d.setDate(start.getDate()+i);
+    if(i>=35 && d.getMonth()!==m) break;
     cells.push(d);
-    if(i>=34 && d.getMonth()!==m && d.getDay()===0) break;
   }
 
-  const minutesOf = d => state.logs
-    .filter(l=>sameDay(new Date(l.at), d))
-    .reduce((s,l)=>s+l.minutes,0);
-  const peak = Math.max(1, ...cells.map(minutesOf));
   const now = new Date();
-
-  const selLogs = selectedDay
-    ? state.logs.filter(l=>sameDay(new Date(l.at), selectedDay))
-    : [];
+  const todayKey = ymd(now);
+  const undated = state.tasks.filter(t=>!t.date && (showDone || t.status!=="done"));
+  const monthCount = state.tasks.filter(t => {
+    if(!t.date) return false;
+    const d = parseYmd(t.date);
+    return d.getFullYear()===y && d.getMonth()===m && (showDone || t.status!=="done");
+  }).length;
 
   viewEl.innerHTML = `
     <div class="row">
@@ -530,73 +457,97 @@ function renderLog(){
       <span class="pill" style="font-size:.76rem; padding:.2rem .8rem">${y}年${m+1}月</span>
       <button class="btn btn-sm" id="next">›</button>
       <button class="btn btn-sm" id="thisMonth">今月</button>
-      <button class="btn btn-sm btn-y" id="csv">CSV保存</button>
-    </div>
-
-    <div class="meters">
-      <div class="meter"><b>${fmtMin(total)}</b><span>今月の作業時間</span></div>
-      <div class="meter"><b>${days}日</b><span>記録日数</span></div>
-      <div class="meter"><b>${monthLogs.length}件</b><span>ログ数</span></div>
+      <button class="btn btn-sm ${showDone?"btn-y":""}" id="calDone">完了も表示</button>
+      <span class="pill">今月 ${monthCount}件</span>
     </div>
 
     <div class="cal">
       ${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
         .map((w,i)=>`<div class="dow${i>=5?" we":""}">${w}</div>`).join("")}
       ${cells.map(d => {
-        const mm = minutesOf(d);
+        const key = ymd(d);
         const out = d.getMonth()!==m;
-        const sel = selectedDay && sameDay(d, selectedDay);
-        const bg = mm>0
-          ? `background:color-mix(in srgb, var(--main) ${Math.round(22+(mm/peak)*68)}%, #fff)`
-          : "";
-        return `<button class="day${out?" out":""}${sel?" sel":""}" data-day="${ymd(d)}" style="${bg}">
-          <span class="dnum${sameDay(d,now)?" today":""}">${d.getDate()}</span>
-          ${mm>0 ? `<div class="dmin">${fmtMin(mm)}</div><div class="dcnt">${state.logs.filter(l=>sameDay(new Date(l.at),d)).length}件</div>` : ""}
-        </button>`;
+        const sel = selectedDay===key;
+        const list = tasksOn(key);
+        const shown = list.slice(0,3);
+        return `<div class="day${out?" out":""}${sel?" sel":""}${key===todayKey?" today-cell":""}" data-day="${key}">
+          <span class="dnum${key===todayKey?" today":""}">${d.getDate()}</span>
+          ${shown.map(t=>{
+            const c = catOf(t.catId);
+            return `<div class="ev${t.status==="done"?" done":""}" style="background:${c?c.color:"#eee"}" title="${esc(t.title)}">${esc(t.title)}</div>`;
+          }).join("")}
+          ${list.length>shown.length ? `<div class="more">ほか${list.length-shown.length}件</div>` : ""}
+        </div>`;
       }).join("")}
     </div>
 
-    ${selectedDay ? `
+    ${selectedDay ? dayPanel(selectedDay) : '<p class="hint" style="margin-top:.8rem">日付をクリックすると、その日の予定を足したり動かしたりできます。</p>'}
+
+    ${undated.length ? `
     <div class="panel">
-      <h3>${selectedDay.getMonth()+1}月${selectedDay.getDate()}日 の記録</h3>
-      <div class="row">
-        <input class="fld grow" id="dTitle" placeholder="やったこと">
-        <input class="fld" id="dMin" placeholder="分" inputmode="numeric" style="width:84px; flex:none">
-        <button class="btn btn-sm btn-y" id="dAdd">記録する</button>
-      </div>
-      ${selLogs.length===0 ? '<p class="empty">この日の記録はまだありません</p>'
-        : '<ul class="list">'+selLogs.map(logRow).join("")+'</ul>'}
-    </div>` : '<p class="hint" style="margin-top:.8rem">日付をクリックすると、その日の記録を足したり消したりできます。</p>'}`;
+      <h3>日付が決まっていないタスク（${undated.length}）</h3>
+      <ul class="list">
+        ${undated.map(t=>{
+          const c = catOf(t.catId);
+          return `<li class="${t.status==="done"?"done":""}">
+            <span class="pill" style="background:${c?c.color:"#eee"}">${c?esc(c.name):"なし"}</span>
+            <span class="txt">${esc(t.title)}</span>
+            <input type="date" class="date-fld" data-date="${t.id}" value="">
+          </li>`;
+        }).join("")}
+      </ul>
+      <p class="hint">日付を入れると、そのままカレンダーに並びます。</p>
+    </div>` : ""}`;
 
   document.getElementById("prev").onclick = () => { anchor = new Date(y, m-1, 1); render(); };
   document.getElementById("next").onclick = () => { anchor = new Date(y, m+1, 1); render(); };
   document.getElementById("thisMonth").onclick = () => { anchor = new Date(); render(); };
-  document.getElementById("csv").onclick = () => exportCsv(monthLogs, y, m);
+  document.getElementById("calDone").onclick = () => { showDone = !showDone; render(); };
 
   viewEl.querySelectorAll("[data-day]").forEach(el => {
-    el.onclick = () => {
-      const [yy,mm,dd] = el.dataset.day.split("-").map(Number);
-      selectedDay = new Date(yy, mm-1, dd);
+    el.onclick = e => {
+      if(e.target.closest("[data-task]")) return;   // パネル内の操作は拾わない
+      selectedDay = el.dataset.day;
       render();
     };
   });
 
   if(selectedDay){
     const add = () => {
-      const t = document.getElementById("dTitle").value.trim();
-      const mi = parseInt(document.getElementById("dMin").value,10);
-      if(!t || !(mi>0)) return;
-      const at = new Date(selectedDay);
-      const n = new Date();
-      at.setHours(n.getHours(), n.getMinutes(), 0, 0);
-      state.logs.unshift({id:uid(), title:t, minutes:mi, at:at.toISOString()});
+      const input = document.getElementById("dTitle");
+      const v = input.value.trim();
+      if(!v) return;
+      state.tasks.push({
+        id:uid(), catId:document.getElementById("dCat").value||null, title:v,
+        date:selectedDay, status:"todo", source:"local", notionId:null, url:null,
+        created:new Date().toISOString()
+      });
       save(); render();
     };
     document.getElementById("dAdd").onclick = add;
     document.getElementById("dTitle").onkeydown = e => { if(e.key==="Enter") add(); };
-    document.getElementById("dMin").onkeydown = e => { if(e.key==="Enter") add(); };
-    bindLogRows();
   }
+
+  bindTasks();
+  bindDateFields();
+}
+
+function dayPanel(key){
+  const d = parseYmd(key);
+  const list = tasksOn(key);
+  return `
+  <div class="panel">
+    <h3>${d.getMonth()+1}月${d.getDate()}日 の予定</h3>
+    <div class="row">
+      <input class="fld grow" id="dTitle" placeholder="この日の予定を書く">
+      <select class="fld" id="dCat">
+        <option value="">カテゴリーなし</option>
+        ${state.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}
+      </select>
+      <button class="btn btn-sm btn-y" id="dAdd">＋ 追加</button>
+    </div>
+    ${list.length===0 ? '<p class="empty">この日の予定はまだありません</p>' : list.map(taskCard).join("")}
+  </div>`;
 }
 
 /* ---------------- 部品 ---------------- */
@@ -613,51 +564,47 @@ function taskCard(t){
     </div>
     <div class="task-foot">
       <span class="pill" style="background:${c?c.color:"#eee"}">${c?esc(c.name):"カテゴリーなし"}</span>
-      ${t.status!=="done" ? `<button class="btn btn-xs" data-log="${t.id}" style="margin-left:auto">記録</button>` : ""}
+      <input type="date" class="date-fld" data-date="${t.id}" value="${t.date||""}" title="日付">
+      ${t.source==="notion" ? `<a class="pill n" href="${esc(t.url||"#")}" target="_blank" rel="noopener" title="Notion で開く">N</a>` : ""}
     </div>
   </div>`;
 }
 
-function logRow(l){
-  const d = new Date(l.at);
-  return `<li>
-    <span class="time">${pad(d.getHours())}:${pad(d.getMinutes())}</span>
-    <span class="txt">${esc(l.title)}</span>
-    <span class="pill">${fmtMin(l.minutes)}</span>
-    <button class="icon danger" data-dellog="${l.id}" title="削除">×</button>
-  </li>`;
+function bindDateFields(){
+  viewEl.querySelectorAll("[data-date]").forEach(el => {
+    el.onchange = () => {
+      const t = state.tasks.find(x=>x.id===el.dataset.date);
+      if(!t) return;
+      t.date = el.value || null;
+      save(); render();
+    };
+    el.onclick = e => e.stopPropagation();
+  });
 }
 
 function bindTasks(){
   viewEl.querySelectorAll("[data-toggle]").forEach(el => {
-    el.onclick = () => {
+    el.onclick = e => {
+      e.stopPropagation();
       const t = state.tasks.find(x=>x.id===el.dataset.toggle);
       if(!t) return;
-      if(t.status==="done"){ t.status="todo"; t.doneAt=null; }
-      else { t.status="done"; t.doneAt=new Date().toISOString(); }
+      t.status = t.status==="done" ? "todo" : "done";
       save(); render();
     };
   });
 
   viewEl.querySelectorAll("[data-del]").forEach(el => {
-    el.onclick = () => {
+    el.onclick = e => {
+      e.stopPropagation();
       state.tasks = state.tasks.filter(x=>x.id!==el.dataset.del);
       save(); render();
     };
   });
 
-  viewEl.querySelectorAll("[data-log]").forEach(el => {
-    el.onclick = () => {
-      logTarget = state.tasks.find(x=>x.id===el.dataset.log) || null;
-      view = "today";
-      syncTabs();
-      render();
-    };
-  });
-
   // 鉛筆を押したら、その場で入力欄に差し替える
   viewEl.querySelectorAll("[data-edit]").forEach(el => {
-    el.onclick = () => {
+    el.onclick = e => {
+      e.stopPropagation();
       const id = el.dataset.edit;
       const t = state.tasks.find(x=>x.id===id);
       const span = viewEl.querySelector(`[data-title="${id}"]`);
@@ -674,25 +621,87 @@ function bindTasks(){
         render();
       };
       input.onblur = commit;
-      input.onkeydown = e => {
-        if(e.key==="Enter") commit();
-        if(e.key==="Escape"){ closed = true; render(); }
+      input.onclick = ev => ev.stopPropagation();
+      input.onkeydown = ev => {
+        if(ev.key==="Enter") commit();
+        if(ev.key==="Escape"){ closed = true; render(); }
       };
       span.replaceWith(input);
       input.focus();
       input.select();
     };
   });
+
+  bindDateFields();
 }
 
-function bindLogRows(){
-  viewEl.querySelectorAll("[data-dellog]").forEach(el => {
-    el.onclick = () => {
-      state.logs = state.logs.filter(x=>x.id!==el.dataset.dellog);
-      save(); render();
-    };
-  });
+/* =========================================================================
+   Notion 取り込み
+   ========================================================================= */
+function mergeNotion(feed){
+  const incoming = Array.isArray(feed.tasks) ? feed.tasks : [];
+  const seen = new Set();
+  let created = 0, updated = 0;
+
+  for(const item of incoming){
+    if(!item || !item.id || !item.title) continue;
+    seen.add(item.id);
+
+    // カテゴリーは名前で突き合わせ、無ければ作る
+    let catId = null;
+    if(item.category){
+      let c = state.cats.find(x => x.name === item.category);
+      if(!c){
+        c = {id:uid(), name:item.category, color:COLORS[state.cats.length % COLORS.length]};
+        state.cats.push(c);
+      }
+      catId = c.id;
+    }
+
+    const exists = state.tasks.find(t => t.notionId === item.id);
+    if(exists){
+      exists.title = item.title;
+      exists.date = item.date || null;
+      exists.status = item.done ? "done" : "todo";
+      exists.url = item.url || null;
+      if(catId) exists.catId = catId;
+      updated++;
+    }else{
+      state.tasks.push({
+        id:uid(), catId, title:item.title, date:item.date||null,
+        status:item.done ? "done" : "todo",
+        source:"notion", notionId:item.id, url:item.url||null,
+        created:new Date().toISOString()
+      });
+      created++;
+    }
+  }
+
+  // Notion 側で消えたものは、こちらからも消す（手で足したタスクは残す）
+  const before = state.tasks.length;
+  state.tasks = state.tasks.filter(t => t.source !== "notion" || seen.has(t.notionId));
+  const removed = before - state.tasks.length;
+
+  state.syncedAt = feed.syncedAt || new Date().toISOString();
+  save();
+  return {created, updated, removed};
 }
+
+async function pullNotion(loud){
+  try{
+    const res = await fetch(NOTION_FEED + "?t=" + Date.now(), {cache:"no-store"});
+    if(!res.ok) throw new Error("まだ用意されていません (" + res.status + ")");
+    const feed = await res.json();
+    const r = mergeNotion(feed);
+    render();
+    if(loud) alert(`Notion から取り込みました。\n新規 ${r.created} / 更新 ${r.updated} / 削除 ${r.removed}`);
+  }catch(e){
+    // 置いていない環境でも普通に使えるよう、自動取得の失敗は黙って流す
+    if(loud) alert("取り込めませんでした: " + e.message);
+  }
+}
+
+document.getElementById("btnNotion").onclick = () => pullNotion(true);
 
 /* ---------------- 書き出し・読み込み ---------------- */
 function download(name, text, type){
@@ -701,21 +710,6 @@ function download(name, text, type){
   a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
 }
-
-function exportCsv(logs, y, m){
-  const rows = [["日付","内容","分"]].concat(logs.map(l => {
-    const d = new Date(l.at);
-    return [
-      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`,
-      String(l.title).replace(/"/g,'""'),
-      String(l.minutes)
-    ];
-  }));
-  // Excel で文字化けしないよう BOM を付ける
-  const csv = "﻿" + rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\r\n");
-  download(`log-${y}-${pad(m+1)}.csv`, csv, "text/csv");
-}
-
 document.getElementById("btnExport").onclick = () =>
   download("task-calendar-backup.json", JSON.stringify(state, null, 2), "application/json");
 
@@ -727,10 +721,10 @@ picker.onchange = () => {
   const reader = new FileReader();
   reader.onload = () => {
     try{
-      const parsed = JSON.parse(String(reader.result));
-      if(!parsed || !Array.isArray(parsed.tasks)) throw new Error("形式が違います");
+      const p = JSON.parse(String(reader.result));
+      if(!p || !Array.isArray(p.tasks)) throw new Error("形式が違います");
       if(!confirm("いまの内容を、読み込んだファイルで置き換えます。よろしいですか?")) return;
-      state = {cats:parsed.cats||[], tasks:parsed.tasks||[], logs:parsed.logs||[]};
+      state = {cats:p.cats||[], tasks:p.tasks||[], syncedAt:p.syncedAt||null};
       save(); render();
     }catch(e){
       alert("読み込めませんでした: " + e.message);
@@ -742,15 +736,16 @@ picker.onchange = () => {
 };
 
 /* ---------------- タブ ---------------- */
-function syncTabs(){
-  document.querySelectorAll("#tabs .tab").forEach(b =>
-    b.classList.toggle("on", b.dataset.view===view));
-}
 document.querySelectorAll("#tabs .tab").forEach(b => {
-  b.onclick = () => { view = b.dataset.view; syncTabs(); render(); };
+  b.onclick = () => {
+    view = b.dataset.view;
+    document.querySelectorAll("#tabs .tab").forEach(x => x.classList.toggle("on", x===b));
+    render();
+  };
 });
 
 render();
+pullNotion(false);   // 置いてあれば起動時にも取り込む
 </script>
 </body>
 </html>

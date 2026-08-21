@@ -1,0 +1,46 @@
+name: Notion sync
+
+# Notion のデータベースを読んで lab/tools/task-calendar/data/notion.json に書き出す。
+# Notion 側から通知を飛ばす方式（Webhook）は使わない。
+# 受け口が常時起きているサーバーである必要があり、GitHub Pages にはそれが無いため。
+
+on:
+  schedule:
+    # 30分おき。UTC で動く。Actions の混雑次第で多少ずれる。
+    - cron: "*/30 * * * *"
+  workflow_dispatch: # 手動でも回せる
+
+permissions:
+  contents: write
+
+concurrency:
+  group: notion-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch from Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: node .github/scripts/fetch-notion.mjs
+
+      - name: Commit if changed
+        run: |
+          if [ -z "$(git status --porcelain lab/tools/task-calendar/data)" ]; then
+            echo "変更なし"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lab/tools/task-calendar/data
+          git commit -m "Sync tasks from Notion"
+          git push
