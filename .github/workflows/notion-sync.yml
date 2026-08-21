@@ -6,8 +6,11 @@ name: Notion sync
 
 on:
   schedule:
-    # 30分おき。UTC で動く。Actions の混雑次第で多少ずれる。
-    - cron: "*/30 * * * *"
+    # 毎朝1回。cron は UTC なので 21:00 UTC = 翌 6:00 JST。
+    # （日本は夏時間が無いので年中ずれない）
+    # 時刻を変えたいときはこの数字だけ直す。JST から9を引いた値が UTC。
+    # 例: 7:00 JST → "0 22 * * *" / 8:00 JST → "0 23 * * *"
+    - cron: "0 21 * * *"
   workflow_dispatch: # 手動でも回せる
 
 permissions:

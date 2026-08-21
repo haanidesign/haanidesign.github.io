@@ -16,7 +16,7 @@ Notion に書いたタスクを、このカレンダーに取り込むための�
 トークンは GitHub の Secrets に入り、サイト側には一切出ません。
 
 ```
-Notion ──(GitHub Actions が30分おきに取得)──▶ data/notion.json ──▶ このページ
+Notion ──(GitHub Actions が毎朝6時に取得)──▶ data/notion.json ──▶ このページ
 ```
 
 向きは Notion → サイトの一方通行です。
@@ -51,7 +51,12 @@ https://www.notion.so/<ここがDB_ID>?v=...
 | `NOTION_DATABASE_ID` | 手順2のID |
 
 登録したら Actions タブ →「Notion sync」→「Run workflow」で手動実行して確認できます。
-以降は30分おきに自動で回ります。
+以降は**毎朝6時（日本時間）**に自動で回ります。
+
+その日に書いたものをすぐ反映したいときは、同じ「Run workflow」を押してください。
+時刻を変えるときは `.github/workflows/notion-sync.yml` の `cron` を直します。
+cron は UTC で動くので、**日本時間から9を引いた値**を書きます（`0 21 * * *` = 6:00 JST）。
+GitHub の定時実行は混雑すると数分〜十数分ずれることがあります。
 
 ## Notion 側のプロパティ
 
