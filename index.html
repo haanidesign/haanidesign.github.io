@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -97,10 +97,8 @@
   <!-- 最近の作品 -->
   <div class="timeline">
     <div class="tl-bar">
-      <button class="btn btn-sm" data-tl="first" aria-label="最初に戻す">⏮</button>
       <button class="btn btn-sm" data-tl="prev" aria-label="前へ">◀</button>
-      <button class="btn btn-sm" data-tl="play" aria-label="自動送り">▶</button>
-      <button class="btn btn-sm" data-tl="next" aria-label="次へ">▶⏭</button>
+      <button class="btn btn-sm" data-tl="next" aria-label="次へ">▶</button>
       <span class="tl-label">最近の作品</span>
       <a href="#works" class="btn btn-sm" style="margin-left:auto;">すべて見る</a>
     </div>
@@ -418,14 +416,13 @@
     });
   });
 
-  /* 最近の作品：白い選択枠がコマからコマへ移動する */
+  /* 最近の作品：左右ボタンで選択枠を移動する */
   (() => {
     const track = document.getElementById('tlTrack');
     if(!track) return;
     const frames = [...track.querySelectorAll('.tl-frame')];
     const viewport = track.parentElement;      // .tl-frames（横スクロールする枠）
-    const playBtn = document.querySelector('[data-tl="play"]');
-    let cur = 0, timer = null;
+    let cur = 0;
 
     const select = i => {
       cur = (i + frames.length) % frames.length;
@@ -442,19 +439,11 @@
       }
     };
 
-    const stop = () => { clearInterval(timer); timer = null; playBtn.textContent = '▶'; };
-    const play = () => { timer = setInterval(() => select(cur + 1), 1200); playBtn.textContent = '❚❚'; };
-
-    document.querySelector('[data-tl="next"]').addEventListener('click', () => { stop(); select(cur + 1); });
-    document.querySelector('[data-tl="prev"]').addEventListener('click', () => { stop(); select(cur - 1); });
-    document.querySelector('[data-tl="first"]').addEventListener('click', () => { stop(); select(0); });
-    playBtn.addEventListener('click', () => timer ? stop() : play());
+    document.querySelector('[data-tl="next"]').addEventListener('click', () => select(cur + 1));
+    document.querySelector('[data-tl="prev"]').addEventListener('click', () => select(cur - 1));
 
     // サムネを直接クリックしても選択が移る（リンク遷移は生かす）
-    frames.forEach((f, i) => f.addEventListener('click', () => { stop(); select(i); }));
-
-    // 画面外に出たら自動送りを止める
-    new IntersectionObserver(es => { if(!es[0].isIntersecting && timer) stop(); }).observe(track);
+    frames.forEach((f, i) => f.addEventListener('click', () => select(i)));
   })();
 
   /* 最新ニュース：上から3件だけ出し、それ以降は折りたたむ。
