@@ -24,11 +24,37 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
+
+      # 失敗したときに理由が一目で分かるよう、先に登録状況だけ出す。
+      # 値そのものは出さない（長さと先頭だけ）。
+      - name: Check secrets
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: |
+          ok=yes
+          if [ -z "$NOTION_TOKEN" ]; then
+            echo "✗ NOTION_TOKEN が未登録です（Settings → Secrets and variables → Actions）"
+            ok=no
+          else
+            echo "✓ NOTION_TOKEN あり: ${#NOTION_TOKEN} 文字 / 先頭 $(echo "$NOTION_TOKEN" | cut -c1-4)"
+          fi
+          if [ -z "$NOTION_DATABASE_ID" ]; then
+            echo "✗ NOTION_DATABASE_ID が未登録です"
+            ok=no
+          else
+            echo "✓ NOTION_DATABASE_ID あり: ${#NOTION_DATABASE_ID} 文字"
+          fi
+          if [ "$ok" = "no" ]; then
+            echo ""
+            echo "名前は半角で、前後に空白が入っていないか確認してください。"
+            exit 1
+          fi
 
       - name: Fetch from Notion
         env:
