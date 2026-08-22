@@ -4,7 +4,7 @@
 import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, fmtTime } from '../engine/anim.js';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -47,6 +47,8 @@ export function createTimeline(root, opts = {}){
     root.querySelector('#play').title = S.playing ? 'とめる' : 'さいせい';
     const rp = root.querySelector('#ripple');
     if(rp) rp.classList.toggle('on', S.ripple);
+    const ps = root.querySelector('#paste');
+    if(ps) ps.disabled = !(S.clip && S.clip.items.length);
 
     buildPinbar();
 
@@ -361,6 +363,55 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
+  /** 選んだピンをおぼえる。2つ選んでいれば、その間のピンも全部 */
+  function copyPins(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return toast('ピンをえらんでね');
+    const from = S.selPins.times[0];
+    const to = S.selPins.times.length > 1 ? S.selPins.times[1] : from;
+    const times = pinTimes(l).filter(t => t >= from - 1e-6 && t <= to + 1e-6);
+
+    S.clip = {
+      items: times.map(t => {
+        const chans = {};
+        channelsOf(l).forEach(c => {
+          const k = (l.tracks[c] || []).find(k => Math.abs(k.t - t) < 1e-3);
+          if(k) chans[c] = { v: k.v, c: k.c };
+        });
+        return { dt: +(t - from).toFixed(3), chans };
+      })
+    };
+    toast(times.length + 'コのピンを おぼえました');
+    onChange();
+  }
+
+  /** おぼえたピンを、いまの時間から貼る */
+  function pastePins(){
+    const l = S.proj.layers.find(x => x.id === S.sel);
+    if(!l) return toast('レイヤーをえらんでね');
+    if(!S.clip || !S.clip.items.length) return toast('さきに ピンをコピーしてね');
+
+    // 別のレイヤーに貼るときは、パペットピンのチャンネルは持っていけない
+    const sameLayer = S.selPins.layer === l.id;
+    let n = 0, skipped = 0;
+    edit('ピンをはりつけ', () => {
+      S.clip.items.forEach(it => {
+        const t = +(S.time + it.dt).toFixed(3);
+        if(t > S.proj.duration + 1e-6) return;
+        let put = false;
+        for(const ch in it.chans){
+          if(!sameLayer && ch[0] === 'P' && ch.includes(':')){ skipped++; continue; }
+          setPin(l, ch, t, it.chans[ch].v, it.chans[ch].c);
+          put = true;
+        }
+        if(put) n++;
+      });
+    });
+    toast(n ? n + 'コのピンを はりました' + (skipped ? '（パペットピンは のぞく）' : '')
+            : 'はれませんでした');
+    onChange();
+  }
+
   function toggleHold(){
     const l = S.proj.layers.find(x => x.id === S.selPins.layer);
     if(!l || S.selPins.times.length !== 1) return;
@@ -389,5 +440,6 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
-  return { build, updatePlayhead, putPin, delPins, toggleHold, setLoop, clearPins };
+  return { build, updatePlayhead, putPin, delPins, toggleHold, setLoop, clearPins,
+           copyPins, pastePins };
 }

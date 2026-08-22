@@ -75,7 +75,7 @@ export async function importPsd(file, opts = {}){
       const id = addAsset(l.name, src, l.width, l.height, img);
       const lay = newLayer(l.name, [id]);
       lay.opacity = Math.max(0, Math.min(1, l.opacity));
-      lay.scale = k;
+      lay.scaleX = k; lay.scaleY = k;
       // PSD内の位置をそのまま。pivot は絵のまんなか
       lay.x = offX + (l.left + l.width  / 2) * k;
       lay.y = offY + (l.top  + l.height / 2) * k;

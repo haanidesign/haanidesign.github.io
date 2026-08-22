@@ -142,7 +142,22 @@ export function buildLayerSheet(box, closeFn){
 
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
-  box.appendChild(animSlider('大きさ',   l, 'scale',  0.05, 4, 0.01, pct));
+  box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
+  box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+  box.appendChild(field('たてよこ', (() => {
+    const b = document.createElement('button');
+    const on = () => l.lockAspect !== false;
+    b.textContent = on() ? '🔗 そろえる' : '🔓 べつべつ';
+    b.style.flex = '1';
+    b.addEventListener('click', () => {
+      edit('たてよこの そろえ方', () => {
+        l.lockAspect = !on();
+        if(l.lockAspect) l.scaleY = l.scaleX;   // そろえた瞬間に よこ幅へ合わせる
+      });
+      onChange();
+    });
+    return b;
+  })()));
   box.appendChild(animSlider('かたむき', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
 
   /* ---------- コマ ---------- */
@@ -217,6 +232,21 @@ export function buildLayerSheet(box, closeFn){
     note.style.textAlign = 'left';
     note.textContent = 'ならべたあと、タイムラインの◆を\n横にずらすと ためが作れます';
     box.appendChild(note);
+  }
+
+  /* ---------- パペットピン ---------- */
+  if(l.pins && l.pins.length){
+    box.appendChild(heading('ピンのかたさ（' + l.pins.length + '本）'));
+    box.appendChild(slider('かたさ',
+      () => l.stiff == null ? 1.4 : l.stiff,
+      v => { l.stiff = v; if(l.mesh) l.mesh.dirty = true; },
+      0.4, 3, 0.1,
+      v => v < 0.8 ? 'やわ' : v > 2.2 ? 'かたい' : 'ふつう'));
+    const h = document.createElement('div');
+    h.className = 'empty';
+    h.style.textAlign = 'left';
+    h.textContent = 'かたくすると 骨で曲げたように、\nやわらかくすると 布のようになります';
+    box.appendChild(h);
   }
 
   /* ---------- 見た目 ---------- */

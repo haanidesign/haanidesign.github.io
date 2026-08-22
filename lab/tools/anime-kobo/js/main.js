@@ -162,6 +162,10 @@ $('#ripple').addEventListener('click', () => {
 });
 $('#key').addEventListener('click', () => timeline.putPin());
 $('#pinDel').addEventListener('click', () => timeline.delPins());
+$('#pinCopy').addEventListener('click', () => timeline.copyPins());
+$('#paste').addEventListener('click', () => timeline.pastePins());
+$('#zoomIn').addEventListener('click', () => stage.zoomBy(1.4));
+$('#zoomOut').addEventListener('click', () => stage.zoomBy(1 / 1.4));
 $('#pinHold').addEventListener('click', () => timeline.toggleHold());
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));

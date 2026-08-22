@@ -121,5 +121,5 @@ export function fitIntoCanvas(layer, img){
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
   const k = Math.min(1, (S.proj.w * 0.9) / w, (S.proj.h * 0.9) / h);
-  layer.scale = k;
+  layer.scaleX = k; layer.scaleY = k;
 }

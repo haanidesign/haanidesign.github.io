@@ -30,6 +30,11 @@
 
   <div id="stage">
     <canvas id="stageCv"></canvas>
+    <div id="zoombar">
+      <button id="zoomIn" title="大きく">＋</button>
+      <button id="zoomOut" title="小さく">－</button>
+    </div>
+
     <div id="drop"><span>ここに PSD / PNG / JPEG をドロップ</span></div>
 
     <div id="pinmode" hidden>
@@ -46,12 +51,14 @@
       <button id="play" class="btn-sm btn-y" title="さいせい" aria-label="さいせい">▶</button>
       <span class="tnum dot"><span id="tnow">00:00.0</span> / <span id="tdur">00:15.0</span></span>
       <span class="spacer"></span>
+      <button id="paste" class="btn-sm" title="コピーしたピンを いまの時間から はる" disabled>📋</button>
       <button id="ripple" class="btn-sm" title="ピンをずらすとき、その後ろのピンも一緒に動かす">⇥ 後ろも</button>
       <button id="key" class="btn-sm btn-y" title="いまの姿をピンにする">◆ ピン</button>
     </div>
 
     <div id="pinbar" hidden>
       <span id="pininfo" class="dot"></span>
+      <button id="pinCopy" class="btn-sm">⧉ コピー</button>
       <button id="pinHold" class="btn-sm">⏸ とめる</button>
       <button id="pinLoop" class="btn-sm">🔁 ループ</button>
       <button id="pinPing" class="btn-sm">🔄 往復</button>

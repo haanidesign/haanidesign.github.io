@@ -4,7 +4,7 @@
 
 import { computeAll, cornersOf } from '../engine/layer.js';
 import { frameAsset, frameImage } from '../state.js';
-import { deform, drawDeformed, computeWeights, buildMesh, meshSizeFor } from '../engine/puppet.js';
+import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, meshSizeFor } from '../engine/puppet.js';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -53,7 +53,7 @@ export function createC2D(canvas){
     if(l.mesh && v.pins && v.pins.length){
       // パペットピンで曲げて描く。絵の中の座標なので、左上を原点にそろえる
       g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
-      if(l.mesh.dirty || !l.mesh.weights) computeWeights(l.mesh, v.pins);
+      if(needsPrecompute(l.mesh, v.pins, l.stiff)) precompute(l.mesh, v.pins, l.stiff);
       const n = l.mesh.verts.length;
       if(!l._xy || l._xy.length < n * 2) l._xy = new Float32Array(n * 2);
       deform(l.mesh, v.pins, l._xy);

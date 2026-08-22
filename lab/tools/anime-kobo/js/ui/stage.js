@@ -4,7 +4,8 @@ import { M, clamp } from '../engine/math.js';
 import { computeAll, pickLayer, hitsLayer } from '../engine/layer.js';
 import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
 import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
-import { buildMesh, meshSizeFor, newPin, computeWeights, deform, strokeMesh } from '../engine/puppet.js';
+import { buildMesh, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
+         bendChain } from '../engine/puppet.js';
 import { createRenderer } from '../render/renderer.js';
 import { attachInput } from './input.js';
 
@@ -62,11 +63,11 @@ export function createStage(canvas, host, toast){
       const m = pose.m;
       ctx.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
       ctx.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
-      if(l.mesh.dirty || !l.mesh.weights) computeWeights(l.mesh, v.pins);
+      if(needsPrecompute(l.mesh, v.pins, l.stiff)) precompute(l.mesh, v.pins, l.stiff);
       const n = l.mesh.verts.length;
       const xy = new Float32Array(n * 2);
       deform(l.mesh, v.pins, xy);
-      strokeMesh(ctx, l.mesh, xy, 1.2 / (z * (pose.v.scale || 1)), 'rgba(30,28,20,.28)');
+      strokeMesh(ctx, l.mesh, xy, 1.2 / (z * (pose.v.scaleX || 1)), 'rgba(30,28,20,.28)');
       ctx.restore();
     }
 
@@ -241,8 +242,15 @@ export function createStage(canvas, host, toast){
           beginEdit('ピンをうごかす');
           const pin = l.pins[i];
           const v = valuesAt(l, S.time).pins[i] || pin;
+          const vv = valuesAt(l, S.time);
           drag = { kind:'puppet', l, i, ip0: toImage(l, P[l.id], cp),
-                   dx0: v.dx, dy0: v.dy, u0: pin.u, v0: pin.v };
+                   dx0: v.dx, dy0: v.dy, u0: pin.u, v0: pin.v,
+                   snap: l.pins.map((p, k) => {
+                     const s = vv.pins[k] || p;
+                     return { dx: s.dx, dy: s.dy };
+                   }) };
+          // 曲げの計算はピンの現在値を見るので、いまの時間の値に合わせておく
+          l.pins.forEach((p, k) => { const s = vv.pins[k] || p; p.dx = s.dx; p.dy = s.dy; });
           onChange();
           return;
         }
@@ -255,7 +263,18 @@ export function createStage(canvas, host, toast){
       if(l && h === 'scale'){
         beginEdit('大きさをかえる');
         const c = { x: P[l.id].m.tx, y: P[l.id].m.ty };
-        drag = { kind:'scale', l, c, r0: Math.max(1, Math.hypot(cp.x - c.x, cp.y - c.y)), s0: l.scale };
+        // 回転していても正しく効くよう、レイヤーの向きに合わせた軸で測る
+        const rad = (P[l.id].v.rot || 0) * Math.PI / 180;
+        const ax = { x: Math.cos(rad), y: Math.sin(rad) };
+        const ay = { x: -Math.sin(rad), y: Math.cos(rad) };
+        const d0 = { x: cp.x - c.x, y: cp.y - c.y };
+        drag = {
+          kind:'scale', l, c, ax, ay,
+          r0: Math.max(1, Math.hypot(d0.x, d0.y)),
+          px0: Math.max(1, Math.abs(d0.x * ax.x + d0.y * ax.y)),
+          py0: Math.max(1, Math.abs(d0.x * ay.x + d0.y * ay.y)),
+          sx0: l.scaleX, sy0: l.scaleY
+        };
         return;
       }
       if(l && h === 'rotate'){
@@ -288,18 +307,23 @@ export function createStage(canvas, host, toast){
         const ip = toImage(l, pose, cp);
         if(!ip) return;
         const pin = l.pins[drag.i];
-        const ddx = ip.x - drag.ip0.x, ddy = ip.y - drag.ip0.y;
+
         if(pin.type === 'fix'){
-          // 固定ピンは「刺す場所」そのものを動かす
+          // とめるピンは支点なので、刺す場所そのものを動かす
+          const ddx = ip.x - drag.ip0.x, ddy = ip.y - drag.ip0.y;
           pin.u = drag.u0 + ddx;
           pin.v = drag.v0 + ddy;
-          l.mesh && (l.mesh.dirty = true);
+          if(l.mesh) l.mesh.dirty = true;
         } else {
-          pin.dx = drag.dx0 + ddx;
-          pin.dy = drag.dy0 + ddy;
+          // 骨を曲げる。支点より先のピンがぜんぶ付いてくる
+          l.pins.forEach((p, k) => { p.dx = drag.snap[k].dx; p.dy = drag.snap[k].dy; });
+          bendChain(l.pins, drag.i, ip.x, ip.y);
           if(hasPins(l)){
-            setPin(l, pinChX(pin.id), S.time, pin.dx, 'smooth');
-            setPin(l, pinChY(pin.id), S.time, pin.dy, 'smooth');
+            l.pins.forEach(p => {
+              if(p.type === 'fix') return;
+              setPin(l, pinChX(p.id), S.time, p.dx, 'smooth');
+              setPin(l, pinChY(p.id), S.time, p.dy, 'smooth');
+            });
           }
         }
         onChange();
@@ -319,9 +343,21 @@ export function createStage(canvas, host, toast){
         }
         liveKey(l, ['x','y']);
       } else if(drag.kind === 'scale'){
-        const r = Math.hypot(cp.x - drag.c.x, cp.y - drag.c.y);
-        drag.l.scale = clamp(drag.s0 * (r / drag.r0), 0.02, 40);
-        liveKey(drag.l, ['scale']);
+        const l = drag.l;
+        if(l.lockAspect !== false){
+          const r = Math.hypot(cp.x - drag.c.x, cp.y - drag.c.y);
+          const k = clamp(r / drag.r0, 0.02, 40);
+          l.scaleX = clamp(drag.sx0 * k, 0.02, 40);
+          l.scaleY = clamp(drag.sy0 * k, 0.02, 40);
+        } else {
+          // 比をそろえないときは、よことたてを別々に
+          const d = { x: cp.x - drag.c.x, y: cp.y - drag.c.y };
+          const px = Math.abs(d.x * drag.ax.x + d.y * drag.ax.y);
+          const py = Math.abs(d.x * drag.ay.x + d.y * drag.ay.y);
+          l.scaleX = clamp(drag.sx0 * (px / drag.px0), 0.02, 40);
+          l.scaleY = clamp(drag.sy0 * (py / drag.py0), 0.02, 40);
+        }
+        liveKey(l, ['scaleX', 'scaleY']);
       } else if(drag.kind === 'rotate'){
         const a = Math.atan2(cp.y - drag.c.y, cp.x - drag.c.x);
         let deg = drag.r0 + (a - drag.a0) * 180 / Math.PI;
@@ -342,7 +378,7 @@ export function createStage(canvas, host, toast){
         const l = drag.l;
         if(l && hasPins(l)){
           const chs = drag.kind === 'move'  ? ['x','y']
-                    : drag.kind === 'scale' ? ['scale']
+                    : drag.kind === 'scale' ? ['scaleX','scaleY']
                     : drag.kind === 'rotate'? ['rot'] : [];
           chs.forEach(c => setPin(l, c, S.time, l[c], 'smooth'));
         }
@@ -380,5 +416,16 @@ export function createStage(canvas, host, toast){
     }
   });
 
-  return { resize, fit, draw, get poses(){ return poses; }, get drag(){ return drag; }, input };
+  /** 画面のまんなかを軸に拡大・縮小する（ボタン用） */
+  function zoomBy(k){
+    const c = { x: canvas.width / 2, y: canvas.height / 2 };
+    const before = toCanvas(c);
+    S.view.z = clamp(S.view.z * k, 0.05, 16);
+    const after = toCanvas(c);
+    S.view.x += (after.x - before.x) * S.view.z;
+    S.view.y += (after.y - before.y) * S.view.z;
+    onChange();
+  }
+
+  return { resize, fit, draw, zoomBy, get poses(){ return poses; }, get drag(){ return drag; }, input };
 }

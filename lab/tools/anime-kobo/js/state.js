@@ -36,6 +36,7 @@ export const S = {
   pinMode: false,                 // パペットピンをさわっているか
   pinKind: 'move',                // 'move' さす / 'fix' とめる / 'del' けす
   pinSel: -1,                     // 選んでいるパペットピン
+  clip: null,                     // コピーしたピン { items:[{dt, chans}] }
   view: { x:0, y:0, z:1 },        // ステージの表示位置
   ready: false                    // サイズ選びが終わったか
 };

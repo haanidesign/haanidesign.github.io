@@ -17,7 +17,8 @@ export function newLayer(name, assetIds){
     // トランスフォーム
     x: 0, y: 0,         // キャンバス座標。回転軸がここに来る
     rot: 0,
-    scale: 1,
+    scaleX: 1, scaleY: 1,
+    lockAspect: true,   // たてよこの比をそろえたままにするか
     opacity: 1,
 
     // 絵の中のどこを中心に回すか（0.5,0.5 = まんなか）
@@ -28,6 +29,7 @@ export function newLayer(name, assetIds){
 
     // エフェクト
     pins: [],           // パペットピン
+    stiff: 1.4,         // ピンのかたさ。大きいほど骨っぽく、小さいほどやわらかい
     mesh: null,         // ピンを刺したときに張るあみ（保存はしない）
 
     tint: { color:'#F2A0B8', amount:0 },   // 塗り（色と強さ）
@@ -56,7 +58,7 @@ export function computeAll(project, time){
     solving[l.id] = true;
 
     const v = evalAt(l, time);
-    const local = M.trs(v.x, v.y, v.rot, v.scale, v.scale);
+    const local = M.trs(v.x, v.y, v.rot, v.scaleX, v.scaleY);
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
     const m = p ? M.mul(p.m, local) : local;
 

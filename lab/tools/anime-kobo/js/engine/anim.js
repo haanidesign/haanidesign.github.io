@@ -12,7 +12,7 @@
    ピンを複製せず、時間を折り返して読むだけ。あとから元の動きを直せば全部に効く。 */
 
 /* なめらかにつながるもの */
-export const CHANNELS = ['x', 'y', 'scale', 'rot', 'opacity', 'tint', 'blur'];
+export const CHANNELS = ['x', 'y', 'scaleX', 'scaleY', 'rot', 'opacity', 'tint', 'blur'];
 /* ぱっと切り替わるもの（つなぎ方に関係なく段々）。
    frame ＝ どのコマの絵を見せるか。ここがコマアニメの本体。 */
 export const STEP_CHANNELS = ['frame', 'flipX', 'flipY'];
@@ -30,7 +30,7 @@ export function channelsOf(layer){
 }
 
 export const CH_LABEL = {
-  x:'よこ', y:'たて', scale:'大きさ', rot:'かたむき', opacity:'すけ具合',
+  x:'よこ', y:'たて', scaleX:'よこ幅', scaleY:'たて幅', rot:'かたむき', opacity:'すけ具合',
   tint:'塗り', blur:'ぼかし', flipX:'左右反転', flipY:'上下反転', frame:'コマ'
 };
 
@@ -206,7 +206,8 @@ export function valuesAt(layer, time){
   return {
     x:       sample(tr.x,       t, layer.x),
     y:       sample(tr.y,       t, layer.y),
-    scale:   sample(tr.scale,   t, layer.scale),
+    scaleX:  sample(tr.scaleX,  t, layer.scaleX),
+    scaleY:  sample(tr.scaleY,  t, layer.scaleY),
     rot:     sample(tr.rot,     t, layer.rot),
     opacity: sample(tr.opacity, t, layer.opacity),
 
