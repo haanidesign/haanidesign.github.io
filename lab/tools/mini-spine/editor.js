@@ -1353,13 +1353,34 @@ function keyTimes(a, id, ch){
   return [...set];
 }
 
+/* ドープシートの実寸。毎フレーム測ると、縦スクロールバーの出入りで幅が
+   1px 単位で揺れ、キャンバスを作り直し続けて画面が震える。
+   実寸は ResizeObserver で拾ってここに覚えておき、描画では測らない。 */
+const dopeBox = { w:0, h:0 };
+function syncDopeBox(){
+  const host = $('#dope');
+  if(!host) return;
+  const w = host.clientWidth;
+  if(w > 0 && Math.abs(w - dopeBox.w) > 1) dopeBox.w = w;
+  const ch = host.clientHeight;
+  if(ch > 0 && Math.abs(ch - dopeBox.h) > 1) dopeBox.h = ch;
+}
+if(window.ResizeObserver){
+  const ro = new ResizeObserver(syncDopeBox);
+  const host = $('#dope');
+  if(host) ro.observe(host);
+}
+addEventListener('resize', syncDopeBox);
+syncDopeBox();
+
 function drawDope(){
   const host = $('#dope');
-  const w = host.clientWidth;
+  if(!dopeBox.w) syncDopeBox();
+  const w = dopeBox.w || host.clientWidth;
   const rows = dopeRows();
-  const H = Math.max(host.clientHeight, HEAD_H + rows.length*ROW_H + 6);
+  const H = Math.max(dopeBox.h || host.clientHeight, HEAD_H + rows.length*ROW_H + 6);
   const dpr = Math.min(devicePixelRatio||1, 2);
-  if(dcv.width !== w*dpr || dcv.height !== H*dpr){
+  if(Math.abs(dcv.width - w*dpr) > 1 || Math.abs(dcv.height - H*dpr) > 1){
     dcv.width = w*dpr; dcv.height = H*dpr;
     dcv.style.width = w+'px'; dcv.style.height = H+'px';
   }
@@ -1684,7 +1705,50 @@ $('#fileProj').onchange = e => {
 $('#btnRec').onclick = toggleRec;
 $('#btnLive').onclick = enterLive;
 $('#btnLiveExit').onclick = exitLive;
-$('#btnHelp').onclick = () => alert(HELP);
+/* つかいかた: alert だと長すぎて読めないので、画面内のパネルに出す。
+   最初に開いたときは自動で表示する。 */
+const HELP_QUICK = `
+<h4>3ステップで動かす</h4>
+<ol>
+  <li><b>PSDを放り込む</b>。レイヤーがそのままパーツになり、仮の骨格まで組まれます。</li>
+  <li>上の<b>「セットアップ」</b>で形を整え、<b>「アニメート」</b>に切り替えます。</li>
+  <li>骨を動かして<b>「◆キー」</b>を押す。時間を進めてもう一度動かせば、その間が繋がります。</li>
+</ol>
+
+<h4>タブレットの操作</h4>
+<ul>
+  <li><b>指1本</b> … 骨をつかむ・塗る（編集）</li>
+  <li><b>指2本</b> … 画面の移動と拡大縮小</li>
+  <li>左上の <b>🗂 / ⚙</b> … ツリーとプロパティの出し入れ</li>
+</ul>
+
+<h4>迷ったら</h4>
+<ul>
+  <li>ツールは<b>「ポーズ」</b>だけで大体足ります。回転と移動を兼ねています。</li>
+  <li>戻したいときは <b>↶</b>。何度でも戻せます。</li>
+  <li>下の<b>「よくある動き」</b>から、揺れや呼吸を選ぶだけでも形になります。</li>
+</ul>
+`;
+
+function openHelp(){
+  const q = $('#helpQuick'), f = $('#helpFull');
+  if(q && !q.dataset.filled){ q.innerHTML = HELP_QUICK; q.dataset.filled = '1'; }
+  if(f && !f.textContent) f.textContent = HELP;
+  document.body.classList.add('help-open');
+}
+function closeHelp(){ document.body.classList.remove('help-open'); }
+$('#btnHelp').onclick = openHelp;
+$('#helpClose').onclick = closeHelp;
+$('#helpBack').onclick = closeHelp;
+addEventListener('keydown', e => { if(e.key === 'Escape') closeHelp(); });
+
+/* 初回だけ自動で開く */
+try{
+  if(!localStorage.getItem('miniSpineSeenHelp')){
+    localStorage.setItem('miniSpineSeenHelp', '1');
+    addEventListener('load', () => setTimeout(openHelp, 400));
+  }
+}catch(e){ /* localStorage が使えない環境では出さないだけ */ }
 
 $('#animSel').onchange = e => { S.proj.current = e.target.value; S.time = 0; S.selKeys = []; refreshUI(); };
 $('#btnAnimNew').onclick = () => {

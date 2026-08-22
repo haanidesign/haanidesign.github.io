@@ -169,7 +169,10 @@ select{cursor:pointer;}
 #tlbar{display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;}
 .tl-label{font-size:.59rem;color:var(--gray);font-weight:400;}
 .tl-chk{font-size:.63rem;display:flex;align-items:center;gap:.2rem;}
-#dope{flex:1;overflow:auto;border:var(--bd);border-radius:10px;background:var(--paper);}
+/* スクロールバーの分の幅を最初から空けておく。出入りで幅が変わると
+   キャンバスを作り直すことになり、下のバーが震える原因になる。 */
+#dope{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;
+      border:var(--bd);border-radius:10px;background:var(--paper);}
 #dopecv{display:block;cursor:pointer;}
 
 /* ---------- 配信モード ---------- */
@@ -244,4 +247,42 @@ body.live #liveout{display:block;}
   /* 開いているときに外側を触ったら閉じるための膜 */
   #paneVeil{ display:none; position:absolute; inset:0; z-index:35; background:rgba(30,28,20,.28); }
   body.tree-open #paneVeil, body.props-open #paneVeil{ display:block; }
+}
+
+/* ---------- つかいかた（画面内パネル） ---------- */
+#helpBack{
+  display:none; position:fixed; inset:0; z-index:90;
+  background:rgba(30,28,20,.45);
+}
+#help{
+  display:none; position:fixed; z-index:91;
+  left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(92vw, 640px); max-height:86vh;
+  background:var(--paper); border:var(--bd); border-radius:16px;
+  box-shadow:0 6px 0 var(--ink); overflow:hidden;
+  flex-direction:column;
+}
+body.help-open #helpBack{ display:block; }
+body.help-open #help{ display:flex; }
+#helpBar{
+  background:var(--main); border-bottom:var(--bd);
+  padding:.6rem .8rem; display:flex; align-items:center; gap:.6rem;
+}
+#helpBar b{ font-size:.95rem; }
+#helpBar .btn{ margin-left:auto; }
+#helpBody{ padding:.9rem 1rem 1.1rem; overflow:auto; -webkit-overflow-scrolling:touch; }
+#helpQuick h4{
+  margin:.9rem 0 .3rem; font-size:.82rem;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  display:inline-block; padding:.1rem .7rem;
+}
+#helpQuick h4:first-child{ margin-top:0; }
+#helpQuick ol, #helpQuick ul{ margin:.2rem 0 .2rem; padding-left:1.3rem; }
+#helpQuick li{ font-size:.8rem; font-weight:500; line-height:1.85; }
+#helpQuick li b{ font-weight:800; }
+#helpMore{ margin-top:1rem; border-top:var(--bd); padding-top:.7rem; }
+#helpMore summary{ cursor:pointer; font-size:.8rem; }
+#helpFull{
+  white-space:pre-wrap; font-size:.72rem; font-weight:500; line-height:1.7;
+  margin:.6rem 0 0; font-family:inherit; color:#4a4636;
 }
