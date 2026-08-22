@@ -416,16 +416,5 @@ export function createStage(canvas, host, toast){
     }
   });
 
-  /** 画面のまんなかを軸に拡大・縮小する（ボタン用） */
-  function zoomBy(k){
-    const c = { x: canvas.width / 2, y: canvas.height / 2 };
-    const before = toCanvas(c);
-    S.view.z = clamp(S.view.z * k, 0.05, 16);
-    const after = toCanvas(c);
-    S.view.x += (after.x - before.x) * S.view.z;
-    S.view.y += (after.y - before.y) * S.view.z;
-    onChange();
-  }
-
-  return { resize, fit, draw, zoomBy, get poses(){ return poses; }, get drag(){ return drag; }, input };
+  return { resize, fit, draw, get poses(){ return poses; }, get drag(){ return drag; }, input };
 }

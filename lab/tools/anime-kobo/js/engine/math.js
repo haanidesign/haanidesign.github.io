@@ -44,6 +44,15 @@ export const M = {
   },
 
   rotOf(m){ return Math.atan2(m.b, m.a) * 180 / Math.PI; },
+
+  /** 行列を x/y/かたむき/よこ幅/たて幅 に戻す（親を付け替えるときに使う） */
+  decompose(m){
+    const rot = Math.atan2(m.b, m.a);
+    const sx = Math.hypot(m.a, m.b);
+    const det = m.a * m.d - m.b * m.c;
+    const sy = sx ? det / sx : Math.hypot(m.c, m.d);
+    return { x: m.tx, y: m.ty, rot: rot * 180 / Math.PI, scaleX: sx, scaleY: sy };
+  },
   scaleOf(m){ return Math.hypot(m.a, m.b); }
 };
 

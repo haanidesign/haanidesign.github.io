@@ -14,14 +14,46 @@ export function createTimeline(root, opts = {}){
   const pinbar = root.querySelector('#pinbar');
   let dragPin = null;
 
-  /* ---------- 時間 ⇄ 位置 ---------- */
+  /* ---------- 時間 ⇄ 位置 ----------
+     ズーム1のときは動画ぜんぶがトラックの幅に収まる。
+     ズームを上げると横に伸びて、再生ヘッドがまん中に来るようにずらす。 */
+  const ruler = root.querySelector('#rtrack');
   const trackWidth = () => {
-    const el = rows.querySelector('.track');
+    const el = rows.querySelector('.track') || ruler;
     return el ? el.clientWidth : Math.max(1, rows.clientWidth - 118);
   };
-  const t2pct = (t) => (t / Math.max(0.001, S.proj.duration)) * 100;
-  const x2t = (x, w) => Math.max(0, Math.min(S.proj.duration, (x / Math.max(1, w)) * S.proj.duration));
-  const snap = (t) => Math.round(t * 10) / 10;      // 0.1秒きざみ
+  const contentWidth = () => trackWidth() * S.tlZoom;
+
+  /** 再生ヘッドがまん中に来る横のずれ量（px） */
+  function scrollX(){
+    const w = trackWidth(), cw = contentWidth();
+    if(cw <= w) return 0;
+    const head = (S.time / Math.max(0.001, S.proj.duration)) * cw;
+    return Math.max(0, Math.min(cw - w, head - w / 2));
+  }
+
+  const t2x = (t) => (t / Math.max(0.001, S.proj.duration)) * contentWidth() - scrollX();
+  const x2t = (x) => Math.max(0, Math.min(S.proj.duration,
+                      ((x + scrollX()) / Math.max(1, contentWidth())) * S.proj.duration));
+
+  /** きざみ。ひろげるほど細かく置ける */
+  function step(){
+    const pxPerSec = contentWidth() / Math.max(0.001, S.proj.duration);
+    if(pxPerSec > 400) return 0.01;
+    if(pxPerSec > 160) return 0.02;
+    if(pxPerSec > 60)  return 0.05;
+    return 0.1;
+  }
+  const snap = (t) => Math.round(t / step()) * step();
+
+  /** 時間じくをひろげる・ちぢめる */
+  function zoomTime(k){
+    const z = Math.max(1, Math.min(60, S.tlZoom * k));
+    if(z === S.tlZoom) return;
+    S.tlZoom = z;
+    toast(z <= 1.01 ? 'ぜんたい表示' : 'きざみ ' + step().toFixed(2) + '秒');
+    onChange();
+  }
 
   /* ---------- ピンの選択 ---------- */
   function selectPin(layerId, t, additive){
@@ -41,16 +73,19 @@ export function createTimeline(root, opts = {}){
   /* ---------- 組み立て ---------- */
   function build(){
     // 再生バー
-    root.querySelector('#tnow').textContent = fmtTime(S.time);
-    root.querySelector('#tdur').textContent = fmtTime(S.proj.duration);
+    root.querySelector('#tnow').textContent = S.time.toFixed(1);
+    root.querySelector('#tdur').textContent = S.proj.duration.toFixed(1);
     root.querySelector('#play').textContent = S.playing ? '⏸' : '▶';
     root.querySelector('#play').title = S.playing ? 'とめる' : 'さいせい';
     const rp = root.querySelector('#ripple');
     if(rp) rp.classList.toggle('on', S.ripple);
     const ps = root.querySelector('#paste');
     if(ps) ps.disabled = !(S.clip && S.clip.items.length);
+    const zo = root.querySelector('#tlOut');
+    if(zo) zo.disabled = S.tlZoom <= 1.01;
 
     buildPinbar();
+    buildRuler();
 
     rows.innerHTML = '';
     if(!S.proj.layers.length){
@@ -63,6 +98,36 @@ export function createTimeline(root, opts = {}){
 
     S.proj.layers.forEach(l => rows.appendChild(buildRow(l)));
     rows.appendChild(buildPlayhead());
+  }
+
+  /** 時間の目盛り。ひろげるほど細かい数字が出る */
+  function buildRuler(){
+    if(!ruler) return;
+    ruler.innerHTML = '';
+    const w = trackWidth();
+    const dur = S.proj.duration;
+    const pxPerSec = contentWidth() / Math.max(0.001, dur);
+
+    // 数字を出す間隔。狭いときは間引く
+    const labelGap = pxPerSec > 300 ? 0.5 : pxPerSec > 120 ? 1 : pxPerSec > 40 ? 2 : 5;
+    const tickGap  = pxPerSec > 300 ? 0.1 : pxPerSec > 120 ? 0.5 : 1;
+
+    for(let t = 0; t <= dur + 1e-6; t += tickGap){
+      const x = t2x(t);
+      if(x < -4 || x > w + 4) continue;
+      const big = Math.abs(t / labelGap - Math.round(t / labelGap)) < 1e-6;
+      const tk = document.createElement('div');
+      tk.className = 'rtick' + (big ? ' big' : '');
+      tk.style.left = x + 'px';
+      ruler.appendChild(tk);
+      if(big){
+        const lb = document.createElement('span');
+        lb.className = 'rlab';
+        lb.textContent = labelGap < 1 ? t.toFixed(1) : String(Math.round(t));
+        lb.style.left = x + 'px';
+        ruler.appendChild(lb);
+      }
+    }
   }
 
   function buildRow(l){
@@ -125,16 +190,32 @@ export function createTimeline(root, opts = {}){
     if(l.loop){
       const band = document.createElement('div');
       band.className = 'loopband' + (l.loop.mode === 'pingpong' ? ' ping' : '');
-      band.style.left = t2pct(l.loop.from) + '%';
-      band.style.width = Math.max(0, t2pct(l.loop.to) - t2pct(l.loop.from)) + '%';
+      band.style.left = t2x(l.loop.from) + 'px';
+      band.style.width = Math.max(0, t2x(l.loop.to) - t2x(l.loop.from)) + 'px';
       band.title = l.loop.mode === 'pingpong' ? '往復ループ' : 'ループ';
       track.appendChild(band);
       // 繰り返している先の目印
       const rest = document.createElement('div');
       rest.className = 'looprest';
-      rest.style.left = t2pct(l.loop.to) + '%';
-      rest.style.width = Math.max(0, 100 - t2pct(l.loop.to)) + '%';
+      rest.style.left = t2x(l.loop.to) + 'px';
+      rest.style.width = Math.max(0, trackWidth() - t2x(l.loop.to)) + 'px';
       track.appendChild(rest);
+    }
+
+    // 目盛り。ひろげたときに何秒か分かるように
+    if(S.tlZoom > 1.01){
+      const dur = S.proj.duration;
+      const pxPerSec = contentWidth() / Math.max(0.001, dur);
+      const gap = pxPerSec > 300 ? 0.1 : pxPerSec > 90 ? 0.5 : 1;
+      for(let t = 0; t <= dur + 1e-6; t += gap){
+        const x = t2x(t);
+        if(x < -2 || x > trackWidth() + 2) continue;
+        const tick = document.createElement('div');
+        const big = Math.abs(t % 1) < 1e-6;
+        tick.className = 'tick' + (big ? ' big' : '');
+        tick.style.left = x + 'px';
+        track.appendChild(tick);
+      }
     }
 
     // ピン同士をつなぐ線
@@ -142,8 +223,8 @@ export function createTimeline(root, opts = {}){
     if(times.length > 1){
       const line = document.createElement('div');
       line.className = 'pinline';
-      line.style.left = t2pct(times[0]) + '%';
-      line.style.width = (t2pct(times[times.length - 1]) - t2pct(times[0])) + '%';
+      line.style.left = t2x(times[0]) + 'px';
+      line.style.width = (t2x(times[times.length - 1]) - t2x(times[0])) + 'px';
       track.appendChild(line);
     }
 
@@ -155,7 +236,9 @@ export function createTimeline(root, opts = {}){
       b.className = 'pin' + (picked ? ' on' : '')
         + (isHoldAt(l, t) ? ' hold' : '')
         + (isFrame ? ' frame' : '');
-      b.style.left = t2pct(t) + '%';
+      const px = t2x(t);
+      if(px < -20 || px > trackWidth() + 20) return;   // 画面の外は作らない
+      b.style.left = px + 'px';
       b.title = fmtTime(t) + (isHoldAt(l, t) ? '（とめる）' : '');
       b.setAttribute('aria-label', 'ピン ' + fmtTime(t));
       attachPinDrag(b, l, t);
@@ -181,9 +264,10 @@ export function createTimeline(root, opts = {}){
     const track = rows.querySelector('.track');
     if(!track){ ph.style.display = 'none'; return; }
     ph.style.display = '';
+    // レイヤーが多くてスクロールするときも、いちばん下の行まで届かせる
+    ph.style.height = Math.max(rows.scrollHeight, rows.clientHeight) + 'px';
     // レイヤー名の欄の幅は中身で変わるので、実際のトラック位置から出す
-    const left = track.offsetLeft + (S.time / Math.max(0.001, S.proj.duration)) * track.clientWidth;
-    ph.style.left = left + 'px';
+    ph.style.left = (track.offsetLeft + t2x(S.time)) + 'px';
   }
 
   /* ---------- ピンの操作バー ---------- */
@@ -222,13 +306,12 @@ export function createTimeline(root, opts = {}){
       try{ btn.setPointerCapture(e.pointerId); }catch(_){}
       moved = false; startX = e.clientX; curT = t;
       const trackEl = btn.parentElement;
-      const w = trackEl.clientWidth;
       const rect = trackEl.getBoundingClientRect();
 
       const move = (ev) => {
         if(!moved && Math.abs(ev.clientX - startX) < 5) return;
         if(!moved){ moved = true; beginEdit('ピンをずらす'); if(navigator.vibrate) navigator.vibrate(8); }
-        const want = snap(x2t(ev.clientX - rect.left, w));
+        const want = snap(x2t(ev.clientX - rect.left));
         if(want === curT) return;
 
         let nt;
@@ -274,9 +357,8 @@ export function createTimeline(root, opts = {}){
       clearPins();
       S.playing = false;
       const rect = track.getBoundingClientRect();
-      const w = track.clientWidth;
       const scrub = (ev) => {
-        S.time = snap(x2t(ev.clientX - rect.left, w));
+        S.time = snap(x2t(ev.clientX - rect.left));
         onChange();
       };
       scrub(e);
@@ -441,5 +523,5 @@ export function createTimeline(root, opts = {}){
   }
 
   return { build, updatePlayhead, putPin, delPins, toggleHold, setLoop, clearPins,
-           copyPins, pastePins };
+           copyPins, pastePins, zoomTime };
 }

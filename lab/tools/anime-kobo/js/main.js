@@ -45,7 +45,7 @@ let lastT = performance.now();
   if(S.playing){
     S.time += dt;
     if(S.time >= S.proj.duration){ S.time = 0; }   // 頭にもどってくり返す
-    $('#tnow').textContent = fmtTime(S.time);
+    $('#tnow').textContent = S.time.toFixed(1);
     timeline.updatePlayhead();
     dirty = true;
   }
@@ -68,12 +68,31 @@ function busy(on, msg){
 }
 
 /* ================= 読み込み ================= */
+/** PSD かどうかを、名前・種類・中身の順に見て決める。
+    Android では名前も種類もあてにならないことがあるので、
+    最後は先頭4バイトの「8BPS」で確かめる。 */
+async function looksLikePsd(f){
+  if(/\.psd$/i.test(f.name)) return true;
+  if(/photoshop/i.test(f.type || '')) return true;
+  if(/^image\/(png|jpeg|jpg|webp|gif|bmp)$/i.test(f.type || '')) return false;
+  try{
+    const head = new Uint8Array(await f.slice(0, 4).arrayBuffer());
+    return head[0] === 0x38 && head[1] === 0x42 && head[2] === 0x50 && head[3] === 0x53;
+  }catch(_){ return false; }
+}
+
 async function handleFiles(files){
   const all = [...files];
-  const psd = all.filter(f => /\.psd$/i.test(f.name));
-  const imgs = all.filter(f => /^image\//.test(f.type) && !/\.psd$/i.test(f.name));
+  const psd = [], imgs = [], other = [];
+  for(const f of all){
+    if(await looksLikePsd(f)) psd.push(f);
+    else if(/^image\//.test(f.type || '')) imgs.push(f);
+    else other.push(f);
+  }
   if(!psd.length && !imgs.length){
-    toast('PSD・PNG・JPEG を選んでね');
+    toast(other.length
+      ? 'これは読めません（PSD・PNG・JPEG をえらんでね）'
+      : 'PSD・PNG・JPEG を選んでね');
     return;
   }
 
@@ -164,8 +183,8 @@ $('#key').addEventListener('click', () => timeline.putPin());
 $('#pinDel').addEventListener('click', () => timeline.delPins());
 $('#pinCopy').addEventListener('click', () => timeline.copyPins());
 $('#paste').addEventListener('click', () => timeline.pastePins());
-$('#zoomIn').addEventListener('click', () => stage.zoomBy(1.4));
-$('#zoomOut').addEventListener('click', () => stage.zoomBy(1 / 1.4));
+$('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));
+$('#tlOut').addEventListener('click', () => timeline.zoomTime(1 / 1.8));
 $('#pinHold').addEventListener('click', () => timeline.toggleHold());
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));

@@ -30,11 +30,6 @@
 
   <div id="stage">
     <canvas id="stageCv"></canvas>
-    <div id="zoombar">
-      <button id="zoomIn" title="大きく">＋</button>
-      <button id="zoomOut" title="小さく">－</button>
-    </div>
-
     <div id="drop"><span>ここに PSD / PNG / JPEG をドロップ</span></div>
 
     <div id="pinmode" hidden>
@@ -47,12 +42,12 @@
 
   <div id="list">
     <div id="playbar">
-      <button id="toStart" class="btn-sm" title="さいしょへ" aria-label="さいしょへ">⏮</button>
       <button id="play" class="btn-sm btn-y" title="さいせい" aria-label="さいせい">▶</button>
-      <span class="tnum dot"><span id="tnow">00:00.0</span> / <span id="tdur">00:15.0</span></span>
+      <button id="toStart" class="tnum dot" title="おすと さいしょへ もどる">
+        <span id="tnow">0.0</span>/<span id="tdur">15.0</span></button>
       <span class="spacer"></span>
-      <button id="paste" class="btn-sm" title="コピーしたピンを いまの時間から はる" disabled>📋</button>
-      <button id="ripple" class="btn-sm" title="ピンをずらすとき、その後ろのピンも一緒に動かす">⇥ 後ろも</button>
+      <button id="paste" class="btn-sm" title="コピーしたピンを いまの時間から はる" aria-label="はりつけ" disabled>📋</button>
+      <button id="ripple" class="btn-sm" title="ピンをずらすとき、その後ろのピンも一緒に動かす">⇥</button>
       <button id="key" class="btn-sm btn-y" title="いまの姿をピンにする">◆ ピン</button>
     </div>
 
@@ -63,6 +58,14 @@
       <button id="pinLoop" class="btn-sm">🔁 ループ</button>
       <button id="pinPing" class="btn-sm">🔄 往復</button>
       <button id="pinDel" class="btn-sm">🗑 けす</button>
+    </div>
+
+    <div id="ruler">
+      <div class="rhead">
+        <button id="tlOut" title="時間じくを ちぢめる" aria-label="時間じくを ちぢめる">🔍－</button>
+        <button id="tlIn" title="時間じくを ひろげる" aria-label="時間じくを ひろげる">🔍＋</button>
+      </div>
+      <div class="rtrack" id="rtrack"></div>
     </div>
 
     <div id="tracks"></div>
@@ -96,7 +99,8 @@
 
 <div id="newdoc"></div>
 
-<input type="file" id="file" accept="image/png,image/jpeg,.psd" multiple hidden>
+<!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
+<input type="file" id="file" multiple hidden>
 
 <script src="lib/ag-psd.js"></script>
 <script src="lib/mp4-muxer.js"></script>

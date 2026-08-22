@@ -45,16 +45,49 @@ function flatten(node, out, groupName){
  * PSD を読み込む。
  * replaceSize が true なら、キャンバスの大きさも PSD に合わせる。
  */
+/** 大きすぎる絵はスマホのメモリを食うので、長辺をこのくらいまで落とす */
+const MAX_SIDE = 1600;
+
+/** 必要なら縮小して、そのぶんの倍率を返す */
+function shrink(l){
+  const long = Math.max(l.width, l.height);
+  if(long <= MAX_SIDE) return 1;
+  const k = MAX_SIDE / long;
+  const w = Math.max(1, Math.round(l.width * k));
+  const h = Math.max(1, Math.round(l.height * k));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(l.canvas, 0, 0, w, h);
+  l.canvas = c;
+  l.width = w; l.height = h;
+  return k;
+}
+
 export async function importPsd(file, opts = {}){
   if(typeof agPsd === 'undefined') throw new Error('PSDの読み込み部品が見つかりません');
 
-  const buf = await file.arrayBuffer();
-  const psd = agPsd.readPsd(buf, { skipCompositeImageData:true, skipThumbnail:true });
+  let psd;
+  try{
+    const buf = await file.arrayBuffer();
+    psd = agPsd.readPsd(buf, { skipCompositeImageData:true, skipThumbnail:true });
+  }catch(err){
+    // 何が起きたか分かる形で返す（スマホだと容量不足のことが多い）
+    const m = String(err && err.message || err);
+    if(/memory|allocation|Array buffer allocation/i.test(m)){
+      throw new Error('PSDが大きすぎて開けませんでした。レイヤーを減らすか、小さくして試してください');
+    }
+    throw new Error('PSDを開けませんでした（' + m.slice(0, 60) + '）');
+  }
+  if(!psd || !psd.width) throw new Error('PSDとして読めませんでした');
 
   const flat = [];
   flatten(psd, flat, null);
+  if(!flat.length) throw new Error('表示されているレイヤーが見つかりませんでした');
+
   const layers = flat.map(trim).filter(Boolean);
-  if(!layers.length) throw new Error('表示されているレイヤーが見つかりませんでした');
+  if(!layers.length) throw new Error('中身のあるレイヤーが見つかりませんでした');
 
   // PSDをキャンバスのどこに置くか。中央に、はみ出すなら縮めて収める
   const k = opts.fit === false ? 1
@@ -65,20 +98,25 @@ export async function importPsd(file, opts = {}){
   // canvas から Image を先に作っておく（描画時に未ロードだと出ない）
   const prepared = [];
   for(const l of layers){
+    const shrunk = shrink(l);          // 大きすぎる絵はここで小さくする
     const src = l.canvas.toDataURL('image/png');
-    prepared.push({ l, src, img: await loadImage(src) });
+    prepared.push({ l, src, shrunk, img: await loadImage(src) });
   }
 
   edit(file.name + ' をよみこみ', () => {
     // 奥から手前の順で来るので、unshift で積むと手前が先頭になる
-    for(const { l, src, img } of prepared){
+    for(const { l, src, shrunk, img } of prepared){
       const id = addAsset(l.name, src, l.width, l.height, img);
       const lay = newLayer(l.name, [id]);
       lay.opacity = Math.max(0, Math.min(1, l.opacity));
-      lay.scaleX = k; lay.scaleY = k;
-      // PSD内の位置をそのまま。pivot は絵のまんなか
-      lay.x = offX + (l.left + l.width  / 2) * k;
-      lay.y = offY + (l.top  + l.height / 2) * k;
+      // 縮小したぶんは拡大しなおして、見た目の大きさを元どおりにする
+      lay.scaleX = k / shrunk;
+      lay.scaleY = k / shrunk;
+      // l.width/height は縮小後なので、PSD での大きさに戻してから中心を出す
+      const wOrig = l.width  / shrunk;
+      const hOrig = l.height / shrunk;
+      lay.x = offX + (l.left + wOrig / 2) * k;
+      lay.y = offY + (l.top  + hOrig / 2) * k;
       S.proj.layers.unshift(lay);
     }
     S.sel = S.proj.layers[0] ? S.proj.layers[0].id : null;

@@ -84,6 +84,32 @@ export function cornersOf(layer, m, asset){
   ];
 }
 
+/**
+ * 親を付け替える。見た目が動かないように、子の値を計算しなおす。
+ * （PSDから読むと各レイヤーが「キャンバスに収める倍率」を持っているので、
+ *   そのまま繋ぐと親の倍率が二重にかかって子が小さくなってしまう）
+ */
+export function setParent(project, layer, newParentId, time, onKey){
+  if(newParentId === layer.id || isDescendant(project, newParentId, layer.id)) return false;
+
+  const before = computeAll(project, time)[layer.id];
+  if(!before){ layer.parent = newParentId || null; return true; }
+  const world = before.m;
+
+  layer.parent = newParentId || null;
+
+  const after = computeAll(project, time);
+  const pw = (layer.parent && after[layer.parent]) ? after[layer.parent].m : M.ident();
+  const local = M.mul(M.inv(pw), world);
+  const d = M.decompose(local);
+
+  layer.x = d.x; layer.y = d.y;
+  layer.rot = d.rot;
+  layer.scaleX = d.scaleX; layer.scaleY = d.scaleY;
+  if(onKey) onKey(d);
+  return true;
+}
+
 /** そのレイヤーが (x,y) を含んでいるか */
 export function hitsLayer(layer, pose, assets, x, y){
   if(!layer || !layer.visible || !pose) return false;

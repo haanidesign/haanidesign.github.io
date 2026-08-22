@@ -1,7 +1,7 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
 import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
-import { isDescendant } from '../engine/layer.js';
+import { isDescendant, setParent } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin } from '../engine/anim.js';
 
@@ -304,7 +304,13 @@ export function buildLayerSheet(box, closeFn){
     sel.appendChild(op);
   });
   sel.addEventListener('change', () => {
-    edit('親をかえる', () => { l.parent = sel.value || null; });
+    edit('親をかえる', () => {
+      setParent(S.proj, l, sel.value || null, S.time, (d) => {
+        // ピンが打たれているレイヤーは、いまの時間のピンも合わせて直す
+        if(!hasPins(l)) return;
+        ['x','y','rot','scaleX','scaleY'].forEach(ch => setPin(l, ch, S.time, d[ch], 'smooth'));
+      });
+    });
     onChange();
   });
   box.appendChild(field('親', sel));
