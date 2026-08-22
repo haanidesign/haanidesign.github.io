@@ -1,0 +1,105 @@
+/* 3サイズとも同じ部品。画面が広くなるほど隠していたものが出てくるだけ。 */
+
+#app{
+  position:fixed; inset:0;
+  display:grid;
+  grid-template-rows:auto 1fr auto auto;
+  grid-template-areas:
+    "top"
+    "stage"
+    "list"
+    "tools";
+  padding-top:var(--safe-t);
+  padding-bottom:var(--safe-b);
+  background:var(--cream);
+}
+
+/* ---- 上のバー ---- */
+#top{
+  grid-area:top;
+  background:var(--main);
+  border-bottom:var(--bd);
+  display:flex; align-items:center; gap:.45rem;
+  padding:.4rem .6rem;
+  min-height:52px;
+}
+#top .name{ font-size:.95rem; font-weight:800; }
+#top .size{
+  font-size:.62rem; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.05rem .6rem;
+  /* 狭い画面で1文字ずつ折り返して縦に伸びるのを防ぐ */
+  white-space:nowrap; flex:0 0 auto;
+}
+#top .name{ flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#top .spacer{ flex:1; }
+
+/* ---- ステージ ---- */
+#stage{
+  grid-area:stage;
+  position:relative;
+  overflow:hidden;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.15) 1.6px, transparent 1.7px);
+  background-size:14px 14px;
+  min-height:0;
+}
+#stageCv{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  display:block;
+  touch-action:none;   /* ブラウザのスクロール／ズームを止めて自前で扱う */
+}
+
+/* ---- レイヤー一覧（Phase 2 でタイムラインになる） ---- */
+#list{
+  grid-area:list;
+  background:var(--paper);
+  border-top:var(--bd);
+  max-height:38vh;
+  display:flex; flex-direction:column;
+  min-height:0;
+}
+#tracks{
+  position:relative;
+  flex:1; min-height:0;
+  overflow-y:auto; overscroll-behavior:contain;
+  padding:.3rem;
+  display:flex; flex-direction:column; gap:.25rem;
+}
+
+/* ---- 下のツールバー ---- */
+#tools{
+  grid-area:tools;
+  background:var(--cream);
+  border-top:var(--bd);
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:.35rem;
+  padding:.4rem .5rem calc(.4rem + var(--safe-b));
+}
+
+/* ================= タブレット・PC ================= */
+@media (min-width:760px){
+  #app{
+    grid-template-columns:250px 1fr;
+    grid-template-rows:auto 1fr auto;
+    grid-template-areas:
+      "top   top"
+      "list  stage"
+      "tools stage";
+  }
+  #list{
+    border-top:none;
+    border-right:var(--bd);
+    max-height:none;
+  }
+  #tools{
+    border-right:var(--bd);
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+
+/* 右のプロパティ欄。
+   PHASE 1 では中身が無いので出さない。設定はどの画面でも下から出るシートで扱う。
+   PHASE 2 でタイムラインと一緒にここへ入れる。 */
+#props{ display:none; }

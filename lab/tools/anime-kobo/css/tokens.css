@@ -1,0 +1,96 @@
+/* はぁにデザイン工房 トークン（DESIGN.md 準拠）
+   生成り紙の明るい面が前提のライト単一テーマ。 */
+:root{
+  --main:      #E1DD60;
+  --main-deep: #B8B43F;
+  --main-soft: #F2F0BE;
+  --cream:     #FBFAEC;
+  --paper:     #FFFEF7;
+  --ink:       #1E1C14;
+  --gray:      #8A8470;
+  --pink:      #F2A0B8;
+  --mint:      #7AC4A0;
+
+  --bd: 2.5px solid var(--ink);
+  --bd2: 2px solid var(--ink);
+  --r: 12px;
+
+  /* 指で押せる最小サイズ。ここを下回るものを作らない */
+  --tap: 44px;
+
+  /* セーフエリア（iPhoneのホームバー・ノッチ） */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+
+html,body{
+  height:100%;
+  overflow:hidden;
+  overscroll-behavior:none;
+}
+
+body{
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI','Meiryo',sans-serif;
+  font-weight:700;
+  color:var(--ink);
+  background:var(--cream);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+}
+
+.dot{ font-family:'DotGothic16','M PLUS Rounded 1c',monospace; font-weight:400; }
+
+/* ---------- ボタン ---------- */
+button{
+  display:inline-flex; align-items:center; justify-content:center; gap:.35rem;
+  background:var(--paper); color:var(--ink);
+  border:var(--bd2); border-radius:var(--r);
+  padding:.4rem .8rem;
+  font:inherit; font-size:.82rem; font-weight:700;
+  box-shadow:0 3px 0 var(--ink);
+  cursor:pointer;
+  transition:transform .07s, box-shadow .07s, background .13s;
+  white-space:nowrap;
+  touch-action:manipulation;
+}
+button:hover{ background:var(--main); }
+button:active{ transform:translateY(3px); box-shadow:0 0 0 var(--ink); }
+button.on{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2px); }
+button:disabled{ opacity:.35; box-shadow:0 3px 0 var(--ink); transform:none; cursor:default; }
+button:disabled:hover{ background:var(--paper); }
+button:focus-visible{ outline:3px solid var(--pink); outline-offset:2px; }
+
+.btn-y{ background:var(--main); }
+.btn-y:hover{ background:var(--main-deep); }
+.btn-g{ background:var(--ink); color:var(--main); }
+.btn-g:hover{ background:#000; color:var(--main); }
+.btn-sm{ padding:.25rem .6rem; font-size:.72rem; box-shadow:0 2.5px 0 var(--ink); }
+
+/* ---------- フォーム ---------- */
+input,select{
+  font:inherit; font-size:.85rem; font-weight:700; color:var(--ink);
+  background:var(--paper);
+  border:var(--bd2); border-radius:9px;
+  padding:.3rem .5rem; width:100%;
+  min-height:var(--tap);
+}
+input[type=range]{
+  min-height:0; height:26px; padding:0;
+  border:none; background:transparent;
+  accent-color:var(--main-deep);
+}
+input:focus-visible,select:focus-visible{ outline:3px solid var(--pink); outline-offset:1px; }
+
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-track{ background:var(--main-soft); }
+::-webkit-scrollbar-thumb{ background:var(--ink); border-radius:100px; border:2px solid var(--main-soft); }
+
+@media (prefers-reduced-motion: reduce){
+  *{ transition-duration:.01ms !important; animation-duration:.01ms !important; }
+}

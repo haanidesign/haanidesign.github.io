@@ -1,0 +1,359 @@
+/* ---------- 下のツールバー ---------- */
+.tool{
+  flex-direction:column; gap:1px;
+  min-height:var(--tap);
+  padding:.3rem .2rem;
+  font-size:.62rem;
+  border-radius:14px;
+}
+.tool i{ font-style:normal; font-size:1.25rem; line-height:1.1; }
+
+/* ---------- 再生バー ---------- */
+#playbar,#pinbar{
+  display:flex; align-items:center; gap:.35rem;
+  padding:.3rem .45rem;
+  border-bottom:2px solid var(--ink);
+  background:var(--cream);
+  flex-wrap:wrap;
+}
+/* 指で押す前提なので、小さいボタンでも高さは確保する */
+#playbar button,#pinbar button{ min-height:40px; padding-left:.7rem; padding-right:.7rem; }
+#top button{ min-height:36px; }
+/* #top button より詳細度を上げないと負ける */
+#top #export{ min-height:40px; font-weight:800; padding-left:.8rem; padding-right:.8rem; }
+/* ピンバーは1段に収める。狭い画面では字を詰めて折り返させない */
+#pinbar{ flex-wrap:nowrap; }
+#pinbar button{
+  flex:1 1 0; min-width:0; padding-left:.3rem; padding-right:.3rem;
+  font-size:.66rem; gap:.15rem;
+}
+#pininfo{ flex:0 0 auto; }
+#pinbar{ background:var(--main-soft); }
+#playbar .spacer{ flex:1; }
+.tnum{ font-size:.72rem; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+#pininfo{
+  font-size:.66rem; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.05rem .6rem; white-space:nowrap;
+}
+
+/* ---------- タイムラインの行 ---------- */
+.trow{
+  display:flex; align-items:stretch; gap:.3rem;
+  min-height:44px;
+}
+.trow.dragging{ opacity:.55; }
+
+.thead{
+  flex:0 0 112px; min-width:0;   /* 中身で押し広げられないように */
+  display:flex; align-items:center; gap:.25rem;
+  background:var(--paper);
+  border:2px solid var(--ink); border-radius:10px;
+  box-shadow:0 2.5px 0 var(--ink);
+  padding:.15rem .3rem;
+  cursor:pointer;
+  transition:background .13s;
+}
+.thead:hover{ background:var(--main-soft); }
+.trow.sel .thead{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px); }
+.trow.off .thumb,.trow.off .nm{ opacity:.35; }
+
+.thead .grip{
+  font-size:1.05rem; color:var(--gray); touch-action:none;
+  padding:.4rem .15rem;      /* つまむところを広くする */
+  align-self:stretch; display:flex; align-items:center;
+}
+.thead .thumb{
+  width:26px; height:26px; flex:0 0 26px;
+  border:1.5px solid var(--ink); border-radius:5px;
+  background:var(--cream);
+  object-fit:contain;
+}
+.thead .nm{
+  flex:1; min-width:0; font-size:.66rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.thead .eye{
+  flex:0 0 auto; min-height:34px; min-width:32px;
+  padding:0; font-size:.8rem; border-radius:8px;
+  box-shadow:0 2px 0 var(--ink);
+}
+
+/* ---------- トラック（時間の帯） ---------- */
+.track{
+  position:relative; flex:1; min-width:0;
+  background:var(--cream);
+  border:2px solid var(--ink); border-radius:10px;
+  touch-action:none;
+  overflow:hidden;
+}
+.trow.sel .track{ background:var(--main-soft); }
+
+.pinline{
+  position:absolute; top:50%; height:3px;
+  background:var(--ink); opacity:.28;
+  transform:translateY(-50%);
+  pointer-events:none;
+}
+.loopband{
+  position:absolute; top:3px; bottom:3px;
+  background:rgba(122,196,160,.5);
+  border-left:2px solid var(--ink); border-right:2px solid var(--ink);
+  pointer-events:none;
+}
+.loopband.ping{ background:rgba(242,160,184,.5); }
+.looprest{
+  position:absolute; top:3px; bottom:3px;
+  background:repeating-linear-gradient(45deg,
+    rgba(30,28,20,.10) 0 5px, transparent 5px 10px);
+  pointer-events:none;
+}
+
+.pin{
+  position:absolute; top:50%; left:0;
+  width:24px; height:24px; padding:0;
+  transform:translate(-50%,-50%) rotate(45deg);
+  border:2px solid var(--ink); border-radius:4px;
+  background:var(--main);
+  box-shadow:none;
+  touch-action:none;
+}
+/* 見た目は小さいひし形のまま、指で押せる範囲だけ広げる */
+.pin::after{
+  content:''; position:absolute; inset:-10px;
+}
+.pin:hover{ background:var(--paper); }
+.pin:active{ transform:translate(-50%,-50%) rotate(45deg) scale(.9); box-shadow:none; }
+.pin.on{ background:var(--pink); }
+.pin.hold{ border-radius:2px; background:var(--ink); }
+.pin.hold.on{ background:var(--pink); }
+
+.playhead{
+  position:absolute; top:0; bottom:0; width:3px;
+  background:var(--pink);
+  border-radius:2px;
+  pointer-events:none;
+  box-shadow:0 0 0 1px rgba(30,28,20,.5);
+}
+
+.empty{
+  font-size:.75rem; font-weight:400; color:#5c5843; line-height:1.8;
+  background:var(--main-soft);
+  border:2px dashed var(--ink); border-radius:12px;
+  padding:.7rem .8rem; text-align:center; white-space:pre-line;
+}
+
+/* いま何コマめか */
+.thead .frames{
+  flex:0 0 auto;
+  font-size:.5rem; color:#5c5843; font-weight:700;
+  background:var(--paper); border:1.5px solid var(--ink);
+  border-radius:100px; padding:0 .3rem;
+  font-variant-numeric:tabular-nums;
+}
+.trow.sel .thead .frames{ background:var(--main-soft); }
+
+/* コマの切り替えピンは四角にして見分ける */
+.pin.frame{ border-radius:2px; transform:translate(-50%,-50%); width:18px; height:26px; }
+.pin.frame:active{ transform:translate(-50%,-50%) scale(.9); }
+
+/* コマの一覧 */
+.framestrip{
+  display:flex; gap:.35rem; overflow-x:auto; padding:.3rem .1rem .4rem;
+  scrollbar-width:thin;
+}
+.frameitem{
+  position:relative; flex:0 0 auto;
+  width:54px; height:54px; padding:2px;
+  border-radius:10px; box-shadow:0 2.5px 0 var(--ink);
+  background:var(--paper);
+}
+.frameitem img{
+  width:100%; height:100%; object-fit:contain;
+  background:var(--cream);
+  border-radius:6px;
+}
+.frameitem span{
+  position:absolute; left:2px; top:2px;
+  font-size:.5rem; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:0 .3rem;
+}
+.frameitem.on{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px); }
+
+/* ---------- 下から出るシート ---------- */
+#sheetBack{
+  position:fixed; inset:0; z-index:40;
+  background:rgba(30,28,20,.42);
+  opacity:0; pointer-events:none;
+  transition:opacity .18s;
+}
+#sheetBack.on{ opacity:1; pointer-events:auto; }
+
+#sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:41;
+  max-height:82vh; overflow-y:auto; overscroll-behavior:contain;
+  background:var(--paper);
+  border-top:var(--bd); border-left:var(--bd); border-right:var(--bd);
+  border-radius:22px 22px 0 0;
+  padding:.5rem .8rem calc(1rem + var(--safe-b));
+  transform:translateY(102%);
+  transition:transform .22s cubic-bezier(.22,1,.36,1);
+}
+#sheet.on{ transform:translateY(0); }
+#sheet .handle{
+  width:46px; height:5px; border-radius:100px;
+  background:var(--ink); opacity:.3;
+  margin:.15rem auto .6rem;
+}
+#sheet h2{
+  font-size:.72rem; letter-spacing:.04em;
+  background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.1rem .8rem;
+  display:inline-block; margin:.5rem 0 .4rem;
+}
+#sheet h2:first-of-type{ margin-top:0; }
+
+.field{ display:flex; align-items:center; gap:.5rem; padding:.18rem 0; }
+.field label{ flex:0 0 84px; font-size:.72rem; font-weight:400; color:var(--gray); }
+.field .val{
+  flex:0 0 52px; text-align:right; font-size:.72rem; color:var(--gray); font-weight:400;
+  font-variant-numeric:tabular-nums;
+}
+.field input[type=range]{ flex:1; }
+.rowbtns{ display:flex; gap:.4rem; padding-top:.4rem; }
+.rowbtns button{ flex:1; }
+
+/* ---------- 最初のサイズ選び ---------- */
+#newdoc{
+  position:fixed; inset:0; z-index:60;
+  background:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
+  display:flex; align-items:center; justify-content:center;
+  padding:1rem;
+  overflow-y:auto;
+}
+#newdoc .card{
+  width:min(560px,100%);
+  background:var(--paper);
+  border:var(--bd); border-radius:20px;
+  box-shadow:0 6px 0 var(--ink);
+  padding:1.1rem 1rem 1rem;
+  display:flex; flex-direction:column; gap:.7rem;
+  margin:auto;
+}
+#newdoc h1{ font-size:1.5rem; font-weight:800; line-height:1.3; }
+#newdoc .sub{ font-size:.78rem; font-weight:400; color:#5c5843; }
+
+/* 最初のサイズ選びボタン。トップバーの .size とは別物なので名前を分けてある */
+.sizes{ display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+.sizepick{
+  flex-direction:column; gap:.3rem;
+  padding:.7rem .3rem;
+  border-radius:14px;
+  min-height:110px;
+}
+.sizepick .box{
+  border:2.5px solid var(--ink);
+  background:var(--main-soft);
+  border-radius:4px;
+}
+.sizepick.on .box{ background:var(--paper); }
+.sizepick .t{ font-size:.76rem; font-weight:800; }
+.sizepick .d{ font-size:.56rem; font-weight:400; color:var(--gray); line-height:1.4; }
+.sizepick.on .d{ color:#5c5843; }
+
+.lenrow{ display:flex; gap:.4rem; }
+.lenrow button{ flex:1; padding:.45rem .3rem; font-size:.78rem; }
+
+#newdoc .go{
+  min-height:52px; font-size:1rem; margin-top:.2rem;
+}
+
+/* ---------- 読み込み中 ---------- */
+#busy{
+  position:fixed; inset:0; z-index:70;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(251,250,236,.86);
+}
+#busy.on{ display:flex; }
+#busy .msg{
+  background:var(--paper); border:var(--bd); border-radius:16px;
+  box-shadow:0 5px 0 var(--ink);
+  padding:.9rem 1.4rem; font-size:.9rem;
+}
+
+/* ---------- パペットピンのモード ---------- */
+#pinmode{
+  position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+  z-index:6; display:flex; gap:.35rem;
+  background:var(--cream); border:var(--bd); border-radius:16px;
+  box-shadow:0 4px 0 var(--ink);
+  padding:.35rem .4rem;
+  max-width:calc(100% - 20px);
+}
+#pinmode[hidden]{ display:none; }
+#pinmode button{ min-height:42px; font-size:.66rem; padding:.2rem .5rem; }
+
+/* ---------- 書き出し中 ---------- */
+#exporting{
+  position:fixed; inset:0; z-index:75;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(251,250,236,.9);
+  padding:1rem;
+}
+#exporting.on{ display:flex; }
+#exporting .card{
+  width:min(340px,100%);
+  background:var(--paper); border:var(--bd); border-radius:18px;
+  box-shadow:0 6px 0 var(--ink);
+  padding:1rem;
+  display:flex; flex-direction:column; align-items:center; gap:.6rem;
+}
+#exporting b{ font-size:.95rem; }
+#exporting .bar{
+  width:100%; height:20px;
+  background:var(--cream);
+  border:2px solid var(--ink); border-radius:100px;
+  overflow:hidden;
+}
+#exporting .bar span{
+  display:block; height:100%; width:0%;
+  background:var(--main);
+  border-right:2px solid var(--ink);
+  transition:width .12s linear;
+}
+#exPct{ font-size:.8rem; font-variant-numeric:tabular-nums; }
+
+/* せまい画面ではサイズの表示を省いて、書き出すボタンの場所を作る */
+@media (max-width:430px){
+  #top .size{ display:none; }
+}
+
+/* ---------- トースト ---------- */
+#toast{
+  position:fixed; left:50%; bottom:calc(84px + var(--safe-b)); z-index:50;
+  transform:translate(-50%,14px);
+  background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.35rem 1rem;
+  font-size:.76rem; white-space:pre;
+  opacity:0; pointer-events:none;
+  transition:opacity .18s, transform .18s;
+  max-width:90vw; overflow:hidden; text-overflow:ellipsis;
+}
+#toast.on{ opacity:1; transform:translate(-50%,0); }
+@media (min-width:760px){
+  #toast{ bottom:24px; }
+}
+
+/* ---------- ドロップ ---------- */
+#drop{
+  position:absolute; inset:8px; z-index:20;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(225,221,96,.88);
+  border:3px dashed var(--ink); border-radius:16px;
+}
+#drop.on{ display:flex; }
+#drop span{
+  background:var(--paper); border:var(--bd); border-radius:14px;
+  padding:.7rem 1.2rem; font-size:.92rem;
+}

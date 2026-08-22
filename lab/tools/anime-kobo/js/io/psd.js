@@ -1,0 +1,88 @@
+/* PSD の読み込み。レイヤーをそのままレイヤーにする。
+   位置・重なり順・不透明度をPSDのまま引き継ぐので、並べ直す作業が要らない。
+   ミニSpine で実測済みの ag-psd をそのまま使う。 */
+
+import { S, addAsset, edit } from '../state.js';
+import { newLayer } from '../engine/layer.js';
+import { contentBox, loadImage } from './image.js';
+
+/** 透明な余白を切り落として left/top を詰め直す */
+function trim(l){
+  const box = contentBox(l.canvas);
+  if(!box) return null;
+  const [x0, y0, x1, y1] = box;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  if(x0 === 0 && y0 === 0 && w === l.canvas.width && h === l.canvas.height){
+    l.width = w; l.height = h;
+    return l;
+  }
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(l.canvas, x0, y0, w, h, 0, 0, w, h);
+  l.canvas = c;
+  l.left += x0; l.top += y0;
+  l.width = w; l.height = h;
+  return l;
+}
+
+/* ag-psd の children は PSD ファイルの記録順＝奥から手前。（ミニSpineで実測済み） */
+function flatten(node, out, groupName){
+  for(const ch of (node.children || [])){
+    if(ch.hidden) continue;
+    if(ch.children) flatten(ch, out, ch.name || groupName);
+    else if(ch.canvas) out.push({
+      name: ch.name || 'レイヤー',
+      canvas: ch.canvas,
+      left: ch.left || 0,
+      top: ch.top || 0,
+      opacity: ch.opacity === undefined ? 1 : ch.opacity,
+      group: groupName || null
+    });
+  }
+}
+
+/**
+ * PSD を読み込む。
+ * replaceSize が true なら、キャンバスの大きさも PSD に合わせる。
+ */
+export async function importPsd(file, opts = {}){
+  if(typeof agPsd === 'undefined') throw new Error('PSDの読み込み部品が見つかりません');
+
+  const buf = await file.arrayBuffer();
+  const psd = agPsd.readPsd(buf, { skipCompositeImageData:true, skipThumbnail:true });
+
+  const flat = [];
+  flatten(psd, flat, null);
+  const layers = flat.map(trim).filter(Boolean);
+  if(!layers.length) throw new Error('表示されているレイヤーが見つかりませんでした');
+
+  // PSDをキャンバスのどこに置くか。中央に、はみ出すなら縮めて収める
+  const k = opts.fit === false ? 1
+          : Math.min(1, S.proj.w / psd.width, S.proj.h / psd.height);
+  const offX = (S.proj.w - psd.width  * k) / 2;
+  const offY = (S.proj.h - psd.height * k) / 2;
+
+  // canvas から Image を先に作っておく（描画時に未ロードだと出ない）
+  const prepared = [];
+  for(const l of layers){
+    const src = l.canvas.toDataURL('image/png');
+    prepared.push({ l, src, img: await loadImage(src) });
+  }
+
+  edit(file.name + ' をよみこみ', () => {
+    // 奥から手前の順で来るので、unshift で積むと手前が先頭になる
+    for(const { l, src, img } of prepared){
+      const id = addAsset(l.name, src, l.width, l.height, img);
+      const lay = newLayer(l.name, [id]);
+      lay.opacity = Math.max(0, Math.min(1, l.opacity));
+      lay.scale = k;
+      // PSD内の位置をそのまま。pivot は絵のまんなか
+      lay.x = offX + (l.left + l.width  / 2) * k;
+      lay.y = offY + (l.top  + l.height / 2) * k;
+      S.proj.layers.unshift(lay);
+    }
+    S.sel = S.proj.layers[0] ? S.proj.layers[0].id : null;
+  });
+
+  return { count: layers.length, w: psd.width, h: psd.height };
+}

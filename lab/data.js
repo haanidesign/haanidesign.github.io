@@ -111,6 +111,17 @@ const TOOLS = [
     thumb: "thumbs/mini-spine.svg",
     url: "tools/mini-spine/index.html",
     status: "live"
+  },
+  {
+    no: 11,
+    slug: "anime-kobo",
+    title: "アニメ工房",
+    desc: "スマホでアニメを作る台。最初にたて・ましかく・よこから形を選び、PSDやPNGを読み込んで指で並べる。コマの切り替わる時間を1つずつ自分で置けるので、パラパラの間を自由に作れる。MP4で書き出してそのままSNSへ。",
+    tags: ["スマホ", "アニメーション", "キーフレーム", "PSD", "MP4"],
+    cat: "anime",
+    thumb: "thumbs/anime-kobo.svg",
+    url: "tools/anime-kobo/index.html",
+    status: "wip"
   }
 ];
 

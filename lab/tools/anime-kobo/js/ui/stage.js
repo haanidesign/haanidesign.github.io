@@ -1,0 +1,384 @@
+/* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
+
+import { M, clamp } from '../engine/math.js';
+import { computeAll, pickLayer, hitsLayer } from '../engine/layer.js';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
+import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
+import { buildMesh, meshSizeFor, newPin, computeWeights, deform, strokeMesh } from '../engine/puppet.js';
+import { createRenderer } from '../render/renderer.js';
+import { attachInput } from './input.js';
+
+export function createStage(canvas, host, toast){
+  const R = createRenderer(canvas);
+  let poses = {};
+  let handles = null;
+  let drag = null;
+  let viewStart = null;
+
+  /* ---- 画面と座標 ---- */
+  function resize(){
+    const r = host.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(r.width * dpr));
+    canvas.height = Math.max(1, Math.round(r.height * dpr));
+    canvas.style.width = r.width + 'px';
+    canvas.style.height = r.height + 'px';
+  }
+
+  function fit(){
+    const z = Math.min(canvas.width / S.proj.w, canvas.height / S.proj.h) * 0.88;
+    S.view.z = z;
+    S.view.x = (canvas.width  - S.proj.w * z) / 2;
+    S.view.y = (canvas.height - S.proj.h * z) / 2;
+  }
+
+  const toCanvas = (p) => ({
+    x: (p.x - S.view.x) / S.view.z,
+    y: (p.y - S.view.y) / S.view.z
+  });
+
+  /* ---- 描画 ---- */
+  function draw(){
+    poses = R.draw(S.proj, S.imgs, S.time, S.view);
+    const l = selected();
+    if(S.pinMode && l){
+      drawPuppet(l);
+      handles = null;                 // ピンモード中は枠のハンドルを出さない
+    } else {
+      handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
+    }
+  }
+
+  /** ピンモード中の見た目：あみと、刺さっているピン */
+  function drawPuppet(l){
+    const pose = poses[l.id]; if(!pose) return;
+    const asset = frameAsset(l, pose.v.frame); if(!asset) return;
+    const ctx = R.ctx, z = S.view.z;
+    const v = valuesAt(l, S.time);
+
+    if(l.mesh && v.pins.length){
+      ctx.save();
+      ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+      const m = pose.m;
+      ctx.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
+      ctx.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      if(l.mesh.dirty || !l.mesh.weights) computeWeights(l.mesh, v.pins);
+      const n = l.mesh.verts.length;
+      const xy = new Float32Array(n * 2);
+      deform(l.mesh, v.pins, xy);
+      strokeMesh(ctx, l.mesh, xy, 1.2 / (z * (pose.v.scale || 1)), 'rgba(30,28,20,.28)');
+      ctx.restore();
+    }
+
+    ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+    l.pins.forEach((p, i) => {
+      const vp = v.pins[i] || p;
+      const at = fromImage(l, pose, { x: p.u + vp.dx, y: p.v + vp.dy });
+      if(!at) return;
+      const sel = i === S.pinSel;
+      ctx.beginPath();
+      ctx.arc(at.x, at.y, (sel ? 12 : 10) / z, 0, 7);
+      ctx.fillStyle = p.type === 'fix' ? '#7AC4A0' : '#F2A0B8';
+      ctx.fill();
+      ctx.lineWidth = 4 / z; ctx.strokeStyle = '#FFFEF7'; ctx.stroke();
+      ctx.lineWidth = 2.4 / z; ctx.strokeStyle = '#1E1C14'; ctx.stroke();
+      if(p.type === 'fix'){
+        ctx.beginPath();
+        ctx.moveTo(at.x - 5/z, at.y); ctx.lineTo(at.x + 5/z, at.y);
+        ctx.moveTo(at.x, at.y - 5/z); ctx.lineTo(at.x, at.y + 5/z);
+        ctx.lineWidth = 2.4 / z; ctx.stroke();
+      }
+    });
+  }
+
+  /* さわられた時点の配置。描画を待たずにその場で出す。
+     （タブが裏にいると requestAnimationFrame が止まるので、
+       直前の描画結果に頼ると最初のタップが効かなくなる） */
+  function livePoses(){
+    poses = computeAll(S.proj, S.time);
+    return poses;
+  }
+
+  /* さわった場所にあるレイヤー。
+     いま選んでいるものが指の下にあれば、それを優先する。
+     そうしないと、重なった手前のレイヤーに毎回さらわれて狙ったものを動かせない。 */
+  function pickPreferSelected(cp, P){
+    const cur = selected();
+    if(hitsLayer(cur, P[cur && cur.id], S.proj.assets, cp.x, cp.y)) return cur;
+    return pickLayer(S.proj, P, S.proj.assets, cp.x, cp.y);
+  }
+
+  /* ================= パペットピン ================= */
+
+  /** キャンバス座標 → その絵の中の座標 */
+  function toImage(l, pose, cp){
+    const asset = frameAsset(l, pose.v.frame);
+    if(!asset) return null;
+    const inv = M.inv(pose.m);
+    const p = M.apply(inv, cp.x, cp.y);
+    return { x: p.x + asset.w * l.pivot.x, y: p.y + asset.h * l.pivot.y };
+  }
+
+  /** 絵の中の座標 → キャンバス座標 */
+  function fromImage(l, pose, ip){
+    const asset = frameAsset(l, pose.v.frame);
+    if(!asset) return null;
+    return M.apply(pose.m, ip.x - asset.w * l.pivot.x, ip.y - asset.h * l.pivot.y);
+  }
+
+  /** ピンを刺すとき、まだあみが無ければ張る */
+  function ensureMesh(l){
+    if(l.mesh) return true;
+    const img = frameImage(l, 0);
+    if(!img || !img.complete) return false;
+    const { cols, rows } = meshSizeFor(img);
+    l.mesh = buildMesh(img, cols, rows);
+    return true;
+  }
+
+  /** いま指の下にあるピン（画面上の距離で判定） */
+  function pickPin(l, pose, cp){
+    if(!l.pins || !l.pins.length) return -1;
+    const v = valuesAt(l, S.time);
+    const r = 22 / S.view.z;
+    let best = -1, bd = r;
+    l.pins.forEach((p, i) => {
+      const vp = v.pins[i] || p;
+      const at = fromImage(l, pose, { x: p.u + vp.dx, y: p.v + vp.dy });
+      if(!at) return;
+      const d = Math.hypot(at.x - cp.x, at.y - cp.y);
+      if(d < bd){ bd = d; best = i; }
+    });
+    return best;
+  }
+
+  /** ピンモード中にタップしたとき：刺す か けす */
+  function tapInPinMode(cp){
+    const l = selected();
+    if(!l) return toast('レイヤーをえらんでね');
+    const P = livePoses();
+    const pose = P[l.id]; if(!pose) return;
+
+    const i = pickPin(l, pose, cp);
+    if(S.pinKind === 'del'){
+      if(i < 0) return;
+      edit('ピンをけす', () => {
+        const pin = l.pins[i];
+        delete (l.tracks || {})[pinChX(pin.id)];
+        delete (l.tracks || {})[pinChY(pin.id)];
+        l.pins.splice(i, 1);
+        if(l.mesh) l.mesh.dirty = true;
+        if(!l.pins.length){ l.mesh = null; l._xy = null; }
+      });
+      S.pinSel = -1;
+      onChange();
+      return;
+    }
+    if(i >= 0){ S.pinSel = i; onChange(); return; }   // すでにあるピンを選ぶだけ
+
+    const ip = toImage(l, pose, cp);
+    const asset = frameAsset(l, pose.v.frame);
+    if(!ip || !asset) return;
+    if(ip.x < 0 || ip.y < 0 || ip.x > asset.w || ip.y > asset.h){
+      return toast('絵の上を おしてね');
+    }
+    if(!ensureMesh(l)) return toast('絵を よみこみ中です');
+
+    edit('ピンをさす', () => {
+      l.pins.push(newPin(ip.x, ip.y, S.pinKind === 'fix' ? 'fix' : 'move'));
+      l.mesh.dirty = true;
+    });
+    S.pinSel = l.pins.length - 1;
+    toast(S.pinKind === 'fix' ? 'とめるピンを さしました' : 'うごかすピンを さしました');
+    onChange();
+  }
+
+  /* ---- ハンドルの当たり判定 ---- */
+  function hitHandle(cp){
+    if(!handles) return null;
+    const r = 18 / S.view.z;
+    for(const [k, h] of Object.entries(handles)){
+      if(Math.hypot(cp.x - h.x, cp.y - h.y) < r) return k;
+    }
+    return null;
+  }
+
+  /* 動かしている最中も見た目が追いつくように、ピンがあるレイヤーは
+     そのチャンネルのピンをいまの時間に置きながら動かす */
+  function liveKey(l, chs){
+    if(!l || !hasPins(l)) return;
+    chs.forEach(c => setPin(l, c, S.time, l[c], 'smooth'));
+  }
+
+  /* ---- 操作 ---- */
+  const input = attachInput(canvas, {
+    onDown(p){
+      const cp = toCanvas(p);
+      if(S.pinMode) return;               // ピンモード中は選択を変えない
+      if(hitHandle(cp)) return;           // ハンドルはドラッグ開始時に処理する
+      const hit = pickPreferSelected(cp, livePoses());
+      if(hit && hit.id !== S.sel){ S.sel = hit.id; onChange(); }
+    },
+
+    onTap(p){
+      const cp = toCanvas(p);
+      if(S.pinMode){ tapInPinMode(cp); return; }
+      if(hitHandle(cp)) return;
+      const hit = pickPreferSelected(cp, livePoses());
+      if(!hit && S.sel){ S.sel = null; onChange(); }   // なにもない所を押したら選択を外す
+    },
+
+    onDragStart(p, byLongPress){
+      const cp = toCanvas(p);
+      const l = selected();
+      const P = livePoses();
+
+      if(S.pinMode){
+        if(!l){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
+        const i = pickPin(l, P[l.id], cp);
+        if(i >= 0 && S.pinKind !== 'del'){
+          S.pinSel = i;
+          beginEdit('ピンをうごかす');
+          const pin = l.pins[i];
+          const v = valuesAt(l, S.time).pins[i] || pin;
+          drag = { kind:'puppet', l, i, ip0: toImage(l, P[l.id], cp),
+                   dx0: v.dx, dy0: v.dy, u0: pin.u, v0: pin.v };
+          onChange();
+          return;
+        }
+        drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p };
+        return;
+      }
+
+      const h = hitHandle(cp);
+
+      if(l && h === 'scale'){
+        beginEdit('大きさをかえる');
+        const c = { x: P[l.id].m.tx, y: P[l.id].m.ty };
+        drag = { kind:'scale', l, c, r0: Math.max(1, Math.hypot(cp.x - c.x, cp.y - c.y)), s0: l.scale };
+        return;
+      }
+      if(l && h === 'rotate'){
+        beginEdit('まわす');
+        const c = { x: P[l.id].m.tx, y: P[l.id].m.ty };
+        drag = { kind:'rotate', l, c, a0: Math.atan2(cp.y - c.y, cp.x - c.x), r0: l.rot };
+        return;
+      }
+
+      const hit = pickPreferSelected(cp, P);
+      if(hit){
+        if(hit.id !== S.sel){ S.sel = hit.id; onChange(); }
+        beginEdit('うごかす');
+        drag = { kind:'move', l: hit, x0: hit.x, y0: hit.y, cp0: cp };
+        if(byLongPress) toast('つかんだ');
+        return;
+      }
+
+      // 絵がないところ＝画面を動かす
+      drag = { kind:'pan', vx: S.view.x, vy: S.view.y, p0: p };
+    },
+
+    onDrag(p){
+      if(!drag) return;
+      const cp = toCanvas(p);
+
+      if(drag.kind === 'puppet'){
+        const l = drag.l;
+        const pose = poses[l.id] || livePoses()[l.id];
+        const ip = toImage(l, pose, cp);
+        if(!ip) return;
+        const pin = l.pins[drag.i];
+        const ddx = ip.x - drag.ip0.x, ddy = ip.y - drag.ip0.y;
+        if(pin.type === 'fix'){
+          // 固定ピンは「刺す場所」そのものを動かす
+          pin.u = drag.u0 + ddx;
+          pin.v = drag.v0 + ddy;
+          l.mesh && (l.mesh.dirty = true);
+        } else {
+          pin.dx = drag.dx0 + ddx;
+          pin.dy = drag.dy0 + ddy;
+          if(hasPins(l)){
+            setPin(l, pinChX(pin.id), S.time, pin.dx, 'smooth');
+            setPin(l, pinChY(pin.id), S.time, pin.dy, 'smooth');
+          }
+        }
+        onChange();
+        return;
+      }
+
+      if(drag.kind === 'move'){
+        const l = drag.l;
+        const dx = cp.x - drag.cp0.x, dy = cp.y - drag.cp0.y;
+        const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
+        if(pm){
+          const inv = M.inv(pm);
+          const d = M.dir(inv, dx, dy);
+          l.x = drag.x0 + d.x; l.y = drag.y0 + d.y;
+        } else {
+          l.x = drag.x0 + dx; l.y = drag.y0 + dy;
+        }
+        liveKey(l, ['x','y']);
+      } else if(drag.kind === 'scale'){
+        const r = Math.hypot(cp.x - drag.c.x, cp.y - drag.c.y);
+        drag.l.scale = clamp(drag.s0 * (r / drag.r0), 0.02, 40);
+        liveKey(drag.l, ['scale']);
+      } else if(drag.kind === 'rotate'){
+        const a = Math.atan2(cp.y - drag.c.y, cp.x - drag.c.x);
+        let deg = drag.r0 + (a - drag.a0) * 180 / Math.PI;
+        drag.l.rot = Math.abs(deg % 15) < 2.2 ? Math.round(deg / 15) * 15 : deg;  // 15度に軽く吸い付く
+        liveKey(drag.l, ['rot']);
+      } else if(drag.kind === 'pan'){
+        S.view.x = drag.vx + (p.x - drag.p0.x);
+        S.view.y = drag.vy + (p.y - drag.p0.y);
+      }
+      onChange();
+    },
+
+    onDragEnd(){
+      if(drag && drag.kind === 'puppet'){ commitEdit(); drag = null; return; }
+      if(drag && drag.kind !== 'pan'){
+        /* すでにピンが打たれているレイヤーなら、動かした結果を
+           いまの時間のピンとして残す（ピンが1つも無いうちは素の位置を変えるだけ）。 */
+        const l = drag.l;
+        if(l && hasPins(l)){
+          const chs = drag.kind === 'move'  ? ['x','y']
+                    : drag.kind === 'scale' ? ['scale']
+                    : drag.kind === 'rotate'? ['rot'] : [];
+          chs.forEach(c => setPin(l, c, S.time, l[c], 'smooth'));
+        }
+        commitEdit();
+      }
+      drag = null;
+    },
+
+    onPinchStart(g){
+      viewStart = { ...S.view, cx: g.cx, cy: g.cy, d: g.d };
+    },
+
+    onPinch(now, start){
+      if(!viewStart) return;
+      const k = clamp(now.d / Math.max(1, start.d), 0.15, 12);
+      const z = clamp(viewStart.z * k, 0.05, 12);
+      // つまんだ中心を動かさないように寄せる
+      const wx = (viewStart.cx - viewStart.x) / viewStart.z;
+      const wy = (viewStart.cy - viewStart.y) / viewStart.z;
+      S.view.z = z;
+      S.view.x = now.cx - wx * z;
+      S.view.y = now.cy - wy * z;
+      onChange();
+    },
+
+    onPinchEnd(){ viewStart = null; },
+
+    onWheel(p, dy){
+      const before = toCanvas(p);
+      S.view.z = clamp(S.view.z * (dy > 0 ? 0.9 : 1.11), 0.05, 12);
+      const after = toCanvas(p);
+      S.view.x += (after.x - before.x) * S.view.z;
+      S.view.y += (after.y - before.y) * S.view.z;
+      onChange();
+    }
+  });
+
+  return { resize, fit, draw, get poses(){ return poses; }, get drag(){ return drag; }, input };
+}

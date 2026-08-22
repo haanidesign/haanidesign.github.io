@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>アニメ工房</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/parts.css">
+</head>
+<body>
+
+<div id="app">
+
+  <div id="top">
+    <span class="name">アニメ工房</span>
+    <span class="size dot" id="docSize">—</span>
+    <span class="spacer"></span>
+    <button id="undo" class="btn-sm" title="もどす" aria-label="もどす" disabled>↶</button>
+    <button id="redo" class="btn-sm" title="やりなおし" aria-label="やりなおし" disabled>↷</button>
+    <button id="fit" class="btn-sm" title="画面にあわせる" aria-label="画面にあわせる">⤢</button>
+    <button id="export" class="btn-sm btn-g" title="MP4で書き出す">▶ 書き出す</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="stageCv"></canvas>
+    <div id="drop"><span>ここに PSD / PNG / JPEG をドロップ</span></div>
+
+    <div id="pinmode" hidden>
+      <button id="pmMove" class="on">📍 うごかす</button>
+      <button id="pmFix">📌 とめる</button>
+      <button id="pmDel">🗑 けす</button>
+      <button id="pmClose" class="btn-g">おわり</button>
+    </div>
+  </div>
+
+  <div id="list">
+    <div id="playbar">
+      <button id="toStart" class="btn-sm" title="さいしょへ" aria-label="さいしょへ">⏮</button>
+      <button id="play" class="btn-sm btn-y" title="さいせい" aria-label="さいせい">▶</button>
+      <span class="tnum dot"><span id="tnow">00:00.0</span> / <span id="tdur">00:15.0</span></span>
+      <span class="spacer"></span>
+      <button id="ripple" class="btn-sm" title="ピンをずらすとき、その後ろのピンも一緒に動かす">⇥ 後ろも</button>
+      <button id="key" class="btn-sm btn-y" title="いまの姿をピンにする">◆ ピン</button>
+    </div>
+
+    <div id="pinbar" hidden>
+      <span id="pininfo" class="dot"></span>
+      <button id="pinHold" class="btn-sm">⏸ とめる</button>
+      <button id="pinLoop" class="btn-sm">🔁 ループ</button>
+      <button id="pinPing" class="btn-sm">🔄 往復</button>
+      <button id="pinDel" class="btn-sm">🗑 けす</button>
+    </div>
+
+    <div id="tracks"></div>
+  </div>
+
+  <div id="tools">
+    <button class="tool" id="add"><i>＋</i>ついか</button>
+    <button class="tool" id="pivot"><i>📍</i>ピン</button>
+    <button class="tool" id="parent"><i>🔗</i>おやこ</button>
+    <button class="tool" id="clip"><i>✂</i>クリップ</button>
+    <button class="tool" id="setting"><i>⚙</i>せってい</button>
+  </div>
+
+  <div id="props"></div>
+</div>
+
+<div id="sheetBack"></div>
+<div id="sheet" role="dialog" aria-label="せってい"></div>
+
+<div id="busy"><div class="msg" id="busyMsg">よみこみ中…</div></div>
+
+<div id="exporting">
+  <div class="card">
+    <b id="exTitle">動画を つくっています</b>
+    <div class="bar"><span id="exFill"></span></div>
+    <span id="exPct" class="dot">0%</span>
+    <button id="exCancel" class="btn-sm">やめる</button>
+  </div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="newdoc"></div>
+
+<input type="file" id="file" accept="image/png,image/jpeg,.psd" multiple hidden>
+
+<script src="lib/ag-psd.js"></script>
+<script src="lib/mp4-muxer.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
