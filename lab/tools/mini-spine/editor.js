@@ -1691,6 +1691,25 @@ $('#btnSpring').onclick = () => {
   refreshUI();
 };
 $('#btnMesh').onclick = () => { S.meshEdit = !S.meshEdit; refreshUI(); };
+
+/* ---- くわしい設定の開閉 ----
+   既定では ポーズ / 作成 / ウェイト だけを出す。回転・移動・座標系などは
+   ここを開いたときだけ現れる。選んだ状態は次に開いたときも残す。 */
+const ADV_TOOLS = ['rotate', 'translate', 'scale', 'shear'];
+function setAdvanced(on){
+  document.body.classList.toggle('adv', on);
+  const b = $('#btnAdv');
+  if(b) b.classList.toggle('on', on);
+  // 畳むときに隠れるツールを選んでいたら、ポーズに戻しておく
+  if(!on && ADV_TOOLS.includes(S.tool)){
+    S.tool = 'pose';
+    setStatus('ポーズに戻しました');
+  }
+  try{ localStorage.setItem('miniSpineAdv', on ? '1' : '0'); }catch(e){}
+  refreshUI();
+}
+$('#btnAdv').onclick = () => setAdvanced(!document.body.classList.contains('adv'));
+try{ setAdvanced(localStorage.getItem('miniSpineAdv') === '1'); }catch(e){ setAdvanced(false); }
 $('#btnUndo').onclick = undo;
 $('#btnRedo').onclick = redo;
 $('#btnAddImg').onclick = () => $('#fileImg').click();
@@ -1817,7 +1836,12 @@ window.addEventListener('keydown', e => {
     return;
   }
   const TOOLKEYS = { q:'pose', w:'translate', e:'rotate', r:'scale', t:'shear', a:'weight', c:'create' };
-  if(TOOLKEYS[k]){ S.tool = TOOLKEYS[k]; refreshUI(); return; }
+  if(TOOLKEYS[k]){
+    S.tool = TOOLKEYS[k];
+    // ショートカットで隠れているツールを選んだら、くわしい設定を開いて見せる
+    if(ADV_TOOLS.includes(S.tool) && !document.body.classList.contains('adv')) setAdvanced(true);
+    refreshUI(); return;
+  }
   if(k === 'k'){ keyAllChannels(); return; }
   if(k === 'f'){ fitView(); return; }
   if(k === 'x'){ S.axis = S.axis === 'local' ? 'parent' : S.axis === 'parent' ? 'world' : 'local'; refreshUI(); return; }

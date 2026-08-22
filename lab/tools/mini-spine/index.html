@@ -50,8 +50,8 @@
 
     <!-- モード切替（本物と同じく左上） -->
     <div id="modes">
-      <button id="mSetup" class="mode on">セットアップ</button>
-      <button id="mAnim" class="mode">アニメート</button>
+      <button id="mSetup" class="mode on"><b>① セットアップ</b><small>形をつくる</small></button>
+      <button id="mAnim" class="mode"><b>② アニメート</b><small>動かす</small></button>
     </div>
 
     <!-- 表示トグル（右上） -->
@@ -69,22 +69,27 @@
         <button class="tool" data-tool="weight"><i>🎨</i>ウェイト</button>
         <button class="tool" data-tool="create"><i>✚</i>作成</button>
       </div>
-      <div class="mt-col wide">
-        <button class="tool" data-tool="rotate"><i>↻</i>回転</button>
-        <button class="tool" data-tool="translate"><i>✥</i>トランスレート</button>
-        <button class="tool" data-tool="scale"><i>⤢</i>スケール</button>
-        <button class="tool" data-tool="shear"><i>⇸</i>シアー</button>
-      </div>
-      <div class="mt-sep"></div>
       <div class="mt-col">
-        <button class="axis" data-axis="local">ローカル</button>
-        <button class="axis" data-axis="parent">親</button>
-        <button class="axis" data-axis="world">ワールド</button>
-      </div>
-      <div class="mt-col">
-        <button id="btnComp" class="opt" title="子ボーンとアタッチメントを動かさずに、このボーンだけ調整する">コンペンセイト</button>
+        <button id="btnAdv" class="opt" title="回転・移動・座標系などの細かい操作を出す">⚙ くわしい設定</button>
         <button id="btnSpring" class="opt" title="バネ物理のON/OFF">揺れ物理</button>
-        <button id="btnMesh" class="opt">メッシュ編集</button>
+      </div>
+      <div id="mtAdvanced">
+        <div class="mt-sep"></div>
+        <div class="mt-col wide">
+          <button class="tool" data-tool="rotate"><i>↻</i>回転</button>
+          <button class="tool" data-tool="translate"><i>✥</i>トランスレート</button>
+          <button class="tool" data-tool="scale"><i>⤢</i>スケール</button>
+          <button class="tool" data-tool="shear"><i>⇸</i>シアー</button>
+        </div>
+        <div class="mt-col">
+          <button class="axis" data-axis="local">ローカル</button>
+          <button class="axis" data-axis="parent">親</button>
+          <button class="axis" data-axis="world">ワールド</button>
+        </div>
+        <div class="mt-col">
+          <button id="btnComp" class="opt" title="子ボーンとアタッチメントを動かさずに、このボーンだけ調整する">コンペンセイト</button>
+          <button id="btnMesh" class="opt">メッシュ編集</button>
+        </div>
       </div>
     </div>
 
