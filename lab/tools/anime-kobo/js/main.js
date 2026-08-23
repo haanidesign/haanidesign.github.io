@@ -8,11 +8,12 @@ import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildFaceSheet, setParentOpener, setBgPicker,
-         setFrameAdder, setNotifier } from './ui/sheet.js';
+         setAudioPicker, setFrameAdder, setNotifier } from './ui/sheet.js';
 import { addTextLayer } from './io/text.js';
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
 import { fitToCanvas, isBg } from './io/bg.js';
+import * as Audio from './io/audio.js';
 import { autoSaver, load as loadSaved, clear as clearSaved, whenText } from './io/store.js';
 import { importPsd } from './io/psd.js';
 import { exportVideo, saveVideo, canUseWebCodecs } from './io/export.js';
@@ -47,6 +48,7 @@ onRestore(() => refresh());
    手が止まったら 端末の中へ しまう。 */
 const saver = autoSaver(() => S.proj, {
   wait: 1200,
+  getAudio: () => (Audio.A.bytes ? { name: Audio.A.name, bytes: Audio.A.bytes } : null),
   onDone: (ok, err) => {
     if(ok) return;
     if(!saveWarned){ saveWarned = true; toast('じどう保存が できません（' + (err && err.message || '') + '）'); }
@@ -66,12 +68,24 @@ let lastT = performance.now();
   lastT = now;
 
   if(S.playing){
-    S.time += dt;
-    if(S.time >= S.proj.duration){ S.time = 0; }   // 頭にもどってくり返す
+    /* 音が 鳴っているときは 音の時計に 合わせる。
+       絵のほうが 重くて遅れても、口の形が 声から ずれない。 */
+    const at = Audio.currentTime();
+    S.time = (at == null) ? S.time + dt : at;
+    if(S.time >= S.proj.duration){
+      S.time = 0;
+      if(Audio.hasAudio()){                        // くり返すときは 音も 頭から
+        const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
+        Audio.play(0, v);
+      }
+    }
     $('#tnow').textContent = S.time.toFixed(1);
     timeline.updatePlayhead();
     dirty = true;
   }
+  // 目もりを さわるなど、ほかの所で 止まったときも 音を そろえる
+  if(!S.playing && Audio.isPlaying()) Audio.stop();
+
   if(dirty){ stage.draw(); dirty = false; }
   requestAnimationFrame(loop);
 })();
@@ -209,12 +223,24 @@ PIN_KINDS.forEach(([id, kind]) => {
 });
 
 /* ---- タイムライン ---- */
+/* 音は 再生ボタンと いっしょに 鳴らす。
+   ブラウザは「人が おした」ときしか 音を出せないので、ここで はじめる。 */
+function startSound(){
+  if(!Audio.hasAudio()) return;
+  const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
+  Audio.play(S.time, v);
+}
+function stopSound(){ Audio.stop(); }
+
 $('#play').addEventListener('click', () => {
   S.playing = !S.playing;
   if(S.playing && S.time >= S.proj.duration - 0.01) S.time = 0;
+  if(S.playing) startSound(); else stopSound();
   refresh();
 });
-$('#toStart').addEventListener('click', () => { S.time = 0; S.playing = false; refresh(); });
+$('#toStart').addEventListener('click', () => {
+  S.time = 0; S.playing = false; stopSound(); refresh();
+});
 $('#ripple').addEventListener('click', () => {
   S.ripple = !S.ripple;
   toast(S.ripple ? 'ピンをずらすと 後ろも ついてきます' : '1つだけ ずらします');
@@ -258,6 +284,31 @@ setParentOpener(openParentSheet);
 /* 上の「1080×1920／15秒」を おすと、作品ぜんたいの せってい */
 $('#docSize').addEventListener('click', () => {
   sheet.open('どうがの せってい', (box) => buildDocSheet(box, () => sheet.close()));
+});
+
+/* 音を えらんだとき */
+setAudioPicker(async (files) => {
+  const f = files && files[0];
+  if(!f) return 0;
+  try{
+    busy(true, '音を よみこみ中…');
+    await Audio.loadAudio(f, f.name);
+    S.proj.audio = { name: f.name, volume: 1, duration: Audio.A.buf.duration };
+    // 音より 動画が みじかいと 切れてしまうので、足りなければ のばす
+    if(Audio.A.buf.duration > S.proj.duration){
+      S.proj.duration = Math.ceil(Audio.A.buf.duration);
+      toast('音に合わせて 長さを ' + S.proj.duration + '秒に しました');
+    } else {
+      toast('音を よみこみました');
+    }
+    return 1;
+  }catch(err){
+    toast(err.message || '音を よみこめませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
 });
 
 /* はいけいに 写真を えらんだとき */
@@ -467,10 +518,13 @@ function startNew(resume){
 }
 
 /** しまってあったものを 開きなおす。絵は src から 作りなおす */
-async function reopen(proj){
+async function reopen(proj, audio){
   busy(true, 'まえのつづきを ひらいています…');
   try{
     S.proj = proj;
+    if(audio && audio.bytes){
+      try{ await Audio.loadAudio(audio.bytes, audio.name); }catch(_){}
+    }
     S.imgs = {};
     for(const a of Object.values(proj.assets || {})){
       try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){}
@@ -497,7 +551,7 @@ async function reopen(proj){
   if(n){
     startNew({
       text: whenText(saved.at) + '・' + n + 'まい',
-      onResume: () => reopen(saved.proj)
+      onResume: () => reopen(saved.proj, saved.audio)
     });
     return;
   }

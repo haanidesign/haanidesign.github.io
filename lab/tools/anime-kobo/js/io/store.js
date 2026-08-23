@@ -33,9 +33,11 @@ function run(mode, fn){
   }));
 }
 
-/** しまう。中身は そのままの形（構造化複製）で入るので JSON にしなくてよい */
-export function save(project){
+/** しまう。中身は そのままの形（構造化複製）で入るので JSON にしなくてよい。
+    音は プロジェクトの外に あるので、別に あずかる。 */
+export function save(project, audio){
   const rec = { at: Date.now(), proj: project };
+  if(audio && audio.bytes) rec.audio = { name: audio.name, bytes: audio.bytes };
   return run('readwrite', st => st.put(rec, KEY));
 }
 
@@ -64,12 +66,13 @@ export function whenText(at){
 export function autoSaver(getProject, opts = {}){
   const wait = opts.wait || 1200;
   let timer = null, busy = false, again = false, onDone = opts.onDone || (() => {});
+  const getAudio = opts.getAudio || (() => null);
 
   async function flush(){
     if(busy){ again = true; return; }
     busy = true;
     try{
-      await save(getProject());
+      await save(getProject(), getAudio());
       onDone(true);
     }catch(err){
       onDone(false, err);

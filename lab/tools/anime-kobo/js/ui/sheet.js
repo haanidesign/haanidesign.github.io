@@ -10,6 +10,7 @@ import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
 import { FONTS, renderTextLayer, shortName } from '../io/text.js';
 import { addBgLayer, paintBg, fitToCanvas, isBg } from '../io/bg.js';
+import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans } from '../io/audio.js';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -617,7 +618,46 @@ export function buildFaceSheet(box){
     })
   ));
 
-  box.appendChild(heading('👄 口パク'));
+  /* ---------- 音に合わせた 口パク ---------- */
+  box.appendChild(heading('🎤 音に合わせて 口パク'));
+  if(!hasAudio()){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = 'まだ 音が ありません。' + NL
+      + '上の「1080×1920／◯秒」を おして、' + NL
+      + 'おと → 🎤音を 読みこむ で 声を えらんでね。';
+    box.appendChild(e);
+  } else {
+    l.voice = l.voice || { sense: 0.12, rate: 10 };
+    box.appendChild(sub('声が 出ている所だけ 口を動かします。'
+      + NL + '大きい声ほど 口を 大きくあけます（コマが3まい以上のとき）。'));
+    box.appendChild(slider('ひろいやすさ', () => l.voice.sense, v => l.voice.sense = v,
+      0.03, 0.4, 0.01,
+      v => v < 0.08 ? 'ちいさい声も' : v > 0.25 ? '大きい声だけ' : 'ふつう'));
+    box.appendChild(slider('口のはやさ', () => l.voice.rate, v => l.voice.rate = v, 4, 16, 1,
+      v => Math.round(v) + '/秒'));
+    box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));
+    box.appendChild(btnRow(
+      button('🎤 音から 口パクを つくる', () => {
+        const r = voiceMouthKeys({
+          frames: l.frames.map((_, i) => i),
+          closedFrame: l.talk.closed,
+          rate: l.voice.rate, sense: l.voice.sense,
+          start: 0, end: S.proj.duration
+        });
+        if(!r.keys.length) return notify('声が 見つかりませんでした（ひろいやすさを 下げてみてね）');
+        edit('音から 口パク', () => {
+          framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
+          r.keys.forEach(k => setPin(l, 'frame', k.t, k.v, 'hold'));
+        });
+        notify(r.spans.length + 'か所 しゃべります（ピン ' + r.keys.length + 'コ）');
+        onChange();
+      })
+    ));
+  }
+
+  box.appendChild(heading('👄 口パク（音なしで つくる）'));
   box.appendChild(sub('いまの時間から「しゃべる長さ」のあいだ、'
     + NL + '口の絵を パタパタ 入れかえます。さいごは 口をとじます。'));
   box.appendChild(slider('口のはやさ', () => l.talk.rate, v => l.talk.rate = v, 3, 16, 1,
@@ -906,6 +946,9 @@ export function buildParentSheet(box, closeFn){
 let onBgFile = async () => 0;
 export function setBgPicker(fn){ onBgFile = fn; }
 
+let onAudioFile = async () => 0;
+export function setAudioPicker(fn){ onAudioFile = fn; }
+
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
 
@@ -914,6 +957,55 @@ export function buildDocSheet(box, closeFn){
     () => S.proj.duration,
     v => { S.proj.duration = v; if(S.time > v) S.time = v; },
     3, 120, 1, v => v < 60 ? Math.round(v) + '秒' : (v / 60).toFixed(1) + '分'));
+
+  /* ---------- おと ---------- */
+  box.appendChild(heading('おと'));
+  if(!hasAudio()){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = '声や音楽を 読みこむと、' + NL
+      + '・さいせい中に いっしょに 鳴る' + NL
+      + '・しゃべっている所だけ 口を動かせる' + NL
+      + '・書き出す MP4 にも 入る';
+    box.appendChild(e);
+  } else {
+    const info = document.createElement('div');
+    info.className = 'empty';
+    info.style.textAlign = 'left';
+    info.textContent = '「' + AUD.name + '」' + NL
+      + '長さ ' + AUD.buf.duration.toFixed(1) + '秒／'
+      + 'しゃべっている所 ' + speechSpans().length + 'か所';
+    box.appendChild(info);
+
+    S.proj.audio = S.proj.audio || { volume: 1, offset: 0 };
+    box.appendChild(slider('おとの大きさ',
+      () => S.proj.audio.volume == null ? 1 : S.proj.audio.volume,
+      v => S.proj.audio.volume = v, 0, 1.5, 0.05,
+      v => Math.round(v * 100) + '%'));
+  }
+
+  const apick = document.createElement('input');
+  apick.type = 'file';
+  apick.accept = 'audio/*';
+  apick.hidden = true;
+  apick.addEventListener('change', async (e) => {
+    await onAudioFile(e.target.files);
+    e.target.value = '';
+    onChange();
+  });
+  box.appendChild(apick);
+
+  box.appendChild(btnRow(
+    button(hasAudio() ? '🎤 音を えらびなおす' : '🎤 音を 読みこむ', () => apick.click()),
+    button('音を けす', () => {
+      if(!hasAudio()) return notify('まだ 音は ありません');
+      clearAudio();
+      S.proj.audio = null;
+      notify('音を けしました');
+      onChange();
+    })
+  ));
 
   box.appendChild(heading('はいけい'));
   const bg = S.proj.layers.find(isBg);

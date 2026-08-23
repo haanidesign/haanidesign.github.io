@@ -8,6 +8,7 @@
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
 import { createRenderer } from '../render/renderer.js';
+import { A as AUD } from './audio.js';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -55,19 +56,77 @@ export async function exportVideo(project, opts = {}){
   const cfg = await pickCodec(width, height, fps, bitrate);
 
   if(cfg && typeof Mp4Muxer !== 'undefined'){
+    // 音を いっしょに 詰められるか 先に みておく（箱を作る前に 決めないといけない）
+    const acfg = await pickAudioCodec(AUD.buf);
     return await encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
-                                       total, cfg, onProgress, shouldStop });
+                                       total, cfg, acfg, onProgress, shouldStop });
   }
   return await recordWithMediaRecorder({ cv, R, project, view, fps, duration,
                                          onProgress, shouldStop });
 }
 
+/** 音を AAC で 詰められるか。だめなら null（絵だけ 書き出す） */
+async function pickAudioCodec(buf){
+  if(!buf || typeof AudioEncoder === 'undefined') return null;
+  const numberOfChannels = Math.min(2, buf.numberOfChannels);
+  const cfg = {
+    codec: 'mp4a.40.2',              // AAC-LC。MP4 で いちばん ふつうに 再生できる
+    sampleRate: buf.sampleRate,
+    numberOfChannels,
+    bitrate: 128_000
+  };
+  try{
+    const r = await AudioEncoder.isConfigSupported(cfg);
+    return (r && r.supported) ? cfg : null;
+  }catch(_){ return null; }
+}
+
+/** 音を 詰める。動画の長さで 切る */
+async function encodeAudio(muxer, cfg, buf, duration){
+  let failed = null;
+  const enc = new AudioEncoder({
+    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    error: (e) => { failed = e; }
+  });
+  enc.configure(cfg);
+
+  const rate = cfg.sampleRate, ch = cfg.numberOfChannels;
+  const total = Math.min(buf.length, Math.floor(duration * rate));
+  const block = 4096;
+  const chans = [];
+  for(let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+
+  for(let i = 0; i < total; i += block){
+    const n = Math.min(block, total - i);
+    const data = new Float32Array(n * ch);
+    for(let c = 0; c < ch; c++) data.set(chans[c].subarray(i, i + n), c * n);
+    const ad = new AudioData({
+      format: 'f32-planar',
+      sampleRate: rate,
+      numberOfFrames: n,
+      numberOfChannels: ch,
+      timestamp: Math.round((i / rate) * 1e6),
+      data
+    });
+    enc.encode(ad);
+    ad.close();
+    if(enc.encodeQueueSize > 16) await new Promise(r => setTimeout(r, 4));
+    if(failed) break;
+  }
+  await enc.flush();
+  enc.close();
+  if(failed) throw failed;
+}
+
 /* ---------- 本命：WebCodecs ---------- */
 async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
-                                     total, cfg, onProgress, shouldStop }){
+                                     total, cfg, acfg, onProgress, shouldStop }){
   const muxer = new Mp4Muxer.Muxer({
     target: new Mp4Muxer.ArrayBufferTarget(),
     video: { codec: 'avc', width, height, frameRate: fps },
+    ...(acfg ? { audio: { codec: 'aac',
+                          numberOfChannels: acfg.numberOfChannels,
+                          sampleRate: acfg.sampleRate } } : {}),
     fastStart: 'in-memory'          // SNS に上げる前提なので、先頭に索引を置く
   });
 
@@ -104,6 +163,9 @@ async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
   await encoder.flush();
   encoder.close();
   if(failed) throw failed;
+
+  if(acfg && AUD.buf) await encodeAudio(muxer, acfg, AUD.buf, total / fps);
+
   muxer.finalize();
   onProgress(1);
 
