@@ -13,7 +13,8 @@ import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
 import { addBgLayer, paintBg, fitToCanvas, isBg,
          paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js';
 import { PATTERN_NAMES } from '../io/pattern.js';
-import { createWheel } from './colorwheel.js';
+import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
+  from './colorwheel.js';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
          guessBpm, firstOnset } from '../io/audio.js';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec,
@@ -214,6 +215,7 @@ export function button(text, fn, cls){
  * まわりの わっか＝色あい、まん中の 四角＝こさ と 明るさ。
  */
 export function colorPick(label, get, set){
+  const NL = String.fromCharCode(10);
   const wrap = document.createElement('div');
   wrap.className = 'colorpick';
 
@@ -223,18 +225,17 @@ export function colorPick(label, get, set){
   lb.textContent = label;
   row.appendChild(lb);
 
+  // 色だけの まる。番号は となりに 出す（色の上に のせると 読みにくい）
   const btn = document.createElement('button');
   btn.className = 'swatch';
-  const paint = (c) => {
-    btn.style.background = c;
-    btn.textContent = c;
-    // こい色のときは 字を 白く
-    const n = parseInt(String(c).slice(1), 16) || 0;
-    const lum = ((n >> 16 & 255) * 0.3 + (n >> 8 & 255) * 0.59 + (n & 255) * 0.11);
-    btn.style.color = lum < 130 ? '#FFFEF7' : '#1E1C14';
-  };
+  btn.setAttribute('aria-label', label + 'をえらぶ');
+  const code = document.createElement('span');
+  code.className = 'val dot';
+
+  const paint = (c) => { btn.style.background = c; code.textContent = c; };
   paint(get());
   row.appendChild(btn);
+  row.appendChild(code);
   wrap.appendChild(row);
 
   const box = document.createElement('div');
@@ -242,28 +243,94 @@ export function colorPick(label, get, set){
   box.hidden = true;
   wrap.appendChild(box);
 
-  let wheel = null;
+  let wheel = null, hexIn = null, favRow = null, favBtn = null;
+
+  const use = (c, done) => {
+    beginEdit(label + 'をかえる');
+    set(c);
+    paint(c);
+    if(hexIn && document.activeElement !== hexIn) hexIn.value = c;
+    if(wheel) wheel.set(c);
+    if(favBtn) favBtn.textContent = hasFav(c) ? '★ おきにいり ずみ' : '☆ おきにいりに 入れる';
+    onChange();
+    if(done) commitEdit();
+  };
+
+  const buildFavs = () => {
+    favRow.innerHTML = '';
+    const list = favs();
+    if(!list.length){
+      const e = document.createElement('span');
+      e.className = 'val';
+      e.textContent = 'まだ ありません';
+      favRow.appendChild(e);
+      return;
+    }
+    list.forEach(c => {
+      const b = document.createElement('button');
+      b.className = 'favchip';
+      b.style.background = c;
+      b.title = c;
+      b.setAttribute('aria-label', c);
+      b.addEventListener('click', () => use(c, true));
+      favRow.appendChild(b);
+    });
+  };
+
   btn.addEventListener('click', () => {
     const open = box.hidden;
     box.hidden = !open;
     holdSheet(open);                   // ひらいている間は 中身を 作り直さない
-    if(open && !wheel){
-      wheel = createWheel(get(), (c, done) => {
-        beginEdit(label + 'をかえる');
-        set(c);
-        paint(c);
-        onChange();
-        if(done) commitEdit();
-      });
-      box.appendChild(wheel.el);
-      const ok = button('✓ できた', () => {
-        box.hidden = true;
-        holdSheet(false);
-        onChange();
-      });
-      ok.className = 'btn-y';
-      box.appendChild(ok);
-    }
+    if(!open) return;
+    if(wheel) return;
+
+    wheel = createWheel(get(), (c, done) => use(c, done));
+    box.appendChild(wheel.el);
+
+    /* 色の ばんごうを 直に 打てるように */
+    hexIn = document.createElement('input');
+    hexIn.type = 'text';
+    hexIn.value = get();
+    hexIn.maxLength = 7;
+    hexIn.spellcheck = false;
+    hexIn.className = 'hexin dot';
+    hexIn.setAttribute('aria-label', 'カラーコード');
+    const applyHex = () => {
+      let v = String(hexIn.value || '').trim();
+      if(v[0] !== '#') v = '#' + v;
+      if(!/^#[0-9a-f]{6}$/i.test(v)){
+        hexIn.value = get();
+        return notify('#ff88cc のように 6けたで 入れてね');
+      }
+      const rgb = parseHex(v);
+      use(toHex(rgb[0], rgb[1], rgb[2]), true);
+    };
+    hexIn.addEventListener('change', applyHex);
+    hexIn.addEventListener('keydown', (e) => { if(e.key === 'Enter'){ e.preventDefault(); applyHex(); } });
+    box.appendChild(field('カラーコード', hexIn));
+
+    /* おきにいり */
+    favRow = document.createElement('div');
+    favRow.className = 'favs';
+    buildFavs();
+    box.appendChild(field('おきにいり', favRow));
+
+    favBtn = button(hasFav(get()) ? '★ おきにいり ずみ' : '☆ おきにいりに 入れる', () => {
+      const c = get();
+      if(hasFav(c)){ delFav(c); notify('おきにいりから 外しました'); }
+      else { addFav(c); notify('おきにいりに 入れました'); }
+      favBtn.textContent = hasFav(c) ? '★ おきにいり ずみ' : '☆ おきにいりに 入れる';
+      buildFavs();
+    });
+    box.appendChild(btnRow(favBtn));
+
+    const ok = button('とじる', () => {
+      box.hidden = true;
+      holdSheet(false);
+      onChange();
+    });
+    ok.className = 'btn-y';
+    box.appendChild(ok);
   });
   return wrap;
 }

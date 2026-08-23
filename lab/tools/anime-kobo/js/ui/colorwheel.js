@@ -214,3 +214,37 @@ export function createWheel(value, onPick){
     }
   };
 }
+
+
+/* ---------- おきにいりの色 ----------
+   端末に おぼえておく。ほかの さくひんでも 出てくる。 */
+const FAV_KEY = 'anime-kobo-favs';
+const FAV_MAX = 18;
+
+export function favs(){
+  try{
+    const a = JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
+    return Array.isArray(a) ? a.filter(c => /^#[0-9A-F]{6}$/i.test(c)) : [];
+  }catch(_){ return []; }
+}
+
+function saveFavs(list){
+  try{ localStorage.setItem(FAV_KEY, JSON.stringify(list.slice(0, FAV_MAX))); }catch(_){}
+}
+
+export function addFav(c){
+  const up = String(c).toUpperCase();
+  const list = favs().filter(x => x !== up);
+  list.unshift(up);
+  saveFavs(list);
+  return list;
+}
+
+export function delFav(c){
+  const up = String(c).toUpperCase();
+  const list = favs().filter(x => x !== up);
+  saveFavs(list);
+  return list;
+}
+
+export const hasFav = (c) => favs().includes(String(c).toUpperCase());
