@@ -9,7 +9,9 @@ import { swayKeys } from '../engine/puppet.js';
 import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
 import { FONTS, renderTextLayer, shortName } from '../io/text.js';
-import { addBgLayer, paintBg, fitToCanvas, isBg } from '../io/bg.js';
+import { addBgLayer, paintBg, fitToCanvas, isBg,
+         paintPattern, addPatternBg, MOVES } from '../io/bg.js';
+import { PATTERN_NAMES } from '../io/pattern.js';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans } from '../io/audio.js';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
@@ -1025,6 +1027,13 @@ export function buildDocSheet(box, closeFn){
         commitEdit();
         notify('はいけいを 足しました');
         onChange();
+      }),
+      button('🎨 もようで 足す', async () => {
+        beginEdit('もようの はいけい');
+        await addPatternBg({ kind:'ドット' });
+        commitEdit();
+        notify('もようの はいけいを 足しました');
+        onChange();
       })
     ));
     return;
@@ -1075,6 +1084,71 @@ export function buildDocSheet(box, closeFn){
       onChange();
     })
   ));
+
+  /* ---------- もよう ---------- */
+  box.appendChild(heading('もよう'));
+  const pt = bg.bgPattern || {
+    kind: 'ドット', back: bg.bgColor || '#FFFEF7', front: '#F2A0B8',
+    size: Math.round(S.proj.w / 10), angle: 0, move: 'とめる', speed: 24
+  };
+  const apply = async (label) => {
+    beginEdit(label);
+    await paintPattern(bg, pt);
+    commitEdit();
+    onChange();
+  };
+
+  const kinds = document.createElement('div');
+  kinds.className = 'rowbtns';
+  kinds.style.flexWrap = 'wrap';
+  PATTERN_NAMES.forEach(name => {
+    const b = button(name, () => { pt.kind = name; apply('もようを かえる'); });
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', pt.kind === name);
+    kinds.appendChild(b);
+  });
+  box.appendChild(field('がら', kinds));
+
+  const colorRow = (label, key, def) => {
+    const i = document.createElement('input');
+    i.type = 'color';
+    i.value = pt[key] || def;
+    i.style.cssText = 'min-height:38px;padding:2px;flex:1';
+    i.addEventListener('change', () => { pt[key] = i.value; apply(label); });
+    return field(label, i);
+  };
+  box.appendChild(colorRow('じの色', 'back', '#FFFEF7'));
+  box.appendChild(colorRow('がらの色', 'front', '#F2A0B8'));
+
+  box.appendChild(slider('がらの大きさ', () => pt.size, v => pt.size = v,
+    20, Math.round(S.proj.w / 3), 2, v => Math.round(v) + 'px'));
+  box.appendChild(slider('かたむき', () => pt.angle, v => pt.angle = v,
+    0, 90, 5, v => Math.round(v) + '°'));
+
+  const moves = document.createElement('div');
+  moves.className = 'rowbtns';
+  moves.style.flexWrap = 'wrap';
+  Object.keys(MOVES).forEach(name => {
+    const b = button(name, () => { pt.move = name; apply('もようを うごかす'); });
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', pt.move === name);
+    moves.appendChild(b);
+  });
+  box.appendChild(field('うごき', moves));
+  box.appendChild(slider('はやさ', () => pt.speed, v => pt.speed = v,
+    2, 200, 2, v => v < 20 ? 'ゆっくり' : v > 120 ? 'はやい' : 'ふつう'));
+
+  box.appendChild(btnRow(
+    button('🎨 このもように する', () => apply('もようを はる'))
+  ));
+
+  const pnote = document.createElement('div');
+  pnote.className = 'empty';
+  pnote.style.textAlign = 'left';
+  pnote.textContent = 'いろ・大きさ・かたむきを かえると すぐ はりなおします。'
+    + NL + 'うごくもようは、つなぎ目が 見えないように'
+    + NL + 'ちょうど ひとマスぶん ずらして くり返します。';
+  box.appendChild(pnote);
 
   const note = document.createElement('div');
   note.className = 'empty';

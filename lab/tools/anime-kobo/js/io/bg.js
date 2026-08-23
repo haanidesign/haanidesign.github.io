@@ -7,6 +7,8 @@
 import { S, addAsset } from '../state.js';
 import { newLayer } from '../engine/layer.js';
 import { loadImage } from './image.js';
+import { makePattern } from './pattern.js';
+import { setPin } from '../engine/anim.js';
 
 export const isBg = (l) => !!l && l.kind === 'bg';
 
@@ -50,5 +52,79 @@ export async function addBgLayer(color){
   await paintBg(l, color || '#BFE3F5');
   S.proj.layers.push(l);      // いちばん下（配列の さいご が いちばん奥）
   S.sel = l.id;
+  return l;
+}
+
+
+/* ---------- もよう（ハート・ドット・ストライプ…） ---------- */
+
+/** 動かし方 */
+export const MOVES = {
+  とめる:   [0, 0],
+  よこ:     [-1, 0],
+  ぎゃくよこ:[1, 0],
+  たて:     [0, -1],
+  ななめ:   [-1, -1]
+};
+
+/**
+ * もようを 貼る。
+ * うごかすときは ちょうど ひとマスぶん ずらして くり返すので、
+ * つなぎ目が 見えないまま ずっと 流れる。
+ *   opt = { kind, back, front, size, angle, move, speed }
+ */
+export async function paintPattern(layer, opt){
+  const o = Object.assign({
+    kind: 'ドット', back: '#FFFEF7', front: '#F2A0B8',
+    size: Math.round(S.proj.w / 10), angle: 0,
+    move: 'とめる', speed: 24
+  }, opt || {});
+
+  const r = makePattern(S.proj.w, S.proj.h, o);
+  const src = r.canvas.toDataURL('image/png');
+  const id = addAsset('もよう', src, r.canvas.width, r.canvas.height, await loadImage(src));
+
+  layer.frames = [id];
+  layer.bgColor = null;
+  layer.bgPattern = o;
+
+  // 縮めて作ったぶんを もどして、キャンバスの ドットに ぴったり合わせる
+  layer.scaleX = 1 / r.k;
+  layer.scaleY = 1 / r.k;
+  layer.x = S.proj.w / 2;
+  layer.y = S.proj.h / 2;
+
+  // 前のうごきは 消してから 入れなおす
+  layer.tracks = {};
+  layer.loop = null;
+
+  const dir = MOVES[o.move] || MOVES['とめる'];
+  if(dir[0] || dir[1]){
+    /* ずらす量は「絵の中のドット数で ちょうど整数」にする。
+       中途はんぱだと ひとまわりしたときに 絵が わずかに ぼけて
+       つなぎ目が うっすら 見えてしまう。 */
+    const exact = (t) => Math.max(1, Math.round(t * r.k)) / r.k;
+    const stepX = exact(r.tileW), stepY = exact(r.tileH);
+
+    // はやさ ＝ 1秒に すすむ ドット数
+    const per = Math.max(0.2, Math.min(30,
+      (dir[0] ? stepX : stepY) / Math.max(1, o.speed)));
+    if(dir[0]){
+      setPin(layer, 'x', 0, layer.x, 'linear');
+      setPin(layer, 'x', per, layer.x + dir[0] * stepX, 'linear');
+    }
+    if(dir[1]){
+      setPin(layer, 'y', 0, layer.y, 'linear');
+      setPin(layer, 'y', per, layer.y + dir[1] * stepY, 'linear');
+    }
+    layer.loop = { from: 0, to: per, mode: 'loop' };
+  }
+  return id;
+}
+
+/** もようの はいけいを 足す（無ければ 作る） */
+export async function addPatternBg(opt){
+  const l = S.proj.layers.find(isBg) || await addBgLayer('#FFFEF7');
+  await paintPattern(l, opt);
   return l;
 }
