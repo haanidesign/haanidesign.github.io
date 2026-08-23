@@ -22,6 +22,7 @@ export function createSheet(sheetEl, backEl){
 
   let pages = null;      // [{key,label,build}]
   let page = 0;
+  let lastPage = -1;
 
   function open(title, build){
     builder = build; pages = null; page = 0;
@@ -48,6 +49,14 @@ export function createSheet(sheetEl, backEl){
 
   function render(title){
     if(!builder && !pages) return;
+    /* 中身を 作り直すと 上まで もどってしまうので、
+       見ていた場所を おぼえておく（ページを かえたときは 上から） */
+    const keep = sheetEl.scrollTop;
+    const body0 = sheetEl.querySelector('.sheetbody');
+    const keepBody = body0 ? body0.scrollTop : 0;
+    const samePage = lastPage === page;
+    lastPage = page;
+
     sheetEl.innerHTML = '';
     const h = document.createElement('div');
     h.className = 'handle';
@@ -69,6 +78,7 @@ export function createSheet(sheetEl, backEl){
       body.className = 'sheetbody';
       sheetEl.appendChild(body);
       pages[page].build(body);
+      if(samePage) restoreScroll(sheetEl, body, keep, keepBody);
       return;
     }
 
@@ -78,6 +88,18 @@ export function createSheet(sheetEl, backEl){
       sheetEl.appendChild(t);
     }
     builder(sheetEl);
+    restoreScroll(sheetEl, null, keep, 0);
+  }
+
+  /* 中身を入れ直した直後は 高さが まだ決まっていないことがあるので、
+     いちど描いてもらってから 位置をもどす。 */
+  function restoreScroll(host, body, keep, keepBody){
+    const put = () => {
+      if(body && body.scrollHeight > body.clientHeight) body.scrollTop = keepBody;
+      if(keep) host.scrollTop = keep;
+    };
+    put();
+    requestAnimationFrame(put);
   }
 
   /** 横に振ったらページを送る */

@@ -88,6 +88,10 @@ export function createTimeline(root, opts = {}){
     buildPinbar();
     buildRuler();
 
+    /* 作り直すと 見ていた場所が いちばん上に もどってしまう。
+       ボタンを おすたびに 飛ばされないよう、いまの位置を おぼえておく。 */
+    const keepTop = rows.scrollTop;
+
     rows.innerHTML = '';
     if(!S.proj.layers.length){
       const e = document.createElement('div');
@@ -99,6 +103,9 @@ export function createTimeline(root, opts = {}){
 
     treeRows(S.proj).forEach(r => rows.appendChild(buildRow(r.layer, r.depth)));
     rows.appendChild(buildPlayhead());
+
+    // 行が へって 短くなっていることもあるので、はみ出さない所まで もどす
+    rows.scrollTop = Math.min(keepTop, Math.max(0, rows.scrollHeight - rows.clientHeight));
   }
 
   /** 目もりを さわったら、そこへ 再生バーを うつす */
