@@ -17,7 +17,7 @@ import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
   from './colorwheel.js';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
          guessBpm, firstOnset } from '../io/audio.js';
-import { rhythmKeys, rhythmChannels, beatTimes, beatSec,
+import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
          RHYTHM_KINDS } from '../engine/rhythm.js';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
@@ -771,6 +771,92 @@ function buildRhythm(box, l){
     0, 2, 0.01, v => v.toFixed(2) + '秒'));
   box.appendChild(slider('なん拍ぶん', () => B.bars, v => B.bars = v, 2, 64, 1,
     v => Math.round(v) + '拍'));
+
+  /* うごきは つけず、拍の ところに 印だけ うつ。
+     あとで 自分で 動かせば、ぴったり リズムに 合う。 */
+
+  /** 印のピンを うつ。beats を わたすと その拍ぶんだけ */
+  const putMarks = (beats, label) => {
+    const start = S.time;
+    const b = beatSec(B.bpm);
+    const end = Math.min(S.proj.duration, start + b * beats);
+    if(end - start < b * 0.99){
+      return notify('のこり時間が みじかいです（' + b.toFixed(2) + '秒 いります）');
+    }
+    const pose = valuesAt(l, S.time);
+    const r = { n: 0, times: [] };
+    edit(label, () => {
+      const got = markKeys(l, {
+        bpm: B.bpm, every: B.every, kind: 'both',
+        offset: 0, start, end, pose
+      });
+      r.n = got.n; r.times = got.times;
+      if(B.loopIt !== false && got.times.length > 1){
+        l.loop = { from: got.times[0].t, to: got.times[got.times.length - 1].t, mode: 'loop' };
+      }
+    });
+    if(!r.n) return notify('うてませんでした');
+    notify(r.times.length + 'コの 拍に ピンを うちました'
+      + (B.loopIt !== false ? '（くり返しに しました）' : ''));
+    onChange();
+  };
+
+  box.appendChild(btnRow(
+    button('◆ 1拍ぶん（表2・裏1）', () => putMarks(1, '1拍ぶんのピン'))
+  ));
+
+  const onenote = document.createElement('div');
+  onenote.className = 'empty';
+  onenote.style.textAlign = 'left';
+  onenote.textContent = 'はじめの拍・まん中の うら拍・つぎの拍 の 3つに ピンが つきます。'
+    + NL + 'まん中を 動かせば、それだけで リズムに 合った くり返しに なります。';
+  box.appendChild(onenote);
+
+  box.appendChild(btnRow(
+    button('◆ 拍のところに ピンだけ うつ', () => {
+      const start = S.time;
+      const end = Math.min(S.proj.duration, start + beatSec(B.bpm) * B.bars);
+      const r = { n: 0, times: [] };
+      const pose = valuesAt(l, S.time);
+      edit('拍のピンをうつ', () => {
+        const got = markKeys(l, {
+          bpm: B.bpm, every: B.every, kind: B.kind,
+          offset: B.offset, start, end, pose
+        });
+        r.n = got.n; r.times = got.times;
+        // さいごの拍まで を くり返しに する（自分で うごきを つければ ループになる）
+        if(B.loopIt !== false && got.times.length > 1){
+          l.loop = {
+            from: got.times[0].t,
+            to: got.times[got.times.length - 1].t,
+            mode: 'loop'
+          };
+        }
+      });
+      if(!r.n) return notify('うてませんでした（時間を のばしてね）');
+      notify(r.times.length + 'コの 拍に ピンを うちました'
+        + (B.loopIt !== false ? '（くり返しに しました）' : ''));
+      onChange();
+    })
+  ));
+
+  const loopRow = document.createElement('div');
+  loopRow.className = 'rowbtns';
+  [['くり返す', true], ['くり返さない', false]].forEach(([lb, v]) => {
+    const b = button(lb, () => { B.loopIt = v; onChange(); });
+    b.style.flex = '1';
+    b.classList.toggle('on', (B.loopIt !== false) === v);
+    loopRow.appendChild(b);
+  });
+  box.appendChild(field('拍のピンは', loopRow));
+
+  const mnote = document.createElement('div');
+  mnote.className = 'empty';
+  mnote.style.textAlign = 'left';
+  mnote.textContent = '「ピンだけ」は うごきを つけません。' + NL
+    + 'いまの姿の まま 拍の ところに ならぶので、' + NL
+    + 'その ピンを 1つずつ 動かせば 自分の うごきが リズムに 合います。';
+  box.appendChild(mnote);
 
   box.appendChild(btnRow(
     button('◆ リズムで ピンをうつ', () => {

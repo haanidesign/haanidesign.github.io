@@ -133,3 +133,37 @@ export function rhythmChannels(motion){
   if(motion === 'チカッ')   return ['opacity'];
   return ['scaleX', 'scaleY'];
 }
+
+
+/**
+ * 拍の ところに「印としてのピン」だけ うつ。
+ *
+ * うごきは つけない。いまの姿を そのまま 拍の 時こくに おいていく。
+ * あとは その ピンを 1つずつ ずらせば、
+ * 自分の 好きな うごきを リズムに ぴったり 合わせられる。
+ *
+ * 戻り値 … { times, n }
+ */
+export function markKeys(l, opt = {}){
+  const times = beatTimes(opt);
+  if(!times.length) return { times: [], n: 0 };
+
+  const at = opt.pose || {};
+  const base = {
+    x: at.x == null ? l.x : at.x,
+    y: at.y == null ? l.y : at.y,
+    scaleX: at.scaleX == null ? l.scaleX : at.scaleX,
+    scaleY: at.scaleY == null ? l.scaleY : at.scaleY,
+    rot: at.rot == null ? l.rot : at.rot,
+    opacity: at.opacity == null ? l.opacity : at.opacity
+  };
+
+  let n = 0;
+  for(const bt of times){
+    for(const ch of Object.keys(base)){
+      setPin(l, ch, bt.t, base[ch], 'smooth');
+      n++;
+    }
+  }
+  return { times, n };
+}
