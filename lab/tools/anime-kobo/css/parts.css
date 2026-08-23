@@ -24,6 +24,20 @@
 }
 /* 指で押す前提なので、高さは確保しつつ、横は詰めて1段に収める */
 #playbar button,#pinbar button{ min-height:40px; padding-left:.45rem; padding-right:.45rem; }
+/* 再生バーは 1段に おさめる。入りきらないぶんは 横に スライド */
+#playbar{
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+#playbar::-webkit-scrollbar{ height:4px; }
+#playbar button{
+  flex:0 0 auto;
+  padding-left:.28rem; padding-right:.28rem;
+  font-size:.74rem;
+}
+#playbar .tnum{ flex:0 0 auto; padding-left:.3rem; padding-right:.3rem; }
 #playbar{ gap:.25rem; }
 #playbar button{ min-width:42px; }
 #top button{ min-height:36px; }

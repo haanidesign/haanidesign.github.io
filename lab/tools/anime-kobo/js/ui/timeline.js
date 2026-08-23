@@ -437,7 +437,12 @@ export function createTimeline(root, opts = {}){
         btn.removeEventListener('pointerup', end);
         btn.removeEventListener('pointercancel', end);
         if(moved) commitEdit();
-        else selectPin(l.id, t, ev.shiftKey || S.selPins.layer === l.id);
+        else {
+          // おしただけ ＝ そのピンを えらんで、再生バーも そこへ そろえる
+          S.playing = false;
+          S.time = t;
+          selectPin(l.id, t, ev.shiftKey || S.selPins.layer === l.id);
+        }
       };
       btn.addEventListener('pointermove', move);
       btn.addEventListener('pointerup', end);
@@ -528,6 +533,30 @@ export function createTimeline(root, opts = {}){
     });
     S.selPins = { layer: l.id, times: [Math.round(S.time * 10) / 10] };
     toast('ピンをうちました ' + fmtTime(S.time));
+    onChange();
+  }
+
+  /**
+   * つぎ／まえの ピンへ 再生バーを そろえる。
+   * えらんでいる レイヤーの ピンを 見る。
+   */
+  function toPin(dir){
+    const l = S.proj.layers.find(x => x.id === S.sel)
+           || S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l) return toast('レイヤーをえらんでね');
+    const list = pinTimes(l);
+    if(!list.length) return toast('このレイヤーには ピンが ありません');
+
+    const now = +S.time.toFixed(3);
+    const next = dir > 0
+      ? list.find(t => t > now + 1e-3)
+      : [...list].reverse().find(t => t < now - 1e-3);
+    if(next == null){
+      return toast(dir > 0 ? 'これが さいごの ピンです' : 'これが さいしょの ピンです');
+    }
+    S.playing = false;
+    S.time = next;
+    selectPin(l.id, next, false);
     onChange();
   }
 
@@ -638,6 +667,6 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
-  return { build, updatePlayhead, putPin, delPins, delPicked, toggleHold, setLoop, clearPins,
+  return { build, updatePlayhead, putPin, delPins, delPicked, toPin, toggleHold, setLoop, clearPins,
            copyPins, pastePins, zoomTime };
 }

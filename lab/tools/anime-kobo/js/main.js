@@ -279,6 +279,8 @@ $('#ripple').addEventListener('click', () => {
   refresh();
 });
 $('#key').addEventListener('click', () => timeline.putPin());
+$('#prevPin').addEventListener('click', () => timeline.toPin(-1));
+$('#nextPin').addEventListener('click', () => timeline.toPin(1));
 $('#pinDel').addEventListener('click', () => timeline.delPins());
 $('#pinCopy').addEventListener('click', () => timeline.copyPins());
 $('#paste').addEventListener('click', () => timeline.pastePins());
