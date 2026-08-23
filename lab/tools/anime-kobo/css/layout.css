@@ -63,6 +63,11 @@
   display:flex; flex-direction:column;
   min-height:0;
 }
+/* たたむと 再生バーだけ 残る。絵を大きく見たいときに */
+#list.folded{ max-height:none; }
+#list.folded #ruler,
+#list.folded #pinbar,
+#list.folded #tracks{ display:none; }
 #tracks{
   position:relative;
   flex:1; min-height:0;

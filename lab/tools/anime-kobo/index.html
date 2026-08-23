@@ -21,7 +21,7 @@
   <div id="top">
     <span class="name">アニメ工房</span>
     <button class="size dot" id="docSize" title="動画の長さと はいけい">—</button>
-    <span class="ver dot" id="ver" title="この版のばんごう">v15</span>
+    <span class="ver dot" id="ver" title="この版のばんごう">v16</span>
     <span class="spacer"></span>
     <button id="undo" class="btn-sm" title="もどす" aria-label="もどす" disabled>↶</button>
     <button id="redo" class="btn-sm" title="やりなおし" aria-label="やりなおし" disabled>↷</button>
@@ -51,12 +51,13 @@
       <button id="paste" class="btn-sm" title="コピーしたピンを いまの時間から はる" aria-label="はりつけ" disabled>📋</button>
       <button id="ripple" class="btn-sm" title="ピンをずらすとき、その後ろのピンも一緒に動かす">⇥</button>
       <button id="key" class="btn-sm btn-y" title="いまの姿をピンにする">◆ ピン</button>
+      <button id="fold" class="btn-sm" title="レイヤーの欄を たたむ／ひろげる" aria-label="たたむ">▾</button>
     </div>
 
     <div id="pinbar" hidden>
       <span id="pininfo" class="dot"></span>
       <button id="pinCopy" class="btn-sm">⧉ コピー</button>
-      <button id="pinHold" class="btn-sm">⏸ とめる</button>
+      <button id="pinHold" class="btn-sm" title="つぎのピンまで うごかさない（パラパラ用）">⏸ そのまま</button>
       <button id="pinLoop" class="btn-sm">🔁 ループ</button>
       <button id="pinPing" class="btn-sm">🔄 往復</button>
       <button id="pinDel" class="btn-sm">🗑 けす</button>
@@ -79,7 +80,7 @@
     <button class="tool" id="pivot"><i>📍</i>ピン</button>
     <button class="tool" id="parent"><i>🔗</i>おやこ</button>
     <button class="tool" id="group"><i>📁</i>まとめる</button>
-    <button class="tool" id="clip"><i>✂</i>クリップ</button>
+    <button class="tool" id="bg"><i>🎨</i>はいけい</button>
     <button class="tool" id="setting"><i>⚙</i>せってい</button>
   </div>
 

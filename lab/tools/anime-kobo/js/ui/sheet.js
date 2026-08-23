@@ -269,6 +269,16 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(animSlider('かたむき', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
 
   /* ---------- コマ ---------- */
+  /* 文字レイヤーは 絵が1まいしか無いので、コマの欄は 出さない。
+     テキストのページに 用があるものだけ 残す。 */
+  if(l.kind === 'text'){
+    box.appendChild(clipRow(l));
+    buildLook(box, l, { flip: true });
+    parentLink(box, l, closeFn);
+    otherRow(box, l, closeFn);
+    return;
+  }
+
   box.appendChild(heading('コマ（' + l.frames.length + 'まい）'));
   if(l.frames.length <= 1){
     const h = document.createElement('div');
@@ -437,38 +447,12 @@ export function buildLayerSheet(box, closeFn){
       box.appendChild(sh);
     }
 
+  box.appendChild(clipRow(l));
   buildLook(box, l, { flip: true });
 
-  box.appendChild(heading('おやこ'));
-  const pnote = document.createElement('div');
-  pnote.className = 'empty';
-  pnote.style.textAlign = 'left';
-  const oyaNow0 = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
-  pnote.textContent = oyaNow0
-    ? 'いま「' + oyaNow0.name + '」に ついています。'
-    : 'いまは どこにも ついていません。';
-  box.appendChild(pnote);
-  box.appendChild(btnRow(
-    button('🔗 おやこを きめる', () => { if(closeFn) closeFn(); openParent(); })
-  ));
+  parentLink(box, l, closeFn);
+  otherRow(box, l, closeFn);
 
-  box.appendChild(heading('そのほか'));
-  box.appendChild(btnRow(
-    button('まんなかへ', () => {
-      edit('まんなかへ', () => { l.x = S.proj.w / 2; l.y = S.proj.h / 2; });
-      onChange();
-    }),
-    button('けす', () => {
-      if(!confirm(l.name + ' をけしますか？')) return;
-      edit('レイヤーをけす', () => {
-        S.proj.layers = S.proj.layers.filter(x => x.id !== l.id);
-        S.proj.layers.forEach(x => { if(x.parent === l.id) x.parent = null; });
-        S.sel = null;
-      });
-      onChange();
-      if(closeFn) closeFn();
-    })
-  ));
 }
 
 /* ================= うごき ================= */
@@ -510,13 +494,22 @@ export function buildMotionSheet(box){
     + String.fromCharCode(10)
     + 'いまの見た目が「おわりの姿」になります。';
   box.appendChild(hint);
+}
 
-  /* ---------- まばたき・口パク ---------- */
+/* ================= かお（まばたき・口パク） =================
+   さがしにくかったので、「うごき」から 独立させた。 */
+export function buildFaceSheet(box){
+  const l = selected();
+  if(!l || l.kind === 'folder'){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'レイヤーをえらんでね';
+    box.appendChild(e);
+    return;
+  }
   /* まばたき・口パク は「1つのレイヤーが 絵を2まい以上もっている」のが前提。
      PSDだと 目あき・目とじ が べつのレイヤーになっていることが多いので、
      ここで まとめられるようにしておく。 */
-  box.appendChild(heading('まばたき と 口パク'));
-
   const steps = document.createElement('div');
   steps.className = 'empty';
   steps.style.textAlign = 'left';
@@ -975,4 +968,66 @@ export function buildDocSheet(box, closeFn){
   note.textContent = 'はいけいも ふつうのレイヤーです。' + NL
     + 'タイムラインで えらべば、ぼかしたり ゆっくり動かしたり できます。';
   box.appendChild(note);
+}
+
+
+/* ---------- 使いまわす部品 ---------- */
+/** 下のレイヤーの形でぬく（クリップ）の 切りかえ */
+export function clipRow(l){
+  const i = S.proj.layers.indexOf(l);
+  const last = i === S.proj.layers.length - 1;
+  const b = document.createElement('button');
+  b.textContent = l.clip ? '✂ ぬいている' : '✂ 下の形で ぬく';
+  b.classList.toggle('on', !!l.clip);
+  b.disabled = last;
+  b.style.flex = '1';
+  b.addEventListener('click', () => {
+    edit(l.clip ? 'クリップをやめる' : 'クリップする', () => { l.clip = !l.clip; });
+    notify(l.clip ? '下の「' + S.proj.layers[i + 1].name + '」の形で ぬかれます'
+                  : 'クリップを やめました');
+    onChange();
+  });
+  const row = field('クリップ', b);
+  if(last){
+    const n = document.createElement('span');
+    n.className = 'val';
+    n.textContent = '下が ない';
+    row.appendChild(n);
+  }
+  return row;
+}
+
+export function parentLink(box, l, closeFn){
+  box.appendChild(heading('おやこ'));
+  const pnote = document.createElement('div');
+  pnote.className = 'empty';
+  pnote.style.textAlign = 'left';
+  const oyaNow0 = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
+  pnote.textContent = oyaNow0
+    ? 'いま「' + oyaNow0.name + '」に ついています。'
+    : 'いまは どこにも ついていません。';
+  box.appendChild(pnote);
+  box.appendChild(btnRow(
+    button('🔗 おやこを きめる', () => { if(closeFn) closeFn(); openParent(); })
+  ));
+}
+
+export function otherRow(box, l, closeFn){
+  box.appendChild(heading('そのほか'));
+  box.appendChild(btnRow(
+    button('まんなかへ', () => {
+      edit('まんなかへ', () => { l.x = S.proj.w / 2; l.y = S.proj.h / 2; });
+      onChange();
+    }),
+    button('けす', () => {
+      if(!confirm(l.name + ' をけしますか？')) return;
+      edit('レイヤーをけす', () => {
+        S.proj.layers = S.proj.layers.filter(x => x.id !== l.id);
+        S.proj.layers.forEach(x => { if(x.parent === l.id) x.parent = null; });
+        S.sel = null;
+      });
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
 }

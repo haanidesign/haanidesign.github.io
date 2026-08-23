@@ -370,7 +370,10 @@ export function createTimeline(root, opts = {}){
     const on = n === 1 && isHoldAt(l, S.selPins.times[0]);
     hold.classList.toggle('on', on);
     hold.disabled = n !== 1;
-    hold.textContent = on ? '⏸ とめてる' : '⏸ とめる';
+    hold.textContent = on ? '⏸ そのまま中' : '⏸ そのまま';
+    hold.title = on
+      ? 'いまは つぎのピンまで うごきません。おすと なめらかに つながります'
+      : 'つぎのピンまで うごかさない。パラパラ（コマ切りかえ）に つかいます';
 
     const isLoop = !!l.loop;
     pinbar.querySelector('#pinLoop').classList.toggle('on', isLoop && l.loop.mode === 'loop');
@@ -582,8 +585,9 @@ export function createTimeline(root, opts = {}){
     if(!l || S.selPins.times.length !== 1) return;
     const t = S.selPins.times[0];
     const on = isHoldAt(l, t);
-    edit(on ? 'とめるをやめる' : 'とめる', () => setCurveAt(l, t, on ? 'smooth' : 'hold'));
-    toast(on ? 'ふつうに もどしました' : 'ここで とまります');
+    edit(on ? 'なめらかに もどす' : 'そのままにする', () => setCurveAt(l, t, on ? 'smooth' : 'hold'));
+    toast(on ? 'なめらかに つながります'
+             : 'つぎのピンまで うごきません（パッと切りかわる）');
     onChange();
   }
 

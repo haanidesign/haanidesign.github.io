@@ -7,12 +7,12 @@ import { createStage } from './ui/stage.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
-         buildParentSheet, buildDocSheet, setParentOpener, setBgPicker,
+         buildParentSheet, buildDocSheet, buildFaceSheet, setParentOpener, setBgPicker,
          setFrameAdder, setNotifier } from './ui/sheet.js';
 import { addTextLayer } from './io/text.js';
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
-import { fitToCanvas } from './io/bg.js';
+import { fitToCanvas, isBg } from './io/bg.js';
 import { autoSaver, load as loadSaved, clear as clearSaved, whenText } from './io/store.js';
 import { importPsd } from './io/psd.js';
 import { exportVideo, saveVideo, canUseWebCodecs } from './io/export.js';
@@ -231,14 +231,21 @@ $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /** 設定シートを、横にスライドできるページで開く */
 function openSheet(startKey){
-  if(!selected()) return toast('レイヤーをえらんでね');
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+
+  const isText = l.kind === 'text';
   const pages = [
     { key:'form', label:'かたち', build:(box) => buildLayerSheet(box, () => sheet.close()) },
     { key:'move', label:'うごき', build:(box) => buildMotionSheet(box) }
   ];
-  if(selected().kind === 'text') pages.push({ key:'text', label:'テキスト', build:buildTextSheet });
-  sheet.openPages('', pages, startKey || 'form');
+  // 文字は 文字だけの欄に。ほかの用は かたち に まとめてある
+  if(isText) pages.push({ key:'text', label:'テキスト', build:buildTextSheet });
+  else if(l.kind !== 'folder') pages.push({ key:'face', label:'かお', build:buildFaceSheet });
+
+  sheet.openPages('', pages, startKey || (isText ? 'text' : 'form'));
 }
+
 /* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
    ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
 function openParentSheet(){
@@ -307,16 +314,7 @@ $('#group').addEventListener('click', () => {
   toast(ids.length + 'まいを フォルダに入れました');
   refresh();
 });
-$('#clip').addEventListener('click', () => {
-  const l = selected();
-  if(!l) return toast('レイヤーをえらんでね');
-  const i = S.proj.layers.indexOf(l);
-  if(i === S.proj.layers.length - 1) return toast('いちばん下のレイヤーには使えません');
-  edit(l.clip ? 'クリップをやめる' : 'クリップする', () => { l.clip = !l.clip; });
-  toast(l.clip ? '下の「' + S.proj.layers[i+1].name + '」の形で ぬかれます' : 'クリップを やめました');
-  refresh();
-});
-$('#setting').addEventListener('click', () => openSheet('form'));
+$('#setting').addEventListener('click', () => openSheet());
 
 $('#undo').addEventListener('click', () => {
   const l = undo();
@@ -327,6 +325,20 @@ $('#redo').addEventListener('click', () => {
   if(l) toast('やりなおし: ' + l);
 });
 $('#fit').addEventListener('click', () => { stage.fit(); refresh(); });
+
+/* レイヤーの欄を たたむ。絵を 大きく見たいとき用 */
+$('#fold').addEventListener('click', () => {
+  const on = $('#list').classList.toggle('folded');
+  $('#fold').textContent = on ? '▴' : '▾';
+  $('#fold').classList.toggle('on', on);
+  $('#fold').title = on ? 'レイヤーの欄を ひろげる' : 'レイヤーの欄を たたむ';
+  setTimeout(() => { stage.resize(); stage.fit(); refresh(); }, 40);
+});
+
+/* はいけい。まだ無ければ すぐ足して、あれば その設定をひらく */
+$('#bg').addEventListener('click', () => {
+  sheet.open('はいけい', (box) => buildDocSheet(box, () => sheet.close()));
+});
 
 window.addEventListener('keydown', (e) => {
   if(/input|select|textarea/i.test(e.target.tagName)) return;
