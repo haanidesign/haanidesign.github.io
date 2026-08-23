@@ -2,7 +2,7 @@
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
 import { M, uid, ptInQuad } from './math.js';
-import { valuesAt as evalAt } from './anim.js';
+import { valuesAt as evalAt, setPin } from './anim.js';
 import { deformPoint } from './puppet.js';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
@@ -130,21 +130,65 @@ export function cornersOf(layer, m, asset){
 export function setParent(project, layer, newParentId, time, onKey){
   if(newParentId === layer.id || isDescendant(project, newParentId, layer.id)) return false;
 
-  const before = computeAll(project, time)[layer.id];
-  if(!before){ layer.parent = newParentId || null; return true; }
-  const world = before.m;
+  const tr = layer.tracks || {};
+  /* うごきのピンが 打ってあるときは、その時こく ぜんぶで つじつまを合わせる。
+     いまの時間だけ 直すと、ほかの時間で 場所が とんでしまう。 */
+  const times = new Set();
+  ['x','y','rot','scaleX','scaleY'].forEach(ch => {
+    (tr[ch] || []).forEach(k => times.add(+k.t.toFixed(3)));
+  });
+  times.add(+(time || 0).toFixed(3));
+  const list = [...times].sort((a, b) => a - b);
+
+  // 付けかえる前の 見た目（ワールド）を、時こくごとに おぼえる
+  const worlds = {};
+  for(const t of list){
+    const p = computeAll(project, t)[layer.id];
+    if(p) worlds[t] = p.m;
+  }
+  if(!worlds[list[0]] && !computeAll(project, time)[layer.id]){
+    layer.parent = newParentId || null;
+    return true;
+  }
 
   layer.parent = newParentId || null;
 
-  const after = computeAll(project, time);
-  const pw = (layer.parent && after[layer.parent]) ? after[layer.parent].m : M.ident();
-  const local = M.mul(M.inv(pw), world);
-  const d = M.decompose(local);
+  let now = null;
+  for(const t of list){
+    const w = worlds[t];
+    if(!w) continue;
+    const after = computeAll(project, t);
+    const pw = (layer.parent && after[layer.parent]) ? after[layer.parent].m : M.ident();
+    const d = M.decompose(M.mul(M.inv(pw), w));
 
-  layer.x = d.x; layer.y = d.y;
-  layer.rot = d.rot;
-  layer.scaleX = d.scaleX; layer.scaleY = d.scaleY;
-  if(onKey) onKey(d);
+    if(Math.abs(t - (time || 0)) < 1e-3){
+      // いまの時間ぶんは 素の値も 直す
+      layer.x = d.x; layer.y = d.y;
+      layer.rot = d.rot;
+      layer.scaleX = d.scaleX; layer.scaleY = d.scaleY;
+      now = d;
+    }
+    // 打ってある ピンだけ 書きかえる（勝手に ピンは ふやさない）
+    if(tr.x && tr.x.some(k => Math.abs(k.t - t) < 1e-3)) setPin(layer, 'x', t, d.x);
+    if(tr.y && tr.y.some(k => Math.abs(k.t - t) < 1e-3)) setPin(layer, 'y', t, d.y);
+    if(tr.rot && tr.rot.some(k => Math.abs(k.t - t) < 1e-3)) setPin(layer, 'rot', t, d.rot);
+    if(tr.scaleX && tr.scaleX.some(k => Math.abs(k.t - t) < 1e-3)) setPin(layer, 'scaleX', t, d.scaleX);
+    if(tr.scaleY && tr.scaleY.some(k => Math.abs(k.t - t) < 1e-3)) setPin(layer, 'scaleY', t, d.scaleY);
+  }
+
+  if(!now){
+    const after = computeAll(project, time);
+    const pw = (layer.parent && after[layer.parent]) ? after[layer.parent].m : M.ident();
+    const w = worlds[+(time || 0).toFixed(3)];
+    if(w){
+      const d = M.decompose(M.mul(M.inv(pw), w));
+      layer.x = d.x; layer.y = d.y;
+      layer.rot = d.rot;
+      layer.scaleX = d.scaleX; layer.scaleY = d.scaleY;
+      now = d;
+    }
+  }
+  if(onKey && now) onKey(now);
   return true;
 }
 

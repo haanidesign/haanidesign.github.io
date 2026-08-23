@@ -525,6 +525,111 @@ export function buildMotionSheet(box){
     + String.fromCharCode(10)
     + 'いまの見た目が「おわりの姿」になります。';
   box.appendChild(hint);
+
+  buildSway(box, l);
+}
+
+/* ---------- かみのゆれ ----------
+   ピンが 2本いじょう ささっていれば、骨を しならせて ゆらす
+   （つけねは 止まったまま、毛先ほど おくれて 動く）。
+   ささっていなければ、じくを 中心に かたむけて ゆらす。 */
+function buildSway(box, l){
+  const NL = String.fromCharCode(10);
+  const boned = (l.pins || []).length > 1;
+
+  box.appendChild(heading('🌬 かみのゆれ'));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = boned
+    ? 'ピンが ' + l.pins.length + '本 あるので、骨を しならせて ゆらします。'
+      + NL + 'つけねは 止まったまま、毛先ほど おくれて 動きます。'
+    : 'じく（回転の中心）を 中心に かたむけて ゆらします。'
+      + NL + 'かみのけの つけねに じくを 置くと それらしくなります。'
+      + NL + '「ピン」を 2本いじょう さすと、しなって もっと自然に。';
+  box.appendChild(note);
+
+  const KAZE = [
+    ['そよ風',  { angle: 4,  period: 2.4, delay: 0.30 }],
+    ['ふつう',  { angle: 9,  period: 1.6, delay: 0.25 }],
+    ['つよい風',{ angle: 17, period: 1.0, delay: 0.20 }]
+  ];
+
+  const put = (opt, label) => {
+    const start = S.time;
+    const end = S.proj.duration;
+    if(end - start < opt.period){
+      return notify('のこり時間が みじかいです（' + opt.period.toFixed(1) + '秒 いります）');
+    }
+
+    if(boned){
+      const keys = swayKeys(l.pins, {
+        angle: opt.angle, period: opt.period, phase: 0, delay: opt.delay,
+        duration: end - start, start
+      });
+      if(!keys.length) return notify('ピンを 2本いじょう さしてね');
+      edit('かみのゆれ', () => {
+        keys.forEach(k => {
+          k.pins.forEach((v, i) => {
+            const pin = l.pins[i];
+            if(pin.type === 'fix') return;
+            setPin(l, pinChX(pin.id), k.t, v.dx, 'smooth');
+            setPin(l, pinChY(pin.id), k.t, v.dy, 'smooth');
+          });
+        });
+      });
+      notify(label + ' で ゆれます（ピン ' + keys.length + 'コ）');
+    } else {
+      /* かたむきの ゆれ。行って もどるを くり返す。
+         3つの 山を 作れば、ループの つなぎ目が なめらかに つながる。 */
+      const base = valuesAt(l, start).rot;
+      const p = opt.period;
+      edit('かみのゆれ', () => {
+        let t = start, i = 0;
+        while(t <= end + 1e-6 && i < 400){
+          const phase = i % 4;
+          const v = phase === 1 ? base + opt.angle
+                  : phase === 3 ? base - opt.angle
+                  : base;
+          setPin(l, 'rot', +t.toFixed(3), v, 'smooth');
+          t += p / 4;
+          i++;
+        }
+        l.loop = { from: start, to: Math.min(end, start + p), mode: 'loop' };
+      });
+      notify(label + ' で ゆれます（' + p.toFixed(1) + '秒で ひとゆれ）');
+    }
+    onChange();
+  };
+
+  const row = document.createElement('div');
+  row.className = 'rowbtns';
+  KAZE.forEach(([label, opt]) => {
+    const b = button(label, () => put(opt, label));
+    b.style.flex = '1';
+    row.appendChild(b);
+  });
+  box.appendChild(field('かぜの つよさ', row));
+
+  box.appendChild(btnRow(
+    button('ゆれを けす', () => {
+      edit('ゆれをけす', () => {
+        if(boned){
+          (l.pins || []).forEach(pn => {
+            delete (l.tracks || {})[pinChX(pn.id)];
+            delete (l.tracks || {})[pinChY(pn.id)];
+            pn.dx = 0; pn.dy = 0;
+          });
+        } else {
+          delete (l.tracks || {}).rot;
+        }
+        l.loop = null;
+      });
+      notify('ゆれを けしました');
+      onChange();
+    })
+  ));
 }
 
 /* ================= かお（まばたき・口パク） =================
@@ -1232,8 +1337,23 @@ export function buildBgSheet(box, closeFn){
 
   box.appendChild(slider('がらの大きさ', () => pt.size, v => pt.size = v,
     20, Math.round(S.proj.w / 3), 2, v => Math.round(v) + 'px'));
-  box.appendChild(slider('かたむき', () => pt.angle, v => pt.angle = v,
-    0, 90, 5, v => Math.round(v) + '°'));
+  /* ななめの 角度。よく つかう ものは ボタンで、こまかくは スライダーで。 */
+  const angles = document.createElement('div');
+  angles.className = 'rowbtns';
+  angles.style.flexWrap = 'wrap';
+  [['まっすぐ', 0], ['ななめ45°', 45], ['よこむき90°', 90],
+   ['ぎゃく135°', 135], ['ゆるめ30°', 30], ['きつめ60°', 60]].forEach(([lb, v]) => {
+    const b = button(lb, () => { pt.angle = v; apply('かたむきを かえる'); });
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', Math.abs((pt.angle || 0) - v) < 1);
+    angles.appendChild(b);
+  });
+  box.appendChild(field('かたむき', angles));
+  box.appendChild(slider('こまかく', () => pt.angle, v => pt.angle = v,
+    0, 180, 1, v => Math.round(v) + '°'));
+  box.appendChild(btnRow(
+    button('この かたむきに する', () => apply('かたむきを かえる'))
+  ));
 
   const moves = document.createElement('div');
   moves.className = 'rowbtns';

@@ -7,7 +7,7 @@
 import { S, addAsset } from '../state.js';
 import { newLayer } from '../engine/layer.js';
 import { loadImage } from './image.js';
-import { makePattern } from './pattern.js';
+import { makePattern, fitShift, PATTERNS } from './pattern.js';
 import { setPin } from '../engine/anim.js';
 
 export const isBg = (l) => !!l && l.kind === 'bg';
@@ -80,7 +80,49 @@ export async function paintPattern(layer, opt){
     move: 'とめる', speed: 90
   }, opt || {});
 
-  const r = makePattern(S.proj.w, S.proj.h, o);
+  /* ななめの もようや ななめの 流れは、ずらす量が ひとマスを こえる。
+     はしが 見えないよう、そのときは まわりを ひろく 作る。 */
+  const d0 = MOVES[o.move] || MOVES['とめる'];
+  const needPad = Math.min(3, (o.angle ? 2 : 1) * ((d0[0] && d0[1]) ? 2 : 1));
+
+  /* ずらす量を きめる。
+     ・もようを かたむけていたら、流す向きも 同じだけ かたむける
+     ・ひとマスだけでなく 2マスぶんも 試して、
+       絵の中の ドットに ぴったり はまる ものを えらぶ
+     こうしないと ひとまわりしたとき 柄が つながらない。 */
+  const th0 = (o.angle || 0) * Math.PI / 180;
+  const cosA = Math.cos(th0), sinA = Math.sin(th0);
+  const P0 = PATTERNS[o.kind] || PATTERNS['むじ'];
+  const raw = P0.tile(Math.max(8, o.size || 80));
+  const tw0 = Math.max(2, Math.round(raw[0])), th1 = Math.max(2, Math.round(raw[1]));
+
+  const probe = makePattern(S.proj.w, S.proj.h, Object.assign({}, o, { pad: needPad, k: 1 }));
+
+  let fit = { k: probe.kMax, x: 0, y: 0 };
+  if(d0[0] || d0[1]){
+    const wantX = cosA * (d0[0] * tw0) - sinA * (d0[1] * th1);
+    const wantY = sinA * (d0[0] * tw0) + cosA * (d0[1] * th1);
+    const wantLen = Math.hypot(wantX, wantY) || 1;
+    let best = null;
+    for(let mx = -2; mx <= 2; mx++){
+      for(let my = -2; my <= 2; my++){
+        if(!mx && !my) continue;
+        const f = fitShift(probe.kMax, tw0, th1, o.angle || 0, mx, my);
+        if(!f || !f.len) continue;
+        const dot = ((f.x / f.k) * wantX + (f.y / f.k) * wantY)
+                  / ((f.len / f.k) * wantLen);
+        if(dot < 0.9) continue;                                  // 向きが ちがう
+        if(f.len / f.k > Math.max(tw0, th1) * needPad * 1.05) continue;  // はみ出す
+        const score = f.err * 1000 + (1 - dot) * 10 + (f.len / f.k) / wantLen * 0.3;
+        if(!best || score < best.score) best = { score, f };
+      }
+    }
+    if(best) fit = best.f;
+    else fit = fitShift(probe.kMax, tw0, th1, o.angle || 0, d0[0], d0[1]) || fit;
+  }
+
+  const r = makePattern(S.proj.w, S.proj.h,
+    Object.assign({}, o, { pad: needPad, k: fit.k }));
   /* もようは すきまが無い（すけない）ので JPEG で よい。
      PNG だと スマホでは 重くなりすぎて 出ないことがある。 */
   const src = r.canvas.toDataURL('image/jpeg', 0.92);
@@ -105,24 +147,28 @@ export async function paintPattern(layer, opt){
   layer.tracks = {};
   layer.loop = null;
 
-  const dir = MOVES[o.move] || MOVES['とめる'];
+  const dir = d0;
   if(dir[0] || dir[1]){
-    /* ずらす量は「絵の中のドット数で ちょうど整数」にする。
-       中途はんぱだと ひとまわりしたときに 絵が わずかに ぼけて
-       つなぎ目が うっすら 見えてしまう。 */
-    const exact = (t) => Math.max(1, Math.round(t * r.k)) / r.k;
-    const stepX = exact(r.tileW), stepY = exact(r.tileH);
+    /* ずらす量は もようの「ひとマス ぶん」にする。
+       かたむけているときは、もようと 同じ向きに かたむけて ずらす。
+       そうしないと ひとまわりしたときに 柄が つながらない。
+
+       さらに 絵の中のドット数で 整数に そろえる。
+       中途はんぱだと つなぎ目が うっすら 見えてしまう。 */
+    // 絵の中で 整数ドットぶん ずらす（そのまま キャンバスの ドット数に なおす）
+    const stepX = fit.x / r.k, stepY = fit.y / r.k;
+    const len = Math.max(1, Math.hypot(stepX, stepY));
 
     // はやさ ＝ 1秒に すすむ ドット数
-    const per = Math.max(0.2, Math.min(30,
-      (dir[0] ? stepX : stepY) / Math.max(1, o.speed)));
-    if(dir[0]){
+    const per = Math.max(0.2, Math.min(30, len / Math.max(1, o.speed)));
+
+    if(Math.abs(stepX) > 0.01){
       setPin(layer, 'x', 0, layer.x, 'linear');
-      setPin(layer, 'x', per, layer.x + dir[0] * stepX, 'linear');
+      setPin(layer, 'x', per, layer.x + stepX, 'linear');
     }
-    if(dir[1]){
+    if(Math.abs(stepY) > 0.01){
       setPin(layer, 'y', 0, layer.y, 'linear');
-      setPin(layer, 'y', per, layer.y + dir[1] * stepY, 'linear');
+      setPin(layer, 'y', per, layer.y + stepY, 'linear');
     }
     layer.loop = { from: 0, to: per, mode: 'loop' };
   }

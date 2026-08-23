@@ -313,10 +313,13 @@ function openParentSheet(){
 $('#parent').addEventListener('click', openParentSheet);
 setParentOpener(openParentSheet);
 
-/* 上の「1080×1920／15秒」を おすと、作品ぜんたいの せってい */
-$('#docSize').addEventListener('click', () => {
+/* 作品ぜんたいの せってい（なまえ・長さ・音）。
+   上の「1080×1920／15秒」の札からも、下の ⚙せってい からも ひらける。 */
+function openDocSheet(){
   sheet.open('どうがの せってい', (box) => buildDocSheet(box, () => sheet.close()));
-});
+}
+$('#docSize').addEventListener('click', openDocSheet);
+$('#setting').addEventListener('click', openDocSheet);
 
 /* 音を えらんだとき */
 setAudioPicker(async (files) => {

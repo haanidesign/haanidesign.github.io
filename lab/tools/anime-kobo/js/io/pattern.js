@@ -163,13 +163,16 @@ export function makePattern(w, h, opt){
   const tw = Math.max(2, Math.round(raw[0]));
   const th = Math.max(2, Math.round(raw[1]));
 
-  // 動かしたときに はしが 見えないよう、ひとマスぶん 大きく作る
-  const fullW = w + tw * 2;
-  const fullH = h + th * 2;
+  /* 動かしたときに はしが 見えないよう、まわりを ひとマスぶん 大きく作る。
+     ななめに 流すときは もっと ずらすので、pad で ふやす。 */
+  const pad = Math.max(1, Math.min(3, opt.pad || 1));
+  const fullW = w + tw * 2 * pad;
+  const fullH = h + th * 2 * pad;
 
   // 大きすぎると 重いので、長いほうを これくらいに おさえる
   const MAX = 2400;
-  const k = Math.min(1, MAX / Math.max(fullW, fullH));
+  const kMax = Math.min(1, MAX / Math.max(fullW, fullH));
+  const k = opt.k ? Math.min(kMax, opt.k) : kMax;
 
   const cv = document.createElement('canvas');
   cv.width = Math.max(2, Math.round(fullW * k));
@@ -197,7 +200,7 @@ export function makePattern(w, h, opt){
     g.fillRect(0, 0, cv.width, cv.height);
   }
 
-  return { canvas: cv, tileW: tw, tileH: th, k };
+  return { canvas: cv, tileW: tw, tileH: th, k, kMax };
 }
 
 
@@ -253,4 +256,39 @@ export function movesVisibly(opt, dx, dy){
   let n = 0;
   for(let i = 0; i < a.length; i += 4) if(Math.abs(a[i] - b[i]) > 40) n++;
   return n > (a.length / 4) * 0.02;      // 2%より 多く 変われば 動いて見える
+}
+
+
+/**
+ * ずらす量を きめる。
+ *
+ * ならべている ひとマスは、絵の中では 整数ドットに 丸められている。
+ * だから「くり返しの ひと区切り」も その 丸めた 大きさで 決まる。
+ * そこを 見落とすと、ひとまわりしたとき 柄が 1ドットぶん ずれて、
+ * つなぎ目で ちらっと ぶれて 見える。
+ *
+ * ばい率を ほんの少し 変えながら、
+ * ずらす量が 縦横とも 整数ドットに なる ところを さがす。
+ *   tw,th … ひとマス（キャンバスのドット）
+ *   mx,my … 何マスぶん ずらすか
+ * 戻り値 … { k, x, y, err }   x,y は 絵の中の 整数ドット
+ */
+export function fitShift(kMax, tw, th, angle, mx, my){
+  const a = (angle || 0) * Math.PI / 180;
+  const cos = Math.cos(a), sin = Math.sin(a);
+  let best = null;
+  const steps = 300;
+  for(let i = 0; i <= steps; i++){
+    const k = kMax * (1 - 0.12 * i / steps);
+    const TW = Math.max(2, Math.round(tw * k));
+    const TH = Math.max(2, Math.round(th * k));
+    const x = cos * (mx * TW) - sin * (my * TH);
+    const y = sin * (mx * TW) + cos * (my * TH);
+    const err = Math.abs(x - Math.round(x)) + Math.abs(y - Math.round(y));
+    if(!best || err < best.err){
+      best = { k, x: Math.round(x), y: Math.round(y), err, len: Math.hypot(x, y) };
+    }
+    if(err < 0.002) break;
+  }
+  return best;
 }
