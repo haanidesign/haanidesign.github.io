@@ -1,7 +1,7 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
 import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
-import { isDescendant, setParent } from '../engine/layer.js';
+import { isDescendant, setParent, isFolder, membersOf, ungroup } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
 import { swayKeys } from '../engine/puppet.js';
@@ -133,8 +133,13 @@ export function slider(label, get, set, min, max, step, fmt){
 export function animSlider(label, layer, ch, min, max, step, fmt){
   const get = () => channelValue(layer, ch, S.time);
   const set = (v) => {
-    if(ch === 'tint') layer.tint.amount = v;
-    else layer[ch] = v;
+    if(ch === 'tint'){
+      layer.tint = layer.tint || { color:'#F2A0B8', amount:0 };
+      layer.tint.amount = v;
+    } else if(ch === 'stroke'){
+      layer.stroke = layer.stroke || { color:'#FFFEF7', width:0 };
+      layer.stroke.width = v;
+    } else layer[ch] = v;
     if(hasPins(layer)) setPin(layer, ch, S.time, v, 'smooth');
   };
   const i = document.createElement('input');
@@ -201,6 +206,36 @@ export function buildLayerSheet(box, closeFn){
 
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
+
+  /* フォルダは 絵を持たないので、まとめて動かすところだけ出す */
+  if(isFolder(l)){
+    const n = membersOf(S.proj, l).length;
+    box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
+    box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+    box.appendChild(animSlider('かたむき', l, 'rot', -180, 180, 1, v => Math.round(v) + '°'));
+
+    const note = document.createElement('div');
+    note.className = 'empty';
+    note.style.textAlign = 'left';
+    note.textContent = '中身は ' + n + 'まい。'
+      + String.fromCharCode(10)
+      + 'ここを動かすと 中身ぜんぶが いっしょに動きます。'
+      + String.fromCharCode(10)
+      + 'すけ具合と 目のマークも 中身に つたわります。';
+    box.appendChild(note);
+
+    box.appendChild(btnRow(
+      button('📂 フォルダを ほどく', () => {
+        edit('フォルダをほどく', () => { ungroup(S.proj, l, S.time); });
+        S.sel = null;
+        notify(n + 'まいを 外に出しました');
+        onChange();
+        if(closeFn) closeFn();
+      })
+    ));
+    return;
+  }
+
   box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
   box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
   box.appendChild(field('たてよこ', (() => {
@@ -377,6 +412,26 @@ export function buildLayerSheet(box, closeFn){
 
   box.appendChild(animSlider('ぼかし', l, 'blur', 0, 40, 0.5,
     v => v < 0.05 ? 'なし' : v.toFixed(1)));
+
+  /* ふちどり。太さは キャンバスの大きさに対して一定なので、
+     レイヤーを 大きくしても 細くならない。 */
+  const swrap = document.createElement('div');
+  swrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
+  const scol = document.createElement('input');
+  scol.type = 'color';
+  scol.value = (l.stroke && l.stroke.color) || '#FFFEF7';
+  scol.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
+  scol.addEventListener('change', () => {
+    edit('ふちの色をかえる', () => {
+      l.stroke = l.stroke || { color:'#FFFEF7', width:0 };
+      l.stroke.color = scol.value;
+    });
+    onChange();
+  });
+  swrap.appendChild(scol);
+  box.appendChild(field('ふちの色', swrap));
+  box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
+    v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
 
   // 反転
   const flipRow = document.createElement('div');

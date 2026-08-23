@@ -2,6 +2,7 @@
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
 import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js';
+import { isFolder, treeRows, membersOf } from '../engine/layer.js';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, channelValue, framePinTimes, valuesAt,
          pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js';
@@ -96,7 +97,7 @@ export function createTimeline(root, opts = {}){
       return;
     }
 
-    S.proj.layers.forEach(l => rows.appendChild(buildRow(l)));
+    treeRows(S.proj).forEach(r => rows.appendChild(buildRow(r.layer, r.depth)));
     rows.appendChild(buildPlayhead());
   }
 
@@ -130,14 +131,17 @@ export function createTimeline(root, opts = {}){
     }
   }
 
-  function buildRow(l){
+  function buildRow(l, depth){
+    const folder = isFolder(l);
     const row = document.createElement('div');
-    row.className = 'trow' + (l.id === S.sel ? ' sel' : '') + (l.visible ? '' : ' off');
+    row.className = 'trow' + (l.id === S.sel ? ' sel' : '') + (l.visible ? '' : ' off')
+      + (folder ? ' folder' : '');
     row.dataset.id = l.id;
 
     /* --- 左：レイヤー --- */
     const head = document.createElement('div');
     head.className = 'thead';
+    if(depth) head.style.paddingLeft = (depth * 14) + 'px';
 
     const grip = document.createElement('span');
     grip.className = 'grip';
@@ -146,16 +150,52 @@ export function createTimeline(root, opts = {}){
     attachReorder(grip, l, row);
     head.appendChild(grip);
 
-    const asset = frameAsset(l, 0);
-    const th = document.createElement('img');
-    th.className = 'thumb'; th.alt = '';
-    if(asset) th.src = asset.src;
-    head.appendChild(th);
+    // ☑ ＝ まとめる ときに えらぶ印
+    const pick = document.createElement('button');
+    pick.className = 'pick' + (S.pick.includes(l.id) ? ' on' : '');
+    pick.textContent = S.pick.includes(l.id) ? '☑' : '☐';
+    pick.title = 'まとめる ために えらぶ';
+    pick.setAttribute('aria-label', pick.title);
+    pick.addEventListener('pointerdown', e => e.stopPropagation());
+    pick.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const i = S.pick.indexOf(l.id);
+      if(i >= 0) S.pick.splice(i, 1); else S.pick.push(l.id);
+      onChange();
+    });
+    head.appendChild(pick);
+
+    if(folder){
+      const tw = document.createElement('button');
+      tw.className = 'twist';
+      tw.textContent = l.open === false ? '▸' : '▾';
+      tw.title = l.open === false ? 'ひらく' : 'たたむ';
+      tw.addEventListener('pointerdown', e => e.stopPropagation());
+      tw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        l.open = l.open === false;
+        onChange();
+      });
+      head.appendChild(tw);
+
+      const ic = document.createElement('span');
+      ic.className = 'folderic';
+      ic.textContent = l.open === false ? '📁' : '📂';
+      head.appendChild(ic);
+    } else {
+      const asset = frameAsset(l, 0);
+      const th = document.createElement('img');
+      th.className = 'thumb'; th.alt = '';
+      if(asset) th.src = asset.src;
+      head.appendChild(th);
+    }
 
     const nm = document.createElement('span');
     nm.className = 'nm';
     const oya = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
-    nm.textContent = (l.clip ? '✂ ' : '') + (oya ? '⤷ ' : '') + l.name;
+    const inFolder = oya && isFolder(oya);
+    nm.textContent = (l.clip ? '✂ ' : '') + (oya && !inFolder ? '⤷ ' : '') + l.name
+      + (folder ? '（' + membersOf(S.proj, l).length + '）' : '');
     const tips = [];
     if(l.clip) tips.push('下のレイヤーの形でぬいている');
     if(oya) tips.push(oya.name + ' についている');
@@ -163,7 +203,7 @@ export function createTimeline(root, opts = {}){
     if(oya) head.classList.add('haschild');
     head.appendChild(nm);
 
-    if(l.frames.length > 1){
+    if(!folder && l.frames.length > 1){
       const f = document.createElement('span');
       f.className = 'frames';
       f.textContent = (valuesAt(l, S.time).frame + 1) + '/' + l.frames.length;

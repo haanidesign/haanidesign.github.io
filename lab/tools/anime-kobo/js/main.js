@@ -2,6 +2,7 @@
 
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js';
+import { groupInto, ungroup, isFolder, membersOf } from './engine/layer.js';
 import { createStage } from './ui/stage.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
@@ -218,6 +219,36 @@ function openSheet(startKey){
   sheet.openPages('', pages, startKey || 'form');
 }
 $('#parent').addEventListener('click', () => openSheet('form'));
+
+/* ---- まとめる（フォルダ） ----
+   ☑ でえらんだものを ひとつのフォルダに入れる。
+   えらんでいなければ、いま選んでいる1まいだけ入れる。
+   フォルダを選んでいるときは ほどく。 */
+$('#group').addEventListener('click', () => {
+  const cur = selected();
+
+  if(cur && isFolder(cur) && !S.pick.length){
+    const n = membersOf(S.proj, cur).length;
+    edit('フォルダをほどく', () => { ungroup(S.proj, cur, S.time); });
+    S.sel = null;
+    toast(n + 'まいを 外に出しました');
+    return refresh();
+  }
+
+  const ids = S.pick.length ? [...S.pick] : (cur ? [cur.id] : []);
+  if(!ids.length) return toast('レイヤーの ☐ を おして えらんでね');
+
+  const made = { f: null };
+  edit('フォルダにまとめる', () => {
+    made.f = groupInto(S.proj, ids, S.time, 'フォルダ');
+  });
+  if(!made.f) return toast('まとめられませんでした');
+
+  S.pick = [];
+  S.sel = made.f.id;
+  toast(ids.length + 'まいを フォルダに入れました');
+  refresh();
+});
 $('#clip').addEventListener('click', () => {
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');

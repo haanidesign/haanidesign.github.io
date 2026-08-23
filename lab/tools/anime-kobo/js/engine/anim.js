@@ -12,7 +12,7 @@
    ピンを複製せず、時間を折り返して読むだけ。あとから元の動きを直せば全部に効く。 */
 
 /* なめらかにつながるもの */
-export const CHANNELS = ['x', 'y', 'scaleX', 'scaleY', 'rot', 'opacity', 'tint', 'blur'];
+export const CHANNELS = ['x', 'y', 'scaleX', 'scaleY', 'rot', 'opacity', 'tint', 'blur', 'stroke'];
 /* ぱっと切り替わるもの（つなぎ方に関係なく段々）。
    frame ＝ どのコマの絵を見せるか。ここがコマアニメの本体。 */
 export const STEP_CHANNELS = ['frame', 'flipX', 'flipY'];
@@ -31,7 +31,7 @@ export function channelsOf(layer){
 
 export const CH_LABEL = {
   x:'よこ', y:'たて', scaleX:'よこ幅', scaleY:'たて幅', rot:'かたむき', opacity:'すけ具合',
-  tint:'塗り', blur:'ぼかし', flipX:'左右反転', flipY:'上下反転', frame:'コマ'
+  tint:'塗り', blur:'ぼかし', stroke:'ふちどり', flipX:'左右反転', flipY:'上下反転', frame:'コマ'
 };
 
 /** そのレイヤーにピンが1つでもあるか */
@@ -203,6 +203,7 @@ export function valuesAt(layer, time){
   const t = mapTime(time, layer.loop);
   const tr = layer.tracks || {};
   const tint = layer.tint || { color:'#F2A0B8', amount:0 };
+  const st   = layer.stroke || { color:'#FFFEF7', width:0 };
   return {
     x:       sample(tr.x,       t, layer.x),
     y:       sample(tr.y,       t, layer.y),
@@ -214,6 +215,9 @@ export function valuesAt(layer, time){
     tintColor:  tint.color,
     tintAmount: sample(tr.tint, t, tint.amount),
     blur:       sample(tr.blur, t, layer.blur || 0),
+
+    strokeColor: st.color,
+    strokeW:     sample(tr.stroke, t, st.width || 0),
 
     flipX: !!sampleStep(tr.flipX, t, layer.flipX),
     flipY: !!sampleStep(tr.flipY, t, layer.flipY),
@@ -246,7 +250,8 @@ export function spreadFrames(layer, secPerFrame, startTime){
 /** そのチャンネルの、いまの値（ピンがあればピン優先） */
 export function channelValue(layer, ch, time){
   const v = valuesAt(layer, time);
-  if(ch === 'tint') return v.tintAmount;
+  if(ch === 'tint')   return v.tintAmount;
+  if(ch === 'stroke') return v.strokeW;
   return v[ch];
 }
 

@@ -29,6 +29,7 @@ export const S = {
   proj: newProject(),
   imgs: {},                       // assetId -> HTMLImageElement（保存対象外）
   sel: null,                      // 選択中のレイヤーid
+  pick: [],                       // ☑ でえらんだレイヤーid（まとめる用）
   selPins: { layer:null, times:[] },  // タイムラインで選んでいるピン
   time: 0,
   playing: false,
@@ -84,6 +85,7 @@ export function onRestore(fn){ restoreHook = fn; }
 function restore(json){
   S.proj = JSON.parse(json);
   if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
+  S.pick = S.pick.filter(id => S.proj.layers.some(l => l.id === id));
   if(S.selPins.layer && !S.proj.layers.some(l => l.id === S.selPins.layer)) S.selPins = { layer:null, times:[] };
   if(restoreHook) restoreHook();
 }

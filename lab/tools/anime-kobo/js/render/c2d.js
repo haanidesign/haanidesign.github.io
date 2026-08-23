@@ -2,7 +2,7 @@
    重かったら render/gl.js（WebGL2）に差し替えられるよう、
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
-import { computeAll, cornersOf } from '../engine/layer.js';
+import { computeAll, cornersOf, drawOrder, isFolder, membersOf } from '../engine/layer.js';
 import { frameAsset, frameImage } from '../state.js';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, meshSizeFor } from '../engine/puppet.js';
 
@@ -12,7 +12,7 @@ export function createC2D(canvas){
   const ctx = canvas.getContext('2d');
   let dotPat = null;
   // クリッピング・エフェクト用の作業キャンバス（使い回す）
-  const tmp = [null, null, null];
+  const tmp = [];
 
   function scratch(i){
     if(!tmp[i]) tmp[i] = document.createElement('canvas');
@@ -66,7 +66,29 @@ export function createC2D(canvas){
     g.restore();
   }
 
-  /** 1枚ぶん描く。塗りがあるときだけ別紙を経由する */
+  /** ふちどり。絵の形を まわりへ ふくらませて 色でぬる。
+     ①別紙の絵を まわり16方向へ ずらして重ねる → ふとった影
+     ②source-in で色をかぶせる → ふちの色だけ残る
+     太さは キャンバスの見た目に対して一定（レイヤーを縮めても細くならない） */
+  const RING = 16;
+  function outline(src, px, color){
+    const c = scratch(4), g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    for(let i = 0; i < RING; i++){
+      const a = (i / RING) * Math.PI * 2;
+      g.drawImage(src, Math.cos(a) * px, Math.sin(a) * px);
+    }
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color;
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.globalCompositeOperation = 'source-over';
+    return c;
+  }
+
+  /** 1枚ぶん描く。塗り・ふちどり があるときだけ別紙を経由する */
   function paint(g, l, pose, tf){
     const asset = frameAsset(l, pose.v.frame);
     const img = frameImage(l, pose.v.frame);
@@ -75,7 +97,11 @@ export function createC2D(canvas){
     const alpha = Math.max(0, Math.min(1, v.opacity));
     if(alpha <= 0) return;
 
-    if(!(v.tintAmount > 0.001)){
+    const tinted  = v.tintAmount > 0.001;
+    const strokeW = (v.strokeW || 0) * Math.abs(tf[0]);   // 画面の大きさに合わせる
+    const edged   = strokeW > 0.4;
+
+    if(!tinted && !edged){
       g.save();
       g.globalAlpha = alpha;
       place(g, l, pose, asset, img);
@@ -83,10 +109,8 @@ export function createC2D(canvas){
       return;
     }
 
-    /* 塗り＝絵の形の中だけを色で染める。
-       ① 別紙に絵を描く
-       ② source-atop で色をかぶせる（絵のある所だけ染まる）
-       ③ 本番へ重ねる */
+    /* 別紙にこの1枚だけを描く。塗りは「絵のある所だけ」染めたいので
+       source-atop で色をかぶせる。 */
     const c = scratch(2), gx = c.getContext('2d');
     gx.setTransform(1, 0, 0, 1, 0, 0);
     gx.clearRect(0, 0, canvas.width, canvas.height);
@@ -94,17 +118,20 @@ export function createC2D(canvas){
     gx.setTransform(...tf);
     place(gx, l, pose, asset, img);
 
-    gx.setTransform(1, 0, 0, 1, 0, 0);
-    gx.globalCompositeOperation = 'source-atop';
-    gx.globalAlpha = Math.min(1, v.tintAmount);
-    gx.fillStyle = v.tintColor || '#F2A0B8';
-    gx.fillRect(0, 0, canvas.width, canvas.height);
-    gx.globalCompositeOperation = 'source-over';
-    gx.globalAlpha = 1;
+    if(tinted){
+      gx.setTransform(1, 0, 0, 1, 0, 0);
+      gx.globalCompositeOperation = 'source-atop';
+      gx.globalAlpha = Math.min(1, v.tintAmount);
+      gx.fillStyle = v.tintColor || '#F2A0B8';
+      gx.fillRect(0, 0, canvas.width, canvas.height);
+      gx.globalCompositeOperation = 'source-over';
+      gx.globalAlpha = 1;
+    }
 
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
+    if(edged) g.drawImage(outline(c, strokeW, v.strokeColor || '#FFFEF7'), 0, 0);
     g.drawImage(c, 0, 0);
     g.restore();
   }
@@ -144,11 +171,12 @@ export function createC2D(canvas){
     ctx.rect(0, 0, project.w, project.h);
     ctx.clip();
 
-    for(const grp of groupLayers(project.layers)){
+    for(const grp of groupLayers(drawOrder(project))){
       const base = grp.base;
       const basePose = poses[base.id];
-      const drawBase = base.visible && basePose;
-      const clippers = grp.clippers.filter(c => c.visible && poses[c.id]);
+      const shown = (l) => l.visible && poses[l.id] && poses[l.id].vis !== false;
+      const drawBase = shown(base);
+      const clippers = grp.clippers.filter(shown);
 
       if(!clippers.length){
         if(drawBase) paint(ctx, base, basePose, tf);
@@ -193,10 +221,32 @@ export function createC2D(canvas){
   }
 
   /** 選んでいるレイヤーの枠とハンドル */
+  /** フォルダは絵を持たないので、中身ぜんぶを囲む四角を枠にする */
+  function folderQuad(project, folder, poses){
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for(const k of membersOf(project, folder)){
+      const p = poses[k.id]; if(!p) continue;
+      const a = frameAsset(k, p.v.frame); if(!a) continue;
+      const c = cornersOf(k, p.m, a); if(!c) continue;
+      for(const pt of c){
+        x0 = Math.min(x0, pt.x); y0 = Math.min(y0, pt.y);
+        x1 = Math.max(x1, pt.x); y1 = Math.max(y1, pt.y);
+      }
+    }
+    if(!isFinite(x0)) return null;
+    return [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
+  }
+
   function drawSelection(project, layer, poses, view){
     const pose = poses[layer.id]; if(!pose) return null;
-    const asset = frameAsset(layer, pose.v.frame); if(!asset) return null;
-    const q = cornersOf(layer, pose.m, asset); if(!q) return null;
+    let q;
+    if(isFolder(layer)){
+      q = folderQuad(project, layer, poses);
+    } else {
+      const asset = frameAsset(layer, pose.v.frame); if(!asset) return null;
+      q = cornersOf(layer, pose.m, asset);
+    }
+    if(!q) return null;
 
     const z = view.z;
     ctx.setTransform(z, 0, 0, z, view.x, view.y);

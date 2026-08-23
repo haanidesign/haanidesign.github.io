@@ -3,7 +3,7 @@
    ミニSpine で実測済みの ag-psd をそのまま使う。 */
 
 import { S, addAsset, edit } from '../state.js';
-import { newLayer } from '../engine/layer.js';
+import { newLayer, newFolder, setParent } from '../engine/layer.js';
 import { contentBox, loadImage } from './image.js';
 
 /** 透明な余白を切り落として left/top を詰め直す */
@@ -104,6 +104,7 @@ export async function importPsd(file, opts = {}){
   }
 
   edit(file.name + ' をよみこみ', () => {
+    const made = [];    // { lay, group }
     // 奥から手前の順で来るので、unshift で積むと手前が先頭になる
     for(const { l, src, shrunk, img } of prepared){
       const id = addAsset(l.name, src, l.width, l.height, img);
@@ -118,7 +119,26 @@ export async function importPsd(file, opts = {}){
       lay.x = offX + (l.left + wOrig / 2) * k;
       lay.y = offY + (l.top  + hOrig / 2) * k;
       S.proj.layers.unshift(lay);
+      made.push({ lay, group: l.group || null });
     }
+
+    /* PSD のグループは そのままフォルダにする。
+       グループ名ごとに1つ作り、中身を入れる。
+       この時点では フォルダの回転じくは まん中に置きたいので、
+       中身の位置から出しておく（setParent が 見た目を保つ）。 */
+    const names = [...new Set(made.map(m => m.group).filter(Boolean))];
+    for(const gname of names){
+      const kids = made.filter(m => m.group === gname).map(m => m.lay);
+      if(kids.length < 1) continue;
+      const f = newFolder(gname);
+      f.x = kids.reduce((a, k) => a + k.x, 0) / kids.length;
+      f.y = kids.reduce((a, k) => a + k.y, 0) / kids.length;
+      // 中身のいちばん手前の位置に フォルダを置く
+      const at = Math.min(...kids.map(k => S.proj.layers.indexOf(k)));
+      S.proj.layers.splice(at, 0, f);
+      kids.forEach(k => setParent(S.proj, k, f.id, 0));
+    }
+
     S.sel = S.proj.layers[0] ? S.proj.layers[0].id : null;
   });
 

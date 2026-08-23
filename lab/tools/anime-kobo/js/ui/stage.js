@@ -1,7 +1,7 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
 import { M, clamp } from '../engine/math.js';
-import { computeAll, pickLayer, hitsLayer } from '../engine/layer.js';
+import { computeAll, pickLayer, hitsLayer, isFolder, membersOf } from '../engine/layer.js';
 import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
 import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
 import { buildMesh, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
@@ -106,6 +106,12 @@ export function createStage(canvas, host, toast){
   function pickPreferSelected(cp, P){
     const cur = selected();
     if(hitsLayer(cur, P[cur && cur.id], S.proj.assets, cp.x, cp.y)) return cur;
+
+    // フォルダは 絵を持たないので、中身のどれかに さわったら フォルダのままにする。
+    // そうしないと フォルダを つかんで動かせない。
+    if(isFolder(cur) && membersOf(S.proj, cur)
+        .some(k => hitsLayer(k, P[k.id], S.proj.assets, cp.x, cp.y))) return cur;
+
     return pickLayer(S.proj, P, S.proj.assets, cp.x, cp.y);
   }
 

@@ -8,6 +8,7 @@ import { valuesAt as evalAt } from './anim.js';
 export function newLayer(name, assetIds){
   return {
     id: uid('L'),
+    kind: 'image',      // 'image' | 'text' | 'folder'
     name: name || 'レイヤー',
     frames: assetIds ? [...assetIds] : [],
     visible: true,
@@ -33,6 +34,7 @@ export function newLayer(name, assetIds){
     mesh: null,         // ピンを刺したときに張るあみ（保存はしない）
 
     tint: { color:'#F2A0B8', amount:0 },   // 塗り（色と強さ）
+    stroke: { color:'#FFFEF7', width:0 },   // ふちどり（色と太さ）
     blur: 0,                                // ぼかし（px）
     flipX: false, flipY: false              // 反転
   };
@@ -62,8 +64,14 @@ export function computeAll(project, time){
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
     const m = p ? M.mul(p.m, local) : local;
 
+    /* フォルダに入れたものは、フォルダの すけ具合 と 目印 を受けつぐ。
+       ふつうの親子（AEと同じ）では受けつがない。 */
+    const inFolder = !!(p && isFolder(p.layer));
+    if(inFolder) v.opacity *= p.v.opacity;
+    const vis = l.visible !== false && (inFolder ? p.vis : true);
+
     solving[l.id] = false;
-    return out[l.id] = { m, v, layer: l };
+    return out[l.id] = { m, v, vis, layer: l };
   };
 
   project.layers.forEach(solve);
@@ -112,7 +120,8 @@ export function setParent(project, layer, newParentId, time, onKey){
 
 /** そのレイヤーが (x,y) を含んでいるか */
 export function hitsLayer(layer, pose, assets, x, y){
-  if(!layer || !layer.visible || !pose) return false;
+  if(!layer || !pose || pose.vis === false || !layer.visible) return false;
+  if(isFolder(layer)) return false;
   const asset = assets[layer.frames[pose.v.frame] || layer.frames[0]];
   const q = cornersOf(layer, pose.m, asset);
   return !!(q && ptInQuad(x, y, q));
@@ -121,9 +130,9 @@ export function hitsLayer(layer, pose, assets, x, y){
 /** キャンバス座標 (x,y) にあるレイヤーを、手前から探す */
 export function pickLayer(project, poses, assets, x, y){
   // layers[0] が一番手前なので、そのまま前から見る
-  for(const l of project.layers){
+  for(const l of drawOrder(project)){
     if(!l.visible) continue;
-    const p = poses[l.id]; if(!p) continue;
+    const p = poses[l.id]; if(!p || p.vis === false) continue;
     const asset = assets[l.frames[p.v.frame] || l.frames[0]];
     const q = cornersOf(l, p.m, asset);
     if(q && ptInQuad(x, y, q)) return l;
@@ -142,4 +151,112 @@ export function isDescendant(project, id, ofId){
     cur = byId[cur.parent];
   }
   return false;
+}
+
+
+/* ================= フォルダ（まとめる） =================
+   フォルダは「絵を持たないレイヤー」。中身は親子でくっつくので、
+   フォルダを動かす・回す・うすくする だけで まとめて効く。
+
+   ふつうの親子と違うところは3つ。
+     ・重なり順が フォルダの場所に まとまる（PSDのグループと同じ）
+     ・すけ具合 と 目のマーク が 中身に伝わる
+     ・タイムラインで たためる
+*/
+
+export const isFolder = (l) => !!l && l.kind === 'folder';
+
+export function newFolder(name){
+  const f = newLayer(name || 'フォルダ', []);
+  f.kind = 'folder';
+  f.open = true;
+  return f;
+}
+
+/** そのレイヤーが 直接入っているフォルダ（いちばん近い先祖のフォルダ） */
+export function nearestFolder(project, layer){
+  const byId = {};
+  project.layers.forEach(l => byId[l.id] = l);
+  let cur = layer, guard = 0;
+  while(cur && cur.parent && guard++ < 200){
+    const p = byId[cur.parent];
+    if(!p) return null;
+    if(isFolder(p)) return p;
+    cur = p;
+  }
+  return null;
+}
+
+/** フォルダの中身（そのフォルダが いちばん近いフォルダ になるもの） */
+export function membersOf(project, folder){
+  return project.layers.filter(l => nearestFolder(project, l) === folder);
+}
+
+/**
+ * 描く順番。手前から並べる。
+ * フォルダは 自分の場所で 中身にすりかわる。
+ */
+export function drawOrder(project){
+  const out = [];
+  const emit = (l) => {
+    if(isFolder(l)) membersOf(project, l).forEach(emit);
+    else out.push(l);
+  };
+  project.layers.forEach(l => { if(!nearestFolder(project, l)) emit(l); });
+  return out;
+}
+
+/** タイムラインに出す行。たたんでいるフォルダの中身は出さない */
+export function treeRows(project){
+  const rows = [];
+  const walk = (l, depth) => {
+    rows.push({ layer: l, depth });
+    if(isFolder(l) && l.open !== false){
+      membersOf(project, l).forEach(c => walk(c, depth + 1));
+    }
+  };
+  project.layers.forEach(l => { if(!nearestFolder(project, l)) walk(l, 0); });
+  return rows;
+}
+
+/**
+ * えらんだレイヤーを 新しいフォルダに入れる。
+ * フォルダの回転じくは みんなの まん中に置くので、回すと自然にまわる。
+ * 見た目は変わらない（setParent が 中身の値を計算しなおす）。
+ */
+export function groupInto(project, ids, time, name){
+  const want = new Set(ids);
+  const targets = project.layers.filter(l => want.has(l.id));
+  if(!targets.length) return null;
+
+  // 親ごと選んでいるときは、親だけ動かせば子もついてくる
+  const top = targets.filter(l => !targets.some(t => t.id !== l.id && isDescendant(project, l.id, t.id)));
+  if(!top.length) return null;
+
+  const poses = computeAll(project, time);
+  let sx = 0, sy = 0, n = 0;
+  top.forEach(l => { const p = poses[l.id]; if(p){ sx += p.m.tx; sy += p.m.ty; n++; } });
+
+  const f = newFolder(name);
+  if(n){ f.x = sx / n; f.y = sy / n; }
+
+  const at = Math.min(...top.map(l => project.layers.indexOf(l)));
+  project.layers.splice(at, 0, f);
+
+  // 並び順は そのままに、フォルダのすぐ下へ寄せる
+  const moved = project.layers.filter(l => top.includes(l));
+  moved.forEach(l => project.layers.splice(project.layers.indexOf(l), 1));
+  project.layers.splice(project.layers.indexOf(f) + 1, 0, ...moved);
+
+  moved.forEach(l => setParent(project, l, f.id, time));
+  return f;
+}
+
+/** フォルダを ほどく。中身は その場に残る */
+export function ungroup(project, folder, time){
+  const kids = project.layers.filter(l => l.parent === folder.id);
+  kids.forEach(k => setParent(project, k, folder.parent || null, time));
+  const i = project.layers.indexOf(folder);
+  if(i >= 0) project.layers.splice(i, 1);
+  return kids.length;
 }
