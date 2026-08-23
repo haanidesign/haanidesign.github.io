@@ -112,35 +112,55 @@ export function createC2D(canvas){
   function outline(src, px, color){
     const w = Math.max(2, Math.ceil(canvas.width / OUT_K));
     const h = Math.max(2, Math.ceil(canvas.height / OUT_K));
-    const r = px / OUT_K;
 
-    const a = small(0, w, h);
+    /* 何回に わけて 太らせるか。
+       重ねるたびに ふちが ほんの少し 外へ にじむので、
+       そのぶんを 先に 引いておく（そうしないと 指定より 太くなる）。 */
+    const passes = Math.max(1, Math.min(5, Math.ceil((px / OUT_K) / 5)));
+    const r = Math.max(0.5, (px - (passes - 1) * 5) / OUT_K);
+
+    let a = small(0, w, h);
     const ga = a.getContext('2d');
     ga.imageSmoothingQuality = 'high';
     /* 先に ほんの少し ぼかしてから ふくらませる。
        かみの毛のような 細い とがりを そのまま ふくらませると、
        とげとげが 目立ってしまう（とくに 中身が 動いているとき）。 */
-    ga.filter = 'blur(' + Math.max(0.6, r * 0.28) + 'px)';
+    /* ぼかしは 太さに 比例させない。比例させると 太いときに
+       ふちが 予定より ずっと 太く なってしまう。 */
+    ga.filter = 'blur(' + Math.max(0.6, Math.min(2, r * 0.22)) + 'px)';
     ga.drawImage(src, 0, 0, w, h);
     ga.filter = 'none';
 
-    const b = small(1, w, h);
-    const gb = b.getContext('2d');
-    // 太いほど 向きを ふやす。まるさが たりないと 角ばって 見える
-    const n1 = Math.max(16, Math.min(40, Math.round(r * 3) + 12));
-    for(let i = 0; i < n1; i++){
-      const t = (i / n1) * Math.PI * 2;
-      gb.drawImage(a, Math.cos(t) * r, Math.sin(t) * r);
+    /* ふくらませ方
+         いちどに 大きく ずらすと、まん中が うまらず
+         へこみの ところが とげとげに 見える。
+         小さく ずらすのを 何回か くり返すと、
+         まるい ふでで なぞったように きれいに 太る。 */
+    const stepR = r / passes;
+    const n = Math.max(12, Math.min(28, Math.round(stepR * 4) + 10));
+
+    let b = small(1, w, h);
+    for(let p = 0; p < passes; p++){
+      const from = p % 2 === 0 ? a : b;
+      const to   = p % 2 === 0 ? b : a;
+      const gt = to.getContext('2d');
+      gt.setTransform(1, 0, 0, 1, 0, 0);
+      gt.globalAlpha = 1;
+      gt.globalCompositeOperation = 'source-over';
+      gt.clearRect(0, 0, w, h);
+      gt.drawImage(from, 0, 0);                       // まん中も うめる
+      for(let i = 0; i < n; i++){
+        const t = ((i + (p % 2) * 0.5) / n) * Math.PI * 2;
+        gt.drawImage(from, Math.cos(t) * stepR, Math.sin(t) * stepR);
+      }
     }
-    const n2 = Math.max(8, Math.round(n1 / 2));
-    for(let i = 0; i < n2; i++){
-      const t = ((i + 0.5) / n2) * Math.PI * 2;
-      gb.drawImage(a, Math.cos(t) * r * 0.55, Math.sin(t) * r * 0.55);
-    }
-    gb.globalCompositeOperation = 'source-in';
-    gb.fillStyle = color;
-    gb.fillRect(0, 0, w, h);
-    gb.globalCompositeOperation = 'source-over';
+    const done = passes % 2 === 1 ? b : a;
+
+    const dg = done.getContext('2d');
+    dg.globalCompositeOperation = 'source-in';
+    dg.fillStyle = color;
+    dg.fillRect(0, 0, w, h);
+    dg.globalCompositeOperation = 'source-over';
 
     const c = scratch(91), g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -149,7 +169,7 @@ export function createC2D(canvas){
     g.filter = 'none';
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.imageSmoothingQuality = 'high';
-    g.drawImage(b, 0, 0, canvas.width, canvas.height);
+    g.drawImage(done, 0, 0, canvas.width, canvas.height);
     return c;
   }
 
@@ -360,8 +380,11 @@ export function createC2D(canvas){
       : [view.z, 0, 0, view.z, view.x, view.y];
     ctx.setTransform(...tf);
 
-    ctx.fillStyle = project.bg;
-    ctx.fillRect(0, 0, project.w, project.h);
+    // すける GIF のときは 下じきを ぬらない（そのまま すける）
+    if(!opts.noBg){
+      ctx.fillStyle = project.bg;
+      ctx.fillRect(0, 0, project.w, project.h);
+    }
     if(!opts.forExport){
       const p = dots();
       if(p){ ctx.save(); ctx.fillStyle = p; ctx.fillRect(0, 0, project.w, project.h); ctx.restore(); }

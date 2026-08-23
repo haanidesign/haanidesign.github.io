@@ -9,6 +9,7 @@
 
 import { createRenderer } from '../render/renderer.js';
 import { A as AUD } from './audio.js';
+import { encodeGif } from './gif.js';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -240,4 +241,43 @@ export async function saveVideo(blob, filename){
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 8000);
   return 'download';
+}
+
+
+/* ---------- すける GIF ----------
+   はいけいを 描かずに 中身だけ 描いて、そのまま GIF に する。
+   動画の上に かさねる 素材や、スタンプに つかえる。 */
+export async function exportGif(project, opt = {}){
+  const fps = Math.max(4, Math.min(24, opt.fps || 12));
+  const long = Math.max(project.w, project.h);
+  const scale = Math.min(1, (opt.maxSide || 480) / long);
+  const width = Math.max(2, Math.round(project.w * scale));
+  const height = Math.max(2, Math.round(project.h * scale));
+  const seconds = Math.min(project.duration, opt.seconds || project.duration);
+  const total = Math.max(1, Math.round(seconds * fps));
+  const onProgress = opt.onProgress || (() => {});
+  const shouldStop = opt.shouldStop || (() => false);
+
+  const cv = document.createElement('canvas');
+  cv.width = width; cv.height = height;
+  const R = createRenderer(cv);
+  const g = cv.getContext('2d');
+  const view = { x: 0, y: 0, z: 1 };
+
+  const frames = [];
+  for(let i = 0; i < total; i++){
+    if(shouldStop()) throw new Error('やめました');
+    // はいけいの色を ぬらずに 描く ＝ すけたまま
+    R.draw(project, null, i / fps, view, { forExport: true, scale, noBg: true });
+    frames.push(g.getImageData(0, 0, width, height));
+    onProgress((i / total) * 0.6);
+  }
+
+  const blob = encodeGif(frames, {
+    delay: 1 / fps,
+    colors: opt.colors || 200,
+    onProgress: (p) => onProgress(0.6 + p * 0.4)
+  });
+  onProgress(1);
+  return { blob, ext: 'gif', how: 'GIF' };
 }

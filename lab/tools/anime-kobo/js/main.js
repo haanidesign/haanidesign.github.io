@@ -10,6 +10,7 @@ import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
+         buildExportSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js';
 
@@ -20,7 +21,7 @@ import * as Audio from './io/audio.js';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
          newId, whenText, MAX_DOCS } from './io/store.js';
 import { importPsd } from './io/psd.js';
-import { exportVideo, saveVideo, canUseWebCodecs } from './io/export.js';
+import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -460,7 +461,8 @@ let cancelExport = false;
 
 $('#exCancel').addEventListener('click', () => { cancelExport = true; });
 
-$('#export').addEventListener('click', async () => {
+/* 書き出しの 中身。kind は 'mp4' か 'gif' */
+async function runExport(kind){
   if(exporting) return;
   if(!S.proj.layers.length) return toast('さきに 絵をよみこもう');
 
@@ -469,23 +471,32 @@ $('#export').addEventListener('click', async () => {
   exporting = true; cancelExport = false;
   S.playing = false;
   box.classList.add('on');
-  title.textContent = canUseWebCodecs() ? '動画を つくっています' : '動画を つくっています（実時間）';
+  title.textContent = kind === 'gif'
+    ? 'すける GIFを つくっています'
+    : (canUseWebCodecs() ? '動画を つくっています' : '動画を つくっています（実時間）');
   fill.style.width = '0%'; pct.textContent = '0%';
 
+  const onProgress = (p) => {
+    const v = Math.round(p * 100);
+    fill.style.width = v + '%';
+    pct.textContent = v + '%';
+  };
+
   try{
-    const { blob, ext } = await exportVideo(S.proj, {
-      onProgress: (p) => {
-        const v = Math.round(p * 100);
-        fill.style.width = v + '%';
-        pct.textContent = v + '%';
-      },
-      shouldStop: () => cancelExport
-    });
+    const g = S.proj.gif || {};
+    const r = kind === 'gif'
+      ? await exportGif(S.proj, {
+          fps: g.fps || 12,
+          maxSide: g.maxSide || 480,
+          seconds: g.seconds || Math.min(6, S.proj.duration),
+          onProgress, shouldStop: () => cancelExport
+        })
+      : await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport });
 
     title.textContent = 'ほぞん しています';
-    const name = (S.proj.name || 'anime') + '.' + ext;
-    const how = await saveVideo(blob, name);
-    const mb = (blob.size / 1048576).toFixed(1);
+    const name = (S.proj.name || 'anime') + '.' + r.ext;
+    const how = await saveVideo(r.blob, name);
+    const mb = (r.blob.size / 1048576).toFixed(1);
     toast(how === 'cancel' ? 'ほぞんを やめました'
         : how === 'share'  ? 'ほぞんしました（' + mb + 'MB）'
         : name + ' をダウンロードしました（' + mb + 'MB）');
@@ -497,6 +508,14 @@ $('#export').addEventListener('click', async () => {
     box.classList.remove('on');
     refresh();
   }
+}
+
+/* 書き出す ＝ どの形で 出すか えらぶ */
+$('#export').addEventListener('click', () => {
+  if(exporting) return;
+  if(!S.proj.layers.length) return toast('さきに 絵をよみこもう');
+  S.proj.gif = S.proj.gif || { fps: 12, maxSide: 480, seconds: Math.min(6, S.proj.duration) };
+  sheet.open('書き出す', (b) => buildExportSheet(b, () => sheet.close(), runExport));
 });
 
 setNotifier(toast);

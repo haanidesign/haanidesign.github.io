@@ -11,8 +11,8 @@ import { PRESET_GROUPS } from '../engine/presets.js';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
          addTextLayer } from '../io/text.js';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, MOVES } from '../io/bg.js';
-import { PATTERN_NAMES, movesVisibly } from '../io/pattern.js';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js';
+import { PATTERN_NAMES } from '../io/pattern.js';
 import { createWheel } from './colorwheel.js';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
          guessBpm, firstOnset } from '../io/audio.js';
@@ -1517,58 +1517,56 @@ export function buildBgSheet(box, closeFn){
 
   box.appendChild(slider('がらの大きさ', () => pt.size, v => pt.size = v,
     20, Math.round(S.proj.w / 3), 2, v => Math.round(v) + 'px'));
-  /* ななめの 角度。よく つかう ものは ボタンで、こまかくは スライダーで。 */
-  const angles = document.createElement('div');
-  angles.className = 'rowbtns';
-  angles.style.flexWrap = 'wrap';
-  [['まっすぐ', 0], ['ななめ45°', 45], ['よこむき90°', 90],
-   ['ぎゃく135°', 135], ['ゆるめ30°', 30], ['きつめ60°', 60]].forEach(([lb, v]) => {
-    const b = button(lb, () => { pt.angle = v; apply('かたむきを かえる'); });
-    b.style.flex = '0 0 30%';
-    b.classList.toggle('on', Math.abs((pt.angle || 0) - v) < 1);
-    angles.appendChild(b);
-  });
-  box.appendChild(field('かたむき', angles));
-  box.appendChild(slider('こまかく', () => pt.angle, v => pt.angle = v,
-    0, 180, 1, v => Math.round(v) + '°'));
-  box.appendChild(btnRow(
-    button('この かたむきに する', () => apply('かたむきを かえる'))
-  ));
-
-  const moves = document.createElement('div');
-  moves.className = 'rowbtns';
-  moves.style.flexWrap = 'wrap';
-  let dead = 0;
-  Object.keys(MOVES).forEach(name => {
-    const d = MOVES[name];
-    /* たてじまを たてに 流しても 止まって見える。
-       そういう 向きは えらべないようにして、まようのを ふせぐ。 */
-    const ok = (name === 'とめる') || movesVisibly(pt, d[0], d[1]);
-    const b = button(name, async () => {
-      pt.move = name;
-      await apply('もようを うごかす');
-      if(name !== 'とめる') onPlay(true);
+  /* ---- ながれる むき ---- */
+  const flowRow = document.createElement('div');
+  flowRow.className = 'rowbtns';
+  [['とめる', false], ['ながす', true]].forEach(([lb, on]) => {
+    const b = button(lb, () => {
+      pt.move = on ? 'ながす' : 'とめる';
+      apply(on ? 'もようを ながす' : 'もようを とめる').then(() => { if(on) onPlay(true); });
     });
-    b.style.flex = '0 0 30%';
-    b.classList.toggle('on', pt.move === name);
-    if(!ok){
-      b.disabled = true;
-      b.title = 'この がらでは この向きに 動かしても 見た目が 変わりません';
-      dead++;
-    }
-    moves.appendChild(b);
+    b.style.flex = '1';
+    b.classList.toggle('on', (pt.move === 'ながす') === on);
+    flowRow.appendChild(b);
   });
-  box.appendChild(field('うごき', moves));
-  if(dead){
-    const dn = document.createElement('div');
-    dn.className = 'empty';
-    dn.style.textAlign = 'left';
-    dn.textContent = 'うすい向きは、この がらだと 動いて見えないので おせません。'
-      + NL + '（たてじまを たてに 流しても 同じ しまが 重なるだけ）';
-    box.appendChild(dn);
+  box.appendChild(field('うごき', flowRow));
+
+  if(pt.move === 'ながす'){
+    /* むきは 角度で。もようは マスで くり返しているので、
+       いちばん近い マスの ならびに 合わせる（そうしないと つながらない）。 */
+    const dirs = document.createElement('div');
+    dirs.className = 'rowbtns';
+    dirs.style.flexWrap = 'wrap';
+    DIR_PRESETS.forEach(([lb, deg]) => {
+      const b = button(lb, () => {
+        pt.dir = deg;
+        apply('むきを かえる').then(() => onPlay(true));
+      });
+      b.style.flex = '0 0 22%';
+      b.style.fontSize = '1.1rem';
+      b.classList.toggle('on', Math.round(pt.dir || 0) === deg);
+      dirs.appendChild(b);
+    });
+    box.appendChild(field('むき', dirs));
+
+    box.appendChild(slider('むき（こまかく）', () => pt.dir || 0, v => pt.dir = v,
+      0, 355, 5, v => Math.round(v) + '°'));
+    box.appendChild(btnRow(
+      button('➤ この むきで ながす', () => apply('むきを かえる').then(() => onPlay(true)))
+    ));
+
+    box.appendChild(slider('はやさ', () => pt.speed, v => pt.speed = v,
+      10, 400, 5, v => v < 60 ? 'ゆっくり' : v > 200 ? 'はやい' : 'ふつう'));
+
+    if(pt.realDir != null && Math.abs(((pt.realDir - (pt.dir || 0)) % 360)) > 3){
+      const rd = document.createElement('div');
+      rd.className = 'empty';
+      rd.style.textAlign = 'left';
+      rd.textContent = 'もようの ますめに 合わせて ' + pt.realDir + '° で ながしています。'
+        + NL + '（ぴったりの 向きでないと 柄が つながらないため）';
+      box.appendChild(rd);
+    }
   }
-  box.appendChild(slider('はやさ', () => pt.speed, v => pt.speed = v,
-    10, 400, 5, v => v < 60 ? 'ゆっくり' : v > 200 ? 'はやい' : 'ふつう'));
 
   if(bg.loop){
     const lp = document.createElement('div');
@@ -1705,4 +1703,67 @@ export function otherRow(box, l, closeFn){
       if(closeFn) closeFn();
     })
   ));
+}
+
+
+/* ================= 書き出す =================
+   MP4 … 音つき。SNSに あげる ふつうの 動画。
+   すける GIF … はいけいが すけたまま。動画の上に かさねる 素材に なる。 */
+export function buildExportSheet(box, closeFn, run){
+  const NL = String.fromCharCode(10);
+  const g = S.proj.gif = S.proj.gif || { fps: 12, maxSide: 480, seconds: Math.min(6, S.proj.duration) };
+
+  box.appendChild(heading('▶ 動画（MP4）'));
+  const m = document.createElement('div');
+  m.className = 'empty';
+  m.style.textAlign = 'left';
+  m.textContent = S.proj.w + '×' + S.proj.h + '／' + S.proj.duration + '秒。' + NL
+    + '音も いっしょに 入ります。SNSに あげるなら こっち。';
+  box.appendChild(m);
+  box.appendChild(btnRow(
+    button('▶ MP4で 書き出す', () => { if(closeFn) closeFn(); run('mp4'); })
+  ));
+
+  box.appendChild(heading('🫧 すける GIF'));
+  const t = document.createElement('div');
+  t.className = 'empty';
+  t.style.textAlign = 'left';
+  t.textContent = 'はいけいを ぬらずに 出すので、うしろが すけます。' + NL
+    + '動画の上に かさねる 素材や、うごくスタンプに つかえます。' + NL
+    + '（GIFは 色が 256いろまで。音は 入りません）';
+  box.appendChild(t);
+
+  box.appendChild(slider('大きさ', () => g.maxSide, v => g.maxSide = v,
+    160, 720, 20, v => Math.round(v) + 'px'));
+  box.appendChild(slider('なめらかさ', () => g.fps, v => g.fps = v,
+    6, 24, 1, v => Math.round(v) + 'コマ/秒'));
+  box.appendChild(slider('長さ', () => g.seconds,
+    v => g.seconds = v, 0.5, Math.max(1, S.proj.duration), 0.5,
+    v => v.toFixed(1) + '秒'));
+
+  const size = document.createElement('div');
+  size.className = 'empty';
+  size.style.textAlign = 'left';
+  const guess = () => {
+    const k = Math.min(1, g.maxSide / Math.max(S.proj.w, S.proj.h));
+    const w = Math.round(S.proj.w * k), h = Math.round(S.proj.h * k);
+    const n = Math.round(g.seconds * g.fps);
+    // だいたいの めやす（1ドットあたり 0.35バイトくらい）
+    const mb = (w * h * n * 0.35) / 1048576;
+    size.textContent = w + '×' + h + '／' + n + 'コマ・だいたい ' + mb.toFixed(1) + 'MB';
+  };
+  guess();
+  box.appendChild(size);
+
+  box.appendChild(btnRow(
+    button('🫧 すけるGIFで 書き出す', () => { if(closeFn) closeFn(); run('gif'); }),
+    button('めやすを 見なおす', () => { guess(); })
+  ));
+
+  const w = document.createElement('div');
+  w.className = 'empty';
+  w.style.textAlign = 'left';
+  w.textContent = '大きく・長く・なめらかに するほど 重くなります。' + NL
+    + 'スマホなら 480px・12コマ・6秒 くらいが めやす。';
+  box.appendChild(w);
 }

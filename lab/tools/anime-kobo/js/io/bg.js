@@ -59,13 +59,20 @@ export async function addBgLayer(color){
 /* ---------- もよう（ハート・ドット・ストライプ…） ---------- */
 
 /** 動かし方 */
+/* むかしの 呼び名（読みこんだ ふるい さくひん用） */
 export const MOVES = {
-  とめる:   [0, 0],
-  よこ:     [-1, 0],
+  とめる:    [0, 0],
+  よこ:      [-1, 0],
   ぎゃくよこ:[1, 0],
-  たて:     [0, -1],
-  ななめ:   [-1, -1]
+  たて:      [0, -1],
+  ななめ:    [-1, -1]
 };
+
+/** ながれる むきの めやす（度）。0が 右、90が 下 */
+export const DIR_PRESETS = [
+  ['→', 0], ['↘', 45], ['↓', 90], ['↙', 135],
+  ['←', 180], ['↖', 225], ['↑', 270], ['↗', 315]
+];
 
 /**
  * もようを 貼る。
@@ -77,49 +84,64 @@ export async function paintPattern(layer, opt){
   const o = Object.assign({
     kind: 'ドット', back: '#FFFEF7', front: '#F2A0B8',
     size: Math.round(S.proj.w / 10), angle: 0,
-    move: 'とめる', speed: 90
+    move: 'とめる', dir: 0, speed: 90
   }, opt || {});
 
-  /* ななめの もようや ななめの 流れは、ずらす量が ひとマスを こえる。
-     はしが 見えないよう、そのときは まわりを ひろく 作る。 */
-  const d0 = MOVES[o.move] || MOVES['とめる'];
-  const needPad = Math.min(3, (o.angle ? 2 : 1) * ((d0[0] && d0[1]) ? 2 : 1));
+  /* 流すかどうか。むかしの 呼び名（よこ・たて…）も 受けつける */
+  const legacy = MOVES[o.move];
+  if(legacy && (legacy[0] || legacy[1]) && o.dir == null){
+    o.dir = Math.round(Math.atan2(legacy[1], legacy[0]) * 180 / Math.PI);
+    o.move = 'ながす';
+  }
+  const flowing = o.move === 'ながす' && !!(o.dir != null);
 
   /* ずらす量を きめる。
-     ・もようを かたむけていたら、流す向きも 同じだけ かたむける
-     ・ひとマスだけでなく 2マスぶんも 試して、
-       絵の中の ドットに ぴったり はまる ものを えらぶ
-     こうしないと ひとまわりしたとき 柄が つながらない。 */
-  const th0 = (o.angle || 0) * Math.PI / 180;
-  const cosA = Math.cos(th0), sinA = Math.sin(th0);
+
+     もようは ひとマスずつ くり返しているので、
+     ずらすのは「マスの ちょうど 何こぶん」でないと つながらない。
+     だから えらんだ 角度に いちばん 近い マスの組み合わせを さがす。
+     （右へ1マス、右へ2マス下へ1マス、… のような ならび）
+
+     絵の中の ドット数でも 整数に なるよう、
+     縮小ばい率も いっしょに 合わせる。 */
   const P0 = PATTERNS[o.kind] || PATTERNS['むじ'];
   const raw = P0.tile(Math.max(8, o.size || 80));
   const tw0 = Math.max(2, Math.round(raw[0])), th1 = Math.max(2, Math.round(raw[1]));
 
-  const probe = makePattern(S.proj.w, S.proj.h, Object.assign({}, o, { pad: needPad, k: 1 }));
-
-  let fit = { k: probe.kMax, x: 0, y: 0 };
-  if(d0[0] || d0[1]){
-    const wantX = cosA * (d0[0] * tw0) - sinA * (d0[1] * th1);
-    const wantY = sinA * (d0[0] * tw0) + cosA * (d0[1] * th1);
-    const wantLen = Math.hypot(wantX, wantY) || 1;
+  let fit = null, pad = 1, realDeg = null;
+  if(flowing){
+    const a = (o.dir || 0) * Math.PI / 180;
+    const wx = Math.cos(a), wy = Math.sin(a);
     let best = null;
     for(let mx = -2; mx <= 2; mx++){
       for(let my = -2; my <= 2; my++){
         if(!mx && !my) continue;
-        const f = fitShift(probe.kMax, tw0, th1, o.angle || 0, mx, my);
-        if(!f || !f.len) continue;
-        const dot = ((f.x / f.k) * wantX + (f.y / f.k) * wantY)
-                  / ((f.len / f.k) * wantLen);
-        if(dot < 0.9) continue;                                  // 向きが ちがう
-        if(f.len / f.k > Math.max(tw0, th1) * needPad * 1.05) continue;  // はみ出す
-        const score = f.err * 1000 + (1 - dot) * 10 + (f.len / f.k) / wantLen * 0.3;
-        if(!best || score < best.score) best = { score, f };
+        const vx = mx * tw0, vy = my * th1;
+        const len = Math.hypot(vx, vy);
+        const dot = (vx * wx + vy * wy) / len;
+        if(dot < 0.86) continue;                 // 向きが ちがいすぎる
+        const need = Math.max(Math.abs(mx), Math.abs(my));
+        const probe0 = makePattern(S.proj.w, S.proj.h,
+          Object.assign({}, o, { angle: 0, pad: need, k: 1 }));
+        const f = fitShift(probe0.kMax, tw0, th1, 0, mx, my);
+        if(!f) continue;
+        // 向きの ちかさ を いちばん 大事に、つぎに ずれの 少なさ、みじかさ
+        const score = (1 - dot) * 100 + f.err * 20 + need * 0.5;
+        if(!best || score < best.score){
+          best = { score, f, need, deg: Math.atan2(vy, vx) * 180 / Math.PI };
+        }
       }
     }
-    if(best) fit = best.f;
-    else fit = fitShift(probe.kMax, tw0, th1, o.angle || 0, d0[0], d0[1]) || fit;
+    if(best){
+      fit = best.f; pad = best.need;
+      realDeg = Math.round(((best.deg % 360) + 360) % 360);
+    }
   }
+  if(!fit){
+    const probe0 = makePattern(S.proj.w, S.proj.h, Object.assign({}, o, { angle: 0, pad: 1, k: 1 }));
+    fit = { k: probe0.kMax, x: 0, y: 0 };
+  }
+  const needPad = pad;
 
   const r = makePattern(S.proj.w, S.proj.h,
     Object.assign({}, o, { pad: needPad, k: fit.k }));
@@ -132,6 +154,7 @@ export async function paintPattern(layer, opt){
   layer.frames = [id];
   layer.visible = true;        // かくしたままだと 出てこないので
   layer.bgColor = null;
+  o.realDir = realDeg;          // じっさいに ながれる むき
   layer.bgPattern = o;
   layer.tint = layer.tint || { color:'#F2A0B8', amount:0 };
   layer.tint.amount = 0;       // 塗りが かかっていると もようが 見えない
@@ -147,8 +170,7 @@ export async function paintPattern(layer, opt){
   layer.tracks = {};
   layer.loop = null;
 
-  const dir = d0;
-  if(dir[0] || dir[1]){
+  if(flowing && (fit.x || fit.y)){
     /* ずらす量は もようの「ひとマス ぶん」にする。
        かたむけているときは、もようと 同じ向きに かたむけて ずらす。
        そうしないと ひとまわりしたときに 柄が つながらない。
