@@ -160,7 +160,7 @@ export function encodeGif(frames, opt = {}){
   if(!frames.length) throw new Error('コマが ありません');
   const w = frames[0].width, h = frames[0].height;
   const delay = Math.max(2, Math.round((opt.delay || 1 / 12) * 100));   // 100分の1秒
-  const want = Math.max(2, Math.min(255, opt.colors || 200));
+  const want = Math.max(2, Math.min(255, opt.colors || 255));
   const cut = opt.alphaCut == null ? 128 : opt.alphaCut;
   const onProgress = opt.onProgress || (() => {});
 
@@ -211,7 +211,10 @@ export function encodeGif(frames, opt = {}){
     for(let i = 0; i < w * h; i++){
       const p = i * 4;
       if(d[p + 3] < cut){ idxBuf[i] = transIdx; continue; }
-      const key = (d[p] >> 2 << 12) | (d[p + 1] >> 2 << 6) | (d[p + 2] >> 2);
+      /* 色ごとに おぼえて はやくする。
+         おおざっぱに まとめると、なめらかな ところに
+         しま模様が 出るので、色は そのまま おぼえる。 */
+      const key = (d[p] << 16) | (d[p + 1] << 8) | d[p + 2];
       let v = cache.get(key);
       if(v === undefined){ v = nearest(pal, d[p], d[p + 1], d[p + 2]); cache.set(key, v); }
       idxBuf[i] = v;

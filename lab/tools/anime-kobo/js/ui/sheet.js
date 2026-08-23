@@ -578,6 +578,37 @@ export function buildMotionSheet(box){
     return;
   }
 
+  /* いま 打ってある ピンの 数（パペットピンの ゆれは べつ） */
+  const isPuppet = (ch) => /^P.+:(x|y)$/.test(ch);
+  const motionChans = () => Object.keys(l.tracks || {}).filter(ch => !isPuppet(ch));
+  const countPins = () => motionChans()
+    .reduce((n, ch) => n + ((l.tracks[ch] || []).length), 0);
+
+  const now = countPins();
+  const head = document.createElement('div');
+  head.className = 'empty';
+  head.style.textAlign = 'left';
+  head.textContent = now
+    ? 'いま うごきのピンが ' + now + 'コ あります。'
+    : 'まだ うごきのピンは ありません。';
+  box.appendChild(head);
+
+  box.appendChild(btnRow(
+    button('🗑 うごきのピンを ぜんぶ けす', () => {
+      const n = countPins();
+      if(!n) return notify('けす ピンが ありません');
+      const nl = String.fromCharCode(10);
+      if(!confirm('「' + l.name + '」の うごきのピン ' + n + 'コを ぜんぶ けしますか？' + nl + nl
+        + '（パペットピンの ゆれは のこります）')) return;
+      edit('うごきのピンを ぜんぶけす', () => {
+        motionChans().forEach(ch => delete l.tracks[ch]);
+        l.loop = null;
+      });
+      notify(n + 'コ けしました（もどす で 戻せます）');
+      onChange();
+    })
+  ));
+
   const dur = { v: 0.6 };
   box.appendChild(slider('かかる時間', () => dur.v, v => dur.v = v, 0.2, 3, 0.1,
     v => v.toFixed(1) + '秒'));

@@ -258,26 +258,65 @@ export async function exportGif(project, opt = {}){
   const onProgress = opt.onProgress || (() => {});
   const shouldStop = opt.shouldStop || (() => false);
 
+  /* 大きいまま 描いてから 小さくする。
+     はじめから 小さく 描くと、ピンで曲げた あみの つなぎ目が
+     すじに なって 出てしまう（すける ぶんだけ 線に 見える）。 */
+  const big = document.createElement('canvas');
+  big.width = Math.max(2, project.w);
+  big.height = Math.max(2, project.h);
+  const R = createRenderer(big);
+
   const cv = document.createElement('canvas');
   cv.width = width; cv.height = height;
-  const R = createRenderer(cv);
   const g = cv.getContext('2d');
+  g.imageSmoothingQuality = 'high';
   const view = { x: 0, y: 0, z: 1 };
 
   const frames = [];
   for(let i = 0; i < total; i++){
     if(shouldStop()) throw new Error('やめました');
     // はいけいの色を ぬらずに 描く ＝ すけたまま
-    R.draw(project, null, i / fps, view, { forExport: true, scale, noBg: true });
-    frames.push(g.getImageData(0, 0, width, height));
+    R.draw(project, null, i / fps, view, { forExport: true, noBg: true });
+    g.clearRect(0, 0, width, height);
+    g.drawImage(big, 0, 0, width, height);
+
+    const im = g.getImageData(0, 0, width, height);
+    firmUp(im);
+    frames.push(im);
     onProgress((i / total) * 0.6);
   }
 
   const blob = encodeGif(frames, {
     delay: 1 / fps,
-    colors: opt.colors || 200,
+    colors: opt.colors || 255,
+    alphaCut: 110,
     onProgress: (p) => onProgress(0.6 + p * 0.4)
   });
   onProgress(1);
   return { blob, ext: 'gif', how: 'GIF' };
+}
+
+/**
+ * GIF は「すける／すけない」の2つしか 持てない。
+ * なかば すけた ドットが 中に のこると すじに 見えるので、
+ * まわりが しっかり 描かれている ところは しっかり 描かれた ことに する。
+ */
+function firmUp(im){
+  const { width: w, height: h, data: d } = im;
+  const a = new Uint8Array(w * h);
+  for(let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3];
+  for(let y = 1; y < h - 1; y++){
+    for(let x = 1; x < w - 1; x++){
+      const i = y * w + x;
+      const v = a[i];
+      if(v >= 250 || v < 40) continue;
+      // 上下左右が こければ、ここも こくする
+      let solid = 0;
+      if(a[i - 1] >= 250) solid++;
+      if(a[i + 1] >= 250) solid++;
+      if(a[i - w] >= 250) solid++;
+      if(a[i + w] >= 250) solid++;
+      if(solid >= 2) d[i * 4 + 3] = 255;
+    }
+  }
 }
