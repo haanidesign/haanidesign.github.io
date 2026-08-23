@@ -3,7 +3,8 @@
 import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
 import { isDescendant, setParent } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
-         framePinTimes, removePin } from '../engine/anim.js';
+         framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
+import { swayKeys } from '../engine/puppet.js';
 
 export function createSheet(sheetEl, backEl){
   let builder = null;
@@ -117,6 +118,10 @@ export function heading(text){
   h.textContent = text;
   return h;
 }
+
+const SWAY_HINT = 'いまの時間から さいごまで、ゆれるピンを ならべます。'
+  + String.fromCharCode(10)
+  + '「おくれ」を大きくすると、毛先ほど おくれて しなります。';
 
 /* ---------- レイヤーの設定 ---------- */
 let onAddFrames = async () => 0;
@@ -251,6 +256,55 @@ export function buildLayerSheet(box, closeFn){
     h.textContent = 'かたくすると 骨で曲げたように、\nやわらかくすると 布のようになります';
     box.appendChild(h);
   }
+
+    /* ---------- ゆらす（ピンを自動でうつ） ---------- */
+    if(l.pins.length > 1){
+      box.appendChild(heading('ゆらす'));
+      l.sway = l.sway || { angle:8, period:1, phase:0, delay:0.2 };
+      const sw = l.sway;
+      box.appendChild(slider('曲がり角度', () => sw.angle,  v => sw.angle = v,  0, 30, 1, v => Math.round(v) + '°'));
+      box.appendChild(slider('しゅうき',   () => sw.period, v => sw.period = v, 0.2, 4, 0.1, v => v.toFixed(1) + '秒'));
+      box.appendChild(slider('いち',       () => sw.phase,  v => sw.phase = v,  0, 1, 0.05, v => v.toFixed(2)));
+      box.appendChild(slider('おくれ',     () => sw.delay,  v => sw.delay = v,  0, 1, 0.05, v => v.toFixed(2)));
+
+      box.appendChild(btnRow(
+        button('◆ ゆれるピンをうつ', () => {
+          const keys = swayKeys(l.pins, {
+            angle: sw.angle, period: sw.period, phase: sw.phase, delay: sw.delay,
+            duration: Math.max(sw.period, S.proj.duration - S.time), start: S.time
+          });
+          if(!keys.length) return notify('ピンを2本いじょう さしてね');
+          edit('ゆれるピンをうつ', () => {
+            keys.forEach(k => {
+              k.pins.forEach((v, i) => {
+                const pin = l.pins[i];
+                if(pin.type === 'fix') return;
+                setPin(l, pinChX(pin.id), k.t, v.dx, 'smooth');
+                setPin(l, pinChY(pin.id), k.t, v.dy, 'smooth');
+              });
+            });
+          });
+          notify(keys.length + 'コの ピンを うちました');
+          onChange();
+        }),
+        button('ゆれを けす', () => {
+          edit('ゆれをけす', () => {
+            l.pins.forEach(pn => {
+              delete (l.tracks || {})[pinChX(pn.id)];
+              delete (l.tracks || {})[pinChY(pn.id)];
+              pn.dx = 0; pn.dy = 0;
+            });
+          });
+          onChange();
+        })
+      ));
+
+      const sh = document.createElement('div');
+      sh.className = 'empty';
+      sh.style.textAlign = 'left';
+      sh.textContent = SWAY_HINT;
+      box.appendChild(sh);
+    }
 
   /* ---------- 見た目 ---------- */
   box.appendChild(heading('見た目'));

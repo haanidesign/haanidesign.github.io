@@ -321,6 +321,53 @@ export function bendChain(pins, i, newX, newY){
   }
 }
 
+/**
+ * 骨をサイン波でしならせて、ピンの動きを自動で作る。
+ * 各骨を 角度 = 曲がり角度 * sin(2π * 時間/周期 + 位相 + 番号*遅延) だけ回し、
+ * 根元から順につないだ結果を、その時刻のピンの位置として返す。
+ * 遅延を入れると 根元より先端が遅れて振られ、鞭のようにしなる。
+ *
+ * 戻り値: [{ t, pins:[{dx,dy}] }, ...]
+ */
+export function swayKeys(pins, opt){
+  const angle  = (opt.angle  ?? 8)   * Math.PI / 180;
+  const period = Math.max(0.05, opt.period ?? 1);
+  const phase  = (opt.phase  ?? 0)   * Math.PI * 2;
+  const delay  = (opt.delay  ?? 0.2) * Math.PI * 2;
+  const dur    = Math.max(period, opt.duration ?? period);
+  const start  = opt.start ?? 0;
+  const per    = Math.max(6, Math.round(opt.samplesPerCycle ?? 8));
+
+  // 骨の元の向きと長さ
+  const base = [];
+  for(let i = 0; i < pins.length - 1; i++){
+    const a = pins[i], b = pins[i + 1];
+    base.push({ ang: Math.atan2(b.v - a.v, b.u - a.u),
+                len: Math.hypot(b.u - a.u, b.v - a.v) });
+  }
+  if(!base.length) return [];
+
+  const steps = Math.max(per, Math.round(dur / period * per));
+  const out = [];
+  for(let s = 0; s <= steps; s++){
+    const local = s / steps * dur;
+    const t = +(start + local).toFixed(3);
+    const w = 2 * Math.PI * (local / period) + phase;
+
+    // 根元は動かさず、先へ回転を積んでいく
+    const pos = [{ x: pins[0].u, y: pins[0].v }];
+    let acc = 0;
+    for(let i = 0; i < base.length; i++){
+      acc += angle * Math.sin(w + i * delay);
+      const a = base[i].ang + acc;
+      pos.push({ x: pos[i].x + Math.cos(a) * base[i].len,
+                 y: pos[i].y + Math.sin(a) * base[i].len });
+    }
+    out.push({ t, pins: pins.map((p, i) => ({ dx: pos[i].x - p.u, dy: pos[i].y - p.v })) });
+  }
+  return out;
+}
+
 export function newPin(u, v, type){
   return {
     id: 'p' + Math.random().toString(36).slice(2, 8),

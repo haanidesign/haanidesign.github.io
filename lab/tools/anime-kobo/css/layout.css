@@ -85,7 +85,8 @@
 /* ================= タブレット・PC ================= */
 @media (min-width:760px){
   #app{
-    grid-template-columns:250px 1fr;
+    /* 再生バーが1段に収まる幅を確保する */
+    grid-template-columns:330px 1fr;
     grid-template-rows:auto 1fr auto;
     grid-template-areas:
       "top   top"

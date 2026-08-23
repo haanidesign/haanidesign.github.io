@@ -224,7 +224,8 @@ export function createC2D(canvas){
     const handles = {
       scale:  q[2],
       rotate: { x: (q[0].x + q[1].x)/2 + (q[1].x - q[2].x)*0.28,
-                y: (q[0].y + q[1].y)/2 + (q[1].y - q[2].y)*0.28 }
+                y: (q[0].y + q[1].y)/2 + (q[1].y - q[2].y)*0.28 },
+      anchor: piv          // まん中の印＝回転のじく。つまんで動かせる
     };
     ctx.beginPath();
     ctx.moveTo((q[0].x + q[1].x)/2, (q[0].y + q[1].y)/2);
@@ -232,6 +233,7 @@ export function createC2D(canvas){
     ctx.stroke();
 
     for(const [k, h] of Object.entries(handles)){
+      if(k === 'anchor') continue;              // じくは上で十字を描いてある
       ctx.beginPath(); ctx.arc(h.x, h.y, 9 / z, 0, 7);
       ctx.fillStyle = k === 'rotate' ? PINK : MAIN;
       ctx.fill();

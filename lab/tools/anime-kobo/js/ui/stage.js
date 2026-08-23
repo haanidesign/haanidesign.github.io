@@ -198,10 +198,33 @@ export function createStage(canvas, host, toast){
   function hitHandle(cp){
     if(!handles) return null;
     const r = 18 / S.view.z;
+    // じく（まん中）は他のハンドルより先に見る
+    if(handles.anchor && Math.hypot(cp.x - handles.anchor.x, cp.y - handles.anchor.y) < r) return 'anchor';
     for(const [k, h] of Object.entries(handles)){
+      if(k === 'anchor') continue;
       if(Math.hypot(cp.x - h.x, cp.y - h.y) < r) return k;
     }
     return null;
+  }
+
+  /**
+   * 回転のじく（アンカー）を動かす。絵は動かさずに、じくだけずらす。
+   * じくは絵の中の割合（0〜1）で持っているので、ずらしたぶんだけ
+   * レイヤーの位置を反対に動かして、見た目を止める。
+   */
+  function moveAnchor(l, pose, ip){
+    const asset = frameAsset(l, pose.v.frame);
+    if(!asset) return;
+    const nx = clamp(ip.x / asset.w, -1, 2);
+    const ny = clamp(ip.y / asset.h, -1, 2);
+    // 新しいじく − 古いじく のぶんだけ、レイヤーの位置をずらして見た目を止める
+    const dax = (nx - l.pivot.x) * asset.w;
+    const day = (ny - l.pivot.y) * asset.h;
+    const m = M.trs(0, 0, pose.v.rot, pose.v.scaleX, pose.v.scaleY);
+    l.x += m.a * dax + m.c * day;
+    l.y += m.b * dax + m.d * day;
+    l.pivot.x = nx; l.pivot.y = ny;
+    if(hasPins(l)){ setPin(l, 'x', S.time, l.x, 'smooth'); setPin(l, 'y', S.time, l.y, 'smooth'); }
   }
 
   /* 動かしている最中も見た目が追いつくように、ピンがあるレイヤーは
@@ -259,6 +282,12 @@ export function createStage(canvas, host, toast){
       }
 
       const h = hitHandle(cp);
+
+      if(l && h === 'anchor'){
+        beginEdit('じくを うごかす');
+        drag = { kind:'anchor', l };
+        return;
+      }
 
       if(l && h === 'scale'){
         beginEdit('大きさをかえる');
@@ -330,6 +359,15 @@ export function createStage(canvas, host, toast){
         return;
       }
 
+      if(drag.kind === 'anchor'){
+        const l = drag.l;
+        const pose = poses[l.id] || livePoses()[l.id];
+        const ip = toImage(l, pose, cp);
+        if(ip) moveAnchor(l, pose, ip);
+        onChange();
+        return;
+      }
+
       if(drag.kind === 'move'){
         const l = drag.l;
         const dx = cp.x - drag.cp0.x, dy = cp.y - drag.cp0.y;
@@ -371,7 +409,7 @@ export function createStage(canvas, host, toast){
     },
 
     onDragEnd(){
-      if(drag && drag.kind === 'puppet'){ commitEdit(); drag = null; return; }
+      if(drag && (drag.kind === 'puppet' || drag.kind === 'anchor')){ commitEdit(); drag = null; return; }
       if(drag && drag.kind !== 'pan'){
         /* すでにピンが打たれているレイヤーなら、動かした結果を
            いまの時間のピンとして残す（ピンが1つも無いうちは素の位置を変えるだけ）。 */
