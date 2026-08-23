@@ -2,7 +2,7 @@
 
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js';
-import { groupInto, ungroup, isFolder, membersOf } from './engine/layer.js';
+import { groupInto, ungroup, isFolder, membersOf, attachMany } from './engine/layer.js';
 import { createStage } from './ui/stage.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
@@ -10,7 +10,8 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setFrameAdder, setNotifier } from './ui/sheet.js';
 import { addTextLayer } from './io/text.js';
 import { showNewDoc } from './ui/newdoc.js';
-import { addImageFiles, addFramesToLayer } from './io/image.js';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
+import { autoSaver, load as loadSaved, clear as clearSaved, whenText } from './io/store.js';
 import { importPsd } from './io/psd.js';
 import { exportVideo, saveVideo, canUseWebCodecs } from './io/export.js';
 
@@ -38,6 +39,23 @@ function refresh(){
 }
 onChange(refresh);
 onRestore(() => refresh());
+
+/* ---- じどう保存 ----
+   ブラウザで もどってしまっても 作りかけが 残るように、
+   手が止まったら 端末の中へ しまう。 */
+const saver = autoSaver(() => S.proj, {
+  wait: 1200,
+  onDone: (ok, err) => {
+    if(ok) return;
+    if(!saveWarned){ saveWarned = true; toast('じどう保存が できません（' + (err && err.message || '') + '）'); }
+  }
+});
+let saveWarned = false;
+onChange(() => { if(S.ready) saver.touch(); });
+window.addEventListener('pagehide', () => { if(S.ready) saver.now(); });
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden' && S.ready) saver.now();
+});
 
 let lastT = performance.now();
 (function loop(){
@@ -176,12 +194,14 @@ $('#pivot').addEventListener('click', () => {
   setPinMode(!S.pinMode);
 });
 $('#pmClose').addEventListener('click', () => setPinMode(false));
-[['pmMove','move'], ['pmFix','fix'], ['pmDel','del']].forEach(([id, kind]) => {
+const PIN_KINDS = [['pmMove','move'], ['pmFix','fix'], ['pmJoint','joint'], ['pmDel','del']];
+PIN_KINDS.forEach(([id, kind]) => {
   $('#' + id).addEventListener('click', () => {
     S.pinKind = kind;
-    ['pmMove','pmFix','pmDel'].forEach(x => $('#' + x).classList.toggle('on', '#' + x === '#' + id));
-    toast(kind === 'move' ? 'おした所に うごかすピン'
-        : kind === 'fix'  ? 'おした所に とめるピン'
+    PIN_KINDS.forEach(([x]) => $('#' + x).classList.toggle('on', x === id));
+    toast(kind === 'move'  ? 'おした所に うごかすピン'
+        : kind === 'fix'   ? 'おした所に とめるピン'
+        : kind === 'joint' ? 'ひじ・ゆびの ように カクッと 折れるピン（ピンをおすと 切りかえ）'
         : 'ピンをおすと けせます');
   });
 });
@@ -217,7 +237,24 @@ function openSheet(startKey){
   if(selected().kind === 'text') pages.push({ key:'text', label:'テキスト', build:buildTextSheet });
   sheet.openPages('', pages, startKey || 'form');
 }
-$('#parent').addEventListener('click', () => openSheet('form'));
+/* おやこ ＝ ☑ でえらんだものを、いま選んでいるレイヤーに まとめてつける。
+   えらんでいなければ、これまで通り 設定を開く。 */
+$('#parent').addEventListener('click', () => {
+  const oya = selected();
+  if(!S.pick.length) return openSheet('form');
+  if(!oya) return toast('親にしたいレイヤーを えらんでね');
+
+  const ids = S.pick.filter(id => id !== oya.id);
+  if(!ids.length) return toast('親いがいの レイヤーに ☑ してね');
+
+  const done = { n: 0 };
+  edit('まとめて 親につける', () => { done.n = attachMany(S.proj, ids, oya.id, S.time); });
+  S.pick = [];
+  toast(done.n
+    ? done.n + 'まいを「' + oya.name + '」に つけました'
+    : 'つけられませんでした（親子が わになります）');
+  refresh();
+});
 
 /* ---- まとめる（フォルダ） ----
    ☑ でえらんだものを ひとつのフォルダに入れる。
@@ -362,12 +399,73 @@ if(location.hostname === 'localhost' || location.hostname === '127.0.0.1'){
   window.__dbg = { S, stage, timeline, refresh, undoDepth, selected };
 }
 
+/* ================= まちがって「もどる」を おしたとき =================
+   スワイプの もどる じたいは 止められないので、
+   1回めは ここで受けとめて、2回めで ほんとうに出る。
+   （出るときも じどう保存ずみ） */
+let backAt = 0;
+function guardBack(){
+  if(!history.state || history.state.kobo !== 1){
+    history.pushState({ kobo: 1 }, '');
+  }
+  window.addEventListener('popstate', () => {
+    if(!S.ready){ history.back(); return; }
+    const now = Date.now();
+    if(now - backAt < 2500){ history.back(); return; }   // 2回めは そのまま出る
+    backAt = now;
+    history.pushState({ kobo: 1 }, '');
+    saver.now();
+    toast('もう一度 もどると とじます（ほぞんずみ）');
+  });
+}
+
 /* ================= 起動 ================= */
-showNewDoc($('#newdoc'), (w, h, seconds) => {
-  S.proj = newProject(w, h, seconds);
-  S.ready = true;
-  stage.resize();
-  stage.fit();
-  refresh();
-  toast('「ついか」から絵をよみこもう');
-});
+function startNew(resume){
+  showNewDoc($('#newdoc'), (w, h, seconds) => {
+    S.proj = newProject(w, h, seconds);
+    S.ready = true;
+    stage.resize();
+    stage.fit();
+    refresh();
+    guardBack();
+    toast('「ついか」から絵をよみこもう');
+  }, resume);
+}
+
+/** しまってあったものを 開きなおす。絵は src から 作りなおす */
+async function reopen(proj){
+  busy(true, 'まえのつづきを ひらいています…');
+  try{
+    S.proj = proj;
+    S.imgs = {};
+    for(const a of Object.values(proj.assets || {})){
+      try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){}
+    }
+    S.sel = null;
+    S.time = 0;
+    S.ready = true;
+    $('#newdoc').style.display = 'none';
+    stage.resize();
+    stage.fit();
+    refresh();
+    guardBack();
+    toast('まえのつづきから はじめます');
+  }finally{
+    busy(false);
+  }
+}
+
+(async function boot(){
+  let saved = null;
+  try{ saved = await loadSaved(); }catch(_){}
+
+  const n = saved && saved.proj ? (saved.proj.layers || []).length : 0;
+  if(n){
+    startNew({
+      text: whenText(saved.at) + '・' + n + 'まい',
+      onResume: () => reopen(saved.proj)
+    });
+    return;
+  }
+  startNew();
+})();

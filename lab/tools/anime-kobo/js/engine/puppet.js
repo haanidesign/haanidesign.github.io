@@ -61,7 +61,7 @@ export function buildMesh(img, cols, rows){
     tris.push(a, b, c, a, c, d);
   }
 
-  return { w, h, verts, tris, pre: null, dirty: true, stiff: null, nPins: 0 };
+  return { w, h, verts, tris, pre: null, dirty: true, stiff: null, joints: null, nPins: 0 };
 }
 
 /** 絵の大きさに合わせて、ほどよい細かさを決める */
@@ -127,11 +127,26 @@ function distToSeg(px, py, ax, ay, bx, by){
    骨が動かないかぎり使い回せる部分（どの角がどの骨にどれだけ付くか）を先に計算する。 */
 const MAXB = 2;   // 1つの角がぶら下がる骨の数
 
+/* これ以上かたくすると、1つの角は いちばん近い骨だけに ぶら下がる。
+   ひじ・ゆびのように 関節でカクッと折れる動きになる。
+   それより下は 2本の骨に またがるので、布のように なめらかに曲がる。 */
+export const RIGID = 7;
+
 export function precompute(mesh, pins, stiff){
   const n = mesh.verts.length;
   const bones = framesOf(pins, false);
   const nb = bones.length;
   const a = Math.max(0.3, stiff == null ? 1.4 : stiff);
+  const rigid = a >= RIGID;
+
+  /* 骨 b と 骨 b+1 の あいだにあるピンが「関節」なら、
+     その2本を またぐ角は 作らない。＝ そこで カクッと折れる。
+     かたさ（なめらかさ）とは別に、ピン1本ずつで 決められる。 */
+  const hardAt = (b0, b1) => {
+    if(Math.abs(b0 - b1) !== 1) return false;
+    const shared = pins[Math.max(b0, b1)];
+    return !!(shared && shared.joint);
+  };
 
   const idx = new Int16Array(n * MAXB).fill(-1);
   const w   = new Float32Array(n * MAXB);
@@ -149,9 +164,12 @@ export function precompute(mesh, pins, stiff){
         cand.push({ b, d: distToSeg(vx, vy, f.ox, f.oy, ex, ey) });
       }
       cand.sort((p, q) => p.d - q.d);
-      const use = cand.slice(0, MAXB);
+      const solo = rigid || (cand.length > 1 && hardAt(cand[0].b, cand[1].b));
+      const use = solo ? cand.slice(0, 1) : cand.slice(0, MAXB);
       let sum = 0;
-      const ws = use.map(c => { const x = 1 / Math.pow(Math.max(c.d, 1), a); sum += x; return x; });
+      const ws = solo
+        ? (sum = 1, [1])
+        : use.map(c => { const x = 1 / Math.pow(Math.max(c.d, 1), a); sum += x; return x; });
       for(let k = 0; k < use.length; k++){
         const b = use[k].b;
         const loc = toBone(bones[b], vx, vy);
@@ -166,13 +184,17 @@ export function precompute(mesh, pins, stiff){
   mesh.pre = { nb, idx, w, ls, lt };
   mesh.nPins = pins.length;
   mesh.stiff = a;
+  mesh.joints = jointKey(pins);
   mesh.dirty = false;
 }
 
 /** 下ごしらえが今のピン・かたさに合っているか */
+const jointKey = (pins) => pins.map(p => p.joint ? 1 : 0).join('');
+
 export function needsPrecompute(mesh, pins, stiff){
   const a = Math.max(0.3, stiff == null ? 1.4 : stiff);
-  return mesh.dirty || !mesh.pre || mesh.nPins !== pins.length || mesh.stiff !== a;
+  return mesh.dirty || !mesh.pre || mesh.nPins !== pins.length
+      || mesh.stiff !== a || mesh.joints !== jointKey(pins);
 }
 
 /* ---------- 変形 ---------- */
@@ -368,11 +390,59 @@ export function swayKeys(pins, opt){
   return out;
 }
 
-export function newPin(u, v, type){
+export function newPin(u, v, type, joint){
   return {
     id: 'p' + Math.random().toString(36).slice(2, 8),
     u, v,
     type: type || 'move',
+    joint: !!joint,     // ここで カクッと 折れる（ひじ・ゆびの関節）
     dx: 0, dy: 0
   };
+}
+
+/**
+ * 絵の中の1点が、ピンで曲げたあと どこへ行くか。
+ * あみ（mesh）を使わずに その場で出すので、
+ * 親レイヤーにくっついた子（手・小物）を 曲がりについて行かせるのに使う。
+ * 戻り値の rot は、その場所の 骨の 向きの変わりぶん（度）。
+ */
+export function deformPoint(pins, stiff, u, v){
+  const rest = framesOf(pins, false);
+  const now  = framesOf(pins, true);
+  if(!rest.length){
+    const dx = pins.length ? (pins[0].dx || 0) : 0;
+    const dy = pins.length ? (pins[0].dy || 0) : 0;
+    return { x: u + dx, y: v + dy, rot: 0 };
+  }
+
+  const a = Math.max(0.3, stiff == null ? 1.4 : stiff);
+  const rigid = a >= RIGID;
+
+  const cand = rest.map((f, b) => ({
+    b, d: distToSeg(u, v, f.ox, f.oy, f.ox + f.ex * f.len, f.oy + f.ey * f.len)
+  })).sort((p, q) => p.d - q.d);
+
+  const shared = (b0, b1) => (Math.abs(b0 - b1) === 1) && !!pins[Math.max(b0, b1)].joint;
+  const solo = rigid || (cand.length > 1 && shared(cand[0].b, cand[1].b));
+  const use = solo ? cand.slice(0, 1) : cand.slice(0, MAXB);
+
+  let sum = 0;
+  const ws = solo ? (sum = 1, [1])
+                  : use.map(c => { const x = 1 / Math.pow(Math.max(c.d, 1), a); sum += x; return x; });
+
+  let x = 0, y = 0, rot = 0;
+  for(let k = 0; k < use.length; k++){
+    const b = use[k].b;
+    const w = ws[k] / sum;
+    const loc = toBone(rest[b], u, v);
+    const scale = now[b].len / Math.max(1e-6, rest[b].len);
+    const pt = fromBone(now[b], loc.s * scale, loc.t);
+    x += pt.x * w; y += pt.y * w;
+
+    let d = Math.atan2(now[b].ey, now[b].ex) - Math.atan2(rest[b].ey, rest[b].ex);
+    while(d >  Math.PI) d -= Math.PI * 2;
+    while(d < -Math.PI) d += Math.PI * 2;
+    rot += d * w;
+  }
+  return { x, y, rot: rot * 180 / Math.PI };
 }

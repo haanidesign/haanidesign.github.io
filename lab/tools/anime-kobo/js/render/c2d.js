@@ -2,7 +2,8 @@
    重かったら render/gl.js（WebGL2）に差し替えられるよう、
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
-import { computeAll, cornersOf, drawOrder, isFolder, membersOf } from '../engine/layer.js';
+import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
+         nearestFolder } from '../engine/layer.js';
 import { frameAsset, frameImage } from '../state.js';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, meshSizeFor } from '../engine/puppet.js';
 
@@ -22,6 +23,22 @@ export function createC2D(canvas){
     }
     return c;
   }
+
+  /* フォルダは 中身をいったん別紙にまとめてから 効果をかける（プリコンポ）。
+     入れ子になると 何枚も要るので、貸し出し式にする。
+     0番は ふちどり専用（描いたらすぐ使うので 取り合いにならない）。 */
+  let lent = 1;
+  function alloc(){
+    const c = scratch(lent++);
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, c.width, c.height);
+    return c;
+  }
+  const back = (n) => { lent -= n; };
 
   function dots(){
     if(dotPat === null){
@@ -72,7 +89,7 @@ export function createC2D(canvas){
      太さは キャンバスの見た目に対して一定（レイヤーを縮めても細くならない） */
   const RING = 16;
   function outline(src, px, color){
-    const c = scratch(4), g = c.getContext('2d');
+    const c = scratch(0), g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.globalAlpha = 1;
@@ -111,10 +128,7 @@ export function createC2D(canvas){
 
     /* 別紙にこの1枚だけを描く。塗りは「絵のある所だけ」染めたいので
        source-atop で色をかぶせる。 */
-    const c = scratch(2), gx = c.getContext('2d');
-    gx.setTransform(1, 0, 0, 1, 0, 0);
-    gx.clearRect(0, 0, canvas.width, canvas.height);
-    gx.globalAlpha = 1;
+    const c = alloc(), gx = c.getContext('2d');
     gx.setTransform(...tf);
     place(gx, l, pose, asset, img);
 
@@ -128,12 +142,76 @@ export function createC2D(canvas){
       gx.globalAlpha = 1;
     }
 
+    // ふちは 絵の「下」に敷いてから、まとめて うすくする。
+    // 先に本番へ別々に置くと、うすいときに ふちの色が 中まで透けてしまう。
+    if(edged) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
+
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
-    if(edged) g.drawImage(outline(c, strokeW, v.strokeColor || '#FFFEF7'), 0, 0);
     g.drawImage(c, 0, 0);
     g.restore();
+    back(1);
+  }
+
+  /** b を a の下に敷く */
+  function under(a, b){
+    const g = a.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'destination-over';
+    g.drawImage(b, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  /**
+   * フォルダ1つぶん。中身を別紙にまとめてから、
+   * 塗り・ふちどり・ぼかし・すけ具合 を まとめて かける。
+   * ＝ 中身ぜんぶを 1まいの絵として あつかう（プリコンポ）。
+   */
+  function paintFolder(g, project, f, pose, poses, tf){
+    const v = pose.v;
+    const alpha = Math.max(0, Math.min(1, v.opacity));
+    if(alpha <= 0) return;
+
+    const kids = membersOf(project, f);
+    if(!kids.length) return;
+
+    const c = alloc(), gx = c.getContext('2d');
+    gx.setTransform(...tf);
+    drawNodes(gx, project, kids, poses, tf);
+
+    if(v.tintAmount > 0.001){
+      gx.setTransform(1, 0, 0, 1, 0, 0);
+      gx.globalCompositeOperation = 'source-atop';
+      gx.globalAlpha = Math.min(1, v.tintAmount);
+      gx.fillStyle = v.tintColor || '#F2A0B8';
+      gx.fillRect(0, 0, canvas.width, canvas.height);
+      gx.globalCompositeOperation = 'source-over';
+      gx.globalAlpha = 1;
+    }
+
+    const k = Math.abs(tf[0]);
+    const strokeW = (v.strokeW || 0) * k;
+
+    if(strokeW > 0.4) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
+
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = alpha;
+    if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k) + 'px)';
+    g.drawImage(c, 0, 0);
+    g.filter = 'none';
+    g.restore();
+    back(1);
+  }
+
+  /** 1まい ぶん（ふつうのレイヤーでも フォルダでも） */
+  function paintNode(g, project, l, poses, tf){
+    const pose = poses[l.id];
+    if(!pose) return;
+    if(isFolder(l)) paintFolder(g, project, l, pose, poses, tf);
+    else paint(g, l, pose, tf);
   }
 
   /** 奥から手前へ。クリップするレイヤーは、すぐ下の1枚にくっつけてまとめる */
@@ -145,6 +223,56 @@ export function createC2D(canvas){
       else groups.push({ base: l, clippers: [] });
     }
     return groups;
+  }
+
+  /** いちばん外側にあるもの（どのフォルダにも入っていないもの） */
+  function topNodes(project){
+    return project.layers.filter(l => !nearestFolder(project, l));
+  }
+
+  /**
+   * ならんだものを 奥から手前へ描く。
+   * クリップは 同じ入れ物の中だけで はたらく。
+   */
+  function drawNodes(g, project, nodes, poses, tf){
+    const W = canvas.width, H = canvas.height;
+    const shown = (l) => l.visible && poses[l.id] && poses[l.id].vis !== false;
+
+    for(const grp of groupLayers(nodes)){
+      const base = grp.base;
+      const drawBase = shown(base);
+      const clippers = grp.clippers.filter(shown);
+
+      if(!clippers.length){
+        if(drawBase) paintNode(g, project, base, poses, tf);
+        continue;
+      }
+
+      /* 下の絵の形で上を抜く。
+         ① 下の絵だけを別紙に描く
+         ② 上の絵たちを別の紙に描く
+         ③ ②を①の形で抜く（destination-in）
+         ④ ①→③ の順に 本番へ重ねる */
+      const cBase = alloc(), cClip = alloc();
+      const gB = cBase.getContext('2d'), gC = cClip.getContext('2d');
+      gB.setTransform(...tf);
+      gC.setTransform(...tf);
+
+      if(drawBase) paintNode(gB, project, base, poses, tf);
+      for(const c of clippers) paintNode(gC, project, c, poses, tf);
+
+      gC.setTransform(1, 0, 0, 1, 0, 0);
+      gC.globalCompositeOperation = 'destination-in';
+      gC.drawImage(cBase, 0, 0);
+      gC.globalCompositeOperation = 'source-over';
+
+      g.save();
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      if(drawBase) g.drawImage(cBase, 0, 0);
+      g.drawImage(cClip, 0, 0);
+      g.restore();
+      back(2);
+    }
   }
 
   function draw(project, imgs, time, view, opts = {}){
@@ -171,44 +299,8 @@ export function createC2D(canvas){
     ctx.rect(0, 0, project.w, project.h);
     ctx.clip();
 
-    for(const grp of groupLayers(drawOrder(project))){
-      const base = grp.base;
-      const basePose = poses[base.id];
-      const shown = (l) => l.visible && poses[l.id] && poses[l.id].vis !== false;
-      const drawBase = shown(base);
-      const clippers = grp.clippers.filter(shown);
-
-      if(!clippers.length){
-        if(drawBase) paint(ctx, base, basePose, tf);
-        continue;
-      }
-
-      /* 下の絵の形で上を抜く。
-         ① 下の絵だけを別紙に描く
-         ② 上の絵たちを別の紙に描く
-         ③ ②を①の形で抜く（destination-in）
-         ④ ①→③ の順に本番へ重ねる */
-      const cBase = scratch(0), cClip = scratch(1);
-      const gB = cBase.getContext('2d'), gC = cClip.getContext('2d');
-      gB.setTransform(1, 0, 0, 1, 0, 0); gB.clearRect(0, 0, W, H);
-      gC.setTransform(1, 0, 0, 1, 0, 0); gC.clearRect(0, 0, W, H);
-      gB.setTransform(...tf);
-      gC.setTransform(...tf);
-
-      if(drawBase) paint(gB, base, basePose, tf);
-      for(const c of clippers) paint(gC, c, poses[c.id], tf);
-
-      gC.setTransform(1, 0, 0, 1, 0, 0);
-      gC.globalCompositeOperation = 'destination-in';
-      gC.drawImage(cBase, 0, 0);
-      gC.globalCompositeOperation = 'source-over';
-
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      if(drawBase) ctx.drawImage(cBase, 0, 0);
-      ctx.drawImage(cClip, 0, 0);
-      ctx.restore();
-    }
+    lent = 1;
+    drawNodes(ctx, project, topNodes(project), poses, tf);
     ctx.restore();
 
     if(!opts.forExport){

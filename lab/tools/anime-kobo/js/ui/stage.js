@@ -1,7 +1,8 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
 import { M, clamp } from '../engine/math.js';
-import { computeAll, pickLayer, hitsLayer, isFolder, membersOf } from '../engine/layer.js';
+import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
+         keepChildren } from '../engine/layer.js';
 import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
 import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
 import { buildMesh, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
@@ -77,9 +78,12 @@ export function createStage(canvas, host, toast){
       const at = fromImage(l, pose, { x: p.u + vp.dx, y: p.v + vp.dy });
       if(!at) return;
       const sel = i === S.pinSel;
+      const r = (sel ? 12 : 10) / z;
       ctx.beginPath();
-      ctx.arc(at.x, at.y, (sel ? 12 : 10) / z, 0, 7);
-      ctx.fillStyle = p.type === 'fix' ? '#7AC4A0' : '#F2A0B8';
+      // かんせつは 四角。ひと目で 折れる所だと分かるように
+      if(p.joint) ctx.rect(at.x - r, at.y - r, r * 2, r * 2);
+      else ctx.arc(at.x, at.y, r, 0, 7);
+      ctx.fillStyle = p.type === 'fix' ? '#7AC4A0' : p.joint ? '#E1DD60' : '#F2A0B8';
       ctx.fill();
       ctx.lineWidth = 4 / z; ctx.strokeStyle = '#FFFEF7'; ctx.stroke();
       ctx.lineWidth = 2.4 / z; ctx.strokeStyle = '#1E1C14'; ctx.stroke();
@@ -181,6 +185,18 @@ export function createStage(canvas, host, toast){
       onChange();
       return;
     }
+    // 「かんせつ」でピンをおすと、そこが カクッと折れるように なる／もどる
+    if(i >= 0 && S.pinKind === 'joint'){
+      const pin = l.pins[i];
+      edit(pin.joint ? 'かんせつを やめる' : 'かんせつにする', () => {
+        pin.joint = !pin.joint;
+        if(l.mesh) l.mesh.dirty = true;
+      });
+      S.pinSel = i;
+      toast(pin.joint ? 'ここで カクッと 折れます' : 'なめらかに もどしました');
+      onChange();
+      return;
+    }
     if(i >= 0){ S.pinSel = i; onChange(); return; }   // すでにあるピンを選ぶだけ
 
     const ip = toImage(l, pose, cp);
@@ -192,11 +208,15 @@ export function createStage(canvas, host, toast){
     if(!ensureMesh(l)) return toast('絵を よみこみ中です');
 
     edit('ピンをさす', () => {
-      l.pins.push(newPin(ip.x, ip.y, S.pinKind === 'fix' ? 'fix' : 'move'));
+      l.pins.push(newPin(ip.x, ip.y,
+        S.pinKind === 'fix' ? 'fix' : 'move',
+        S.pinKind === 'joint'));
       l.mesh.dirty = true;
     });
     S.pinSel = l.pins.length - 1;
-    toast(S.pinKind === 'fix' ? 'とめるピンを さしました' : 'うごかすピンを さしました');
+    toast(S.pinKind === 'fix'   ? 'とめるピンを さしました'
+        : S.pinKind === 'joint' ? 'かんせつピンを さしました（ここで折れる）'
+        : 'うごかすピンを さしました');
     onChange();
   }
 
@@ -223,13 +243,19 @@ export function createStage(canvas, host, toast){
     if(!asset) return;
     const nx = clamp(ip.x / asset.w, -1, 2);
     const ny = clamp(ip.y / asset.h, -1, 2);
-    // 新しいじく − 古いじく のぶんだけ、レイヤーの位置をずらして見た目を止める
-    const dax = (nx - l.pivot.x) * asset.w;
-    const day = (ny - l.pivot.y) * asset.h;
-    const m = M.trs(0, 0, pose.v.rot, pose.v.scaleX, pose.v.scaleY);
-    l.x += m.a * dax + m.c * day;
-    l.y += m.b * dax + m.d * day;
-    l.pivot.x = nx; l.pivot.y = ny;
+
+    /* じくを ずらすと レイヤーの位置も ずらして 見た目を止める。
+       このとき 子レイヤーは 親の位置を もとにしているので、
+       なにもしないと 子だけ ずれてしまう。
+       だから 子の いまの見た目を おぼえて、あとで つじつまを合わせる。 */
+    keepChildren(S.proj, l, S.time, () => {
+      const dax = (nx - l.pivot.x) * asset.w;
+      const day = (ny - l.pivot.y) * asset.h;
+      const m = M.trs(0, 0, pose.v.rot, pose.v.scaleX, pose.v.scaleY);
+      l.x += m.a * dax + m.c * day;
+      l.y += m.b * dax + m.d * day;
+      l.pivot.x = nx; l.pivot.y = ny;
+    });
     if(hasPins(l)){ setPin(l, 'x', S.time, l.x, 'smooth'); setPin(l, 'y', S.time, l.y, 'smooth'); }
   }
 

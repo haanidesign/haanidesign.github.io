@@ -81,10 +81,14 @@ input,select{
   min-height:var(--tap);
 }
 input[type=range]{
-  min-height:0; height:26px; padding:0;
+  min-height:0; height:34px; padding:0;
   border:none; background:transparent;
   accent-color:var(--main-deep);
+  /* 指で よこに スライドできるように、ブラウザのスクロールに取られない */
+  touch-action:none;
 }
+input[type=range]::-webkit-slider-thumb{ width:26px; height:26px; }
+input[type=range]::-moz-range-thumb{ width:26px; height:26px; }
 input:focus-visible,select:focus-visible{ outline:3px solid var(--pink); outline-offset:1px; }
 
 ::-webkit-scrollbar{ width:8px; height:8px; }

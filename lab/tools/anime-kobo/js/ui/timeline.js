@@ -101,9 +101,47 @@ export function createTimeline(root, opts = {}){
     rows.appendChild(buildPlayhead());
   }
 
+  /** 目もりを さわったら、そこへ 再生バーを うつす */
+  function attachRulerScrub(){
+    if(!ruler || ruler.dataset.scrub) return;
+    ruler.dataset.scrub = '1';
+    ruler.style.cursor = 'ew-resize';
+    ruler.addEventListener('pointerdown', (e) => {
+      try{ ruler.setPointerCapture(e.pointerId); }catch(_){}
+      S.playing = false;
+      // 位置の出し方は レイヤー行と そろえる（スクロールバーのぶん 幅が違うことがある）
+      const ref = rows.querySelector('.track') || ruler;
+      const rect = ref.getBoundingClientRect();
+      const edge = rect.left + ref.clientLeft;   // わくの線のぶんを のぞく
+      const scrub = (ev) => { S.time = snap(x2t(ev.clientX - edge)); onChange(); };
+      scrub(e);
+      const end = () => {
+        ruler.removeEventListener('pointermove', scrub);
+        ruler.removeEventListener('pointerup', end);
+        ruler.removeEventListener('pointercancel', end);
+      };
+      ruler.addEventListener('pointermove', scrub);
+      ruler.addEventListener('pointerup', end);
+      ruler.addEventListener('pointercancel', end);
+    });
+  }
+
   /** 時間の目盛り。ひろげるほど細かい数字が出る */
   function buildRuler(){
     if(!ruler) return;
+    attachRulerScrub();
+
+    /* 目もりの幅を レイヤー行の帯と ぴったり合わせる。
+       レイヤーが多いと 縦スクロールバーのぶん 行のほうが せまくなるので、
+       合わせておかないと 数字と 再生バーの位置が ずれる。 */
+    const rowTrack = rows.querySelector('.track');
+    if(rowTrack){
+      const w = rowTrack.getBoundingClientRect().width;
+      if(w > 1) ruler.style.flex = '0 0 ' + w + 'px';
+    } else {
+      ruler.style.flex = '1';
+    }
+
     ruler.innerHTML = '';
     const w = trackWidth();
     const dur = S.proj.duration;

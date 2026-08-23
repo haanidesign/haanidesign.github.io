@@ -3,6 +3,7 @@
 
 import { M, uid, ptInQuad } from './math.js';
 import { valuesAt as evalAt } from './anim.js';
+import { deformPoint } from './puppet.js';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -47,6 +48,18 @@ export { evalAt as valuesAt };
  * 親を先に計算する必要があるので、親をたどりながら memo する。
  * 戻り値: { [layerId]: { m, v, asset } }
  */
+/** その姿が パペットピンで 曲がっているか（1本でも動いていれば） */
+function bent(pose){
+  const pins = pose.v.pins;
+  if(!pins || pins.length < 2) return false;
+  return pins.some(p => Math.abs(p.dx) > 0.01 || Math.abs(p.dy) > 0.01);
+}
+
+function assetOf(project, layer, frame){
+  const id = layer.frames[frame || 0] || layer.frames[0];
+  return id ? project.assets[id] : null;
+}
+
 export function computeAll(project, time){
   const byId = {};
   project.layers.forEach(l => byId[l.id] = l);
@@ -60,14 +73,30 @@ export function computeAll(project, time){
     solving[l.id] = true;
 
     const v = evalAt(l, time);
-    const local = M.trs(v.x, v.y, v.rot, v.scaleX, v.scaleY);
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
+
+    /* 親が パペットピンで 曲がっているときは、
+       くっついている場所も いっしょに 曲がってほしい。
+       （うでを曲げたら 手も ついていく）
+       つく場所を 親の絵の中の点になおして、その点が どこへ動いたかを見る。 */
+    let lx = v.x, ly = v.y, lrot = v.rot;
+    if(p && bent(p)){
+      const pl = p.layer, pa = assetOf(project, pl, p.v.frame);
+      if(pa){
+        const ox = pa.w * pl.pivot.x, oy = pa.h * pl.pivot.y;
+        const d = deformPoint(p.v.pins, pl.stiff, lx + ox, ly + oy);
+        lx = d.x - ox; ly = d.y - oy; lrot = v.rot + d.rot;
+      }
+    }
+
+    const local = M.trs(lx, ly, lrot, v.scaleX, v.scaleY);
     const m = p ? M.mul(p.m, local) : local;
 
     /* フォルダに入れたものは、フォルダの すけ具合 と 目印 を受けつぐ。
        ふつうの親子（AEと同じ）では受けつがない。 */
+    /* フォルダの すけ具合 は、中身を1まいにまとめてから かける（c2d）。
+       ここで かけると 二重になるので さわらない。 */
     const inFolder = !!(p && isFolder(p.layer));
-    if(inFolder) v.opacity *= p.v.opacity;
     const vis = l.visible !== false && (inFolder ? p.vis : true);
 
     solving[l.id] = false;
@@ -259,4 +288,68 @@ export function ungroup(project, folder, time){
   const i = project.layers.indexOf(folder);
   if(i >= 0) project.layers.splice(i, 1);
   return kids.length;
+}
+
+/**
+ * ☑ でえらんだものを、まとめて 1つの親につける。
+ * 見た目は変わらない。輪になるもの（自分の子を親にする等）は とばす。
+ * 戻り値は くっついた枚数。
+ */
+export function attachMany(project, ids, parentId, time){
+  let n = 0;
+  for(const id of ids){
+    const l = project.layers.find(x => x.id === id);
+    if(!l || l.id === parentId) continue;
+    if(setParent(project, l, parentId, time)) n++;
+  }
+  return n;
+}
+
+/**
+ * ほかのレイヤーの絵を、このレイヤーの「コマ」として取りこむ。
+ * PSDだと 目のあいた絵・とじた絵が べつのレイヤーになっていることが多いので、
+ * それを1枚にまとめないと まばたきが作れない。
+ * 取りこんだレイヤーは 消える。
+ */
+export function mergeAsFrames(project, target, ids){
+  let n = 0;
+  for(const id of ids){
+    if(id === target.id) continue;
+    const l = project.layers.find(x => x.id === id);
+    if(!l || isFolder(l) || !l.frames.length) continue;
+    l.frames.forEach(a => { if(!target.frames.includes(a)) target.frames.push(a); });
+    // この子についていたものは、取りこみ先へ ひきつぐ
+    project.layers.forEach(x => { if(x.parent === l.id) x.parent = target.id; });
+    project.layers.splice(project.layers.indexOf(l), 1);
+    n++;
+  }
+  return n;
+}
+
+/**
+ * 親の じく（アンカー）を 動かしても 子が ずれないように、
+ * 子の いまの見た目を おぼえてから 直す。
+ * fn の中で 親の x/y/pivot を いじる。
+ */
+export function keepChildren(project, layer, time, fn){
+  const kids = project.layers.filter(l => l.parent === layer.id);
+  if(!kids.length){ fn(); return 0; }
+
+  const before = computeAll(project, time);
+  const world = {};
+  kids.forEach(k => { if(before[k.id]) world[k.id] = before[k.id].m; });
+
+  fn();
+
+  const after = computeAll(project, time);
+  let n = 0;
+  for(const k of kids){
+    const w = world[k.id];
+    if(!w || !after[layer.id]) continue;
+    const d = M.decompose(M.mul(M.inv(after[layer.id].m), w));
+    k.x = d.x; k.y = d.y;
+    k.rot = d.rot; k.scaleX = d.scaleX; k.scaleY = d.scaleY;
+    n++;
+  }
+  return n;
 }

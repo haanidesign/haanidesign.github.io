@@ -1,13 +1,19 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
 import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
-import { isDescendant, setParent, isFolder, membersOf, ungroup } from '../engine/layer.js';
+import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
 import { swayKeys } from '../engine/puppet.js';
 import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
 import { FONTS, renderTextLayer, shortName } from '../io/text.js';
+
+/* スライダーを つまんでいる間は 中身を作り直さない。
+   作り直すと つまんでいた部品が 消えてしまい、
+   指を離すまで 動かなくなる（＝タップした所に飛ぶだけになる）。 */
+let holding = false;
+export const holdSheet = (on) => { holding = !!on; };
 
 export function createSheet(sheetEl, backEl){
   let builder = null;
@@ -100,7 +106,7 @@ export function createSheet(sheetEl, backEl){
   });
 
   return { open, openPages, close, isOpen,
-           refresh: () => { if(isOpen()) render(currentTitle()); } };
+           refresh: () => { if(isOpen() && !holding) render(currentTitle()); } };
 }
 
 /* ---------- 部品 ---------- */
@@ -122,9 +128,10 @@ export function slider(label, get, set, min, max, step, fmt){
   v.className = 'val';
   const show = () => v.textContent = (fmt ? fmt(+i.value) : (+i.value).toFixed(2));
   show();
-  i.addEventListener('pointerdown', () => beginEdit(label + 'をかえる'));
+  i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label + 'をかえる'); });
   i.addEventListener('input', () => { set(+i.value); show(); onChange(); });
-  i.addEventListener('change', () => commitEdit());
+  i.addEventListener('change', () => { holdSheet(false); commitEdit(); });
+  ['pointerup','pointercancel','blur'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
   return field(label, i, v);
 }
 
@@ -148,9 +155,10 @@ export function animSlider(label, layer, ch, min, max, step, fmt){
   val.className = 'val';
   const show = () => val.textContent = (fmt ? fmt(+i.value) : (+i.value).toFixed(2));
   show();
-  i.addEventListener('pointerdown', () => beginEdit(label + 'をかえる'));
+  i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label + 'をかえる'); });
   i.addEventListener('input', () => { set(+i.value); show(); onChange(); });
-  i.addEventListener('change', () => commitEdit());
+  i.addEventListener('change', () => { holdSheet(false); commitEdit(); });
+  ['pointerup','pointercancel','blur'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
   return field(label, i, val);
 }
 
@@ -221,8 +229,12 @@ export function buildLayerSheet(box, closeFn){
       + String.fromCharCode(10)
       + 'ここを動かすと 中身ぜんぶが いっしょに動きます。'
       + String.fromCharCode(10)
-      + 'すけ具合と 目のマークも 中身に つたわります。';
+      + '塗り・ぼかし・ふちどりは、中身を1まいにまとめてから'
+      + String.fromCharCode(10)
+      + 'かかります。だから ふちは 外がわにだけ 出ます。';
     box.appendChild(note);
+
+    buildLook(box, l, { flip: false });
 
     box.appendChild(btnRow(
       button('📂 フォルダを ほどく', () => {
@@ -331,15 +343,46 @@ export function buildLayerSheet(box, closeFn){
   /* ---------- パペットピン ---------- */
   if(l.pins && l.pins.length){
     box.appendChild(heading('ピンのかたさ（' + l.pins.length + '本）'));
+    const setStiff = (v) => { l.stiff = v; if(l.mesh) l.mesh.dirty = true; };
     box.appendChild(slider('かたさ',
       () => l.stiff == null ? 1.4 : l.stiff,
-      v => { l.stiff = v; if(l.mesh) l.mesh.dirty = true; },
-      0.4, 3, 0.1,
-      v => v < 0.8 ? 'やわ' : v > 2.2 ? 'かたい' : 'ふつう'));
+      setStiff,
+      0.4, 10, 0.1,
+      v => v >= RIGID ? '関節' : v < 0.8 ? 'ふにゃ' : v < 2.2 ? 'ふつう' : 'しっかり'));
+
+    const preset = document.createElement('div');
+    preset.className = 'rowbtns';
+    [['かみ・しっぽ', 0.8], ['ふく・耳', 2.0], ['うで・ゆび', 9]].forEach(([label, v]) => {
+      const b = button(label, () => {
+        edit('かたさをかえる', () => setStiff(v));
+        notify(v >= RIGID ? '関節で カクッと 曲がります' : 'なめらかに 曲がります');
+        onChange();
+      });
+      b.style.flex = '1';
+      b.classList.toggle('on', Math.abs((l.stiff == null ? 1.4 : l.stiff) - v) < 0.3);
+      preset.appendChild(b);
+    });
+    box.appendChild(field('めやす', preset));
+
     const h = document.createElement('div');
     h.className = 'empty';
     h.style.textAlign = 'left';
-    h.textContent = 'かたくすると 骨で曲げたように、\nやわらかくすると 布のようになります';
+    h.textContent = 'かたさは ぜんたいの しなり具合です。'
+      + String.fromCharCode(10)
+      + 'ひじ・ゆびのように 1か所だけ カクッと 折りたいときは、'
+      + String.fromCharCode(10)
+      + '「ピン」→ 🦴かんせつ で そのピンを おしてください。'
+      + String.fromCharCode(10)
+      + '（うでは つけね→ひじ→手首→指先 の順に ピンをさす）';
+
+    const jn = (l.pins || []).filter(p => p.joint).length;
+    if(jn){
+      const jd = document.createElement('div');
+      jd.className = 'empty';
+      jd.style.textAlign = 'left';
+      jd.textContent = 'いま かんせつは ' + jn + 'か所（四角いピン）';
+      box.appendChild(jd);
+    }
     box.appendChild(h);
   }
 
@@ -392,67 +435,7 @@ export function buildLayerSheet(box, closeFn){
       box.appendChild(sh);
     }
 
-  /* ---------- 見た目 ---------- */
-  box.appendChild(heading('見た目'));
-
-  // 塗り（色と強さ）
-  const cwrap = document.createElement('div');
-  cwrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
-  const col = document.createElement('input');
-  col.type = 'color';
-  col.value = (l.tint && l.tint.color) || '#F2A0B8';
-  col.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
-  col.addEventListener('change', () => {
-    edit('塗りの色をかえる', () => { l.tint = l.tint || {color:'#F2A0B8',amount:0}; l.tint.color = col.value; });
-    onChange();
-  });
-  cwrap.appendChild(col);
-  box.appendChild(field('塗りの色', cwrap));
-  box.appendChild(animSlider('塗りの強さ', l, 'tint', 0, 1, 0.01, pct));
-
-  box.appendChild(animSlider('ぼかし', l, 'blur', 0, 40, 0.5,
-    v => v < 0.05 ? 'なし' : v.toFixed(1)));
-
-  /* ふちどり。太さは キャンバスの大きさに対して一定なので、
-     レイヤーを 大きくしても 細くならない。 */
-  const swrap = document.createElement('div');
-  swrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
-  const scol = document.createElement('input');
-  scol.type = 'color';
-  scol.value = (l.stroke && l.stroke.color) || '#FFFEF7';
-  scol.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
-  scol.addEventListener('change', () => {
-    edit('ふちの色をかえる', () => {
-      l.stroke = l.stroke || { color:'#FFFEF7', width:0 };
-      l.stroke.color = scol.value;
-    });
-    onChange();
-  });
-  swrap.appendChild(scol);
-  box.appendChild(field('ふちの色', swrap));
-  box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
-    v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
-
-  // 反転
-  const flipRow = document.createElement('div');
-  flipRow.className = 'rowbtns';
-  [['flipX','⇄ 左右'], ['flipY','⇅ 上下']].forEach(([ch, label]) => {
-    const b = document.createElement('button');
-    const on = () => !!channelValue(l, ch, S.time);
-    b.textContent = label;
-    b.classList.toggle('on', on());
-    b.addEventListener('click', () => {
-      const next = !on();
-      edit(label + 'に反転', () => {
-        l[ch] = next;
-        if(hasPins(l)) setPin(l, ch, S.time, next, 'hold');
-      });
-      onChange();
-    });
-    b.style.flex = '1';
-    flipRow.appendChild(b);
-  });
-  box.appendChild(field('反転', flipRow));
+  buildLook(box, l, { flip: true });
 
   box.appendChild(heading('親につける'));
   const pnote = document.createElement('div');
@@ -550,17 +533,46 @@ export function buildMotionSheet(box){
   box.appendChild(hint);
 
   /* ---------- まばたき・口パク ---------- */
+  /* まばたき・口パク は「1つのレイヤーが 絵を2まい以上もっている」のが前提。
+     PSDだと 目あき・目とじ が べつのレイヤーになっていることが多いので、
+     ここで まとめられるようにしておく。 */
   box.appendChild(heading('まばたき と 口パク'));
+
+  const steps = document.createElement('div');
+  steps.className = 'empty';
+  steps.style.textAlign = 'left';
+  const NL = String.fromCharCode(10);
+  steps.textContent =
+    '① このレイヤーに 目あき・目とじ の絵を そろえる' + NL +
+    '② どれが「あいた絵」「とじた絵」か えらぶ' + NL +
+    '③ ボタンを おすと、じどうで ピンが ならぶ';
+  box.appendChild(steps);
+
   if(l.frames.length < 2){
     const e = document.createElement('div');
     e.className = 'empty';
     e.style.textAlign = 'left';
-    e.textContent = 'コマが2まい いります。'
-      + String.fromCharCode(10)
-      + '「かたち」で 目のあいた絵と とじた絵を 足してください。';
+    e.textContent = 'いま この レイヤーの 絵は 1まいです。' + NL
+      + '目とじの絵が べつのレイヤーなら、' + NL
+      + 'タイムラインで その行に ☑ を つけてから 下のボタン。' + NL
+      + '（絵のファイルから 足すときは「かたち」の ＋コマを足す）';
     box.appendChild(e);
-    return;
   }
+
+  box.appendChild(btnRow(
+    button('☑ えらんだレイヤーを コマにする', () => {
+      const ids = S.pick.filter(id => id !== l.id);
+      if(!ids.length) return notify('タイムラインで ☑ を つけてね');
+      const r = { n: 0 };
+      edit('コマにまとめる', () => { r.n = mergeAsFrames(S.proj, l, ids); });
+      S.pick = [];
+      notify(r.n ? r.n + 'まいを コマにしました（ぜんぶで ' + l.frames.length + 'コマ）'
+                 : 'まとめられませんでした');
+      onChange();
+    })
+  ));
+
+  if(l.frames.length < 2) return;
 
   l.blink = l.blink || { open:0, close:1, every:3, hold:0.09 };
   l.talk  = l.talk  || { rate:8, len:2, closed:0 };
@@ -569,7 +581,9 @@ export function buildMotionSheet(box){
     const sel = document.createElement('select');
     l.frames.forEach((_, i) => {
       const o = document.createElement('option');
-      o.value = i; o.textContent = (i + 1) + 'コマめ';
+      const a = S.proj.assets[l.frames[i]];
+      o.value = i;
+      o.textContent = (i + 1) + 'コマめ' + (a && a.name ? '（' + a.name + '）' : '');
       if(i === get()) o.selected = true;
       sel.appendChild(o);
     });
@@ -577,6 +591,17 @@ export function buildMotionSheet(box){
     return field(label, sel);
   };
 
+  const sub = (t) => {
+    const d = document.createElement('div');
+    d.className = 'empty';
+    d.style.textAlign = 'left';
+    d.textContent = t;
+    return d;
+  };
+
+  box.appendChild(heading('👁 まばたき'));
+  box.appendChild(sub('ときどき 目をとじます。'
+    + NL + '「あいだ」が みじかいほど よく またたきます。'));
   box.appendChild(frameSel('目があいた絵', () => l.blink.open,  v => l.blink.open = v));
   box.appendChild(frameSel('目をとじた絵', () => l.blink.close, v => l.blink.close = v));
   box.appendChild(slider('あいだ', () => l.blink.every, v => l.blink.every = v, 0.8, 8, 0.2,
@@ -598,6 +623,9 @@ export function buildMotionSheet(box){
     })
   ));
 
+  box.appendChild(heading('👄 口パク'));
+  box.appendChild(sub('いまの時間から「しゃべる長さ」のあいだ、'
+    + NL + '口の絵を パタパタ 入れかえます。さいごは 口をとじます。'));
   box.appendChild(slider('口のはやさ', () => l.talk.rate, v => l.talk.rate = v, 3, 16, 1,
     v => Math.round(v) + '/秒'));
   box.appendChild(slider('しゃべる長さ', () => l.talk.len, v => l.talk.len = v, 0.3, 8, 0.1,
@@ -686,9 +714,10 @@ export function buildTextSheet(box){
     v.className = 'val';
     const show = () => v.textContent = fmt ? fmt(+i.value) : String(Math.round(+i.value));
     show();
-    i.addEventListener('pointerdown', () => beginEdit(label));
+    i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label); });
     i.addEventListener('input', () => { set(+i.value); show(); });
-    i.addEventListener('change', () => { commitEdit(); redraw(); });
+    i.addEventListener('change', () => { holdSheet(false); commitEdit(); redraw(); });
+    ['pointerup','pointercancel'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
     return field(label, i, v);
   };
   box.appendChild(num('大きさ',   () => t.size,        v => t.size = v,        24, 400, 2));
@@ -706,4 +735,74 @@ export function buildTextSheet(box){
   });
   asel.addEventListener('change', () => { edit('よせ方', () => { t.align = asel.value; }); redraw(); });
   box.appendChild(field('よせ方', asel));
+}
+
+/* ---------- 見た目（塗り・ぼかし・ふちどり） ----------
+   ふつうのレイヤーでも フォルダでも 同じものが使える。
+   フォルダは 中身を1まいにまとめてから かかるので、
+   中に何まい入っていても ふちは 外側にだけ出る。 */
+export function buildLook(box, l, opts){
+  const pct = v => Math.round(v * 100) + '%';
+  box.appendChild(heading('見た目'));
+
+  // 塗り（色と強さ）
+  const cwrap = document.createElement('div');
+  cwrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
+  const col = document.createElement('input');
+  col.type = 'color';
+  col.value = (l.tint && l.tint.color) || '#F2A0B8';
+  col.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
+  col.addEventListener('change', () => {
+    edit('塗りの色をかえる', () => { l.tint = l.tint || {color:'#F2A0B8',amount:0}; l.tint.color = col.value; });
+    onChange();
+  });
+  cwrap.appendChild(col);
+  box.appendChild(field('塗りの色', cwrap));
+  box.appendChild(animSlider('塗りの強さ', l, 'tint', 0, 1, 0.01, pct));
+
+  box.appendChild(animSlider('ぼかし', l, 'blur', 0, 40, 0.5,
+    v => v < 0.05 ? 'なし' : v.toFixed(1)));
+
+  /* ふちどり。太さは キャンバスの大きさに対して一定なので、
+     レイヤーを 大きくしても 細くならない。 */
+  const swrap = document.createElement('div');
+  swrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
+  const scol = document.createElement('input');
+  scol.type = 'color';
+  scol.value = (l.stroke && l.stroke.color) || '#FFFEF7';
+  scol.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
+  scol.addEventListener('change', () => {
+    edit('ふちの色をかえる', () => {
+      l.stroke = l.stroke || { color:'#FFFEF7', width:0 };
+      l.stroke.color = scol.value;
+    });
+    onChange();
+  });
+  swrap.appendChild(scol);
+  box.appendChild(field('ふちの色', swrap));
+  box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
+    v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
+
+  if(opts && opts.flip){
+    // 反転
+    const flipRow = document.createElement('div');
+    flipRow.className = 'rowbtns';
+    [['flipX','⇄ 左右'], ['flipY','⇅ 上下']].forEach(([ch, label]) => {
+      const b = document.createElement('button');
+      const on = () => !!channelValue(l, ch, S.time);
+      b.textContent = label;
+      b.classList.toggle('on', on());
+      b.addEventListener('click', () => {
+        const next = !on();
+        edit(label + 'に反転', () => {
+          l[ch] = next;
+          if(hasPins(l)) setPin(l, ch, S.time, next, 'hold');
+        });
+        onChange();
+      });
+      b.style.flex = '1';
+      flipRow.appendChild(b);
+    });
+    box.appendChild(field('反転', flipRow));
+  }
 }

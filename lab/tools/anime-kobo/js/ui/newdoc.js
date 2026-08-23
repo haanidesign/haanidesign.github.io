@@ -4,15 +4,36 @@ import { SIZE_PRESETS } from '../state.js';
 
 const LENGTHS = [10, 15, 30, 60];
 
-export function showNewDoc(el, onStart){
+/**
+ * resume を渡すと、いちばん上に「まえのつづきから」を出す。
+ * { text:'5分まえ・12まい', onResume:fn }
+ */
+export function showNewDoc(el, onStart, resume){
   let size = SIZE_PRESETS[0];
   let seconds = 15;
 
   const card = document.createElement('div');
   card.className = 'card';
 
+  if(resume){
+    const rb = document.createElement('button');
+    rb.className = 'go btn-y resume';
+    rb.textContent = '▶ まえのつづきから（' + resume.text + '）';
+    rb.addEventListener('click', () => {
+      el.style.display = 'none';
+      resume.onResume();
+    });
+    card.appendChild(rb);
+
+    const or = document.createElement('p');
+    or.className = 'sub';
+    or.textContent = 'つづきは じどうで ほぞんされています。'
+      + String.fromCharCode(10) + 'あたらしく つくるなら 下から えらんでね。';
+    card.appendChild(or);
+  }
+
   const h1 = document.createElement('h1');
-  h1.textContent = 'どの形でつくる？';
+  h1.textContent = resume ? 'あたらしく つくる' : 'どの形でつくる？';
   card.appendChild(h1);
 
   const sub = document.createElement('p');
