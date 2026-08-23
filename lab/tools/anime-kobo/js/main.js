@@ -2,14 +2,15 @@
 
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js';
-import { groupInto, ungroup, isFolder, membersOf } from './engine/layer.js';
+import { groupInto, ungroup, isFolder, membersOf,
+         copyLayers, pasteLayers, removeLayers } from './engine/layer.js';
 import { createStage } from './ui/stage.js';
 import { createRenderer } from './render/renderer.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildFaceSheet, setParentOpener, setBgPicker,
-         setAudioPicker, setFrameAdder, setNotifier } from './ui/sheet.js';
+         setAudioPicker, setBusy, setFrameAdder, setNotifier } from './ui/sheet.js';
 
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
@@ -208,6 +209,56 @@ $('#text').addEventListener('click', () => {
   sheet.open('もじ', (box) => buildTextSheet(box, () => sheet.close()));
 });
 
+/* ---- レイヤーの コピー・はりつけ・けす ----
+   ☑ を つけていれば まとめて。つけていなければ いま選んでいる1まい。 */
+function targets(){
+  if(S.pick.length) return [...S.pick];
+  return S.sel ? [S.sel] : [];
+}
+
+$('#clip').addEventListener('click', () => {
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+  const i = S.proj.layers.indexOf(l);
+  if(i === S.proj.layers.length - 1) return toast('いちばん下のレイヤーには 使えません');
+  edit(l.clip ? 'クリップをやめる' : 'クリップする', () => { l.clip = !l.clip; });
+  toast(l.clip ? '下の「' + S.proj.layers[i + 1].name + '」の形で ぬかれます'
+               : 'クリップを やめました');
+  refresh();
+});
+
+$('#copy').addEventListener('click', () => {
+  const ids = targets();
+  if(!ids.length) return toast('レイヤーをえらんでね');
+  S.layerClip = copyLayers(S.proj, ids);
+  toast(S.layerClip.length + 'まい コピーしました（はりつけ で ふやせます）');
+  refresh();
+});
+
+$('#paste2').addEventListener('click', () => {
+  if(!S.layerClip || !S.layerClip.length) return toast('さきに コピーしてね');
+  const made = { v: [] };
+  edit('はりつけ', () => { made.v = pasteLayers(S.proj, S.layerClip); });
+  S.sel = made.v[0] ? made.v[0].id : S.sel;
+  S.pick = [];
+  toast(made.v.length + 'まい はりつけました');
+  refresh();
+});
+
+$('#del').addEventListener('click', () => {
+  const ids = targets();
+  if(!ids.length) return toast('レイヤーをえらんでね');
+  const names = ids.map(id => S.proj.layers.find(l => l.id === id)).filter(Boolean).map(l => l.name);
+  const nl = String.fromCharCode(10);
+  if(!confirm(names.length + 'まい けしますか？' + nl + nl + names.join('、'))) return;
+  const r = { n: 0 };
+  edit('レイヤーをけす', () => { r.n = removeLayers(S.proj, ids); });
+  S.pick = [];
+  if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
+  toast(r.n + 'まい けしました（もどす で 戻せます）');
+  refresh();
+});
+
 /* ---- パペットピン ---- */
 function setPinMode(on){
   S.pinMode = on;
@@ -260,6 +311,7 @@ $('#ripple').addEventListener('click', () => {
 });
 $('#key').addEventListener('click', () => timeline.putPin());
 $('#pinDel').addEventListener('click', () => timeline.delPins());
+$('#delPick').addEventListener('click', () => timeline.delPicked());
 $('#pinCopy').addEventListener('click', () => timeline.copyPins());
 $('#paste').addEventListener('click', () => timeline.pastePins());
 $('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));
@@ -474,6 +526,7 @@ $('#export').addEventListener('click', async () => {
 });
 
 setNotifier(toast);
+setBusy(busy);
 
 /* 設定シートの「＋コマを足す」から呼ばれる */
 setFrameAdder(async (files, layer) => {

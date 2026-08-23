@@ -81,12 +81,19 @@ export async function paintPattern(layer, opt){
   }, opt || {});
 
   const r = makePattern(S.proj.w, S.proj.h, o);
-  const src = r.canvas.toDataURL('image/png');
-  const id = addAsset('もよう', src, r.canvas.width, r.canvas.height, await loadImage(src));
+  /* もようは すきまが無い（すけない）ので JPEG で よい。
+     PNG だと スマホでは 重くなりすぎて 出ないことがある。 */
+  const src = r.canvas.toDataURL('image/jpeg', 0.92);
+  const img = await loadImage(src);
+  const id = addAsset('もよう', src, r.canvas.width, r.canvas.height, img);
 
   layer.frames = [id];
+  layer.visible = true;        // かくしたままだと 出てこないので
   layer.bgColor = null;
   layer.bgPattern = o;
+  layer.tint = layer.tint || { color:'#F2A0B8', amount:0 };
+  layer.tint.amount = 0;       // 塗りが かかっていると もようが 見えない
+  layer.opacity = 1;
 
   // 縮めて作ったぶんを もどして、キャンバスの ドットに ぴったり合わせる
   layer.scaleX = 1 / r.k;
@@ -125,6 +132,12 @@ export async function paintPattern(layer, opt){
 /** もようの はいけいを 足す（無ければ 作る） */
 export async function addPatternBg(opt){
   const l = S.proj.layers.find(isBg) || await addBgLayer('#FFFEF7');
+  // いちばん下へ（あとから 足したときも かならず 奥に）
+  const i = S.proj.layers.indexOf(l);
+  if(i >= 0 && i !== S.proj.layers.length - 1){
+    S.proj.layers.splice(i, 1);
+    S.proj.layers.push(l);
+  }
   await paintPattern(l, opt);
   return l;
 }

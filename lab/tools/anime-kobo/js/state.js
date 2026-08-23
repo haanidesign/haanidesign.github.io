@@ -38,6 +38,7 @@ export const S = {
   pinKind: 'move',                // 'move' さす / 'fix' とめる / 'del' けす
   pinSel: -1,                     // 選んでいるパペットピン
   clip: null,                     // コピーしたピン { items:[{dt, chans}] }
+  layerClip: null,                // コピーしたレイヤー
   tlZoom: 1,                      // 時間じくのひろがり（1 = 全体が見える）
   view: { x:0, y:0, z:1 },        // ステージの表示位置
   ready: false,                   // サイズ選びが終わったか

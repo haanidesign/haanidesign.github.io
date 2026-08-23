@@ -2,7 +2,7 @@
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
 import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js';
-import { isFolder, treeRows, membersOf } from '../engine/layer.js';
+import { isFolder, treeRows, membersOf, removeLayers } from '../engine/layer.js';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, channelValue, framePinTimes, valuesAt,
          pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js';
@@ -84,6 +84,13 @@ export function createTimeline(root, opts = {}){
     if(ps) ps.disabled = !(S.clip && S.clip.items.length);
     const zo = root.querySelector('#tlOut');
     if(zo) zo.disabled = S.tlZoom <= 1.01;
+    // ☑ を つけている間だけ 「けす」を 出す
+    const dp = root.querySelector('#delPick');
+    if(dp){
+      dp.hidden = !S.pick.length;
+      dp.textContent = '🗑' + (S.pick.length > 1 ? S.pick.length : '');
+      dp.title = 'えらんだ ' + S.pick.length + 'まいを けす';
+    }
 
     buildPinbar();
     buildRuler();
@@ -528,6 +535,7 @@ export function createTimeline(root, opts = {}){
   }
 
   function delPins(){
+    if(S.pick.length) return delPicked();     // ☑ が あれば そちらを けす
     const l = S.proj.layers.find(x => x.id === S.selPins.layer);
     if(!l || !S.selPins.times.length) return;
     edit('ピンをけす', () => {
@@ -535,6 +543,23 @@ export function createTimeline(root, opts = {}){
       if(l.loop && !pinTimes(l).length) l.loop = null;
     });
     S.selPins = { layer:null, times:[] };
+    onChange();
+  }
+
+  /** ☑ でえらんだ レイヤーを けす */
+  function delPicked(){
+    const names = S.pick
+      .map(id => S.proj.layers.find(l => l.id === id))
+      .filter(Boolean).map(l => l.name);
+    if(!names.length) return;
+    const nl = String.fromCharCode(10);
+    if(!confirm(names.length + 'まい けしますか？' + nl + nl + names.join('、'))) return;
+    const r = { n: 0 };
+    edit('レイヤーをけす', () => { r.n = removeLayers(S.proj, S.pick); });
+    S.pick = [];
+    if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
+    S.selPins = { layer:null, times:[] };
+    toast(r.n + 'まい けしました（もどす で 戻せます）');
     onChange();
   }
 
@@ -616,6 +641,6 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
-  return { build, updatePlayhead, putPin, delPins, toggleHold, setLoop, clearPins,
+  return { build, updatePlayhead, putPin, delPins, delPicked, toggleHold, setLoop, clearPins,
            copyPins, pastePins, zoomTime };
 }

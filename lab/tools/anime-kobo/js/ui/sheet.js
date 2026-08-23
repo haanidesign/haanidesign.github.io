@@ -1019,6 +1019,9 @@ export function setBgPicker(fn){ onBgFile = fn; }
 let onAudioFile = async () => 0;
 export function setAudioPicker(fn){ onAudioFile = fn; }
 
+let onBusy = () => {};
+export function setBusy(fn){ onBusy = fn; }
+
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
 
@@ -1112,11 +1115,18 @@ export function buildDocSheet(box, closeFn){
         onChange();
       }),
       button('🎨 もようで 足す', async () => {
-        beginEdit('もようの はいけい');
-        await addPatternBg({ kind:'ドット' });
-        commitEdit();
-        notify('もようの はいけいを 足しました');
-        onChange();
+        try{
+          onBusy(true, 'もようを つくっています…');
+          beginEdit('もようの はいけい');
+          await addPatternBg({ kind:'ドット' });
+          commitEdit();
+          notify('もようの はいけいを 足しました');
+          onChange();
+        }catch(err){
+          notify('つくれませんでした（' + (err && err.message || '') + '）');
+        }finally{
+          onBusy(false);
+        }
       })
     ));
     return;
@@ -1175,10 +1185,18 @@ export function buildDocSheet(box, closeFn){
     size: Math.round(S.proj.w / 10), angle: 0, move: 'とめる', speed: 24
   };
   const apply = async (label) => {
-    beginEdit(label);
-    await paintPattern(bg, pt);
-    commitEdit();
-    onChange();
+    try{
+      onBusy(true, 'もようを つくっています…');
+      beginEdit(label);
+      await paintPattern(bg, pt);
+      commitEdit();
+      onChange();
+      notify(pt.kind + (pt.move !== 'とめる' ? '（' + pt.move + '）' : '') + ' に しました');
+    }catch(err){
+      notify('もようを つくれませんでした（' + (err && err.message || '') + '）');
+    }finally{
+      onBusy(false);
+    }
   };
 
   const kinds = document.createElement('div');

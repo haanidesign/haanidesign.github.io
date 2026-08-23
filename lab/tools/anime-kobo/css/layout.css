@@ -77,14 +77,24 @@
 }
 
 /* ---- 下のツールバー ---- */
+/* 道具は 横に スライドして ぜんぶ 見られる。
+   ボタンを ふやしても 1つずつが 小さくならない。 */
 #tools{
   grid-area:tools;
   background:var(--cream);
   border-top:var(--bd);
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
+  display:flex;
   gap:.35rem;
   padding:.4rem .5rem calc(.4rem + var(--safe-b));
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+  -webkit-overflow-scrolling:touch;
+}
+#tools::-webkit-scrollbar{ height:4px; }
+#tools .tool{
+  flex:0 0 calc((100% - 5 * .35rem) / 6);   /* 1画面に 6つ */
+  scroll-snap-align:start;
 }
 
 /* ================= タブレット・PC ================= */
@@ -105,8 +115,10 @@
   }
   #tools{
     border-right:var(--bd);
-    grid-template-columns:repeat(4,1fr);
+    flex-wrap:wrap;
+    overflow-x:visible;
   }
+  #tools .tool{ flex:0 0 calc((100% - 3 * .35rem) / 4); }
 }
 
 /* 右のプロパティ欄。

@@ -353,3 +353,56 @@ export function keepChildren(project, layer, time, fn){
   }
   return n;
 }
+
+/**
+ * ☑ でえらんだ レイヤーを まとめて けす。
+ * フォルダを けすときは 中身も いっしょに。
+ * ぶら下がっていた ほかのレイヤーは 親を はずして その場に のこす。
+ */
+export function removeLayers(project, ids){
+  const kill = new Set();
+  const add = (id) => {
+    if(kill.has(id)) return;
+    kill.add(id);
+    const l = project.layers.find(x => x.id === id);
+    if(l && isFolder(l)) project.layers.forEach(x => { if(x.parent === id) add(x.id); });
+  };
+  ids.forEach(add);
+
+  project.layers = project.layers.filter(l => !kill.has(l.id));
+  project.layers.forEach(l => { if(l.parent && kill.has(l.parent)) l.parent = null; });
+  return kill.size;
+}
+
+/**
+ * レイヤーを 写す（コピー）。
+ * 絵そのもの（アセット）は 使いまわすので 重くならない。
+ * 親子は、いっしょに写したものの中で つなぎ直す。
+ */
+export function copyLayers(project, ids){
+  const set = new Set(ids);
+  const src = project.layers.filter(l => set.has(l.id));
+  // あみ（mesh）と 描画用の配列は 持っていかない（張り直せる）
+  return JSON.parse(JSON.stringify(src, (k, v) =>
+    (k === 'mesh' || k === '_xy' || k === 'weights' || k === 'wIdx') ? undefined : v));
+}
+
+/** 写したものを はりつける。すこし ずらして 手前に 置く */
+export function pasteLayers(project, copied, opt = {}){
+  if(!copied || !copied.length) return [];
+  const shift = opt.shift == null ? 24 : opt.shift;
+  const map = {};
+  const made = copied.map(o => {
+    const l = JSON.parse(JSON.stringify(o));
+    map[o.id] = l.id = uid('L');
+    l.pins = (l.pins || []).map(p => Object.assign({}, p));
+    l.mesh = null; l._xy = null;
+    l.x += shift; l.y += shift;
+    if(!/ のコピー$/.test(l.name)) l.name = l.name + ' のコピー';
+    return l;
+  });
+  // 親子は 写した中だけで つなぎ直す。外の親は そのまま
+  made.forEach(l => { if(l.parent && map[l.parent]) l.parent = map[l.parent]; });
+  project.layers.unshift(...made);
+  return made;
+}

@@ -62,6 +62,7 @@ button{
 button:hover{ background:var(--main); }
 button:active{ transform:translateY(3px); box-shadow:0 0 0 var(--ink); }
 button.on{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2px); }
+.btn-p{ background:var(--pink); }
 button:disabled{ opacity:.35; box-shadow:0 3px 0 var(--ink); transform:none; cursor:default; }
 button:disabled:hover{ background:var(--paper); }
 button:focus-visible{ outline:3px solid var(--pink); outline-offset:2px; }
