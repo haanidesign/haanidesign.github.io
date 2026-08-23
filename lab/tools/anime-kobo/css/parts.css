@@ -44,6 +44,13 @@
   border-radius:100px; padding:.05rem .6rem; white-space:nowrap;
 }
 
+#top #docSize{
+  min-height:26px; padding:.05rem .55rem;
+  font-size:.62rem; border-radius:100px;
+  border-width:2px; box-shadow:0 2px 0 var(--ink);
+  background:var(--paper);
+}
+
 /* ---------- 時間の目盛り ---------- */
 #ruler{
   display:flex; align-items:stretch; gap:.3rem;

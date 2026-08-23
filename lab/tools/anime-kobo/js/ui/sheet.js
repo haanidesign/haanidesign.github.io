@@ -1,13 +1,15 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
 import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
-import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames } from '../engine/layer.js';
+import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
+         attachMany } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
 import { swayKeys } from '../engine/puppet.js';
 import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
 import { FONTS, renderTextLayer, shortName } from '../io/text.js';
+import { addBgLayer, paintBg, fitToCanvas, isBg } from '../io/bg.js';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -437,41 +439,18 @@ export function buildLayerSheet(box, closeFn){
 
   buildLook(box, l, { flip: true });
 
-  box.appendChild(heading('親につける'));
+  box.appendChild(heading('おやこ'));
   const pnote = document.createElement('div');
   pnote.className = 'empty';
   pnote.style.textAlign = 'left';
-  pnote.textContent = '「' + l.name + '」を どのレイヤーに くっつけるか。\n'
-    + 'えらんだレイヤーを動かすと、「' + l.name + '」も ついていきます。';
+  const oyaNow0 = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
+  pnote.textContent = oyaNow0
+    ? 'いま「' + oyaNow0.name + '」に ついています。'
+    : 'いまは どこにも ついていません。';
   box.appendChild(pnote);
-
-  const sel = document.createElement('select');
-  const none = document.createElement('option');
-  none.value = ''; none.textContent = '（どこにも つけない）';
-  sel.appendChild(none);
-  S.proj.layers.forEach(o => {
-    if(o.id === l.id || isDescendant(S.proj, o.id, l.id)) return;
-    const op = document.createElement('option');
-    op.value = o.id; op.textContent = o.name;
-    if(o.id === l.parent) op.selected = true;
-    sel.appendChild(op);
-  });
-  sel.addEventListener('change', () => {
-    const ok = { v: false };
-    edit('親をかえる', () => {
-      ok.v = setParent(S.proj, l, sel.value || null, S.time, (d) => {
-        // ピンが打たれているレイヤーは、いまの時間のピンも合わせて直す
-        if(!hasPins(l)) return;
-        ['x','y','rot','scaleX','scaleY'].forEach(ch => setPin(l, ch, S.time, d[ch], 'smooth'));
-      });
-    });
-    const oyaNow = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
-    notify(!ok.v ? 'それには つけられません（じぶんの子だから）'
-         : oyaNow ? '「' + oyaNow.name + '」に つきました'
-                  : 'どこにも つけないように しました');
-    onChange();
-  });
-  box.appendChild(field('親', sel));
+  box.appendChild(btnRow(
+    button('🔗 おやこを きめる', () => { if(closeFn) closeFn(); openParent(); })
+  ));
 
   box.appendChild(heading('そのほか'));
   box.appendChild(btnRow(
@@ -805,4 +784,195 @@ export function buildLook(box, l, opts){
     });
     box.appendChild(field('反転', flipRow));
   }
+}
+
+
+/* ---------- おやこ（親につける）専用のページ ----------
+   したいことが 1つしか無い画面にする。
+   ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
+let openParent = () => {};
+export function setParentOpener(fn){ openParent = fn; }
+
+export function buildParentSheet(box, closeFn){
+  const NL = String.fromCharCode(10);
+  const picked = S.pick
+    .map(id => S.proj.layers.find(l => l.id === id))
+    .filter(Boolean);
+  const cur = selected();
+  const kids = picked.length ? picked : (cur ? [cur] : []);
+
+  if(!kids.length){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = 'まず 子にしたいレイヤーを えらんでね。' + NL
+      + '・1まいだけなら レイヤーの名前を おす' + NL
+      + '・いくつも まとめてなら ☐ を おして ☑ にする';
+    box.appendChild(e);
+    return;
+  }
+
+  /* だれを 子にするか */
+  const who = document.createElement('div');
+  who.className = 'empty';
+  who.style.textAlign = 'left';
+  who.textContent = (picked.length ? '☑ でえらんだ ' + kids.length + 'まい' : 'えらんでいる 1まい')
+    + '：' + kids.map(k => k.name).join('、');
+  box.appendChild(who);
+
+  const hint = document.createElement('div');
+  hint.className = 'empty';
+  hint.style.textAlign = 'left';
+  hint.textContent = '親を動かすと 子も ついていきます。' + NL
+    + '親をパペットピンで曲げても ついていきます。';
+  box.appendChild(hint);
+
+  /* だれに つけるか */
+  const sel = document.createElement('select');
+  const none = document.createElement('option');
+  none.value = ''; none.textContent = '（どこにも つけない）';
+  sel.appendChild(none);
+
+  const now = kids[0].parent || '';
+  S.proj.layers.forEach(o => {
+    if(kids.some(k => k.id === o.id)) return;
+    if(kids.some(k => isDescendant(S.proj, o.id, k.id))) return;
+    const op = document.createElement('option');
+    op.value = o.id;
+    op.textContent = (isFolder(o) ? '📁 ' : '') + o.name;
+    if(o.id === now && kids.every(k => k.parent === now)) op.selected = true;
+    sel.appendChild(op);
+  });
+  box.appendChild(field('親にする', sel));
+
+  box.appendChild(btnRow(
+    button('🔗 くっつける', () => {
+      if(!sel.value) return notify('親にする レイヤーを えらんでね');
+      const oya = S.proj.layers.find(x => x.id === sel.value);
+      const r = { n: 0 };
+      edit('おやこに する', () => {
+        r.n = attachMany(S.proj, kids.map(k => k.id), oya.id, S.time);
+      });
+      S.pick = [];
+      notify(r.n ? r.n + 'まいを「' + oya.name + '」に つけました'
+                 : 'つけられませんでした（親子が わになります）');
+      onChange();
+      if(closeFn) closeFn();
+    }),
+    button('はなす', () => {
+      const r = { n: 0 };
+      edit('おやこを はなす', () => {
+        r.n = attachMany(S.proj, kids.map(k => k.id), null, S.time);
+      });
+      S.pick = [];
+      notify(r.n + 'まいを はなしました');
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
+
+  /* いま ぶら下がっているもの */
+  if(cur){
+    const mine = S.proj.layers.filter(x => x.parent === cur.id);
+    if(mine.length){
+      box.appendChild(heading('「' + cur.name + '」についているもの'));
+      const list = document.createElement('div');
+      list.className = 'empty';
+      list.style.textAlign = 'left';
+      list.textContent = mine.map(x => '・' + x.name).join(NL);
+      box.appendChild(list);
+    }
+  }
+}
+
+
+/* ---------- どうが ぜんたいの せってい ----------
+   1まいごとではなく 作品ぜんたいのこと（長さ・はいけい）を ここにまとめる。 */
+let onBgFile = async () => 0;
+export function setBgPicker(fn){ onBgFile = fn; }
+
+export function buildDocSheet(box, closeFn){
+  const NL = String.fromCharCode(10);
+
+  box.appendChild(heading('動画の長さ'));
+  box.appendChild(slider('長さ',
+    () => S.proj.duration,
+    v => { S.proj.duration = v; if(S.time > v) S.time = v; },
+    3, 120, 1, v => v < 60 ? Math.round(v) + '秒' : (v / 60).toFixed(1) + '分'));
+
+  box.appendChild(heading('はいけい'));
+  const bg = S.proj.layers.find(isBg);
+
+  if(!bg){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = 'はいけいを 足すと、いちばん下に 1まい入ります。' + NL
+      + 'ふつうのレイヤーなので、色をかえる・写真にする・' + NL
+      + 'ゆっくり動かす も できます。';
+    box.appendChild(e);
+    box.appendChild(btnRow(
+      button('＋ はいけいを 足す', async () => {
+        beginEdit('はいけいを足す');
+        await addBgLayer('#BFE3F5');
+        commitEdit();
+        notify('はいけいを 足しました');
+        onChange();
+      })
+    ));
+    return;
+  }
+
+  const col = document.createElement('input');
+  col.type = 'color';
+  col.value = bg.bgColor || '#BFE3F5';
+  col.style.cssText = 'min-height:38px;padding:2px;flex:1';
+  col.addEventListener('change', async () => {
+    beginEdit('はいけいの色');
+    await paintBg(bg, col.value);
+    commitEdit();
+    onChange();
+  });
+  box.appendChild(field('はいけいの色', col));
+
+  const swatch = document.createElement('div');
+  swatch.className = 'rowbtns';
+  swatch.style.flexWrap = 'wrap';
+  [['そら','#BFE3F5'], ['ゆうやけ','#FFCBA4'], ['よる','#2E3358'],
+   ['くさ','#BFE8B0'], ['しろ','#FFFEF7'], ['ピンク','#F7D3E0']].forEach(([n, c]) => {
+    const b = button(n, async () => {
+      beginEdit('はいけいの色');
+      await paintBg(bg, c);
+      commitEdit();
+      onChange();
+    });
+    b.style.cssText = 'flex:0 0 30%;border-left:14px solid ' + c;
+    swatch.appendChild(b);
+  });
+  box.appendChild(field('よくつかう色', swatch));
+
+  const pick = document.createElement('input');
+  pick.type = 'file';
+  pick.hidden = true;
+  pick.addEventListener('change', async (e) => {
+    await onBgFile(e.target.files, bg);
+    e.target.value = '';
+    onChange();
+  });
+  box.appendChild(pick);
+
+  box.appendChild(btnRow(
+    button('🖼 写真を はいけいにする', () => pick.click()),
+    button('キャンバスに 合わせる', () => {
+      edit('はいけいを 合わせる', () => fitToCanvas(bg));
+      onChange();
+    })
+  ));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = 'はいけいも ふつうのレイヤーです。' + NL
+    + 'タイムラインで えらべば、ぼかしたり ゆっくり動かしたり できます。';
+  box.appendChild(note);
 }

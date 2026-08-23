@@ -2,15 +2,17 @@
 
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js';
-import { groupInto, ungroup, isFolder, membersOf, attachMany } from './engine/layer.js';
+import { groupInto, ungroup, isFolder, membersOf } from './engine/layer.js';
 import { createStage } from './ui/stage.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
+         buildParentSheet, buildDocSheet, setParentOpener, setBgPicker,
          setFrameAdder, setNotifier } from './ui/sheet.js';
 import { addTextLayer } from './io/text.js';
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
+import { fitToCanvas } from './io/bg.js';
 import { autoSaver, load as loadSaved, clear as clearSaved, whenText } from './io/store.js';
 import { importPsd } from './io/psd.js';
 import { exportVideo, saveVideo, canUseWebCodecs } from './io/export.js';
@@ -237,23 +239,43 @@ function openSheet(startKey){
   if(selected().kind === 'text') pages.push({ key:'text', label:'テキスト', build:buildTextSheet });
   sheet.openPages('', pages, startKey || 'form');
 }
-/* おやこ ＝ ☑ でえらんだものを、いま選んでいるレイヤーに まとめてつける。
-   えらんでいなければ、これまで通り 設定を開く。 */
-$('#parent').addEventListener('click', () => {
-  const oya = selected();
-  if(!S.pick.length) return openSheet('form');
-  if(!oya) return toast('親にしたいレイヤーを えらんでね');
+/* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
+   ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
+function openParentSheet(){
+  if(!S.pick.length && !selected()) return toast('レイヤーを えらんでね');
+  sheet.open('おやこ', (box) => buildParentSheet(box, () => sheet.close()));
+}
+$('#parent').addEventListener('click', openParentSheet);
+setParentOpener(openParentSheet);
 
-  const ids = S.pick.filter(id => id !== oya.id);
-  if(!ids.length) return toast('親いがいの レイヤーに ☑ してね');
+/* 上の「1080×1920／15秒」を おすと、作品ぜんたいの せってい */
+$('#docSize').addEventListener('click', () => {
+  sheet.open('どうがの せってい', (box) => buildDocSheet(box, () => sheet.close()));
+});
 
-  const done = { n: 0 };
-  edit('まとめて 親につける', () => { done.n = attachMany(S.proj, ids, oya.id, S.time); });
-  S.pick = [];
-  toast(done.n
-    ? done.n + 'まいを「' + oya.name + '」に つけました'
-    : 'つけられませんでした（親子が わになります）');
-  refresh();
+/* はいけいに 写真を えらんだとき */
+setBgPicker(async (files, layer) => {
+  const f = files && files[0];
+  if(!f || !/^image\//.test(f.type || '')) { toast('PNG・JPEG を えらんでね'); return 0; }
+  try{
+    busy(true, '写真を よみこみ中…');
+    const n = await addFramesToLayer([f], layer);
+    if(n){
+      edit('はいけいの写真', () => {
+        layer.frames = [layer.frames[layer.frames.length - 1]];
+        layer.bgColor = null;
+        fitToCanvas(layer);
+      });
+      toast('はいけいを 写真に しました');
+    }
+    return n;
+  }catch(err){
+    toast(err.message || 'よみこめませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
 });
 
 /* ---- まとめる（フォルダ） ----
