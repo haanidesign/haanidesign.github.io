@@ -214,13 +214,39 @@ export function createC2D(canvas){
     else paint(g, l, pose, tf);
   }
 
-  /** 奥から手前へ。クリップするレイヤーは、すぐ下の1枚にくっつけてまとめる */
+  /**
+   * 奥から手前へ ならべる。
+   * クリップするレイヤーは、ぬかれる相手（base）に くっつけて まとめる。
+   *   ・clipTo に レイヤーを えらんでいれば その形で ぬく
+   *   ・えらんでいなければ すぐ下の1枚（むかしの やり方）
+   */
   function groupLayers(layers){
     const groups = [];
-    for(let i = layers.length - 1; i >= 0; i--){   // [0]が手前なので後ろから
+    const byBase = {};                       // レイヤーid → その まとまり
+    const waiting = {};                      // まだ base が 出てきていない ぶん
+
+    for(let i = layers.length - 1; i >= 0; i--){   // [0]が手前なので 後ろから
       const l = layers[i];
-      if(l.clip && groups.length) groups[groups.length - 1].clippers.push(l);
-      else groups.push({ base: l, clippers: [] });
+
+      if(l.clip){
+        const to = l.clipTo && layers.some(x => x.id === l.clipTo) ? l.clipTo : null;
+        if(to){
+          if(byBase[to]) byBase[to].clippers.push(l);
+          else (waiting[to] = waiting[to] || []).push(l);
+          continue;
+        }
+        if(groups.length){ groups[groups.length - 1].clippers.push(l); continue; }
+      }
+
+      const g = { base: l, clippers: [] };
+      byBase[l.id] = g;
+      if(waiting[l.id]){ g.clippers.push(...waiting[l.id]); delete waiting[l.id]; }
+      groups.push(g);
+    }
+
+    // 相手が 見つからなかったぶんは、ふつうに 描く
+    for(const id of Object.keys(waiting)){
+      waiting[id].forEach(l => groups.push({ base: l, clippers: [] }));
     }
     return groups;
   }

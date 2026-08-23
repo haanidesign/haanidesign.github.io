@@ -9,7 +9,8 @@ import { createRenderer } from './render/renderer.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
-         buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, setParentOpener, setBgPicker,
+         buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
+         setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js';
 
 import { showNewDoc } from './ui/newdoc.js';
@@ -209,16 +210,21 @@ $('#text').addEventListener('click', () => {
   sheet.open('もじ', (box) => buildTextSheet(box, () => sheet.close()));
 });
 
-/* ---- クリップ ---- */
+/* ---- クリップ ＝ えらんだレイヤーの形で ぬく ---- */
 $('#clip').addEventListener('click', () => {
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
-  const i = S.proj.layers.indexOf(l);
-  if(i === S.proj.layers.length - 1) return toast('いちばん下のレイヤーには 使えません');
-  edit(l.clip ? 'クリップをやめる' : 'クリップする', () => { l.clip = !l.clip; });
-  toast(l.clip ? '下の「' + S.proj.layers[i + 1].name + '」の形で ぬかれます'
-               : 'クリップを やめました');
-  refresh();
+  sheet.open('クリップ（' + l.name + '）', (box) => {
+    const nl = String.fromCharCode(10);
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = '「' + l.name + '」を、えらんだ レイヤーの形で ぬきます。' + nl
+      + 'かみのけを かおの形で ぬく、もようを からだの形で ぬく、' + nl
+      + 'といった 使いかたが できます。';
+    box.appendChild(e);
+    box.appendChild(clipRow(l));
+  });
 });
 
 /* ---- パペットピン ---- *//* ---- パペットピン ---- */
@@ -281,27 +287,21 @@ $('#pinHold').addEventListener('click', () => timeline.toggleHold());
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /** 設定シートを、横にスライドできるページで開く */
-function openSheet(startKey){
+/* かたち・うごき・かお は それぞれ 別の画面。
+   1つの画面に まとめると、なにを いじっているのか 分からなくなる。 */
+function openSheet(key){
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
 
-  const pages = [
-    { key:'form', label:'かたち', build:(box) => buildLayerSheet(box, () => sheet.close()) },
-    { key:'move', label:'うごき', build:(box) => buildMotionSheet(box) }
-  ];
-  // 文字のことは 「もじ」ボタンに まとめてある。ここには 入れない
-  if(l.kind !== 'text' && l.kind !== 'folder'){
-    pages.push({ key:'face', label:'かお', build:buildFaceSheet });
+  if(key === 'move'){
+    return sheet.open('うごき（' + l.name + '）', (box) => buildMotionSheet(box));
   }
-
-  const key = startKey || 'form';
-  if(!pages.some(p => p.key === key)){
-    if(key === 'face'){
-      toast(l.kind === 'text' ? '文字には つかえません' : 'フォルダには つかえません');
-      return;
-    }
+  if(key === 'face'){
+    if(l.kind === 'text')   return toast('文字には つかえません');
+    if(l.kind === 'folder') return toast('フォルダには つかえません');
+    return sheet.open('かお（' + l.name + '）', (box) => buildFaceSheet(box));
   }
-  sheet.openPages('', pages, key);
+  sheet.open('かたち（' + l.name + '）', (box) => buildLayerSheet(box, () => sheet.close()));
 }
 
 /* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。

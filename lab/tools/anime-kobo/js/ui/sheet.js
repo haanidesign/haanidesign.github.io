@@ -1302,28 +1302,49 @@ export function buildBgSheet(box, closeFn){
 
 
 /* ---------- 使いまわす部品 ---------- */
-/** 下のレイヤーの形でぬく（クリップ）の 切りかえ */
+/** どのレイヤーの形で ぬくか えらぶ */
 export function clipRow(l){
   const i = S.proj.layers.indexOf(l);
-  const last = i === S.proj.layers.length - 1;
-  const b = document.createElement('button');
-  b.textContent = l.clip ? '✂ ぬいている' : '✂ 下の形で ぬく';
-  b.classList.toggle('on', !!l.clip);
-  b.disabled = last;
-  b.style.flex = '1';
-  b.addEventListener('click', () => {
-    edit(l.clip ? 'クリップをやめる' : 'クリップする', () => { l.clip = !l.clip; });
-    notify(l.clip ? '下の「' + S.proj.layers[i + 1].name + '」の形で ぬかれます'
-                  : 'クリップを やめました');
+  const below = S.proj.layers[i + 1] || null;
+
+  const sel = document.createElement('select');
+  const none = document.createElement('option');
+  none.value = ''; none.textContent = '（ぬかない）';
+  sel.appendChild(none);
+
+  if(below){
+    const o = document.createElement('option');
+    o.value = 'below';
+    o.textContent = 'すぐ下の「' + below.name + '」';
+    if(l.clip && !l.clipTo) o.selected = true;
+    sel.appendChild(o);
+  }
+
+  S.proj.layers.forEach(o2 => {
+    if(o2.id === l.id) return;
+    if(isFolder(o2)) return;                 // フォルダには 形が ない
+    const op = document.createElement('option');
+    op.value = o2.id;
+    op.textContent = o2.name + 'の かたち';
+    if(l.clip && l.clipTo === o2.id) op.selected = true;
+    sel.appendChild(op);
+  });
+
+  sel.addEventListener('change', () => {
+    const v = sel.value;
+    edit('クリップ', () => {
+      if(!v){ l.clip = false; l.clipTo = null; }
+      else if(v === 'below'){ l.clip = true; l.clipTo = null; }
+      else { l.clip = true; l.clipTo = v; }
+    });
+    const t = !v ? 'ぬくのを やめました'
+      : v === 'below' ? '下の「' + below.name + '」の形で ぬきます'
+      : '「' + (S.proj.layers.find(x => x.id === v) || {}).name + '」の形で ぬきます';
+    notify(t);
     onChange();
   });
-  const row = field('クリップ', b);
-  if(last){
-    const n = document.createElement('span');
-    n.className = 'val';
-    n.textContent = '下が ない';
-    row.appendChild(n);
-  }
+
+  const row = field('かたちで ぬく', sel);
   return row;
 }
 

@@ -243,7 +243,10 @@ export function createTimeline(root, opts = {}){
     nm.textContent = (l.clip ? '✂ ' : '') + (oya && !inFolder ? '⤷ ' : '') + l.name
       + (folder ? '（' + membersOf(S.proj, l).length + '）' : '');
     const tips = [];
-    if(l.clip) tips.push('下のレイヤーの形でぬいている');
+    if(l.clip){
+      const to = l.clipTo ? S.proj.layers.find(x => x.id === l.clipTo) : null;
+      tips.push(to ? '「' + to.name + '」の形でぬいている' : '下のレイヤーの形でぬいている');
+    }
     if(oya) tips.push(oya.name + ' についている');
     if(tips.length) nm.title = tips.join(' / ');
     if(oya) head.classList.add('haschild');

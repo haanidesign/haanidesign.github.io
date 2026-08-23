@@ -14,7 +14,8 @@ export function newLayer(name, assetIds){
     frames: assetIds ? [...assetIds] : [],
     visible: true,
     parent: null,       // 親レイヤーのid（PHASE 2）
-    clip: false,        // 下のレイヤーで抜く（PHASE 2）
+    clip: false,        // ほかのレイヤーの形で ぬく
+    clipTo: null,       // どのレイヤーの形で ぬくか（null なら すぐ下）
 
     // トランスフォーム
     x: 0, y: 0,         // キャンバス座標。回転軸がここに来る
