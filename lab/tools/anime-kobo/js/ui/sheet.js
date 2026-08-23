@@ -5,7 +5,7 @@ import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
-import { swayKeys } from '../engine/puppet.js';
+import { swayKeys, RIGID } from '../engine/puppet.js';
 import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
@@ -429,55 +429,6 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(h);
   }
 
-    /* ---------- ゆらす（ピンを自動でうつ） ---------- */
-    if(l.pins.length > 1){
-      box.appendChild(heading('ゆらす'));
-      l.sway = l.sway || { angle:8, period:1, phase:0, delay:0.2 };
-      const sw = l.sway;
-      box.appendChild(slider('曲がり角度', () => sw.angle,  v => sw.angle = v,  0, 30, 1, v => Math.round(v) + '°'));
-      box.appendChild(slider('しゅうき',   () => sw.period, v => sw.period = v, 0.2, 4, 0.1, v => v.toFixed(1) + '秒'));
-      box.appendChild(slider('いち',       () => sw.phase,  v => sw.phase = v,  0, 1, 0.05, v => v.toFixed(2)));
-      box.appendChild(slider('おくれ',     () => sw.delay,  v => sw.delay = v,  0, 1, 0.05, v => v.toFixed(2)));
-
-      box.appendChild(btnRow(
-        button('◆ ゆれるピンをうつ', () => {
-          const keys = swayKeys(l.pins, {
-            angle: sw.angle, period: sw.period, phase: sw.phase, delay: sw.delay,
-            duration: Math.max(sw.period, S.proj.duration - S.time), start: S.time
-          });
-          if(!keys.length) return notify('ピンを2本いじょう さしてね');
-          edit('ゆれるピンをうつ', () => {
-            keys.forEach(k => {
-              k.pins.forEach((v, i) => {
-                const pin = l.pins[i];
-                if(pin.type === 'fix') return;
-                setPin(l, pinChX(pin.id), k.t, v.dx, 'smooth');
-                setPin(l, pinChY(pin.id), k.t, v.dy, 'smooth');
-              });
-            });
-          });
-          notify(keys.length + 'コの ピンを うちました');
-          onChange();
-        }),
-        button('ゆれを けす', () => {
-          edit('ゆれをけす', () => {
-            l.pins.forEach(pn => {
-              delete (l.tracks || {})[pinChX(pn.id)];
-              delete (l.tracks || {})[pinChY(pn.id)];
-              pn.dx = 0; pn.dy = 0;
-            });
-          });
-          onChange();
-        })
-      ));
-
-      const sh = document.createElement('div');
-      sh.className = 'empty';
-      sh.style.textAlign = 'left';
-      sh.textContent = SWAY_HINT;
-      box.appendChild(sh);
-    }
-
   box.appendChild(clipRow(l));
   buildLook(box, l, { flip: true });
 
@@ -550,22 +501,64 @@ function buildSway(box, l){
       + NL + '「ピン」を 2本いじょう さすと、しなって もっと自然に。';
   box.appendChild(note);
 
+  l.sway = l.sway || { angle: 8, period: 1.6, phase: 0, delay: 0.25 };
+  const sw = l.sway;
+
+  /* ---- こまかい ちょうせつ ---- */
+  box.appendChild(slider('曲がり角度', () => sw.angle, v => sw.angle = v,
+    0, 30, 1, v => Math.round(v) + '°'));
+  box.appendChild(slider('しゅうき', () => sw.period, v => sw.period = v,
+    0.2, 4, 0.1, v => v.toFixed(1) + '秒'));
+  box.appendChild(slider('いち（ずらし）', () => sw.phase, v => sw.phase = v,
+    0, 1, 0.05, v => v.toFixed(2)));
+  const dl = slider('おくれ', () => sw.delay, v => sw.delay = v,
+    0, 1, 0.05, v => v.toFixed(2));
+  box.appendChild(dl);
+  if(!boned){
+    const inp = dl.querySelector('input');
+    if(inp) inp.disabled = true;
+    const v = dl.querySelector('.val');
+    if(v) v.textContent = '—';
+    dl.title = 'ピンを 2本いじょう さすと つかえます（毛先が おくれて しなる）';
+  }
+
+  const desc = document.createElement('div');
+  desc.className = 'empty';
+  desc.style.textAlign = 'left';
+  desc.textContent = '曲がり角度 … どれくらい 大きく ゆれるか' + NL
+    + 'しゅうき … 1往復に かかる 時間' + NL
+    + 'いち … ゆれ始める ところ（ほかの かみと ずらすと 自然）' + NL
+    + 'おくれ … 毛先ほど おくれて しなる 度合い';
+  box.appendChild(desc);
+
+  /* ---- めやす（おすと 上の 数字が 入れかわる） ---- */
   const KAZE = [
     ['そよ風',  { angle: 4,  period: 2.4, delay: 0.30 }],
     ['ふつう',  { angle: 9,  period: 1.6, delay: 0.25 }],
     ['つよい風',{ angle: 17, period: 1.0, delay: 0.20 }]
   ];
+  const kaze = document.createElement('div');
+  kaze.className = 'rowbtns';
+  KAZE.forEach(([label, opt]) => {
+    const b = button(label, () => {
+      sw.angle = opt.angle; sw.period = opt.period; sw.delay = opt.delay;
+      put(label);
+    });
+    b.style.flex = '1';
+    kaze.appendChild(b);
+  });
+  box.appendChild(field('めやす', kaze));
 
-  const put = (opt, label) => {
+  function put(label){
     const start = S.time;
     const end = S.proj.duration;
-    if(end - start < opt.period){
-      return notify('のこり時間が みじかいです（' + opt.period.toFixed(1) + '秒 いります）');
+    if(end - start < sw.period){
+      return notify('のこり時間が みじかいです（' + sw.period.toFixed(1) + '秒 いります）');
     }
 
     if(boned){
       const keys = swayKeys(l.pins, {
-        angle: opt.angle, period: opt.period, phase: 0, delay: opt.delay,
+        angle: sw.angle, period: sw.period, phase: sw.phase, delay: sw.delay,
         duration: end - start, start
       });
       if(!keys.length) return notify('ピンを 2本いじょう さしてね');
@@ -579,18 +572,18 @@ function buildSway(box, l){
           });
         });
       });
-      notify(label + ' で ゆれます（ピン ' + keys.length + 'コ）');
+      notify((label || 'ゆれ') + ' を いれました（ピン ' + keys.length + 'コ）');
     } else {
-      /* かたむきの ゆれ。行って もどるを くり返す。
-         3つの 山を 作れば、ループの つなぎ目が なめらかに つながる。 */
+      /* かたむきの ゆれ。行って もどるを くり返す。 */
       const base = valuesAt(l, start).rot;
-      const p = opt.period;
+      const p = sw.period;
       edit('かみのゆれ', () => {
         let t = start, i = 0;
+        const off = Math.round(sw.phase * 4) % 4;      // いち（ずらし）
         while(t <= end + 1e-6 && i < 400){
-          const phase = i % 4;
-          const v = phase === 1 ? base + opt.angle
-                  : phase === 3 ? base - opt.angle
+          const ph = (i + off) % 4;
+          const v = ph === 1 ? base + sw.angle
+                  : ph === 3 ? base - sw.angle
                   : base;
           setPin(l, 'rot', +t.toFixed(3), v, 'smooth');
           t += p / 4;
@@ -598,21 +591,13 @@ function buildSway(box, l){
         }
         l.loop = { from: start, to: Math.min(end, start + p), mode: 'loop' };
       });
-      notify(label + ' で ゆれます（' + p.toFixed(1) + '秒で ひとゆれ）');
+      notify((label || 'ゆれ') + ' を いれました（' + p.toFixed(1) + '秒で ひとゆれ）');
     }
     onChange();
-  };
-
-  const row = document.createElement('div');
-  row.className = 'rowbtns';
-  KAZE.forEach(([label, opt]) => {
-    const b = button(label, () => put(opt, label));
-    b.style.flex = '1';
-    row.appendChild(b);
-  });
-  box.appendChild(field('かぜの つよさ', row));
+  }
 
   box.appendChild(btnRow(
+    button('◆ この せっていで ゆらす', () => put(null)),
     button('ゆれを けす', () => {
       edit('ゆれをけす', () => {
         if(boned){
@@ -630,6 +615,12 @@ function buildSway(box, l){
       onChange();
     })
   ));
+
+  const hint2 = document.createElement('div');
+  hint2.className = 'empty';
+  hint2.style.textAlign = 'left';
+  hint2.textContent = SWAY_HINT;
+  box.appendChild(hint2);
 }
 
 /* ================= かお（まばたき・口パク） =================
