@@ -26,8 +26,8 @@ export function createC2D(canvas){
 
   /* フォルダは 中身をいったん別紙にまとめてから 効果をかける（プリコンポ）。
      入れ子になると 何枚も要るので、貸し出し式にする。
-     0番は ふちどり専用（描いたらすぐ使うので 取り合いにならない）。 */
-  let lent = 1;
+     90番と91番は ふちどり専用（描いたらすぐ使うので 取り合いにならない）。 */
+  let lent = 0;
   function alloc(){
     const c = scratch(lent++);
     const g = c.getContext('2d');
@@ -83,25 +83,73 @@ export function createC2D(canvas){
     g.restore();
   }
 
-  /** ふちどり。絵の形を まわりへ ふくらませて 色でぬる。
-     ①別紙の絵を まわり16方向へ ずらして重ねる → ふとった影
-     ②source-in で色をかぶせる → ふちの色だけ残る
-     太さは キャンバスの見た目に対して一定（レイヤーを縮めても細くならない） */
-  const RING = 16;
-  function outline(src, px, color){
-    const c = scratch(0), g = c.getContext('2d');
+  /* ---------- ふちどり ----------
+     絵の形を まわりへ ふくらませて 色でぬる。
+
+     ふくらませ方
+       ・小さく 縮めた 紙の上で 作る（そのぶん 何回も 重ねられる）
+       ・まわり ぐるりと たくさんの 向きへ ずらして 重ねる
+         → 角ばらず、まるい ふちに なる
+       ・内がわの 輪も 重ねて、細い すきまを うめる
+       ・さいごに 元の大きさへ ひろげる（ここで すこし なめらかになる）
+
+     太さは キャンバスの見た目に対して一定。 */
+  const OUT_K = 3;                  // いくつ ぶんの1で 作るか
+  let smA = null, smB = null;
+  function small(which, w, h){
+    let c = which ? smB : smA;
+    if(!c){ c = document.createElement('canvas'); which ? (smB = c) : (smA = c); }
+    if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+    const g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.clearRect(0, 0, canvas.width, canvas.height);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
-    for(let i = 0; i < RING; i++){
-      const a = (i / RING) * Math.PI * 2;
-      g.drawImage(src, Math.cos(a) * px, Math.sin(a) * px);
+    g.filter = 'none';
+    g.clearRect(0, 0, w, h);
+    return c;
+  }
+
+  function outline(src, px, color){
+    const w = Math.max(2, Math.ceil(canvas.width / OUT_K));
+    const h = Math.max(2, Math.ceil(canvas.height / OUT_K));
+    const r = px / OUT_K;
+
+    const a = small(0, w, h);
+    const ga = a.getContext('2d');
+    ga.imageSmoothingQuality = 'high';
+    /* 先に ほんの少し ぼかしてから ふくらませる。
+       かみの毛のような 細い とがりを そのまま ふくらませると、
+       とげとげが 目立ってしまう（とくに 中身が 動いているとき）。 */
+    ga.filter = 'blur(' + Math.max(0.6, r * 0.28) + 'px)';
+    ga.drawImage(src, 0, 0, w, h);
+    ga.filter = 'none';
+
+    const b = small(1, w, h);
+    const gb = b.getContext('2d');
+    // 太いほど 向きを ふやす。まるさが たりないと 角ばって 見える
+    const n1 = Math.max(16, Math.min(40, Math.round(r * 3) + 12));
+    for(let i = 0; i < n1; i++){
+      const t = (i / n1) * Math.PI * 2;
+      gb.drawImage(a, Math.cos(t) * r, Math.sin(t) * r);
     }
-    g.globalCompositeOperation = 'source-in';
-    g.fillStyle = color;
-    g.fillRect(0, 0, canvas.width, canvas.height);
+    const n2 = Math.max(8, Math.round(n1 / 2));
+    for(let i = 0; i < n2; i++){
+      const t = ((i + 0.5) / n2) * Math.PI * 2;
+      gb.drawImage(a, Math.cos(t) * r * 0.55, Math.sin(t) * r * 0.55);
+    }
+    gb.globalCompositeOperation = 'source-in';
+    gb.fillStyle = color;
+    gb.fillRect(0, 0, w, h);
+    gb.globalCompositeOperation = 'source-over';
+
+    const c = scratch(91), g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(b, 0, 0, canvas.width, canvas.height);
     return c;
   }
 
@@ -326,7 +374,7 @@ export function createC2D(canvas){
     ctx.rect(0, 0, project.w, project.h);
     ctx.clip();
 
-    lent = 1;
+    lent = 0;
     drawNodes(ctx, project, topNodes(project), poses, tf);
     ctx.restore();
 

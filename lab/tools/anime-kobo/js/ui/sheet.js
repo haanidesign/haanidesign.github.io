@@ -13,7 +13,11 @@ import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
 import { addBgLayer, paintBg, fitToCanvas, isBg,
          paintPattern, addPatternBg, MOVES } from '../io/bg.js';
 import { PATTERN_NAMES, movesVisibly } from '../io/pattern.js';
-import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans } from '../io/audio.js';
+import { createWheel } from './colorwheel.js';
+import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
+         guessBpm, firstOnset } from '../io/audio.js';
+import { rhythmKeys, rhythmChannels, beatTimes, beatSec,
+         RHYTHM_KINDS } from '../engine/rhythm.js';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -203,6 +207,65 @@ export function button(text, fn, cls){
   if(cls) b.className = cls;
   b.addEventListener('click', fn);
   return b;
+}
+
+/**
+ * 色えらび。おすと カラーサークルが 下に ひらく。
+ * まわりの わっか＝色あい、まん中の 四角＝こさ と 明るさ。
+ */
+export function colorPick(label, get, set){
+  const wrap = document.createElement('div');
+  wrap.className = 'colorpick';
+
+  const row = document.createElement('div');
+  row.className = 'field';
+  const lb = document.createElement('label');
+  lb.textContent = label;
+  row.appendChild(lb);
+
+  const btn = document.createElement('button');
+  btn.className = 'swatch';
+  const paint = (c) => {
+    btn.style.background = c;
+    btn.textContent = c;
+    // こい色のときは 字を 白く
+    const n = parseInt(String(c).slice(1), 16) || 0;
+    const lum = ((n >> 16 & 255) * 0.3 + (n >> 8 & 255) * 0.59 + (n & 255) * 0.11);
+    btn.style.color = lum < 130 ? '#FFFEF7' : '#1E1C14';
+  };
+  paint(get());
+  row.appendChild(btn);
+  wrap.appendChild(row);
+
+  const box = document.createElement('div');
+  box.className = 'wheelbox';
+  box.hidden = true;
+  wrap.appendChild(box);
+
+  let wheel = null;
+  btn.addEventListener('click', () => {
+    const open = box.hidden;
+    box.hidden = !open;
+    holdSheet(open);                   // ひらいている間は 中身を 作り直さない
+    if(open && !wheel){
+      wheel = createWheel(get(), (c, done) => {
+        beginEdit(label + 'をかえる');
+        set(c);
+        paint(c);
+        onChange();
+        if(done) commitEdit();
+      });
+      box.appendChild(wheel.el);
+      const ok = button('✓ できた', () => {
+        box.hidden = true;
+        holdSheet(false);
+        onChange();
+      });
+      ok.className = 'btn-y';
+      box.appendChild(ok);
+    }
+  });
+  return wrap;
 }
 
 export function heading(text){
@@ -478,6 +541,171 @@ export function buildMotionSheet(box){
   box.appendChild(hint);
 
   buildSway(box, l);
+  buildRhythm(box, l);
+}
+
+/* ---------- リズム（BPM）でピンをうつ ----------
+   拍の しゅんかんに ぐっと 変えて、すぐ もどす。
+   もどりを 少し 行きすぎさせると ぽにょんと はねて見える。 */
+function buildRhythm(box, l){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🥁 リズム（BPM）'));
+
+  l.beat = l.beat || {
+    bpm: 120, every: 1, kind: 'omote', motion: 'ぽにょん',
+    power: 0.35, offset: 0, bars: 8
+  };
+  const B = l.beat;
+
+  const info = document.createElement('div');
+  info.className = 'empty';
+  info.style.textAlign = 'left';
+  const showInfo = () => {
+    info.textContent = '1拍 ' + beatSec(B.bpm).toFixed(2) + '秒。'
+      + NL + '拍の しゅんかんに うごいて、すぐ もどります。';
+  };
+  showInfo();
+  box.appendChild(info);
+
+  /* 数字で ずばり 入れられるように（120 など）。
+     スライダーだけだと ぴったりの 数に しづらい。 */
+  const bpmIn = document.createElement('input');
+  bpmIn.type = 'number';
+  bpmIn.min = 20; bpmIn.max = 400; bpmIn.step = 1;
+  bpmIn.value = Math.round(B.bpm);
+  bpmIn.inputMode = 'numeric';
+  bpmIn.style.cssText = 'flex:0 0 84px;text-align:center;font-weight:800';
+  const unit = document.createElement('span');
+  unit.className = 'val';
+  unit.textContent = 'BPM';
+  bpmIn.addEventListener('change', () => {
+    const v = Math.max(20, Math.min(400, Math.round(+bpmIn.value || 120)));
+    B.bpm = v; bpmIn.value = v;
+    showInfo();
+    onChange();
+  });
+  box.appendChild(field('はやさ', bpmIn, unit));
+
+  box.appendChild(slider('スライダーでも', () => B.bpm,
+    v => { B.bpm = v; bpmIn.value = Math.round(v); showInfo(); },
+    40, 220, 1, v => Math.round(v) + ' BPM'));
+
+  const quick = document.createElement('div');
+  quick.className = 'rowbtns';
+  quick.style.flexWrap = 'wrap';
+  [60, 90, 100, 120, 140, 160, 174, 180].forEach(v => {
+    const b = button(String(v), () => {
+      B.bpm = v; bpmIn.value = v; showInfo(); onChange();
+    });
+    b.style.flex = '0 0 22%';
+    b.classList.toggle('on', Math.round(B.bpm) === v);
+    quick.appendChild(b);
+  });
+  box.appendChild(field('よくある はやさ', quick));
+
+  /* 音から さがす／トントンして きめる */
+  const find = document.createElement('div');
+  find.className = 'rowbtns';
+  find.appendChild(button('🎵 音から さがす', () => {
+    if(!hasAudio()) return notify('さきに 音を 読みこんでね（せってい → おと）');
+    const bpm = guessBpm();
+    if(!bpm) return notify('見つかりませんでした。トントンで きめてね');
+    B.bpm = Math.max(60, Math.min(200, bpm));
+    B.offset = firstOnset();
+    notify('だいたい ' + B.bpm + ' BPM。はじまり ' + B.offset.toFixed(2) + '秒');
+    onChange();
+  }));
+
+  let taps = [];
+  const tapB = button('👆 トントン して きめる', () => {
+    const now = performance.now() / 1000;
+    if(taps.length && now - taps[taps.length - 1] > 2.5) taps = [];   // あいだが あいたら やりなおし
+    taps.push(now);
+    if(taps.length < 2){ tapB.textContent = '👆 もっと トントン'; return; }
+    let sum = 0;
+    for(let i = 1; i < taps.length; i++) sum += taps[i] - taps[i - 1];
+    const avg = sum / (taps.length - 1);
+    const bpm = Math.max(60, Math.min(200, 60 / avg));
+    B.bpm = Math.round(bpm);
+    tapB.textContent = '👆 ' + B.bpm + ' BPM（' + taps.length + '回）';
+    showInfo();
+  });
+  find.appendChild(tapB);
+  box.appendChild(field('BPMを きめる', find));
+
+  /* 表 / うら */
+  const kinds = document.createElement('div');
+  kinds.className = 'rowbtns';
+  [['おもて拍','omote'], ['うら拍','ura'], ['りょうほう','both']].forEach(([lb, v]) => {
+    const b = button(lb, () => { B.kind = v; onChange(); });
+    b.style.flex = '1';
+    b.classList.toggle('on', B.kind === v);
+    kinds.appendChild(b);
+  });
+  box.appendChild(field('どの拍で', kinds));
+
+  const evs = document.createElement('div');
+  evs.className = 'rowbtns';
+  [['8分（こまかく）', 0.5], ['1拍ごと', 1], ['2拍ごと', 2], ['4拍ごと', 4]].forEach(([lb, v]) => {
+    const b = button(lb, () => { B.every = v; onChange(); });
+    b.style.flex = '0 0 45%';
+    b.classList.toggle('on', B.every === v);
+    evs.appendChild(b);
+  });
+  evs.style.flexWrap = 'wrap';
+  box.appendChild(field('かんかく', evs));
+
+  /* うごきの 種類 */
+  const ms = document.createElement('div');
+  ms.className = 'rowbtns';
+  ms.style.flexWrap = 'wrap';
+  RHYTHM_KINDS.forEach(name => {
+    const b = button(name, () => { B.motion = name; onChange(); });
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', B.motion === name);
+    ms.appendChild(b);
+  });
+  box.appendChild(field('うごき', ms));
+
+  box.appendChild(slider('つよさ', () => B.power, v => B.power = v, 0.05, 1, 0.05,
+    v => Math.round(v * 100) + '%'));
+  box.appendChild(slider('はじまり', () => B.offset, v => B.offset = v,
+    0, 2, 0.01, v => v.toFixed(2) + '秒'));
+  box.appendChild(slider('なん拍ぶん', () => B.bars, v => B.bars = v, 2, 64, 1,
+    v => Math.round(v) + '拍'));
+
+  box.appendChild(btnRow(
+    button('◆ リズムで ピンをうつ', () => {
+      const start = S.time;
+      const end = Math.min(S.proj.duration, start + beatSec(B.bpm) * B.bars);
+      const n = { v: 0 };
+      edit('リズムで ピンをうつ', () => {
+        n.v = rhythmKeys(l, {
+          bpm: B.bpm, every: B.every, kind: B.kind, motion: B.motion,
+          power: B.power, offset: B.offset, start, end
+        });
+      });
+      if(!n.v) return notify('うてませんでした（時間を のばしてね）');
+      const beats = beatTimes({ bpm:B.bpm, every:B.every, kind:B.kind, start, end, offset:B.offset });
+      notify(beats.length + '回 きざみます（ピン ' + n.v + 'コ）');
+      onChange();
+    }),
+    button('リズムを けす', () => {
+      edit('リズムをけす', () => {
+        rhythmChannels(B.motion).forEach(ch => delete (l.tracks || {})[ch]);
+      });
+      notify('リズムを けしました');
+      onChange();
+    })
+  ));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = 'いまの時間から はじまります。' + NL
+    + 'うら拍は 少し ひかえめに うごきます。' + NL
+    + '音を 読みこんでいれば「音から さがす」で BPMが わかります。';
+  box.appendChild(note);
 }
 
 /* ---------- かみのゆれ ----------
@@ -860,17 +1088,7 @@ export function buildTextSheet(box, closeFn){
   });
   box.appendChild(field('しょたい', fsel));
 
-  const colorRow = (label, get, set) => {
-    const i = document.createElement('input');
-    i.type = 'color'; i.value = get();
-    i.style.cssText = 'min-height:38px;padding:2px';
-    i.addEventListener('change', () => {
-      if(editing) edit(label, () => set(i.value));
-      else set(i.value);
-      redraw();
-    });
-    return field(label, i);
-  };
+  const colorRow = (label, get, set) => colorPick(label, get, (v) => { set(v); redraw(); });
   box.appendChild(colorRow('もじの色', () => t.color,  v => t.color = v));
   box.appendChild(colorRow('ふちの色', () => t.stroke, v => t.stroke = v));
 
@@ -946,18 +1164,9 @@ export function buildLook(box, l, opts){
   box.appendChild(heading('見た目'));
 
   // 塗り（色と強さ）
-  const cwrap = document.createElement('div');
-  cwrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
-  const col = document.createElement('input');
-  col.type = 'color';
-  col.value = (l.tint && l.tint.color) || '#F2A0B8';
-  col.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
-  col.addEventListener('change', () => {
-    edit('塗りの色をかえる', () => { l.tint = l.tint || {color:'#F2A0B8',amount:0}; l.tint.color = col.value; });
-    onChange();
-  });
-  cwrap.appendChild(col);
-  box.appendChild(field('塗りの色', cwrap));
+  box.appendChild(colorPick('塗りの色',
+    () => (l.tint && l.tint.color) || '#F2A0B8',
+    v => { l.tint = l.tint || { color:'#F2A0B8', amount:0 }; l.tint.color = v; }));
   box.appendChild(animSlider('塗りの強さ', l, 'tint', 0, 1, 0.01, pct));
 
   box.appendChild(animSlider('ぼかし', l, 'blur', 0, 40, 0.5,
@@ -965,21 +1174,9 @@ export function buildLook(box, l, opts){
 
   /* ふちどり。太さは キャンバスの大きさに対して一定なので、
      レイヤーを 大きくしても 細くならない。 */
-  const swrap = document.createElement('div');
-  swrap.style.cssText = 'display:flex;gap:.4rem;align-items:center;flex:1';
-  const scol = document.createElement('input');
-  scol.type = 'color';
-  scol.value = (l.stroke && l.stroke.color) || '#FFFEF7';
-  scol.style.cssText = 'width:52px;min-height:38px;padding:2px;flex:0 0 52px';
-  scol.addEventListener('change', () => {
-    edit('ふちの色をかえる', () => {
-      l.stroke = l.stroke || { color:'#FFFEF7', width:0 };
-      l.stroke.color = scol.value;
-    });
-    onChange();
-  });
-  swrap.appendChild(scol);
-  box.appendChild(field('ふちの色', swrap));
+  box.appendChild(colorPick('ふちの色',
+    () => (l.stroke && l.stroke.color) || '#FFFEF7',
+    v => { l.stroke = l.stroke || { color:'#FFFEF7', width:0 }; l.stroke.color = v; }));
   box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
     v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
 
@@ -1237,17 +1434,9 @@ export function buildBgSheet(box, closeFn){
     return;
   }
 
-  const col = document.createElement('input');
-  col.type = 'color';
-  col.value = bg.bgColor || '#BFE3F5';
-  col.style.cssText = 'min-height:38px;padding:2px;flex:1';
-  col.addEventListener('change', async () => {
-    beginEdit('はいけいの色');
-    await paintBg(bg, col.value);
-    commitEdit();
-    onChange();
-  });
-  box.appendChild(field('はいけいの色', col));
+  box.appendChild(colorPick('はいけいの色',
+    () => bg.bgColor || '#BFE3F5',
+    (v) => { paintBg(bg, v); }));
 
   const swatch = document.createElement('div');
   swatch.className = 'rowbtns';
@@ -1315,16 +1504,16 @@ export function buildBgSheet(box, closeFn){
   });
   box.appendChild(field('がら', kinds));
 
-  const colorRow = (label, key, def) => {
-    const i = document.createElement('input');
-    i.type = 'color';
-    i.value = pt[key] || def;
-    i.style.cssText = 'min-height:38px;padding:2px;flex:1';
-    i.addEventListener('change', () => { pt[key] = i.value; apply(label); });
-    return field(label, i);
-  };
+  /* 色は カラーサークルで えらぶ。動かしている間は 貼り直さず、
+     指を はなしたときに 1回だけ 作る（そうしないと 重い） */
+  const colorRow = (label, key, def) => colorPick(label,
+    () => pt[key] || def,
+    (v) => { pt[key] = v; });
   box.appendChild(colorRow('じの色', 'back', '#FFFEF7'));
   box.appendChild(colorRow('がらの色', 'front', '#F2A0B8'));
+  box.appendChild(btnRow(
+    button('🎨 この色で ぬりなおす', () => apply('もようの色'))
+  ));
 
   box.appendChild(slider('がらの大きさ', () => pt.size, v => pt.size = v,
     20, Math.round(S.proj.w / 3), 2, v => Math.round(v) + 'px'));

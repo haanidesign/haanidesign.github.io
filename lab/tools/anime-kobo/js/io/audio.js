@@ -199,3 +199,58 @@ export function currentTime(){
   if(!node) return null;
   return startedFrom + (audioCtx().currentTime - startedAt);
 }
+
+
+/**
+ * 読みこんだ 音から BPM を さがす。
+ *
+ * ①「音が 急に 大きくなった ところ」（＝ たたいた ところ）の 強さを 出す
+ * ② その ならびを ずらしながら 自分と くらべて（自己相関）、
+ *    いちばん よく 重なる ずらし幅を さがす
+ * ③ その幅が 1拍の 長さ。60 ÷ それ が BPM
+ *
+ * 60〜200 の あいだで さがす。だいたいの 曲は ここに 入る。
+ */
+export function guessBpm(){
+  if(!A.env || A.env.length < 50) return null;
+  const slot = A.slot;
+
+  // ① たたいた ところの 強さ（大きくなった ぶんだけ 見る）
+  const on = new Float32Array(A.env.length);
+  for(let i = 1; i < A.env.length; i++){
+    const d = A.env[i] - A.env[i - 1];
+    on[i] = d > 0 ? d : 0;
+  }
+  // ならして、平均を 引く（しずかな 曲でも 山が 出るように）
+  let mean = 0;
+  for(let i = 0; i < on.length; i++) mean += on[i];
+  mean /= on.length;
+  for(let i = 0; i < on.length; i++) on[i] = on[i] - mean;
+
+  // ② ずらしながら くらべる
+  const minLag = Math.round((60 / 200) / slot);   // 200 BPM
+  const maxLag = Math.round((60 / 60) / slot);    // 60 BPM
+  let best = { lag: 0, score: -Infinity };
+  for(let lag = minLag; lag <= maxLag && lag < on.length / 2; lag++){
+    let sum = 0;
+    for(let i = 0; i + lag < on.length; i++) sum += on[i] * on[i + lag];
+    // 長い ずらしほど かける回数が へるので、そろえる
+    const score = sum / (on.length - lag);
+    if(score > best.score) best = { lag, score };
+  }
+  if(!best.lag) return null;
+
+  let bpm = 60 / (best.lag * slot);
+  // はやすぎ・おそすぎは 倍・半分に して 90〜180 に よせる
+  while(bpm < 70) bpm *= 2;
+  while(bpm > 190) bpm /= 2;
+  return Math.round(bpm * 10) / 10;
+}
+
+/** 音の いちばん はじめの 音（拍の あたま）の 時こく */
+export function firstOnset(){
+  if(!A.env || !A.peak) return 0;
+  const th = A.peak * 0.15;
+  for(let i = 0; i < A.env.length; i++) if(A.env[i] >= th) return +(i * A.slot).toFixed(3);
+  return 0;
+}

@@ -351,6 +351,34 @@
   object-fit:contain;
 }
 
+/* ---------- 色えらび（カラーサークル） ---------- */
+.colorpick{ display:block; width:100%; }
+.swatch{
+  flex:1; min-height:40px;
+  font-size:.72rem; font-weight:700; letter-spacing:.04em;
+  font-family:'DotGothic16',monospace;
+}
+.wheelbox{
+  display:flex; flex-direction:column; align-items:center; gap:.4rem;
+  width:100%; box-sizing:border-box;
+  padding:.5rem; margin:.1rem 0 .4rem;
+  background:var(--cream);
+  border:2.5px solid var(--ink); border-radius:14px;
+}
+.wheel{ display:flex; flex-direction:column; align-items:center; gap:.3rem; width:100%; }
+.wheelcv{
+  touch-action:none; cursor:crosshair;
+  border-radius:50%;
+  flex:0 0 auto;
+}
+.wheelbox[hidden]{ display:none; }
+.wheelnow{
+  width:64px; height:22px;
+  border:2px solid var(--ink); border-radius:6px;
+}
+.wheelhex{ font-size:.7rem; letter-spacing:.06em; }
+.wheelbox .btn-y{ width:100%; }
+
 /* ---------- 最初のサイズ選び ---------- */
 #newdoc .resume{ margin-bottom:.6rem; background:var(--mint); }
 
