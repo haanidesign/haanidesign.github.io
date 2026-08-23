@@ -753,24 +753,12 @@ function buildRhythm(box, l){
   evs.style.flexWrap = 'wrap';
   box.appendChild(field('かんかく', evs));
 
-  /* うごきの 種類 */
-  const ms = document.createElement('div');
-  ms.className = 'rowbtns';
-  ms.style.flexWrap = 'wrap';
-  RHYTHM_KINDS.forEach(name => {
-    const b = button(name, () => { B.motion = name; onChange(); });
-    b.style.flex = '0 0 30%';
-    b.classList.toggle('on', B.motion === name);
-    ms.appendChild(b);
-  });
-  box.appendChild(field('うごき', ms));
-
-  box.appendChild(slider('つよさ', () => B.power, v => B.power = v, 0.05, 1, 0.05,
-    v => Math.round(v * 100) + '%'));
   box.appendChild(slider('はじまり', () => B.offset, v => B.offset = v,
     0, 2, 0.01, v => v.toFixed(2) + '秒'));
   box.appendChild(slider('なん拍ぶん', () => B.bars, v => B.bars = v, 2, 64, 1,
     v => Math.round(v) + '拍'));
+
+  box.appendChild(heading('◆ ピンだけ うつ（うごきは 自分で）'));
 
   /* うごきは つけず、拍の ところに 印だけ うつ。
      あとで 自分で 動かせば、ぴったり リズムに 合う。 */
@@ -858,6 +846,29 @@ function buildRhythm(box, l){
     + 'その ピンを 1つずつ 動かせば 自分の うごきが リズムに 合います。';
   box.appendChild(mnote);
 
+  /* ---- ここから下は うごきも つける ---- */
+  box.appendChild(heading('🎬 うごきも つける'));
+  const mm = document.createElement('div');
+  mm.className = 'empty';
+  mm.style.textAlign = 'left';
+  mm.textContent = 'こちらは 拍に 合わせて うごきまで つけます。'
+    + NL + '自分で うごかしたいときは 上の「ピンだけ」を つかってね。';
+  box.appendChild(mm);
+
+  /* うごきの 種類 */
+  const ms = document.createElement('div');
+  ms.className = 'rowbtns';
+  ms.style.flexWrap = 'wrap';
+  RHYTHM_KINDS.forEach(name => {
+    const b = button(name, () => { B.motion = name; onChange(); });
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', B.motion === name);
+    ms.appendChild(b);
+  });
+  box.appendChild(field('うごき', ms));
+
+  box.appendChild(slider('つよさ', () => B.power, v => B.power = v, 0.05, 1, 0.05,
+    v => Math.round(v * 100) + '%'));
   box.appendChild(btnRow(
     button('◆ リズムで ピンをうつ', () => {
       const start = S.time;
@@ -882,6 +893,7 @@ function buildRhythm(box, l){
       onChange();
     })
   ));
+
 
   const note = document.createElement('div');
   note.className = 'empty';
