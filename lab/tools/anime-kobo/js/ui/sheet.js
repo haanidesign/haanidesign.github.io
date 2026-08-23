@@ -122,6 +122,9 @@ export function heading(text){
 let onAddFrames = async () => 0;
 export function setFrameAdder(fn){ onAddFrames = fn; }
 
+let notify = () => {};
+export function setNotifier(fn){ notify = fn; }
+
 export function buildLayerSheet(box, closeFn){
   const l = selected();
   if(!l){
@@ -292,9 +295,16 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(field('反転', flipRow));
 
   box.appendChild(heading('親につける'));
+  const pnote = document.createElement('div');
+  pnote.className = 'empty';
+  pnote.style.textAlign = 'left';
+  pnote.textContent = '「' + l.name + '」を どのレイヤーに くっつけるか。\n'
+    + 'えらんだレイヤーを動かすと、「' + l.name + '」も ついていきます。';
+  box.appendChild(pnote);
+
   const sel = document.createElement('select');
   const none = document.createElement('option');
-  none.value = ''; none.textContent = '（なし）';
+  none.value = ''; none.textContent = '（どこにも つけない）';
   sel.appendChild(none);
   S.proj.layers.forEach(o => {
     if(o.id === l.id || isDescendant(S.proj, o.id, l.id)) return;
@@ -304,13 +314,18 @@ export function buildLayerSheet(box, closeFn){
     sel.appendChild(op);
   });
   sel.addEventListener('change', () => {
+    const ok = { v: false };
     edit('親をかえる', () => {
-      setParent(S.proj, l, sel.value || null, S.time, (d) => {
+      ok.v = setParent(S.proj, l, sel.value || null, S.time, (d) => {
         // ピンが打たれているレイヤーは、いまの時間のピンも合わせて直す
         if(!hasPins(l)) return;
         ['x','y','rot','scaleX','scaleY'].forEach(ch => setPin(l, ch, S.time, d[ch], 'smooth'));
       });
     });
+    const oyaNow = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
+    notify(!ok.v ? 'それには つけられません（じぶんの子だから）'
+         : oyaNow ? '「' + oyaNow.name + '」に つきました'
+                  : 'どこにも つけないように しました');
     onChange();
   });
   box.appendChild(field('親', sel));

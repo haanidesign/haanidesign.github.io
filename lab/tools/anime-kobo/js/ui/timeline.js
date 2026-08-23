@@ -154,8 +154,13 @@ export function createTimeline(root, opts = {}){
 
     const nm = document.createElement('span');
     nm.className = 'nm';
-    nm.textContent = (l.clip ? '↳ ' : '') + l.name;
-    if(l.clip) nm.title = '下のレイヤーの形でぬいている';
+    const oya = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
+    nm.textContent = (l.clip ? '✂ ' : '') + (oya ? '⤷ ' : '') + l.name;
+    const tips = [];
+    if(l.clip) tips.push('下のレイヤーの形でぬいている');
+    if(oya) tips.push(oya.name + ' についている');
+    if(tips.length) nm.title = tips.join(' / ');
+    if(oya) head.classList.add('haschild');
     head.appendChild(nm);
 
     if(l.frames.length > 1){

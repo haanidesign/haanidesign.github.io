@@ -95,6 +95,8 @@
 .thead:hover{ background:var(--main-soft); }
 .trow.sel .thead{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px); }
 .trow.off .thumb,.trow.off .nm{ opacity:.35; }
+/* 親についている行は、左に細い線を出して入れ子と分かるようにする */
+.thead.haschild{ border-left-width:6px; }
 
 .thead .grip{
   font-size:1.05rem; color:var(--gray); touch-action:none;

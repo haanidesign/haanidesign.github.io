@@ -5,7 +5,7 @@ import { S, newProject, onChange, onRestore, undo, redo, edit,
 import { createStage } from './ui/stage.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
-import { createSheet, buildLayerSheet, setFrameAdder } from './ui/sheet.js';
+import { createSheet, buildLayerSheet, setFrameAdder, setNotifier } from './ui/sheet.js';
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer } from './io/image.js';
 import { importPsd } from './io/psd.js';
@@ -285,6 +285,8 @@ $('#export').addEventListener('click', async () => {
     refresh();
   }
 });
+
+setNotifier(toast);
 
 /* 設定シートの「＋コマを足す」から呼ばれる */
 setFrameAdder(async (files, layer) => {
