@@ -9,8 +9,8 @@ import { createRenderer } from './render/renderer.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
-         buildParentSheet, buildDocSheet, buildFaceSheet, setParentOpener, setBgPicker,
-         setAudioPicker, setBusy, setFrameAdder, setNotifier } from './ui/sheet.js';
+         buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, setParentOpener, setBgPicker,
+         setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js';
 
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
@@ -209,13 +209,7 @@ $('#text').addEventListener('click', () => {
   sheet.open('もじ', (box) => buildTextSheet(box, () => sheet.close()));
 });
 
-/* ---- レイヤーの コピー・はりつけ・けす ----
-   ☑ を つけていれば まとめて。つけていなければ いま選んでいる1まい。 */
-function targets(){
-  if(S.pick.length) return [...S.pick];
-  return S.sel ? [S.sel] : [];
-}
-
+/* ---- クリップ ---- */
 $('#clip').addEventListener('click', () => {
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
@@ -227,39 +221,7 @@ $('#clip').addEventListener('click', () => {
   refresh();
 });
 
-$('#copy').addEventListener('click', () => {
-  const ids = targets();
-  if(!ids.length) return toast('レイヤーをえらんでね');
-  S.layerClip = copyLayers(S.proj, ids);
-  toast(S.layerClip.length + 'まい コピーしました（はりつけ で ふやせます）');
-  refresh();
-});
-
-$('#paste2').addEventListener('click', () => {
-  if(!S.layerClip || !S.layerClip.length) return toast('さきに コピーしてね');
-  const made = { v: [] };
-  edit('はりつけ', () => { made.v = pasteLayers(S.proj, S.layerClip); });
-  S.sel = made.v[0] ? made.v[0].id : S.sel;
-  S.pick = [];
-  toast(made.v.length + 'まい はりつけました');
-  refresh();
-});
-
-$('#del').addEventListener('click', () => {
-  const ids = targets();
-  if(!ids.length) return toast('レイヤーをえらんでね');
-  const names = ids.map(id => S.proj.layers.find(l => l.id === id)).filter(Boolean).map(l => l.name);
-  const nl = String.fromCharCode(10);
-  if(!confirm(names.length + 'まい けしますか？' + nl + nl + names.join('、'))) return;
-  const r = { n: 0 };
-  edit('レイヤーをけす', () => { r.n = removeLayers(S.proj, ids); });
-  S.pick = [];
-  if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
-  toast(r.n + 'まい けしました（もどす で 戻せます）');
-  refresh();
-});
-
-/* ---- パペットピン ---- */
+/* ---- パペットピン ---- *//* ---- パペットピン ---- */
 function setPinMode(on){
   S.pinMode = on;
   S.pinSel = -1;
@@ -311,7 +273,6 @@ $('#ripple').addEventListener('click', () => {
 });
 $('#key').addEventListener('click', () => timeline.putPin());
 $('#pinDel').addEventListener('click', () => timeline.delPins());
-$('#delPick').addEventListener('click', () => timeline.delPicked());
 $('#pinCopy').addEventListener('click', () => timeline.copyPins());
 $('#paste').addEventListener('click', () => timeline.pastePins());
 $('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));
@@ -333,7 +294,14 @@ function openSheet(startKey){
     pages.push({ key:'face', label:'かお', build:buildFaceSheet });
   }
 
-  sheet.openPages('', pages, startKey || 'form');
+  const key = startKey || 'form';
+  if(!pages.some(p => p.key === key)){
+    if(key === 'face'){
+      toast(l.kind === 'text' ? '文字には つかえません' : 'フォルダには つかえません');
+      return;
+    }
+  }
+  sheet.openPages('', pages, key);
 }
 
 /* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
@@ -429,7 +397,10 @@ $('#group').addEventListener('click', () => {
   toast(ids.length + 'まいを フォルダに入れました');
   refresh();
 });
-$('#setting').addEventListener('click', () => openSheet());
+/* かたち・うごき・かお は それぞれ 直に ひらく */
+$('#form').addEventListener('click', () => openSheet('form'));
+$('#move').addEventListener('click', () => openSheet('move'));
+$('#face').addEventListener('click', () => openSheet('face'));
 
 $('#undo').addEventListener('click', () => {
   const l = undo();
@@ -452,7 +423,7 @@ $('#fold').addEventListener('click', () => {
 
 /* はいけい。まだ無ければ すぐ足して、あれば その設定をひらく */
 $('#bg').addEventListener('click', () => {
-  sheet.open('はいけい', (box) => buildDocSheet(box, () => sheet.close()));
+  sheet.open('はいけい', (box) => buildBgSheet(box, () => sheet.close()));
 });
 
 window.addEventListener('keydown', (e) => {
@@ -527,6 +498,13 @@ $('#export').addEventListener('click', async () => {
 
 setNotifier(toast);
 setBusy(busy);
+setPlayer((on) => {
+  if(on === S.playing) return;
+  S.playing = !!on;
+  if(S.playing){ if(S.time >= S.proj.duration - 0.01) S.time = 0; startSound(); }
+  else stopSound();
+  refresh();
+});
 
 /* 設定シートの「＋コマを足す」から呼ばれる */
 setFrameAdder(async (files, layer) => {

@@ -77,7 +77,7 @@ export async function paintPattern(layer, opt){
   const o = Object.assign({
     kind: 'ドット', back: '#FFFEF7', front: '#F2A0B8',
     size: Math.round(S.proj.w / 10), angle: 0,
-    move: 'とめる', speed: 24
+    move: 'とめる', speed: 90
   }, opt || {});
 
   const r = makePattern(S.proj.w, S.proj.h, o);

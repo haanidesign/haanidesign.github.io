@@ -3,6 +3,7 @@
 #app{
   position:fixed; inset:0;
   display:grid;
+  overflow:hidden;
   grid-template-rows:auto 1fr auto auto;
   grid-template-areas:
     "top"
@@ -13,6 +14,9 @@
   padding-bottom:var(--safe-b);
   background:var(--cream);
 }
+/* グリッドの中身は そのままだと 中身のぶんだけ ふくらんで
+   画面から はみ出す。ちぢめてよいと 言っておく。 */
+#app > *{ min-width:0; }
 
 /* ---- 上のバー ---- */
 #top{
@@ -61,7 +65,8 @@
   border-top:var(--bd);
   max-height:38vh;
   display:flex; flex-direction:column;
-  min-height:0;
+  min-height:0; min-width:0;
+  overflow:hidden;
 }
 /* たたむと 再生バーだけ 残る。絵を大きく見たいときに */
 #list.folded{ max-height:none; }

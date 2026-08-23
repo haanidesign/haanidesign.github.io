@@ -199,3 +199,58 @@ export function makePattern(w, h, opt){
 
   return { canvas: cv, tileW: tw, tileH: th, k };
 }
+
+
+/**
+ * その がらを その向きに 動かして、見た目が 変わるか。
+ *
+ * たとえば たてじまを たてに 流しても、同じ しまが 重なるだけで
+ * 止まって見える。えらぶ前に ここで 確かめて、
+ * 効かない向きは えらべないようにする。
+ *
+ * ひとマスを 4分の1 ずらして 見くらべるだけなので すぐ終わる。
+ */
+export function movesVisibly(opt, dx, dy){
+  if(!dx && !dy) return false;
+  const kind = PATTERNS[opt.kind] ? opt.kind : 'むじ';
+  if(kind === 'むじ') return false;
+
+  const size = Math.max(8, opt.size || 80);
+  const raw = PATTERNS[kind].tile(size);
+  const tw = Math.max(2, Math.round(raw[0]));
+  const th = Math.max(2, Math.round(raw[1]));
+
+  // 小さめに 作って くらべる（見た目の判定には じゅうぶん）
+  const k = Math.min(1, 160 / Math.max(tw, th));
+  const W = Math.max(8, Math.round(tw * 3 * k));
+  const H = Math.max(8, Math.round(th * 3 * k));
+
+  const shot = (ox, oy) => {
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, W, H);
+    const t = document.createElement('canvas');
+    t.width = Math.max(2, Math.round(tw * k));
+    t.height = Math.max(2, Math.round(th * k));
+    const tg = t.getContext('2d');
+    tg.scale(k, k);
+    PATTERNS[kind].paint(tg, size, '#000000', tw, th);
+    const pat = g.createPattern(t, 'repeat');
+    const m = new DOMMatrix();
+    if(opt.angle) m.rotateSelf(opt.angle);
+    m.translateSelf(ox, oy);
+    if(pat.setTransform) pat.setTransform(m);
+    g.fillStyle = pat;
+    g.fillRect(0, 0, W, H);
+    return g.getImageData(0, 0, W, H).data;
+  };
+
+  // 4分の1 ずらして くらべる
+  const a = shot(0, 0);
+  const b = shot(dx * tw * k / 4, dy * th * k / 4);
+  let n = 0;
+  for(let i = 0; i < a.length; i += 4) if(Math.abs(a[i] - b[i]) > 40) n++;
+  return n > (a.length / 4) * 0.02;      // 2%より 多く 変われば 動いて見える
+}

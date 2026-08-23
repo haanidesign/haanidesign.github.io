@@ -18,6 +18,9 @@
   border-bottom:2px solid var(--ink);
   background:var(--cream);
   flex-wrap:wrap;
+  /* これが無いと、中身の合計ぶんだけ 横に ふくらんで
+     画面から はみ出してしまう（スライドしなくなる） */
+  min-width:0;
 }
 /* 指で押す前提なので、高さは確保しつつ、横は詰めて1段に収める */
 #playbar button,#pinbar button{ min-height:40px; padding-left:.45rem; padding-right:.45rem; }
@@ -26,11 +29,18 @@
 #top button{ min-height:36px; }
 /* #top button より詳細度を上げないと負ける */
 #top #export{ min-height:40px; font-weight:800; padding-left:.8rem; padding-right:.8rem; }
-/* ピンバーは1段に収める。狭い画面では字を詰めて折り返させない */
-#pinbar{ flex-wrap:nowrap; }
+/* ピンバーは 1段のまま。入りきらないぶんは 横に スライドして 見る
+   （むりに 詰めると 字が つぶれて 読めなくなる） */
+#pinbar{
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+#pinbar::-webkit-scrollbar{ height:4px; }
 #pinbar button{
-  flex:1 1 0; min-width:0; padding-left:.3rem; padding-right:.3rem;
-  font-size:.66rem; gap:.15rem;
+  flex:0 0 auto; padding-left:.45rem; padding-right:.45rem;
+  font-size:.68rem; gap:.2rem;
 }
 #pininfo{ flex:0 0 auto; }
 #pinbar{ background:var(--main-soft); }

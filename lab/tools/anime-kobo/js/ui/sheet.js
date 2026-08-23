@@ -2,7 +2,7 @@
 
 import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
-         attachMany } from '../engine/layer.js';
+         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
 import { swayKeys } from '../engine/puppet.js';
@@ -12,7 +12,7 @@ import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
          addTextLayer } from '../io/text.js';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
          paintPattern, addPatternBg, MOVES } from '../io/bg.js';
-import { PATTERN_NAMES } from '../io/pattern.js';
+import { PATTERN_NAMES, movesVisibly } from '../io/pattern.js';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans } from '../io/audio.js';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
@@ -1022,6 +1022,9 @@ export function setAudioPicker(fn){ onAudioFile = fn; }
 let onBusy = () => {};
 export function setBusy(fn){ onBusy = fn; }
 
+let onPlay = () => {};
+export function setPlayer(fn){ onPlay = fn; }
+
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
 
@@ -1095,6 +1098,12 @@ export function buildDocSheet(box, closeFn){
     })
   ));
 
+}
+
+/* ================= はいけい =================
+   はいけいのことだけ。動画の長さや 音は 「どうがの せってい」に ある。 */
+export function buildBgSheet(box, closeFn){
+  const NL = String.fromCharCode(10);
   box.appendChild(heading('はいけい'));
   const bg = S.proj.layers.find(isBg);
 
@@ -1182,7 +1191,7 @@ export function buildDocSheet(box, closeFn){
   box.appendChild(heading('もよう'));
   const pt = bg.bgPattern || {
     kind: 'ドット', back: bg.bgColor || '#FFFEF7', front: '#F2A0B8',
-    size: Math.round(S.proj.w / 10), angle: 0, move: 'とめる', speed: 24
+    size: Math.round(S.proj.w / 10), angle: 0, move: 'とめる', speed: 90
   };
   const apply = async (label) => {
     try{
@@ -1229,15 +1238,47 @@ export function buildDocSheet(box, closeFn){
   const moves = document.createElement('div');
   moves.className = 'rowbtns';
   moves.style.flexWrap = 'wrap';
+  let dead = 0;
   Object.keys(MOVES).forEach(name => {
-    const b = button(name, () => { pt.move = name; apply('もようを うごかす'); });
+    const d = MOVES[name];
+    /* たてじまを たてに 流しても 止まって見える。
+       そういう 向きは えらべないようにして、まようのを ふせぐ。 */
+    const ok = (name === 'とめる') || movesVisibly(pt, d[0], d[1]);
+    const b = button(name, async () => {
+      pt.move = name;
+      await apply('もようを うごかす');
+      if(name !== 'とめる') onPlay(true);
+    });
     b.style.flex = '0 0 30%';
     b.classList.toggle('on', pt.move === name);
+    if(!ok){
+      b.disabled = true;
+      b.title = 'この がらでは この向きに 動かしても 見た目が 変わりません';
+      dead++;
+    }
     moves.appendChild(b);
   });
   box.appendChild(field('うごき', moves));
+  if(dead){
+    const dn = document.createElement('div');
+    dn.className = 'empty';
+    dn.style.textAlign = 'left';
+    dn.textContent = 'うすい向きは、この がらだと 動いて見えないので おせません。'
+      + NL + '（たてじまを たてに 流しても 同じ しまが 重なるだけ）';
+    box.appendChild(dn);
+  }
   box.appendChild(slider('はやさ', () => pt.speed, v => pt.speed = v,
-    2, 200, 2, v => v < 20 ? 'ゆっくり' : v > 120 ? 'はやい' : 'ふつう'));
+    10, 400, 5, v => v < 60 ? 'ゆっくり' : v > 200 ? 'はやい' : 'ふつう'));
+
+  if(bg.loop){
+    const lp = document.createElement('div');
+    lp.className = 'empty';
+    lp.style.textAlign = 'left';
+    lp.textContent = '▶ をおすと 流れます（ひとまわり '
+      + bg.loop.to.toFixed(1) + '秒）。'
+      + NL + 'とまって見えるときは はやさを あげてね。';
+    box.appendChild(lp);
+  }
 
   box.appendChild(btnRow(
     button('🎨 このもように する', () => apply('もようを はる'))
@@ -1303,18 +1344,42 @@ export function parentLink(box, l, closeFn){
 
 export function otherRow(box, l, closeFn){
   box.appendChild(heading('そのほか'));
+
+  /* コピーは ☑ を つけていれば まとめて、なければ この1まい。
+     絵そのものは 使いまわすので、ふやしても 重くならない。 */
+  const ids = () => (S.pick.length ? [...S.pick] : [l.id]);
+  box.appendChild(btnRow(
+    button('⧉ コピー', () => {
+      S.layerClip = copyLayers(S.proj, ids());
+      notify(S.layerClip.length + 'まい コピーしました');
+      onChange();
+    }),
+    button('📋 はりつけ', () => {
+      if(!S.layerClip || !S.layerClip.length) return notify('さきに コピーしてね');
+      const made = { v: [] };
+      edit('はりつけ', () => { made.v = pasteLayers(S.proj, S.layerClip); });
+      if(made.v[0]) S.sel = made.v[0].id;
+      S.pick = [];
+      notify(made.v.length + 'まい はりつけました');
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
+
   box.appendChild(btnRow(
     button('まんなかへ', () => {
       edit('まんなかへ', () => { l.x = S.proj.w / 2; l.y = S.proj.h / 2; });
       onChange();
     }),
-    button('けす', () => {
-      if(!confirm(l.name + ' をけしますか？')) return;
-      edit('レイヤーをけす', () => {
-        S.proj.layers = S.proj.layers.filter(x => x.id !== l.id);
-        S.proj.layers.forEach(x => { if(x.parent === l.id) x.parent = null; });
-        S.sel = null;
-      });
+    button('🗑 けす', () => {
+      const list = ids().map(id => S.proj.layers.find(x => x.id === id)).filter(Boolean);
+      const nl = String.fromCharCode(10);
+      if(!confirm(list.length + 'まい けしますか？' + nl + nl + list.map(x => x.name).join('、'))) return;
+      const r = { n: 0 };
+      edit('レイヤーをけす', () => { r.n = removeLayers(S.proj, ids()); });
+      S.pick = [];
+      if(S.sel && !S.proj.layers.some(x => x.id === S.sel)) S.sel = null;
+      notify(r.n + 'まい けしました（もどす で 戻せます）');
       onChange();
       if(closeFn) closeFn();
     })

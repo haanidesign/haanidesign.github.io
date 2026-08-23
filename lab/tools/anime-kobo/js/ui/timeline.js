@@ -84,13 +84,7 @@ export function createTimeline(root, opts = {}){
     if(ps) ps.disabled = !(S.clip && S.clip.items.length);
     const zo = root.querySelector('#tlOut');
     if(zo) zo.disabled = S.tlZoom <= 1.01;
-    // ☑ を つけている間だけ 「けす」を 出す
-    const dp = root.querySelector('#delPick');
-    if(dp){
-      dp.hidden = !S.pick.length;
-      dp.textContent = '🗑' + (S.pick.length > 1 ? S.pick.length : '');
-      dp.title = 'えらんだ ' + S.pick.length + 'まいを けす';
-    }
+
 
     buildPinbar();
     buildRuler();
