@@ -144,16 +144,15 @@ stageHost.addEventListener('drop', (e) => {
 });
 
 /* ================= ボタン ================= */
-$('#add').addEventListener('click', async () => {
-  const nl = String.fromCharCode(10);
-  const mozi = confirm('文字を いれますか？' + nl + nl
-    + 'OK … 文字レイヤーを つくる' + nl
-    + 'キャンセル … PSD や 絵を えらぶ');
-  if(!mozi){ fileInput.click(); return; }
+/* ついか ＝ 絵をよみこむ。文字は となりの「もじ」ボタン。 */
+$('#add').addEventListener('click', () => fileInput.click());
+
+/* もじ ＝ 文字レイヤーを足して、そのまま テキストのページを開く */
+$('#text').addEventListener('click', async () => {
   try{
     busy(true, '文字を つくっています…');
     await addTextLayer();
-    toast('文字を いれました。「せってい」で 中身をかえられます');
+    toast('文字を いれました。ここで 中身をかえられます');
   }catch(err){
     toast(err.message || '文字を つくれませんでした');
   }finally{

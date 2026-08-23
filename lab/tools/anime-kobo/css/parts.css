@@ -2,10 +2,13 @@
 .tool{
   flex-direction:column; gap:1px;
   min-height:var(--tap);
-  padding:.3rem .2rem;
-  font-size:.62rem;
+  padding:.3rem .1rem;
+  font-size:.56rem;
+  letter-spacing:-.02em;
+  white-space:nowrap;
   border-radius:14px;
 }
+@media (min-width:760px){ .tool{ font-size:.64rem; padding:.3rem .2rem; } }
 .tool i{ font-style:normal; font-size:1.25rem; line-height:1.1; }
 
 /* ---------- 再生バー ---------- */

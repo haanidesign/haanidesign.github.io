@@ -77,7 +77,7 @@
   background:var(--cream);
   border-top:var(--bd);
   display:grid;
-  grid-template-columns:repeat(6,1fr);
+  grid-template-columns:repeat(7,1fr);
   gap:.35rem;
   padding:.4rem .5rem calc(.4rem + var(--safe-b));
 }
@@ -100,7 +100,7 @@
   }
   #tools{
     border-right:var(--bd);
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(4,1fr);
   }
 }
 
