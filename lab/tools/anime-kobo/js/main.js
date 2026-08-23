@@ -5,7 +5,9 @@ import { S, newProject, onChange, onRestore, undo, redo, edit,
 import { createStage } from './ui/stage.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
-import { createSheet, buildLayerSheet, setFrameAdder, setNotifier } from './ui/sheet.js';
+import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
+         setFrameAdder, setNotifier } from './ui/sheet.js';
+import { addTextLayer } from './io/text.js';
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer } from './io/image.js';
 import { importPsd } from './io/psd.js';
@@ -141,7 +143,24 @@ stageHost.addEventListener('drop', (e) => {
 });
 
 /* ================= ボタン ================= */
-$('#add').addEventListener('click', () => fileInput.click());
+$('#add').addEventListener('click', async () => {
+  const nl = String.fromCharCode(10);
+  const mozi = confirm('文字を いれますか？' + nl + nl
+    + 'OK … 文字レイヤーを つくる' + nl
+    + 'キャンセル … PSD や 絵を えらぶ');
+  if(!mozi){ fileInput.click(); return; }
+  try{
+    busy(true, '文字を つくっています…');
+    await addTextLayer();
+    toast('文字を いれました。「せってい」で 中身をかえられます');
+  }catch(err){
+    toast(err.message || '文字を つくれませんでした');
+  }finally{
+    busy(false);
+    refresh();
+    openSheet('text');
+  }
+});
 
 /* ---- パペットピン ---- */
 function setPinMode(on){
@@ -188,10 +207,17 @@ $('#tlOut').addEventListener('click', () => timeline.zoomTime(1 / 1.8));
 $('#pinHold').addEventListener('click', () => timeline.toggleHold());
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
-$('#parent').addEventListener('click', () => {
+/** 設定シートを、横にスライドできるページで開く */
+function openSheet(startKey){
   if(!selected()) return toast('レイヤーをえらんでね');
-  sheet.open('レイヤーのせってい', (box) => buildLayerSheet(box, () => sheet.close()));
-});
+  const pages = [
+    { key:'form', label:'かたち', build:(box) => buildLayerSheet(box, () => sheet.close()) },
+    { key:'move', label:'うごき', build:(box) => buildMotionSheet(box) }
+  ];
+  if(selected().kind === 'text') pages.push({ key:'text', label:'テキスト', build:buildTextSheet });
+  sheet.openPages('', pages, startKey || 'form');
+}
+$('#parent').addEventListener('click', () => openSheet('form'));
 $('#clip').addEventListener('click', () => {
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
@@ -201,10 +227,7 @@ $('#clip').addEventListener('click', () => {
   toast(l.clip ? '下の「' + S.proj.layers[i+1].name + '」の形で ぬかれます' : 'クリップを やめました');
   refresh();
 });
-$('#setting').addEventListener('click', () => {
-  if(!selected()) return toast('レイヤーをえらんでね');
-  sheet.open('レイヤーのせってい', (box) => buildLayerSheet(box, () => sheet.close()));
-});
+$('#setting').addEventListener('click', () => openSheet('form'));
 
 $('#undo').addEventListener('click', () => {
   const l = undo();

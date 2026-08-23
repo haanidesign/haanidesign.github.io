@@ -5,12 +5,28 @@ import { isDescendant, setParent } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
 import { swayKeys } from '../engine/puppet.js';
+import { blinkKeys, talkKeys } from '../engine/anim.js';
+import { PRESET_GROUPS } from '../engine/presets.js';
+import { FONTS, renderTextLayer, shortName } from '../io/text.js';
 
 export function createSheet(sheetEl, backEl){
   let builder = null;
 
+  let pages = null;      // [{key,label,build}]
+  let page = 0;
+
   function open(title, build){
-    builder = build;
+    builder = build; pages = null; page = 0;
+    render(title);
+    sheetEl.classList.add('on');
+    backEl.classList.add('on');
+  }
+
+  /** 横にスライドして切り替えるページで開く */
+  function openPages(title, list, startKey){
+    builder = null;
+    pages = list;
+    page = Math.max(0, list.findIndex(x => x.key === startKey));
     render(title);
     sheetEl.classList.add('on');
     backEl.classList.add('on');
@@ -23,11 +39,31 @@ export function createSheet(sheetEl, backEl){
   const isOpen = () => sheetEl.classList.contains('on');
 
   function render(title){
-    if(!builder) return;
+    if(!builder && !pages) return;
     sheetEl.innerHTML = '';
     const h = document.createElement('div');
     h.className = 'handle';
     sheetEl.appendChild(h);
+
+    if(pages){
+      const tabs = document.createElement('div');
+      tabs.className = 'sheettabs';
+      pages.forEach((pg, i) => {
+        const b = document.createElement('button');
+        b.textContent = pg.label;
+        b.className = i === page ? 'on' : '';
+        b.addEventListener('click', () => { page = i; render(title); });
+        tabs.appendChild(b);
+      });
+      sheetEl.appendChild(tabs);
+
+      const body = document.createElement('div');
+      body.className = 'sheetbody';
+      sheetEl.appendChild(body);
+      pages[page].build(body);
+      return;
+    }
+
     if(title){
       const t = document.createElement('h2');
       t.textContent = title;
@@ -36,20 +72,35 @@ export function createSheet(sheetEl, backEl){
     builder(sheetEl);
   }
 
+  /** 横に振ったらページを送る */
+  function swipe(dx){
+    if(!pages) return false;
+    const n = page + (dx < 0 ? 1 : -1);
+    if(n < 0 || n >= pages.length) return false;
+    page = n; render(currentTitle());
+    return true;
+  }
+  const currentTitle = () => sheetEl.querySelector('.sheettabs') ? '' : (sheetEl.querySelector('h2')?.textContent || '');
+
   backEl.addEventListener('click', close);
 
-  // 下に振り切ったら閉じる
-  let sy = null;
+  // 下に振り切ったら閉じる。横に振ったらページ送り
+  let sy = null, sx = null;
   sheetEl.addEventListener('pointerdown', (e) => {
     if(e.target.closest('input,select,button')) return;
-    sy = e.clientY;
+    sy = e.clientY; sx = e.clientX;
   });
   sheetEl.addEventListener('pointerup', (e) => {
-    if(sy !== null && e.clientY - sy > 70) close();
-    sy = null;
+    if(sy !== null){
+      const dy = e.clientY - sy, dx = e.clientX - sx;
+      if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) swipe(dx);
+      else if(dy > 70) close();
+    }
+    sy = null; sx = null;
   });
 
-  return { open, close, isOpen, refresh: () => { if(isOpen()) render(sheetEl.querySelector('h2')?.textContent); } };
+  return { open, openPages, close, isOpen,
+           refresh: () => { if(isOpen()) render(currentTitle()); } };
 }
 
 /* ---------- 部品 ---------- */
@@ -401,4 +452,203 @@ export function buildLayerSheet(box, closeFn){
       if(closeFn) closeFn();
     })
   ));
+}
+
+/* ================= うごき ================= */
+export function buildMotionSheet(box){
+  const l = selected();
+  if(!l){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'レイヤーをえらんでね';
+    box.appendChild(e);
+    return;
+  }
+
+  const dur = { v: 0.6 };
+  box.appendChild(slider('かかる時間', () => dur.v, v => dur.v = v, 0.2, 3, 0.1,
+    v => v.toFixed(1) + '秒'));
+
+  PRESET_GROUPS.forEach(gr => {
+    box.appendChild(heading(gr.label));
+    const wrap = document.createElement('div');
+    wrap.className = 'presets';
+    Object.keys(gr.map).forEach(name => {
+      const b = document.createElement('button');
+      b.textContent = name;
+      b.addEventListener('click', () => {
+        edit(name, () => gr.map[name](l, S.time, dur.v));
+        notify(name + ' を いれました');
+        onChange();
+      });
+      wrap.appendChild(b);
+    });
+    box.appendChild(wrap);
+  });
+
+  const hint = document.createElement('div');
+  hint.className = 'empty';
+  hint.style.textAlign = 'left';
+  hint.textContent = 'いまの時間から はじまります。'
+    + String.fromCharCode(10)
+    + 'いまの見た目が「おわりの姿」になります。';
+  box.appendChild(hint);
+
+  /* ---------- まばたき・口パク ---------- */
+  box.appendChild(heading('まばたき と 口パク'));
+  if(l.frames.length < 2){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = 'コマが2まい いります。'
+      + String.fromCharCode(10)
+      + '「かたち」で 目のあいた絵と とじた絵を 足してください。';
+    box.appendChild(e);
+    return;
+  }
+
+  l.blink = l.blink || { open:0, close:1, every:3, hold:0.09 };
+  l.talk  = l.talk  || { rate:8, len:2, closed:0 };
+
+  const frameSel = (label, get, set) => {
+    const sel = document.createElement('select');
+    l.frames.forEach((_, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = (i + 1) + 'コマめ';
+      if(i === get()) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => { set(+sel.value); onChange(); });
+    return field(label, sel);
+  };
+
+  box.appendChild(frameSel('目があいた絵', () => l.blink.open,  v => l.blink.open = v));
+  box.appendChild(frameSel('目をとじた絵', () => l.blink.close, v => l.blink.close = v));
+  box.appendChild(slider('あいだ', () => l.blink.every, v => l.blink.every = v, 0.8, 8, 0.2,
+    v => v.toFixed(1) + '秒'));
+  box.appendChild(slider('とじる長さ', () => l.blink.hold, v => l.blink.hold = v, 0.04, 0.3, 0.01,
+    v => v.toFixed(2) + '秒'));
+  box.appendChild(btnRow(
+    button('👁 まばたきを いれる', () => {
+      const keys = blinkKeys({
+        openFrame: l.blink.open, closeFrame: l.blink.close,
+        every: l.blink.every, hold: l.blink.hold,
+        start: S.time, end: S.proj.duration
+      });
+      edit('まばたきを いれる', () => {
+        keys.forEach(k => setPin(l, 'frame', k.t, k.v, 'hold'));
+      });
+      notify(Math.floor((keys.length - 1) / 2) + 'かい まばたきします');
+      onChange();
+    })
+  ));
+
+  box.appendChild(slider('口のはやさ', () => l.talk.rate, v => l.talk.rate = v, 3, 16, 1,
+    v => Math.round(v) + '/秒'));
+  box.appendChild(slider('しゃべる長さ', () => l.talk.len, v => l.talk.len = v, 0.3, 8, 0.1,
+    v => v.toFixed(1) + '秒'));
+  box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));
+  box.appendChild(btnRow(
+    button('👄 口パクを いれる', () => {
+      const keys = talkKeys({
+        frames: l.frames.map((_, i) => i),
+        rate: l.talk.rate, closedFrame: l.talk.closed,
+        start: S.time, end: Math.min(S.proj.duration, S.time + l.talk.len)
+      });
+      edit('口パクを いれる', () => {
+        keys.forEach(k => setPin(l, 'frame', k.t, k.v, 'hold'));
+      });
+      notify(keys.length + 'コの ピンを うちました');
+      onChange();
+    }),
+    button('コマのピンを消す', () => {
+      edit('コマのピンを消す', () => {
+        framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
+      });
+      onChange();
+    })
+  ));
+}
+
+/* ================= テキスト ================= */
+export function buildTextSheet(box){
+  const l = selected();
+  if(!l || l.kind !== 'text'){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = 'これは 文字のレイヤーでは ありません。'
+      + String.fromCharCode(10)
+      + '下の「ついか」から 文字を たせます。';
+    box.appendChild(e);
+    return;
+  }
+
+  const t = l.text;
+  const redraw = async () => {
+    await renderTextLayer(l);
+    l.name = shortName(t.str);
+    onChange();
+  };
+
+  const ta = document.createElement('textarea');
+  ta.value = t.str;
+  ta.rows = 2;
+  ta.className = 'textin';
+  ta.addEventListener('change', () => {
+    edit('文字をかえる', () => { t.str = ta.value; });
+    redraw();
+  });
+  box.appendChild(field('もじ', ta));
+
+  const fsel = document.createElement('select');
+  FONTS.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.key; o.textContent = f.label;
+    if(f.key === t.font) o.selected = true;
+    fsel.appendChild(o);
+  });
+  fsel.addEventListener('change', () => {
+    edit('書体をかえる', () => { t.font = fsel.value; });
+    redraw();
+  });
+  box.appendChild(field('しょたい', fsel));
+
+  const colorRow = (label, get, set) => {
+    const i = document.createElement('input');
+    i.type = 'color'; i.value = get();
+    i.style.cssText = 'min-height:38px;padding:2px';
+    i.addEventListener('change', () => { edit(label, () => set(i.value)); redraw(); });
+    return field(label, i);
+  };
+  box.appendChild(colorRow('もじの色', () => t.color,  v => t.color = v));
+  box.appendChild(colorRow('ふちの色', () => t.stroke, v => t.stroke = v));
+
+  const num = (label, get, set, min, max, step, fmt) => {
+    const i = document.createElement('input');
+    i.type = 'range'; i.min = min; i.max = max; i.step = step; i.value = get();
+    const v = document.createElement('span');
+    v.className = 'val';
+    const show = () => v.textContent = fmt ? fmt(+i.value) : String(Math.round(+i.value));
+    show();
+    i.addEventListener('pointerdown', () => beginEdit(label));
+    i.addEventListener('input', () => { set(+i.value); show(); });
+    i.addEventListener('change', () => { commitEdit(); redraw(); });
+    return field(label, i, v);
+  };
+  box.appendChild(num('大きさ',   () => t.size,        v => t.size = v,        24, 400, 2));
+  box.appendChild(num('ふちの太さ',() => t.strokeWidth, v => t.strokeWidth = v,  0, 40, 1));
+  box.appendChild(num('ふとさ',   () => t.weight,      v => t.weight = v,     400, 800, 100));
+  box.appendChild(num('行の間',   () => t.lineHeight,  v => t.lineHeight = v, 0.9, 2.2, 0.05,
+    v => v.toFixed(2)));
+
+  const asel = document.createElement('select');
+  [['center','まんなか'],['left','ひだり'],['right','みぎ']].forEach(([v, lb]) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = lb;
+    if(v === t.align) o.selected = true;
+    asel.appendChild(o);
+  });
+  asel.addEventListener('change', () => { edit('よせ方', () => { t.align = asel.value; }); redraw(); });
+  box.appendChild(field('よせ方', asel));
 }

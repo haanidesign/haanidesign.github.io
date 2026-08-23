@@ -249,6 +249,34 @@
   transition:transform .22s cubic-bezier(.22,1,.36,1);
 }
 #sheet.on{ transform:translateY(0); }
+#sheet .sheettabs{
+  display:flex; gap:.3rem; padding:.1rem 0 .5rem;
+  position:sticky; top:0; background:var(--paper); z-index:2;
+}
+#sheet .sheettabs button{
+  flex:1; min-height:38px; font-size:.76rem;
+  border-radius:10px; box-shadow:0 2.5px 0 var(--ink);
+}
+#sheet .sheettabs button.on{
+  background:var(--ink); color:var(--main);
+  box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);
+}
+#sheet .sheetbody{ display:block; }
+
+/* 動きのプリセット */
+.presets{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:.35rem; }
+.presets button{
+  min-height:42px; font-size:.68rem; padding:.2rem .3rem;
+  border-radius:10px;
+}
+
+.textin{
+  font:inherit; font-size:.85rem; font-weight:700;
+  background:var(--paper); border:2px solid var(--ink); border-radius:9px;
+  padding:.35rem .5rem; width:100%; resize:vertical; min-height:56px;
+  line-height:1.5;
+}
+
 #sheet .handle{
   width:46px; height:5px; border-radius:100px;
   background:var(--ink); opacity:.3;

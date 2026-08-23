@@ -250,6 +250,54 @@ export function channelValue(layer, ch, time){
   return v[ch];
 }
 
+/**
+ * まばたき。あいだ をあけて、とじコマを ちょっとだけ見せる。
+ * ぴったり等間隔だと機械っぽいので、少しばらつかせる。
+ */
+export function blinkKeys(opt){
+  const openF  = opt.openFrame  ?? 0;
+  const closeF = opt.closeFrame ?? 1;
+  const every  = Math.max(0.4, opt.every ?? 3);
+  const hold   = Math.max(0.03, opt.hold ?? 0.09);
+  const start  = opt.start ?? 0;
+  const end    = opt.end ?? 15;
+  const jitter = Math.min(0.9, Math.max(0, opt.jitter ?? 0.5));
+
+  const keys = [{ t: +start.toFixed(3), v: openF }];
+  let t = start + every * 0.5;
+  let guard = 0;
+  while(t + hold < end && guard++ < 2000){
+    keys.push({ t: +t.toFixed(3), v: closeF });
+    keys.push({ t: +(t + hold).toFixed(3), v: openF });
+    t += every * (1 - jitter / 2 + Math.random() * jitter);
+  }
+  return keys;
+}
+
+/**
+ * 口パク。はやさ のぶんだけコマを入れ替える。
+ * 同じコマが続くと止まって見えるので、前と違うコマを選ぶ。
+ */
+export function talkKeys(opt){
+  const frames = (opt.frames && opt.frames.length) ? opt.frames : [0, 1];
+  const rate   = Math.max(1, opt.rate ?? 8);
+  const start  = opt.start ?? 0;
+  const end    = opt.end ?? (start + 2);
+  const closed = opt.closedFrame ?? frames[0];
+  const step = 1 / rate;
+
+  const keys = [];
+  let prev = -1, guard = 0;
+  for(let t = start; t < end && guard++ < 4000; t += step){
+    let v = frames[Math.floor(Math.random() * frames.length)];
+    if(frames.length > 1 && v === prev) v = frames[(frames.indexOf(v) + 1) % frames.length];
+    prev = v;
+    keys.push({ t: +t.toFixed(3), v });
+  }
+  keys.push({ t: +end.toFixed(3), v: closed });   // さいごは口を閉じる
+  return keys;
+}
+
 /** 秒を 00:04.2 の形にする */
 export function fmtTime(sec){
   const s = Math.max(0, sec);
