@@ -378,6 +378,7 @@ export function buildLayerSheet(box, closeFn){
     const n = membersOf(S.proj, l).length;
     box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
     box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+    box.appendChild(aspectRow(l));
     box.appendChild(animSlider('かたむき', l, 'rot', -180, 180, 1, v => Math.round(v) + '°'));
 
     const note = document.createElement('div');
@@ -408,20 +409,7 @@ export function buildLayerSheet(box, closeFn){
 
   box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
   box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
-  box.appendChild(field('たてよこ', (() => {
-    const b = document.createElement('button');
-    const on = () => l.lockAspect !== false;
-    b.textContent = on() ? '🔗 そろえる' : '🔓 べつべつ';
-    b.style.flex = '1';
-    b.addEventListener('click', () => {
-      edit('たてよこの そろえ方', () => {
-        l.lockAspect = !on();
-        if(l.lockAspect) l.scaleY = l.scaleX;   // そろえた瞬間に よこ幅へ合わせる
-      });
-      onChange();
-    });
-    return b;
-  })()));
+  box.appendChild(aspectRow(l));
   box.appendChild(animSlider('かたむき', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
 
   /* ---------- コマ ---------- */
@@ -1796,6 +1784,25 @@ export function buildBgSheet(box, closeFn){
 
 
 /* ---------- 使いまわす部品 ---------- */
+/** たてよこを そろえるか、べつべつに するか。
+    フォルダでも 同じように つかえる（中身ごと たてに つぶす など）。 */
+export function aspectRow(l){
+  const b = document.createElement('button');
+  const on = () => l.lockAspect !== false;
+  const show = () => { b.textContent = on() ? '🔗 そろえる' : '🔓 べつべつ'; };
+  show();
+  b.style.flex = '1';
+  b.addEventListener('click', () => {
+    edit('たてよこの そろえ方', () => {
+      l.lockAspect = !on();
+      if(l.lockAspect) l.scaleY = l.scaleX;   // そろえた瞬間に よこ幅へ合わせる
+    });
+    show();
+    onChange();
+  });
+  return field('たてよこ', b);
+}
+
 /** どのレイヤーの形で ぬくか えらぶ */
 export function clipRow(l){
   const i = S.proj.layers.indexOf(l);
