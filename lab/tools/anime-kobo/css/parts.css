@@ -333,8 +333,42 @@
 .rowbtns{ display:flex; gap:.4rem; padding-top:.4rem; }
 .rowbtns button{ flex:1; }
 
+#sheet .textprev{
+  display:block; max-width:100%; max-height:110px;
+  margin:.1rem auto .35rem;
+  border:2.5px dashed var(--ink); border-radius:10px;
+  background:var(--cream); padding:.25rem;
+  object-fit:contain;
+}
+
 /* ---------- 最初のサイズ選び ---------- */
 #newdoc .resume{ margin-bottom:.6rem; background:var(--mint); }
+
+/* ---- これまでの さくひん ---- */
+#newdoc .docs{
+  display:flex; flex-direction:column; gap:.45rem;
+  margin:.2rem 0 .8rem;
+}
+#newdoc .docitem{ display:flex; gap:.4rem; align-items:stretch; }
+#newdoc .docopen{
+  flex:1; min-width:0;
+  display:flex; align-items:center; gap:.55rem;
+  justify-content:flex-start; text-align:left;
+  padding:.35rem .5rem; min-height:60px;
+  background:var(--mint);
+}
+#newdoc .docopen img{
+  width:44px; height:44px; flex:0 0 44px;
+  object-fit:contain; background:var(--paper);
+  border:2px solid var(--ink); border-radius:8px;
+}
+#newdoc .doctext{ display:flex; flex-direction:column; min-width:0; line-height:1.25; }
+#newdoc .doctext b{ font-size:.86rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#newdoc .doctext i{ font-style:normal; font-size:.62rem; color:#3d3a2c; }
+#newdoc .docdel{
+  flex:0 0 46px; min-height:60px; padding:0; font-size:1rem;
+  background:var(--paper);
+}
 #newdoc{
   position:fixed; inset:0; z-index:60;
   background:var(--cream);

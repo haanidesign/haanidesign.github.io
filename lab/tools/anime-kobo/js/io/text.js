@@ -84,15 +84,17 @@ export async function renderTextLayer(layer){
 }
 
 /** 新しい文字レイヤーを足す */
-export async function addTextLayer(str){
+export async function addTextLayer(str, style){
   const l = newLayer('文字', []);
   l.kind = 'text';
-  l.text = newTextStyle();
+  l.text = Object.assign(newTextStyle(), style || {});
   if(str) l.text.str = str;
 
-  // キャンバスの幅に収まる大きさから始める
-  l.text.size = Math.max(24, Math.round(S.proj.w / 9));
-  l.text.strokeWidth = Math.round(l.text.size * 0.09);
+  if(!style){
+    // キャンバスの幅に収まる大きさから始める
+    l.text.size = Math.max(24, Math.round(S.proj.w / 9));
+    l.text.strokeWidth = Math.round(l.text.size * 0.09);
+  }
 
   await renderTextLayer(l);
   l.name = shortName(l.text.str);

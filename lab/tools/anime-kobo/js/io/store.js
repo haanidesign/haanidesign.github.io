@@ -1,55 +1,94 @@
-/* じどう保存。
+/* さくひんの ほぞん。
+
    ブラウザの「もどる」やタブを閉じたときに 作りかけが消えないよう、
    ちょっと手が止まるたびに 端末の中（IndexedDB）へ しまっておく。
+   さくひんは いくつも 持てて、さいしょの画面から えらべる。
 
    localStorage ではなく IndexedDB を使うのは、
    絵をそのまま持つと 5MB では すぐ足りなくなるため。
 
-   しまうのは プロジェクトの中身（絵のデータも入っている）だけ。
+   しまうのは プロジェクトの中身（絵のデータも入っている）と 音。
    画像オブジェクトは 読み直すときに 作りなおす。 */
 
 const DB = 'anime-kobo';
-const STORE = 'doc';
+const STORE = 'doc';      // むかしの ひとつだけの ほぞん（読みこむだけ）
+const DOCS = 'docs';      // いまの ほぞん。さくひんごとに 1件
 const KEY = 'last';
+
+/** 持てる さくひんの数。これ以上は 消してから */
+export const MAX_DOCS = 8;
 
 function open(){
   return new Promise((ok, ng) => {
     if(!self.indexedDB) return ng(new Error('この端末では ほぞんできません'));
-    const r = indexedDB.open(DB, 1);
+    const r = indexedDB.open(DB, 2);
     r.onupgradeneeded = () => {
-      if(!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE);
+      const db = r.result;
+      if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if(!db.objectStoreNames.contains(DOCS)) db.createObjectStore(DOCS, { keyPath: 'id' });
     };
     r.onsuccess = () => ok(r.result);
     r.onerror = () => ng(r.error || new Error('ひらけませんでした'));
   });
 }
 
-function run(mode, fn){
+function run(store, mode, fn){
   return open().then(db => new Promise((ok, ng) => {
-    const tx = db.transaction(STORE, mode);
-    const req = fn(tx.objectStore(STORE));
+    const tx = db.transaction(store, mode);
+    const req = fn(tx.objectStore(store));
     tx.oncomplete = () => { db.close(); ok(req ? req.result : undefined); };
     tx.onerror = () => { db.close(); ng(tx.error); };
   }));
 }
 
-/** しまう。中身は そのままの形（構造化複製）で入るので JSON にしなくてよい。
-    音は プロジェクトの外に あるので、別に あずかる。 */
-export function save(project, audio){
-  const rec = { at: Date.now(), proj: project };
-  if(audio && audio.bytes) rec.audio = { name: audio.name, bytes: audio.bytes };
-  return run('readwrite', st => st.put(rec, KEY));
+export const newId = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/**
+ * さくひんを しまう。
+ *   id     … さくひんの ばんごう
+ *   extra  … { audio:{name,bytes}, thumb:'data:image…' }
+ */
+export function saveDoc(id, project, extra = {}){
+  const rec = { id, at: Date.now(), name: project.name || 'むだい', proj: project };
+  if(extra.audio && extra.audio.bytes) rec.audio = { name: extra.audio.name, bytes: extra.audio.bytes };
+  if(extra.thumb) rec.thumb = extra.thumb;
+  return run(DOCS, 'readwrite', st => st.put(rec));
 }
 
-/** 前回のぶんを 取り出す。無ければ null */
-export function load(){
-  return run('readonly', st => st.get(KEY)).then(r => r || null);
+export function loadDoc(id){
+  return run(DOCS, 'readonly', st => st.get(id)).then(r => r || null);
 }
 
-export function clear(){
-  return run('readwrite', st => st.delete(KEY));
+export function deleteDoc(id){
+  return run(DOCS, 'readwrite', st => st.delete(id));
 }
 
+/** 見出しだけの ならび（新しい順）。中身は 入っていない ＝ 軽い */
+export async function listDocs(){
+  const all = await run(DOCS, 'readonly', st => st.getAll());
+  const list = (all || []).map(r => ({
+    id: r.id, at: r.at,
+    name: (r.proj && r.proj.name) || r.name || 'むだい',
+    thumb: r.thumb || null,
+    layers: (r.proj && r.proj.layers) ? r.proj.layers.length : 0,
+    seconds: (r.proj && r.proj.duration) || 0
+  }));
+  list.sort((a, b) => b.at - a.at);
+  return list;
+}
+
+/** むかしの「ひとつだけの ほぞん」を さくひんに 引っこす（1回だけ） */
+export async function migrateOld(){
+  let old = null;
+  try{ old = await run(STORE, 'readonly', st => st.get(KEY)); }catch(_){ return null; }
+  if(!old || !old.proj || !(old.proj.layers || []).length) return null;
+  const id = newId();
+  await saveDoc(id, old.proj, { audio: old.audio });
+  try{ await run(STORE, 'readwrite', st => st.delete(KEY)); }catch(_){}
+  return id;
+}
+
+/** 何秒か前のものか、人の言葉で */
 /** 何秒か前のものか、人の言葉で */
 export function whenText(at){
   const s = Math.max(0, (Date.now() - at) / 1000);
@@ -65,14 +104,19 @@ export function whenText(at){
  */
 export function autoSaver(getProject, opts = {}){
   const wait = opts.wait || 1200;
-  let timer = null, busy = false, again = false, onDone = opts.onDone || (() => {});
+  const getId = opts.getId || (() => null);
   const getAudio = opts.getAudio || (() => null);
+  const getThumb = opts.getThumb || (() => null);
+  const onDone = opts.onDone || (() => {});
+  let timer = null, busy = false, again = false;
 
   async function flush(){
+    const id = getId();
+    if(!id) return;
     if(busy){ again = true; return; }
     busy = true;
     try{
-      await save(getProject(), getAudio());
+      await saveDoc(id, getProject(), { audio: getAudio(), thumb: getThumb() });
       onDone(true);
     }catch(err){
       onDone(false, err);

@@ -8,7 +8,8 @@ import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
 import { swayKeys } from '../engine/puppet.js';
 import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
-import { FONTS, renderTextLayer, shortName } from '../io/text.js';
+import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
+         addTextLayer } from '../io/text.js';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
          paintPattern, addPatternBg, MOVES } from '../io/bg.js';
 import { PATTERN_NAMES } from '../io/pattern.js';
@@ -297,6 +298,11 @@ export function buildLayerSheet(box, closeFn){
   /* 文字レイヤーは 絵が1まいしか無いので、コマの欄は 出さない。
      テキストのページに 用があるものだけ 残す。 */
   if(l.kind === 'text'){
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = '文字そのものを かえるときは 下の「🅰もじ」から。';
+    box.appendChild(n);
     box.appendChild(clipRow(l));
     buildLook(box, l, { flip: true });
     parentLink(box, l, closeFn);
@@ -690,34 +696,58 @@ export function buildFaceSheet(box){
 }
 
 /* ================= テキスト ================= */
-export function buildTextSheet(box){
-  const l = selected();
-  if(!l || l.kind !== 'text'){
-    const e = document.createElement('div');
-    e.className = 'empty';
-    e.style.textAlign = 'left';
-    e.textContent = 'これは 文字のレイヤーでは ありません。'
-      + String.fromCharCode(10)
-      + '下の「ついか」から 文字を たせます。';
-    box.appendChild(e);
-    return;
+/* ================= もじ =================
+   「もじ」ボタンから ひらく。ここには 文字のことだけ 置く。
+   かたち（大きさ・かたむき）や うごきは せってい に あるので まぜない。
+
+   まだ レイヤーが 無いときは 下書きを いじって、
+   「✓ 決定」を おしたときに はじめて レイヤーを作る。
+   （おしただけで 勝手に 文字が 出てしまうのを やめた） */
+export function buildTextSheet(box, closeFn){
+  const NL = String.fromCharCode(10);
+  const cur = selected();
+  const editing = !!(cur && cur.kind === 'text');
+  const l = editing ? cur : null;
+  const t = editing ? l.text : (draftText = draftText || newTextStyle());
+
+  const head = document.createElement('div');
+  head.className = 'empty';
+  head.style.textAlign = 'left';
+  head.textContent = editing
+    ? '「' + shortName(t.str) + '」を なおしています。'
+    : '文字を つくります。「✓ 決定」で 画面に 出ます。';
+  box.appendChild(head);
+
+  /* 下書きのときは 見本を出す。作る前でも どんな字か 分かるように */
+  let prev = null;
+  if(!editing){
+    prev = document.createElement('img');
+    prev.className = 'textprev';
+    prev.alt = '';
+    box.appendChild(prev);
   }
 
-  const t = l.text;
   const redraw = async () => {
-    await renderTextLayer(l);
-    l.name = shortName(t.str);
-    onChange();
+    if(editing){
+      await renderTextLayer(l);
+      l.name = shortName(t.str);
+      onChange();
+    } else if(prev){
+      prev.src = textToCanvas(t).toDataURL('image/png');
+    }
   };
 
   const ta = document.createElement('textarea');
   ta.value = t.str;
   ta.rows = 2;
   ta.className = 'textin';
-  ta.addEventListener('change', () => {
-    edit('文字をかえる', () => { t.str = ta.value; });
+  const readText = () => {
+    if(editing){ edit('文字をかえる', () => { t.str = ta.value; }); }
+    else t.str = ta.value;
     redraw();
-  });
+  };
+  ta.addEventListener('change', readText);
+  ta.addEventListener('input', () => { if(!editing){ t.str = ta.value; redraw(); } });
   box.appendChild(field('もじ', ta));
 
   const fsel = document.createElement('select');
@@ -728,7 +758,8 @@ export function buildTextSheet(box){
     fsel.appendChild(o);
   });
   fsel.addEventListener('change', () => {
-    edit('書体をかえる', () => { t.font = fsel.value; });
+    if(editing) edit('書体をかえる', () => { t.font = fsel.value; });
+    else t.font = fsel.value;
     redraw();
   });
   box.appendChild(field('しょたい', fsel));
@@ -737,7 +768,11 @@ export function buildTextSheet(box){
     const i = document.createElement('input');
     i.type = 'color'; i.value = get();
     i.style.cssText = 'min-height:38px;padding:2px';
-    i.addEventListener('change', () => { edit(label, () => set(i.value)); redraw(); });
+    i.addEventListener('change', () => {
+      if(editing) edit(label, () => set(i.value));
+      else set(i.value);
+      redraw();
+    });
     return field(label, i);
   };
   box.appendChild(colorRow('もじの色', () => t.color,  v => t.color = v));
@@ -750,9 +785,9 @@ export function buildTextSheet(box){
     v.className = 'val';
     const show = () => v.textContent = fmt ? fmt(+i.value) : String(Math.round(+i.value));
     show();
-    i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label); });
-    i.addEventListener('input', () => { set(+i.value); show(); });
-    i.addEventListener('change', () => { holdSheet(false); commitEdit(); redraw(); });
+    i.addEventListener('pointerdown', () => { holdSheet(true); if(editing) beginEdit(label); });
+    i.addEventListener('input', () => { set(+i.value); show(); if(!editing) redraw(); });
+    i.addEventListener('change', () => { holdSheet(false); if(editing) commitEdit(); redraw(); });
     ['pointerup','pointercancel'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
     return field(label, i, v);
   };
@@ -769,9 +804,42 @@ export function buildTextSheet(box){
     if(v === t.align) o.selected = true;
     asel.appendChild(o);
   });
-  asel.addEventListener('change', () => { edit('よせ方', () => { t.align = asel.value; }); redraw(); });
+  asel.addEventListener('change', () => {
+    if(editing) edit('よせ方', () => { t.align = asel.value; });
+    else t.align = asel.value;
+    redraw();
+  });
   box.appendChild(field('よせ方', asel));
+
+  redraw();
+
+  box.appendChild(btnRow(
+    button(editing ? '✓ できた' : '✓ 決定（画面に 出す）', async () => {
+      if(!editing){
+        if(!String(t.str || '').trim()) return notify('文字を 入れてね');
+        await addTextLayer(null, t);
+        draftText = null;
+        notify('文字を いれました');
+        onChange();
+      }
+      if(closeFn) closeFn();
+    })
+  ));
+
+  if(!editing){
+    const note = document.createElement('div');
+    note.className = 'empty';
+    note.style.textAlign = 'left';
+    note.textContent = '大きさや かたむき、うごきは' + NL
+      + '出したあとに「せってい」で かえられます。';
+    box.appendChild(note);
+  }
 }
+
+/** 「決定」を おすまでの 下書き */
+let draftText = null;
+export function clearDraftText(){ draftText = null; }
+
 
 /* ---------- 見た目（塗り・ぼかし・ふちどり） ----------
    ふつうのレイヤーでも フォルダでも 同じものが使える。
@@ -953,6 +1021,21 @@ export function setAudioPicker(fn){ onAudioFile = fn; }
 
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
+
+  box.appendChild(heading('さくひんの なまえ'));
+  const nameIn = document.createElement('input');
+  nameIn.value = S.proj.name || 'むだい';
+  nameIn.addEventListener('change', () => {
+    edit('なまえをかえる', () => { S.proj.name = nameIn.value.trim() || 'むだい'; });
+    onChange();
+  });
+  box.appendChild(field('なまえ', nameIn));
+  const nnote = document.createElement('div');
+  nnote.className = 'empty';
+  nnote.style.textAlign = 'left';
+  nnote.textContent = 'さいしょの画面の ならびに この名前で 出ます。'
+    + NL + 'じどうで ほぞんされるので 「ほぞん」ボタンは いりません。';
+  box.appendChild(nnote);
 
   box.appendChild(heading('動画の長さ'));
   box.appendChild(slider('長さ',

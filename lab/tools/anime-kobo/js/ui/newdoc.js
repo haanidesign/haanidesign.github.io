@@ -5,8 +5,9 @@ import { SIZE_PRESETS } from '../state.js';
 const LENGTHS = [10, 15, 30, 60];
 
 /**
- * resume を渡すと、いちばん上に「まえのつづきから」を出す。
- * { text:'5分まえ・12まい', onResume:fn }
+ * docs を渡すと、いちばん上に これまでの さくひんが ならぶ。
+ *   docs   … [{ id, name, thumb, at, layers, seconds }]
+ *   onOpen(id) / onDelete(id)
  */
 export function showNewDoc(el, onStart, resume){
   let size = SIZE_PRESETS[0];
@@ -15,25 +16,68 @@ export function showNewDoc(el, onStart, resume){
   const card = document.createElement('div');
   card.className = 'card';
 
-  if(resume){
-    const rb = document.createElement('button');
-    rb.className = 'go btn-y resume';
-    rb.textContent = '▶ まえのつづきから（' + resume.text + '）';
-    rb.addEventListener('click', () => {
-      el.style.display = 'none';
-      resume.onResume();
-    });
-    card.appendChild(rb);
+  const docs = (resume && resume.docs) || [];
+  if(docs.length){
+    const h0 = document.createElement('h1');
+    h0.textContent = 'つづきから';
+    card.appendChild(h0);
 
-    const or = document.createElement('p');
-    or.className = 'sub';
-    or.textContent = 'つづきは じどうで ほぞんされています。'
-      + String.fromCharCode(10) + 'あたらしく つくるなら 下から えらんでね。';
-    card.appendChild(or);
+    const sub0 = document.createElement('p');
+    sub0.className = 'sub';
+    sub0.textContent = 'じどうで ほぞんされています。おすと つづきから はじまります。';
+    card.appendChild(sub0);
+
+    const list = document.createElement('div');
+    list.className = 'docs';
+    docs.forEach(d => {
+      const item = document.createElement('div');
+      item.className = 'docitem';
+
+      const openB = document.createElement('button');
+      openB.className = 'docopen';
+      const im = document.createElement('img');
+      im.alt = '';
+      if(d.thumb) im.src = d.thumb;
+      openB.appendChild(im);
+      const txt = document.createElement('span');
+      txt.className = 'doctext';
+      const nm = document.createElement('b');
+      nm.textContent = d.name || 'むだい';
+      const sm = document.createElement('i');
+      sm.textContent = d.when + '・' + d.layers + 'まい・' + Math.round(d.seconds) + '秒';
+      txt.appendChild(nm); txt.appendChild(sm);
+      openB.appendChild(txt);
+      openB.addEventListener('click', () => {
+        el.style.display = 'none';
+        resume.onOpen(d.id);
+      });
+      item.appendChild(openB);
+
+      const delB = document.createElement('button');
+      delB.className = 'docdel';
+      delB.textContent = '🗑';
+      delB.title = 'この さくひんを けす';
+      delB.addEventListener('click', async () => {
+        if(!confirm('「' + (d.name || 'むだい') + '」を けしますか？')) return;
+        await resume.onDelete(d.id);
+      });
+      item.appendChild(delB);
+
+      list.appendChild(item);
+    });
+    card.appendChild(list);
+
+    if(resume.full){
+      const warn = document.createElement('p');
+      warn.className = 'sub';
+      warn.textContent = 'さくひんは ' + resume.max + 'つまで もてます。'
+        + String.fromCharCode(10) + 'あたらしく つくるには どれか けしてね。';
+      card.appendChild(warn);
+    }
   }
 
   const h1 = document.createElement('h1');
-  h1.textContent = resume ? 'あたらしく つくる' : 'どの形でつくる？';
+  h1.textContent = docs.length ? 'あたらしく つくる' : 'どの形でつくる？';
   card.appendChild(h1);
 
   const sub = document.createElement('p');
@@ -117,6 +161,10 @@ export function showNewDoc(el, onStart, resume){
   updateGo();
 
   go.addEventListener('click', () => {
+    if(resume && resume.full){
+      alert('さくひんが いっぱいです。どれか けしてから つくってね。');
+      return;
+    }
     el.style.display = 'none';
     onStart(size.w, size.h, seconds);
   });

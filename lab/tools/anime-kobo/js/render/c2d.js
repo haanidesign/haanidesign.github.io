@@ -280,8 +280,9 @@ export function createC2D(canvas){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
+    const z = opts.scale || 1;          // 見本（サムネイル）は 小さく描く
     const tf = opts.forExport
-      ? [1, 0, 0, 1, 0, 0]
+      ? [z, 0, 0, z, 0, 0]
       : [view.z, 0, 0, view.z, view.x, view.y];
     ctx.setTransform(...tf);
 

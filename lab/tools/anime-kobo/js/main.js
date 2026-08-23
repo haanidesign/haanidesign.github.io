@@ -4,17 +4,19 @@ import { S, newProject, onChange, onRestore, undo, redo, edit,
          canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js';
 import { groupInto, ungroup, isFolder, membersOf } from './engine/layer.js';
 import { createStage } from './ui/stage.js';
+import { createRenderer } from './render/renderer.js';
 import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildFaceSheet, setParentOpener, setBgPicker,
          setAudioPicker, setFrameAdder, setNotifier } from './ui/sheet.js';
-import { addTextLayer } from './io/text.js';
+
 import { showNewDoc } from './ui/newdoc.js';
 import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
 import { fitToCanvas, isBg } from './io/bg.js';
 import * as Audio from './io/audio.js';
-import { autoSaver, load as loadSaved, clear as clearSaved, whenText } from './io/store.js';
+import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
+         newId, whenText, MAX_DOCS } from './io/store.js';
 import { importPsd } from './io/psd.js';
 import { exportVideo, saveVideo, canUseWebCodecs } from './io/export.js';
 
@@ -48,7 +50,9 @@ onRestore(() => refresh());
    手が止まったら 端末の中へ しまう。 */
 const saver = autoSaver(() => S.proj, {
   wait: 1200,
+  getId: () => S.docId,
   getAudio: () => (Audio.A.bytes ? { name: Audio.A.name, bytes: Audio.A.bytes } : null),
+  getThumb: () => makeThumb(),
   onDone: (ok, err) => {
     if(ok) return;
     if(!saveWarned){ saveWarned = true; toast('じどう保存が できません（' + (err && err.message || '') + '）'); }
@@ -89,6 +93,23 @@ let lastT = performance.now();
   if(dirty){ stage.draw(); dirty = false; }
   requestAnimationFrame(loop);
 })();
+
+/* さくひんの 見本の絵。さいしょの画面の ならびに つかう。
+   小さく描くだけなので 重くない。 */
+let thumbCv = null;
+function makeThumb(){
+  try{
+    if(!S.proj.layers.length) return null;
+    const long = Math.max(S.proj.w, S.proj.h);
+    const k = 220 / long;
+    if(!thumbCv) thumbCv = document.createElement('canvas');
+    thumbCv.width = Math.max(2, Math.round(S.proj.w * k));
+    thumbCv.height = Math.max(2, Math.round(S.proj.h * k));
+    const R = createRenderer(thumbCv);
+    R.draw(S.proj, S.imgs, 0, { x:0, y:0, z:1 }, { forExport: true, scale: k });
+    return thumbCv.toDataURL('image/jpeg', 0.7);
+  }catch(_){ return null; }
+}
 
 /* ================= 通知 ================= */
 let toastTimer = null;
@@ -181,19 +202,10 @@ stageHost.addEventListener('drop', (e) => {
 /* ついか ＝ 絵をよみこむ。文字は となりの「もじ」ボタン。 */
 $('#add').addEventListener('click', () => fileInput.click());
 
-/* もじ ＝ 文字レイヤーを足して、そのまま テキストのページを開く */
-$('#text').addEventListener('click', async () => {
-  try{
-    busy(true, '文字を つくっています…');
-    await addTextLayer();
-    toast('文字を いれました。ここで 中身をかえられます');
-  }catch(err){
-    toast(err.message || '文字を つくれませんでした');
-  }finally{
-    busy(false);
-    refresh();
-    openSheet('text');
-  }
+/* もじ ＝ 文字を つくる／なおす。ここは 文字のことだけ。
+   「決定」を おすまで 画面には 出ない。 */
+$('#text').addEventListener('click', () => {
+  sheet.open('もじ', (box) => buildTextSheet(box, () => sheet.close()));
 });
 
 /* ---- パペットピン ---- */
@@ -260,16 +272,16 @@ function openSheet(startKey){
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
 
-  const isText = l.kind === 'text';
   const pages = [
     { key:'form', label:'かたち', build:(box) => buildLayerSheet(box, () => sheet.close()) },
     { key:'move', label:'うごき', build:(box) => buildMotionSheet(box) }
   ];
-  // 文字は 文字だけの欄に。ほかの用は かたち に まとめてある
-  if(isText) pages.push({ key:'text', label:'テキスト', build:buildTextSheet });
-  else if(l.kind !== 'folder') pages.push({ key:'face', label:'かお', build:buildFaceSheet });
+  // 文字のことは 「もじ」ボタンに まとめてある。ここには 入れない
+  if(l.kind !== 'text' && l.kind !== 'folder'){
+    pages.push({ key:'face', label:'かお', build:buildFaceSheet });
+  }
 
-  sheet.openPages('', pages, startKey || (isText ? 'text' : 'form'));
+  sheet.openPages('', pages, startKey || 'form');
 }
 
 /* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
@@ -508,25 +520,32 @@ function guardBack(){
 function startNew(resume){
   showNewDoc($('#newdoc'), (w, h, seconds) => {
     S.proj = newProject(w, h, seconds);
+    S.docId = newId();                  // あたらしい さくひんの ばんごう
     S.ready = true;
     stage.resize();
     stage.fit();
     refresh();
     guardBack();
+    saver.now();                        // ばんごうを すぐ おさえておく
     toast('「ついか」から絵をよみこもう');
   }, resume);
 }
 
-/** しまってあったものを 開きなおす。絵は src から 作りなおす */
-async function reopen(proj, audio){
-  busy(true, 'まえのつづきを ひらいています…');
+/** しまってあった さくひんを ひらく。絵は src から 作りなおす */
+async function openDoc(id){
+  busy(true, 'さくひんを ひらいています…');
   try{
-    S.proj = proj;
-    if(audio && audio.bytes){
-      try{ await Audio.loadAudio(audio.bytes, audio.name); }catch(_){}
+    const rec = await loadDoc(id);
+    if(!rec || !rec.proj) throw new Error('ひらけませんでした');
+    S.proj = rec.proj;
+    S.docId = rec.id;
+    if(rec.audio && rec.audio.bytes){
+      try{ await Audio.loadAudio(rec.audio.bytes, rec.audio.name); }catch(_){}
+    } else {
+      Audio.clearAudio();
     }
     S.imgs = {};
-    for(const a of Object.values(proj.assets || {})){
+    for(const a of Object.values(rec.proj.assets || {})){
       try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){}
     }
     S.sel = null;
@@ -537,23 +556,31 @@ async function reopen(proj, audio){
     stage.fit();
     refresh();
     guardBack();
-    toast('まえのつづきから はじめます');
+    toast('「' + (S.proj.name || 'むだい') + '」を ひらきました');
+  }catch(err){
+    toast(err.message || 'ひらけませんでした');
+    boot();
   }finally{
     busy(false);
   }
 }
 
-(async function boot(){
-  let saved = null;
-  try{ saved = await loadSaved(); }catch(_){}
+async function boot(){
+  let docs = [];
+  try{
+    await migrateOld();               // むかしの ひとつだけの ほぞんを 引っこす
+    docs = await listDocs();
+  }catch(_){}
 
-  const n = saved && saved.proj ? (saved.proj.layers || []).length : 0;
-  if(n){
-    startNew({
-      text: whenText(saved.at) + '・' + n + 'まい',
-      onResume: () => reopen(saved.proj, saved.audio)
-    });
-    return;
-  }
-  startNew();
-})();
+  startNew({
+    docs: docs.map(d => Object.assign({}, d, { when: whenText(d.at) })),
+    max: MAX_DOCS,
+    full: docs.length >= MAX_DOCS,
+    onOpen: (id) => openDoc(id),
+    onDelete: async (id) => {
+      try{ await deleteDoc(id); }catch(_){}
+      boot();
+    }
+  });
+}
+boot();

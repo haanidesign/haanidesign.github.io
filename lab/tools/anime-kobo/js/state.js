@@ -40,7 +40,8 @@ export const S = {
   clip: null,                     // コピーしたピン { items:[{dt, chans}] }
   tlZoom: 1,                      // 時間じくのひろがり（1 = 全体が見える）
   view: { x:0, y:0, z:1 },        // ステージの表示位置
-  ready: false                    // サイズ選びが終わったか
+  ready: false,                   // サイズ選びが終わったか
+  docId: null                     // いま ひらいている さくひんの ばんごう
 };
 
 /* ================= Undo ================= */
