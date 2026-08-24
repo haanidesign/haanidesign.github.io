@@ -322,6 +322,22 @@ function openDocSheet(){
   sheet.open('どうがの せってい', (box) => buildDocSheet(box, () => sheet.close()));
 }
 $('#docSize').addEventListener('click', openDocSheet);
+
+/* 「アニメ工房」を おすと さくひん えらびへ もどる。
+   じどう保存ずみなので、そのまま つづきから ひらける。 */
+$('#home').addEventListener('click', async () => {
+  if(exporting) return;
+  S.playing = false;
+  stopSound();
+  if(S.ready){
+    busy(true, 'ほぞん しています…');
+    try{ await saver.now(); }catch(_){}
+    busy(false);
+  }
+  sheet.close();
+  S.ready = false;
+  boot();
+});
 $('#setting').addEventListener('click', openDocSheet);
 
 /* 音を えらんだとき */

@@ -314,15 +314,22 @@ export function groupInto(project, ids, time, name){
   const f = newFolder(name);
   if(n){ f.x = sx / n; f.y = sy / n; }
 
-  const at = Math.min(...top.map(l => project.layers.indexOf(l)));
+  /* フォルダの中へ 移すのは、えらんだものと その子・孫 ぜんぶ。
+     子を おいていくと、その子は 遠くに のこったまま
+     フォルダの中身として 数えられるので、重なり順が 入れかわってしまう。 */
+  const inside = project.layers.filter(l =>
+    top.includes(l) || top.some(t => isDescendant(project, l.id, t.id)));
+
+  const at = Math.min(...inside.map(l => project.layers.indexOf(l)));
   project.layers.splice(at, 0, f);
 
-  // 並び順は そのままに、フォルダのすぐ下へ寄せる
-  const moved = project.layers.filter(l => top.includes(l));
+  // 並び順は そのままに、フォルダのすぐ下へ かたまりで 寄せる
+  const moved = project.layers.filter(l => inside.includes(l));
   moved.forEach(l => project.layers.splice(project.layers.indexOf(l), 1));
   project.layers.splice(project.layers.indexOf(f) + 1, 0, ...moved);
 
-  moved.forEach(l => setParent(project, l, f.id, time));
+  // 親を つけかえるのは いちばん上の ものだけ（子は そのまま ついてくる）
+  top.forEach(l => setParent(project, l, f.id, time));
   return f;
 }
 

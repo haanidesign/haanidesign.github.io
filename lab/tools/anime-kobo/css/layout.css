@@ -27,7 +27,13 @@
   padding:.4rem .6rem;
   min-height:52px;
 }
-#top .name{ font-size:.95rem; font-weight:800; }
+#top .name{
+  font-size:.95rem; font-weight:800;
+  background:transparent; border:none; box-shadow:none;
+  padding:.1rem .2rem; min-height:0; border-radius:8px;
+}
+#top .name:hover{ background:var(--main-deep); }
+#top .name:active{ transform:none; box-shadow:none; }
 #top .size{
   font-size:.62rem; background:var(--ink); color:var(--main);
   border-radius:100px; padding:.05rem .6rem;

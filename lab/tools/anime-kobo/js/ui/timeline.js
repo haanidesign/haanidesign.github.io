@@ -2,7 +2,7 @@
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
 import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js';
-import { isFolder, treeRows, membersOf, removeLayers } from '../engine/layer.js';
+import { isFolder, treeRows, membersOf, removeLayers, isDescendant } from '../engine/layer.js';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, channelValue, framePinTimes, valuesAt,
          pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js';
@@ -482,7 +482,13 @@ export function createTimeline(root, opts = {}){
       e.stopPropagation();
       try{ grip.setPointerCapture(e.pointerId); }catch(_){}
       row.classList.add('dragging');
-      beginEdit('ならびかえ');
+      if(S.pick.length && S.pick.includes(l.id)){
+        [...rows.querySelectorAll('.trow')].forEach(r => {
+          if(S.pick.includes(r.dataset.id)) r.classList.add('dragging');
+        });
+      }
+      beginEdit(S.pick.includes(l.id) && S.pick.length > 1
+        ? S.pick.length + 'まいを ならびかえ' : 'ならびかえ');
       if(navigator.vibrate) navigator.vibrate(10);
 
       const move = (ev) => {
@@ -491,12 +497,30 @@ export function createTimeline(root, opts = {}){
           const b = r.getBoundingClientRect();
           return ev.clientY >= b.top && ev.clientY <= b.bottom;
         });
-        if(!target || target.dataset.id === l.id) return;
-        const from = S.proj.layers.findIndex(x => x.id === l.id);
-        const to = S.proj.layers.findIndex(x => x.id === target.dataset.id);
-        if(from < 0 || to < 0) return;
-        const [m] = S.proj.layers.splice(from, 1);
-        S.proj.layers.splice(to, 0, m);
+        if(!target) return;
+
+        /* ☑ を つけているときは、その ぜんぶを かたまりで 動かす。
+           フォルダや 親を つかんだときは、中身・子も いっしょに 動かす
+           （おいていくと 重なり順が ばらける）。 */
+        const picked = (S.pick.length && S.pick.includes(l.id)) ? [...S.pick] : [l.id];
+        const ids = new Set();
+        picked.forEach(id => {
+          ids.add(id);
+          S.proj.layers.forEach(x => { if(isDescendant(S.proj, x.id, id)) ids.add(x.id); });
+        });
+        if(ids.has(target.dataset.id)) return;
+
+        const group = S.proj.layers.filter(x => ids.has(x.id));   // もとの ならびのまま
+        if(!group.length) return;
+        const fromIdx = S.proj.layers.indexOf(group[0]);
+        const toIdx = S.proj.layers.findIndex(x => x.id === target.dataset.id);
+        if(toIdx < 0) return;
+
+        const targetLayer = S.proj.layers[toIdx];
+        S.proj.layers = S.proj.layers.filter(x => !ids.has(x.id));
+        let at = S.proj.layers.indexOf(targetLayer);
+        if(fromIdx < toIdx) at += 1;              // 下へ 運ぶときは 相手の うしろへ
+        S.proj.layers.splice(at, 0, ...group);
         onChange();
       };
       const end = () => {
