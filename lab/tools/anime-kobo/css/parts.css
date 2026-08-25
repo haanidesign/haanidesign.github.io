@@ -8,7 +8,10 @@
   white-space:nowrap;
   border-radius:14px;
 }
-@media (min-width:760px){ .tool{ font-size:.64rem; padding:.3rem .2rem; } }
+/* ひだりに たて1れつで ならぶ ときだけ 小さく */
+@media (min-width:760px) and (orientation:landscape){
+  .tool{ font-size:.64rem; padding:.3rem .2rem; }
+}
 .tool i{ font-style:normal; font-size:1.25rem; line-height:1.1; }
 
 /* ---------- 再生バー ---------- */
@@ -554,8 +557,11 @@
   max-width:90vw; overflow:hidden; text-overflow:ellipsis;
 }
 #toast.on{ opacity:1; transform:translate(-50%,0); }
+/* ひろい画面では 下が 道具や タイムラインで うまるので、
+   お知らせは 上バーの すぐ下（絵の上）に 出す。 */
 @media (min-width:760px){
-  #toast{ bottom:24px; }
+  #toast{ bottom:auto; top:calc(var(--safe-t) + 68px); transform:translate(-50%,-14px); }
+  #toast.on{ transform:translate(-50%,0); }
 }
 
 /* ---------- ドロップ ---------- */

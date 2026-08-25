@@ -112,28 +112,61 @@
   scroll-snap-align:start;
 }
 
-/* ================= タブレット・PC ================= */
-@media (min-width:760px){
+/* ================= タブレット・PC：よこ画面 =================
+   絵を まん中に いちばん 大きく。
+     上バー
+     ひだり … 道具（たてに 1れつ）
+     まん中 … 絵
+     した   … タイムライン（画面の はしから はしまで）
+
+   タイムラインを 横いっぱいに するのが かんじん。
+   ひだりに 細く ならべると 帯が みじかくなって ピンが うちにくい。 */
+@media (min-width:760px) and (orientation:landscape){
   #app{
-    /* 再生バーが1段に収まる幅を確保する */
-    grid-template-columns:330px 1fr;
+    grid-template-columns:104px 1fr;
     grid-template-rows:auto 1fr auto;
     grid-template-areas:
       "top   top"
-      "list  stage"
-      "tools stage";
+      "tools stage"
+      "list  list";
   }
-  #list{
-    border-top:none;
-    border-right:var(--bd);
-    max-height:none;
-  }
+
+  /* 道具は ひだりに たて1れつ */
   #tools{
-    border-right:var(--bd);
+    flex-direction:column;
+    flex-wrap:nowrap;
+    overflow-x:hidden; overflow-y:auto;
+    border-right:var(--bd); border-top:none;
+    padding:.35rem .3rem calc(.35rem + var(--safe-b));
+    gap:.3rem;
+  }
+  #tools .tool{ flex:0 0 auto; width:100%; min-height:54px; }
+
+  /* タイムラインは 下いっぱい */
+  #list{
+    max-height:36vh;
+    border-top:var(--bd); border-right:none;
+  }
+  #list.folded{ max-height:none; }
+}
+
+/* ================= タブレット：たて画面 =================
+   ならべ方は スマホと 同じ（上から 絵・タイムライン・道具）。
+   画面が ひろいぶん、1つ1つを 大きく する。
+   よこ画面の ならべ方を たてに もってくると、
+   ひだりの はしらだけ ながく のびて 絵が 小さくなる。 */
+@media (min-width:760px) and (orientation:portrait){
+  #list{ max-height:34vh; }
+  #tools{
     flex-wrap:wrap;
     overflow-x:visible;
+    padding:.5rem .6rem calc(.5rem + var(--safe-b));
+    gap:.4rem;
   }
-  #tools .tool{ flex:0 0 calc((100% - 3 * .35rem) / 4); }
+  #tools .tool{
+    flex:0 0 calc((100% - 5 * .4rem) / 6);
+    min-height:60px;
+  }
 }
 
 /* 右のプロパティ欄。
