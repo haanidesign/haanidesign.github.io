@@ -145,6 +145,18 @@ export function setCurveAt(layer, time, curve){
   }
 }
 
+/** その時刻の ピンの つなぎ方（いちばん はじめに 見つかったもの） */
+export function easeAt(layer, time){
+  const t = +time.toFixed(3);
+  for(const c of channelsOf(layer)){
+    const keys = track(layer, c, false);
+    if(!keys) continue;
+    const k = keys.find(k => Math.abs(k.t - t) < 1e-3);
+    if(k) return k.c || 'smooth';
+  }
+  return null;
+}
+
 /** その時刻のピンが「とめる」になっているか */
 export function isHoldAt(layer, time){
   const t = +time.toFixed(3);
@@ -170,6 +182,49 @@ export function mapTime(time, loop){
 }
 
 /** 1チャンネルぶんの値を読む */
+/* ---------- つなぎ方（イージング） ----------
+   ピンと ピンの あいだの「進み方」。
+   0〜1 の 時間を もらって、0〜1 の 進みぐあいを かえす。
+
+   linear   … まっすぐ（同じ はやさ）
+   smooth   … なめらか（出だしと 終わりが ゆっくり）＝ 前からの きほん
+   in       … ゆっくり 出る（だんだん はやく）
+   out      … ゆっくり 止まる（だんだん おそく）
+   strong   … ぐいっと（まん中だけ とても はやい）
+   back     … ばね（いきすぎて もどる）
+   bounce   … はずむ（地面で 何回か はねる）
+   hold     … とめる（つぎのピンまで 変わらない） */
+export const EASES = {
+  linear: (u) => u,
+  smooth: (u) => u * u * (3 - 2 * u),
+  in:     (u) => u * u,
+  out:    (u) => 1 - (1 - u) * (1 - u),
+  strong: (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2),
+  back:   (u) => {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2);
+  },
+  bounce: (u) => {
+    const n1 = 7.5625, d1 = 2.75;
+    if(u < 1 / d1) return n1 * u * u;
+    if(u < 2 / d1){ u -= 1.5 / d1; return n1 * u * u + 0.75; }
+    if(u < 2.5 / d1){ u -= 2.25 / d1; return n1 * u * u + 0.9375; }
+    u -= 2.625 / d1; return n1 * u * u + 0.984375;
+  }
+};
+
+/** えらべる つなぎ方（画面に 出す 順・名前） */
+export const EASE_LIST = [
+  ['smooth', 'なめらか',     'ふつう。出だしと 終わりが ゆっくり'],
+  ['linear', 'まっすぐ',     'ずっと 同じ はやさ'],
+  ['in',     'ゆっくり出る', 'だんだん はやくなる'],
+  ['out',    'ゆっくり止まる','だんだん おそくなる'],
+  ['strong', 'ぐいっと',     'まん中だけ とても はやい'],
+  ['back',   'ばね',         'いきすぎて もどる'],
+  ['bounce', 'はずむ',       '地面で 何回か はねる'],
+  ['hold',   'とめる',       'つぎのピンまで 変わらない']
+];
+
 export function sample(keys, time, fallback){
   if(!keys || !keys.length) return fallback;
   if(time <= keys[0].t) return keys[0].v;
@@ -181,9 +236,9 @@ export function sample(keys, time, fallback){
   const a = keys[i], b = keys[i + 1];
   if(a.c === 'hold') return a.v;
 
-  let u = (time - a.t) / (b.t - a.t);
-  if(a.c !== 'linear') u = u * u * (3 - 2 * u);   // なめらか
-  return a.v + (b.v - a.v) * u;
+  const u = (time - a.t) / (b.t - a.t);
+  const f = EASES[a.c] || EASES.smooth;
+  return a.v + (b.v - a.v) * f(u);
 }
 
 /** ぱっと切り替わるチャンネル。手前のピンの値をそのまま返す */

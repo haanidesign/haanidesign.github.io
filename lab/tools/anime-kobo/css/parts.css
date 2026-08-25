@@ -620,3 +620,19 @@
   }
   .thead .frames{ order:8; }
 }
+
+
+/* ---------- つなぎ方 えらび ---------- */
+.easeitem{
+  display:flex; align-items:center; gap:.6rem;
+  width:100%; justify-content:flex-start; text-align:left;
+  margin-bottom:.4rem; padding:.35rem .5rem; min-height:52px;
+}
+.easeitem.on{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2px); }
+.easecv{
+  width:56px; height:40px; flex:0 0 56px;
+  border:2px solid var(--ink); border-radius:8px;
+}
+.easetext{ display:flex; flex-direction:column; min-width:0; line-height:1.2; }
+.easetext b{ font-size:.82rem; }
+.easetext i{ font-style:normal; font-size:.62rem; color:#3d3a2c; }

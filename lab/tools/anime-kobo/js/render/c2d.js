@@ -297,9 +297,35 @@ export function createC2D(canvas){
   }
 
   /** 1まい ぶん（ふつうのレイヤーでも フォルダでも） */
-  function paintNode(g, project, l, poses, tf){
+  function paintNode(g, project, l, poses, tf, subPoses){
     const pose = poses[l.id];
     if(!pose) return;
+
+    /* うごきブラー … 少し前の 姿を うすく 重ねる。
+       重なるほど こく なるので、うごきが はやいほど 尾を ひく。 */
+    const mb = l.mblur || 0;
+    if(mb > 0.01 && subPoses && subPoses.length){
+      const n = subPoses.length + 1;
+      const a = 1 / n;
+      g.save();
+      for(let k = subPoses.length - 1; k >= 0; k--){
+        const ps = subPoses[k];
+        const p2 = ps[l.id];
+        if(!p2) continue;
+        // 古い姿ほど うすく（mb が 大きいほど 尾が のこる）
+        const fade = a * (0.35 + 0.65 * mb);
+        g.globalAlpha = fade;
+        if(isFolder(l)) paintFolder(g, project, l, p2, ps, tf);
+        else paint(g, l, p2, tf);
+      }
+      g.globalAlpha = 1 - a * (0.35 + 0.65 * mb) * subPoses.length;
+      if(g.globalAlpha < 0.15) g.globalAlpha = 0.15;
+      if(isFolder(l)) paintFolder(g, project, l, pose, poses, tf);
+      else paint(g, l, pose, tf);
+      g.restore();
+      return;
+    }
+
     if(isFolder(l)) paintFolder(g, project, l, pose, poses, tf);
     else paint(g, l, pose, tf);
   }
@@ -350,7 +376,9 @@ export function createC2D(canvas){
    * ならんだものを 奥から手前へ描く。
    * クリップは 同じ入れ物の中だけで はたらく。
    */
-  function drawNodes(g, project, nodes, poses, tf){
+  const MB_STEPS = 6;                 // 何回 重ねるか
+
+  function drawNodes(g, project, nodes, poses, tf, subPoses){
     const W = canvas.width, H = canvas.height;
     const shown = (l) => l.visible && poses[l.id] && poses[l.id].vis !== false;
 
@@ -360,7 +388,7 @@ export function createC2D(canvas){
       const clippers = grp.clippers.filter(shown);
 
       if(!clippers.length){
-        if(drawBase) paintNode(g, project, base, poses, tf);
+        if(drawBase) paintNode(g, project, base, poses, tf, subPoses);
         continue;
       }
 
@@ -374,8 +402,8 @@ export function createC2D(canvas){
       gB.setTransform(...tf);
       gC.setTransform(...tf);
 
-      if(drawBase) paintNode(gB, project, base, poses, tf);
-      for(const c of clippers) paintNode(gC, project, c, poses, tf);
+      if(drawBase) paintNode(gB, project, base, poses, tf, subPoses);
+      for(const c of clippers) paintNode(gC, project, c, poses, tf, subPoses);
 
       gC.setTransform(1, 0, 0, 1, 0, 0);
       gC.globalCompositeOperation = 'destination-in';
@@ -414,13 +442,32 @@ export function createC2D(canvas){
 
     const poses = computeAll(project, time);
 
+    /* うごきブラー（ざんぞう）。
+       シャッターが 開いている あいだの 姿を 何回か 重ねる。
+       ＝ うごいている ものだけ 自然に ぶれる。
+       置く・回す・大きさ・パペットの 曲げ、ぜんぶに 効く。 */
+    const blurLayers = project.layers.filter(l => (l.mblur || 0) > 0.01);
+    let subPoses = null;
+    if(blurLayers.length && !opts.noMotionBlur){
+      /* シャッターが 開いている 長さ。
+         きっちり 1コマぶん だと ほんの少ししか ぶれないので、
+         つよさに 合わせて 長めに とる（見て わかる ように）。 */
+      const mb = Math.max(...blurLayers.map(l => l.mblur || 0));
+      const shutter = (1 / (project.fps || 30)) * (0.6 + 3 * mb);
+      subPoses = [];
+      for(let k = 1; k < MB_STEPS; k++){
+        const t = Math.max(0, time - (k / MB_STEPS) * shutter);
+        subPoses.push(computeAll(project, t));
+      }
+    }
+
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, project.w, project.h);
     ctx.clip();
 
     lent = 0;
-    drawNodes(ctx, project, topNodes(project), poses, tf);
+    drawNodes(ctx, project, topNodes(project), poses, tf, subPoses);
     ctx.restore();
 
     if(!opts.forExport){

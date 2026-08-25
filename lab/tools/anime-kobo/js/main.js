@@ -10,7 +10,7 @@ import { createTimeline } from './ui/timeline.js';
 import { fmtTime } from './engine/anim.js';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
-         buildExportSheet,
+         buildExportSheet, buildEaseSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js';
 
@@ -287,6 +287,11 @@ $('#paste').addEventListener('click', () => timeline.pastePins());
 $('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));
 $('#tlOut').addEventListener('click', () => timeline.zoomTime(1 / 1.8));
 $('#pinHold').addEventListener('click', () => timeline.toggleHold());
+$('#pinEase').addEventListener('click', () => {
+  if(!S.selPins.times.length) return toast('ピンを えらんでね');
+  sheet.open('つなぎ方', (box) => buildEaseSheet(box, () => sheet.close(),
+    timeline.currentEase(), (mode) => timeline.setEase(mode)));
+});
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /** 設定シートを、横にスライドできるページで開く */

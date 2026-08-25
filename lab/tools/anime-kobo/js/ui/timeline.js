@@ -5,7 +5,7 @@ import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.j
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
          nearestFolder, setParent } from '../engine/layer.js';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
-         setCurveAt, isHoldAt, channelValue, framePinTimes, valuesAt,
+         setCurveAt, isHoldAt, easeAt, channelValue, framePinTimes, valuesAt,
          pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
@@ -204,13 +204,49 @@ export function createTimeline(root, opts = {}){
     pick.textContent = S.pick.includes(l.id) ? '☑' : '☐';
     pick.title = 'まとめる ために えらぶ';
     pick.setAttribute('aria-label', pick.title);
-    pick.addEventListener('pointerdown', e => e.stopPropagation());
-    pick.addEventListener('click', (e) => {
+    /* おして そのまま 下（上）へ なぞると、通った行 ぜんぶに
+       同じ しるしが つく。1つずつ おさなくて よい。 */
+    pick.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      const i = S.pick.indexOf(l.id);
-      if(i >= 0) S.pick.splice(i, 1); else S.pick.push(l.id);
+      try{ pick.setPointerCapture(e.pointerId); }catch(_){}
+
+      const want = !S.pick.includes(l.id);      // これから どうするか
+      const apply = (id) => {
+        const at = S.pick.indexOf(id);
+        if(want && at < 0) S.pick.push(id);
+        if(!want && at >= 0) S.pick.splice(at, 1);
+      };
+      const order = [...rows.querySelectorAll('.trow')].map(r => r.dataset.id);
+      const from = order.indexOf(l.id);
+      apply(l.id);
       onChange();
+
+      let lastTo = from;
+      const move = (ev) => {
+        const r = [...rows.querySelectorAll('.trow')].find(x => {
+          const b = x.getBoundingClientRect();
+          return ev.clientY >= b.top && ev.clientY <= b.bottom;
+        });
+        if(!r) return;
+        const to = order.indexOf(r.dataset.id);
+        if(to < 0 || to === lastTo) return;
+        lastTo = to;
+        const a = Math.min(from, to), b2 = Math.max(from, to);
+        for(let i = a; i <= b2; i++) apply(order[i]);
+        onChange();
+      };
+      const end = () => {
+        pick.removeEventListener('pointermove', move);
+        pick.removeEventListener('pointerup', end);
+        pick.removeEventListener('pointercancel', end);
+        if(lastTo !== from) toast(S.pick.length + 'まい えらびました');
+      };
+      pick.addEventListener('pointermove', move);
+      pick.addEventListener('pointerup', end);
+      pick.addEventListener('pointercancel', end);
     });
+    pick.addEventListener('click', e => e.stopPropagation());
     head.appendChild(pick);
 
     if(folder){
@@ -769,6 +805,23 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
+  /** えらんでいる ピンの つなぎ方を かえる */
+  function setEase(mode){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return;
+    edit('つなぎ方を かえる', () => {
+      S.selPins.times.forEach(t => setCurveAt(l, t, mode));
+    });
+    onChange();
+  }
+
+  /** えらんでいる ピンの いまの つなぎ方 */
+  function currentEase(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return null;
+    return easeAt(l, S.selPins.times[0]);
+  }
+
   function setLoop(mode){
     const l = S.proj.layers.find(x => x.id === S.selPins.layer);
     if(!l) return;
@@ -787,6 +840,7 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
-  return { build, updatePlayhead, putPin, delPins, delPicked, toPin, toggleHold, setLoop, clearPins,
+  return { build, updatePlayhead, putPin, delPins, delPicked, toPin, toggleHold, setLoop,
+           setEase, currentEase, clearPins,
            copyPins, pastePins, zoomTime };
 }

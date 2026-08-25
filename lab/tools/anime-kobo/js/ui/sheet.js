@@ -4,7 +4,7 @@ import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js'
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
-         framePinTimes, removePin, pinChX, pinChY } from '../engine/anim.js';
+         framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST } from '../engine/anim.js';
 import { swayKeys, RIGID } from '../engine/puppet.js';
 import { blinkKeys, talkKeys } from '../engine/anim.js';
 import { PRESET_GROUPS } from '../engine/presets.js';
@@ -634,6 +634,21 @@ export function buildMotionSheet(box){
     + String.fromCharCode(10)
     + 'いまの見た目が「おわりの姿」になります。';
   box.appendChild(hint);
+
+  /* ---------- うごきブラー ---------- */
+  box.appendChild(heading('💨 うごきブラー'));
+  const bnote = document.createElement('div');
+  bnote.className = 'empty';
+  bnote.style.textAlign = 'left';
+  bnote.textContent = 'はやく 動いている ときだけ ぶれます。'
+    + String.fromCharCode(10)
+    + '止まっている ときは 何も 変わりません。'
+    + String.fromCharCode(10)
+    + '（置く・回す・大きさ・ピンの曲げ ぜんぶに 効きます）';
+  box.appendChild(bnote);
+  box.appendChild(slider('ブラーの つよさ',
+    () => l.mblur || 0, v => l.mblur = v, 0, 1, 0.05,
+    v => v < 0.03 ? 'なし' : Math.round(v * 100) + '%'));
 
   buildSway(box, l);
   buildRhythm(box, l);
@@ -1978,4 +1993,63 @@ export function buildExportSheet(box, closeFn, run){
   w.textContent = '大きく・長く・なめらかに するほど 重くなります。' + NL
     + 'スマホなら 480px・12コマ・6秒 くらいが めやす。';
   box.appendChild(w);
+}
+
+
+/* ================= つなぎ方（イージング） =================
+   ピンと ピンの あいだの 進み方。
+   えらぶと すぐ 効く。形も 小さい絵で 見せる。 */
+export function buildEaseSheet(box, closeFn, now, onPick){
+  const NL = String.fromCharCode(10);
+
+  const head = document.createElement('div');
+  head.className = 'empty';
+  head.style.textAlign = 'left';
+  head.textContent = 'えらんだ ピンから つぎの ピンまでの 進み方。'
+    + NL + '「ゆっくり止まる」に すると、止まる ときが やわらかくなります。';
+  box.appendChild(head);
+
+  EASE_LIST.forEach(([key, label, note]) => {
+    const row = document.createElement('button');
+    row.className = 'easeitem' + (now === key ? ' on' : '');
+
+    // 形を 小さい絵で（左下から 右上へ どう すすむか）
+    const cv = document.createElement('canvas');
+    cv.width = 56; cv.height = 40;
+    cv.className = 'easecv';
+    const g = cv.getContext('2d');
+    g.fillStyle = '#FFFEF7';
+    g.fillRect(0, 0, 56, 40);
+    g.strokeStyle = 'rgba(30,28,20,.25)';
+    g.lineWidth = 1;
+    g.strokeRect(0.5, 0.5, 55, 39);
+    g.strokeStyle = '#1E1C14';
+    g.lineWidth = 2.5;
+    g.beginPath();
+    for(let i = 0; i <= 40; i++){
+      const u = i / 40;
+      const f = key === 'hold' ? 0 : (EASES[key] || EASES.smooth)(u);
+      const x = 4 + u * 48;
+      const y = 36 - Math.max(-0.25, Math.min(1.25, f)) * 32;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+    row.appendChild(cv);
+
+    const txt = document.createElement('span');
+    txt.className = 'easetext';
+    const b = document.createElement('b');
+    b.textContent = label;
+    const i2 = document.createElement('i');
+    i2.textContent = note;
+    txt.appendChild(b); txt.appendChild(i2);
+    row.appendChild(txt);
+
+    row.addEventListener('click', () => {
+      onPick(key);
+      notify(label + ' に しました');
+      if(closeFn) closeFn();
+    });
+    box.appendChild(row);
+  });
 }

@@ -39,6 +39,7 @@ export function newLayer(name, assetIds){
     tint: { color:'#F2A0B8', amount:0 },   // 塗り（色と強さ）
     stroke: { color:'#FFFEF7', width:0 },   // ふちどり（色と太さ）
     blur: 0,                                // ぼかし（px）
+    mblur: 0,                               // うごきブラー（ざんぞう）0〜1
     flipX: false, flipY: false              // 反転
   };
 }

@@ -2,7 +2,7 @@
 
 import { M, clamp } from '../engine/math.js';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren } from '../engine/layer.js';
+         keepChildren, cornersOf } from '../engine/layer.js';
 import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
 import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
@@ -59,6 +59,29 @@ export function createStage(canvas, host, toast){
     if(!folder && !asset) return;
     const ctx = R.ctx, z = S.view.z;
     const v = valuesAt(l, S.time);
+
+    /* ピンが 1本も 無いときは 何も 出ないので、どこを おせば よいか
+       分からなかった。絵の わくを 点線で 出しておく。
+       （フォルダは キャンバス ぜんたいが 絵） */
+    ctx.save();
+    ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+    let q = null;
+    if(folder){
+      q = [{x:0,y:0},{x:S.proj.w,y:0},{x:S.proj.w,y:S.proj.h},{x:0,y:S.proj.h}];
+    } else {
+      q = cornersOf(l, pose.m, asset);
+    }
+    if(q){
+      ctx.beginPath();
+      ctx.moveTo(q[0].x, q[0].y);
+      for(let i = 1; i < 4; i++) ctx.lineTo(q[i].x, q[i].y);
+      ctx.closePath();
+      ctx.setLineDash([10 / z, 7 / z]);
+      ctx.lineWidth = 4 / z; ctx.strokeStyle = 'rgba(255,254,247,.9)'; ctx.stroke();
+      ctx.lineWidth = 2 / z; ctx.strokeStyle = '#F2A0B8'; ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
 
     if(l.mesh && v.pins.length){
       ctx.save();
