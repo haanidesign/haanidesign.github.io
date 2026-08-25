@@ -6,33 +6,104 @@
      ③ 絵の ある ところだけ 切り出して、新しい 1まいに する
      ④ もとの レイヤーは 消して、その 場所に 新しいのを 置く
 
-   焼くと 中の うごき・ピン・ふちどりは もどせなくなる。
-   （「もどす」では 戻せる） */
+   ここが むずかしい ところ
+     フォルダや 親レイヤーの 中の ものを 焼くと、
+     焼いた 絵には すでに 親の うごき（場所・かたむき・大きさ）が
+     入っている。そのまま 親に つけ直すと 親のぶんが
+     2回 かかって、絵が 別の ところへ 飛んでいく。
 
-import { S, addAsset } from '../state.js?v=60';
-import { createRenderer } from '../render/renderer.js?v=60';
-import { newLayer, withKinAndFolders, removeLayers, nearestFolder } from '../engine/layer.js?v=60';
-import { contentBox, loadImage } from './image.js?v=60';
+     なので
+       ・親の うごきは 焼きこむ（見た目を そのままに するため）
+       ・親の 見た目の 効果（塗り・ふち・ぼかし・すけ・フォルダのピン）は
+         焼きこまない（あとで 親が もう一度 かけるから）
+       ・つけ直すときは 親の うごきの ぶんを 打ち消した 場所に 置く
+     この 3つで、焼く前と 1ドットも ずれない。
+
+   焼くと 中の うごき・ピンは もどせなくなる（「もどす」では 戻せる）。 */
+
+import { S, addAsset } from '../state.js?v=61';
+import { M } from '../engine/math.js?v=61';
+import { createRenderer } from '../render/renderer.js?v=61';
+import { newLayer, isFolder, computeAll,
+         removeLayers } from '../engine/layer.js?v=61';
+import { contentBox, loadImage } from './image.js?v=61';
+
+/** そのレイヤーたち＋中身 */
+function coreOf(project, ids){
+  const set = new Set();
+  const down = (id) => {
+    if(set.has(id)) return;
+    set.add(id);
+    const l = project.layers.find(x => x.id === id);
+    if(l && isFolder(l)) project.layers.forEach(x => { if(x.parent === id) down(x.id); });
+  };
+  ids.forEach(down);
+  return set;
+}
+
+/** 上に つながっている 親を ぜんぶ */
+function upOf(project, core){
+  const byId = {};
+  project.layers.forEach(l => byId[l.id] = l);
+  const up = new Set();
+  core.forEach(id => {
+    let l = byId[id], guard = 0;
+    while(l && l.parent && guard++ < 64){
+      if(!core.has(l.parent)) up.add(l.parent);
+      l = byId[l.parent];
+    }
+  });
+  return up;
+}
+
+/** 見た目の 効果を なくした 写し（うごきは そのまま） */
+function noEffects(l){
+  return Object.assign({}, l, {
+    tint: { color: (l.tint && l.tint.color) || '#F2A0B8', amount: 0 },
+    stroke: { color: (l.stroke && l.stroke.color) || '#FFFEF7', width: 0 },
+    blur: 0, opacity: 1, mblur: 0, hand: null,
+    pins: [], mesh: null,
+    // ピンの ぶんの うごきは 焼きこまない（あとで 親が かけ直す）
+    tracks: dropEffectTracks(l.tracks)
+  });
+}
+
+/** 効果の ピンだけ とりのぞく（場所・かたむき・大きさの ピンは のこす） */
+function dropEffectTracks(tracks){
+  const out = {};
+  Object.keys(tracks || {}).forEach(ch => {
+    if(ch === 'tint' || ch === 'stroke' || ch === 'blur' || ch === 'opacity') return;
+    if(/^P.+:(x|y)$/.test(ch)) return;          // パペットピン
+    out[ch] = tracks[ch];
+  });
+  return out;
+}
 
 /**
  * えらんだ レイヤーを いまの 時間の 見た目で 焼いて 1まいに する。
  *   ids  … 合体する レイヤーの id
  *   name … 新しい レイヤーの 名前
- * 戻り値 … { layer, at, gone }（呼ぶ側で edit() の中に 入れる）
+ * 戻り値 … applyBake に わたす もの
  */
 export async function bakeLayers(ids, name){
   const P = S.proj;
   const list = P.layers.filter(l => ids.includes(l.id));
   if(list.length < 2) throw new Error('2まい いじょう えらんでね');
 
-  const keep = withKinAndFolders(P, ids);
+  const core = coreOf(P, ids);
+  const up = upOf(P, core);
 
-  /* えらんだ ぶんだけの プロジェクト。
-     入れものの フォルダは のこすので、フォルダの ふちどりなども
-     かかった ままの 見た目で 焼ける。 */
+  /* にせプロジェクト。
+       えらんだ ぶん … そのまま
+       上の 親     … うごきだけ のこして 効果は なくす。
+                     フォルダで ないものは 自分は 描かない */
   const sub = Object.assign({}, P, {
-    layers: P.layers.filter(l => keep.has(l.id))
-      .map(l => (l.parent && !keep.has(l.parent)) ? Object.assign({}, l, { parent: null }) : l)
+    layers: P.layers.filter(l => core.has(l.id) || up.has(l.id)).map(l => {
+      if(core.has(l.id)) return l;
+      const q = noEffects(l);
+      if(!isFolder(l)) q.visible = false;       // 親の絵まで 焼かない
+      return q;
+    })
   });
 
   const cv = document.createElement('canvas');
@@ -53,16 +124,34 @@ export async function bakeLayers(ids, name){
   const src = cut.toDataURL('image/png');
   const im = await loadImage(src);
 
-  /* アセットを 足すのは「もどす」の 記録に 入れたいので、
-     ここでは 用意だけ して applyBake で 入れる。 */
+  /* 親の うごきの ぶんを 打ち消した 場所を 出す。
+     焼いた 絵は キャンバスの まま（かたむきなし・1ばい）なので、
+     それを 親から 見た 形に なおす。 */
   const top = list[0];
+
+  /* つけ直す 先は「消えずに のこる 親」。
+     えらんだ 中の レイヤーを 親に すると、その親も 消えるので
+     行き先が なくなって しまう。のこる ところまで さかのぼる。 */
+  const byId = {};
+  P.layers.forEach(l => byId[l.id] = l);
+  let parent = top.parent || null, guard = 0;
+  while(parent && core.has(parent) && guard++ < 64){
+    parent = (byId[parent] || {}).parent || null;
+  }
+  let place = { x: x0 + w / 2, y: y0 + h / 2, rot: 0, scaleX: 1, scaleY: 1 };
+  if(parent){
+    const poses = computeAll(P, S.time);
+    const pm = poses[parent] && poses[parent].m;
+    if(pm){
+      const world = M.trs(place.x, place.y, 0, 1, 1);
+      place = M.decompose(M.mul(M.inv(pm), world));
+    }
+  }
+
   return {
     name: name || (list[0].name + ' 合体'),
-    src, im, w, h,
-    x: x0 + w / 2,
-    y: y0 + h / 2,
-    at: P.layers.indexOf(top),
-    parent: (nearestFolder(P, top) || {}).id || null
+    src, im, w, h, place, parent,
+    at: P.layers.indexOf(top)
   };
 }
 
@@ -71,8 +160,12 @@ export function applyBake(ids, made){
   const P = S.proj;
   const asset = addAsset(made.name, made.src, made.w, made.h, made.im);
   const l = newLayer(made.name, [asset]);
-  /* 大きさ 1ばい・まんなか じくで、切り出した ところに ぴったり 置く */
-  l.x = made.x; l.y = made.y;
+  /* まんなか じくの まま、切り出した ところに ぴったり 置く */
+  l.x = made.place.x;
+  l.y = made.place.y;
+  l.rot = made.place.rot;
+  l.scaleX = made.place.scaleX;
+  l.scaleY = made.place.scaleY;
   l.parent = made.parent;
 
   const at = Math.max(0, Math.min(P.layers.length, made.at));
