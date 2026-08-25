@@ -1,9 +1,9 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=58';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=58';
-import { deformPoint } from './puppet.js?v=58';
+import { M, uid, ptInQuad } from './math.js?v=59';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=59';
+import { deformPoint } from './puppet.js?v=59';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -479,4 +479,68 @@ export function pasteLayers(project, copied, opt = {}){
   made.forEach(l => { if(l.parent && map[l.parent]) l.parent = map[l.parent]; });
   project.layers.unshift(...made);
   return made;
+}
+
+/**
+ * レイヤーを ふくせい（1タップで コピー＆はりつけ）。
+ *
+ * 「はりつけ」と ちがって
+ *   ・ずらさない（同じ 場所に かさなる）
+ *   ・いちばん上ではなく、もとの すぐ上に 置く
+ *   ・フォルダの中に いたら 同じ フォルダの中に 入る
+ * ので、目の 左右を つくる ときなどに そのまま つかえる。
+ *
+ * 絵そのもの（アセット）は 使いまわすので、ふやしても 重くならない。
+ */
+export function duplicateLayers(project, ids){
+  // フォルダを ふくせいするなら 中身も いっしょに
+  const set = new Set();
+  const add = (id) => {
+    if(set.has(id)) return;
+    set.add(id);
+    const l = project.layers.find(x => x.id === id);
+    if(l && isFolder(l)) project.layers.forEach(x => { if(x.parent === id) add(x.id); });
+  };
+  ids.forEach(add);
+  if(!set.size) return [];
+
+  // ならびを くずさないよう、もとの ならび順で 写す
+  const order = project.layers.filter(l => set.has(l.id));
+  const at = project.layers.indexOf(order[0]);
+
+  const map = {};
+  const made = order.map(o => {
+    const l = JSON.parse(JSON.stringify(o, (k, v) =>
+      (k === 'mesh' || k === '_xy' || k === 'weights' || k === 'wIdx') ? undefined : v));
+    map[o.id] = l.id = uid('L');
+    l.pins = (l.pins || []).map(q => Object.assign({}, q));
+    l.mesh = null; l._xy = null;
+    l.name = o.name + ' 2';
+    return l;
+  });
+  // 写した 中どうしの おやこは つなぎ直す。外の親は そのまま ひきつぐ
+  made.forEach(l => { if(l.parent && map[l.parent]) l.parent = map[l.parent]; });
+
+  project.layers.splice(at, 0, ...made);
+  return made;
+}
+
+/** そのレイヤーたち＋中身＋入っている フォルダ を ぜんぶ あつめる */
+export function withKinAndFolders(project, ids){
+  const set = new Set();
+  const down = (id) => {
+    if(set.has(id)) return;
+    set.add(id);
+    const l = project.layers.find(x => x.id === id);
+    if(l && isFolder(l)) project.layers.forEach(x => { if(x.parent === id) down(x.id); });
+  };
+  ids.forEach(down);
+  // 入れものの フォルダも 入れる（フォルダの 効果を かけたまま 焼くため）
+  const byId = {};
+  project.layers.forEach(l => byId[l.id] = l);
+  [...set].forEach(id => {
+    let l = byId[id], guard = 0;
+    while(l && l.parent && guard++ < 64){ set.add(l.parent); l = byId[l.parent]; }
+  });
+  return set;
 }
