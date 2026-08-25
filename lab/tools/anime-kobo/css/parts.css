@@ -150,13 +150,11 @@
   flex:1; min-width:0; font-size:.66rem;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.thead .eye,.thead .lock{
+.thead .eye{
   flex:0 0 auto; min-height:34px; min-width:32px;
   padding:0; font-size:.8rem; border-radius:8px;
   box-shadow:0 2px 0 var(--ink);
 }
-.thead .lock{ min-width:28px; font-size:.72rem; }
-.thead .lock.on{ background:var(--pink); }
 .trow.locked .thumb,.trow.locked .nm{ opacity:.6; }
 
 .trow.folder .thead{ background:var(--main-soft); }
@@ -608,20 +606,20 @@
 }
 
 
-/* ---------- せまい画面の レイヤー行 ----------
-   ボタンが ふえて 名前が つぶれるので、名前は 下の段に まわす。
-   行は 少し 高くなるが、名前が 読めないより ずっと よい。 */
-@media (max-width:520px){
-  .trow{ min-height:50px; }
-  .thead{ flex-wrap:wrap; align-content:center; row-gap:.05rem; padding:.12rem .25rem; }
-  .thead .eye,.thead .lock,.thead .pick,.thead .twist{ min-height:28px; }
-  .thead .thumb{ width:24px; height:24px; flex:0 0 24px; }
-  .thead .grip{ padding:.25rem .1rem; }
-  .thead .nm{
-    flex:0 0 100%; order:9;
-    font-size:.62rem; line-height:1.15;
-  }
-  .thead .frames{ order:8; }
+/* ---------- レイヤー行の 名前 ----------
+   つまみ・☑・絵・目 で 横幅を つかいきるので、
+   名前は 下の段に まわす。そうしないと 名前が 0はばに つぶれて
+   何の レイヤーか 分からなくなる（画面の 広さに よらず 起きる）。 */
+.trow{ min-height:50px; }
+.thead{ flex-wrap:wrap; align-content:center; row-gap:.05rem; padding:.12rem .25rem; }
+.thead .eye,.thead .pick,.thead .twist{ min-height:28px; }
+.thead .thumb{ width:24px; height:24px; flex:0 0 24px; }
+.thead .grip{ padding:.25rem .1rem; }
+.thead .nm{
+  flex:0 0 100%; order:9;
+  font-size:.64rem; line-height:1.15;
+}
+.thead .frames{ order:8; }
 }
 
 

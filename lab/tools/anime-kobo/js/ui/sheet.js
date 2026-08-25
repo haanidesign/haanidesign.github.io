@@ -379,6 +379,26 @@ export function buildLayerSheet(box, closeFn){
   });
   box.appendChild(field('なまえ', nameIn));
 
+  /* カギ。かけると 絵の上では さわれない。
+     行に ボタンを 置くと ごちゃつくので ここに 入れた。
+     かかっている ときは 名前の 先頭に 🔒 が つく。 */
+  box.appendChild(field('カギ', (() => {
+    const b = document.createElement('button');
+    const show = () => {
+      b.textContent = l.locked ? '🔒 かかっている' : '🔓 かかっていない';
+      b.classList.toggle('on', !!l.locked);
+    };
+    show();
+    b.style.flex = '1';
+    b.addEventListener('click', () => {
+      edit(l.locked ? 'カギをあける' : 'カギをかける', () => { l.locked = !l.locked; });
+      show();
+      notify(l.locked ? '絵の上では さわれなくなりました' : 'さわれるように しました');
+      onChange();
+    });
+    return b;
+  })()));
+
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
 

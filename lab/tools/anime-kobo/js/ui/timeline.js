@@ -318,20 +318,6 @@ export function createTimeline(root, opts = {}){
       head.appendChild(f);
     }
 
-    // カギ。かけると 絵の上で うっかり 動かさなくなる
-    const lock = document.createElement('button');
-    lock.className = 'lock' + (l.locked ? ' on' : '');
-    lock.textContent = l.locked ? '🔒' : '🔓';
-    lock.title = l.locked ? 'カギを あける' : 'カギを かける（絵の上で さわれなくする）';
-    lock.setAttribute('aria-label', lock.title);
-    lock.addEventListener('pointerdown', e => e.stopPropagation());
-    lock.addEventListener('click', e => {
-      e.stopPropagation();
-      edit(l.locked ? 'カギをあける' : 'カギをかける', () => { l.locked = !l.locked; });
-      onChange();
-    });
-    head.appendChild(lock);
-
     const eye = document.createElement('button');
     eye.className = 'eye';
     eye.textContent = l.visible ? '👁' : '🚫';
