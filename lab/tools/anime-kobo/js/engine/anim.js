@@ -135,14 +135,30 @@ export function movePinRipple(layer, from, to, duration){
 }
 
 /** その時刻のピンのつなぎ方をまとめて変える */
-export function setCurveAt(layer, time, curve){
+export function setCurveAt(layer, time, curve, ease){
   const t = +time.toFixed(3);
   for(const c of channelsOf(layer)){
     const keys = track(layer, c, false);
     if(!keys) continue;
     const k = keys.find(k => Math.abs(k.t - t) < 1e-3);
-    if(k) k.c = curve;
+    if(!k) continue;
+    k.c = curve;
+    // 自分で かいた 線は ピンに いっしょに しまう（保存も もどすも そのまま）
+    if(curve === 'custom' && ease) k.ease = ease.slice();
+    else delete k.ease;
   }
+}
+
+/** その時こくの ピンに 入っている 自分の線（無ければ null） */
+export function easeShapeAt(layer, time){
+  const t = +time.toFixed(3);
+  for(const c of channelsOf(layer)){
+    const keys = track(layer, c, false);
+    if(!keys) continue;
+    const k = keys.find(k => Math.abs(k.t - t) < 1e-3);
+    if(k && k.c === 'custom' && k.ease) return k.ease;
+  }
+  return null;
 }
 
 /** その時刻の ピンの つなぎ方（いちばん はじめに 見つかったもの） */
@@ -225,6 +241,9 @@ export const EASE_LIST = [
   ['hold',   'とめる',       'つぎのピンまで 変わらない']
 ];
 
+/** 自分で かいた 線を しまっておく 数（作品ごと） */
+export const MY_EASE_MAX = 8;
+
 export function sample(keys, time, fallback){
   if(!keys || !keys.length) return fallback;
   if(time <= keys[0].t) return keys[0].v;
@@ -237,8 +256,24 @@ export function sample(keys, time, fallback){
   if(a.c === 'hold') return a.v;
 
   const u = (time - a.t) / (b.t - a.t);
-  const f = EASES[a.c] || EASES.smooth;
-  return a.v + (b.v - a.v) * f(u);
+  // 自分で かいた 線が あれば それに したがう
+  const p = (a.c === 'custom' && a.ease && a.ease.length > 1)
+    ? curveAt(a.ease, u)
+    : (EASES[a.c] || EASES.smooth)(u);
+  return a.v + (b.v - a.v) * p;
+}
+
+/**
+ * 自分で かいた 線を 読む。
+ * ease は 0〜1 を 等間ぶんに 分けた 進みぐあいの ならび。
+ * あいだは まっすぐ つないで 読む。
+ */
+export function curveAt(ease, u){
+  const n = ease.length - 1;
+  const x = Math.max(0, Math.min(1, u)) * n;
+  const i = Math.min(n - 1, Math.floor(x));
+  const k = x - i;
+  return ease[i] + (ease[i + 1] - ease[i]) * k;
 }
 
 /** ぱっと切り替わるチャンネル。手前のピンの値をそのまま返す */

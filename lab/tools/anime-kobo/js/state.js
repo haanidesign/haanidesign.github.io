@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=51';
+import { uid } from './engine/math.js?v=52';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -35,6 +35,8 @@ export const S = {
   playing: false,
   ripple: false,                  // ピンをずらすとき、後ろも一緒に動かすか
   pinMode: false,                 // パペットピンをさわっているか
+  traceMode: false,               // みちを なぞっているか
+  tracePts: null,                 // なぞった あと（キャンバスざひょう）
   pinKind: 'move',                // 'move' さす / 'fix' とめる / 'del' けす
   pinSel: -1,                     // 選んでいるパペットピン
   clip: null,                     // コピーしたピン { items:[{dt, chans}] }

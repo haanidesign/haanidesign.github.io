@@ -1,16 +1,17 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=51';
+import { M, clamp } from '../engine/math.js?v=52';
+import { cleanPath } from '../engine/path.js?v=52';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=51';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=51';
-import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=51';
+         keepChildren, cornersOf } from '../engine/layer.js?v=52';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=52';
+import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=52';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=51';
-import { createRenderer } from '../render/renderer.js?v=51';
-import { attachInput } from './input.js?v=51';
+         bendChain } from '../engine/puppet.js?v=52';
+import { createRenderer } from '../render/renderer.js?v=52';
+import { attachInput } from './input.js?v=52';
 
-export function createStage(canvas, host, toast){
+export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
   let poses = {};
   let handles = null;
@@ -46,9 +47,37 @@ export function createStage(canvas, host, toast){
     if(S.pinMode && l){
       drawPuppet(l);
       handles = null;                 // ピンモード中は枠のハンドルを出さない
+    } else if(S.traceMode){
+      handles = null;                 // なぞり中も 枠は 出さない
     } else {
       handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
     }
+    if(S.tracePts) drawTrace();
+  }
+
+  /** なぞった みちを 出す */
+  function drawTrace(){
+    const pts = S.tracePts;
+    if(!pts || pts.length < 2) return;
+    const ctx = R.ctx, z = S.view.z;
+    ctx.save();
+    ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 7 / z; ctx.strokeStyle = 'rgba(255,254,247,.9)'; ctx.stroke();
+    ctx.lineWidth = 4 / z; ctx.strokeStyle = '#F2A0B8'; ctx.stroke();
+    // はじめと おわり
+    const mark = (p, fill) => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 9 / z, 0, 7);
+      ctx.fillStyle = fill; ctx.fill();
+      ctx.lineWidth = 3 / z; ctx.strokeStyle = '#FFFEF7'; ctx.stroke();
+      ctx.lineWidth = 1.6 / z; ctx.strokeStyle = '#1E1C14'; ctx.stroke();
+    };
+    mark(pts[0], '#7AC4A0');
+    mark(pts[pts.length - 1], '#E1DD60');
+    ctx.restore();
   }
 
   /** ピンモード中の見た目：あみと、刺さっているピン */
@@ -318,6 +347,7 @@ export function createStage(canvas, host, toast){
   const input = attachInput(canvas, {
     onDown(p){
       const cp = toCanvas(p);
+      if(S.traceMode) return;             // なぞり中は 選択を 変えない
       if(S.pinMode) return;               // ピンモード中は選択を変えない
       if(hitHandle(cp)) return;           // ハンドルはドラッグ開始時に処理する
       const hit = pickPreferSelected(cp, livePoses());
@@ -326,6 +356,7 @@ export function createStage(canvas, host, toast){
 
     onTap(p){
       const cp = toCanvas(p);
+      if(S.traceMode) return;
       if(S.pinMode){ tapInPinMode(cp); return; }
       if(hitHandle(cp)) return;
       const hit = pickPreferSelected(cp, livePoses());
@@ -336,6 +367,15 @@ export function createStage(canvas, host, toast){
       const cp = toCanvas(p);
       const l = selected();
       const P = livePoses();
+
+      /* みちを なぞる。指の あとを ためるだけ。
+         どう 動かすかは あとで きめる（何秒で 通るか など）。 */
+      if(S.traceMode){
+        S.tracePts = [{ x: cp.x, y: cp.y }];
+        drag = { kind: 'trace' };
+        onChange();
+        return;
+      }
 
       /* カギが かかっている レイヤーは 絵の上では さわれない。
          うっかり ずらしてしまう 事故を ふせぐ。
@@ -448,6 +488,16 @@ export function createStage(canvas, host, toast){
         return;
       }
 
+      if(drag.kind === 'trace'){
+        const pts = S.tracePts || (S.tracePts = []);
+        const last = pts[pts.length - 1];
+        if(!last || Math.hypot(cp.x - last.x, cp.y - last.y) > 3){
+          pts.push({ x: cp.x, y: cp.y });
+          onChange();
+        }
+        return;
+      }
+
       if(drag.kind === 'anchor'){
         const l = drag.l;
         const pose = poses[l.id] || livePoses()[l.id];
@@ -507,6 +557,14 @@ export function createStage(canvas, host, toast){
     },
 
     onDragEnd(){
+      if(drag && drag.kind === 'trace'){
+        drag = null;
+        S.tracePts = cleanPath(S.tracePts || [], 3);
+        if(S.tracePts.length < 2){ S.tracePts = null; toast('もう少し 長く なぞってね'); }
+        else if(onTraced) onTraced();
+        onChange();
+        return;
+      }
       if(drag && (drag.kind === 'puppet' || drag.kind === 'anchor')){ commitEdit(); drag = null; return; }
       if(drag && drag.kind !== 'pan'){
         /* すでにピンが打たれているレイヤーなら、動かした結果を

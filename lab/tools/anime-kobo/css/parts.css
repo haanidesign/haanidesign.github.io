@@ -630,3 +630,34 @@
 .easetext{ display:flex; flex-direction:column; min-width:0; line-height:1.2; }
 .easetext b{ font-size:.82rem; }
 .easetext i{ font-style:normal; font-size:.62rem; color:#3d3a2c; }
+
+
+/* ---------- なぞって うごかす ---------- */
+#tracemode{
+  display:flex; align-items:center; gap:.4rem;
+  padding:.35rem .5rem;
+  background:var(--pink); border-bottom:2px solid var(--ink);
+  overflow-x:auto; flex-wrap:nowrap; min-width:0;
+}
+#tracemode[hidden]{ display:none; }
+#tracemode .dot{ font-size:.66rem; flex:1 1 auto; min-width:0; }
+#tracemode button{ flex:0 0 auto; min-height:34px; font-size:.7rem; }
+
+/* つなぎ方を かく わく */
+.drawease{
+  display:block; width:100%; max-width:280px; height:auto;
+  margin:.2rem auto .4rem;
+  border:2.5px solid var(--ink); border-radius:12px;
+  background:var(--paper);
+  touch-action:none; cursor:crosshair;
+}
+.myease{
+  width:auto; padding:.2rem; min-height:0; flex:0 0 auto;
+}
+.myease canvas{ display:block; border-radius:6px; }
+
+.pathprev{
+  display:block; width:100%; max-width:280px; height:auto;
+  margin:.2rem auto .4rem;
+  border-radius:12px;
+}

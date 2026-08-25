@@ -1,24 +1,26 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=51';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=52';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
-         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=51';
+         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=52';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
-         framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST } from '../engine/anim.js?v=51';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=51';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=51';
-import { PRESET_GROUPS } from '../engine/presets.js?v=51';
+         framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=52';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=52';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=52';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=52';
+import { PRESET_GROUPS } from '../engine/presets.js?v=52';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=51';
+         addTextLayer } from '../io/text.js?v=52';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=51';
-import { PATTERN_NAMES } from '../io/pattern.js?v=51';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=52';
+import { PATTERN_NAMES } from '../io/pattern.js?v=52';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=51';
+  from './colorwheel.js?v=52';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=51';
+         guessBpm, firstOnset } from '../io/audio.js?v=52';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=51';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=52';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -654,6 +656,19 @@ export function buildMotionSheet(box){
     + String.fromCharCode(10)
     + 'いまの見た目が「おわりの姿」になります。';
   box.appendChild(hint);
+
+  /* ---------- なぞって うごかす ---------- */
+  box.appendChild(heading('👆 なぞって うごかす'));
+  const tnote = document.createElement('div');
+  tnote.className = 'empty';
+  tnote.style.textAlign = 'left';
+  tnote.textContent = '絵の上を 指で なぞると、その みちを 通ります。'
+    + String.fromCharCode(10)
+    + 'なぞった あとで「何秒で 通るか」を きめます。';
+  box.appendChild(tnote);
+  box.appendChild(btnRow(
+    button('👆 みちを なぞる', () => { onTrace(); })
+  ));
 
   /* ---------- うごきブラー ---------- */
   box.appendChild(heading('💨 うごきブラー'));
@@ -1546,6 +1561,9 @@ export function setBusy(fn){ onBusy = fn; }
 let onPlay = () => {};
 export function setPlayer(fn){ onPlay = fn; }
 
+let onTrace = () => {};
+export function setTracer(fn){ onTrace = fn; }
+
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
 
@@ -2019,7 +2037,7 @@ export function buildExportSheet(box, closeFn, run){
 /* ================= つなぎ方（イージング） =================
    ピンと ピンの あいだの 進み方。
    えらぶと すぐ 効く。形も 小さい絵で 見せる。 */
-export function buildEaseSheet(box, closeFn, now, onPick){
+export function buildEaseSheet(box, closeFn, now, onPick, shape){
   const NL = String.fromCharCode(10);
 
   const head = document.createElement('div');
@@ -2029,32 +2047,36 @@ export function buildEaseSheet(box, closeFn, now, onPick){
     + NL + '「ゆっくり止まる」に すると、止まる ときが やわらかくなります。';
   box.appendChild(head);
 
-  EASE_LIST.forEach(([key, label, note]) => {
-    const row = document.createElement('button');
-    row.className = 'easeitem' + (now === key ? ' on' : '');
-
-    // 形を 小さい絵で（左下から 右上へ どう すすむか）
+  /** 進み方の 形を 小さい絵に する */
+  const shapeCanvas = (fn, w, h) => {
     const cv = document.createElement('canvas');
-    cv.width = 56; cv.height = 40;
-    cv.className = 'easecv';
+    cv.width = w || 56; cv.height = h || 40;
     const g = cv.getContext('2d');
     g.fillStyle = '#FFFEF7';
-    g.fillRect(0, 0, 56, 40);
+    g.fillRect(0, 0, cv.width, cv.height);
     g.strokeStyle = 'rgba(30,28,20,.25)';
     g.lineWidth = 1;
-    g.strokeRect(0.5, 0.5, 55, 39);
+    g.strokeRect(0.5, 0.5, cv.width - 1, cv.height - 1);
     g.strokeStyle = '#1E1C14';
     g.lineWidth = 2.5;
     g.beginPath();
+    const pad = 4, WW = cv.width - pad * 2, HH = cv.height - pad * 2;
     for(let i = 0; i <= 40; i++){
       const u = i / 40;
-      const f = key === 'hold' ? 0 : (EASES[key] || EASES.smooth)(u);
-      const x = 4 + u * 48;
-      const y = 36 - Math.max(-0.25, Math.min(1.25, f)) * 32;
+      const f = fn(u);
+      const x = pad + u * WW;
+      const y = cv.height - pad - Math.max(-0.25, Math.min(1.25, f)) * HH;
       i ? g.lineTo(x, y) : g.moveTo(x, y);
     }
     g.stroke();
-    row.appendChild(cv);
+    return cv;
+  };
+
+  EASE_LIST.forEach(([key, label, note]) => {
+    const row = document.createElement('button');
+    row.className = 'easeitem' + (now === key ? ' on' : '');
+    row.appendChild(shapeCanvas(
+      (u) => key === 'hold' ? 0 : (EASES[key] || EASES.smooth)(u)));
 
     const txt = document.createElement('span');
     txt.className = 'easetext';
@@ -2072,4 +2094,254 @@ export function buildEaseSheet(box, closeFn, now, onPick){
     });
     box.appendChild(row);
   });
+
+  /* ---------- 自分で かく ---------- */
+  box.appendChild(heading('✏ じぶんで かく'));
+
+  const note2 = document.createElement('div');
+  note2.className = 'empty';
+  note2.style.textAlign = 'left';
+  note2.textContent = 'わくの中を 左から 右へ なぞると、その形の とおりに 動きます。'
+    + NL + 'よこ ＝ 時間、たて ＝ どれだけ 進んだか。'
+    + NL + 'まっすぐ 右上がりなら 同じ はやさ、'
+    + NL + 'とちゅうで 平らに すれば そこで 止まります。';
+  box.appendChild(note2);
+
+  const N = 33;                       // 何こに 分けて おぼえるか
+  const W = 260, H = 190, PAD = 10;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  cv.className = 'drawease';
+  box.appendChild(cv);
+  const g = cv.getContext('2d');
+
+  let pts = (shape && shape.length === N) ? shape.slice() : null;
+
+  const toY = (v) => H - PAD - Math.max(-0.3, Math.min(1.3, v)) * (H - PAD * 2);
+  const toV = (y) => (H - PAD - y) / (H - PAD * 2);
+
+  function render(){
+    g.fillStyle = '#FFFEF7';
+    g.fillRect(0, 0, W, H);
+
+    g.strokeStyle = 'rgba(30,28,20,.12)';
+    g.lineWidth = 1;
+    for(let i = 0; i <= 4; i++){
+      const x = PAD + (W - PAD * 2) * i / 4;
+      const y = PAD + (H - PAD * 2) * i / 4;
+      g.beginPath(); g.moveTo(x, PAD); g.lineTo(x, H - PAD); g.stroke();
+      g.beginPath(); g.moveTo(PAD, y); g.lineTo(W - PAD, y); g.stroke();
+    }
+    g.strokeStyle = 'rgba(30,28,20,.22)';
+    g.setLineDash([5, 5]);
+    g.beginPath(); g.moveTo(PAD, H - PAD); g.lineTo(W - PAD, PAD); g.stroke();
+    g.setLineDash([]);
+
+    g.strokeStyle = '#1E1C14';
+    g.lineWidth = 2.5;
+    g.strokeRect(1.5, 1.5, W - 3, H - 3);
+
+    if(pts){
+      g.strokeStyle = '#F2A0B8';
+      g.lineWidth = 4;
+      g.beginPath();
+      for(let i = 0; i < N; i++){
+        const x = PAD + (W - PAD * 2) * (i / (N - 1));
+        const y = toY(pts[i]);
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.stroke();
+      g.strokeStyle = '#1E1C14';
+      g.lineWidth = 1.5;
+      g.stroke();
+    } else {
+      g.fillStyle = 'rgba(30,28,20,.45)';
+      g.font = '600 13px "M PLUS Rounded 1c", sans-serif';
+      g.textAlign = 'center';
+      g.fillText('ここを 左から 右へ なぞる', W / 2, H / 2);
+    }
+  }
+  render();
+
+  let drawing = false, raw = null;
+  const at = (e) => {
+    const b = cv.getBoundingClientRect();
+    return { x: (e.clientX - b.left) * (W / b.width),
+             y: (e.clientY - b.top) * (H / b.height) };
+  };
+  const put = (p) => {
+    const u = (p.x - PAD) / (W - PAD * 2);
+    const i = Math.round(Math.max(0, Math.min(1, u)) * (N - 1));
+    raw[i] = toV(p.y);
+    let last = -1;
+    for(let k = 0; k < N; k++){
+      if(raw[k] == null) continue;
+      if(last >= 0 && k - last > 1){
+        for(let m = last + 1; m < k; m++){
+          raw[m] = raw[last] + (raw[k] - raw[last]) * ((m - last) / (k - last));
+        }
+      }
+      last = k;
+    }
+  };
+  cv.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    drawing = true;
+    raw = new Array(N).fill(null);
+    put(at(e));
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if(!drawing) return;
+    put(at(e));
+    const tmp = raw.slice();
+    for(let i = 0; i < N; i++) if(tmp[i] == null) tmp[i] = i === 0 ? 0 : tmp[i - 1];
+    pts = tmp;
+    render();
+  });
+  const endDraw = () => {
+    if(!drawing) return;
+    drawing = false;
+    const out = raw.slice();
+    const first = out.findIndex(v => v != null);
+    if(first < 0){ pts = null; render(); return; }
+    for(let i = 0; i < first; i++) out[i] = out[first];
+    let lastI = N - 1;
+    while(out[lastI] == null) lastI--;
+    for(let i = lastI + 1; i < N; i++) out[i] = out[lastI];
+    for(let i = 0; i < N; i++) if(out[i] == null) out[i] = out[i - 1];
+    pts = out.map(v => Math.round(v * 1000) / 1000);
+    render();
+  };
+  cv.addEventListener('pointerup', endDraw);
+  cv.addEventListener('pointercancel', endDraw);
+
+  box.appendChild(btnRow(
+    button('✓ この かたちで うごかす', () => {
+      if(!pts) return notify('わくの中を なぞってね');
+      onPick('custom', pts);
+      S.proj.eases = S.proj.eases || [];
+      S.proj.eases.unshift(pts.slice());
+      S.proj.eases = S.proj.eases.slice(0, MY_EASE_MAX);
+      notify('かいた かたちで 動きます');
+      if(closeFn) closeFn();
+    }),
+    button('かきなおす', () => { pts = null; render(); })
+  ));
+
+  if(S.proj.eases && S.proj.eases.length){
+    box.appendChild(heading('まえに かいた かたち'));
+    const row = document.createElement('div');
+    row.className = 'rowbtns';
+    row.style.flexWrap = 'wrap';
+    S.proj.eases.forEach((e2) => {
+      const b = document.createElement('button');
+      b.className = 'myease';
+      b.appendChild(shapeCanvas((u) => curveAt(e2, u), 48, 34));
+      b.addEventListener('click', () => {
+        onPick('custom', e2);
+        notify('この かたちで 動きます');
+        if(closeFn) closeFn();
+      });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  }
+}
+
+
+/* ================= なぞった みちで うごかす =================
+   道のりで 等分に ピンを 打つので、まがり角でも 形が くずれない。
+   何秒で 通るか と、進み方（つなぎ方）を きめる。 */
+export function buildPathSheet(box, closeFn, pts, apply){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+  if(!l || !pts || pts.length < 2){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'みちが ありません';
+    box.appendChild(e);
+    return;
+  }
+
+  S.proj.path = S.proj.path || { dur: 2, ease: 'linear', count: 24 };
+  const P = S.proj.path;
+
+  const len = Math.round(pathLength(pts));
+  const info = document.createElement('div');
+  info.className = 'empty';
+  info.style.textAlign = 'left';
+  const showInfo = () => {
+    info.textContent = '「' + l.name + '」が この みちを 通ります。' + NL
+      + 'みちの 長さ ' + len + 'ドット／' + P.dur.toFixed(1) + '秒'
+      + '（1秒に ' + Math.round(len / Math.max(0.1, P.dur)) + 'ドット）';
+  };
+  showInfo();
+  box.appendChild(info);
+
+  /* みちの 見本 */
+  const cv = document.createElement('canvas');
+  cv.width = 260; cv.height = 150;
+  cv.className = 'pathprev';
+  box.appendChild(cv);
+  (function(){
+    const g = cv.getContext('2d');
+    g.fillStyle = '#FFFEF7'; g.fillRect(0, 0, cv.width, cv.height);
+    g.strokeStyle = '#1E1C14'; g.lineWidth = 2.5;
+    g.strokeRect(1.5, 1.5, cv.width - 3, cv.height - 3);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    pts.forEach(p => {
+      x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
+      x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
+    });
+    const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+    const k = Math.min((cv.width - 26) / w, (cv.height - 26) / h);
+    const ox = (cv.width - w * k) / 2 - x0 * k;
+    const oy = (cv.height - h * k) / 2 - y0 * k;
+    g.beginPath();
+    pts.forEach((p, i) => {
+      const x = p.x * k + ox, y = p.y * k + oy;
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    });
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.lineWidth = 5; g.strokeStyle = '#F2A0B8'; g.stroke();
+    // 打つ ところ
+    const road = resample(pts, Math.max(2, Math.min(120, P.count)));
+    road.forEach((p) => {
+      g.beginPath(); g.arc(p.x * k + ox, p.y * k + oy, 3, 0, 7);
+      g.fillStyle = '#1E1C14'; g.fill();
+    });
+  })();
+
+  box.appendChild(slider('何秒で 通る', () => P.dur, v => { P.dur = v; showInfo(); },
+    0.2, 20, 0.1, v => v.toFixed(1) + '秒'));
+  box.appendChild(slider('ピンの こまかさ', () => P.count, v => P.count = v,
+    4, 80, 2, v => Math.round(v) + 'コ'));
+
+  const es = document.createElement('div');
+  es.className = 'rowbtns';
+  es.style.flexWrap = 'wrap';
+  [['まっすぐ', 'linear'], ['なめらか', 'smooth'],
+   ['ゆっくり出る', 'in'], ['ゆっくり止まる', 'out']].forEach(([lb, key]) => {
+    const b = button(lb, () => { P.ease = key; onChange(); });
+    b.style.flex = '0 0 45%';
+    b.classList.toggle('on', P.ease === key);
+    es.appendChild(b);
+  });
+  box.appendChild(field('進み方', es));
+
+  box.appendChild(btnRow(
+    button('◆ この みちで うごかす', () => {
+      apply(P);
+      if(closeFn) closeFn();
+    }),
+    button('やめる', () => { if(closeFn) closeFn(); })
+  ));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = 'いまの時間から はじまります。' + NL
+    + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
+  box.appendChild(note);
 }

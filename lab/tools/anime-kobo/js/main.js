@@ -1,27 +1,30 @@
 /* 起動と組み立て。 */
 
+import { M } from './engine/math.js?v=52';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=51';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=52';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers } from './engine/layer.js?v=51';
-import { createStage } from './ui/stage.js?v=51';
-import { createRenderer } from './render/renderer.js?v=51';
-import { createTimeline } from './ui/timeline.js?v=51';
-import { fmtTime } from './engine/anim.js?v=51';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=52';
+import { createStage } from './ui/stage.js?v=52';
+import { createRenderer } from './render/renderer.js?v=52';
+import { createTimeline } from './ui/timeline.js?v=52';
+import { fmtTime } from './engine/anim.js?v=52';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
          buildExportSheet, buildEaseSheet,
          setParentOpener, setBgPicker,
-         setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js?v=51';
+         setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
+         setNotifier, buildPathSheet } from './ui/sheet.js?v=52';
 
-import { showNewDoc } from './ui/newdoc.js?v=51';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=51';
-import { fitToCanvas, isBg } from './io/bg.js?v=51';
-import * as Audio from './io/audio.js?v=51';
+import { showNewDoc } from './ui/newdoc.js?v=52';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=52';
+import { fitToCanvas, isBg } from './io/bg.js?v=52';
+import * as Audio from './io/audio.js?v=52';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=51';
-import { importPsd } from './io/psd.js?v=51';
-import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=51';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=52';
+import { importPsd } from './io/psd.js?v=52';
+import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=52';
+import { pathKeys } from './engine/path.js?v=52';
 
 const $ = (s) => document.querySelector(s);
 
@@ -30,7 +33,7 @@ const canvas = $('#stageCv');
 const listHost = $('#list');
 const fileInput = $('#file');
 
-const stage = createStage(canvas, stageHost, toast);
+const stage = createStage(canvas, stageHost, toast, () => onTraced());
 const timeline = createTimeline(listHost, { toast });
 const sheet = createSheet($('#sheet'), $('#sheetBack'));
 
@@ -228,6 +231,54 @@ $('#clip').addEventListener('click', () => {
   });
 });
 
+/* ---- なぞって うごかす ----
+   ① みちを なぞる（絵の上）
+   ② 何秒で 通るかを きめる
+   ③ 道のりで 等分に ピンを うつ */
+function setTraceMode(on){
+  S.traceMode = !!on;
+  if(!on) S.tracePts = null;
+  $('#tracemode').hidden = !on;
+  if(on){
+    S.playing = false;
+    stopSound();
+    toast('絵の上を なぞって みちを かこう');
+  }
+  refresh();
+}
+
+function onTraced(){
+  const l = selected();
+  if(!l || !S.tracePts || S.tracePts.length < 2) return;
+  sheet.open('なぞった みち', (box) => buildPathSheet(box, () => sheet.close(), S.tracePts,
+    (opt) => {
+      /* なぞった あとは キャンバスの ざひょう。
+         レイヤーは 親から 見た 場所で 持っているので、直しておく。 */
+      const poses = computeAll(S.proj, S.time);
+      const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
+      const local = S.tracePts.map(p => {
+        if(!pm) return { x: p.x, y: p.y };
+        const q = M.apply(M.inv(pm), p.x, p.y);
+        return { x: q.x, y: q.y };
+      });
+      const n = { v: 0 };
+      edit('なぞった みちで うごかす', () => {
+        n.v = pathKeys(l, local, {
+          start: S.time, dur: opt.dur, ease: opt.ease, count: opt.count
+        });
+      });
+      toast(n.v ? Math.round(n.v / 2) + 'コの ピンで うごきます' : 'うてませんでした');
+      setTraceMode(false);
+    }));
+}
+setTracer(() => {
+  if(!selected()) return toast('レイヤーを えらんでね');
+  sheet.close();
+  setTraceMode(true);
+});
+$('#trClose').addEventListener('click', () => setTraceMode(false));
+$('#trUndo').addEventListener('click', () => { S.tracePts = null; refresh(); });
+
 /* ---- パペットピン ---- *//* ---- パペットピン ---- */
 function setPinMode(on){
   S.pinMode = on;
@@ -290,7 +341,9 @@ $('#pinHold').addEventListener('click', () => timeline.toggleHold());
 $('#pinEase').addEventListener('click', () => {
   if(!S.selPins.times.length) return toast('ピンを えらんでね');
   sheet.open('つなぎ方', (box) => buildEaseSheet(box, () => sheet.close(),
-    timeline.currentEase(), (mode) => timeline.setEase(mode)));
+    timeline.currentEase(),
+    (mode, ease) => timeline.setEase(mode, ease),
+    timeline.currentShape()));
 });
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));

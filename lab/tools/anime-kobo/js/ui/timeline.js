@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=51';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=52';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=51';
+         nearestFolder, setParent } from '../engine/layer.js?v=52';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
-         setCurveAt, isHoldAt, easeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=51';
+         setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=52';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -811,13 +811,20 @@ export function createTimeline(root, opts = {}){
   }
 
   /** えらんでいる ピンの つなぎ方を かえる */
-  function setEase(mode){
+  function setEase(mode, ease){
     const l = S.proj.layers.find(x => x.id === S.selPins.layer);
     if(!l || !S.selPins.times.length) return;
     edit('つなぎ方を かえる', () => {
-      S.selPins.times.forEach(t => setCurveAt(l, t, mode));
+      S.selPins.times.forEach(t => setCurveAt(l, t, mode, ease));
     });
     onChange();
+  }
+
+  /** えらんでいる ピンに 入っている 自分の線 */
+  function currentShape(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return null;
+    return easeShapeAt(l, S.selPins.times[0]);
   }
 
   /** えらんでいる ピンの いまの つなぎ方 */
@@ -846,6 +853,6 @@ export function createTimeline(root, opts = {}){
   }
 
   return { build, updatePlayhead, putPin, delPins, delPicked, toPin, toggleHold, setLoop,
-           setEase, currentEase, clearPins,
+           setEase, currentEase, currentShape, clearPins,
            copyPins, pastePins, zoomTime };
 }
