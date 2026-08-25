@@ -60,6 +60,20 @@ function track(layer, ch, create){
   return k;
 }
 
+/**
+ * そのチャンネルの ピン ぜんぶを 同じだけ ずらす。
+ *
+ * じく（アンカー）を 動かすときに つかう。
+ * いまの時間の ピンだけ 直すと、ほかの 時間では 場所が とんでしまう。
+ * ぜんぶ 同じだけ ずらせば、うごきは そのままで 原点だけ 変わる。
+ */
+export function shiftTrack(layer, ch, d){
+  const keys = (layer.tracks || {})[ch];
+  if(!keys || !keys.length || !d) return 0;
+  keys.forEach(k => { k.v += d; });
+  return keys.length;
+}
+
 /** ピンを打つ／上書きする */
 export function setPin(layer, ch, time, value, curve){
   const keys = track(layer, ch, true);

@@ -1,15 +1,15 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=55';
-import { cleanPath } from '../engine/path.js?v=55';
+import { M, clamp } from '../engine/math.js?v=56';
+import { cleanPath } from '../engine/path.js?v=56';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=55';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=55';
-import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=55';
+         keepChildren, cornersOf } from '../engine/layer.js?v=56';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=56';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=56';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=55';
-import { createRenderer } from '../render/renderer.js?v=55';
-import { attachInput } from './input.js?v=55';
+         bendChain } from '../engine/puppet.js?v=56';
+import { createRenderer } from '../render/renderer.js?v=56';
+import { attachInput } from './input.js?v=56';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -349,19 +349,38 @@ export function createStage(canvas, host, toast, onTraced){
     const nx = clamp(ip.x / asset.w, -1, 2);
     const ny = clamp(ip.y / asset.h, -1, 2);
 
+    const dax = (nx - l.pivot.x) * asset.w;
+    const day = (ny - l.pivot.y) * asset.h;
+    const m = M.trs(0, 0, pose.v.rot, pose.v.scaleX, pose.v.scaleY);
+    const dx = m.a * dax + m.c * day;
+    const dy = m.b * dax + m.d * day;
+
     /* じくを ずらすと レイヤーの位置も ずらして 見た目を止める。
-       このとき 子レイヤーは 親の位置を もとにしているので、
-       なにもしないと 子だけ ずれてしまう。
-       だから 子の いまの見た目を おぼえて、あとで つじつまを合わせる。 */
+       ・うごきのピンが あるときは ピン ぜんぶを 同じだけ ずらす
+         （いまの時間だけ 直すと、ほかの 時間で 場所が とぶ）
+       ・子レイヤーは 親の場所を もとにしているので、
+         いまの見た目を おぼえて あとで つじつまを合わせる */
     keepChildren(S.proj, l, S.time, () => {
-      const dax = (nx - l.pivot.x) * asset.w;
-      const day = (ny - l.pivot.y) * asset.h;
-      const m = M.trs(0, 0, pose.v.rot, pose.v.scaleX, pose.v.scaleY);
-      l.x += m.a * dax + m.c * day;
-      l.y += m.b * dax + m.d * day;
+      l.x += dx; l.y += dy;
+      shiftTrack(l, 'x', dx);
+      shiftTrack(l, 'y', dy);
       l.pivot.x = nx; l.pivot.y = ny;
     });
-    if(hasPins(l)){ setPin(l, 'x', S.time, l.x, 'smooth'); setPin(l, 'y', S.time, l.y, 'smooth'); }
+  }
+
+  /** フォルダの じく。絵が 無いので 原点そのものを 動かす */
+  function moveFolderAnchor(l, cp, poses){
+    const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
+    const want = pm ? M.apply(M.inv(pm), cp.x, cp.y) : { x: cp.x, y: cp.y };
+    const v = valuesAt(l, S.time);
+    const dx = want.x - v.x, dy = want.y - v.y;
+    if(!dx && !dy) return;
+
+    keepChildren(S.proj, l, S.time, () => {
+      l.x += dx; l.y += dy;
+      shiftTrack(l, 'x', dx);
+      shiftTrack(l, 'y', dy);
+    });
   }
 
   /* 動かしている最中も見た目が追いつくように、ピンがあるレイヤーは
@@ -533,12 +552,7 @@ export function createStage(canvas, host, toast, onTraced){
         const l = drag.l;
         const pose = poses[l.id] || livePoses()[l.id];
         if(isFolder(l)){
-          /* フォルダは 絵を持たないので、原点そのものを さわった所へ 動かす。
-             中身は もとの見た目の ままに しておく（keepChildren）。 */
-          const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
-          const want = pm ? M.apply(M.inv(pm), cp.x, cp.y) : { x: cp.x, y: cp.y };
-          keepChildren(S.proj, l, S.time, () => { l.x = want.x; l.y = want.y; });
-          if(hasPins(l)){ setPin(l, 'x', S.time, l.x, 'smooth'); setPin(l, 'y', S.time, l.y, 'smooth'); }
+          moveFolderAnchor(l, cp, poses);
         } else {
           const ip = toImage(l, pose, cp);
           if(ip) moveAnchor(l, pose, ip);
