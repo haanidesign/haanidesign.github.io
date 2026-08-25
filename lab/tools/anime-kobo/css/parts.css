@@ -566,3 +566,21 @@
   background:var(--paper); border:var(--bd); border-radius:14px;
   padding:.7rem 1.2rem; font-size:.92rem;
 }
+
+
+/* ---------- よこ画面の せってい ----------
+   下から 出すと たてが みじかい画面では ほとんど うまる。
+   よこから 出して、絵を 見ながら いじれるように する。 */
+@media (orientation:landscape) and (max-height:560px){
+  /* せっていは よこから 出す（下から だと 画面が うまる） */
+  #sheet{
+    left:auto; right:0; top:0; bottom:0;
+    width:min(420px, 52vw);
+    max-height:none;
+    border:var(--bd); border-right:none;
+    border-radius:22px 0 0 22px;
+    transform:translateX(102%);
+    padding:.5rem .8rem 1rem;
+  }
+  #sheet.on{ transform:translateX(0); }
+}

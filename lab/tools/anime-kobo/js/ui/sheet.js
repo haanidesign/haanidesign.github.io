@@ -129,11 +129,20 @@ export function createSheet(sheetEl, backEl){
     if(e.target.closest('input,select,button')) return;
     sy = e.clientY; sx = e.clientX;
   });
+  /* よこ画面では 右から 出るので、閉じ方も 右へ ふり切る */
+  const sideMode = () => window.matchMedia
+    && window.matchMedia('(orientation:landscape) and (max-height:560px)').matches;
+
   sheetEl.addEventListener('pointerup', (e) => {
     if(sy !== null){
       const dy = e.clientY - sy, dx = e.clientX - sx;
-      if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) swipe(dx);
-      else if(dy > 70) close();
+      if(sideMode()){
+        if(dx > 70 && Math.abs(dx) > Math.abs(dy)) close();
+      } else if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5){
+        swipe(dx);
+      } else if(dy > 70){
+        close();
+      }
     }
     sy = null; sx = null;
   });

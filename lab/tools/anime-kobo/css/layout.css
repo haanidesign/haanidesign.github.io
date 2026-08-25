@@ -136,3 +136,44 @@
    PHASE 1 では中身が無いので出さない。設定はどの画面でも下から出るシートで扱う。
    PHASE 2 でタイムラインと一緒にここへ入れる。 */
 #props{ display:none; }
+
+
+/* ================= よこ画面（たてが みじかいとき） =================
+   スマホを よこに すると たてが 350〜450ドットしか ない。
+   たてに ならべると 絵が つぶれるので、よこに ならべる。
+   道具は 1段の 横スライドに もどす（3段に なると 場所を 食う）。 */
+@media (orientation:landscape) and (max-height:560px){
+  #app{
+    grid-template-columns:minmax(240px, 40vw) 1fr;
+    grid-template-rows:auto 1fr auto;
+    grid-template-areas:
+      "top   top"
+      "list  stage"
+      "tools stage";
+  }
+
+  #top{ min-height:42px; padding:.2rem .45rem; gap:.3rem; }
+  #top .name{ font-size:.82rem; }
+  #top .size{ font-size:.56rem; }
+  #top .ver{ display:none; }
+  #top button{ min-height:32px; }
+  #top #export{ min-height:32px; font-size:.7rem; padding:0 .6rem; }
+
+  #list{
+    max-height:none;
+    border-top:none; border-right:var(--bd);
+  }
+  #list.folded{ max-height:none; }
+  #tracks{ padding:.2rem; gap:.2rem; }
+
+  /* 道具は 1段で 横に スライド */
+  #tools{
+    border-right:var(--bd);
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    padding:.3rem .4rem calc(.3rem + var(--safe-b));
+  }
+  #tools .tool{ flex:0 0 60px; min-height:48px; font-size:.54rem; }
+  #tools .tool i{ font-size:1.05rem; }
+
+}
