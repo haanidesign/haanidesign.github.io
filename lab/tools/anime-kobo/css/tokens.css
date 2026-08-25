@@ -28,7 +28,11 @@
 html,body{
   height:100%;
   overflow:hidden;
+  /* 横に 引っぱっての「もどる／すすむ」を できるだけ ふせぐ。
+     画面の はしからの 指の うごきは スマホ本体の きまりなので
+     ここでは 止めきれない（なぞり中は 出ないように してある）。 */
   overscroll-behavior:none;
+  overscroll-behavior-x:none;
 }
 
 body{

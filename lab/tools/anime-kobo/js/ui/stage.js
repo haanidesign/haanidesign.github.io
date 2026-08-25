@@ -1,15 +1,15 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=53';
-import { cleanPath } from '../engine/path.js?v=53';
+import { M, clamp } from '../engine/math.js?v=54';
+import { cleanPath } from '../engine/path.js?v=54';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=53';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=53';
-import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=53';
+         keepChildren, cornersOf } from '../engine/layer.js?v=54';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=54';
+import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=54';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=53';
-import { createRenderer } from '../render/renderer.js?v=53';
-import { attachInput } from './input.js?v=53';
+         bendChain } from '../engine/puppet.js?v=54';
+import { createRenderer } from '../render/renderer.js?v=54';
+import { attachInput } from './input.js?v=54';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -52,7 +52,34 @@ export function createStage(canvas, host, toast, onTraced){
     } else {
       handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
     }
+    if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
+  }
+
+  /* スマホは 画面の はしから 指を すべらせると「もどる」に なる。
+     ページからは 止められないので、
+     「ここより 内がわから はじめてね」という わくを 出す。 */
+  const EDGE = 26;                    // はしから これくらいは 危ない
+
+  function drawTraceZone(){
+    const ctx = R.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const w = canvas.width, h = canvas.height;
+    const dpr = w / (canvas.clientWidth || w);
+    const m = EDGE * dpr;
+    ctx.setLineDash([12 * dpr, 9 * dpr]);
+    ctx.lineWidth = 3 * dpr;
+    ctx.strokeStyle = 'rgba(242,160,184,.85)';
+    ctx.strokeRect(m, m, w - m * 2, h - m * 2);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  /** さわった ところが 画面の はしすぎないか */
+  function nearEdge(p){
+    const r = canvas.getBoundingClientRect();
+    return (p.x - r.left) < EDGE || (r.right - p.x) < EDGE;
   }
 
   /** なぞった みちを 出す */
@@ -371,6 +398,9 @@ export function createStage(canvas, host, toast, onTraced){
       /* みちを なぞる。指の あとを ためるだけ。
          どう 動かすかは あとで きめる（何秒で 通るか など）。 */
       if(S.traceMode){
+        if(nearEdge(p)){
+          toast('画面の はしからは はじめないでね（もどるに なります）');
+        }
         S.tracePts = [{ x: cp.x, y: cp.y }];
         drag = { kind: 'trace' };
         onChange();
@@ -560,8 +590,12 @@ export function createStage(canvas, host, toast, onTraced){
       if(drag && drag.kind === 'trace'){
         drag = null;
         S.tracePts = cleanPath(S.tracePts || [], 3);
-        if(S.tracePts.length < 2){ S.tracePts = null; toast('もう少し 長く なぞってね'); }
-        else if(onTraced) onTraced();
+        if(S.tracePts.length < 2){
+          S.tracePts = null;
+          toast('もう少し 長く なぞってね');
+        } else if(onTraced){
+          onTraced();
+        }
         onChange();
         return;
       }

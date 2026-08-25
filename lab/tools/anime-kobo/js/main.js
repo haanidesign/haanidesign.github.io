@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=53';
+import { M } from './engine/math.js?v=54';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=53';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=54';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=53';
-import { createStage } from './ui/stage.js?v=53';
-import { createRenderer } from './render/renderer.js?v=53';
-import { createTimeline } from './ui/timeline.js?v=53';
-import { fmtTime } from './engine/anim.js?v=53';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=54';
+import { createStage } from './ui/stage.js?v=54';
+import { createRenderer } from './render/renderer.js?v=54';
+import { createTimeline } from './ui/timeline.js?v=54';
+import { fmtTime } from './engine/anim.js?v=54';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -16,17 +16,17 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildExportSheet, buildEaseSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
-         setNotifier, buildPathSheet } from './ui/sheet.js?v=53';
+         setNotifier, buildPathSheet } from './ui/sheet.js?v=54';
 
-import { showNewDoc } from './ui/newdoc.js?v=53';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=53';
-import { fitToCanvas, isBg } from './io/bg.js?v=53';
-import * as Audio from './io/audio.js?v=53';
+import { showNewDoc } from './ui/newdoc.js?v=54';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=54';
+import { fitToCanvas, isBg } from './io/bg.js?v=54';
+import * as Audio from './io/audio.js?v=54';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=53';
-import { importPsd } from './io/psd.js?v=53';
-import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=53';
-import { pathKeys } from './engine/path.js?v=53';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=54';
+import { importPsd } from './io/psd.js?v=54';
+import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=54';
+import { pathKeys } from './engine/path.js?v=54';
 
 const $ = (s) => document.querySelector(s);
 
@@ -244,7 +244,7 @@ function setTraceMode(on){
   if(on){
     S.playing = false;
     stopSound();
-    toast('絵の上を なぞって みちを かこう');
+    toast('ピンクの わくの 内がわから なぞってね');
   }
   refresh();
 }
@@ -671,6 +671,18 @@ function guardBack(){
   }
   window.addEventListener('popstate', () => {
     if(!S.ready){ history.back(); return; }
+
+    /* なぞっている あいだは ぜったいに 出ない。
+       スマホは 画面の はしから すべらせると「もどる」に なるので、
+       みちを かいている 途中で 出ると せっかくの あとが 消える。 */
+    if(S.traceMode || S.pinMode){
+      history.pushState({ kobo: 1 }, '');
+      backAt = 0;
+      toast(S.traceMode ? 'なぞり中です（「おわり」で とじられます）'
+                        : 'ピン中です（「おわり」で とじられます）');
+      return;
+    }
+
     const now = Date.now();
     if(now - backAt < 2500){ history.back(); return; }   // 2回めは そのまま出る
     backAt = now;
