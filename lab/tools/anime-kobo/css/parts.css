@@ -581,11 +581,13 @@
 /* ---------- よこ画面の せってい ----------
    下から 出すと たてが みじかい画面では ほとんど うまる。
    よこから 出して、絵を 見ながら いじれるように する。 */
-@media (orientation:landscape) and (max-height:560px){
-  /* せっていは よこから 出す（下から だと 画面が うまる） */
+@media (orientation:landscape){
+  /* せっていは よこから 出す（下から だと 画面が うまる）。
+     はばは 広い画面ほど ひかえめ。絵を 見ながら いじれるように
+     ぜんたいの 半分より 大きく ならないように する。 */
   #sheet{
     left:auto; right:0; top:0; bottom:0;
-    width:min(420px, 52vw);
+    width:clamp(320px, 42vw, 480px);
     max-height:none;
     border:var(--bd); border-right:none;
     border-radius:22px 0 0 22px;
@@ -593,6 +595,16 @@
     padding:.5rem .8rem 1rem;
   }
   #sheet.on{ transform:translateX(0); }
+
+  /* よこから 出すときは 中身も その はばに あわせる */
+  #sheet .field label{ flex:0 0 68px; font-size:.68rem; }
+  #sheet .field .val{ flex:0 0 46px; font-size:.68rem; }
+  #sheet .presets{ grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); }
+}
+
+/* せまい よこ画面（スマホ）は もう少し つめる */
+@media (orientation:landscape) and (max-height:560px){
+  #sheet{ width:min(420px, 52vw); }
 }
 
 
