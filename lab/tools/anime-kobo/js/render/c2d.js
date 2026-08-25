@@ -3,9 +3,9 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=52';
-import { frameAsset, frameImage } from '../state.js?v=52';
-import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, meshSizeFor } from '../engine/puppet.js?v=52';
+         nearestFolder } from '../engine/layer.js?v=53';
+import { frameAsset, frameImage } from '../state.js?v=53';
+import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, meshSizeFor } from '../engine/puppet.js?v=53';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

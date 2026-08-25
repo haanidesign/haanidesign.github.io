@@ -661,3 +661,15 @@
   margin:.2rem auto .4rem;
   border-radius:12px;
 }
+
+
+/* ---------- えらぶ画面（うごき の 入口） ---------- */
+.menuitem{
+  display:flex; align-items:center; gap:.5rem;
+  width:100%; justify-content:space-between; text-align:left;
+  margin-bottom:.45rem; padding:.5rem .7rem; min-height:56px;
+}
+.menutext{ display:flex; flex-direction:column; min-width:0; line-height:1.25; }
+.menutext b{ font-size:.9rem; }
+.menutext i{ font-style:normal; font-size:.64rem; color:#3d3a2c; }
+.menuarrow{ font-size:1.1rem; flex:0 0 auto; }

@@ -1,26 +1,26 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=52';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=53';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
-         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=52';
+         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=53';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=52';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=52';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=52';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=52';
-import { PRESET_GROUPS } from '../engine/presets.js?v=52';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=53';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=53';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=53';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=53';
+import { PRESET_GROUPS } from '../engine/presets.js?v=53';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=52';
+         addTextLayer } from '../io/text.js?v=53';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=52';
-import { PATTERN_NAMES } from '../io/pattern.js?v=52';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=53';
+import { PATTERN_NAMES } from '../io/pattern.js?v=53';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=52';
+  from './colorwheel.js?v=53';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=52';
+         guessBpm, firstOnset } from '../io/audio.js?v=53';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=52';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=53';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -587,7 +587,28 @@ export function buildLayerSheet(box, closeFn){
 }
 
 /* ================= うごき ================= */
-export function buildMotionSheet(box){
+/* ================= うごき =================
+   ぜんぶ 1まいに ならべると 長すぎて さがせないので、
+   「何を したいか」で 5つに 分けた。
+   えらぶと それぞれ 別の画面に なる（タブでは ない）。 */
+
+/** どのレイヤーにも つかう 小さな 道具 */
+function motionHelp(box, l){
+  const isPuppet = (ch) => /^P.+:(x|y)$/.test(ch);
+  const chans = () => Object.keys(l.tracks || {}).filter(ch => !isPuppet(ch));
+  const count = () => chans().reduce((n, ch) => n + ((l.tracks[ch] || []).length), 0);
+  return { chans, count };
+}
+
+/** 上に「◀ もどる」を 出す */
+function backRow(box, back){
+  if(!back) return;
+  const b = button('◀ うごき に もどる', back);
+  b.style.flex = '1';
+  box.appendChild(btnRow(b));
+}
+
+export function buildMotionSheet(box, open){
   const l = selected();
   if(!l){
     const e = document.createElement('div');
@@ -596,43 +617,57 @@ export function buildMotionSheet(box){
     box.appendChild(e);
     return;
   }
+  const NL = String.fromCharCode(10);
+  const { count } = motionHelp(box, l);
 
-  /* いま 打ってある ピンの 数（パペットピンの ゆれは べつ） */
-  const isPuppet = (ch) => /^P.+:(x|y)$/.test(ch);
-  const motionChans = () => Object.keys(l.tracks || {}).filter(ch => !isPuppet(ch));
-  const countPins = () => motionChans()
-    .reduce((n, ch) => n + ((l.tracks[ch] || []).length), 0);
-
-  const now = countPins();
+  const now = count();
   const head = document.createElement('div');
   head.className = 'empty';
   head.style.textAlign = 'left';
   head.textContent = now
-    ? 'いま うごきのピンが ' + now + 'コ あります。'
-    : 'まだ うごきのピンは ありません。';
+    ? '「' + l.name + '」に うごきのピンが ' + now + 'コ あります。'
+    : '「' + l.name + '」に まだ うごきのピンは ありません。';
   box.appendChild(head);
 
-  box.appendChild(btnRow(
-    button('🗑 うごきのピンを ぜんぶ けす', () => {
-      const n = countPins();
-      if(!n) return notify('けす ピンが ありません');
-      const nl = String.fromCharCode(10);
-      if(!confirm('「' + l.name + '」の うごきのピン ' + n + 'コを ぜんぶ けしますか？' + nl + nl
-        + '（パペットピンの ゆれは のこります）')) return;
-      edit('うごきのピンを ぜんぶけす', () => {
-        motionChans().forEach(ch => delete l.tracks[ch]);
-        l.loop = null;
-      });
-      notify(n + 'コ けしました（もどす で 戻せます）');
-      onChange();
-    })
-  ));
+  const MENU = [
+    ['form',   '✨ 出る・消える',  'ふわっと出る、下からあがる、消える など'],
+    ['loop',   '🔁 ずっと うごく', '呼吸・ふわふわ・かみのゆれ'],
+    ['path',   '👆 みちを なぞる', 'なぞった みちを 何秒で 通るか'],
+    ['beat',   '🥁 リズム（BPM）', '拍に あわせて ピンを うつ'],
+    ['finish', '💨 しあげ',        'うごきブラー／ピンの おそうじ']
+  ];
+
+  MENU.forEach(([key, label, note]) => {
+    const b = document.createElement('button');
+    b.className = 'menuitem';
+    const t = document.createElement('span');
+    t.className = 'menutext';
+    const bb = document.createElement('b');
+    bb.textContent = label;
+    const ii = document.createElement('i');
+    ii.textContent = note;
+    t.appendChild(bb); t.appendChild(ii);
+    b.appendChild(t);
+    const ar = document.createElement('span');
+    ar.className = 'menuarrow';
+    ar.textContent = '▸';
+    b.appendChild(ar);
+    b.addEventListener('click', () => open(key));
+    box.appendChild(b);
+  });
+}
+
+/* ---------- ① 出る・消える ---------- */
+export function buildEnterSheet(box, back){
+  const l = selected();
+  if(!l) return;
+  backRow(box, back);
 
   const dur = { v: 0.6 };
   box.appendChild(slider('かかる時間', () => dur.v, v => dur.v = v, 0.2, 3, 0.1,
     v => v.toFixed(1) + '秒'));
 
-  PRESET_GROUPS.forEach(gr => {
+  PRESET_GROUPS.filter(gr => gr.key !== 'loop').forEach(gr => {
     box.appendChild(heading(gr.label));
     const wrap = document.createElement('div');
     wrap.className = 'presets';
@@ -656,37 +691,108 @@ export function buildMotionSheet(box){
     + String.fromCharCode(10)
     + 'いまの見た目が「おわりの姿」になります。';
   box.appendChild(hint);
+}
 
-  /* ---------- なぞって うごかす ---------- */
+/* ---------- ② ずっと うごく ---------- */
+export function buildLoopSheet(box, back){
+  const l = selected();
+  if(!l) return;
+  backRow(box, back);
+
+  const dur = { v: 2 };
+  box.appendChild(slider('ひとまわりの 時間', () => dur.v, v => dur.v = v, 0.4, 6, 0.1,
+    v => v.toFixed(1) + '秒'));
+
+  const gr = PRESET_GROUPS.find(g => g.key === 'loop');
+  if(gr){
+    box.appendChild(heading('ずっと くりかえす'));
+    const wrap = document.createElement('div');
+    wrap.className = 'presets';
+    Object.keys(gr.map).forEach(name => {
+      const b = document.createElement('button');
+      b.textContent = name;
+      b.addEventListener('click', () => {
+        edit(name, () => gr.map[name](l, S.time, dur.v));
+        notify(name + ' を いれました');
+        onChange();
+      });
+      wrap.appendChild(b);
+    });
+    box.appendChild(wrap);
+  }
+
+  buildSway(box, l);
+}
+
+/* ---------- ③ みちを なぞる ---------- */
+export function buildTraceSheet(box, back){
+  const l = selected();
+  if(!l) return;
+  backRow(box, back);
+  const NL = String.fromCharCode(10);
+
   box.appendChild(heading('👆 なぞって うごかす'));
   const tnote = document.createElement('div');
   tnote.className = 'empty';
   tnote.style.textAlign = 'left';
-  tnote.textContent = '絵の上を 指で なぞると、その みちを 通ります。'
-    + String.fromCharCode(10)
-    + 'なぞった あとで「何秒で 通るか」を きめます。';
+  tnote.textContent = '絵の上を 指で なぞると、その みちを 通ります。' + NL
+    + 'なぞった あとで「何秒で 通るか」を きめます。' + NL
+    + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
   box.appendChild(tnote);
   box.appendChild(btnRow(
     button('👆 みちを なぞる', () => { onTrace(); })
   ));
+}
 
-  /* ---------- うごきブラー ---------- */
+/* ---------- ④ リズム ---------- */
+export function buildBeatSheet(box, back){
+  const l = selected();
+  if(!l) return;
+  backRow(box, back);
+  buildRhythm(box, l);
+}
+
+/* ---------- ⑤ しあげ ---------- */
+export function buildFinishSheet(box, back){
+  const l = selected();
+  if(!l) return;
+  backRow(box, back);
+  const NL = String.fromCharCode(10);
+  const { chans, count } = motionHelp(box, l);
+
   box.appendChild(heading('💨 うごきブラー'));
   const bnote = document.createElement('div');
   bnote.className = 'empty';
   bnote.style.textAlign = 'left';
-  bnote.textContent = 'はやく 動いている ときだけ ぶれます。'
-    + String.fromCharCode(10)
-    + '止まっている ときは 何も 変わりません。'
-    + String.fromCharCode(10)
+  bnote.textContent = 'はやく 動いている ときだけ ぶれます。' + NL
+    + '止まっている ときは 何も 変わりません。' + NL
     + '（置く・回す・大きさ・ピンの曲げ ぜんぶに 効きます）';
   box.appendChild(bnote);
   box.appendChild(slider('ブラーの つよさ',
     () => l.mblur || 0, v => l.mblur = v, 0, 1, 0.05,
     v => v < 0.03 ? 'なし' : Math.round(v * 100) + '%'));
 
-  buildSway(box, l);
-  buildRhythm(box, l);
+  box.appendChild(heading('🗑 ピンの おそうじ'));
+  const c = document.createElement('div');
+  c.className = 'empty';
+  c.style.textAlign = 'left';
+  c.textContent = 'いま うごきのピンは ' + count() + 'コ。' + NL
+    + '（パペットピンの ゆれは のこります）';
+  box.appendChild(c);
+  box.appendChild(btnRow(
+    button('🗑 うごきのピンを ぜんぶ けす', () => {
+      const n = count();
+      if(!n) return notify('けす ピンが ありません');
+      if(!confirm('「' + l.name + '」の うごきのピン ' + n + 'コを ぜんぶ けしますか？' + NL + NL
+        + '（パペットピンの ゆれは のこります）')) return;
+      edit('うごきのピンを ぜんぶけす', () => {
+        chans().forEach(ch => delete l.tracks[ch]);
+        l.loop = null;
+      });
+      notify(n + 'コ けしました（もどす で 戻せます）');
+      onChange();
+    })
+  ));
 }
 
 /* ---------- リズム（BPM）でピンをうつ ----------

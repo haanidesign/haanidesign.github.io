@@ -1,30 +1,32 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=52';
+import { M } from './engine/math.js?v=53';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=52';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=53';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=52';
-import { createStage } from './ui/stage.js?v=52';
-import { createRenderer } from './render/renderer.js?v=52';
-import { createTimeline } from './ui/timeline.js?v=52';
-import { fmtTime } from './engine/anim.js?v=52';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=53';
+import { createStage } from './ui/stage.js?v=53';
+import { createRenderer } from './render/renderer.js?v=53';
+import { createTimeline } from './ui/timeline.js?v=53';
+import { fmtTime } from './engine/anim.js?v=53';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
+         buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
+         buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
          buildExportSheet, buildEaseSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
-         setNotifier, buildPathSheet } from './ui/sheet.js?v=52';
+         setNotifier, buildPathSheet } from './ui/sheet.js?v=53';
 
-import { showNewDoc } from './ui/newdoc.js?v=52';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=52';
-import { fitToCanvas, isBg } from './io/bg.js?v=52';
-import * as Audio from './io/audio.js?v=52';
+import { showNewDoc } from './ui/newdoc.js?v=53';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=53';
+import { fitToCanvas, isBg } from './io/bg.js?v=53';
+import * as Audio from './io/audio.js?v=53';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=52';
-import { importPsd } from './io/psd.js?v=52';
-import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=52';
-import { pathKeys } from './engine/path.js?v=52';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=53';
+import { importPsd } from './io/psd.js?v=53';
+import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=53';
+import { pathKeys } from './engine/path.js?v=53';
 
 const $ = (s) => document.querySelector(s);
 
@@ -348,15 +350,37 @@ $('#pinEase').addEventListener('click', () => {
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /** 設定シートを、横にスライドできるページで開く */
+/* うごきは 中身が 多いので、まず えらぶ画面を 出して、
+   えらんだ ものだけを 別の画面で ひらく。 */
+const MOVE_PAGES = {
+  form:   ['✨ 出る・消える',  buildEnterSheet],
+  loop:   ['🔁 ずっと うごく', buildLoopSheet],
+  path:   ['👆 みちを なぞる', buildTraceSheet],
+  beat:   ['🥁 リズム（BPM）', buildBeatSheet],
+  finish: ['💨 しあげ',        buildFinishSheet]
+};
+
+function openMove(key){
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+
+  if(!key){
+    return sheet.open('うごき（' + l.name + '）',
+      (box) => buildMotionSheet(box, (k) => openMove(k)));
+  }
+  const page = MOVE_PAGES[key];
+  if(!page) return openMove();
+  sheet.open(page[0] + '（' + l.name + '）',
+    (box) => page[1](box, () => openMove()));
+}
+
 /* かたち・うごき・かお は それぞれ 別の画面。
    1つの画面に まとめると、なにを いじっているのか 分からなくなる。 */
 function openSheet(key){
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
 
-  if(key === 'move'){
-    return sheet.open('うごき（' + l.name + '）', (box) => buildMotionSheet(box));
-  }
+  if(key === 'move') return openMove();
   if(key === 'face'){
     if(l.kind === 'text')   return toast('文字には つかえません');
     if(l.kind === 'folder') return toast('フォルダには つかえません');
