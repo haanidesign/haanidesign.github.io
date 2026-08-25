@@ -1,15 +1,15 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=54';
-import { cleanPath } from '../engine/path.js?v=54';
+import { M, clamp } from '../engine/math.js?v=55';
+import { cleanPath } from '../engine/path.js?v=55';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=54';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=54';
-import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=54';
+         keepChildren, cornersOf } from '../engine/layer.js?v=55';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=55';
+import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=55';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=54';
-import { createRenderer } from '../render/renderer.js?v=54';
-import { attachInput } from './input.js?v=54';
+         bendChain } from '../engine/puppet.js?v=55';
+import { createRenderer } from '../render/renderer.js?v=55';
+import { attachInput } from './input.js?v=55';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -153,7 +153,8 @@ export function createStage(canvas, host, toast, onTraced){
       const n = l.mesh.verts.length;
       const xy = new Float32Array(n * 2);
       deform(l.mesh, v.pins, xy);
-      strokeMesh(ctx, l.mesh, xy, 1.2 / (z * (folder ? 1 : (pose.v.scaleX || 1))), 'rgba(30,28,20,.28)');
+      // あみは 絵の じゃまに ならないよう うすく 細く
+      strokeMesh(ctx, l.mesh, xy, 0.7 / (z * (folder ? 1 : (pose.v.scaleX || 1))), 'rgba(30,28,20,.10)');
       ctx.restore();
     }
 

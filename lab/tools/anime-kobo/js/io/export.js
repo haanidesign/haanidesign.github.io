@@ -7,9 +7,9 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=54';
-import { A as AUD } from './audio.js?v=54';
-import { encodeGif } from './gif.js?v=54';
+import { createRenderer } from '../render/renderer.js?v=55';
+import { A as AUD } from './audio.js?v=55';
+import { encodeGif } from './gif.js?v=55';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -220,15 +220,33 @@ async function recordWithMediaRecorder({ cv, R, project, view, fps, duration,
 
 /* ---------- 保存 ---------- */
 /** 共有シートが使えるならそこへ。だめならダウンロード。 */
-export async function saveVideo(blob, filename){
-  const file = new File([blob], filename, { type: blob.type });
+/**
+ * できた 動画を ほぞんする。
+ *
+ * カメラロール（ギャラリー）に 入れるには、スマホの「きょうゆう」に
+ * わたすのが かくじつ。ただし きょうゆうは
+ *「人が ボタンを おした その場」でしか ひらけない きまりなので、
+ * 書き出しが 終わってから 自動で よぶと 失敗する。
+ * だから 書き出しの あとに ボタンを 出して、そこから よぶ。
+ *
+ *   how … 'share'（きょうゆう）／'download'（ダウンロード）
+ */
+export function canShareFile(blob, filename){
+  try{
+    const file = new File([blob], filename, { type: blob.type });
+    return !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  }catch(_){ return false; }
+}
 
-  if(navigator.canShare && navigator.canShare({ files: [file] })){
+export async function saveVideo(blob, filename, how){
+  if(how !== 'download' && canShareFile(blob, filename)){
+    const file = new File([blob], filename, { type: blob.type });
     try{
       await navigator.share({ files: [file], title: filename });
       return 'share';
     }catch(err){
       if(err && err.name === 'AbortError') return 'cancel';
+      if(how === 'share') throw new Error('きょうゆうを ひらけませんでした');
       // 共有がだめならダウンロードに落とす
     }
   }

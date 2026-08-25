@@ -1,32 +1,33 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=54';
+import { M } from './engine/math.js?v=55';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=54';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=55';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=54';
-import { createStage } from './ui/stage.js?v=54';
-import { createRenderer } from './render/renderer.js?v=54';
-import { createTimeline } from './ui/timeline.js?v=54';
-import { fmtTime } from './engine/anim.js?v=54';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=55';
+import { createStage } from './ui/stage.js?v=55';
+import { createRenderer } from './render/renderer.js?v=55';
+import { createTimeline } from './ui/timeline.js?v=55';
+import { fmtTime } from './engine/anim.js?v=55';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
-         buildExportSheet, buildEaseSheet,
+         buildExportSheet, buildEaseSheet, buildDoneSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
-         setNotifier, buildPathSheet } from './ui/sheet.js?v=54';
+         setNotifier, buildPathSheet } from './ui/sheet.js?v=55';
 
-import { showNewDoc } from './ui/newdoc.js?v=54';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=54';
-import { fitToCanvas, isBg } from './io/bg.js?v=54';
-import * as Audio from './io/audio.js?v=54';
+import { showNewDoc } from './ui/newdoc.js?v=55';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=55';
+import { fitToCanvas, isBg } from './io/bg.js?v=55';
+import * as Audio from './io/audio.js?v=55';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=54';
-import { importPsd } from './io/psd.js?v=54';
-import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=54';
-import { pathKeys } from './engine/path.js?v=54';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=55';
+import { importPsd } from './io/psd.js?v=55';
+import { exportVideo, exportGif, saveVideo, canShareFile,
+         canUseWebCodecs } from './io/export.js?v=55';
+import { pathKeys } from './engine/path.js?v=55';
 
 const $ = (s) => document.querySelector(s);
 
@@ -604,13 +605,16 @@ async function runExport(kind){
         })
       : await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport });
 
-    title.textContent = 'ほぞん しています';
     const name = (S.proj.name || 'anime') + '.' + r.ext;
-    const how = await saveVideo(r.blob, name);
     const mb = (r.blob.size / 1048576).toFixed(1);
-    toast(how === 'cancel' ? 'ほぞんを やめました'
-        : how === 'share'  ? 'ほぞんしました（' + mb + 'MB）'
-        : name + ' をダウンロードしました（' + mb + 'MB）');
+    box.classList.remove('on');
+
+    /* ここで 自動で 共有すると、スマホでは
+      「人が おした その場」ではないので ひらけない。
+       ボタンに して、おした その場で 共有する。 */
+    sheet.open('できあがり', (b) => buildDoneSheet(b, () => sheet.close(),
+      { name, mb, canShare: canShareFile(r.blob, name) },
+      (how) => saveVideo(r.blob, name, how)));
   }catch(err){
     toast(err.message === 'やめました' ? '書き出しを やめました'
                                        : (err.message || '書き出せませんでした'));

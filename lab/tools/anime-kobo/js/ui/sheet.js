@@ -1,26 +1,26 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=54';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=55';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
-         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=54';
+         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=55';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=54';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=54';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=54';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=54';
-import { PRESET_GROUPS } from '../engine/presets.js?v=54';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=55';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=55';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=55';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=55';
+import { PRESET_GROUPS } from '../engine/presets.js?v=55';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=54';
+         addTextLayer } from '../io/text.js?v=55';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=54';
-import { PATTERN_NAMES } from '../io/pattern.js?v=54';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=55';
+import { PATTERN_NAMES } from '../io/pattern.js?v=55';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=54';
+  from './colorwheel.js?v=55';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=54';
+         guessBpm, firstOnset } from '../io/audio.js?v=55';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=54';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=55';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2450,4 +2450,56 @@ export function buildPathSheet(box, closeFn, pts, apply){
   note.textContent = 'いまの時間から はじまります。' + NL
     + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
   box.appendChild(note);
+}
+
+
+/* ================= できあがり =================
+   書き出しが 終わったら、ここから ほぞんする。
+   「きょうゆう」は 人が おした その場でしか ひらけないので、
+   自動では よばずに ボタンに している。 */
+export function buildDoneSheet(box, closeFn, info, save){
+  const NL = String.fromCharCode(10);
+
+  const head = document.createElement('div');
+  head.className = 'empty';
+  head.style.textAlign = 'left';
+  head.textContent = 'できました！' + NL
+    + info.name + '（' + info.mb + 'MB）';
+  box.appendChild(head);
+
+  if(info.canShare){
+    box.appendChild(btnRow(
+      button('📤 きょうゆう（カメラロールに ほぞん）', async () => {
+        try{
+          const r = await save('share');
+          notify(r === 'cancel' ? 'やめました' : 'ほぞんしました');
+          if(r !== 'cancel' && closeFn) closeFn();
+        }catch(err){
+          notify(err.message || 'ほぞんできませんでした');
+        }
+      })
+    ));
+    const t = document.createElement('div');
+    t.className = 'empty';
+    t.style.textAlign = 'left';
+    t.textContent = '出てきた 中から「ほぞん」や「フォトに ついか」を えらぶと'
+      + NL + 'カメラロールに 入ります。';
+    box.appendChild(t);
+  } else {
+    const t = document.createElement('div');
+    t.className = 'empty';
+    t.style.textAlign = 'left';
+    t.textContent = 'この 端末では「きょうゆう」が つかえません。' + NL
+      + 'ダウンロードすると「ダウンロード」の中に 入ります。';
+    box.appendChild(t);
+  }
+
+  box.appendChild(btnRow(
+    button('⬇ ダウンロード', async () => {
+      await save('download');
+      notify('ダウンロードしました');
+      if(closeFn) closeFn();
+    }),
+    button('とじる', () => { if(closeFn) closeFn(); })
+  ));
 }
