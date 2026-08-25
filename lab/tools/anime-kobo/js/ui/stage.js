@@ -5,7 +5,7 @@ import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
          keepChildren } from '../engine/layer.js';
 import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
 import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
-import { buildMesh, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
+import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
          bendChain } from '../engine/puppet.js';
 import { createRenderer } from '../render/renderer.js';
 import { attachInput } from './input.js';
@@ -54,21 +54,27 @@ export function createStage(canvas, host, toast){
   /** ピンモード中の見た目：あみと、刺さっているピン */
   function drawPuppet(l){
     const pose = poses[l.id]; if(!pose) return;
-    const asset = frameAsset(l, pose.v.frame); if(!asset) return;
+    const folder = isFolder(l);
+    const asset = folder ? null : frameAsset(l, pose.v.frame);
+    if(!folder && !asset) return;
     const ctx = R.ctx, z = S.view.z;
     const v = valuesAt(l, S.time);
 
     if(l.mesh && v.pins.length){
       ctx.save();
       ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
-      const m = pose.m;
-      ctx.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
-      ctx.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      if(!folder){
+        // フォルダの あみは キャンバスの ざひょう そのままなので、
+        // レイヤーの 置きかたを かけない
+        const m = pose.m;
+        ctx.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
+        ctx.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      }
       if(needsPrecompute(l.mesh, v.pins, l.stiff)) precompute(l.mesh, v.pins, l.stiff);
       const n = l.mesh.verts.length;
       const xy = new Float32Array(n * 2);
       deform(l.mesh, v.pins, xy);
-      strokeMesh(ctx, l.mesh, xy, 1.2 / (z * (pose.v.scaleX || 1)), 'rgba(30,28,20,.28)');
+      strokeMesh(ctx, l.mesh, xy, 1.2 / (z * (folder ? 1 : (pose.v.scaleX || 1))), 'rgba(30,28,20,.28)');
       ctx.restore();
     }
 
@@ -123,6 +129,8 @@ export function createStage(canvas, host, toast){
 
   /** キャンバス座標 → その絵の中の座標 */
   function toImage(l, pose, cp){
+    // フォルダは キャンバス ぜんたいが 絵。さわった所が そのまま 絵の中の点
+    if(isFolder(l)) return { x: cp.x, y: cp.y };
     const asset = frameAsset(l, pose.v.frame);
     if(!asset) return null;
     const inv = M.inv(pose.m);
@@ -132,6 +140,8 @@ export function createStage(canvas, host, toast){
 
   /** 絵の中の座標 → キャンバス座標 */
   function fromImage(l, pose, ip){
+    // フォルダは キャンバスの ざひょう そのもの
+    if(isFolder(l)) return { x: ip.x, y: ip.y };
     const asset = frameAsset(l, pose.v.frame);
     if(!asset) return null;
     return M.apply(pose.m, ip.x - asset.w * l.pivot.x, ip.y - asset.h * l.pivot.y);
@@ -140,6 +150,17 @@ export function createStage(canvas, host, toast){
   /** ピンを刺すとき、まだあみが無ければ張る */
   function ensureMesh(l){
     if(l.mesh) return true;
+    if(isFolder(l)){
+      /* フォルダは 絵を 持たないので、キャンバス ぜんたいを
+         1まいの 絵と みなして あみを 張る。
+         ピンの ものさしは キャンバスの ドット。 */
+      const long = Math.max(S.proj.w, S.proj.h);
+      const n = 16;
+      const cols = Math.max(2, Math.round(n * S.proj.w / long));
+      const rows = Math.max(2, Math.round(n * S.proj.h / long));
+      l.mesh = buildMeshRect(S.proj.w, S.proj.h, cols, rows);
+      return true;
+    }
     const img = frameImage(l, 0);
     if(!img || !img.complete) return false;
     const { cols, rows } = meshSizeFor(img);
@@ -200,10 +221,13 @@ export function createStage(canvas, host, toast){
     if(i >= 0){ S.pinSel = i; onChange(); return; }   // すでにあるピンを選ぶだけ
 
     const ip = toImage(l, pose, cp);
-    const asset = frameAsset(l, pose.v.frame);
-    if(!ip || !asset) return;
-    if(ip.x < 0 || ip.y < 0 || ip.x > asset.w || ip.y > asset.h){
-      return toast('絵の上を おしてね');
+    if(!ip) return;
+    const box = isFolder(l)
+      ? { w: S.proj.w, h: S.proj.h }
+      : (() => { const a = frameAsset(l, pose.v.frame); return a ? { w: a.w, h: a.h } : null; })();
+    if(!box) return;
+    if(ip.x < 0 || ip.y < 0 || ip.x > box.w || ip.y > box.h){
+      return toast(isFolder(l) ? 'キャンバスの中を おしてね' : '絵の上を おしてね');
     }
     if(!ensureMesh(l)) return toast('絵を よみこみ中です');
 
@@ -394,8 +418,17 @@ export function createStage(canvas, host, toast){
       if(drag.kind === 'anchor'){
         const l = drag.l;
         const pose = poses[l.id] || livePoses()[l.id];
-        const ip = toImage(l, pose, cp);
-        if(ip) moveAnchor(l, pose, ip);
+        if(isFolder(l)){
+          /* フォルダは 絵を持たないので、原点そのものを さわった所へ 動かす。
+             中身は もとの見た目の ままに しておく（keepChildren）。 */
+          const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
+          const want = pm ? M.apply(M.inv(pm), cp.x, cp.y) : { x: cp.x, y: cp.y };
+          keepChildren(S.proj, l, S.time, () => { l.x = want.x; l.y = want.y; });
+          if(hasPins(l)){ setPin(l, 'x', S.time, l.x, 'smooth'); setPin(l, 'y', S.time, l.y, 'smooth'); }
+        } else {
+          const ip = toImage(l, pose, cp);
+          if(ip) moveAnchor(l, pose, ip);
+        }
         onChange();
         return;
       }

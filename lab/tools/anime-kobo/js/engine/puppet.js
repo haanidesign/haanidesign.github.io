@@ -23,7 +23,7 @@ export function buildMesh(img, cols, rows){
   const cv = document.createElement('canvas');
   cv.width = SW; cv.height = SH;
   const g = cv.getContext('2d', { willReadFrequently: true });
-  g.drawImage(img, 0, 0, SW, SH);
+  g.drawImage(img._src || img, 0, 0, SW, SH);
   const data = g.getImageData(0, 0, SW, SH).data;
 
   const opaque = (u, v) => {
@@ -271,14 +271,32 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2){
 }
 
 /** 変形したあみに絵を貼る。ctx にはレイヤーの変換がかかっている前提 */
-export function drawDeformed(ctx, img, mesh, xy){
+/**
+ * あみの形に そって 絵を 描く。
+ *   srcK … 絵の中の ドット数と あみの ものさしが ちがうときの 倍率
+ *          （フォルダを まとめて 曲げるときに つかう。ふだんは 1）
+ */
+export function drawDeformed(ctx, img, mesh, xy, srcK){
+  const k = srcK || 1;
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){
     const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
     drawTri(ctx, img,
       xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
-      v[i0].u, v[i0].v, v[i1].u, v[i1].v, v[i2].u, v[i2].v);
+      v[i0].u * k, v[i0].v * k, v[i1].u * k, v[i1].v * k, v[i2].u * k, v[i2].v * k);
   }
+}
+
+/** 中身が つまった あみ（フォルダ用）。絵の あるなしを 見ない */
+export function buildMeshRect(w, h, cols, rows){
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(2, Math.min(64, cols * 2));
+  cv.height = Math.max(2, Math.min(64, rows * 2));
+  const g = cv.getContext('2d');
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, cv.width, cv.height);
+  // 大きさだけ さしかえて わたす（buildMesh は 幅・高さを ここから 見る）
+  return buildMesh({ width: w, height: h, _src: cv }, cols, rows);
 }
 
 /** あみの線を描く（ピンモード中の目印） */

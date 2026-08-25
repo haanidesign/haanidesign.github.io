@@ -2,7 +2,8 @@
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
 import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js';
-import { isFolder, treeRows, membersOf, removeLayers, isDescendant } from '../engine/layer.js';
+import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
+         nearestFolder, setParent } from '../engine/layer.js';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, channelValue, framePinTimes, valuesAt,
          pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js';
@@ -195,6 +196,7 @@ export function createTimeline(root, opts = {}){
     grip.title = 'つまんで ならびかえ';
     attachReorder(grip, l, row);
     head.appendChild(grip);
+    attachLongPress(head, grip);
 
     // ☑ ＝ まとめる ときに えらぶ印
     const pick = document.createElement('button');
@@ -476,6 +478,34 @@ export function createTimeline(root, opts = {}){
   }
 
   /* ---------- 並びかえ ---------- */
+  /* 名前のところを 長おししても、つまみと 同じように 運べる。
+     （つまみが 小さくて さわりにくい ため） */
+  function attachLongPress(head, grip){
+    let timer = null, sx = 0, sy = 0, id = null;
+    const clear = () => { clearTimeout(timer); timer = null; };
+
+    head.addEventListener('pointerdown', (e) => {
+      if(e.target.closest('button')) return;
+      sx = e.clientX; sy = e.clientY; id = e.pointerId;
+      clear();
+      timer = setTimeout(() => {
+        timer = null;
+        if(navigator.vibrate) navigator.vibrate(12);
+        /* 同じ 指を つまみへ わたす。
+           先に つかまえて おかないと、動かしても つまみに 届かない。 */
+        try{ grip.setPointerCapture(id); }catch(_){}
+        grip.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true, clientX: sx, clientY: sy, pointerId: id, pointerType: e.pointerType
+        }));
+      }, 320);
+    });
+    head.addEventListener('pointermove', (e) => {
+      if(timer && (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8)) clear();
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach(ev =>
+      head.addEventListener(ev, clear));
+  }
+
   function attachReorder(grip, l, row){
     grip.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -527,6 +557,7 @@ export function createTimeline(root, opts = {}){
         grip.removeEventListener('pointermove', move);
         grip.removeEventListener('pointerup', end);
         grip.removeEventListener('pointercancel', end);
+        settleFolder(l);
         commitEdit();
         onChange();
       };
@@ -594,6 +625,56 @@ export function createTimeline(root, opts = {}){
     });
     S.selPins = { layer:null, times:[] };
     onChange();
+  }
+
+  /**
+   * 運んだ先で、フォルダの 中か 外かを 決めなおす。
+   *
+   * すぐ上の 行を 見て
+   *   フォルダそのもの → その中へ 入れる
+   *   フォルダの中身    → 同じ フォルダへ 入れる
+   *   それ以外          → フォルダから 出す
+   * 見た目は 変えない（setParent が 計算しなおす）。
+   *
+   * ふつうの レイヤーに ぶら下がっている ものは そのまま
+   * （親に ついていくので、ここで いじると こんがらがる）。
+   */
+  function settleFolder(dragged){
+    const ids = (S.pick.length && S.pick.includes(dragged.id)) ? [...S.pick] : [dragged.id];
+    const byId = {};
+    S.proj.layers.forEach(x => byId[x.id] = x);
+
+    let changed = 0;
+    for(const id of ids){
+      const l = byId[id];
+      if(!l) continue;
+      const cur = l.parent ? byId[l.parent] : null;
+      if(cur && !isFolder(cur)) continue;          // ふつうの親子は さわらない
+
+      // すぐ上の 行（自分たち いがい）
+      const i = S.proj.layers.indexOf(l);
+      let above = null;
+      for(let k = i - 1; k >= 0; k--){
+        const x = S.proj.layers[k];
+        if(ids.includes(x.id)) continue;
+        if(isDescendant(S.proj, x.id, l.id)) continue;
+        above = x; break;
+      }
+
+      let want = null;
+      if(above){
+        want = isFolder(above) ? above : nearestFolder(S.proj, above);
+      }
+      // 自分の中には 入れない
+      if(want && (want.id === l.id || isDescendant(S.proj, want.id, l.id))) want = cur;
+
+      const now = cur || null;
+      if((want || null) === now) continue;
+      if(setParent(S.proj, l, want ? want.id : null, S.time)) changed++;
+    }
+    if(changed){
+      toast(changed + 'まいの 入れる先を かえました');
+    }
   }
 
   /** ☑ でえらんだ レイヤーを けす */

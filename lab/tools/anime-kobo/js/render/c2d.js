@@ -247,7 +247,29 @@ export function createC2D(canvas){
 
     const c = alloc(), gx = c.getContext('2d');
     gx.setTransform(...tf);
-    drawNodes(gx, project, kids, poses, tf);
+
+    if(v.pins && v.pins.length && f.mesh){
+      /* フォルダ ぜんたいを ピンで 曲げる。
+         中身を いったん まとめて 描いてから、その1まいを あみで ゆがめる。
+         あみの ものさしは キャンバスの ドット（もようや ズームに よらない）。 */
+      /* まとめた絵は「ずらしなし」で 描く。
+         そうすると 絵の中の ドットが キャンバスの ドット×ズーム に
+         そろうので、あみとの ものさし合わせが かけ算だけで すむ。 */
+      const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
+      const tmpC = alloc(), tg = tmpC.getContext('2d');
+      tg.setTransform(...tf0);
+      drawNodes(tg, project, kids, poses, tf0);
+
+      if(needsPrecompute(f.mesh, v.pins, f.stiff)) precompute(f.mesh, v.pins, f.stiff);
+      const n = f.mesh.verts.length;
+      if(!f._xy || f._xy.length < n * 2) f._xy = new Float32Array(n * 2);
+      deform(f.mesh, v.pins, f._xy);
+      // まとめた絵は 画面の ドットなので、あみの ものさしを 合わせる
+      drawDeformed(gx, tmpC, f.mesh, f._xy, Math.abs(tf[0]));
+      back(1);
+    } else {
+      drawNodes(gx, project, kids, poses, tf);
+    }
 
     if(v.tintAmount > 0.001){
       gx.setTransform(1, 0, 0, 1, 0, 0);
