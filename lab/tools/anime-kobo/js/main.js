@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=56';
+import { M } from './engine/math.js?v=57';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=56';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=57';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=56';
-import { createStage } from './ui/stage.js?v=56';
-import { createRenderer } from './render/renderer.js?v=56';
-import { createTimeline } from './ui/timeline.js?v=56';
-import { fmtTime } from './engine/anim.js?v=56';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=57';
+import { createStage } from './ui/stage.js?v=57';
+import { createRenderer } from './render/renderer.js?v=57';
+import { createTimeline } from './ui/timeline.js?v=57';
+import { fmtTime } from './engine/anim.js?v=57';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -16,18 +16,18 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildExportSheet, buildEaseSheet, buildDoneSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
-         setNotifier, buildPathSheet } from './ui/sheet.js?v=56';
+         setNotifier, buildPathSheet } from './ui/sheet.js?v=57';
 
-import { showNewDoc } from './ui/newdoc.js?v=56';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=56';
-import { fitToCanvas, isBg } from './io/bg.js?v=56';
-import * as Audio from './io/audio.js?v=56';
+import { showNewDoc } from './ui/newdoc.js?v=57';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=57';
+import { fitToCanvas, isBg } from './io/bg.js?v=57';
+import * as Audio from './io/audio.js?v=57';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=56';
-import { importPsd } from './io/psd.js?v=56';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=57';
+import { importPsd } from './io/psd.js?v=57';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=56';
-import { pathKeys } from './engine/path.js?v=56';
+         canUseWebCodecs } from './io/export.js?v=57';
+import { pathKeys } from './engine/path.js?v=57';
 
 const $ = (s) => document.querySelector(s);
 

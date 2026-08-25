@@ -1,9 +1,9 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=56';
-import { valuesAt as evalAt, setPin } from './anim.js?v=56';
-import { deformPoint } from './puppet.js?v=56';
+import { M, uid, ptInQuad } from './math.js?v=57';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=57';
+import { deformPoint } from './puppet.js?v=57';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -392,7 +392,13 @@ export function keepChildren(project, layer, time, fn){
 
   const before = computeAll(project, time);
   const world = {};
-  kids.forEach(k => { if(before[k.id]) world[k.id] = before[k.id].m; });
+  const wasAt = {};
+  kids.forEach(k => {
+    if(!before[k.id]) return;
+    world[k.id] = before[k.id].m;
+    // いまの時間の 見え方（ピンが あれば ピンの値）
+    wasAt[k.id] = { x: before[k.id].v.x, y: before[k.id].v.y };
+  });
 
   fn();
 
@@ -402,8 +408,21 @@ export function keepChildren(project, layer, time, fn){
     const w = world[k.id];
     if(!w || !after[layer.id]) continue;
     const d = M.decompose(M.mul(M.inv(after[layer.id].m), w));
-    k.x = d.x; k.y = d.y;
-    k.rot = d.rot; k.scaleX = d.scaleX; k.scaleY = d.scaleY;
+
+    /* 場所は「どれだけ ずらすか」で 直す。
+       うごきのピンが 打ってあると 素の値は 見られないので、
+       ピンも 同じだけ ずらさないと その子だけ 動いてしまう。 */
+    const dx = d.x - wasAt[k.id].x;
+    const dy = d.y - wasAt[k.id].y;
+    k.x += dx; k.y += dy;
+    shiftTrack(k, 'x', dx);
+    shiftTrack(k, 'y', dy);
+
+    // まわり方・大きさは ピンが 無いときだけ 直す（じくの 移動では 変わらない）
+    const tr = k.tracks || {};
+    if(!(tr.rot && tr.rot.length)) k.rot = d.rot;
+    if(!(tr.scaleX && tr.scaleX.length)) k.scaleX = d.scaleX;
+    if(!(tr.scaleY && tr.scaleY.length)) k.scaleY = d.scaleY;
     n++;
   }
   return n;
