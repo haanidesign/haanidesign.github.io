@@ -1,26 +1,26 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=57';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=58';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
-         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=57';
+         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=58';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=57';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=57';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=57';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=57';
-import { PRESET_GROUPS } from '../engine/presets.js?v=57';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=58';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=58';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=58';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=58';
+import { PRESET_GROUPS } from '../engine/presets.js?v=58';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=57';
+         addTextLayer } from '../io/text.js?v=58';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=57';
-import { PATTERN_NAMES } from '../io/pattern.js?v=57';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=58';
+import { PATTERN_NAMES } from '../io/pattern.js?v=58';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=57';
+  from './colorwheel.js?v=58';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=57';
+         guessBpm, firstOnset } from '../io/audio.js?v=58';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=57';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=58';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、

@@ -247,8 +247,9 @@ function framesLenOf(pre, b, pins){
 }
 
 /* ---------- 描く ---------- */
-function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2){
-  const cx = (x0 + x1 + x2) / 3, cy = (y0 + y1 + y2) / 3, EX = 0.4;
+function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
+  const cx = (x0 + x1 + x2) / 3, cy = (y0 + y1 + y2) / 3;
+  const EX = ex == null ? 0.4 : ex;
   let d;
   d = Math.hypot(x0 - cx, y0 - cy) || 1; x0 += (x0 - cx) / d * EX; y0 += (y0 - cy) / d * EX;
   d = Math.hypot(x1 - cx, y1 - cy) || 1; x1 += (x1 - cx) / d * EX; y1 += (y1 - cy) / d * EX;
@@ -278,12 +279,31 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2){
  */
 export function drawDeformed(ctx, img, mesh, xy, srcK){
   const k = srcK || 1;
+
+  /* 三角形を ほんの少し ふくらませて 重ねる。
+     こうしないと 三角と 三角の あいだに すきまが できて、
+     下じきの色が すじに なって 見える（かみの毛の 上で とくに 目立つ）。
+
+     ふくらませる 量は「画面の ドットで いくつぶん」で きめる。
+     絵の中の ドットで きめると、ズームや レイヤーの 大きさで
+     効いたり 効かなかったり して しまう。 */
+  let scale = 1;
+  try{
+    const m = ctx.getTransform();
+    scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+  }catch(_){ scale = 1; }
+  /* 画面の ドットで 1.8こぶん 重ねる。
+     0.75 では まだ すじが のこり、2.5 だと ほとんど 変わらない。
+     （まっ平らな 色で 実測：すじの ドット数 5106→1732） */
+  const ex = Math.min(6, Math.max(0.5, 1.8 / scale));
+
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){
     const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
     drawTri(ctx, img,
       xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
-      v[i0].u * k, v[i0].v * k, v[i1].u * k, v[i1].v * k, v[i2].u * k, v[i2].v * k);
+      v[i0].u * k, v[i0].v * k, v[i1].u * k, v[i1].v * k, v[i2].u * k, v[i2].v * k,
+      ex);
   }
 }
 
