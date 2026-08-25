@@ -188,6 +188,7 @@ export function createStage(canvas, host, toast){
   function tapInPinMode(cp){
     const l = selected();
     if(!l) return toast('レイヤーをえらんでね');
+    if(l.locked) return toast('🔒 カギが かかっています');
     const P = livePoses();
     const pose = P[l.id]; if(!pose) return;
 
@@ -312,6 +313,15 @@ export function createStage(canvas, host, toast){
       const cp = toCanvas(p);
       const l = selected();
       const P = livePoses();
+
+      /* カギが かかっている レイヤーは 絵の上では さわれない。
+         うっかり ずらしてしまう 事故を ふせぐ。
+         なおしたい ときは タイムラインの 🔒 を おして あける。 */
+      if(l && l.locked){
+        toast('🔒 カギが かかっています（タイムラインの 🔒 で あけられます）');
+        drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p };
+        return;
+      }
 
       if(S.pinMode){
         if(!l){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }

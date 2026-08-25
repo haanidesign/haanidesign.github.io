@@ -13,6 +13,7 @@ export function newLayer(name, assetIds){
     name: name || 'レイヤー',
     frames: assetIds ? [...assetIds] : [],
     visible: true,
+    locked: false,     // カギ。かけると 絵の上では さわれない
     parent: null,       // 親レイヤーのid（PHASE 2）
     clip: false,        // ほかのレイヤーの形で ぬく
     clipTo: null,       // どのレイヤーの形で ぬくか（null なら すぐ下）
@@ -195,6 +196,7 @@ export function setParent(project, layer, newParentId, time, onKey){
 /** そのレイヤーが (x,y) を含んでいるか */
 export function hitsLayer(layer, pose, assets, x, y){
   if(!layer || !pose || pose.vis === false || !layer.visible) return false;
+  if(layer.locked) return false;        // カギが かかっていたら つかめない
   if(isFolder(layer)) return false;
   const asset = assets[layer.frames[pose.v.frame] || layer.frames[0]];
   const q = cornersOf(layer, pose.m, asset);
@@ -205,7 +207,7 @@ export function hitsLayer(layer, pose, assets, x, y){
 export function pickLayer(project, poses, assets, x, y){
   // layers[0] が一番手前なので、そのまま前から見る
   for(const l of drawOrder(project)){
-    if(!l.visible) continue;
+    if(!l.visible || l.locked) continue;
     const p = poses[l.id]; if(!p || p.vis === false) continue;
     const asset = assets[l.frames[p.v.frame] || l.frames[0]];
     const q = cornersOf(l, p.m, asset);

@@ -182,7 +182,7 @@ export function createTimeline(root, opts = {}){
     const folder = isFolder(l);
     const row = document.createElement('div');
     row.className = 'trow' + (l.id === S.sel ? ' sel' : '') + (l.visible ? '' : ' off')
-      + (folder ? ' folder' : '');
+      + (folder ? ' folder' : '') + (l.locked ? ' locked' : '');
     row.dataset.id = l.id;
 
     /* --- 左：レイヤー --- */
@@ -242,7 +242,8 @@ export function createTimeline(root, opts = {}){
     nm.className = 'nm';
     const oya = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
     const inFolder = oya && isFolder(oya);
-    nm.textContent = (l.clip ? '✂ ' : '') + (oya && !inFolder ? '⤷ ' : '') + l.name
+    nm.textContent = (l.locked ? '🔒 ' : '') + (l.clip ? '✂ ' : '')
+      + (oya && !inFolder ? '⤷ ' : '') + l.name
       + (folder ? '（' + membersOf(S.proj, l).length + '）' : '');
     const tips = [];
     if(l.clip){
@@ -261,6 +262,20 @@ export function createTimeline(root, opts = {}){
       f.title = 'いま何コマめか';
       head.appendChild(f);
     }
+
+    // カギ。かけると 絵の上で うっかり 動かさなくなる
+    const lock = document.createElement('button');
+    lock.className = 'lock' + (l.locked ? ' on' : '');
+    lock.textContent = l.locked ? '🔒' : '🔓';
+    lock.title = l.locked ? 'カギを あける' : 'カギを かける（絵の上で さわれなくする）';
+    lock.setAttribute('aria-label', lock.title);
+    lock.addEventListener('pointerdown', e => e.stopPropagation());
+    lock.addEventListener('click', e => {
+      e.stopPropagation();
+      edit(l.locked ? 'カギをあける' : 'カギをかける', () => { l.locked = !l.locked; });
+      onChange();
+    });
+    head.appendChild(lock);
 
     const eye = document.createElement('button');
     eye.className = 'eye';
