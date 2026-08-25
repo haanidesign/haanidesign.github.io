@@ -1,10 +1,10 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=69';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=69';
-import { deformPoint } from './puppet.js?v=69';
-import { handTime } from './hand.js?v=69';
+import { M, uid, ptInQuad } from './math.js?v=71';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=71';
+import { deformPoint } from './puppet.js?v=71';
+import { handTime } from './hand.js?v=71';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -61,6 +61,7 @@ function bent(pose){
 }
 
 function assetOf(project, layer, frame){
+  if(isPaint(layer)) return { id: '#' + layer.id, name: layer.name, w: layer.pw, h: layer.ph };
   const id = layer.frames[frame || 0] || layer.frames[0];
   return id ? project.assets[id] : null;
 }
@@ -246,6 +247,34 @@ export function isDescendant(project, id, ofId){
 */
 
 export const isFolder = (l) => !!l && l.kind === 'folder';
+
+/** 自分で 紙に 描く レイヤー（おえかき・いろ）。絵の ファイルを 持たない */
+export const isPaint = (l) => !!l && (l.kind === 'paint' || l.kind === 'solid');
+
+/**
+ * まっさらな おえかきレイヤー。
+ * 紙の 大きさは キャンバスと 同じ。すけたまま なので、
+ * 上に かさねて 書きこみに つかえる。
+ */
+export function newPaintLayer(name, w, h){
+  const l = newLayer(name || 'おえかき', []);
+  l.kind = 'paint';
+  l.pw = w; l.ph = h;
+  l.strokes = [];
+  l.reveal = null;          // 書いた順に 出す（つかうときだけ 作る）
+  l.x = w / 2; l.y = h / 2;
+  return l;
+}
+
+/** ひとつの 色で ぬりつぶした レイヤー */
+export function newSolidLayer(name, w, h, color){
+  const l = newLayer(name || 'いろ', []);
+  l.kind = 'solid';
+  l.pw = w; l.ph = h;
+  l.color = color || '#F2A0B8';
+  l.x = w / 2; l.y = h / 2;
+  return l;
+}
 
 export function newFolder(name){
   const f = newLayer(name || 'フォルダ', []);
@@ -457,7 +486,8 @@ export function removeLayers(project, ids){
  * 絵そのもの（アセット）は 使いまわすので 重くならない。
  * 親子は、いっしょに写したものの中で つなぎ直す。
  */
-const SKIPKEY = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy']);
+const SKIPKEY = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy',
+                         '_pc', '_pkey']);
 
 export function copyLayers(project, ids){
   const set = new Set(ids);

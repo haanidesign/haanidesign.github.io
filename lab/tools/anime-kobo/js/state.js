@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=69';
+import { uid } from './engine/math.js?v=71';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -36,6 +36,10 @@ export const S = {
   ripple: false,                  // ピンをずらすとき、後ろも一緒に動かすか
   pinMode: false,                 // パペットピンをさわっているか
   traceMode: false,               // みちを なぞっているか
+  paintMode: false,               // おえかき中か
+  penColor: '#1E1C14',            // ペンの色
+  penWidth: 12,                   // ペンの ふとさ
+  penErase: false,                // けしゴムに なっているか
   tracePts: null,                 // なぞった あと（キャンバスざひょう）
   pinKind: 'move',                // 'move' さす / 'fix' とめる / 'del' けす
   pinSel: -1,                     // 選んでいるパペットピン
@@ -53,7 +57,8 @@ const UNDO = { stack: [], idx: -1, limit: 40, pending: null };
 /* あみ（mesh）と描画用の作業配列は記録しない。
    ピンの位置さえ残っていれば同じものを張り直せるし、
    Float32Array を JSON に入れると巨大になって壊れる。 */
-const SKIP = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy']);
+const SKIP = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy',
+                      '_pc', '_pkey']);
 const snap = () => JSON.stringify(S.proj, (k, v) => SKIP.has(k) ? undefined : v);
 
 /** 変更の直前に呼ぶ。ドラッグ中は最初の1回だけ効く */
@@ -134,12 +139,19 @@ export function addAsset(name, src, w, h, img){
 
 export const selected = () => S.proj.layers.find(l => l.id === S.sel) || null;
 
-/** レイヤーの、いま出すべき画像 */
+/** 自分で 紙に 描く レイヤー（おえかき・いろ） */
+const paintKind = (l) => !!l && (l.kind === 'paint' || l.kind === 'solid');
+
+/** レイヤーの、いま出すべき画像。
+    おえかき・いろ の レイヤーは ファイルを 持たないので、
+    その場で 作った 紙を「絵」として かえす。 */
 export function frameAsset(layer, frameIndex){
+  if(paintKind(layer)) return { id: '#' + layer.id, name: layer.name, w: layer.pw, h: layer.ph };
   const id = layer.frames[frameIndex || 0] || layer.frames[0];
   return id ? S.proj.assets[id] : null;
 }
 export function frameImage(layer, frameIndex){
+  if(paintKind(layer)) return layer._pc || null;
   const id = layer.frames[frameIndex || 0] || layer.frames[0];
   return id ? S.imgs[id] : null;
 }

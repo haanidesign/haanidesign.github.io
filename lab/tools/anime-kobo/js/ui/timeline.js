@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=69';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=71';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=69';
+         nearestFolder, setParent } from '../engine/layer.js?v=71';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=69';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=71';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -285,11 +285,32 @@ export function createTimeline(root, opts = {}){
       ic.className = 'folderic';
       ic.textContent = l.open === false ? '📁' : '📂';
       head.appendChild(ic);
+    } else if(l.kind === 'solid'){
+      // いろの かみ … その色の しかくを 見本に する
+      const ic = document.createElement('span');
+      ic.className = 'thumb';
+      ic.style.background = l.color || '#F2A0B8';
+      head.appendChild(ic);
+    } else if(l.kind === 'paint'){
+      // おえかきの かみ … いま 描いてある 紙を そのまま 見本に する
+      const th = document.createElement('canvas');
+      th.className = 'thumb';
+      th.width = 26; th.height = 26;
+      const src = l._pc;
+      if(src && src.width && src.height){
+        const g = th.getContext('2d');
+        const k = Math.min(26 / src.width, 26 / src.height);
+        const w = src.width * k, h = src.height * k;
+        g.drawImage(src, (26 - w) / 2, (26 - h) / 2, w, h);
+      }
+      head.appendChild(th);
     } else {
       const asset = frameAsset(l, 0);
       const th = document.createElement('img');
       th.className = 'thumb'; th.alt = '';
-      if(asset) th.src = asset.src;
+      /* 絵が まだ 無い ときに src を さわると
+         「undefined」を とりに 行って しまう */
+      if(asset && asset.src) th.src = asset.src;
       head.appendChild(th);
     }
 

@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=69';
+import { M } from './engine/math.js?v=71';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=69';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=71';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=69';
-import { createStage } from './ui/stage.js?v=69';
-import { createRenderer } from './render/renderer.js?v=69';
-import { createTimeline } from './ui/timeline.js?v=69';
-import { fmtTime } from './engine/anim.js?v=69';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=71';
+import { createStage } from './ui/stage.js?v=71';
+import { createRenderer } from './render/renderer.js?v=71';
+import { createTimeline } from './ui/timeline.js?v=71';
+import { fmtTime } from './engine/anim.js?v=71';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -16,18 +16,20 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildExportSheet, buildEaseSheet, buildDoneSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
-         setNotifier, buildPathSheet } from './ui/sheet.js?v=69';
+         setNotifier, buildPathSheet, buildPaintSheet, setPainter,
+         setEaseAsker, colorPick } from './ui/sheet.js?v=71';
 
-import { showNewDoc } from './ui/newdoc.js?v=69';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=69';
-import { fitToCanvas, isBg } from './io/bg.js?v=69';
-import * as Audio from './io/audio.js?v=69';
+import { showNewDoc } from './ui/newdoc.js?v=71';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=71';
+import { fitToCanvas, isBg } from './io/bg.js?v=71';
+import * as Audio from './io/audio.js?v=71';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=69';
-import { importPsd } from './io/psd.js?v=69';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=71';
+import { importPsd } from './io/psd.js?v=71';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=69';
-import { pathKeys } from './engine/path.js?v=69';
+         canUseWebCodecs } from './io/export.js?v=71';
+import { pathKeys } from './engine/path.js?v=71';
+import { paintDirty } from './engine/paint.js?v=71';
 
 const $ = (s) => document.querySelector(s);
 
@@ -239,6 +241,7 @@ $('#clip').addEventListener('click', () => {
    ② 何秒で 通るかを きめる
    ③ 道のりで 等分に ピンを うつ */
 function setTraceMode(on){
+  if(on && S.paintMode) setPaintMode(false);
   S.traceMode = !!on;
   if(!on) S.tracePts = null;
   $('#tracemode').hidden = !on;
@@ -280,10 +283,65 @@ setTracer(() => {
   setTraceMode(true);
 });
 $('#trClose').addEventListener('click', () => setTraceMode(false));
+
+/* ---- お絵かき ----
+   ペンで 書いている あいだは、絵の上の さわりを ぜんぶ ペンに する。
+   （うっかり レイヤーを 動かして しまわない ように） */
+function setPaintMode(on){
+  S.paintMode = on;
+  $('#paintmode').hidden = !on;
+  $('#paint').classList.toggle('on', on);
+  if(on){
+    if(S.pinMode) setPinMode(false);
+    if(S.traceMode) setTraceMode(false);
+    toast(S.penErase ? 'けしゴムです' : '絵の上を なぞって かこう');
+  }
+  paintUI();
+  refresh();
+}
+function paintUI(){
+  $('#pnPen').classList.toggle('on', !S.penErase);
+  $('#pnEraser').classList.toggle('on', S.penErase);
+  $('#pnSize').textContent = Math.round(S.penWidth);
+  $('#pnColor').style.color = S.penColor;
+}
+setPainter(() => {
+  const l = selected();
+  if(!l || l.kind !== 'paint'){
+    return toast('おえかきの かみを えらんでね');
+  }
+  sheet.close();
+  setPaintMode(true);
+});
+$('#paint').addEventListener('click', () => {
+  if(S.paintMode) return setPaintMode(false);
+  sheet.open('お絵かき', (box) => buildPaintSheet(box, () => sheet.close()));
+});
+$('#pnClose').addEventListener('click', () => setPaintMode(false));
+$('#pnPen').addEventListener('click', () => { S.penErase = false; paintUI(); toast('ペン'); });
+$('#pnEraser').addEventListener('click', () => { S.penErase = true; paintUI(); toast('けしゴム'); });
+$('#pnThin').addEventListener('click', () => {
+  S.penWidth = Math.max(1, Math.round(S.penWidth * 0.75)); paintUI();
+});
+$('#pnThick').addEventListener('click', () => {
+  S.penWidth = Math.min(80, Math.round(S.penWidth * 1.35) + 1); paintUI();
+});
+$('#pnColor').addEventListener('click', () => {
+  sheet.open('ペンの色', (box) => {
+    box.appendChild(colorPick('ペンの色', () => S.penColor, v => { S.penColor = v; paintUI(); }));
+  });
+});
+$('#pnUndo').addEventListener('click', () => {
+  const l = selected();
+  if(!l || l.kind !== 'paint' || !(l.strokes || []).length) return toast('けす ものが ありません');
+  edit('ひとふで もどす', () => { l.strokes.pop(); paintDirty(l); });
+  refresh();
+});
 $('#trUndo').addEventListener('click', () => { S.tracePts = null; refresh(); });
 
 /* ---- パペットピン ---- *//* ---- パペットピン ---- */
 function setPinMode(on){
+  if(on && S.paintMode) setPaintMode(false);
   S.pinMode = on;
   S.pinSel = -1;
   $('#pinmode').hidden = !on;
@@ -348,6 +406,10 @@ $('#pinEase').addEventListener('click', () => {
     (mode, ease) => timeline.setEase(mode, ease),
     timeline.currentShape()));
 });
+setEaseAsker((now, shape, onPick) => {
+  sheet.open('つなぎ方', (box) => buildEaseSheet(box, () => sheet.close(), now, onPick, shape));
+});
+
 $('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
 $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /** 設定シートを、横にスライドできるページで開く */

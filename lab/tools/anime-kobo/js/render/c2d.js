@@ -3,11 +3,12 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=69';
-import { frameAsset, frameImage } from '../state.js?v=69';
+         nearestFolder } from '../engine/layer.js?v=71';
+import { frameAsset, frameImage } from '../state.js?v=71';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=69';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=69';
+         meshSizeFor } from '../engine/puppet.js?v=71';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=71';
+import { paintCanvas } from '../engine/paint.js?v=71';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -232,6 +233,10 @@ export function createC2D(canvas){
 
   /** 1枚ぶん描く。塗り・ふちどり があるときだけ別紙を経由する */
   function paint(g, l, pose, tf){
+    /* おえかき・いろ の レイヤーは 絵の ファイルを 持たない。
+       線の ならびから いまの 時こく ぶんの 紙を 作ってから 描く。 */
+    if(l.kind === 'paint' || l.kind === 'solid') paintCanvas(l, curT);
+
     const asset = frameAsset(l, pose.v.frame);
     const img = frameImage(l, pose.v.frame);
     if(!asset || !img || !img.complete || !img.naturalWidth) return;

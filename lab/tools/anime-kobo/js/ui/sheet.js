@@ -1,29 +1,30 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=69';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=71';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
-         duplicateLayers } from '../engine/layer.js?v=69';
+         duplicateLayers, newPaintLayer, newSolidLayer } from '../engine/layer.js?v=71';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=69';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=69';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=69';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=69';
-import { PRESET_GROUPS } from '../engine/presets.js?v=69';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=71';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=71';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=71';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=71';
+import { PRESET_GROUPS } from '../engine/presets.js?v=71';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=69';
+         addTextLayer } from '../io/text.js?v=71';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=69';
-import { PATTERN_NAMES } from '../io/pattern.js?v=69';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=69';
-import { newHand } from '../engine/hand.js?v=69';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=71';
+import { PATTERN_NAMES } from '../io/pattern.js?v=71';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=71';
+import { newHand } from '../engine/hand.js?v=71';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=71';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=69';
+  from './colorwheel.js?v=71';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=69';
+         guessBpm, firstOnset } from '../io/audio.js?v=71';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=69';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=71';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2640,4 +2641,165 @@ export function buildHand(box, l){
     body.appendChild(t);
   }
   rebuild();
+}
+
+
+/* ================= お絵かき =================
+   ペンで 書いた ものは「点の ならび」で おぼえる。
+   書いた 順が のこるので、その順に 出す ことが できる。
+   （情熱大陸の 名前みたいに、書いている ように 見せられる） */
+let onPaint = () => {};
+export function setPainter(fn){ onPaint = fn; }
+
+/* つなぎ方の 画面は main が ひらく（シートの 出しかたを 知っているのは main） */
+let askEase = () => {};
+export function setEaseAsker(fn){ askEase = fn; }
+
+export function buildPaintSheet(box, closeFn){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+
+  box.appendChild(heading('あたらしい かみ'));
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = 'おえかきの かみ … すけたまま。上に かさねて 書きこめます。' + NL
+    + 'いろの かみ … ぜんたいを 1つの 色で ぬります。';
+  box.appendChild(note);
+
+  box.appendChild(btnRow(
+    button('✏ おえかきの かみ', () => {
+      const made = {};
+      edit('おえかきの かみ', () => {
+        made.l = newPaintLayer('おえかき', S.proj.w, S.proj.h);
+        S.proj.layers.unshift(made.l);
+        S.sel = made.l.id;
+      });
+      notify('おえかきの かみを つくりました');
+      onChange();
+      if(closeFn) closeFn();
+      onPaint();
+    }),
+    button('🟪 いろの かみ', () => {
+      const made = {};
+      edit('いろの かみ', () => {
+        made.l = newSolidLayer('いろ', S.proj.w, S.proj.h, S.penColor);
+        S.proj.layers.unshift(made.l);
+        S.sel = made.l.id;
+      });
+      notify('いろの かみを つくりました');
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
+
+  if(!l){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'レイヤーを えらぶと つづきが 出ます';
+    box.appendChild(e);
+    return;
+  }
+
+  if(l.kind === 'solid'){
+    box.appendChild(heading('いろ'));
+    box.appendChild(colorPick('かみの色', () => l.color || '#F2A0B8',
+      v => { l.color = v; paintDirty(l); }));
+    return;
+  }
+
+  if(l.kind !== 'paint'){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = '「' + l.name + '」は おえかきの かみでは ありません。' + NL
+      + '上の ボタンで かみを つくるか、' + NL
+      + 'おえかきの かみを えらんでね。';
+    box.appendChild(e);
+    return;
+  }
+
+  /* ---- ペンの せってい ---- */
+  box.appendChild(heading('ペン'));
+  box.appendChild(colorPick('ペンの色', () => S.penColor, v => { S.penColor = v; }));
+  box.appendChild(slider('ふとさ', () => S.penWidth, v => S.penWidth = v, 1, 80, 1,
+    v => Math.round(v) + 'px'));
+  box.appendChild(btnRow(
+    button('✏ かきはじめる', () => { if(closeFn) closeFn(); onPaint(); })
+  ));
+
+  /* ---- 書いた 順に 出す ---- */
+  box.appendChild(heading('✍ 書いた順に 出す'));
+  const n = (l.strokes || []).length;
+  const len = Math.round(totalLen(l.strokes));
+  const info = document.createElement('div');
+  info.className = 'empty';
+  info.style.textAlign = 'left';
+  info.textContent = 'いま ' + n + 'ふで（長さ ' + len + 'ドット）あります。' + NL
+    + '書いた 順に、書いている ように 出てきます。';
+  box.appendChild(info);
+
+  const on = () => !!(l.reveal && l.reveal.on);
+  const sw = document.createElement('button');
+  sw.style.flex = '1';
+  const paintSw = () => {
+    sw.textContent = on() ? '✍ 書いた順に 出す … オン' : '✍ 書いた順に 出す … オフ';
+    sw.classList.toggle('on', on());
+  };
+  paintSw();
+  sw.addEventListener('click', () => {
+    edit('書いた順に 出す', () => {
+      if(on()) l.reveal.on = false;
+      else l.reveal = Object.assign(newReveal(), l.reveal || {}, { on: true });
+      paintDirty(l);
+    });
+    paintSw();
+    onChange();
+    rebuild();
+  });
+  box.appendChild(btnRow(sw));
+
+  const body = document.createElement('div');
+  box.appendChild(body);
+
+  function rebuild(){
+    body.textContent = '';
+    if(!on() || !n) return;
+    const r = l.reveal;
+
+    body.appendChild(slider('はじまり', () => r.start, v => { r.start = v; paintDirty(l); },
+      0, Math.max(1, S.proj.duration), 0.1, v => v.toFixed(1) + '秒'));
+    body.appendChild(slider('かかる時間', () => r.dur, v => { r.dur = v; paintDirty(l); },
+      0.2, 20, 0.1, v => v.toFixed(1) + '秒'));
+
+    body.appendChild(btnRow(
+      button('⏱ いまの時間から', () => {
+        edit('はじまりを あわせる', () => { r.start = +S.time.toFixed(2); paintDirty(l); });
+        notify(r.start.toFixed(1) + '秒から 書きはじめます');
+        onChange();
+        rebuild();
+      }),
+      button('〰 つなぎ方', () => { openEase(r); })
+    ));
+
+    const t = document.createElement('div');
+    t.className = 'empty';
+    t.style.textAlign = 'left';
+    t.textContent = 'いまの つなぎ方 … ' + (EASES[r.ease] ? easeName(r.ease) : '自分で かいた線') + NL
+      + 'まっすぐ に すると 同じ はやさで 書きます。' + NL
+      + '（ゆっくり出る に すると はじめが のろのろ）';
+    body.appendChild(t);
+  }
+  rebuild();
+
+  function easeName(k){
+    const f = EASE_LIST.find(e => e[0] === k);
+    return f ? f[1] : k;
+  }
+  function openEase(r){
+    askEase(r.ease, r.shape, (key, shape) => {
+      edit('つなぎ方', () => { r.ease = key; if(shape) r.shape = shape; paintDirty(l); });
+      onChange();
+    });
+  }
 }

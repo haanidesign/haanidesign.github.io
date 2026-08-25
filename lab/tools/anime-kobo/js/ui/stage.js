@@ -1,15 +1,16 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=69';
-import { cleanPath } from '../engine/path.js?v=69';
+import { M, clamp } from '../engine/math.js?v=71';
+import { cleanPath } from '../engine/path.js?v=71';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=69';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=69';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=69';
+         keepChildren, cornersOf } from '../engine/layer.js?v=71';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=71';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=71';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=69';
-import { createRenderer } from '../render/renderer.js?v=69';
-import { attachInput } from './input.js?v=69';
+         bendChain } from '../engine/puppet.js?v=71';
+import { createRenderer } from '../render/renderer.js?v=71';
+import { attachInput } from './input.js?v=71';
+import { newStroke, paintDirty } from '../engine/paint.js?v=71';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -47,8 +48,8 @@ export function createStage(canvas, host, toast, onTraced){
     if(S.pinMode && l){
       drawPuppet(l);
       handles = null;                 // ピンモード中は枠のハンドルを出さない
-    } else if(S.traceMode){
-      handles = null;                 // なぞり中も 枠は 出さない
+    } else if(S.traceMode || S.paintMode){
+      handles = null;                 // なぞり中・おえかき中も 枠は 出さない
     } else {
       handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
     }
@@ -396,6 +397,7 @@ export function createStage(canvas, host, toast, onTraced){
       const cp = toCanvas(p);
       if(S.traceMode) return;             // なぞり中は 選択を 変えない
       if(S.pinMode) return;               // ピンモード中は選択を変えない
+      if(S.paintMode) return;             // おえかき中も 変えない
       if(hitHandle(cp)) return;           // ハンドルはドラッグ開始時に処理する
       const hit = pickPreferSelected(cp, livePoses());
       if(hit && hit.id !== S.sel){ S.sel = hit.id; onChange(); }
@@ -404,6 +406,7 @@ export function createStage(canvas, host, toast, onTraced){
     onTap(p){
       const cp = toCanvas(p);
       if(S.traceMode) return;
+      if(S.paintMode) return;
       if(S.pinMode){ tapInPinMode(cp); return; }
       if(hitHandle(cp)) return;
       const hit = pickPreferSelected(cp, livePoses());
@@ -414,6 +417,28 @@ export function createStage(canvas, host, toast, onTraced){
       const cp = toCanvas(p);
       const l = selected();
       const P = livePoses();
+
+      /* お絵かき。えらんでいる おえかきレイヤーの 紙に 線を ひく。
+         レイヤーの 中の ざひょうで おぼえるので、
+         あとから レイヤーを 動かしても 絵は ついてくる。 */
+      if(S.paintMode){
+        if(!l || l.kind !== 'paint'){
+          toast('おえかきレイヤーを えらんでね');
+          drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p };
+          return;
+        }
+        const ip = toImage(l, P[l.id], cp);
+        if(!ip){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
+        beginEdit(S.penErase ? 'けしゴム' : 'ペン');
+        const st = newStroke(S.penColor, S.penWidth, S.penErase);
+        st.pts.push({ x: ip.x, y: ip.y });
+        l.strokes = l.strokes || [];
+        l.strokes.push(st);
+        paintDirty(l);
+        drag = { kind:'paint', l, st };
+        onChange();
+        return;
+      }
 
       /* みちを なぞる。指の あとを ためるだけ。
          どう 動かすかは あとで きめる（何秒で 通るか など）。 */
@@ -538,6 +563,21 @@ export function createStage(canvas, host, toast, onTraced){
         return;
       }
 
+      if(drag.kind === 'paint'){
+        const l = drag.l;
+        const ip = toImage(l, poses[l.id] || livePoses()[l.id], cp);
+        if(!ip) return;
+        const pts = drag.st.pts;
+        const last = pts[pts.length - 1];
+        // 近すぎる 点は ためない（指の ふるえ よけ・かるくする）
+        if(!last || Math.hypot(ip.x - last.x, ip.y - last.y) > 1.5){
+          pts.push({ x: ip.x, y: ip.y });
+          paintDirty(l);
+          onChange();
+        }
+        return;
+      }
+
       if(drag.kind === 'trace'){
         const pts = S.tracePts || (S.tracePts = []);
         const last = pts[pts.length - 1];
@@ -611,6 +651,16 @@ export function createStage(canvas, host, toast, onTraced){
         } else if(onTraced){
           onTraced();
         }
+        onChange();
+        return;
+      }
+      if(drag && drag.kind === 'paint'){
+        const l = drag.l;
+        // 何も ひけて いなければ その ひとふでは 取りけす
+        if(!drag.st.pts.length) l.strokes.pop();
+        paintDirty(l);
+        drag = null;
+        commitEdit();
         onChange();
         return;
       }
