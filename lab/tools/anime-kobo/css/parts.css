@@ -608,19 +608,52 @@
 }
 
 
-/* ---------- よこ画面：行を ひくくして 絵の欄を かせぐ ---------- */
+/* ---------- よこ画面：たてが みじかいとき ----------
+   スマホの よこは たてが 350ドットほどしか ない。
+   さいせいバー・ピンのバー・めもり だけで うまって、
+   レイヤーの 行が 6ドットまで つぶれていた。
+
+   直しかた
+     ① さいせいバーと ピンのバーを 1だんに ならべる（よこに 半分ずつ）
+        ピンのバーは 前から よこに すべるので、せまくても ぜんぶ さわれる
+     ② めもり・行・ボタンを ひくくする
+     ③ レイヤーの 行が かならず 2つは 見えるように 下げんを きめる */
 @media (orientation:landscape) and (max-height:560px){
-  /* 1行を ひくくして、絵の欄を かせぐ */
-  .trow{ min-height:34px; }
-  .thead{ flex:0 0 112px; padding:.1rem .25rem; gap:.2rem; }
-  .thead .thumb{ width:22px; height:22px; flex:0 0 22px; }
-  .thead .nm{ font-size:.6rem; }
-  .thead .eye,.thead .pick,.thead .twist{ min-height:26px; min-width:24px; }
-  #ruler{ height:26px; padding:.15rem .3rem 0; }
-  #ruler .rhead{ flex:0 0 112px; }
-  #ruler .rhead button{ min-height:22px; font-size:.62rem; }
-  #playbar,#pinbar{ padding:.2rem .35rem; }
-  #playbar button,#pinbar button{ min-height:32px; }
+  /* ① さいせいバーと ピンのバーを 1だんに */
+  #list{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    grid-template-rows:auto auto minmax(0,1fr);
+    grid-template-areas:
+      "play  pin"
+      "ruler ruler"
+      "track track";
+    max-height:44vh;
+  }
+  #playbar{ grid-area:play; }
+  #pinbar{ grid-area:pin; border-top:none; }
+  #pinbar[hidden]{ display:none; }
+  #ruler{ grid-area:ruler; }
+  #tracks{ grid-area:track; }
+
+  /* ピンのバーが 出ていない ときは さいせいバーを 横いっぱいに */
+  #list:has(#pinbar[hidden]) #playbar{ grid-column:1 / -1; }
+
+  /* ② ひくくする */
+  .trow{ min-height:30px; }
+  .thead{ flex:0 0 104px; padding:.1rem .25rem; gap:.2rem; }
+  .thead .thumb{ width:20px; height:20px; flex:0 0 20px; }
+  .thead .nm{ display:none; }
+  .thead .eye,.thead .pick,.thead .twist{ min-height:24px; min-width:24px; }
+  #ruler{ height:22px; padding:.1rem .3rem 0; }
+  #ruler .rhead{ flex:0 0 104px; }
+  #ruler .rhead button{ min-height:20px; font-size:.58rem; }
+  #playbar,#pinbar{ padding:.15rem .3rem; gap:.25rem; }
+  #playbar button,#pinbar button{ min-height:28px; font-size:.64rem; }
+  #playbar .tnum{ font-size:.64rem; }
+
+  /* ③ レイヤーの 行は かならず 2つぶん 見せる */
+  #tracks{ flex:1 1 auto; min-height:62px; padding:.15rem; gap:.15rem; }
 }
 
 

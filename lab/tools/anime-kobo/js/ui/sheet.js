@@ -1,29 +1,29 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=63';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=65';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
-         duplicateLayers } from '../engine/layer.js?v=63';
+         duplicateLayers } from '../engine/layer.js?v=65';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=63';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=63';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=63';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=63';
-import { PRESET_GROUPS } from '../engine/presets.js?v=63';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=65';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=65';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=65';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=65';
+import { PRESET_GROUPS } from '../engine/presets.js?v=65';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=63';
+         addTextLayer } from '../io/text.js?v=65';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=63';
-import { PATTERN_NAMES } from '../io/pattern.js?v=63';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=63';
-import { newHand } from '../engine/hand.js?v=63';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=65';
+import { PATTERN_NAMES } from '../io/pattern.js?v=65';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=65';
+import { newHand } from '../engine/hand.js?v=65';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=63';
+  from './colorwheel.js?v=65';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=63';
+         guessBpm, firstOnset } from '../io/audio.js?v=65';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=63';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=65';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
