@@ -90,6 +90,11 @@ export function createTimeline(root, opts = {}){
     buildPinbar();
     buildRuler();
 
+    /* ☑ を なぞっている あいだは 作り直さない。
+       作り直すと 指で つかんでいた ボタンが 消えてしまい、
+       そこで 指の あとを 見失う（スマホで うまく いかなかった 原因）。 */
+    if(pickDrag){ syncPicks(); return; }
+
     /* 作り直すと 見ていた場所が いちばん上に もどってしまう。
        ボタンを おすたびに 飛ばされないよう、いまの位置を おぼえておく。 */
     const keepTop = rows.scrollTop;
@@ -132,6 +137,16 @@ export function createTimeline(root, opts = {}){
       ruler.addEventListener('pointermove', scrub);
       ruler.addEventListener('pointerup', end);
       ruler.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* なぞっている あいだは 印だけを 書きかえる（作り直さない） */
+  let pickDrag = false;
+  function syncPicks(){
+    rows.querySelectorAll('.trow').forEach(r => {
+      const on = S.pick.includes(r.dataset.id);
+      const b = r.querySelector('.pick');
+      if(b){ b.classList.toggle('on', on); b.textContent = on ? '☑' : '☐'; }
     });
   }
 
@@ -219,10 +234,12 @@ export function createTimeline(root, opts = {}){
       };
       const order = [...rows.querySelectorAll('.trow')].map(r => r.dataset.id);
       const from = order.indexOf(l.id);
-      apply(l.id);
-      onChange();
 
-      let lastTo = from;
+      pickDrag = true;                          // ここから 作り直さない
+      apply(l.id);
+      syncPicks();
+
+      let lastTo = from, moved = false;
       const move = (ev) => {
         const r = [...rows.querySelectorAll('.trow')].find(x => {
           const b = x.getBoundingClientRect();
@@ -231,16 +248,18 @@ export function createTimeline(root, opts = {}){
         if(!r) return;
         const to = order.indexOf(r.dataset.id);
         if(to < 0 || to === lastTo) return;
-        lastTo = to;
+        lastTo = to; moved = true;
         const a = Math.min(from, to), b2 = Math.max(from, to);
         for(let i = a; i <= b2; i++) apply(order[i]);
-        onChange();
+        syncPicks();
       };
       const end = () => {
         pick.removeEventListener('pointermove', move);
         pick.removeEventListener('pointerup', end);
         pick.removeEventListener('pointercancel', end);
-        if(lastTo !== from) toast(S.pick.length + 'まい えらびました');
+        pickDrag = false;                       // ここから ふつうに もどす
+        if(moved) toast(S.pick.length + 'まい えらびました');
+        onChange();
       };
       pick.addEventListener('pointermove', move);
       pick.addEventListener('pointerup', end);
