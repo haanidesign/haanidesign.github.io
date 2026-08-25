@@ -9,10 +9,10 @@
    焼くと 中の うごき・ピン・ふちどりは もどせなくなる。
    （「もどす」では 戻せる） */
 
-import { S, addAsset } from '../state.js?v=59';
-import { createRenderer } from '../render/renderer.js?v=59';
-import { newLayer, withKinAndFolders, removeLayers, nearestFolder } from '../engine/layer.js?v=59';
-import { contentBox, loadImage } from './image.js?v=59';
+import { S, addAsset } from '../state.js?v=60';
+import { createRenderer } from '../render/renderer.js?v=60';
+import { newLayer, withKinAndFolders, removeLayers, nearestFolder } from '../engine/layer.js?v=60';
+import { contentBox, loadImage } from './image.js?v=60';
 
 /**
  * えらんだ レイヤーを いまの 時間の 見た目で 焼いて 1まいに する。

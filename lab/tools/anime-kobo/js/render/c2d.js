@@ -3,15 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=59';
-import { frameAsset, frameImage } from '../state.js?v=59';
-import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, meshSizeFor } from '../engine/puppet.js?v=59';
+         nearestFolder } from '../engine/layer.js?v=60';
+import { frameAsset, frameImage } from '../state.js?v=60';
+import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
+         meshSizeFor } from '../engine/puppet.js?v=60';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=60';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
 export function createC2D(canvas){
   const ctx = canvas.getContext('2d');
   let dotPat = null;
+  let curT = 0;                 // いま 何秒めを 描いているか（手がき風の コマ用）
   // クリッピング・エフェクト用の作業キャンバス（使い回す）
   const tmp = [];
 
@@ -53,10 +56,46 @@ export function createC2D(canvas){
   }
 
   /** 絵そのものを1枚置く（反転とぼかしはここで効かせる） */
+  /* ---------- 手がき風 ----------
+     コマの ばんごうから その場で 出すので、
+     何秒めを 描いても 同じ絵に なる（書き出しと 画面が そろう）。 */
+  function handSeed(l){
+    let h = 0;
+    const id = l.id || '';
+    for(let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+    return h;
+  }
+
+  /** 線を ゆらす ための あみ（ピンが 無いとき用）。こまかさが 変われば 張り直す */
+  function boilMesh(l, img){
+    const sz = handMeshSize(l.hand);
+    if(!l._hmesh || l._hkey !== sz.cols) {
+      l._hmesh = buildMesh(img, sz.cols, sz.rows);
+      l._hkey = sz.cols;
+      // もとの 角の 場所。毎コマ 作り直さないよう ここで 1回だけ
+      const n = l._hmesh.verts.length;
+      const b = new Float32Array(n * 2);
+      for(let i = 0; i < n; i++){ b[i*2] = l._hmesh.verts[i].u; b[i*2+1] = l._hmesh.verts[i].v; }
+      l._hbase = b;
+    }
+    return l._hmesh;
+  }
+
   function place(g, l, pose, asset, img){
     const m = pose.m, v = pose.v;
     g.save();
     g.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
+
+    /* 紙の ずれ。絵ぜんたいを ほんの少し 動かす・かたむける。
+       じく（回転の中心）の ところで かけるので、形は くずれない。 */
+    const hand = handOn(l) ? l.hand : null;
+    if(hand){
+      const fr = handFrame(hand, curT);
+      const sh = handShift(hand, fr, handSeed(l), Math.min(asset.w, asset.h));
+      g.translate(sh.dx, sh.dy);
+      g.rotate(sh.rot);
+    }
+
     // 反転は回転軸を中心にひっくり返す
     if(v.flipX || v.flipY) g.scale(v.flipX ? -1 : 1, v.flipY ? -1 : 1);
     if(v.blur > 0.01) g.filter = 'blur(' + v.blur + 'px)';
@@ -67,6 +106,8 @@ export function createC2D(canvas){
       l.mesh = buildMesh(img, size.cols, size.rows);
     }
 
+    const px = hand ? boilPx(hand, Math.min(asset.w, asset.h)) : 0;
+
     if(l.mesh && v.pins && v.pins.length){
       // パペットピンで曲げて描く。絵の中の座標なので、左上を原点にそろえる
       g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
@@ -74,7 +115,23 @@ export function createC2D(canvas){
       const n = l.mesh.verts.length;
       if(!l._xy || l._xy.length < n * 2) l._xy = new Float32Array(n * 2);
       deform(l.mesh, v.pins, l._xy);
-      drawDeformed(g, img, l.mesh, l._xy);
+      let xy = l._xy;
+      if(px > 0.01){
+        // ピンで 曲げた あとから ゆらす（ピンの きき方は 変わらない）
+        if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
+        xy = boil(l._xy, l._bxy, px, handFrame(hand, curT), handSeed(l));
+      }
+      drawDeformed(g, img, l.mesh, xy);
+
+    } else if(px > 0.01){
+      // ピンは 無いけれど 線を ゆらす。ゆれ用の あみを 張って ずらす
+      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      const me = boilMesh(l, img);
+      const n = me.verts.length;
+      if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
+      boil(l._hbase, l._bxy, px, handFrame(hand, curT), handSeed(l));
+      drawDeformed(g, img, me, l._bxy);
+
     } else {
       g.drawImage(img, -asset.w * l.pivot.x, -asset.h * l.pivot.y, asset.w, asset.h);
     }
@@ -248,7 +305,44 @@ export function createC2D(canvas){
     const c = alloc(), gx = c.getContext('2d');
     gx.setTransform(...tf);
 
-    if(v.pins && v.pins.length && f.mesh){
+    /* フォルダの 手がき風。
+       中身を まとめた 1まいに かけるので、
+       中の レイヤーどうしの ずれ方は そろう（＝1枚の絵として ゆれる）。 */
+    const fhand = handOn(f) ? f.hand : null;
+    if(fhand && !(v.pins && v.pins.length)){
+      const sz = handMeshSize(fhand);
+      if(!f._hmesh || f._hkey !== sz.cols){
+        // フォルダの あみは キャンバスの ドットで 張る（ピンのときと 同じ）
+        f._hmesh = buildMeshRect(project.w, project.h, sz.cols, sz.rows);
+        f._hkey = sz.cols;
+        const n0 = f._hmesh.verts.length;
+        const b = new Float32Array(n0 * 2);
+        for(let i = 0; i < n0; i++){ b[i*2] = f._hmesh.verts[i].u; b[i*2+1] = f._hmesh.verts[i].v; }
+        f._hbase = b;
+      }
+      const px = boilPx(fhand, Math.min(project.w, project.h));
+      const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
+      const tmpC = alloc(), tg = tmpC.getContext('2d');
+      tg.setTransform(...tf0);
+      drawNodes(tg, project, kids, poses, tf0);
+
+      const n = f._hmesh.verts.length;
+      if(!f._bxy || f._bxy.length < n * 2) f._bxy = new Float32Array(n * 2);
+      const fr = handFrame(fhand, curT), sd = handSeed(f);
+      boil(f._hbase, f._bxy, px, fr, sd);
+
+      // 紙の ずれ は まとめた 1まいごと 動かす
+      const sh = handShift(fhand, fr, sd, Math.min(project.w, project.h));
+      gx.save();
+      gx.setTransform(...tf);
+      gx.translate(project.w / 2 + sh.dx, project.h / 2 + sh.dy);
+      gx.rotate(sh.rot);
+      gx.translate(-project.w / 2, -project.h / 2);
+      drawDeformed(gx, tmpC, f._hmesh, f._bxy, Math.abs(tf[0]));
+      gx.restore();
+      back(1);
+
+    } else if(v.pins && v.pins.length && f.mesh){
       /* フォルダ ぜんたいを ピンで 曲げる。
          中身を いったん まとめて 描いてから、その1まいを あみで ゆがめる。
          あみの ものさしは キャンバスの ドット（もようや ズームに よらない）。 */
@@ -420,6 +514,7 @@ export function createC2D(canvas){
   }
 
   function draw(project, imgs, time, view, opts = {}){
+    curT = time;
     const W = canvas.width, H = canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);

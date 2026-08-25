@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=59';
+import { uid } from './engine/math.js?v=60';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -53,7 +53,7 @@ const UNDO = { stack: [], idx: -1, limit: 40, pending: null };
 /* あみ（mesh）と描画用の作業配列は記録しない。
    ピンの位置さえ残っていれば同じものを張り直せるし、
    Float32Array を JSON に入れると巨大になって壊れる。 */
-const SKIP = new Set(['mesh', '_xy', 'weights', 'wIdx']);
+const SKIP = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy']);
 const snap = () => JSON.stringify(S.proj, (k, v) => SKIP.has(k) ? undefined : v);
 
 /** 変更の直前に呼ぶ。ドラッグ中は最初の1回だけ効く */

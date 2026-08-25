@@ -1,9 +1,10 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=59';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=59';
-import { deformPoint } from './puppet.js?v=59';
+import { M, uid, ptInQuad } from './math.js?v=60';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=60';
+import { deformPoint } from './puppet.js?v=60';
+import { handTime } from './hand.js?v=60';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -40,6 +41,7 @@ export function newLayer(name, assetIds){
     stroke: { color:'#FFFEF7', width:0 },   // ふちどり（色と太さ）
     blur: 0,                                // ぼかし（px）
     mblur: 0,                               // うごきブラー（ざんぞう）0〜1
+    hand: null,                             // 手がき風（null なら なし）
     flipX: false, flipY: false              // 反転
   };
 }
@@ -75,7 +77,9 @@ export function computeAll(project, time){
     if(solving[l.id]) return null;      // 親子が輪になっていたら諦める
     solving[l.id] = true;
 
-    const v = evalAt(l, time);
+    /* 手がき風で「うごきも コマ落とし」に していたら、
+       このレイヤーだけ 時こくを コマの きざみに そろえる。 */
+    const v = evalAt(l, handTime(l, time));
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
 
     /* 親が パペットピンで 曲がっているときは、
@@ -453,12 +457,14 @@ export function removeLayers(project, ids){
  * 絵そのもの（アセット）は 使いまわすので 重くならない。
  * 親子は、いっしょに写したものの中で つなぎ直す。
  */
+const SKIPKEY = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy']);
+
 export function copyLayers(project, ids){
   const set = new Set(ids);
   const src = project.layers.filter(l => set.has(l.id));
   // あみ（mesh）と 描画用の配列は 持っていかない（張り直せる）
   return JSON.parse(JSON.stringify(src, (k, v) =>
-    (k === 'mesh' || k === '_xy' || k === 'weights' || k === 'wIdx') ? undefined : v));
+    (SKIPKEY.has(k)) ? undefined : v));
 }
 
 /** 写したものを はりつける。すこし ずらして 手前に 置く */
@@ -470,7 +476,7 @@ export function pasteLayers(project, copied, opt = {}){
     const l = JSON.parse(JSON.stringify(o));
     map[o.id] = l.id = uid('L');
     l.pins = (l.pins || []).map(p => Object.assign({}, p));
-    l.mesh = null; l._xy = null;
+    l.mesh = null; l._xy = null; l._hmesh = null; l._hbase = null; l._bxy = null;
     l.x += shift; l.y += shift;
     if(!/ のコピー$/.test(l.name)) l.name = l.name + ' のコピー';
     return l;
@@ -511,10 +517,10 @@ export function duplicateLayers(project, ids){
   const map = {};
   const made = order.map(o => {
     const l = JSON.parse(JSON.stringify(o, (k, v) =>
-      (k === 'mesh' || k === '_xy' || k === 'weights' || k === 'wIdx') ? undefined : v));
+      (SKIPKEY.has(k)) ? undefined : v));
     map[o.id] = l.id = uid('L');
     l.pins = (l.pins || []).map(q => Object.assign({}, q));
-    l.mesh = null; l._xy = null;
+    l.mesh = null; l._xy = null; l._hmesh = null; l._hbase = null; l._bxy = null;
     l.name = o.name + ' 2';
     return l;
   });

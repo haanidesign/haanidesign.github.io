@@ -1,28 +1,29 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=59';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=60';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
-         duplicateLayers } from '../engine/layer.js?v=59';
+         duplicateLayers } from '../engine/layer.js?v=60';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=59';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=59';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=59';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=59';
-import { PRESET_GROUPS } from '../engine/presets.js?v=59';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=60';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=60';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=60';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=60';
+import { PRESET_GROUPS } from '../engine/presets.js?v=60';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=59';
+         addTextLayer } from '../io/text.js?v=60';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=59';
-import { PATTERN_NAMES } from '../io/pattern.js?v=59';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=59';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=60';
+import { PATTERN_NAMES } from '../io/pattern.js?v=60';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=60';
+import { newHand } from '../engine/hand.js?v=60';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=59';
+  from './colorwheel.js?v=60';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=59';
+         guessBpm, firstOnset } from '../io/audio.js?v=60';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=59';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=60';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1531,6 +1532,8 @@ export function buildLook(box, l, opts){
   box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
     v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
 
+  buildHand(box, l);
+
   if(opts && opts.flip){
     // 反転
     const flipRow = document.createElement('div');
@@ -2540,4 +2543,101 @@ export function buildDoneSheet(box, closeFn, info, save){
     }),
     button('とじる', () => { if(closeFn) closeFn(); })
   ));
+}
+
+
+/* ---------- 手がき風（ハンドドロウン） ----------
+   紙に 何まいも 描いた アニメは、同じ絵でも 線が びみょうに ずれる。
+   その ずれを まねる。
+
+   だいじなのは「コマ数」。
+   ずっと なめらかに ゆれると 手がきに 見えない。
+   ぱっ ぱっ と 切りかわるから 手がきに 見える。 */
+export function buildHand(box, l){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('✏ 手がき風'));
+
+  const on = () => !!(l.hand && l.hand.on);
+  const sw = document.createElement('button');
+  sw.style.flex = '1';
+  const paint = () => {
+    sw.textContent = on() ? '✏ 手がき風 … オン' : '✏ 手がき風 … オフ';
+    sw.classList.toggle('on', on());
+  };
+  paint();
+  sw.addEventListener('click', () => {
+    edit('手がき風', () => {
+      if(on()) l.hand.on = false;
+      else l.hand = Object.assign(newHand(), l.hand || {}, { on: true });
+    });
+    paint();
+    onChange();
+    rebuild();
+  });
+  box.appendChild(btnRow(sw));
+
+  const body = document.createElement('div');
+  box.appendChild(body);
+
+  function rebuild(){
+    body.textContent = '';
+    if(!on()){
+      const t = document.createElement('div');
+      t.className = 'empty';
+      t.style.textAlign = 'left';
+      t.textContent = '線が ふるえて、紙に 描き直した ような 見た目に なります。'
+        + NL + 'フォルダに かけると、中身ぜんぶが 1まいの絵として ゆれます。';
+      body.appendChild(t);
+      return;
+    }
+    const h = l.hand;
+
+    body.appendChild(slider('線の ゆれ', () => h.amount, v => h.amount = v, 0, 1, 0.01,
+      v => v < 0.01 ? 'なし' : Math.round(v * 100) + '%'));
+    body.appendChild(slider('ゆれの こまかさ', () => h.detail, v => h.detail = v, 0, 1, 0.05,
+      v => v < 0.2 ? 'ざっくり' : v > 0.8 ? 'こまかい' : 'ふつう'));
+    body.appendChild(slider('紙の ずれ', () => h.wobble, v => h.wobble = v, 0, 1, 0.01,
+      v => v < 0.01 ? 'なし' : Math.round(v * 100) + '%'));
+
+    /* コマ数。ここが 手がきらしさの もと。
+       8コマ／秒 は テレビアニメの「3コマ うち」に ちかい。 */
+    const fpsRow = document.createElement('div');
+    fpsRow.className = 'rowbtns';
+    [[4, '4'], [6, '6'], [8, '8'], [12, '12'], [24, '24']].forEach(([n, label]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.flex = '1';
+      b.classList.toggle('on', (h.fps || 8) === n);
+      b.addEventListener('click', () => {
+        edit('コマ数', () => h.fps = n);
+        onChange();
+        rebuild();
+      });
+      fpsRow.appendChild(b);
+    });
+    body.appendChild(field('コマ数（1秒に）', fpsRow));
+
+    const st = document.createElement('button');
+    st.style.flex = '1';
+    const paintSt = () => {
+      st.textContent = h.still ? '🎞 うごきも コマ落とし … オン' : '🎞 うごきも コマ落とし … オフ';
+      st.classList.toggle('on', !!h.still);
+    };
+    paintSt();
+    st.addEventListener('click', () => {
+      edit('コマ落とし', () => h.still = !h.still);
+      paintSt();
+      onChange();
+    });
+    body.appendChild(btnRow(st));
+
+    const t = document.createElement('div');
+    t.className = 'empty';
+    t.style.textAlign = 'left';
+    t.textContent = '「うごきも コマ落とし」を オンに すると、'
+      + NL + 'このレイヤーの うごき ぜんぶが コマ数の きざみに なります。'
+      + NL + '（ぬるっと 動かず、パラパラ まんがに 近づく）';
+    body.appendChild(t);
+  }
+  rebuild();
 }
