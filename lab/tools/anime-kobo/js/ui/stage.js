@@ -1,14 +1,14 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js';
+import { M, clamp } from '../engine/math.js?v=51';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js';
-import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js';
+         keepChildren, cornersOf } from '../engine/layer.js?v=51';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=51';
+import { hasPins, setPin, valuesAt, pinChX, pinChY } from '../engine/anim.js?v=51';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js';
-import { createRenderer } from '../render/renderer.js';
-import { attachInput } from './input.js';
+         bendChain } from '../engine/puppet.js?v=51';
+import { createRenderer } from '../render/renderer.js?v=51';
+import { attachInput } from './input.js?v=51';
 
 export function createStage(canvas, host, toast){
   const R = createRenderer(canvas);

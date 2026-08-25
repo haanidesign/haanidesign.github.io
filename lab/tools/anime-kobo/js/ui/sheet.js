@@ -1,24 +1,24 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=51';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
-         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js';
+         attachMany, copyLayers, pasteLayers, removeLayers } from '../engine/layer.js?v=51';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
-         framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST } from '../engine/anim.js';
-import { swayKeys, RIGID } from '../engine/puppet.js';
-import { blinkKeys, talkKeys } from '../engine/anim.js';
-import { PRESET_GROUPS } from '../engine/presets.js';
+         framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST } from '../engine/anim.js?v=51';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=51';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=51';
+import { PRESET_GROUPS } from '../engine/presets.js?v=51';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js';
+         addTextLayer } from '../io/text.js?v=51';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js';
-import { PATTERN_NAMES } from '../io/pattern.js';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=51';
+import { PATTERN_NAMES } from '../io/pattern.js?v=51';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js';
+  from './colorwheel.js?v=51';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js';
+         guessBpm, firstOnset } from '../io/audio.js?v=51';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=51';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、

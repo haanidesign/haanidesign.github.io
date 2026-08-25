@@ -606,20 +606,13 @@
 }
 
 
-/* ---------- レイヤー行の 名前 ----------
-   つまみ・☑・絵・目 で 横幅を つかいきるので、
-   名前は 下の段に まわす。そうしないと 名前が 0はばに つぶれて
-   何の レイヤーか 分からなくなる（画面の 広さに よらず 起きる）。 */
-.trow{ min-height:50px; }
-.thead{ flex-wrap:wrap; align-content:center; row-gap:.05rem; padding:.12rem .25rem; }
+/* ---------- レイヤー行 ----------
+   つまみ・☑・絵・目 で 横を つかうので、名前は 入る ぶんだけ。
+   名前が 見えなくても 絵で 分かるので、行は ひくいままに する。 */
 .thead .eye,.thead .pick,.thead .twist{ min-height:28px; }
-.thead .thumb{ width:24px; height:24px; flex:0 0 24px; }
+.thead .thumb{ width:26px; height:26px; flex:0 0 26px; }
 .thead .grip{ padding:.25rem .1rem; }
-.thead .nm{
-  flex:0 0 100%; order:9;
-  font-size:.64rem; line-height:1.15;
-}
-.thead .frames{ order:8; }
+.thead .nm{ min-width:0; font-size:.62rem; }
 }
 
 

@@ -1,27 +1,27 @@
 /* 起動と組み立て。 */
 
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=51';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers } from './engine/layer.js';
-import { createStage } from './ui/stage.js';
-import { createRenderer } from './render/renderer.js';
-import { createTimeline } from './ui/timeline.js';
-import { fmtTime } from './engine/anim.js';
+         copyLayers, pasteLayers, removeLayers } from './engine/layer.js?v=51';
+import { createStage } from './ui/stage.js?v=51';
+import { createRenderer } from './render/renderer.js?v=51';
+import { createTimeline } from './ui/timeline.js?v=51';
+import { fmtTime } from './engine/anim.js?v=51';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
          buildExportSheet, buildEaseSheet,
          setParentOpener, setBgPicker,
-         setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js';
+         setAudioPicker, setBusy, setPlayer, setFrameAdder, setNotifier } from './ui/sheet.js?v=51';
 
-import { showNewDoc } from './ui/newdoc.js';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js';
-import { fitToCanvas, isBg } from './io/bg.js';
-import * as Audio from './io/audio.js';
+import { showNewDoc } from './ui/newdoc.js?v=51';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=51';
+import { fitToCanvas, isBg } from './io/bg.js?v=51';
+import * as Audio from './io/audio.js?v=51';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js';
-import { importPsd } from './io/psd.js';
-import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=51';
+import { importPsd } from './io/psd.js?v=51';
+import { exportVideo, exportGif, saveVideo, canUseWebCodecs } from './io/export.js?v=51';
 
 const $ = (s) => document.querySelector(s);
 
@@ -327,6 +327,17 @@ function openDocSheet(){
   sheet.open('どうがの せってい', (box) => buildDocSheet(box, () => sheet.close()));
 }
 $('#docSize').addEventListener('click', openDocSheet);
+
+/* 版のばんごうを おすと、ブラウザに のこっている 古いものを 捨てて
+   さいしんを 取りに行く（スマホは 古いままに なりやすい）。 */
+$('#ver').addEventListener('click', async () => {
+  if(S.ready){
+    busy(true, 'ほぞん しています…');
+    try{ await saver.now(); }catch(_){}
+    busy(false);
+  }
+  location.href = location.pathname + '?fresh=' + Date.now();
+});
 
 /* 「アニメ工房」を おすと さくひん えらびへ もどる。
    じどう保存ずみなので、そのまま つづきから ひらける。 */
