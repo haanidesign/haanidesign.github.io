@@ -175,28 +175,27 @@
 #props{ display:none; }
 
 
-/* ================= よこ画面（たてが みじかいとき） =================
-   スマホを よこに すると たてが 350〜450ドットしか ない。
+/* ================= スマホ よこ画面（たてが みじかいとき） =================
+   よこに すると たては 350ドットほどしか ない。
+   時間の帯を 下に 置くと、その ぶん 絵が ぺしゃんこに なる。
 
    ならべ方
      上バー
-     ひだり … 道具（たてに 1れつ）
-     まん中 … 絵
-     した   … タイムライン（画面の はしから はしまで）
+     ひだり … 道具（2れつ）
+     まん中 … 絵（たてを ぜんぶ つかう）
+     みぎ   … タイムライン（たてに 1れつ）
 
-   タイムラインを 横いっぱいに するのが かんじん。
-   よこに ならべると 帯が みじかくなって ピンが うちにくい。 */
+   よこは あまっている ので、時間の帯を みぎの はしらに する。
+   そうすると 絵が たてを まるごと つかえて いちばん 大きくなる。 */
 @media (orientation:landscape) and (max-height:560px){
   #app{
     /* 道具は 2れつ。たてが みじかいので 1れつだと
-       11こ ぜんぶ 見るのに ずっと スクロールする ことに なる。
-       絵は たてで きまるので、よこを 46ドット ゆずっても 小さくならない。 */
-    grid-template-columns:116px 1fr;
-    grid-template-rows:auto 1fr auto;
+       11こ ぜんぶ 見るのに ずっと スクロールする ことに なる。 */
+    grid-template-columns:116px minmax(0,1fr) 300px;
+    grid-template-rows:auto minmax(0,1fr);
     grid-template-areas:
-      "top   top"
-      "tools stage"
-      "list  list";
+      "top   top   top"
+      "tools stage list";
   }
 
   #top{ min-height:42px; padding:.2rem .45rem; gap:.3rem; }
@@ -222,11 +221,15 @@
   }
   #tools .tool i{ font-size:1rem; }
 
-  /* タイムラインは 下いっぱい。ただし 絵が つぶれないよう 高さは ひかえめに */
+  /* タイムラインは みぎの はしら。たてに ぜんぶ ならぶ */
   #list{
-    border-top:var(--bd); border-right:none;
+    max-height:none;
+    border-top:none; border-left:var(--bd); border-right:none;
   }
   #list.folded{ max-height:none; }
   #tracks{ padding:.2rem; gap:.18rem; }
+
+  /* たたむと はしらを 細くして、絵を もっと 大きく 見る */
+  #app:has(#list.folded){ grid-template-columns:116px minmax(0,1fr) 132px; }
 
 }
