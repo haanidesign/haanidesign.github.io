@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=72';
+import { M } from './engine/math.js?v=73';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=72';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=73';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=72';
-import { createStage } from './ui/stage.js?v=72';
-import { createRenderer } from './render/renderer.js?v=72';
-import { createTimeline } from './ui/timeline.js?v=72';
-import { fmtTime } from './engine/anim.js?v=72';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=73';
+import { createStage } from './ui/stage.js?v=73';
+import { createRenderer } from './render/renderer.js?v=73';
+import { createTimeline } from './ui/timeline.js?v=73';
+import { fmtTime } from './engine/anim.js?v=73';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -17,19 +17,19 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick } from './ui/sheet.js?v=72';
+         setEaseAsker, colorPick, buildFlipSheet } from './ui/sheet.js?v=73';
 
-import { showNewDoc } from './ui/newdoc.js?v=72';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=72';
-import { fitToCanvas, isBg } from './io/bg.js?v=72';
-import * as Audio from './io/audio.js?v=72';
+import { showNewDoc } from './ui/newdoc.js?v=73';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=73';
+import { fitToCanvas, isBg } from './io/bg.js?v=73';
+import * as Audio from './io/audio.js?v=73';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=72';
-import { importPsd } from './io/psd.js?v=72';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=73';
+import { importPsd } from './io/psd.js?v=73';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=72';
-import { pathKeys } from './engine/path.js?v=72';
-import { paintDirty } from './engine/paint.js?v=72';
+         canUseWebCodecs } from './io/export.js?v=73';
+import { pathKeys } from './engine/path.js?v=73';
+import { paintDirty } from './engine/paint.js?v=73';
 
 const $ = (s) => document.querySelector(s);
 
@@ -420,6 +420,7 @@ const MOVE_PAGES = {
   loop:   ['🔁 ずっと うごく', buildLoopSheet],
   path:   ['👆 みちを なぞる', buildTraceSheet],
   beat:   ['🥁 リズム（BPM）', buildBeatSheet],
+  flip:   ['🎞 パラパラ',      buildFlipSheet],
   finish: ['💨 しあげ',        buildFinishSheet]
 };
 

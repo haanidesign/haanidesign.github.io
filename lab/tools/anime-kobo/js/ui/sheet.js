@@ -1,30 +1,31 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=72';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=73';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
-         duplicateLayers, newPaintLayer, newSolidLayer } from '../engine/layer.js?v=72';
+         duplicateLayers, newPaintLayer, newSolidLayer,
+         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=73';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=72';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=72';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=72';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=72';
-import { PRESET_GROUPS } from '../engine/presets.js?v=72';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=73';
+import { swayKeys, RIGID } from '../engine/puppet.js?v=73';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=73';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=73';
+import { PRESET_GROUPS } from '../engine/presets.js?v=73';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=72';
+         addTextLayer } from '../io/text.js?v=73';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=72';
-import { PATTERN_NAMES } from '../io/pattern.js?v=72';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=72';
-import { newHand } from '../engine/hand.js?v=72';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=72';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=73';
+import { PATTERN_NAMES } from '../io/pattern.js?v=73';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=73';
+import { newHand } from '../engine/hand.js?v=73';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=73';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=72';
+  from './colorwheel.js?v=73';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=72';
+         guessBpm, firstOnset } from '../io/audio.js?v=73';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=72';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=73';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -638,6 +639,7 @@ export function buildMotionSheet(box, open){
     ['loop',   '🔁 ずっと うごく', '呼吸・ふわふわ・かみのゆれ'],
     ['path',   '👆 みちを なぞる', 'なぞった みちを 何秒で 通るか'],
     ['beat',   '🥁 リズム（BPM）', '拍に あわせて ピンを うつ'],
+    ['flip',   '🎞 パラパラ',      '☑ でえらんだ 絵を コマにして 順ぐりに 出す'],
     ['finish', '💨 しあげ',        'うごきブラー／ピンの おそうじ']
   ];
 
@@ -2802,4 +2804,147 @@ export function buildPaintSheet(box, closeFn){
       onChange();
     });
   }
+}
+
+
+/* ---------- 🎞 パラパラ ----------
+   フォルダの 中身を 1まいずつ 順ぐりに 見せる。
+   ＝ 中の レイヤーが そのまま コマに なる。
+
+   1つの レイヤーに コマを つめる やり方と ちがって、
+   コマは 1まいずつ 別の レイヤーの まま。
+   だから コマごとに 場所や 大きさを 変えられる。
+   （たたんで おけば タイムラインは フォルダの 1行だけ） */
+export function buildFlipSheet(box, back){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+  if(!l) return;
+  backRow(box, back);
+
+  /* まだ フォルダに なっていない … ☑ で えらんだ ものを まとめる */
+  if(!isFolder(l)){
+    const ids = S.pick.length ? [...S.pick] : [l.id];
+    const t = document.createElement('div');
+    t.className = 'empty';
+    t.style.textAlign = 'left';
+    t.textContent = 'コマに したい 絵を ☑ で えらんでから おしてね。' + NL
+      + 'えらんだ 絵が 上から 順に コマに なります。' + NL + NL
+      + 'いま えらんでいる … ' + ids.length + 'まい';
+    box.appendChild(t);
+    box.appendChild(btnRow(
+      button('🎞 えらんだ ' + ids.length + 'まいを パラパラにする', () => {
+        if(ids.length < 2) return notify('☑ で 2まい いじょう えらんでね');
+        const made = {};
+        edit('パラパラにする', () => {
+          made.f = groupInto(S.proj, ids, S.time, 'パラパラ');
+          if(made.f) made.f.flip = newFlip();
+        });
+        if(!made.f) return notify('まとめられませんでした');
+        S.pick = [];
+        S.sel = made.f.id;
+        notify(ids.length + 'まいの パラパラに しました');
+        onChange();
+      })
+    ));
+    return;
+  }
+
+  const mem = membersOf(S.proj, l);
+  const n = mem.length;
+
+  const on = () => isFlip(l);
+  const sw = document.createElement('button');
+  sw.style.flex = '1';
+  const paintSw = () => {
+    sw.textContent = on() ? '🎞 パラパラ … オン' : '🎞 パラパラ … オフ';
+    sw.classList.toggle('on', on());
+  };
+  paintSw();
+  sw.addEventListener('click', () => {
+    edit('パラパラ', () => {
+      if(on()) l.flip.on = false;
+      else l.flip = Object.assign(newFlip(), l.flip || {}, { on: true });
+    });
+    paintSw();
+    onChange();
+    rebuild();
+  });
+  box.appendChild(btnRow(sw));
+
+  const head = document.createElement('div');
+  head.className = 'empty';
+  head.style.textAlign = 'left';
+  head.textContent = '「' + l.name + '」の 中身 ' + n + 'まいが コマに なります。' + NL
+    + '上に あるものが 1コマめ。' + NL
+    + 'コマの 入れかえは タイムラインで レイヤーを 上下に 動かして。';
+  box.appendChild(head);
+
+  const body = document.createElement('div');
+  box.appendChild(body);
+
+  function rebuild(){
+    body.textContent = '';
+    if(!on()) return;
+    if(n < 2){
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.style.textAlign = 'left';
+      e.textContent = 'コマが たりません。フォルダに 絵を 入れてね。';
+      body.appendChild(e);
+      return;
+    }
+    const f = l.flip;
+
+    /* 「1コマ 何秒」より「1秒に 何コマ」の ほうが 分かりやすい。
+       8コマ／秒 は テレビアニメの「3コマ うち」に ちかい。 */
+    body.appendChild(slider('1秒に 何コマ',
+      () => Math.round(1 / f.spf),
+      v => { f.spf = 1 / Math.max(1, v); },
+      1, 24, 1, v => Math.round(v) + 'コマ'));
+
+    const one = document.createElement('div');
+    one.className = 'empty';
+    one.style.textAlign = 'left';
+    one.textContent = '1コマ ' + f.spf.toFixed(3) + '秒　'
+      + '' + n + 'コマで ひとまわり ' + (f.spf * n).toFixed(2) + '秒';
+    body.appendChild(one);
+
+    body.appendChild(slider('はじまり', () => f.start, v => f.start = v,
+      0, Math.max(1, S.proj.duration), 0.05, v => v.toFixed(2) + '秒'));
+
+    const modeRow = document.createElement('div');
+    modeRow.className = 'rowbtns';
+    [['loop', '🔁 ずっと'], ['once', '➡ 1回だけ'], ['ping', '🔄 往復']].forEach(([k, label]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.flex = '1';
+      b.classList.toggle('on', (f.mode || 'loop') === k);
+      b.addEventListener('click', () => {
+        edit('パラパラの 出しかた', () => f.mode = k);
+        onChange();
+        rebuild();
+      });
+      modeRow.appendChild(b);
+    });
+    body.appendChild(field('出しかた', modeRow));
+
+    body.appendChild(btnRow(
+      button('⏱ いまの時間から', () => {
+        edit('はじまりを あわせる', () => { f.start = +S.time.toFixed(2); });
+        notify(f.start.toFixed(2) + '秒から はじめます');
+        onChange();
+        rebuild();
+      })
+    ));
+
+    const now = flipIndex(f, n, S.time);
+    const t = document.createElement('div');
+    t.className = 'empty';
+    t.style.textAlign = 'left';
+    t.textContent = 'いまの 時間（' + S.time.toFixed(2) + '秒）は '
+      + (now + 1) + 'コマめ … ' + (mem[now] ? mem[now].name : '') + NL
+      + '1回だけ に すると、さいごの コマで 止まります。';
+    body.appendChild(t);
+  }
+  rebuild();
 }

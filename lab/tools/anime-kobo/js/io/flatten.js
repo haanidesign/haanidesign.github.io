@@ -21,12 +21,12 @@
 
    焼くと 中の うごき・ピンは もどせなくなる（「もどす」では 戻せる）。 */
 
-import { S, addAsset } from '../state.js?v=72';
-import { M } from '../engine/math.js?v=72';
-import { createRenderer } from '../render/renderer.js?v=72';
+import { S, addAsset } from '../state.js?v=73';
+import { M } from '../engine/math.js?v=73';
+import { createRenderer } from '../render/renderer.js?v=73';
 import { newLayer, isFolder, computeAll,
-         removeLayers } from '../engine/layer.js?v=72';
-import { contentBox, loadImage } from './image.js?v=72';
+         removeLayers } from '../engine/layer.js?v=73';
+import { contentBox, loadImage } from './image.js?v=73';
 
 /** そのレイヤーたち＋中身 */
 function coreOf(project, ids){

@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=72';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=72';
-import { deformPoint } from './puppet.js?v=72';
-import { handTime } from './hand.js?v=72';
-import { WORK_KEYS } from '../state.js?v=72';
+import { M, uid, ptInQuad } from './math.js?v=73';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=73';
+import { deformPoint } from './puppet.js?v=73';
+import { handTime } from './hand.js?v=73';
+import { WORK_KEYS } from '../state.js?v=73';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -67,12 +67,63 @@ function assetOf(project, layer, frame){
   return id ? project.assets[id] : null;
 }
 
+/* ================= パラパラフォルダ =================
+   フォルダの 中身を「1まいずつ 順ぐりに」見せる。
+   ＝ 中の レイヤーが そのまま コマに なる。
+
+   1まいずつ 別の レイヤーの ままなので、
+   コマごとに 場所や 大きさを 変えられる。
+   （1つの レイヤーに コマを つめる やり方だと そこが できない）
+
+   たたんで おけば タイムラインは フォルダの 1行だけ。 */
+export function newFlip(){
+  return {
+    on: true,
+    spf: 1 / 8,        // 1コマ 何秒か（8コマ／秒）
+    start: 0,          // いつから はじめるか
+    mode: 'loop'       // 'loop' ずっと / 'once' 1回だけ / 'ping' 往復
+  };
+}
+
+export const isFlip = (l) => !!(l && isFolder(l) && l.flip && l.flip.on);
+
+/**
+ * その時こくで「何コマめ」を 見せるか。
+ *   n … コマの 数
+ * 戻り値 … 0〜n-1
+ */
+export function flipIndex(flip, n, time){
+  if(n <= 0) return 0;
+  const spf = Math.max(1 / 60, flip.spf || 1 / 8);
+  const k = Math.floor((time - (flip.start || 0)) / spf);
+  if(k <= 0) return 0;                       // はじまる 前は 1コマめ
+  if(flip.mode === 'once') return Math.min(k, n - 1);
+  if(flip.mode === 'ping'){
+    if(n === 1) return 0;
+    const m = k % (2 * n - 2);               // …0,1,2,1,0,1,2…
+    return m < n ? m : (2 * n - 2 - m);
+  }
+  return k % n;                              // ずっと くり返す
+}
+
 export function computeAll(project, time){
   const byId = {};
   project.layers.forEach(l => byId[l.id] = l);
 
   const out = {};
   const solving = {};
+
+  /* パラパラフォルダは「いま どの コマを 見せるか」を
+     フォルダ 1つにつき 1回だけ 出す（毎まい 数え直すと 重い） */
+  const flipShow = {};
+  const showing = (f) => {
+    if(flipShow[f.id] === undefined){
+      const mem = membersOf(project, f);
+      const i = flipIndex(f.flip, mem.length, time);
+      flipShow[f.id] = mem.length ? mem[i].id : null;
+    }
+    return flipShow[f.id];
+  };
 
   const solve = (l) => {
     if(out[l.id]) return out[l.id];
@@ -106,7 +157,10 @@ export function computeAll(project, time){
     /* フォルダの すけ具合 は、中身を1まいにまとめてから かける（c2d）。
        ここで かけると 二重になるので さわらない。 */
     const inFolder = !!(p && isFolder(p.layer));
-    const vis = l.visible !== false && (inFolder ? p.vis : true);
+    let vis = l.visible !== false && (inFolder ? p.vis : true);
+
+    /* パラパラフォルダの 中は、いまの コマ だけを 見せる */
+    if(vis && inFolder && isFlip(p.layer) && showing(p.layer) !== l.id) vis = false;
 
     solving[l.id] = false;
     return out[l.id] = { m, v, vis, layer: l };

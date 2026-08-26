@@ -1,16 +1,16 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=72';
-import { cleanPath } from '../engine/path.js?v=72';
+import { M, clamp } from '../engine/math.js?v=73';
+import { cleanPath } from '../engine/path.js?v=73';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=72';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=72';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=72';
+         keepChildren, cornersOf } from '../engine/layer.js?v=73';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=73';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=73';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=72';
-import { createRenderer } from '../render/renderer.js?v=72';
-import { attachInput } from './input.js?v=72';
-import { newStroke, paintDirty } from '../engine/paint.js?v=72';
+         bendChain } from '../engine/puppet.js?v=73';
+import { createRenderer } from '../render/renderer.js?v=73';
+import { attachInput } from './input.js?v=73';
+import { newStroke, paintDirty } from '../engine/paint.js?v=73';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
