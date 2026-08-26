@@ -12,6 +12,8 @@
 
 const DB = 'anime-kobo';
 const STORE = 'doc';      // むかしの ひとつだけの ほぞん（読みこむだけ）
+import { plain } from '../state.js?v=72';
+
 const DOCS = 'docs';      // いまの ほぞん。さくひんごとに 1件
 const KEY = 'last';
 
@@ -49,7 +51,9 @@ export const newId = () => 'd' + Date.now().toString(36) + Math.random().toStrin
  *   extra  … { audio:{name,bytes}, thumb:'data:image…' }
  */
 export function saveDoc(id, project, extra = {}){
-  const rec = { id, at: Date.now(), name: project.name || 'むだい', proj: project };
+  /* 紙（canvas）や あみは そのままでは ほぞん できない。
+     線や ピンから 作り直せる ものなので、のぞいてから しまう。 */
+  const rec = { id, at: Date.now(), name: project.name || 'むだい', proj: plain(project) };
   if(extra.audio && extra.audio.bytes) rec.audio = { name: extra.audio.name, bytes: extra.audio.bytes };
   if(extra.thumb) rec.thumb = extra.thumb;
   return run(DOCS, 'readwrite', st => st.put(rec));

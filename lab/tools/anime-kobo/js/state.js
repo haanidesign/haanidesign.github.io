@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=71';
+import { uid } from './engine/math.js?v=72';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -57,8 +57,23 @@ const UNDO = { stack: [], idx: -1, limit: 40, pending: null };
 /* あみ（mesh）と描画用の作業配列は記録しない。
    ピンの位置さえ残っていれば同じものを張り直せるし、
    Float32Array を JSON に入れると巨大になって壊れる。 */
-const SKIP = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy',
-                      '_pc', '_pkey']);
+/* ここに 入れた ものは「ほぞんしない・もどす にも のこさない」。
+   ・あみ や 紙（canvas）は もとの データから 作り直せる
+   ・canvas は そのままでは ほぞん できない
+     （IndexedDB に 入れようとすると エラーに なる）
+   ふえたら かならず ここに 足す こと。 */
+export const WORK_KEYS = new Set([
+  'mesh', '_xy', 'weights', 'wIdx',     // パペットピンの あみ
+  '_hmesh', '_hbase', '_bxy',           // 手がき風の あみ
+  '_pc', '_pkey'                        // おえかきの 紙
+]);
+
+/** 作業だけの ものを のぞいた 写しを 作る（ほぞん・もどす で つかう） */
+export function plain(obj){
+  return JSON.parse(JSON.stringify(obj, (k, v) => WORK_KEYS.has(k) ? undefined : v));
+}
+
+const SKIP = WORK_KEYS;
 const snap = () => JSON.stringify(S.proj, (k, v) => SKIP.has(k) ? undefined : v);
 
 /** 変更の直前に呼ぶ。ドラッグ中は最初の1回だけ効く */

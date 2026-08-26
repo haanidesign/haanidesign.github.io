@@ -1,10 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=71';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=71';
-import { deformPoint } from './puppet.js?v=71';
-import { handTime } from './hand.js?v=71';
+import { M, uid, ptInQuad } from './math.js?v=72';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=72';
+import { deformPoint } from './puppet.js?v=72';
+import { handTime } from './hand.js?v=72';
+import { WORK_KEYS } from '../state.js?v=72';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -486,8 +487,8 @@ export function removeLayers(project, ids){
  * 絵そのもの（アセット）は 使いまわすので 重くならない。
  * 親子は、いっしょに写したものの中で つなぎ直す。
  */
-const SKIPKEY = new Set(['mesh', '_xy', 'weights', 'wIdx', '_hmesh', '_hbase', '_bxy',
-                         '_pc', '_pkey']);
+/* 作業だけの ものは state.js に まとめてある（ふえたら そちらに 足す） */
+const SKIPKEY = WORK_KEYS;
 
 export function copyLayers(project, ids){
   const set = new Set(ids);
