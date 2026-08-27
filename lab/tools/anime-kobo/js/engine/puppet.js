@@ -389,6 +389,66 @@ export function bendChain(pins, i, newX, newY){
  *
  * 戻り値: [{ t, pins:[{dx,dy}] }, ...]
  */
+/* ---------- ゆれ（その場で 出す） ----------
+   ボーン変形アニメ（psd-bone-anime）と 同じ 計算。
+
+   骨を 根元から 先へ たどりながら、
+   節ごとに ちょっとずつ 角度を たしていく。
+   たす 角度は sin の なみ。先の 節ほど なみを おくらせるので、
+   毛先へ 向かって しなりが 流れていく。
+
+   だいじなのは「その 時こくで じかに 出す」こと。
+   ピンを 何コマか 打って あいだを つなぐ やり方だと、
+   なみの 山と 谷の あいだが まっすぐな 線に なって カクカクする。
+   ここでは 何秒めでも 本物の sin を 出すので なめらか。
+
+   はじめの ぐあい */
+export function newSway(){
+  return {
+    on: true,
+    angle: 8,       // 曲がり角度（度）
+    period: 1.6,    // しゅうき（秒）
+    phase: 0,       // いち（ずらし）0〜1
+    delay: 0.25,    // おくれ（先の 節ほど おくれる）
+    start: 0        // いつから
+  };
+}
+
+/**
+ * その 時こくの ゆれ ぐあいを 出す。
+ *   pins … パペットピン（2本いじょう）
+ * 戻り値 … [{dx,dy}, ...]（ピンと 同じ ならび）
+ */
+export function swayPose(pins, sw, time){
+  const n = pins.length;
+  if(n < 2) return null;
+
+  const angle  = (sw.angle  == null ? 8    : sw.angle)  * Math.PI / 180;
+  const period = Math.max(0.05, sw.period == null ? 1.6 : sw.period);
+  const phase  = (sw.phase  == null ? 0    : sw.phase)  * Math.PI * 2;
+  const delay  = (sw.delay  == null ? 0.25 : sw.delay)  * Math.PI * 2;
+  const t = (time || 0) - (sw.start || 0);
+  const w = 2 * Math.PI * (t / period) + phase;
+
+  // 根元は 動かさない。先へ 向かって 角度を つみ上げる
+  const out = [{ dx: 0, dy: 0 }];
+  let x = pins[0].u, y = pins[0].v, acc = 0;
+  for(let i = 0; i < n - 1; i++){
+    const a = pins[i], b = pins[i + 1];
+    const ang = Math.atan2(b.v - a.v, b.u - a.u);
+    const len = Math.hypot(b.u - a.u, b.v - a.v);
+    /* おくれは「引く」。そうすると なみが 根元から 毛先へ 流れて、
+       毛先が おくれて しなる（足すと 逆に 流れて しまう）。
+       ボーン変形アニメ と 同じ 向き。 */
+    acc += angle * Math.sin(w - i * delay);
+    const na = ang + acc;
+    x += Math.cos(na) * len;
+    y += Math.sin(na) * len;
+    out.push({ dx: x - b.u, dy: y - b.v });
+  }
+  return out;
+}
+
 export function swayKeys(pins, opt){
   const angle  = (opt.angle  ?? 8)   * Math.PI / 180;
   const period = Math.max(0.05, opt.period ?? 1);
@@ -418,7 +478,7 @@ export function swayKeys(pins, opt){
     const pos = [{ x: pins[0].u, y: pins[0].v }];
     let acc = 0;
     for(let i = 0; i < base.length; i++){
-      acc += angle * Math.sin(w + i * delay);
+      acc += angle * Math.sin(w - i * delay);   // 向きは swayPose と そろえる
       const a = base[i].ang + acc;
       pos.push({ x: pos[i].x + Math.cos(a) * base[i].len,
                  y: pos[i].y + Math.sin(a) * base[i].len });

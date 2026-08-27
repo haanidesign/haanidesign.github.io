@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=73';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=73';
-import { deformPoint } from './puppet.js?v=73';
-import { handTime } from './hand.js?v=73';
-import { WORK_KEYS } from '../state.js?v=73';
+import { M, uid, ptInQuad } from './math.js?v=74';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=74';
+import { deformPoint, swayPose } from './puppet.js?v=74';
+import { handTime } from './hand.js?v=74';
+import { WORK_KEYS } from '../state.js?v=74';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -133,6 +133,14 @@ export function computeAll(project, time){
     /* 手がき風で「うごきも コマ落とし」に していたら、
        このレイヤーだけ 時こくを コマの きざみに そろえる。 */
     const v = evalAt(l, handTime(l, time));
+
+    /* ゆれ（かみのゆれ など）。
+       ピンを 打たずに その場で 出すので、なめらかで、
+       あとから 数字を 変えても すぐ 効く。 */
+    if(l.sway && l.sway.on && (l.pins || []).length > 1){
+      const sp = swayPose(l.pins, l.sway, time);
+      if(sp) v.pins = sp;
+    }
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
 
     /* 親が パペットピンで 曲がっているときは、

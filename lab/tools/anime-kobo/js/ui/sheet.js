@@ -1,31 +1,31 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=73';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=74';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
-         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=73';
+         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=74';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=73';
-import { swayKeys, RIGID } from '../engine/puppet.js?v=73';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=73';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=73';
-import { PRESET_GROUPS } from '../engine/presets.js?v=73';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=74';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=74';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=74';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=74';
+import { PRESET_GROUPS } from '../engine/presets.js?v=74';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=73';
+         addTextLayer } from '../io/text.js?v=74';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=73';
-import { PATTERN_NAMES } from '../io/pattern.js?v=73';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=73';
-import { newHand } from '../engine/hand.js?v=73';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=73';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=74';
+import { PATTERN_NAMES } from '../io/pattern.js?v=74';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=74';
+import { newHand } from '../engine/hand.js?v=74';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=74';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=73';
+  from './colorwheel.js?v=74';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=73';
+         guessBpm, firstOnset } from '../io/audio.js?v=74';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=73';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=74';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1084,8 +1084,38 @@ function buildSway(box, l){
       + NL + '「ピン」を 2本いじょう さすと、しなって もっと自然に。';
   box.appendChild(note);
 
-  l.sway = l.sway || { angle: 8, period: 1.6, phase: 0, delay: 0.25 };
+  l.sway = Object.assign(newSway(), l.sway || {}, { on: !!(l.sway && l.sway.on) });
   const sw = l.sway;
+
+  /* ---- ずっと ゆらす（ピンを 打たない）----
+     ピンを 何コマか 打って あいだを つなぐ やり方だと、
+     なみの 山と 谷の あいだが まっすぐな 線に なって カクカクする。
+     ここを オンに すると、何秒めでも 本物の なみを その場で 出すので
+     なめらかに ゆれる。数字を 変えれば すぐ 効く。 */
+  if(boned){
+    const swt = document.createElement('button');
+    swt.style.flex = '1';
+    const paintSwt = () => {
+      swt.textContent = sw.on ? '🌬 ずっと ゆらす … オン' : '🌬 ずっと ゆらす … オフ';
+      swt.classList.toggle('on', !!sw.on);
+    };
+    paintSwt();
+    swt.addEventListener('click', () => {
+      edit('ずっと ゆらす', () => { sw.on = !sw.on; });
+      paintSwt();
+      onChange();
+    });
+    box.appendChild(btnRow(swt));
+
+    const liveNote = document.createElement('div');
+    liveNote.className = 'empty';
+    liveNote.style.textAlign = 'left';
+    liveNote.textContent = 'オンの あいだは ピンを 打たずに ずっと ゆれます。'
+      + NL + 'カクカクせず、数字を 変えると すぐ 効きます。'
+      + NL + '（オンの あいだ、そのレイヤーの パペットピンの'
+      + NL + '　うごきのピンは お休みします）';
+    box.appendChild(liveNote);
+  }
 
   /* ---- こまかい ちょうせつ ---- */
   box.appendChild(slider('曲がり角度', () => sw.angle, v => sw.angle = v,
@@ -1115,22 +1145,33 @@ function buildSway(box, l){
   box.appendChild(desc);
 
   /* ---- めやす（おすと 上の 数字が 入れかわる） ---- */
+  /* 上の 3つは 風の つよさ。
+     下の 3つは ボーン変形アニメ（psd-bone-anime）と 同じ 数字。
+     あちらは「1ループに 何回 ゆれるか」で 持っていたので、
+     2秒 ひとまわりに して 秒に なおしてある。 */
   const KAZE = [
     ['そよ風',  { angle: 4,  period: 2.4, delay: 0.30 }],
     ['ふつう',  { angle: 9,  period: 1.6, delay: 0.25 }],
-    ['つよい風',{ angle: 17, period: 1.0, delay: 0.20 }]
+    ['つよい風',{ angle: 17, period: 1.0, delay: 0.20 }],
+    ['プルプル',{ angle: 5,  period: 0.5, delay: 0.12 }],
+    ['くねくね',{ angle: 14, period: 2.0, delay: 0.30 }],
+    ['ゆらゆら',{ angle: 7,  period: 2.0, delay: 0.18 }]
   ];
   const kaze = document.createElement('div');
-  kaze.className = 'rowbtns';
+  kaze.className = 'presets';
   KAZE.forEach(([label, opt]) => {
     const b = button(label, () => {
-      sw.angle = opt.angle; sw.period = opt.period; sw.delay = opt.delay;
-      put(label);
+      edit('めやす（' + label + '）', () => {
+        sw.angle = opt.angle; sw.period = opt.period; sw.delay = opt.delay;
+      });
+      // ずっと ゆらす が オンなら すぐ 効く。オフなら ピンを 打つ
+      if(sw.on){ notify(label + ' に しました'); onChange(); }
+      else put(label);
     });
-    b.style.flex = '1';
     kaze.appendChild(b);
   });
-  box.appendChild(field('めやす', kaze));
+  box.appendChild(heading('めやす'));
+  box.appendChild(kaze);
 
   function put(label){
     const start = S.time;
@@ -1180,9 +1221,10 @@ function buildSway(box, l){
   }
 
   box.appendChild(btnRow(
-    button('◆ この せっていで ゆらす', () => put(null)),
+    button('◆ ピンを 打って ゆらす', () => put(null)),
     button('ゆれを けす', () => {
       edit('ゆれをけす', () => {
+        if(l.sway) l.sway.on = false;
         if(boned){
           (l.pins || []).forEach(pn => {
             delete (l.tracks || {})[pinChX(pn.id)];

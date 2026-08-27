@@ -3,12 +3,12 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=73';
-import { frameAsset, frameImage } from '../state.js?v=73';
+         nearestFolder } from '../engine/layer.js?v=74';
+import { frameAsset, frameImage } from '../state.js?v=74';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=73';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=73';
-import { paintCanvas } from '../engine/paint.js?v=73';
+         meshSizeFor } from '../engine/puppet.js?v=74';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=74';
+import { paintCanvas } from '../engine/paint.js?v=74';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -152,7 +152,9 @@ export function createC2D(canvas){
        ・さいごに 元の大きさへ ひろげる（ここで すこし なめらかになる）
 
      太さは キャンバスの見た目に対して一定。 */
-  const OUT_K = 3;                  // いくつ ぶんの1で 作るか
+  /* ふちを 作る 紙の こまかさ。
+     小さく 作るほど はやいが、もどす ときに ぼやける。 */
+  const OUT_K = 2;                  // いくつ ぶんの1で 作るか
   let smA = null, smB = null;
   function small(which, w, h){
     let c = which ? smB : smA;
@@ -185,7 +187,10 @@ export function createC2D(canvas){
        とげとげが 目立ってしまう（とくに 中身が 動いているとき）。 */
     /* ぼかしは 太さに 比例させない。比例させると 太いときに
        ふちが 予定より ずっと 太く なってしまう。 */
-    ga.filter = 'blur(' + Math.max(0.6, Math.min(2, r * 0.22)) + 'px)';
+    /* ぼかしは とげとげ よけの ぶんだけ。
+       ここを 大きくすると ふちが ぼやける（あとで しめるが、
+       もとが ぼけていると もどらない）。 */
+    ga.filter = 'blur(' + Math.max(0.25, Math.min(0.8, r * 0.12)) + 'px)';
     ga.drawImage(src, 0, 0, w, h);
     ga.filter = 'none';
 
@@ -228,7 +233,33 @@ export function createC2D(canvas){
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.imageSmoothingQuality = 'high';
     g.drawImage(done, 0, 0, canvas.width, canvas.height);
+    firmEdge(c);
     return c;
+  }
+
+  /* ふちを くっきり させる。
+
+     小さく 作って もどすと、ふちの ところが
+     うすい → こい の なだらかな さかに なって「ぼやっ」と 見える。
+     そこで
+       ① 自分を かさねて かける（うすさ a → a×a）
+          … うすい ところが ぐっと 消える
+       ② 自分を ふつうに かさねる（a → 2a-a×a）を 2回
+          … のこった こい ところが しっかり つまる
+     で、なだらかな さかを 切り立った がけに する。
+     ぜんぶ 絵の かさね算 だけなので はやい。 */
+  function firmEdge(cv){
+    const g = cv.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.filter = 'none';
+
+    g.globalCompositeOperation = 'destination-in';   // ① うすい ところを 落とす
+    g.drawImage(cv, 0, 0);
+
+    g.globalCompositeOperation = 'source-over';      // ② こい ところを つめる
+    g.drawImage(cv, 0, 0);
+    g.drawImage(cv, 0, 0);
   }
 
   /** 1枚ぶん描く。塗り・ふちどり があるときだけ別紙を経由する */
