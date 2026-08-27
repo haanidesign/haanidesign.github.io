@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=77';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=77';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=77';
-import { handTime } from './hand.js?v=77';
-import { WORK_KEYS } from '../state.js?v=77';
+import { M, uid, ptInQuad } from './math.js?v=78';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=78';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=78';
+import { handTime } from './hand.js?v=78';
+import { WORK_KEYS } from '../state.js?v=78';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -164,7 +164,22 @@ export function computeAll(project, time){
     }
 
     const local = M.trs(lx, ly, lrot, v.scaleX, v.scaleY);
-    const m = p ? M.mul(p.m, local) : local;
+    let m = p ? M.mul(p.m, local) : local;
+
+    /* コマごとの ずれ。
+       べつの ところに あった 絵を コマに した ときに、
+       もとの 場所の まま 出す ための もの。
+       ここで 姿に 入れておくと、描くのも・さわるのも・
+       ぶら下がっている 子も ぜんぶ そろう。 */
+    if(l.frameOff){
+      const aid = l.frames[v.frame] || l.frames[0];
+      const off = l.frameOff[aid];
+      if(off){
+        m = M.mul(m, M.trs(off.dx || 0, off.dy || 0, off.rot || 0,
+                           off.sx == null ? 1 : off.sx,
+                           off.sy == null ? 1 : off.sy));
+      }
+    }
 
     /* フォルダに入れたものは、フォルダの すけ具合 と 目印 を受けつぐ。
        ふつうの親子（AEと同じ）では受けつがない。 */
@@ -468,13 +483,40 @@ export function attachMany(project, ids, parentId, time){
  * それを1枚にまとめないと まばたきが作れない。
  * 取りこんだレイヤーは 消える。
  */
-export function mergeAsFrames(project, target, ids){
+export function mergeAsFrames(project, target, ids, time){
+  /* コマに する 絵は、もともと べつべつの ところに 置いてある。
+     （PSD の 目あき・目とじ は 大きさも 場所も ちがう）
+     ただ ならべると、コマが 変わるたびに 絵が 飛んでしまう。
+     そこで「取りこむ前は どこに 居たか」を コマごとに おぼえて、
+     出す ときに その ぶん ずらす。 */
+  const before = computeAll(project, time || 0);
+  const tm = before[target.id] && before[target.id].m;
+
   let n = 0;
   for(const id of ids){
     if(id === target.id) continue;
     const l = project.layers.find(x => x.id === id);
     if(!l || isFolder(l) || !l.frames.length) continue;
-    l.frames.forEach(a => { if(!target.frames.includes(a)) target.frames.push(a); });
+
+    let off = null;
+    if(tm && before[l.id]){
+      const d = M.decompose(M.mul(M.inv(tm), before[l.id].m));
+      // ほとんど 同じ ところなら おぼえない（データを ふやさない）
+      if(Math.abs(d.x) > 0.01 || Math.abs(d.y) > 0.01 ||
+         Math.abs(d.rot) > 0.01 ||
+         Math.abs(d.scaleX - 1) > 0.001 || Math.abs(d.scaleY - 1) > 0.001){
+        off = { dx: d.x, dy: d.y, rot: d.rot, sx: d.scaleX, sy: d.scaleY };
+      }
+    }
+
+    l.frames.forEach(a => {
+      if(target.frames.includes(a)) return;
+      target.frames.push(a);
+      if(off){
+        target.frameOff = target.frameOff || {};
+        target.frameOff[a] = off;
+      }
+    });
     // この子についていたものは、取りこみ先へ ひきつぐ
     project.layers.forEach(x => { if(x.parent === l.id) x.parent = target.id; });
     project.layers.splice(project.layers.indexOf(l), 1);

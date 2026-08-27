@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=77';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=78';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=77';
+         nearestFolder, setParent } from '../engine/layer.js?v=78';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=77';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=78';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -484,10 +484,30 @@ export function createTimeline(root, opts = {}){
       const trackEl = btn.parentElement;
       const rect = trackEl.getBoundingClientRect();
 
-      const move = (ev) => {
-        if(!moved && Math.abs(ev.clientX - startX) < 5) return;
-        if(!moved){ moved = true; beginEdit('ピンをずらす'); if(navigator.vibrate) navigator.vibrate(8); }
-        const want = snap(x2t(ev.clientX - rect.left));
+      /* はしまで 引っぱったら、そのまま どんどん すすむ。
+
+         時間じくを ひろげて いると、画面に 出ている のは
+         ぜんたいの ほんの 一部。指が とどく はんいだけだと
+         「3秒めの ピンを 20秒めへ」が できない。
+         そこで はしに 指を おいて いる あいだは、
+         はしから どれだけ 出ているかに 合わせて
+         じわじわ→ぐんぐん と 時間を すすめる。 */
+      const EDGE = 26;                 // はしから これくらいが「すすむ ところ」
+      let auto = null, autoV = 0;
+      const stopAuto = () => { if(auto){ clearInterval(auto); auto = null; } };
+      const setAuto = (v) => {
+        autoV = v;
+        if(!v){ stopAuto(); return; }
+        if(auto) return;
+        auto = setInterval(() => {
+          if(!autoV) return;
+          const want = Math.max(0, Math.min(S.proj.duration, curT + autoV));
+          if(Math.abs(want - curT) < 1e-6) return;
+          apply(snap(want));
+        }, 60);
+      };
+
+      const apply = (want) => {
         if(want === curT) return;
 
         let nt;
@@ -511,7 +531,27 @@ export function createTimeline(root, opts = {}){
         S.time = nt;
         onChange();
       };
+
+      const move = (ev) => {
+        if(!moved && Math.abs(ev.clientX - startX) < 5) return;
+        if(!moved){ moved = true; beginEdit('ピンをずらす'); if(navigator.vibrate) navigator.vibrate(8); }
+
+        const x = ev.clientX - rect.left;
+        const w = rect.width;
+        /* はしから 出た ぶんで はやさを きめる。
+           少し 出たら ゆっくり、うんと 出したら はやい。 */
+        const over = x < EDGE ? (x - EDGE) : (x > w - EDGE ? (x - (w - EDGE)) : 0);
+        if(over){
+          const k = Math.min(6, Math.abs(over) / EDGE);      // 1〜6ばい
+          setAuto(Math.sign(over) * step() * (1 + k * k * 3));
+        } else {
+          setAuto(0);
+          apply(snap(x2t(x)));
+        }
+      };
+
       const end = (ev) => {
+        stopAuto();
         btn.removeEventListener('pointermove', move);
         btn.removeEventListener('pointerup', end);
         btn.removeEventListener('pointercancel', end);
@@ -693,15 +733,26 @@ export function createTimeline(root, opts = {}){
   }
 
   function delPins(){
-    if(S.pick.length) return delPicked();     // ☑ が あれば そちらを けす
+    /* ピンを えらんでいれば、そちらを 先に けす。
+       レイヤーの ☑ が ついていても、ピンが えらばれている あいだは
+       ピンの ほうを けす（☑ を はずしに 行かなくて すむ）。 */
     const l = S.proj.layers.find(x => x.id === S.selPins.layer);
-    if(!l || !S.selPins.times.length) return;
-    edit('ピンをけす', () => {
-      S.selPins.times.forEach(t => removePin(l, t));
-      if(l.loop && !pinTimes(l).length) l.loop = null;
-    });
-    S.selPins = { layer:null, times:[] };
-    onChange();
+    if(l && S.selPins.times.length){
+      // 2つ えらんで いるときは、その あいだの ピンも まとめて けす
+      const from = S.selPins.times[0];
+      const to = S.selPins.times.length > 1 ? S.selPins.times[1] : from;
+      const times = pinTimes(l).filter(t => t >= from - 1e-6 && t <= to + 1e-6);
+      edit('ピンをけす', () => {
+        times.forEach(t => removePin(l, t));
+        if(l.loop && !pinTimes(l).length) l.loop = null;
+      });
+      S.selPins = { layer:null, times:[] };
+      toast(times.length + 'コの ピンを けしました');
+      onChange();
+      return;
+    }
+    if(S.pick.length) return delPicked();     // ピンを えらんで いなければ ☑ の レイヤー
+    toast('けす ものを えらんでね（ピンを おす か、レイヤーの ☑）');
   }
 
   /**
