@@ -1,31 +1,31 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=75';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=76';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
-         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=75';
+         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=76';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=75';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=75';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=75';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=75';
-import { PRESET_GROUPS } from '../engine/presets.js?v=75';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=76';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=76';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=76';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=76';
+import { PRESET_GROUPS } from '../engine/presets.js?v=76';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=75';
+         addTextLayer } from '../io/text.js?v=76';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=75';
-import { PATTERN_NAMES } from '../io/pattern.js?v=75';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=75';
-import { newHand } from '../engine/hand.js?v=75';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=75';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=76';
+import { PATTERN_NAMES } from '../io/pattern.js?v=76';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=76';
+import { newHand } from '../engine/hand.js?v=76';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=76';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=75';
+  from './colorwheel.js?v=76';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=75';
+         guessBpm, firstOnset } from '../io/audio.js?v=76';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=75';
+         RHYTHM_KINDS } from '../engine/rhythm.js?v=76';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1092,7 +1092,7 @@ function buildSway(box, l){
      なみの 山と 谷の あいだが まっすぐな 線に なって カクカクする。
      ここを オンに すると、何秒めでも 本物の なみを その場で 出すので
      なめらかに ゆれる。数字を 変えれば すぐ 効く。 */
-  if(boned){
+  {
     const swt = document.createElement('button');
     swt.style.flex = '1';
     const paintSwt = () => {
@@ -1112,8 +1112,12 @@ function buildSway(box, l){
     liveNote.style.textAlign = 'left';
     liveNote.textContent = 'オンの あいだは ピンを 打たずに ずっと ゆれます。'
       + NL + 'カクカクせず、数字を 変えると すぐ 効きます。'
-      + NL + '（オンの あいだ、そのレイヤーの パペットピンの'
-      + NL + '　うごきのピンは お休みします）';
+      + NL + 'レイヤー 1まいずつ 別べつに つけられます。'
+      + NL + (boned
+        ? '（オンの あいだ、そのレイヤーの パペットピンの'
+          + NL + '　うごきのピンは お休みします）'
+        : 'ピンが ないので じくを 中心に かたむけて ゆらします。'
+          + NL + '「ピン」を 2本いじょう さすと、しなって もっと自然に。');
     box.appendChild(liveNote);
   }
 
@@ -1133,6 +1137,8 @@ function buildSway(box, l){
     const v = dl.querySelector('.val');
     if(v) v.textContent = '—';
     dl.title = 'ピンを 2本いじょう さすと つかえます（毛先が おくれて しなる）';
+    const dn = dl.querySelector('label');
+    if(dn) dn.textContent = 'おくれ（ピン2本〜）';
   }
 
   const desc = document.createElement('div');
@@ -2402,7 +2408,25 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
     while(out[lastI] == null) lastI--;
     for(let i = lastI + 1; i < N; i++) out[i] = out[lastI];
     for(let i = 0; i < N; i++) if(out[i] == null) out[i] = out[i - 1];
-    pts = out.map(v => Math.round(v * 1000) / 1000);
+
+    /* 指の あとは こまかく ふるえている。
+       そのままだと、進み方が 一歩ごとに 速く／おそく なって
+       うごきが ガタガタして 見える。
+
+       りょうどなりと 3つで ならす（まん中を 重めに）。
+       これを 何回か くり返すと、かいた 形は のこったまま
+       ふるえだけが 消える。はしの 2つは 動かさない
+       （はじまりと おわりの 高さは かいた とおりに する）。 */
+    const smooth = (arr, times) => {
+      let a = arr.slice();
+      for(let k = 0; k < times; k++){
+        const b = a.slice();
+        for(let i = 1; i < N - 1; i++) b[i] = (a[i - 1] + a[i] * 2 + a[i + 1]) / 4;
+        a = b;
+      }
+      return a;
+    };
+    pts = smooth(out, 4).map(v => Math.round(v * 1000) / 1000);
     render();
   };
   cv.addEventListener('pointerup', endDraw);

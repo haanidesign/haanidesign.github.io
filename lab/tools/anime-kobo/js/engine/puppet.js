@@ -414,6 +414,16 @@ export function newSway(){
   };
 }
 
+/** ピンが 無い（1本以下）ときの ゆれ。じくを 中心に かたむける だけ。
+    戻り値 … 足す かたむき（度） */
+export function swayTilt(sw, time){
+  const angle  = sw.angle  == null ? 8    : sw.angle;
+  const period = Math.max(0.05, sw.period == null ? 1.6 : sw.period);
+  const phase  = (sw.phase  == null ? 0   : sw.phase) * Math.PI * 2;
+  const t = (time || 0) - (sw.start || 0);
+  return angle * Math.sin(2 * Math.PI * (t / period) + phase);
+}
+
 /**
  * その 時こくの ゆれ ぐあいを 出す。
  *   pins … パペットピン（2本いじょう）

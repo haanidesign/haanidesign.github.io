@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=75';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=75';
-import { deformPoint, swayPose } from './puppet.js?v=75';
-import { handTime } from './hand.js?v=75';
-import { WORK_KEYS } from '../state.js?v=75';
+import { M, uid, ptInQuad } from './math.js?v=76';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=76';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=76';
+import { handTime } from './hand.js?v=76';
+import { WORK_KEYS } from '../state.js?v=76';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -137,9 +137,15 @@ export function computeAll(project, time){
     /* ゆれ（かみのゆれ など）。
        ピンを 打たずに その場で 出すので、なめらかで、
        あとから 数字を 変えても すぐ 効く。 */
-    if(l.sway && l.sway.on && (l.pins || []).length > 1){
-      const sp = swayPose(l.pins, l.sway, time);
-      if(sp) v.pins = sp;
+    if(l.sway && l.sway.on){
+      if((l.pins || []).length > 1){
+        // 骨が あるとき … 根元から 毛先へ しなる
+        const sp = swayPose(l.pins, l.sway, time);
+        if(sp) v.pins = sp;
+      } else {
+        // 骨が ないとき … じくを 中心に かたむける
+        v.rot += swayTilt(l.sway, time);
+      }
     }
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
 
