@@ -9,7 +9,7 @@
    うごきは どれも「拍の しゅんかんに ぐっと 変えて、すぐ もどす」形。
    もどりを 少し 行きすぎさせると、ぽにょんと はねて見える。 */
 
-import { setPin } from './anim.js?v=76';
+import { setPin } from './anim.js?v=77';
 
 /** 1拍の 長さ（秒） */
 export const beatSec = (bpm) => 60 / Math.max(20, Math.min(400, bpm || 120));
@@ -64,64 +64,96 @@ export function rhythmKeys(l, opt = {}){
   const power = Math.max(0.02, Math.min(1, opt.power == null ? 0.35 : opt.power));
   const uraK = opt.uraPower == null ? 0.6 : opt.uraPower;   // うら拍は 少し ひかえめに
   const motion = opt.motion || 'ぽにょん';
+  const base = baseOf(l, opt.pose);
 
-  // 基準の姿（いまの見た目）
-  const base = {
-    x: l.x, y: l.y, sx: l.scaleX, sy: l.scaleY,
-    rot: l.rot, op: l.opacity
+  let n = 0;
+  for(const bt of times){
+    n += putHit(l, bt.t, {
+      motion, beat: b, base,
+      power: power * (bt.ura ? uraK : 1),
+      back: bt.ura ? -1 : 1
+    });
+  }
+  return n;
+}
+
+/** いまの 見た目（＝もどってくる ところ） */
+function baseOf(l, at){
+  const p = at || {};
+  return {
+    x:  p.x  == null ? l.x : p.x,
+    y:  p.y  == null ? l.y : p.y,
+    sx: p.scaleX == null ? l.scaleX : p.scaleX,
+    sy: p.scaleY == null ? l.scaleY : p.scaleY,
+    rot: p.rot == null ? l.rot : p.rot,
+    op: p.opacity == null ? l.opacity : p.opacity
   };
+}
 
-  // 1拍の中の どこで どうなるか。0〜1 の割合で 置く
+/**
+ * 1回ぶんの うごきを、その 時こくに 入れる。
+ *
+ * リズムぜんぶに 打つのと 同じ 中身。
+ * 1つだけ 入れて おけば、あとは タイムラインの
+ * ⧉コピー → 📋はりつけ で 好きな ところに ならべられる。
+ *
+ *   t   … いつ
+ *   opt … { motion, beat（1拍の秒）, power, base, back }
+ * 戻り値 … 打った ピンの 数
+ */
+export function putHit(l, t0, opt = {}){
+  const motion = opt.motion || 'ぽにょん';
+  const b = Math.max(0.05, opt.beat || 0.5);
+  const p = Math.max(0.02, Math.min(1, opt.power == null ? 0.35 : opt.power));
+  const base = opt.base || baseOf(l, null);
+  const dir = opt.back == null ? 1 : (opt.back < 0 ? -1 : 1);
+
+  // 1拍の中の どこで どうなるか
   const hit = Math.min(0.14, b * 0.28);        // ぐっと 変わる ところ
   const back = Math.min(0.34, b * 0.62);       // もどりきる ところ
 
   let n = 0;
   const put = (ch, t, v, c) => { setPin(l, ch, +t.toFixed(3), v, c || 'smooth'); n++; };
 
-  for(const bt of times){
-    const p = power * (bt.ura ? uraK : 1);
-    const t0 = bt.t;
+  if(motion === 'ぽにょん'){
+    // つぶれて → のびて → もどる
+    put('scaleX', t0, base.sx);
+    put('scaleY', t0, base.sy);
+    put('scaleX', t0 + hit, base.sx * (1 + p * 0.5));
+    put('scaleY', t0 + hit, base.sy * (1 - p * 0.45));
+    put('scaleX', t0 + back * 0.6, base.sx * (1 - p * 0.2));
+    put('scaleY', t0 + back * 0.6, base.sy * (1 + p * 0.18));
+    put('scaleX', t0 + back, base.sx);
+    put('scaleY', t0 + back, base.sy);
 
-    if(motion === 'ぽにょん'){
-      // つぶれて → のびて → もどる
-      put('scaleX', t0, base.sx);
-      put('scaleY', t0, base.sy);
-      put('scaleX', t0 + hit, base.sx * (1 + p * 0.5));
-      put('scaleY', t0 + hit, base.sy * (1 - p * 0.45));
-      put('scaleX', t0 + back * 0.6, base.sx * (1 - p * 0.2));
-      put('scaleY', t0 + back * 0.6, base.sy * (1 + p * 0.18));
-      put('scaleX', t0 + back, base.sx);
-      put('scaleY', t0 + back, base.sy);
+  } else if(motion === 'ジャンプ'){
+    const h = 60 * p * 2;
+    put('y', t0, base.y);
+    put('y', t0 + hit, base.y - h);
+    put('y', t0 + back, base.y);
+    put('scaleY', t0, base.sy);
+    put('scaleY', t0 + back * 0.85, base.sy * (1 - p * 0.25));
+    put('scaleY', t0 + back, base.sy);
 
-    } else if(motion === 'ジャンプ'){
-      const h = 60 * p * 2;
-      put('y', t0, base.y);
-      put('y', t0 + hit, base.y - h);
-      put('y', t0 + back, base.y);
-      put('scaleY', t0, base.sy);
-      put('scaleY', t0 + back * 0.85, base.sy * (1 - p * 0.25));
-      put('scaleY', t0 + back, base.sy);
+  } else if(motion === 'くるっ'){
+    const a = 18 * p * 2;
+    put('rot', t0, base.rot);
+    put('rot', t0 + hit, base.rot + a * dir);
+    put('rot', t0 + back, base.rot);
 
-    } else if(motion === 'くるっ'){
-      const a = 18 * p * 2;
-      put('rot', t0, base.rot);
-      put('rot', t0 + hit, base.rot + (bt.ura ? -a : a));
-      put('rot', t0 + back, base.rot);
+  } else if(motion === 'チカッ'){
+    put('opacity', t0, base.op, 'hold');
+    put('opacity', t0 + hit * 0.6, Math.max(0, base.op * (1 - p)), 'hold');
+    put('opacity', t0 + hit * 1.2, base.op, 'hold');
 
-    } else if(motion === 'チカッ'){
-      put('opacity', t0, base.op, 'hold');
-      put('opacity', t0 + hit * 0.6, Math.max(0, base.op * (1 - p)), 'hold');
-      put('opacity', t0 + hit * 1.2, base.op, 'hold');
-
-    } else if(motion === 'ズーム'){
-      const k = 1 + p * 0.6;
-      put('scaleX', t0, base.sx);
-      put('scaleY', t0, base.sy);
-      put('scaleX', t0 + hit, base.sx * k);
-      put('scaleY', t0 + hit, base.sy * k);
-      put('scaleX', t0 + back, base.sx);
-      put('scaleY', t0 + back, base.sy);
-    }
+  } else if(motion === 'ズーム'){
+    const k = 1 + p * 0.6;
+    put('scaleX', t0, base.sx);
+    put('scaleY', t0, base.sy);
+    put('scaleX', t0 + hit, base.sx * k);
+    put('scaleY', t0 + hit, base.sy * k);
+    put('scaleX', t0 + back, base.sx);
+    put('scaleY', t0 + back, base.sy);
   }
   return n;
 }

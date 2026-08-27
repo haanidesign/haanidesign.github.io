@@ -1,31 +1,31 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=76';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=77';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
-         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=76';
+         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=77';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=76';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=76';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=76';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=76';
-import { PRESET_GROUPS } from '../engine/presets.js?v=76';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=77';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=77';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=77';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=77';
+import { PRESET_GROUPS } from '../engine/presets.js?v=77';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=76';
+         addTextLayer } from '../io/text.js?v=77';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=76';
-import { PATTERN_NAMES } from '../io/pattern.js?v=76';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=76';
-import { newHand } from '../engine/hand.js?v=76';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=76';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=77';
+import { PATTERN_NAMES } from '../io/pattern.js?v=77';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=77';
+import { newHand } from '../engine/hand.js?v=77';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=77';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=76';
+  from './colorwheel.js?v=77';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=76';
+         guessBpm, firstOnset } from '../io/audio.js?v=77';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS } from '../engine/rhythm.js?v=76';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=77';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1028,6 +1028,55 @@ function buildRhythm(box, l){
 
   box.appendChild(slider('つよさ', () => B.power, v => B.power = v, 0.05, 1, 0.05,
     v => Math.round(v * 100) + '%'));
+
+  /* ---- 1回だけ 入れる ----
+     ぜんぶの 拍に 打つと、あとから 1つだけ 変えるのが 大へん。
+     1回ぶんだけ 入れて おけば、あとは
+     タイムラインの ⧉コピー → 📋はりつけ で
+     好きな ところに 好きなだけ ならべられる。 */
+  box.appendChild(btnRow(
+    button('◆ ここに 1回だけ 入れる', () => {
+      const t0 = S.time;
+      const b = beatSec(B.bpm);
+      if(t0 + b > S.proj.duration + 1e-6){
+        return notify('のこり時間が みじかいです（' + b.toFixed(2) + '秒 いります）');
+      }
+      const pose = valuesAt(l, t0);
+      const r = { n: 0 };
+      edit(B.motion + ' を 1回', () => {
+        r.n = putHit(l, t0, {
+          motion: B.motion, beat: b, power: B.power,
+          base: {
+            x: pose.x, y: pose.y, sx: pose.scaleX, sy: pose.scaleY,
+            rot: pose.rot, op: pose.opacity
+          }
+        });
+      });
+      if(!r.n) return notify('入れられませんでした');
+
+      /* 入れた ぶんを そのまま えらんだ ことに して、
+         すぐ ⧉コピー を おせるように する。
+         （拍の おわりまでを ひとまとまりに して えらぶ） */
+      const back = Math.min(0.34, b * 0.62);
+      S.selPins = { layer: l.id, times: [+t0.toFixed(3), +(t0 + back).toFixed(3)] };
+
+      notify(B.motion + ' を 1回 入れました（ピン ' + r.n + 'コ）' + NL
+        + 'えらんだ ままなので ⧉コピー → 📋はりつけ で ならべられます');
+      onChange();
+    })
+  ));
+
+  const oneNote = document.createElement('div');
+  oneNote.className = 'empty';
+  oneNote.style.textAlign = 'left';
+  oneNote.textContent = '1回ぶん（' + beatSec(B.bpm).toFixed(2) + '秒）だけ 入ります。' + NL
+    + 'あとは タイムラインで その ピンを えらんで' + NL
+    + '⧉コピー → 再生バーを うごかして → 📋はりつけ。' + NL
+    + '「◆ ピンだけ うつ」で 拍の 印を 先に 打っておくと' + NL
+    + 'はりつける ところが ぴったり わかります。';
+  box.appendChild(oneNote);
+
+  box.appendChild(heading('◆ ぜんぶの 拍に うつ'));
   box.appendChild(btnRow(
     button('◆ リズムで ピンをうつ', () => {
       const start = S.time;
