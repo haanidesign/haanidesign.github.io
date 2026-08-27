@@ -430,8 +430,12 @@ export function swayPose(pins, sw, time){
   const t = (time || 0) - (sw.start || 0);
   const w = 2 * Math.PI * (t / period) + phase;
 
+  /* かえすのは「ピンと 同じ 形」の もの。
+     絵を 曲げる ところは id・u・v・type も 見るので、
+     ずれ（dx,dy）だけ かえすと 絵が 消えてしまう。 */
+  const out = [ Object.assign({}, pins[0], { dx: 0, dy: 0 }) ];
+
   // 根元は 動かさない。先へ 向かって 角度を つみ上げる
-  const out = [{ dx: 0, dy: 0 }];
   let x = pins[0].u, y = pins[0].v, acc = 0;
   for(let i = 0; i < n - 1; i++){
     const a = pins[i], b = pins[i + 1];
@@ -444,7 +448,10 @@ export function swayPose(pins, sw, time){
     const na = ang + acc;
     x += Math.cos(na) * len;
     y += Math.sin(na) * len;
-    out.push({ dx: x - b.u, dy: y - b.v });
+    // とめるピンは 支点なので 動かさない
+    out.push(Object.assign({}, b, b.type === 'fix'
+      ? { dx: 0, dy: 0 }
+      : { dx: x - b.u, dy: y - b.v }));
   }
   return out;
 }

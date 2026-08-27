@@ -9,7 +9,7 @@
    うごきは どれも「拍の しゅんかんに ぐっと 変えて、すぐ もどす」形。
    もどりを 少し 行きすぎさせると、ぽにょんと はねて見える。 */
 
-import { setPin } from './anim.js?v=74';
+import { setPin } from './anim.js?v=75';
 
 /** 1拍の 長さ（秒） */
 export const beatSec = (bpm) => 60 / Math.max(20, Math.min(400, bpm || 120));
