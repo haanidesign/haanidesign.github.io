@@ -1,32 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=82';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=85';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=82';
+         splitFrames } from '../engine/layer.js?v=85';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=82';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=82';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=82';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=82';
-import { PRESET_GROUPS } from '../engine/presets.js?v=82';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=85';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=85';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=85';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=85';
+import { PRESET_GROUPS } from '../engine/presets.js?v=85';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=82';
+         addTextLayer } from '../io/text.js?v=85';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=82';
-import { PATTERN_NAMES } from '../io/pattern.js?v=82';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=82';
-import { newHand } from '../engine/hand.js?v=82';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=82';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=85';
+import { PATTERN_NAMES } from '../io/pattern.js?v=85';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=85';
+import { newHand } from '../engine/hand.js?v=85';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=85';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=82';
+  from './colorwheel.js?v=85';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=82';
+         guessBpm, firstOnset } from '../io/audio.js?v=85';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=82';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=85';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -41,11 +41,40 @@ export function createSheet(sheetEl, backEl){
   let page = 0;
   let lastPage = -1;
 
+  /* シートは 画面の 下から 出るので、絵の 下のほうが かくれる。
+     いじりながら 変わりぐあいを 見たいので、
+     かくれた ぶんの 半分だけ 絵を 上へ よける。
+     とじたら もとに もどす（ズームや 位置は そのまま）。 */
+  let lifted = 0;
+  function liftStage(on){
+    const stage = document.querySelector('#stage');
+    if(!stage) return;
+
+    let want = 0;
+    if(on){
+      /* 出しきる のを 待って はからない。
+         シートは 画面の 下に くっついて いるので、
+         「画面の たかさ − シートの たかさ」が 上ばしに なる。
+         これなら 出てくる とちゅうでも 正しく 出せる。 */
+      const full = sheetEl.offsetWidth >= window.innerWidth - 2;   // 下から 出る ときだけ
+      if(full){
+        const top = window.innerHeight - sheetEl.offsetHeight;
+        const sr = stage.getBoundingClientRect();
+        want = Math.round(Math.max(0, sr.bottom - top) / 2);
+      }
+    }
+    if(want === lifted) return;
+    S.view.y += lifted - want;
+    lifted = want;
+    onChange();
+  }
+
   function open(title, build){
     builder = build; pages = null; page = 0;
     render(title);
     sheetEl.classList.add('on');
     backEl.classList.add('on');
+    liftStage(true);
   }
 
   /** 横にスライドして切り替えるページで開く */
@@ -56,8 +85,10 @@ export function createSheet(sheetEl, backEl){
     render(title);
     sheetEl.classList.add('on');
     backEl.classList.add('on');
+    liftStage(true);
   }
   function close(){
+    liftStage(false);
     sheetEl.classList.remove('on');
     backEl.classList.remove('on');
     builder = null;

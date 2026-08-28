@@ -315,7 +315,11 @@
 
 #sheet{
   position:fixed; left:0; right:0; bottom:0; z-index:41;
-  max-height:82vh; overflow-y:auto; overscroll-behavior:contain;
+  /* 上げすぎると 絵が 見えなくなる。
+     いじりながら 絵の 変わりぐあいが 見えるように、
+     画面の 6わり ちょっと までに とめる。
+     入りきらない ぶんは 中を スクロール。 */
+  max-height:62vh; overflow-y:auto; overscroll-behavior:contain;
   background:var(--paper);
   border-top:var(--bd); border-left:var(--bd); border-right:var(--bd);
   border-radius:22px 22px 0 0;
