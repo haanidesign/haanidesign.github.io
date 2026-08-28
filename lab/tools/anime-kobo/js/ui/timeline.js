@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=78';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=79';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=78';
+         nearestFolder, setParent } from '../engine/layer.js?v=79';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=78';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=79';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -452,9 +452,10 @@ export function createTimeline(root, opts = {}){
     if(!l){ pinbar.hidden = true; return; }
 
     const info = pinbar.querySelector('#pininfo');
-    info.textContent = n === 1
+    info.textContent = (n === 1
       ? 'ピン ' + fmtTime(S.selPins.times[0])
-      : fmtTime(S.selPins.times[0]) + ' 〜 ' + fmtTime(S.selPins.times[1]);
+      : fmtTime(S.selPins.times[0]) + ' 〜 ' + fmtTime(S.selPins.times[1])) + ' ✎';
+    info.disabled = n !== 1;
 
     const hold = pinbar.querySelector('#pinHold');
     const on = n === 1 && isHoldAt(l, S.selPins.times[0]);
@@ -470,6 +471,39 @@ export function createTimeline(root, opts = {}){
     pinbar.querySelector('#pinPing').classList.toggle('on', isLoop && l.loop.mode === 'pingpong');
     pinbar.querySelector('#pinLoop').disabled = n !== 2 && !isLoop;
     pinbar.querySelector('#pinPing').disabled = n !== 2 && !isLoop;
+  }
+
+  /* ---------- 秒数を 直に 打ちこんで うごかす ----------
+     引っぱるのは こまかい ちょうせつ 用。
+     「3秒めの ピンを 20秒めへ」の ような 大きい 引っこしは、
+     数字で 打つほうが かくじつで はやい。 */
+  function askPinTime(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || S.selPins.times.length !== 1) return;
+    const cur = S.selPins.times[0];
+    const NL = String.fromCharCode(10);
+    const ans = prompt('この ピンを 何秒めに しますか？' + NL
+      + '（0 〜 ' + S.proj.duration.toFixed(1) + '秒）', cur.toFixed(2));
+    if(ans == null) return;
+    const v = parseFloat(String(ans).replace(/[^0-9.\-]/g, ''));
+    if(!isFinite(v)) return toast('数字を 入れてね');
+    const nt = snap(Math.max(0, Math.min(S.proj.duration, v)));
+    if(Math.abs(nt - cur) < 1e-6) return;
+
+    edit('ピンを うごかす', () => {
+      if(S.ripple) movePinRipple(l, cur, nt, S.proj.duration);
+      else {
+        movePin(l, cur, nt);
+        if(l.loop){
+          if(Math.abs(l.loop.from - cur) < 1e-3) l.loop.from = nt;
+          if(Math.abs(l.loop.to   - cur) < 1e-3) l.loop.to = nt;
+        }
+      }
+    });
+    S.selPins = { layer: l.id, times: [nt] };
+    S.time = nt;
+    toast(cur.toFixed(2) + '秒 → ' + nt.toFixed(2) + '秒');
+    onChange();
   }
 
   /* ---------- ピンをドラッグして時間を変える ---------- */
@@ -492,7 +526,11 @@ export function createTimeline(root, opts = {}){
          そこで はしに 指を おいて いる あいだは、
          はしから どれだけ 出ているかに 合わせて
          じわじわ→ぐんぐん と 時間を すすめる。 */
-      const EDGE = 26;                 // はしから これくらいが「すすむ ところ」
+      /* はしの ゾーン。せまいと 画面の はしギリギリまで
+         指を 持って いかないと いけない（スマホだと「もどる」に なる）。
+         トラックの 2わり ぶん とるので、まん中あたりから 先は
+         もう すすむ ゾーンに なる。 */
+      const EDGE = Math.max(48, rect.width * 0.22);
       let auto = null, autoV = 0;
       const stopAuto = () => { if(auto){ clearInterval(auto); auto = null; } };
       const setAuto = (v) => {
@@ -925,6 +963,7 @@ export function createTimeline(root, opts = {}){
   }
 
   return { build, updatePlayhead, putPin, delPins, delPicked, toPin, toggleHold, setLoop,
+           askPinTime,
            setEase, currentEase, currentShape, clearPins,
            copyPins, pastePins, zoomTime };
 }

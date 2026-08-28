@@ -1,31 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=78';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=79';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
-         newFlip, isFlip, flipIndex, groupInto } from '../engine/layer.js?v=78';
+         newFlip, isFlip, flipIndex, groupInto,
+         splitFrames } from '../engine/layer.js?v=79';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=78';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=78';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=78';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=78';
-import { PRESET_GROUPS } from '../engine/presets.js?v=78';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=79';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=79';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=79';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=79';
+import { PRESET_GROUPS } from '../engine/presets.js?v=79';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=78';
+         addTextLayer } from '../io/text.js?v=79';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=78';
-import { PATTERN_NAMES } from '../io/pattern.js?v=78';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=78';
-import { newHand } from '../engine/hand.js?v=78';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=78';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=79';
+import { PATTERN_NAMES } from '../io/pattern.js?v=79';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=79';
+import { newHand } from '../engine/hand.js?v=79';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=79';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=78';
+  from './colorwheel.js?v=79';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=78';
+         guessBpm, firstOnset } from '../io/audio.js?v=79';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=78';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=79';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1348,6 +1349,20 @@ export function buildFaceSheet(box){
       notify(r.n ? r.n + 'まいを コマにしました（ぜんぶで ' + l.frames.length + 'コマ）'
                  : 'まとめられませんでした');
       onChange();
+    }),
+    /* まとめた あと、また 1まいずつに もどす。
+       まとめた ときに「もとは どこに 居たか」を おぼえて あるので、
+       もとの 場所に そのまま もどる。 */
+    button('✂ コマを バラす', () => {
+      if((l.frames || []).length < 2) return notify('コマが 1つしか ありません');
+      const NL2 = String.fromCharCode(10);
+      const n = l.frames.length;
+      if(!confirm(n + 'コマを ' + n + 'まいの レイヤーに もどしますか？' + NL2 + NL2
+        + '（目パチ・口パクの コマの ピンは 消えます）')) return;
+      const r = { made: [] };
+      edit('コマを バラす', () => { r.made = splitFrames(S.proj, l, S.time); });
+      notify(r.made.length + 'まいを 外に 出しました（もどす で 戻せます）');
+      onChange();
     })
   ));
 
@@ -2341,6 +2356,157 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
     });
     box.appendChild(row);
   });
+
+  /* ---------- ハンドルで つくる（ベジェ） ----------
+     まる を つまんで 引っぱると 形が 変わる。
+     アプリの つなぎ方 設定で よく 見る やつ。
+
+     4つの 数（x1,y1,x2,y2）で 形が きまる。
+     手で なぞるより きれいな 形に なるし、
+     あとで 少しだけ 直す のも かんたん。
+
+     エンジンには「33こに 分けた 高さ」で わたすので、
+     なぞって かいた ものと まったく 同じ あつかいに なる。 */
+  {
+    box.appendChild(heading('🔵 ハンドルで つくる'));
+    const bn = document.createElement('div');
+    bn.className = 'empty';
+    bn.style.textAlign = 'left';
+    bn.textContent = '青い まるを つまんで 引っぱると 形が 変わります。'
+      + NL + '左の まるを 右へ … はじめが ゆっくり'
+      + NL + '右の まるを 左へ … おわりが ゆっくり';
+    box.appendChild(bn);
+
+    const BW = 260, BH = 220, BP = 26;
+    const bc = document.createElement('canvas');
+    bc.width = BW; bc.height = BH;
+    bc.className = 'drawease';
+    box.appendChild(bc);
+    const bg = bc.getContext('2d');
+
+    // はじめは「ゆっくり出て ゆっくり止まる」
+    let P = [0.42, 0, 0.58, 1];
+    const bx = (u) => BP + (BW - BP * 2) * u;
+    const by = (v) => BH - BP - (BH - BP * 2) * v;
+    const ux = (x) => (x - BP) / (BW - BP * 2);
+    const uy = (y) => (BH - BP - y) / (BH - BP * 2);
+
+    /** ベジェの 高さ（0〜1）。よこ が u に なる ところを さがす */
+    const bezAt = (u) => {
+      const cx = (t) => 3*(1-t)*(1-t)*t*P[0] + 3*(1-t)*t*t*P[2] + t*t*t;
+      const cy = (t) => 3*(1-t)*(1-t)*t*P[1] + 3*(1-t)*t*t*P[3] + t*t*t;
+      let lo = 0, hi = 1;
+      for(let i = 0; i < 24; i++){
+        const m = (lo + hi) / 2;
+        if(cx(m) < u) lo = m; else hi = m;
+      }
+      return cy((lo + hi) / 2);
+    };
+
+    function bezRender(){
+      bg.fillStyle = '#FFFEF7';
+      bg.fillRect(0, 0, BW, BH);
+      // ます目
+      bg.strokeStyle = 'rgba(30,28,20,.12)';
+      bg.lineWidth = 1;
+      for(let i = 0; i <= 4; i++){
+        bg.beginPath(); bg.moveTo(bx(i/4), by(0)); bg.lineTo(bx(i/4), by(1)); bg.stroke();
+        bg.beginPath(); bg.moveTo(bx(0), by(i/4)); bg.lineTo(bx(1), by(i/4)); bg.stroke();
+      }
+      // まっすぐの めやす
+      bg.strokeStyle = 'rgba(30,28,20,.22)';
+      bg.setLineDash([5, 5]);
+      bg.beginPath(); bg.moveTo(bx(0), by(0)); bg.lineTo(bx(1), by(1)); bg.stroke();
+      bg.setLineDash([]);
+      // ハンドルの ぼう
+      bg.strokeStyle = 'rgba(30,28,20,.45)';
+      bg.lineWidth = 2;
+      bg.beginPath(); bg.moveTo(bx(0), by(0)); bg.lineTo(bx(P[0]), by(P[1])); bg.stroke();
+      bg.beginPath(); bg.moveTo(bx(1), by(1)); bg.lineTo(bx(P[2]), by(P[3])); bg.stroke();
+      // カーブ
+      bg.strokeStyle = '#F2A0B8';
+      bg.lineWidth = 4;
+      bg.beginPath();
+      for(let i = 0; i <= 60; i++){
+        const u = i / 60, x = bx(u), y = by(bezAt(u));
+        i ? bg.lineTo(x, y) : bg.moveTo(x, y);
+      }
+      bg.stroke();
+      bg.strokeStyle = '#1E1C14'; bg.lineWidth = 1.5; bg.stroke();
+      // はしの まる
+      [[0,0],[1,1]].forEach(([u,v]) => {
+        bg.beginPath(); bg.arc(bx(u), by(v), 6, 0, 7);
+        bg.fillStyle = '#FFFEF7'; bg.fill();
+        bg.lineWidth = 2.5; bg.strokeStyle = '#1E1C14'; bg.stroke();
+      });
+      // つまむ まる
+      [[P[0],P[1]],[P[2],P[3]]].forEach(([u,v]) => {
+        bg.beginPath(); bg.arc(bx(u), by(v), 11, 0, 7);
+        bg.fillStyle = '#5B8DEF'; bg.fill();
+        bg.lineWidth = 2.5; bg.strokeStyle = '#1E1C14'; bg.stroke();
+      });
+      bg.strokeStyle = '#1E1C14'; bg.lineWidth = 2.5;
+      bg.strokeRect(1.5, 1.5, BW - 3, BH - 3);
+    }
+    bezRender();
+
+    let grab = -1;
+    const bat = (e) => {
+      const r = bc.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (BW / r.width),
+               y: (e.clientY - r.top) * (BH / r.height) };
+    };
+    bc.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      try{ bc.setPointerCapture(e.pointerId); }catch(_){}
+      const p = bat(e);
+      const d0 = Math.hypot(p.x - bx(P[0]), p.y - by(P[1]));
+      const d1 = Math.hypot(p.x - bx(P[2]), p.y - by(P[3]));
+      grab = (d0 <= d1 ? 0 : 1);
+      bmove(e);
+    });
+    const bmove = (e) => {
+      if(grab < 0) return;
+      const p = bat(e);
+      // よこ は わくの 中だけ。たて は 少し はみ出して よい（はねる 形）
+      const u = Math.max(0, Math.min(1, ux(p.x)));
+      const v = Math.max(-0.5, Math.min(1.5, uy(p.y)));
+      if(grab === 0){ P[0] = u; P[1] = v; } else { P[2] = u; P[3] = v; }
+      bezRender();
+    };
+    bc.addEventListener('pointermove', (e) => { if(grab >= 0) bmove(e); });
+    const bend = () => { grab = -1; };
+    bc.addEventListener('pointerup', bend);
+    bc.addEventListener('pointercancel', bend);
+
+    // よく つかう 形
+    const BEZ = [
+      ['ゆっくり出る',   [0.42, 0, 1, 1]],
+      ['ゆっくり止まる', [0, 0, 0.58, 1]],
+      ['りょうほう',     [0.42, 0, 0.58, 1]],
+      ['ぐいっと',       [0.68, -0.55, 0.27, 1.55]],
+      ['するどく',       [0.9, 0, 0.1, 1]]
+    ];
+    const bp = document.createElement('div');
+    bp.className = 'presets';
+    BEZ.forEach(([label, v]) => {
+      bp.appendChild(button(label, () => { P = v.slice(); bezRender(); }));
+    });
+    box.appendChild(bp);
+
+    box.appendChild(btnRow(
+      button('✓ この かたちで うごかす', () => {
+        const arr = [];
+        for(let i = 0; i < 33; i++) arr.push(Math.round(bezAt(i / 32) * 1000) / 1000);
+        onPick('custom', arr);
+        S.proj.eases = S.proj.eases || [];
+        S.proj.eases.unshift(arr.slice());
+        S.proj.eases = S.proj.eases.slice(0, MY_EASE_MAX);
+        notify('この かたちで 動きます');
+        if(closeFn) closeFn();
+      })
+    ));
+  }
 
   /* ---------- 自分で かく ---------- */
   box.appendChild(heading('✏ じぶんで かく'));

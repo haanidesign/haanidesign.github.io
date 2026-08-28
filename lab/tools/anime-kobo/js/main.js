@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=78';
+import { M } from './engine/math.js?v=79';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=78';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=79';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=78';
-import { createStage } from './ui/stage.js?v=78';
-import { createRenderer } from './render/renderer.js?v=78';
-import { createTimeline } from './ui/timeline.js?v=78';
-import { fmtTime } from './engine/anim.js?v=78';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=79';
+import { createStage } from './ui/stage.js?v=79';
+import { createRenderer } from './render/renderer.js?v=79';
+import { createTimeline } from './ui/timeline.js?v=79';
+import { fmtTime } from './engine/anim.js?v=79';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -17,19 +17,19 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet } from './ui/sheet.js?v=78';
+         setEaseAsker, colorPick, buildFlipSheet } from './ui/sheet.js?v=79';
 
-import { showNewDoc } from './ui/newdoc.js?v=78';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=78';
-import { fitToCanvas, isBg } from './io/bg.js?v=78';
-import * as Audio from './io/audio.js?v=78';
+import { showNewDoc } from './ui/newdoc.js?v=79';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=79';
+import { fitToCanvas, isBg } from './io/bg.js?v=79';
+import * as Audio from './io/audio.js?v=79';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=78';
-import { importPsd } from './io/psd.js?v=78';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=79';
+import { importPsd } from './io/psd.js?v=79';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=78';
-import { pathKeys } from './engine/path.js?v=78';
-import { paintDirty } from './engine/paint.js?v=78';
+         canUseWebCodecs } from './io/export.js?v=79';
+import { pathKeys } from './engine/path.js?v=79';
+import { paintDirty } from './engine/paint.js?v=79';
 
 const $ = (s) => document.querySelector(s);
 
@@ -394,6 +394,7 @@ $('#key').addEventListener('click', () => timeline.putPin());
 $('#prevPin').addEventListener('click', () => timeline.toPin(-1));
 $('#nextPin').addEventListener('click', () => timeline.toPin(1));
 $('#pinDel').addEventListener('click', () => timeline.delPins());
+$('#pininfo').addEventListener('click', () => timeline.askPinTime());
 $('#pinCopy').addEventListener('click', () => timeline.copyPins());
 $('#paste').addEventListener('click', () => timeline.pastePins());
 $('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));

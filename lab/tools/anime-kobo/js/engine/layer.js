@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=78';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=78';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=78';
-import { handTime } from './hand.js?v=78';
-import { WORK_KEYS } from '../state.js?v=78';
+import { M, uid, ptInQuad } from './math.js?v=79';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=79';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=79';
+import { handTime } from './hand.js?v=79';
+import { WORK_KEYS } from '../state.js?v=79';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -523,6 +523,61 @@ export function mergeAsFrames(project, target, ids, time){
     n++;
   }
   return n;
+}
+
+/**
+ * コマを バラして、また 1まいずつの レイヤーに もどす。
+ *
+ * まとめた ときに「もとは どこに 居たか」を おぼえてあるので、
+ * それを つかって もとの 場所に もどす。
+ * 1コマめは いまの レイヤーに のこす。
+ *
+ * 戻り値 … 出した レイヤーの ならび
+ */
+export function splitFrames(project, layer, time){
+  const frames = layer.frames || [];
+  if(frames.length < 2) return [];
+
+  const at = project.layers.indexOf(layer);
+  const off = layer.frameOff || {};
+  const made = [];
+
+  // 2コマめ から うしろを 外へ 出す（ならびは 上から 順）
+  for(let i = frames.length - 1; i >= 1; i--){
+    const aid = frames[i];
+    const a = project.assets[aid];
+    const l = newLayer((a && a.name) || (layer.name + ' ' + (i + 1)), [aid]);
+
+    // 大きさ・かたむき・じく・親 は もとの レイヤーに そろえる
+    l.x = layer.x; l.y = layer.y;
+    l.rot = layer.rot;
+    l.scaleX = layer.scaleX; l.scaleY = layer.scaleY;
+    l.pivot = { x: layer.pivot.x, y: layer.pivot.y };
+    l.parent = layer.parent;
+    l.opacity = layer.opacity;
+
+    // まとめた ときの ずれを もどす
+    const o = off[aid];
+    if(o){
+      const m = M.mul(M.trs(l.x, l.y, l.rot, l.scaleX, l.scaleY),
+                      M.trs(o.dx || 0, o.dy || 0, o.rot || 0,
+                            o.sx == null ? 1 : o.sx, o.sy == null ? 1 : o.sy));
+      const d = M.decompose(m);
+      l.x = d.x; l.y = d.y; l.rot = d.rot;
+      l.scaleX = d.scaleX; l.scaleY = d.scaleY;
+    }
+
+    project.layers.splice(at + 1, 0, l);
+    made.unshift(l);
+  }
+
+  // のこすのは 1コマめだけ
+  layer.frames = [frames[0]];
+  delete layer.frameOff;
+  // コマの 切りかえピンは もう いらない
+  if(layer.tracks) delete layer.tracks.frame;
+
+  return made;
 }
 
 /**
