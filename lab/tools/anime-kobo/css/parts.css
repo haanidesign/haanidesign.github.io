@@ -272,7 +272,8 @@
 }
 .spgrip.on{ background:var(--main); }
 /* 指で つかむ ところは 見た目より ひろく */
-.spgrip::after{ content:''; position:absolute; inset:-9px; }
+/* 指で つかむ ところは 見た目より うんと ひろく */
+.spgrip::after{ content:''; position:absolute; inset:-14px; }
 .spgrip:active{ box-shadow:none; transform:translate(-50%,-2px); }
 
 /* ---------- のばす・みじかくする 帯 ----------
@@ -587,8 +588,10 @@
   max-width:calc(100% - 20px);
 }
 #spanmode[hidden]{ display:none; }
+#spanmode{ overflow-x:auto; overscroll-behavior-x:contain; }
+#spanmode::-webkit-scrollbar{ height:3px; }
 #spanmode button{ min-height:42px; font-size:.66rem; padding:.2rem .5rem; flex:0 0 auto; }
-#spanmode .dot{ font-size:.62rem; }
+#spanmode .dot{ font-size:.62rem; flex:0 0 auto; white-space:nowrap; }
 
 #paintmode{
   position:absolute; left:50%; bottom:10px; transform:translateX(-50%);

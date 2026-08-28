@@ -3,12 +3,12 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=92';
-import { frameAsset, frameImage } from '../state.js?v=92';
+         nearestFolder } from '../engine/layer.js?v=93';
+import { frameAsset, frameImage } from '../state.js?v=93';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=92';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=92';
-import { paintCanvas } from '../engine/paint.js?v=92';
+         meshSizeFor } from '../engine/puppet.js?v=93';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=93';
+import { paintCanvas } from '../engine/paint.js?v=93';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

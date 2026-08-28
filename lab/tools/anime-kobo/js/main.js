@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=92';
+import { M } from './engine/math.js?v=93';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=92';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=93';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=92';
-import { createStage } from './ui/stage.js?v=92';
-import { createRenderer } from './render/renderer.js?v=92';
-import { createTimeline } from './ui/timeline.js?v=92';
-import { fmtTime } from './engine/anim.js?v=92';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=93';
+import { createStage } from './ui/stage.js?v=93';
+import { createRenderer } from './render/renderer.js?v=93';
+import { createTimeline } from './ui/timeline.js?v=93';
+import { fmtTime } from './engine/anim.js?v=93';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -17,19 +17,19 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet, setSpanner } from './ui/sheet.js?v=92';
+         setEaseAsker, colorPick, buildFlipSheet, setSpanner } from './ui/sheet.js?v=93';
 
-import { showNewDoc } from './ui/newdoc.js?v=92';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=92';
-import { fitToCanvas, isBg } from './io/bg.js?v=92';
-import * as Audio from './io/audio.js?v=92';
+import { showNewDoc } from './ui/newdoc.js?v=93';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=93';
+import { fitToCanvas, isBg } from './io/bg.js?v=93';
+import * as Audio from './io/audio.js?v=93';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=92';
-import { importPsd } from './io/psd.js?v=92';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=93';
+import { importPsd } from './io/psd.js?v=93';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=92';
-import { pathKeys } from './engine/path.js?v=92';
-import { paintDirty } from './engine/paint.js?v=92';
+         canUseWebCodecs } from './io/export.js?v=93';
+import { pathKeys } from './engine/path.js?v=93';
+import { paintDirty } from './engine/paint.js?v=93';
 
 const $ = (s) => document.querySelector(s);
 
@@ -47,6 +47,7 @@ let dirty = true;
 function refresh(){
   dirty = true;
   timeline.build();
+  if(S.spanEdit) spanInfo();
   $('#undo').disabled = !canUndo();
   $('#redo').disabled = !canRedo();
   $('#undo').title = canUndo() ? 'もどす: ' + undoLabel() : 'もどす';
@@ -322,23 +323,58 @@ $('#pnClose').addEventListener('click', () => setPaintMode(false));
 /* ---- 長さを 調節（ここから ここまで 出す）----
    ふだんは タイムラインに 出さない。ここを おした ときだけ 出す。
    スマホの せまい タイムラインでは、いつも 出ていると 見にくいので。 */
+function spanLayer(){ return S.proj.layers.find(x => x.id === S.spanEdit) || null; }
+
+function spanInfo(){
+  const l = spanLayer();
+  if(!l) return;
+  $('#spanInfo').textContent = l.span
+    ? l.span.from.toFixed(2) + '〜' + l.span.to.toFixed(2) + '秒'
+    : 'ずっと 出す';
+}
+
 function setSpanMode(id){
   S.spanEdit = id || null;
   $('#spanmode').hidden = !S.spanEdit;
-  if(S.spanEdit){
-    const l = S.proj.layers.find(x => x.id === S.spanEdit);
-    $('#spanInfo').textContent = (l ? '「' + l.name + '」' : '')
-      + ' ⟨ ⟩ を ひっぱって 長さを きめてね';
-  }
+  spanInfo();
   refresh();
 }
 setSpanner((l) => { setSpanMode(l.id); });
 $('#spClose').addEventListener('click', () => setSpanMode(null));
+
+/* 再生バーの ところを「ここから」「ここまで」に する。
+
+   つまみを ひっぱるのは、画面の はしに 近いと スマホの
+   「もどる」に とられて しまう ことが ある。
+   こちらは 画面の まん中あたりの ボタンを おすだけなので、
+   はしを さわらずに きめられる。
+   （再生バーは タイムラインの どこを おしても 動かせる） */
+function setSpanEnd(which){
+  const l = spanLayer();
+  if(!l) return;
+  const t = +S.time.toFixed(2);
+  edit('出す ところ', () => {
+    const sp = l.span || (l.span = { from: 0, to: S.proj.duration });
+    if(which === 'from') sp.from = Math.min(t, sp.to - 0.05);
+    else                 sp.to   = Math.max(t, sp.from + 0.05);
+    sp.from = Math.max(0, +sp.from.toFixed(3));
+    sp.to   = Math.min(S.proj.duration, +sp.to.toFixed(3));
+    // ぜんぶの 長さに もどったら「きめて いない」ことに する
+    if(sp.from <= 1e-6 && sp.to >= S.proj.duration - 1e-6) l.span = null;
+  });
+  toast(l.span ? l.span.from.toFixed(2) + '秒 〜 ' + l.span.to.toFixed(2) + '秒 だけ 出します'
+               : 'ずっと 出します');
+  spanInfo();
+  refresh();
+}
+$('#spFrom').addEventListener('click', () => setSpanEnd('from'));
+$('#spTo').addEventListener('click', () => setSpanEnd('to'));
 $('#spAll').addEventListener('click', () => {
-  const l = S.proj.layers.find(x => x.id === S.spanEdit);
+  const l = spanLayer();
   if(!l) return;
   edit('ずっと 出す', () => { l.span = null; });
   toast('ずっと 出すように しました');
+  spanInfo();
   refresh();
 });
 $('#pnPen').addEventListener('click', () => { S.penErase = false; paintUI(); toast('ペン'); });

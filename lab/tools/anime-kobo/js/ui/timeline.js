@@ -1,13 +1,13 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=92';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=93';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=92';
+         nearestFolder, setParent } from '../engine/layer.js?v=93';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=92';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=93';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -425,9 +425,14 @@ export function createTimeline(root, opts = {}){
         const h = document.createElement('button');
         h.className = 'spgrip ' + side + (has ? ' on' : '');
         /* つまみは 画面の はしに ぴったり 置かない。
-           スマホは 画面の はしから 指を すべらせると「もどる」に なるので、
-           はしから 少し 内がわに ずらして 置く（帯は 本当の 長さの まま）。 */
-        const gx = Math.max(16, Math.min(trackWidth() - 16, t2x(tt)));
+
+           スマホ（Android）は 画面の はしから 20ドットくらいが
+           「もどる」の ための ところ。そこに つまみが あると、
+           さわった しゅんかんに もどるが はじまって、
+           つまみは うごかない。
+           はしから 36ドット 内がわに ずらして 置く
+           （帯は 本当の 長さの まま なので、見た目は 正しい）。 */
+        const gx = Math.max(36, Math.min(trackWidth() - 36, t2x(tt)));
         h.style.left = gx + 'px';
         h.textContent = side === 'L' ? '⟨' : '⟩';
         h.title = 'ここから ここまで 出す';
