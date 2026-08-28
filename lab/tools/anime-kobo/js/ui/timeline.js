@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=81';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=82';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=81';
+         nearestFolder, setParent } from '../engine/layer.js?v=82';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=81';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=82';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -545,8 +545,9 @@ export function createTimeline(root, opts = {}){
         beginEdit('ピンを もちあげる');
         btn.classList.add('lifted');
         liftedAt = { layer: l.id, t: curT };
+        /* おしらせは 出さない。ピンが 大きくなって ぶるっと するので
+           もちあがった ことは それで 分かる（絵の じゃまに ならない）。 */
         if(navigator.vibrate) navigator.vibrate([12, 40, 12]);
-        toast('もちあげた！ 指を すべらせて どこへでも');
       }, 400);
       const clearLong = () => { if(longT){ clearTimeout(longT); longT = null; } };
 
@@ -640,7 +641,6 @@ export function createTimeline(root, opts = {}){
         stopAuto();
         btn.classList.remove('lifted');
         liftedAt = null;
-        if(lifted) toast('ここに 置きました（' + curT.toFixed(2) + '秒）');
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', end);
         window.removeEventListener('pointercancel', end);

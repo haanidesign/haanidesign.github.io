@@ -1,32 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=81';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=82';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=81';
+         splitFrames } from '../engine/layer.js?v=82';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=81';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=81';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=81';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=81';
-import { PRESET_GROUPS } from '../engine/presets.js?v=81';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=82';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=82';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=82';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=82';
+import { PRESET_GROUPS } from '../engine/presets.js?v=82';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=81';
+         addTextLayer } from '../io/text.js?v=82';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=81';
-import { PATTERN_NAMES } from '../io/pattern.js?v=81';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=81';
-import { newHand } from '../engine/hand.js?v=81';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=81';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=82';
+import { PATTERN_NAMES } from '../io/pattern.js?v=82';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=82';
+import { newHand } from '../engine/hand.js?v=82';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=82';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=81';
+  from './colorwheel.js?v=82';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=81';
+         guessBpm, firstOnset } from '../io/audio.js?v=82';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=81';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=82';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
