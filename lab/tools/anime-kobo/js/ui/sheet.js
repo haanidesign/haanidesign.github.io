@@ -1,32 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=86';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=89';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=86';
+         splitFrames } from '../engine/layer.js?v=89';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=86';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=86';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=86';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=86';
-import { PRESET_GROUPS } from '../engine/presets.js?v=86';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=89';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=89';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=89';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=89';
+import { PRESET_GROUPS } from '../engine/presets.js?v=89';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=86';
+         addTextLayer } from '../io/text.js?v=89';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=86';
-import { PATTERN_NAMES } from '../io/pattern.js?v=86';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=86';
-import { newHand } from '../engine/hand.js?v=86';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=86';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=89';
+import { PATTERN_NAMES } from '../io/pattern.js?v=89';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=89';
+import { newHand } from '../engine/hand.js?v=89';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=89';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=86';
+  from './colorwheel.js?v=89';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=86';
+         guessBpm, firstOnset } from '../io/audio.js?v=89';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=86';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=89';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -461,6 +461,7 @@ export function buildLayerSheet(box, closeFn){
       + 'かかります。だから ふちは 外がわにだけ 出ます。';
     box.appendChild(note);
 
+    spanRow(box, l);
     buildLook(box, l, { flip: false });
 
     box.appendChild(btnRow(
@@ -490,6 +491,7 @@ export function buildLayerSheet(box, closeFn){
     n.textContent = '文字そのものを かえるときは 下の「🅰もじ」から。';
     box.appendChild(n);
     box.appendChild(clipRow(l));
+    spanRow(box, l);
     buildLook(box, l, { flip: true });
     parentLink(box, l, closeFn);
     otherRow(box, l, closeFn);
@@ -616,6 +618,7 @@ export function buildLayerSheet(box, closeFn){
   }
 
   box.appendChild(clipRow(l));
+  spanRow(box, l);
   buildLook(box, l, { flip: true });
 
   parentLink(box, l, closeFn);
@@ -3259,4 +3262,45 @@ export function buildFlipSheet(box, back){
     body.appendChild(t);
   }
   rebuild();
+}
+
+
+/* ---------- ここから ここまで 出す ----------
+   タイムラインの ⟨ ⟩ を 引っぱるのが 本すじ。
+   ここでは いまの ぐあいを 見せて、けせる ように するだけ。 */
+export function spanRow(box, l){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('⏱ 出す ところ'));
+
+  const t = document.createElement('div');
+  t.className = 'empty';
+  t.style.textAlign = 'left';
+  t.textContent = l.span
+    ? l.span.from.toFixed(2) + '秒 〜 ' + l.span.to.toFixed(2) + '秒 だけ 出します。'
+      + NL + 'タイムラインの ⟨ ⟩ を 引っぱると 変えられます。'
+    : 'ずっと 出しています。' + NL
+      + 'タイムラインで この レイヤーの 行の 上に ある' + NL
+      + '⟨ ⟩ を 引っぱると「ここから ここまで」に できます。'
+      + NL + 'フォルダに かけると 中身ごと 出たり 消えたり します。';
+  box.appendChild(t);
+
+  if(l.span){
+    box.appendChild(btnRow(
+      button('⏱ いまの時間から', () => {
+        edit('出す ところ', () => { l.span.from = Math.min(+S.time.toFixed(2), l.span.to - 0.05); });
+        notify('ここから 出します');
+        onChange();
+      }),
+      button('⏱ いまの時間まで', () => {
+        edit('出す ところ', () => { l.span.to = Math.max(+S.time.toFixed(2), l.span.from + 0.05); });
+        notify('ここまで 出します');
+        onChange();
+      }),
+      button('ずっと 出す', () => {
+        edit('ずっと 出す', () => { l.span = null; });
+        notify('ずっと 出すように しました');
+        onChange();
+      })
+    ));
+  }
 }

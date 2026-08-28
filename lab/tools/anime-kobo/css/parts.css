@@ -221,7 +221,7 @@
 }
 
 .pin{
-  position:absolute; top:50%; left:0;
+  position:absolute; top:calc(50% + 4px); left:0;
   width:24px; height:24px; padding:0;
   transform:translate(-50%,-50%) rotate(45deg);
   border:2px solid var(--ink); border-radius:4px;
@@ -249,6 +249,31 @@
   box-shadow:0 0 0 4px rgba(242,160,184,.45), 0 6px 10px rgba(30,28,20,.35);
 }
 .pin.lifted:active{ transform:translate(-50%,-50%) rotate(45deg) scale(1.5); }
+
+/* ---------- ここから ここまで 出す ----------
+   えらんでいる レイヤーの 行の 上に 出る。
+   ⟨ ⟩ を 引っぱると、そこだけ 出る ように なる。 */
+.span{
+  position:absolute; top:2px; height:7px;
+  background:rgba(30,28,20,.10);
+  border-radius:4px;
+  pointer-events:none;
+}
+.span.on{ background:var(--main); box-shadow:0 0 0 1.5px var(--ink); }
+.spgrip{
+  position:absolute; top:2px; z-index:7;
+  width:20px; height:20px; padding:0;
+  transform:translate(-50%,-4px);
+  border:2px solid var(--ink); border-radius:6px;
+  background:var(--paper);
+  font-size:.68rem; line-height:1;
+  box-shadow:0 2px 0 var(--ink);
+  touch-action:none;
+}
+.spgrip.on{ background:var(--main); }
+/* 指で つかむ ところは 見た目より ひろく */
+.spgrip::after{ content:''; position:absolute; inset:-9px; }
+.spgrip:active{ box-shadow:none; transform:translate(-50%,-2px); }
 
 /* ---------- のばす・みじかくする 帯 ----------
    ピンを 2つ えらぶと 出る。りょうはしの つまみを 引っぱると

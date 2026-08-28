@@ -1,13 +1,13 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=86';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=89';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=86';
+         nearestFolder, setParent } from '../engine/layer.js?v=89';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=86';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=89';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -406,6 +406,31 @@ export function createTimeline(root, opts = {}){
       track.appendChild(line);
     }
 
+    /* ---- ここから ここまで 出す ----
+       えらんでいる レイヤーの 行にだけ 出す。
+       行の 上に 帯が あって、りょうはしの つまみ ⟨ ⟩ を 引っぱると
+       「この レイヤーは ここから ここまで しか 出さない」に なる。
+       フォルダに かければ 中身ごと 出たり 消えたり する。 */
+    if(S.sel === l.id){
+      const sp = l.span || { from: 0, to: S.proj.duration };
+      const has = !!l.span;
+      const bar = document.createElement('div');
+      bar.className = 'span' + (has ? ' on' : '');
+      bar.style.left = t2x(sp.from) + 'px';
+      bar.style.width = Math.max(2, t2x(sp.to) - t2x(sp.from)) + 'px';
+      track.appendChild(bar);
+
+      [['L', sp.from], ['R', sp.to]].forEach(([side, tt]) => {
+        const h = document.createElement('button');
+        h.className = 'spgrip ' + side + (has ? ' on' : '');
+        h.style.left = t2x(tt) + 'px';
+        h.textContent = side === 'L' ? '⟨' : '⟩';
+        h.title = 'ここから ここまで 出す';
+        attachSpan(h, l, side);
+        track.appendChild(h);
+      });
+    }
+
     /* ---- のばす・みじかくする つまみ ----
        ピンを 2つ えらぶと、その あいだに 帯が 出る。
        帯の りょうはしを 引っぱると、あいだの ピンが
@@ -536,6 +561,49 @@ export function createTimeline(root, opts = {}){
     S.time = nt;
     toast(cur.toFixed(2) + '秒 → ' + nt.toFixed(2) + '秒');
     onChange();
+  }
+
+  /* ---------- ここから ここまで 出す ---------- */
+  function attachSpan(btn, l, side){
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+      const pid = e.pointerId;
+      const rect = btn.parentElement.getBoundingClientRect();
+      let started = false;
+
+      const move = (ev) => {
+        if(ev.pointerId !== pid) return;
+        if(ev.cancelable) ev.preventDefault();
+        if(!started){ started = true; beginEdit('出す ところ'); }
+
+        const sp = l.span || (l.span = { from: 0, to: S.proj.duration });
+        const want = snap(x2t(ev.clientX - rect.left));
+        if(side === 'L') sp.from = Math.max(0, Math.min(sp.to - step(), want));
+        else             sp.to   = Math.min(S.proj.duration, Math.max(sp.from + step(), want));
+        S.time = side === 'L' ? sp.from : sp.to;
+        onChange();
+      };
+      const end = (ev) => {
+        if(ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(started){
+          commitEdit();
+          const sp = l.span;
+          /* ぜんぶの 長さに もどったら「きめて いない」ことに する
+             （じゃまな 帯が のこらない） */
+          if(sp && sp.from <= 1e-6 && sp.to >= S.proj.duration - 1e-6) l.span = null;
+          else if(sp) toast(sp.from.toFixed(2) + '秒 〜 ' + sp.to.toFixed(2) + '秒 だけ 出します');
+          onChange();
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
   }
 
   /* ---------- 帯の はしを 引っぱって のばす・みじかくする ---------- */

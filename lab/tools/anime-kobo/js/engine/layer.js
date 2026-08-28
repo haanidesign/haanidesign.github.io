@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=86';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=86';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=86';
-import { handTime } from './hand.js?v=86';
-import { WORK_KEYS } from '../state.js?v=86';
+import { M, uid, ptInQuad } from './math.js?v=89';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=89';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=89';
+import { handTime } from './hand.js?v=89';
+import { WORK_KEYS } from '../state.js?v=89';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -43,6 +43,7 @@ export function newLayer(name, assetIds){
     blur: 0,                                // ぼかし（px）
     mblur: 0,                               // うごきブラー（ざんぞう）0〜1
     hand: null,                             // 手がき風（null なら なし）
+    span: null,                             // 出す ところ（null なら ずっと 出す）
     flipX: false, flipY: false              // 反転
   };
 }
@@ -104,6 +105,15 @@ export function flipIndex(flip, n, time){
     return m < n ? m : (2 * n - 2 - m);
   }
   return k % n;                              // ずっと くり返す
+}
+
+/** そのレイヤーが「出す ところ」の 中に いるか */
+export function inSpan(l, time){
+  const s = l.span;
+  if(!s) return true;                       // きめて いなければ ずっと 出す
+  const a = s.from == null ? -Infinity : s.from;
+  const b = s.to   == null ?  Infinity : s.to;
+  return time >= a - 1e-6 && time <= b + 1e-6;
 }
 
 export function computeAll(project, time){
@@ -186,7 +196,10 @@ export function computeAll(project, time){
     /* フォルダの すけ具合 は、中身を1まいにまとめてから かける（c2d）。
        ここで かけると 二重になるので さわらない。 */
     const inFolder = !!(p && isFolder(p.layer));
-    let vis = l.visible !== false && (inFolder ? p.vis : true);
+    /* 「ここから ここまで 出す」。
+       フォルダに かけると 中身も いっしょに 出たり 消えたり する
+       （中身は フォルダの 見え方を うけつぐ ので）。 */
+    let vis = l.visible !== false && inSpan(l, time) && (inFolder ? p.vis : true);
 
     /* パラパラフォルダの 中は、いまの コマ だけを 見せる */
     if(vis && inFolder && isFlip(p.layer) && showing(p.layer) !== l.id) vis = false;
