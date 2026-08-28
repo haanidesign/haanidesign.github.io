@@ -239,6 +239,17 @@
 .pin.hold{ border-radius:2px; background:var(--ink); }
 .pin.hold.on{ background:var(--pink); }
 
+/* 長おしで もちあげた ピン。
+   ういている ことが ひと目で 分かるように 大きく・かげを つける。
+   （もちあげて いる あいだは 画面の はしから はしが 動画 まるごと） */
+.pin.lifted{
+  z-index:9;
+  background:var(--pink);
+  transform:translate(-50%,-50%) rotate(45deg) scale(1.5);
+  box-shadow:0 0 0 4px rgba(242,160,184,.45), 0 6px 10px rgba(30,28,20,.35);
+}
+.pin.lifted:active{ transform:translate(-50%,-50%) rotate(45deg) scale(1.5); }
+
 .playhead{
   /* 高さは JS で中身の高さに合わせる。bottom:0 だと
      スクロールする中身が長いとき、見えている分までしか伸びない */

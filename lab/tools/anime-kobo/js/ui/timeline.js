@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=79';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=80';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=79';
+         nearestFolder, setParent } from '../engine/layer.js?v=80';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=79';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=80';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -518,6 +518,30 @@ export function createTimeline(root, opts = {}){
       const trackEl = btn.parentElement;
       const rect = trackEl.getBoundingClientRect();
 
+      /* ---------- 長おしで「もちあげる」 ----------
+         時間じくを ひろげて いると、指を いっぱい すべらせても
+         ほんの すこししか 動かない（それが ひろげる ことの 意味）。
+         でも「3秒めの ピンを 20秒めへ」の ような 引っこしには 向かない。
+
+         そこで 長おしすると ピンを もちあげる。
+         もちあげて いる あいだは
+           画面の ひだり はし ＝ 0秒
+           画面の みぎ はし   ＝ さいご
+         に なるので、ひとふりで どこへでも 運べる。
+         指を はなすと そこに 置かれる。 */
+      let lifted = false;
+      let longT = setTimeout(() => {
+        longT = null;
+        if(moved) return;
+        lifted = true;
+        moved = true;
+        beginEdit('ピンを もちあげる');
+        btn.classList.add('lifted');
+        if(navigator.vibrate) navigator.vibrate([12, 40, 12]);
+        toast('もちあげた！ 指を すべらせて どこへでも');
+      }, 400);
+      const clearLong = () => { if(longT){ clearTimeout(longT); longT = null; } };
+
       /* はしまで 引っぱったら、そのまま どんどん すすむ。
 
          時間じくを ひろげて いると、画面に 出ている のは
@@ -572,10 +596,24 @@ export function createTimeline(root, opts = {}){
 
       const move = (ev) => {
         if(!moved && Math.abs(ev.clientX - startX) < 5) return;
-        if(!moved){ moved = true; beginEdit('ピンをずらす'); if(navigator.vibrate) navigator.vibrate(8); }
+        if(!moved){
+          clearLong();
+          moved = true; beginEdit('ピンをずらす');
+          if(navigator.vibrate) navigator.vibrate(8);
+        }
 
         const x = ev.clientX - rect.left;
         const w = rect.width;
+
+        /* もちあげて いる あいだは、
+           トラックの はしから はしが 動画 まるごと。
+           ＝ 指の ある ところが そのまま 何秒めか。 */
+        if(lifted){
+          setAuto(0);
+          const u = Math.max(0, Math.min(1, x / Math.max(1, w)));
+          apply(snap(u * S.proj.duration));
+          return;
+        }
         /* はしから 出た ぶんで はやさを きめる。
            少し 出たら ゆっくり、うんと 出したら はやい。 */
         const over = x < EDGE ? (x - EDGE) : (x > w - EDGE ? (x - (w - EDGE)) : 0);
@@ -589,7 +627,10 @@ export function createTimeline(root, opts = {}){
       };
 
       const end = (ev) => {
+        clearLong();
         stopAuto();
+        btn.classList.remove('lifted');
+        if(lifted) toast('ここに 置きました（' + curT.toFixed(2) + '秒）');
         btn.removeEventListener('pointermove', move);
         btn.removeEventListener('pointerup', end);
         btn.removeEventListener('pointercancel', end);
