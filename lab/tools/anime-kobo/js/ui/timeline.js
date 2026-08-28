@@ -1,12 +1,12 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=80';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=81';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=80';
+         nearestFolder, setParent } from '../engine/layer.js?v=81';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=80';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=81';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -15,6 +15,10 @@ export function createTimeline(root, opts = {}){
   const rows = root.querySelector('#tracks');
   const pinbar = root.querySelector('#pinbar');
   let dragPin = null;
+  /* いま 引っぱって いる ピン。
+     ピンを うごかすと タイムラインは まるごと 作り直されるので、
+     作り直した あとに「ういている 見た目」を つけ直す ために おぼえておく。 */
+  let liftedAt = null;      // { layer, t }
 
   /* ---------- 時間 ⇄ 位置 ----------
      ズーム1のときは動画ぜんぶがトラックの幅に収まる。
@@ -406,11 +410,14 @@ export function createTimeline(root, opts = {}){
       const b = document.createElement('button');
       const picked = S.selPins.layer === l.id && S.selPins.times.includes(t);
       const isFrame = framePins.some(f => Math.abs(f - t) < 1e-3);
+      // 作り直された あとも、もちあげて いる ピンは ういた ままに 見せる
+      const isLift = liftedAt && liftedAt.layer === l.id && Math.abs(liftedAt.t - t) < 1e-3;
       b.className = 'pin' + (picked ? ' on' : '')
         + (isHoldAt(l, t) ? ' hold' : '')
-        + (isFrame ? ' frame' : '');
+        + (isFrame ? ' frame' : '')
+        + (isLift ? ' lifted' : '');
       const px = t2x(t);
-      if(px < -20 || px > trackWidth() + 20) return;   // 画面の外は作らない
+      if(!isLift && (px < -20 || px > trackWidth() + 20)) return;   // 画面の外は作らない
       b.style.left = px + 'px';
       b.title = fmtTime(t) + (isHoldAt(l, t) ? '（とめる）' : '');
       b.setAttribute('aria-label', 'ピン ' + fmtTime(t));
@@ -537,6 +544,7 @@ export function createTimeline(root, opts = {}){
         moved = true;
         beginEdit('ピンを もちあげる');
         btn.classList.add('lifted');
+        liftedAt = { layer: l.id, t: curT };
         if(navigator.vibrate) navigator.vibrate([12, 40, 12]);
         toast('もちあげた！ 指を すべらせて どこへでも');
       }, 400);
@@ -591,6 +599,7 @@ export function createTimeline(root, opts = {}){
         }
         curT = nt;
         S.time = nt;
+        if(liftedAt) liftedAt.t = nt;
         onChange();
       };
 
@@ -630,11 +639,12 @@ export function createTimeline(root, opts = {}){
         clearLong();
         stopAuto();
         btn.classList.remove('lifted');
+        liftedAt = null;
         if(lifted) toast('ここに 置きました（' + curT.toFixed(2) + '秒）');
-        btn.removeEventListener('pointermove', move);
-        btn.removeEventListener('pointerup', end);
-        btn.removeEventListener('pointercancel', end);
-        if(moved) commitEdit();
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(moved){ commitEdit(); onChange(); }
         else {
           // おしただけ ＝ そのピンを えらんで、再生バーも そこへ そろえる
           S.playing = false;
@@ -642,9 +652,20 @@ export function createTimeline(root, opts = {}){
           selectPin(l.id, t, ev.shiftKey || S.selPins.layer === l.id);
         }
       };
-      btn.addEventListener('pointermove', move);
-      btn.addEventListener('pointerup', end);
-      btn.addEventListener('pointercancel', end);
+
+      /* だいじ … 指の うごきは この ボタンでは なく 画面ぜんたいで 受ける。
+
+         ピンを 1つ うごかすと タイムラインは まるごと 作り直される。
+         そのとき この ボタンは 消えて 新しい ものに 入れかわる ので、
+         ボタンに つけた「指が うごいた」の 受け口も いっしょに 消える。
+         ＝ 1歩 動かした ところで 引っぱりが 切れて しまう。
+         （これが「ちょっとずつしか 動かせない」の 正体）
+
+         画面ぜんたいで 受ければ、ボタンが 入れかわっても
+         指を はなすまで ずっと ついてくる。 */
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
     });
   }
 
