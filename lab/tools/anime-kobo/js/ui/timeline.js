@@ -1,13 +1,13 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=89';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=92';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=89';
+         nearestFolder, setParent } from '../engine/layer.js?v=92';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=89';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=92';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -407,11 +407,12 @@ export function createTimeline(root, opts = {}){
     }
 
     /* ---- ここから ここまで 出す ----
-       えらんでいる レイヤーの 行にだけ 出す。
+       ふだんは 出さない。かたち の「⟨⟩ 長さを 調節」を おした ときだけ 出す。
+       （スマホの せまい タイムラインでは、いつも 出ていると 見にくい）
        行の 上に 帯が あって、りょうはしの つまみ ⟨ ⟩ を 引っぱると
        「この レイヤーは ここから ここまで しか 出さない」に なる。
        フォルダに かければ 中身ごと 出たり 消えたり する。 */
-    if(S.sel === l.id){
+    if(S.spanEdit === l.id){
       const sp = l.span || { from: 0, to: S.proj.duration };
       const has = !!l.span;
       const bar = document.createElement('div');
@@ -423,7 +424,11 @@ export function createTimeline(root, opts = {}){
       [['L', sp.from], ['R', sp.to]].forEach(([side, tt]) => {
         const h = document.createElement('button');
         h.className = 'spgrip ' + side + (has ? ' on' : '');
-        h.style.left = t2x(tt) + 'px';
+        /* つまみは 画面の はしに ぴったり 置かない。
+           スマホは 画面の はしから 指を すべらせると「もどる」に なるので、
+           はしから 少し 内がわに ずらして 置く（帯は 本当の 長さの まま）。 */
+        const gx = Math.max(16, Math.min(trackWidth() - 16, t2x(tt)));
+        h.style.left = gx + 'px';
         h.textContent = side === 'L' ? '⟨' : '⟩';
         h.title = 'ここから ここまで 出す';
         attachSpan(h, l, side);
@@ -580,8 +585,9 @@ export function createTimeline(root, opts = {}){
 
         const sp = l.span || (l.span = { from: 0, to: S.proj.duration });
         const want = snap(x2t(ev.clientX - rect.left));
-        if(side === 'L') sp.from = Math.max(0, Math.min(sp.to - step(), want));
-        else             sp.to   = Math.min(S.proj.duration, Math.max(sp.from + step(), want));
+        // 小数の ごみが のこらないように 3けたで まるめる
+        if(side === 'L') sp.from = +Math.max(0, Math.min(sp.to - step(), want)).toFixed(3);
+        else             sp.to   = +Math.min(S.proj.duration, Math.max(sp.from + step(), want)).toFixed(3);
         S.time = side === 'L' ? sp.from : sp.to;
         onChange();
       };

@@ -221,7 +221,7 @@
 }
 
 .pin{
-  position:absolute; top:calc(50% + 4px); left:0;
+  position:absolute; top:50%; left:0;
   width:24px; height:24px; padding:0;
   transform:translate(-50%,-50%) rotate(45deg);
   border:2px solid var(--ink); border-radius:4px;
@@ -577,6 +577,19 @@
 #pinmode button{ min-height:42px; font-size:.66rem; padding:.2rem .5rem; }
 
 /* ---------- お絵かきのモード ---------- */
+/* ---------- 長さを 調節 の 帯 ---------- */
+#spanmode{
+  position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+  z-index:6; display:flex; gap:.3rem; align-items:center;
+  background:var(--cream); border:var(--bd); border-radius:16px;
+  box-shadow:0 4px 0 var(--ink);
+  padding:.35rem .4rem;
+  max-width:calc(100% - 20px);
+}
+#spanmode[hidden]{ display:none; }
+#spanmode button{ min-height:42px; font-size:.66rem; padding:.2rem .5rem; flex:0 0 auto; }
+#spanmode .dot{ font-size:.62rem; }
+
 #paintmode{
   position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
   z-index:6; display:flex; gap:.3rem; align-items:center;

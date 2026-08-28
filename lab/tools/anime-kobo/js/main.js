@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=89';
+import { M } from './engine/math.js?v=92';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=89';
+         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=92';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=89';
-import { createStage } from './ui/stage.js?v=89';
-import { createRenderer } from './render/renderer.js?v=89';
-import { createTimeline } from './ui/timeline.js?v=89';
-import { fmtTime } from './engine/anim.js?v=89';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=92';
+import { createStage } from './ui/stage.js?v=92';
+import { createRenderer } from './render/renderer.js?v=92';
+import { createTimeline } from './ui/timeline.js?v=92';
+import { fmtTime } from './engine/anim.js?v=92';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -17,19 +17,19 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet } from './ui/sheet.js?v=89';
+         setEaseAsker, colorPick, buildFlipSheet, setSpanner } from './ui/sheet.js?v=92';
 
-import { showNewDoc } from './ui/newdoc.js?v=89';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=89';
-import { fitToCanvas, isBg } from './io/bg.js?v=89';
-import * as Audio from './io/audio.js?v=89';
+import { showNewDoc } from './ui/newdoc.js?v=92';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=92';
+import { fitToCanvas, isBg } from './io/bg.js?v=92';
+import * as Audio from './io/audio.js?v=92';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=89';
-import { importPsd } from './io/psd.js?v=89';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=92';
+import { importPsd } from './io/psd.js?v=92';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=89';
-import { pathKeys } from './engine/path.js?v=89';
-import { paintDirty } from './engine/paint.js?v=89';
+         canUseWebCodecs } from './io/export.js?v=92';
+import { pathKeys } from './engine/path.js?v=92';
+import { paintDirty } from './engine/paint.js?v=92';
 
 const $ = (s) => document.querySelector(s);
 
@@ -318,6 +318,29 @@ $('#paint').addEventListener('click', () => {
   sheet.open('お絵かき', (box) => buildPaintSheet(box, () => sheet.close()));
 });
 $('#pnClose').addEventListener('click', () => setPaintMode(false));
+
+/* ---- 長さを 調節（ここから ここまで 出す）----
+   ふだんは タイムラインに 出さない。ここを おした ときだけ 出す。
+   スマホの せまい タイムラインでは、いつも 出ていると 見にくいので。 */
+function setSpanMode(id){
+  S.spanEdit = id || null;
+  $('#spanmode').hidden = !S.spanEdit;
+  if(S.spanEdit){
+    const l = S.proj.layers.find(x => x.id === S.spanEdit);
+    $('#spanInfo').textContent = (l ? '「' + l.name + '」' : '')
+      + ' ⟨ ⟩ を ひっぱって 長さを きめてね';
+  }
+  refresh();
+}
+setSpanner((l) => { setSpanMode(l.id); });
+$('#spClose').addEventListener('click', () => setSpanMode(null));
+$('#spAll').addEventListener('click', () => {
+  const l = S.proj.layers.find(x => x.id === S.spanEdit);
+  if(!l) return;
+  edit('ずっと 出す', () => { l.span = null; });
+  toast('ずっと 出すように しました');
+  refresh();
+});
 $('#pnPen').addEventListener('click', () => { S.penErase = false; paintUI(); toast('ペン'); });
 $('#pnEraser').addEventListener('click', () => { S.penErase = true; paintUI(); toast('けしゴム'); });
 $('#pnThin').addEventListener('click', () => {
@@ -743,11 +766,13 @@ function guardBack(){
     /* なぞっている あいだは ぜったいに 出ない。
        スマホは 画面の はしから すべらせると「もどる」に なるので、
        みちを かいている 途中で 出ると せっかくの あとが 消える。 */
-    if(S.traceMode || S.pinMode){
+    if(S.traceMode || S.pinMode || S.paintMode || S.spanEdit){
       history.pushState({ kobo: 1 }, '');
       backAt = 0;
-      toast(S.traceMode ? 'なぞり中です（「おわり」で とじられます）'
-                        : 'ピン中です（「おわり」で とじられます）');
+      toast(S.traceMode  ? 'なぞり中です（「おわり」で とじられます）'
+          : S.paintMode  ? 'おえかき中です（「おわり」で とじられます）'
+          : S.spanEdit   ? '長さを 調節中です（「おわり」で とじられます）'
+                         : 'ピン中です（「おわり」で とじられます）');
       return;
     }
 
