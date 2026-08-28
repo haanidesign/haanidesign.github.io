@@ -250,6 +250,32 @@
 }
 .pin.lifted:active{ transform:translate(-50%,-50%) rotate(45deg) scale(1.5); }
 
+/* ---------- のばす・みじかくする 帯 ----------
+   ピンを 2つ えらぶと 出る。りょうはしの つまみを 引っぱると
+   あいだの ピンが そのままの 比で のびる・ちぢむ。 */
+.stretch{
+  position:absolute; top:50%; height:14px;
+  transform:translateY(-50%);
+  background:rgba(242,160,184,.30);
+  border-top:2px solid var(--pink);
+  border-bottom:2px solid var(--pink);
+  pointer-events:none;
+  border-radius:3px;
+}
+.sgrip{
+  position:absolute; top:50%; z-index:8;
+  width:26px; height:30px; padding:0;
+  transform:translate(-50%,-50%);
+  border:2.5px solid var(--ink); border-radius:8px;
+  background:var(--pink);
+  font-size:.72rem; line-height:1;
+  box-shadow:0 2px 0 var(--ink);
+  touch-action:none;
+}
+/* 指で つかむ ところは 見た目より ひろく */
+.sgrip::after{ content:''; position:absolute; inset:-10px; }
+.sgrip:active{ transform:translate(-50%,-50%) scale(1.12); box-shadow:none; }
+
 .playhead{
   /* 高さは JS で中身の高さに合わせる。bottom:0 だと
      スクロールする中身が長いとき、見えている分までしか伸びない */

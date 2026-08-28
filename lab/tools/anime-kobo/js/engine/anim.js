@@ -119,6 +119,45 @@ export function movePin(layer, from, to){
 }
 
 /**
+ * ピンの あいだを のばす・みじかくする。
+ *
+ * from〜to の あいだに ある ピンを、
+ * newFrom〜newTo に なるように そのまま 引きのばす。
+ * 中の 間隔の 比は そのまま なので、
+ * 「ぜんぶ まとめて ゆっくり／はやく」に できる。
+ *
+ * 時こくを 直に 書きかえて から ならべ直すので、
+ * 動かす 順番を 気に しなくて よい。
+ *
+ * 戻り値 … 動かした ピンの 数
+ */
+export function scaleRange(layer, from, to, newFrom, newTo){
+  const f = +from.toFixed(3), t = +to.toFixed(3);
+  const nf = +newFrom.toFixed(3), nt = +newTo.toFixed(3);
+  const span = t - f;
+  if(span <= 1e-4) return 0;
+  const k = (nt - nf) / span;
+  if(!isFinite(k) || k <= 0) return 0;
+
+  let n = 0;
+  for(const c of channelsOf(layer)){
+    const keys = track(layer, c, false);
+    if(!keys) continue;
+    keys.forEach(key => {
+      if(key.t < f - 1e-6 || key.t > t + 1e-6) return;
+      key.t = +(nf + (key.t - f) * k).toFixed(3);
+      n++;
+    });
+    // 同じ 時こくに かさなったら 1つに する（あとの ほうを のこす）
+    keys.sort((a, b) => a.t - b.t);
+    for(let i = keys.length - 1; i > 0; i--){
+      if(Math.abs(keys[i].t - keys[i - 1].t) < 1e-3) keys.splice(i - 1, 1);
+    }
+  }
+  return n;
+}
+
+/**
  * ピンをずらす。ripple なら、それより後ろのピンも同じだけ一緒にずらす。
  * 「3コマめを長く見せたい」ときに、後ろを1つずつ動かさなくて済む。
  * 動画の長さからはみ出さないように、ずらす量を抑える。

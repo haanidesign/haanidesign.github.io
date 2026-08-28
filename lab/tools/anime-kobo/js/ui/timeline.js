@@ -1,12 +1,13 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=85';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=86';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=85';
+         nearestFolder, setParent } from '../engine/layer.js?v=86';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
+         scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=85';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=86';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -405,6 +406,30 @@ export function createTimeline(root, opts = {}){
       track.appendChild(line);
     }
 
+    /* ---- のばす・みじかくする つまみ ----
+       ピンを 2つ えらぶと、その あいだに 帯が 出る。
+       帯の りょうはしを 引っぱると、あいだの ピンが
+       ぜんぶ そのままの 比で のびる・ちぢむ。
+       ＝ コマの 間かくを まとめて 変えられる。 */
+    if(S.selPins.layer === l.id && S.selPins.times.length === 2){
+      const a = S.selPins.times[0], b2 = S.selPins.times[1];
+      const band = document.createElement('div');
+      band.className = 'stretch';
+      band.style.left = t2x(a) + 'px';
+      band.style.width = Math.max(2, t2x(b2) - t2x(a)) + 'px';
+      track.appendChild(band);
+
+      [['L', a], ['R', b2]].forEach(([side, tt]) => {
+        const h = document.createElement('button');
+        h.className = 'sgrip ' + side;
+        h.style.left = t2x(tt) + 'px';
+        h.textContent = side === 'L' ? '◁' : '▷';
+        h.title = 'ひっぱると ピンの あいだが のびる・ちぢむ';
+        attachStretch(h, l, side, a, b2);
+        track.appendChild(h);
+      });
+    }
+
     const framePins = framePinTimes(l);
     times.forEach(t => {
       const b = document.createElement('button');
@@ -513,6 +538,58 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
+  /* ---------- 帯の はしを 引っぱって のばす・みじかくする ---------- */
+  function attachStretch(btn, l, side, from0, to0){
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+      const pid = e.pointerId;
+      const rect = btn.parentElement.getBoundingClientRect();
+      let from = from0, to = to0, started = false;
+
+      const move = (ev) => {
+        if(ev.pointerId !== pid) return;
+        if(ev.cancelable) ev.preventDefault();
+        if(!started){ started = true; beginEdit('ピンの あいだを 変える'); }
+
+        const want = snap(x2t(ev.clientX - rect.left));
+        let nf = from, nt2 = to;
+        if(side === 'L') nf = Math.min(to - step(), Math.max(0, want));
+        else             nt2 = Math.max(from + step(), Math.min(S.proj.duration, want));
+        if(Math.abs(nf - from) < 1e-6 && Math.abs(nt2 - to) < 1e-6) return;
+
+        scaleRange(l, from, to, nf, nt2);
+        if(l.loop){
+          if(l.loop.from >= from - 1e-6 && l.loop.from <= to + 1e-6){
+            l.loop.from = nf + (l.loop.from - from) * ((nt2 - nf) / (to - from));
+          }
+          if(l.loop.to >= from - 1e-6 && l.loop.to <= to + 1e-6){
+            l.loop.to = nf + (l.loop.to - from) * ((nt2 - nf) / (to - from));
+          }
+        }
+        from = nf; to = nt2;
+        S.selPins = { layer: l.id, times: [+from.toFixed(3), +to.toFixed(3)] };
+        S.time = side === 'L' ? from : to;
+        onChange();
+      };
+      const end = (ev) => {
+        if(ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(started){
+          commitEdit();
+          toast('あいだ ' + (to - from).toFixed(2) + '秒');
+          onChange();
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
+  }
+
   /* ---------- ピンをドラッグして時間を変える ---------- */
   function attachPinDrag(btn, l, t){
     let moved = false, startX = 0, curT = t;
@@ -604,7 +681,14 @@ export function createTimeline(root, opts = {}){
         onChange();
       };
 
+      const pid = e.pointerId;
       const move = (ev) => {
+        /* さわっている 指は 1本だけ。
+           タブレットだと 手の ひらや 2本めの 指も イベントを 出すので、
+           おした ときの 指と ちがえば むし する。
+           （これが「タブレットで 変に なる」の もと） */
+        if(ev.pointerId !== pid) return;
+        if(ev.cancelable) ev.preventDefault();
         if(!moved && Math.abs(ev.clientX - startX) < 5) return;
         if(!moved){
           clearLong();
@@ -637,6 +721,7 @@ export function createTimeline(root, opts = {}){
       };
 
       const end = (ev) => {
+        if(ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
         clearLong();
         stopAuto();
         btn.classList.remove('lifted');
