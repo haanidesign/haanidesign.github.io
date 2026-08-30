@@ -277,7 +277,13 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
  *   srcK … 絵の中の ドット数と あみの ものさしが ちがうときの 倍率
  *          （フォルダを まとめて 曲げるときに つかう。ふだんは 1）
  */
-export function drawDeformed(ctx, img, mesh, xy, srcK){
+/**
+ * @param uv … 絵の どこを はるか（なくても よい）。
+ *   ふつうは あみの もとの 場所を そのまま つかうが、
+ *   あみを ゆがめて から 骨で 曲げる ときは、
+ *   「もとの 絵の 場所」を べつに わたす ひつようが ある。
+ */
+export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
   const k = srcK || 1;
 
   /* 三角形を ほんの少し ふくらませて 重ねる。
@@ -300,9 +306,13 @@ export function drawDeformed(ctx, img, mesh, xy, srcK){
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){
     const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
+    /* 絵の どこを はるか。uv が あれば そちらを つかう */
+    const u0 = uv ? uv[i0 * 2] : v[i0].u, w0 = uv ? uv[i0 * 2 + 1] : v[i0].v;
+    const u1 = uv ? uv[i1 * 2] : v[i1].u, w1 = uv ? uv[i1 * 2 + 1] : v[i1].v;
+    const u2 = uv ? uv[i2 * 2] : v[i2].u, w2 = uv ? uv[i2 * 2 + 1] : v[i2].v;
     drawTri(ctx, img,
       xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
-      v[i0].u * k, v[i0].v * k, v[i1].u * k, v[i1].v * k, v[i2].u * k, v[i2].v * k,
+      u0 * k, w0 * k, u1 * k, w1 * k, u2 * k, w2 * k,
       ex);
   }
 }

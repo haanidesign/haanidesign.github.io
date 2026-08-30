@@ -205,3 +205,100 @@ export function resetCage(cage){
     }
   }
 }
+
+
+/* ---------- 絵の中の 1点が かごで どこへ 行くか ----------
+   骨（パペットピン）と いっしょに つかう ために いる。
+
+   あみの目の 1ますの 中は、四すみを たてよこに 混ぜて 出す
+   （バイリニア）。ますの 中では まっすぐな ので、
+   ますを こまかく すれば なめらかに なる。 */
+export function cagePoint(cage, x, y){
+  if(!cage) return { x, y };
+  const { w, h, cols, rows, pts } = cage;
+  const u = Math.max(0, Math.min(1, x / (w || 1))) * cols;
+  const v = Math.max(0, Math.min(1, y / (h || 1))) * rows;
+  const i = Math.max(0, Math.min(cols - 1, Math.floor(u)));
+  const j = Math.max(0, Math.min(rows - 1, Math.floor(v)));
+  const s = u - i, t = v - j;
+  const a = pts[idxAt(cage, i, j)],     b = pts[idxAt(cage, i + 1, j)];
+  const c = pts[idxAt(cage, i + 1, j + 1)], d = pts[idxAt(cage, i, j + 1)];
+  return {
+    x: (a.x * (1 - s) + b.x * s) * (1 - t) + (d.x * (1 - s) + c.x * s) * t,
+    y: (a.y * (1 - s) + b.y * s) * (1 - t) + (d.y * (1 - s) + c.y * s) * t
+  };
+}
+
+/** 点が 四角の 中に あるか */
+function inQuad(px, py, q){
+  let inside = false;
+  for(let i = 0, j = 3; i < 4; j = i++){
+    const xi = q[i].x, yi = q[i].y, xj = q[j].x, yj = q[j].y;
+    if(((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * ゆがんだ ところの 点 → もとの 絵の中の 点（逆びき）。
+ *
+ * 絵の上を 指で さわった とき、その 下に ある もとの 絵の
+ * どこ なのかを 知る ために つかう（ピンを さす ときなど）。
+ *
+ * ますを 1つずつ 見て、その 中に あるかを しらべ、
+ * 中の 場所は くり返し 近づけて 出す（ニュートン法）。
+ * 見つからない ときは いちばん 近い ますで 出す。
+ */
+export function cageInverse(cage, x, y){
+  if(!cage) return { x, y };
+  const { w, h, cols, rows, pts } = cage;
+
+  const solve = (i, j) => {
+    const a = pts[idxAt(cage, i, j)],         b = pts[idxAt(cage, i + 1, j)];
+    const c = pts[idxAt(cage, i + 1, j + 1)], d = pts[idxAt(cage, i, j + 1)];
+    let s = 0.5, t = 0.5;
+    for(let k = 0; k < 12; k++){
+      // いまの (s,t) が どこに なるか
+      const px = (a.x * (1 - s) + b.x * s) * (1 - t) + (d.x * (1 - s) + c.x * s) * t;
+      const py = (a.y * (1 - s) + b.y * s) * (1 - t) + (d.y * (1 - s) + c.y * s) * t;
+      const ex = x - px, ey = y - py;
+      if(Math.abs(ex) < 1e-4 && Math.abs(ey) < 1e-4) break;
+      // s・t を 少し 動かすと どれだけ ずれるか
+      const dsx = (b.x - a.x) * (1 - t) + (c.x - d.x) * t;
+      const dsy = (b.y - a.y) * (1 - t) + (c.y - d.y) * t;
+      const dtx = (d.x - a.x) * (1 - s) + (c.x - b.x) * s;
+      const dty = (d.y - a.y) * (1 - s) + (c.y - b.y) * s;
+      const det = dsx * dty - dsy * dtx;
+      if(Math.abs(det) < 1e-9) break;
+      s += ( dty * ex - dtx * ey) / det;
+      t += (-dsy * ex + dsx * ey) / det;
+      s = Math.max(-0.2, Math.min(1.2, s));
+      t = Math.max(-0.2, Math.min(1.2, t));
+    }
+    return { s, t };
+  };
+
+  // ① 中に ある ますを さがす
+  for(let j = 0; j < rows; j++){
+    for(let i = 0; i < cols; i++){
+      const q = [pts[idxAt(cage, i, j)], pts[idxAt(cage, i + 1, j)],
+                 pts[idxAt(cage, i + 1, j + 1)], pts[idxAt(cage, i, j + 1)]];
+      if(!inQuad(x, y, q)) continue;
+      const { s, t } = solve(i, j);
+      return { x: w * (i + s) / cols, y: h * (j + t) / rows };
+    }
+  }
+
+  // ② はみ出して いたら、いちばん 近い ますで
+  let bi = 0, bj = 0, bd = Infinity;
+  for(let j = 0; j < rows; j++){
+    for(let i = 0; i < cols; i++){
+      const a = pts[idxAt(cage, i, j)], c = pts[idxAt(cage, i + 1, j + 1)];
+      const cx = (a.x + c.x) / 2, cy = (a.y + c.y) / 2;
+      const d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+      if(d < bd){ bd = d; bi = i; bj = j; }
+    }
+  }
+  const { s, t } = solve(bi, bj);
+  return { x: w * (bi + s) / cols, y: h * (bj + t) / rows };
+}

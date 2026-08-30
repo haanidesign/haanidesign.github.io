@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=94';
-import { frameAsset, frameImage } from '../state.js?v=94';
+         nearestFolder } from '../engine/layer.js?v=95';
+import { frameAsset, frameImage } from '../state.js?v=95';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=94';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=94';
-import { paintCanvas } from '../engine/paint.js?v=94';
-import { cageMesh, cageXY, cageFlat } from '../engine/warp.js?v=94';
+         meshSizeFor } from '../engine/puppet.js?v=95';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=95';
+import { paintCanvas } from '../engine/paint.js?v=95';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=95';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -110,11 +110,63 @@ export function createC2D(canvas){
 
     const px = hand ? boilPx(hand, Math.min(asset.w, asset.h)) : 0;
 
-    /* ゆがみ・自由変形。
-       絵の上に かぶせた「かご」の 形に そって 絵を はる。
-       骨（パペットピン）とは べつの しくみなので、
-       かごが ある ときは かごを つかう。 */
-    if(l.cage && !cageFlat(l.cage)){
+    const warped = l.cage && !cageFlat(l.cage);
+    const boned = !!(v.pins && v.pins.length);
+
+    /* ---------- あみで ゆがめた 形に、さらに 骨で 動きを つける ----------
+       ① あみ（かご）で 絵の 形を ととのえる
+       ② その ゆがんだ 形の 上で 骨を 曲げる
+       の 順に かける。
+
+       骨は「ゆがめた あとの 形」に ついて いるので、
+       形を 直しても 動きは そのまま。
+       絵の どこを はるかは もとの まま なので、
+       絵が のびたり ちぢんだり しない。 */
+    if(warped && boned){
+      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+
+      if(!l.mesh && img.complete && img.naturalWidth){
+        const size = meshSizeFor(img);
+        l.mesh = buildMesh(img, size.cols, size.rows);
+      }
+      if(l.mesh){
+        const n = l.mesh.verts.length;
+
+        /* あみで ゆがめた あとの 場所を「骨の もとの 形」に する。
+           かごを いじった ときだけ 作り直す。 */
+        const key = JSON.stringify(l.cage.pts);
+        if(!l._wmesh || l._wkey !== key || l._wmesh.verts.length !== n){
+          const verts = l.mesh.verts.map(p => {
+            const q = cagePoint(l.cage, p.u, p.v);
+            return { u: q.x, v: q.y };
+          });
+          l._wmesh = { verts, tris: l.mesh.tris };
+          l._wkey = key;
+          // 絵の どこを はるかは もとの まま
+          const uv = new Float32Array(n * 2);
+          for(let i = 0; i < n; i++){ uv[i*2] = l.mesh.verts[i].u; uv[i*2+1] = l.mesh.verts[i].v; }
+          l._wuv = uv;
+          l._wmesh.dirty = true;
+        }
+
+        if(needsPrecompute(l._wmesh, v.pins, l.stiff)) precompute(l._wmesh, v.pins, l.stiff);
+        if(!l._xy || l._xy.length < n * 2) l._xy = new Float32Array(n * 2);
+        deform(l._wmesh, v.pins, l._xy);
+        let xy = l._xy;
+        if(px > 0.01){
+          if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
+          xy = boil(l._xy, l._bxy, px, handFrame(hand, curT), handSeed(l));
+        }
+        drawDeformed(g, img, l._wmesh, xy, 1, l._wuv);
+        g.filter = 'none';
+        g.restore();
+        return;
+      }
+    }
+
+    /* ゆがみ・自由変形だけ（骨は なし）。
+       絵の上に かぶせた「かご」の 形に そって 絵を はる。 */
+    if(warped){
       g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
       if(!l._cmesh || l._ckey !== l.cage.cols + 'x' + l.cage.rows){
         l._cmesh = cageMesh(l.cage);

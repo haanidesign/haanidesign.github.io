@@ -1,18 +1,18 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=94';
-import { cleanPath } from '../engine/path.js?v=94';
+import { M, clamp } from '../engine/math.js?v=95';
+import { cleanPath } from '../engine/path.js?v=95';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=94';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=94';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=94';
+         keepChildren, cornersOf } from '../engine/layer.js?v=95';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=95';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=95';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=94';
-import { createRenderer } from '../render/renderer.js?v=94';
-import { attachInput } from './input.js?v=94';
-import { newStroke, paintDirty } from '../engine/paint.js?v=94';
+         bendChain } from '../engine/puppet.js?v=95';
+import { createRenderer } from '../render/renderer.js?v=95';
+import { attachInput } from './input.js?v=95';
+import { newStroke, paintDirty } from '../engine/paint.js?v=95';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
-         resetCage } from '../engine/warp.js?v=94';
+         resetCage, cageFlat } from '../engine/warp.js?v=95';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -319,6 +319,10 @@ export function createStage(canvas, host, toast, onTraced){
     if(!asset) return null;
     const inv = M.inv(pose.m);
     const p = M.apply(inv, cp.x, cp.y);
+    /* あみで ゆがめても、レイヤーの 中の ものさしは 変わらない。
+       ゆがんだ 絵は「同じ ものさしの ちがう 場所」に 出ているだけ なので、
+       ここで 出る 数は そのまま ピンに つかえる
+       （ピンは ゆがめた あとの 形に ささる）。 */
     return { x: p.x + asset.w * l.pivot.x, y: p.y + asset.h * l.pivot.y };
   }
 
