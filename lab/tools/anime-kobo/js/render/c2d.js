@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=97';
-import { frameAsset, frameImage } from '../state.js?v=97';
+         nearestFolder } from '../engine/layer.js?v=98';
+import { S, frameAsset, frameImage } from '../state.js?v=98';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=97';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=97';
-import { paintCanvas } from '../engine/paint.js?v=97';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=97';
+         meshSizeFor } from '../engine/puppet.js?v=98';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=98';
+import { paintCanvas } from '../engine/paint.js?v=98';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=98';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -113,9 +113,9 @@ export function createC2D(canvas){
     /* ゆがみに ピンが うって あれば、その 時こくの 形を つかう。
        うって いなければ いまの 形の まま。 */
     const cage = l.cage
-      ? (v.cagePts ? { w: l.cage.w, h: l.cage.h, cols: l.cage.cols, rows: l.cage.rows,
-                       pts: v.cagePts }
-                   : l.cage)
+      ? ((v.cagePts && S.warpDrag !== l.id)
+          ? { w: l.cage.w, h: l.cage.h, cols: l.cage.cols, rows: l.cage.rows, pts: v.cagePts }
+          : l.cage)
       : null;
     const warped = cage && !cageFlat(cage);
     const boned = !!(v.pins && v.pins.length);
@@ -462,13 +462,13 @@ export function createC2D(canvas){
       gx.restore();
       back(1);
 
-    } else if(f.cage && !cageFlat(v.cagePts
+    } else if(f.cage && !cageFlat((v.cagePts && S.warpDrag !== f.id)
         ? { w:f.cage.w, h:f.cage.h, cols:f.cage.cols, rows:f.cage.rows, pts:v.cagePts }
         : f.cage)){
       /* フォルダ ぜんたいを ゆがめる。
          中身を いったん まとめて 描いてから、その1まいを かごで ゆがめる。
          かごの ものさしは キャンバスの ドット。 */
-      const cage = v.cagePts
+      const cage = (v.cagePts && S.warpDrag !== f.id)
         ? { w:f.cage.w, h:f.cage.h, cols:f.cage.cols, rows:f.cage.rows, pts:v.cagePts }
         : f.cage;
       const tf0 = [tf[0], 0, 0, tf[3], 0, 0];

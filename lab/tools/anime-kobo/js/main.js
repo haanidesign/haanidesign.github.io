@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=97';
+import { M } from './engine/math.js?v=98';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=97';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=98';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=97';
-import { createStage } from './ui/stage.js?v=97';
-import { createRenderer } from './render/renderer.js?v=97';
-import { createTimeline } from './ui/timeline.js?v=97';
-import { fmtTime } from './engine/anim.js?v=97';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=98';
+import { createStage } from './ui/stage.js?v=98';
+import { createRenderer } from './render/renderer.js?v=98';
+import { createTimeline } from './ui/timeline.js?v=98';
+import { fmtTime } from './engine/anim.js?v=98';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=97';
+         setWarper } from './ui/sheet.js?v=98';
 
-import { showNewDoc } from './ui/newdoc.js?v=97';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=97';
-import { fitToCanvas, isBg } from './io/bg.js?v=97';
-import * as Audio from './io/audio.js?v=97';
+import { showNewDoc } from './ui/newdoc.js?v=98';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=98';
+import { fitToCanvas, isBg } from './io/bg.js?v=98';
+import * as Audio from './io/audio.js?v=98';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=97';
-import { importPsd } from './io/psd.js?v=97';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=98';
+import { importPsd } from './io/psd.js?v=98';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=97';
-import { pathKeys } from './engine/path.js?v=97';
-import { paintDirty } from './engine/paint.js?v=97';
+         canUseWebCodecs } from './io/export.js?v=98';
+import { pathKeys } from './engine/path.js?v=98';
+import { paintDirty } from './engine/paint.js?v=98';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys } from './engine/warp.js?v=97';
+         clearCageKeys } from './engine/warp.js?v=98';
 
 const $ = (s) => document.querySelector(s);
 
@@ -51,6 +51,7 @@ function refresh(){
   dirty = true;
   timeline.build();
   if(S.spanEdit) spanInfo();
+  if(S.warpMode) warpUI();
   $('#undo').disabled = !canUndo();
   $('#redo').disabled = !canRedo();
   $('#undo').title = canUndo() ? 'もどす: ' + undoLabel() : 'もどす';
@@ -394,17 +395,12 @@ $('#wpGrid').addEventListener('click', () => {
 $('#wpKey').addEventListener('click', () => {
   const l = selected();
   if(!l || !l.cage) return;
-  if(cageHasKeys(l)){
-    const nl = String.fromCharCode(10);
-    if(!confirm('ゆがみの ピンを ぜんぶ けしますか？' + nl + nl
-      + '（けすと、いまの 形の まま 動かなく なります）')) return;
-    edit('ゆがみの ピンを けす', () => { clearCageKeys(l); });
-    toast('ゆがみの ピンを けしました');
-  } else {
-    edit('ゆがみに ピンをうつ', () => { cageKeys(l, S.time); });
-    toast(S.time.toFixed(2) + '秒に ピンを うちました' + String.fromCharCode(10)
-      + '時間を うごかして 形を 変えると アニメに なります');
-  }
+  /* おすたび に、いまの 形を その 時こくの ピンに する。
+     （とじる ボタンでは ない。けす ときは タイムラインで
+       その ピンを えらんで 🗑 けす） */
+  edit('ゆがみに ピンをうつ', () => { cageKeys(l, S.time); });
+  toast(S.time.toFixed(2) + '秒に ピンを うちました' + String.fromCharCode(10)
+    + '時間を うごかして 形を 変えると アニメに なります');
   warpUI();
   refresh();
 });
