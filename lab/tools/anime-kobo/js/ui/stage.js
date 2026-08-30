@@ -1,20 +1,20 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=101';
-import { cleanPath } from '../engine/path.js?v=101';
+import { M, clamp } from '../engine/math.js?v=102';
+import { cleanPath } from '../engine/path.js?v=102';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=101';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=101';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=101';
+         keepChildren, cornersOf } from '../engine/layer.js?v=102';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=102';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=102';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=101';
-import { createRenderer } from '../render/renderer.js?v=101';
-import { attachInput } from './input.js?v=101';
-import { newStroke, paintDirty } from '../engine/paint.js?v=101';
+         bendChain } from '../engine/puppet.js?v=102';
+import { createRenderer } from '../render/renderer.js?v=102';
+import { attachInput } from './input.js?v=102';
+import { newStroke, paintDirty } from '../engine/paint.js?v=102';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=101';
+         copyPts, setPts } from '../engine/warp.js?v=102';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -165,6 +165,28 @@ export function createStage(canvas, host, toast, onTraced){
           }
         }
       }
+      /* 2本指で うごかして いる あいだ、いま 何度／何% かを 出す */
+      if(S.warpHint){
+        let sx = 0, sy = 0, n = 0;
+        (l.cage.lock || []).forEach((on, k) => {
+          if(!on) return;
+          const q = P(cageToCanvas(l, pose, cg.pts[k]));
+          sx += q.x; sy += q.y; n++;
+        });
+        if(n){
+          const x = sx / n, y = sy / n;
+          ctx.font = '700 16px "M PLUS Rounded 1c", sans-serif';
+          ctx.textAlign = 'center';
+          const w = ctx.measureText(S.warpHint).width + 20;
+          ctx.fillStyle = 'rgba(30,28,20,.85)';
+          ctx.beginPath();
+          ctx.roundRect(x - w / 2, y - 46, w, 28, 14);
+          ctx.fill();
+          ctx.fillStyle = '#E1DD60';
+          ctx.fillText(S.warpHint, x, y - 27);
+        }
+      }
+
       // 筆の わっか
       if(S.warpMode === 'lock' && S.brushAt){
         const q = P(cageToCanvas(l, pose, S.brushAt));
@@ -937,19 +959,65 @@ export function createStage(canvas, host, toast, onTraced){
     },
 
     onPinch(now, start){
-      /* かたまりを 2本指で うごかす */
+      /* かたまりを 2本指で うごかす。
+
+         2本指は「まわす」と「大きさ」が いっしょに 出て しまう。
+         まわしたい だけ なのに 大きさも 変わると、
+         ぐにゃぐにゃ して 思ったように いかない。
+
+         そこで「どっちを したいのか」を さいしょに 1回だけ きめて、
+         指を はなすまで それだけを かける。
+           ・すこし まわしたら → まわす だけ
+           ・すこし ひろげたら → 大きさ だけ
+         もう一方を したい ときは 指を はなして やり直す。
+
+         きまった あとは きざみに そろえる（1°／1%）ので、
+         数字が ぴたっと 止まる。 */
       if(pinchWarp){
         const l = pinchWarp.l;
         setPts(l.cage, pinchWarp.pts0);            // いつも もとの 形から やり直す
+
         let da = now.a - pinchWarp.a;
         while(da > Math.PI) da -= Math.PI * 2;      // まわりすぎない ように
         while(da < -Math.PI) da += Math.PI * 2;
-        const k = clamp(now.d / Math.max(1, pinchWarp.d), 0.2, 6);
+        const rawK = clamp(now.d / Math.max(1, pinchWarp.d), 0.2, 6);
+
+        // どっちを したいか、まだ きまって いなければ きめる
+        if(!pinchWarp.mode){
+          const rotScore = Math.abs(da * 180 / Math.PI) / 7;    // 7° で 1
+          const sclScore = Math.abs(rawK - 1) / 0.12;           // 12% で 1
+          if(rotScore >= 1 || sclScore >= 1){
+            pinchWarp.mode = rotScore >= sclScore ? 'rot' : 'scale';
+          }
+        }
+
+        let rot = 0, k = 1;
+        if(pinchWarp.mode === 'rot'){
+          let deg = da * 180 / Math.PI;
+          // 15°の ふしめに 近ければ そこへ そろえる
+          const near = Math.round(deg / 15) * 15;
+          if(Math.abs(deg - near) < 3) deg = near;
+          else deg = Math.round(deg);            // それ以外は 1°きざみ
+          rot = deg * Math.PI / 180;
+          S.warpHint = 'まわす ' + (deg > 0 ? '+' : '') + deg + '°';
+        } else if(pinchWarp.mode === 'scale'){
+          let pct = Math.round(rawK * 100);
+          if(Math.abs(pct - 100) < 3) pct = 100;  // もとの 大きさに そろえる
+          k = pct / 100;
+          S.warpHint = '大きさ ' + pct + '%';
+        } else {
+          S.warpHint = 'まわす or 大きさ …';
+        }
+
         // 指の 動きは 画面の ドット。絵の中の ドットに なおす
         const z = Math.max(0.001, S.view.z) * (livePoses()[l.id] ? (livePoses()[l.id].v.scaleX || 1) : 1);
-        const dx = (now.cx - pinchWarp.cx) / z;
-        const dy = (now.cy - pinchWarp.cy) / z;
-        transformLock(l.cage, da, k, dx, dy, S.warpSoft);
+        let dx = (now.cx - pinchWarp.cx) / z;
+        let dy = (now.cy - pinchWarp.cy) / z;
+        // ほんの少しの ぶれでは 動かさない
+        if(Math.hypot(now.cx - pinchWarp.cx, now.cy - pinchWarp.cy) < 6){ dx = 0; dy = 0; }
+        else { dx = Math.round(dx); dy = Math.round(dy); }
+
+        transformLock(l.cage, rot, k, dx, dy, S.warpSoft);
         onChange();
         return;
       }
@@ -973,6 +1041,7 @@ export function createStage(canvas, host, toast, onTraced){
         const l = pinchWarp.l;
         pinchWarp = null;
         S.warpDrag = null;
+        S.warpHint = null;
         if(cageHasKeys(l)) cageKeys(l, S.time);
         commitEdit();
         onChange();

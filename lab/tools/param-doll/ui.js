@@ -11,6 +11,8 @@ const V = {
   editParam: null,      // フォーム編集中の パラメータ id
   editKey: 0,           // その 点の 番号
   pivot: false,         // 中心を うごかす モード
+  pinMode: false,       // ピンを さす／うごかす モード
+  selPin: -1,
   frame: 0,
   playing: false,
   tab: 'parts',
@@ -114,6 +116,20 @@ function draw(){
     g.fillStyle = V.pivot ? '#F2A0B8' : '#E1DD60';
     g.fill();
     g.lineWidth = 2.5 / V.view.z; g.strokeStyle = '#1E1C14'; g.stroke();
+
+    // ピン
+    if(part.pins.length){
+      g.lineWidth = 2.5 / V.view.z;
+      part.pins.forEach((pn, i) => {
+        const wp = localToWorld(part, o, pn.x, pn.y);
+        const R = (i === V.selPin ? 9 : 7) / V.view.z;
+        g.beginPath(); g.arc(wp.x, wp.y, R, 0, 7);
+        g.fillStyle = i === V.selPin ? '#F2A0B8' : '#FFFEF7';
+        g.fill(); g.strokeStyle = '#1E1C14'; g.stroke();
+        g.beginPath(); g.arc(wp.x, wp.y, R * .32, 0, 7);
+        g.fillStyle = '#1E1C14'; g.fill();
+      });
+    }
   }
   g.setTransform(1, 0, 0, 1, 0, 0);
 }
@@ -160,6 +176,29 @@ $('#stage').addEventListener('pointerdown', (e) => {
 
   const w = toWorld(e.clientX, e.clientY);
   const values = currentValues();
+
+  // ピンモード … 選んでいる パーツに ピンを さす／つかむ
+  if(V.pinMode && V.sel){
+    const part = partById(V.sel);
+    const o = poseOf(part, values);
+    let bi = -1, bd = Infinity;
+    part.pins.forEach((pn, i) => {
+      const wp = localToWorld(part, o, pn.x, pn.y);
+      const d = Math.hypot(wp.x - w.x, wp.y - w.y);
+      if(d < bd){ bd = d; bi = i; }
+    });
+    if(bi >= 0 && bd <= 22 / V.view.z){ startPinDrag(part, o, bi, w); return; }
+    const R = worldToLocal(part, o, w.x, w.y);
+    const L = unwarpPoint(part, o.pd, R.x, R.y);   // ゆがみを もどした ところに さす
+    if(L.x >= 0 && L.y >= 0 && L.x < part.w && L.y < part.h){
+      const i = addPin(part, L.x, L.y);
+      toast('ピンを さしました');
+      startPinDrag(part, o, i, w);
+      refreshProps(); save();
+      return;
+    }
+  }
+
   const hit = hitTest(w.x, w.y, values);
 
   if(hit){
@@ -187,6 +226,21 @@ $('#stage').addEventListener('pointerdown', (e) => {
   }
 });
 
+/** ピンを つかむ。書きこむ 先は フォーム編集中なら その点、ふだんは パーツ そのもの */
+function startPinDrag(part, o, i, w){
+  V.selPin = i;
+  const f = formForEdit(part.id);
+  let target;
+  if(f){
+    if(!f.pd) f.pd = [];
+    while(f.pd.length < part.pins.length) f.pd.push({ dx: 0, dy: 0 });
+    target = f.pd[i];
+  }else target = part.pd[i];
+  drag = { part, pin: i, o, d: target, dx0: target.dx, dy0: target.dy,
+           wx: w.x, wy: w.y, moved: false };
+  V.dirty = true;
+}
+
 $('#stage').addEventListener('pointermove', (e) => {
   if(!pts.has(e.pointerId)) return;
   pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -207,6 +261,18 @@ $('#stage').addEventListener('pointermove', (e) => {
   if(pan){
     V.view.x = pan.vx + (e.clientX - pan.x);
     V.view.y = pan.vy + (e.clientY - pan.y);
+    V.dirty = true;
+    return;
+  }
+
+  if(drag && drag.pin != null){
+    const w = toWorld(e.clientX, e.clientY);
+    const dxw = w.x - drag.wx, dyw = w.y - drag.wy;
+    if(Math.abs(dxw) + Math.abs(dyw) > 1) drag.moved = true;
+    // 紙の うごきを 絵の中の 向きに もどす
+    const s = Math.sin(-drag.o.rot * Math.PI / 180), c = Math.cos(-drag.o.rot * Math.PI / 180);
+    drag.d.dx = drag.dx0 + (dxw * c - dyw * s) / (drag.o.sx || .001);
+    drag.d.dy = drag.dy0 + (dxw * s + dyw * c) / (drag.o.sy || .001);
     V.dirty = true;
     return;
   }
@@ -308,9 +374,18 @@ function refreshProps(){
       </div>`).join('') +
     `<div class="row" style="margin-top:.4rem">
        <button class="btn btn-sm" id="ppReset">この 形を もどす</button>
-       <button class="btn btn-sm" id="ppPivot">◎ 中心を うつす</button>
+       <button class="btn btn-sm${V.pivot ? ' on' : ''}" id="ppPivot">◎ 中心</button>
        <button class="btn btn-sm" id="ppName">なまえ</button>
-     </div>`;
+     </div>
+     <div class="grp">ピンで ゆがませる（${p.pins.length}本）</div>
+     <div class="row">
+       <button class="btn btn-sm${V.pinMode ? ' on' : ''}" id="ppPin">📌 ピン</button>
+       <button class="btn btn-sm btn-p" id="ppPinDel">この ピンを けす</button>
+       <button class="btn btn-sm" id="ppPinClr">ぜんぶ</button>
+     </div>
+     <div class="prop"><label>あみ</label>
+       <div class="slwrap"><input type="range" id="ppGrid" min="2" max="14" step="1" value="${p.grid || 8}"></div>
+       <span class="num dot" id="ppGridN">${p.grid || 8}</span></div>`;
 
   box.querySelectorAll('.prop').forEach(row => {
     const k = row.dataset.k;
@@ -332,6 +407,21 @@ function refreshProps(){
     V.dirty = true; refreshProps(); save();
   };
   $('#ppPivot').onclick = () => togglePivot();
+  $('#ppPin').onclick = () => togglePin();
+  $('#ppPinDel').onclick = () => {
+    if(V.selPin < 0 || V.selPin >= p.pins.length) return toast('けす ピンを タップして えらんでください');
+    removePin(p, V.selPin); V.selPin = -1; p._mesh = null;
+    V.dirty = true; refreshProps(); save();
+  };
+  $('#ppPinClr').onclick = () => {
+    clearPins(p); V.selPin = -1; p._mesh = null; V.dirty = true; refreshProps(); save();
+  };
+  $('#ppGrid').oninput = (ev) => {
+    p.grid = parseInt(ev.target.value, 10);
+    $('#ppGridN').textContent = p.grid;
+    p._mesh = null; V.dirty = true;
+  };
+  $('#ppGrid').onchange = save;
   $('#ppName').onclick = () => {
     modal(`<h3>なまえを かえる</h3>
       <input type="text" id="nmIn" style="width:100%" value="">
@@ -355,9 +445,20 @@ $('#pDel').onclick  = () => {
   removePart(V.sel); V.sel = null; V.dirty = true; renderParts(); renderParams(); save();
 };
 
+function togglePin(){
+  V.pinMode = !V.pinMode;
+  if(V.pinMode) V.pivot = false;
+  $('#ebPin').classList.toggle('on', V.pinMode);
+  toast(V.pinMode ? '絵を タップすると ピンが さされます。引っぱると 曲がります'
+                  : 'ピンを やめました');
+  refreshProps(); V.dirty = true;
+}
+
 function togglePivot(){
   V.pivot = !V.pivot;
+  if(V.pivot) V.pinMode = false;
   $('#ebPivot').classList.toggle('on', V.pivot);
+  $('#ebPin').classList.toggle('on', V.pinMode);
   toast(V.pivot ? '回すときの 中心を、指で うつせます' : '中心を うつすのを やめました');
   V.dirty = true;
 }
@@ -450,9 +551,11 @@ function renderEditbar(){
     ks.appendChild(b);
   });
   $('#ebPivot').classList.toggle('on', V.pivot);
+  $('#ebPin').classList.toggle('on', V.pinMode);
 }
 $('#ebDone').onclick = () => startEdit(null);
 $('#ebPivot').onclick = () => togglePivot();
+$('#ebPin').onclick = () => togglePin();
 
 function paramMenu(pr){
   modal(`<h3>パラメータの せってい</h3>
@@ -766,8 +869,13 @@ function help(){
       いくつか おくと アニメに なります。キーを 打たない パラメータは
       「自動（ゆれ・まばたき）」で かってに うごきます。<br><br>
       <b>6.</b> 右上の「▶ 書き出す」で 動画に なります。<br><br>
+      <b>ピンで 曲げる</b>：パーツを えらんで <b>📌</b> を おす。
+      絵を タップすると ピンが さされ、そのまま 引っぱると
+      まわりの あみが ついてきて 曲がります。
+      フォーム編集中に 引っぱれば、ピンの 位置も その点の 形として
+      おぼえられます（髪の うねり、口の 形、腕の しなり など）。<br><br>
       ステージ：パーツを なぞる＝うごかす／何もない ところ＝紙を うごかす／
-      2本指＝大きさ。「◎ 中心」を おすと 回るときの 中心を うつせます。
+      2本指＝大きさ。「◎」を おすと 回るときの 中心を うつせます。
     </div>
     <div class="row" style="margin-top:.6rem"><span style="flex:1"></span>
       <button class="btn btn-sm btn-y" id="hC">わかった</button></div>`, (b) => {

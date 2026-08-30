@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" role="img" aria-label="パラメータ人形">
+  <defs>
+    <pattern id="pd-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+    <pattern id="pd-dots-s" width="12" height="12" patternUnits="userSpaceOnUse">
+      <circle cx="6" cy="6" r="1.3" fill="rgba(30,28,20,.10)"/>
+    </pattern>
+  </defs>
+
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#pd-dots)"/>
+
+  <!-- タイトルバー -->
+  <rect x="0" y="0" width="600" height="52" fill="#E1DD60"/>
+  <line x1="0" y1="52" x2="600" y2="52" stroke="#1E1C14" stroke-width="3"/>
+  <text x="22" y="34" font-family="'M PLUS Rounded 1c',sans-serif" font-size="21" font-weight="800" fill="#1E1C14">🎚 パラメータ人形</text>
+  <rect x="238" y="16" width="196" height="22" rx="11" fill="#1E1C14"/>
+  <text x="336" y="31" text-anchor="middle" font-family="monospace" font-size="11" fill="#E1DD60">PARAM / FORM / MOTION</text>
+
+  <!-- 左：ステージ（紙） -->
+  <rect x="24" y="74" width="236" height="300" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+  <rect x="24" y="74" width="236" height="300" fill="url(#pd-dots-s)"/>
+
+  <!-- キャラ（かんたんな 立ち絵） -->
+  <g stroke="#1E1C14" stroke-width="2.5" stroke-linejoin="round">
+    <!-- からだ -->
+    <path d="M114 258 h56 l16 96 h-88 z" fill="#F2A0B8"/>
+    <!-- うで -->
+    <path d="M112 264 l-30 40 14 10 30 -38 z" fill="#F2A0B8"/>
+    <path d="M172 264 l30 40 -14 10 -30 -38 z" fill="#F2A0B8"/>
+    <!-- 髪（うしろ） -->
+    <path d="M96 178 q0 -74 46 -74 q46 0 46 74 l6 88 h-104 z" fill="#B8B43F"/>
+    <!-- かお -->
+    <ellipse cx="142" cy="186" rx="46" ry="50" fill="#F2F0BE"/>
+    <!-- 前髪 -->
+    <path d="M97 176 q4 -66 45 -66 q41 0 45 66 q-22 -26 -45 -26 q-23 0 -45 26 z" fill="#B8B43F"/>
+  </g>
+  <!-- め と くち -->
+  <g stroke="#1E1C14" stroke-width="2.5" fill="#1E1C14">
+    <ellipse cx="124" cy="192" rx="8" ry="9" fill="#1E1C14"/>
+    <ellipse cx="160" cy="192" rx="8" ry="9" fill="#1E1C14"/>
+    <path d="M134 212 q8 8 16 0" fill="none"/>
+  </g>
+
+  <!-- 選択わく と 中心 -->
+  <rect x="92" y="102" width="100" height="140" fill="none" stroke="#F2A0B8" stroke-width="2.5" stroke-dasharray="9 6"/>
+  <circle cx="142" cy="236" r="7" fill="#E1DD60" stroke="#1E1C14" stroke-width="2.5"/>
+
+  <!-- 動きの こんせき -->
+  <g stroke="#B8B43F" stroke-width="2.5" fill="none" opacity=".8">
+    <path d="M196 128 q22 12 0 24"/>
+    <path d="M206 120 q34 20 0 40"/>
+  </g>
+
+  <!-- 右：パラメータパネル -->
+  <rect x="276" y="74" width="300" height="196" rx="10" fill="#FBFAEC" stroke="#1E1C14" stroke-width="3"/>
+  <rect x="290" y="86" width="112" height="20" rx="10" fill="#1E1C14"/>
+  <text x="346" y="101" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="11" font-weight="700" fill="#E1DD60">パラメータ</text>
+
+  <g font-family="'M PLUS Rounded 1c',sans-serif" font-size="11" font-weight="700" fill="#1E1C14">
+    <!-- 1本目 -->
+    <text x="292" y="130">目 の 開閉</text>
+    <rect x="292" y="136" width="268" height="8" rx="4" fill="#FFFEF7" stroke="#1E1C14" stroke-width="2"/>
+    <g stroke="#1E1C14" stroke-width="2">
+      <polygon points="298,140 303,145 298,150 293,145" fill="#FFFEF7"/>
+      <polygon points="554,140 559,145 554,150 549,145" fill="#FFFEF7"/>
+    </g>
+    <circle cx="554" cy="140" r="9" fill="#E1DD60" stroke="#1E1C14" stroke-width="2.5"/>
+
+    <!-- 2本目（編集中） -->
+    <text x="292" y="176">顔 の 左右</text>
+    <rect x="292" y="182" width="268" height="8" rx="4" fill="#FFFEF7" stroke="#1E1C14" stroke-width="2"/>
+    <g stroke="#1E1C14" stroke-width="2">
+      <polygon points="298,186 303,191 298,196 293,191" fill="#FFFEF7"/>
+      <polygon points="426,186 431,191 426,196 421,191" fill="#FFFEF7"/>
+      <polygon points="554,186 559,191 554,196 549,191" fill="#FFFEF7"/>
+    </g>
+    <circle cx="480" cy="186" r="9" fill="#F2A0B8" stroke="#1E1C14" stroke-width="2.5"/>
+
+    <!-- 3本目 -->
+    <text x="292" y="222">からだ の ゆれ</text>
+    <rect x="292" y="228" width="268" height="8" rx="4" fill="#FFFEF7" stroke="#1E1C14" stroke-width="2"/>
+    <g stroke="#1E1C14" stroke-width="2">
+      <polygon points="298,232 303,237 298,242 293,237" fill="#FFFEF7"/>
+      <polygon points="426,232 431,237 426,242 421,237" fill="#FFFEF7"/>
+      <polygon points="554,232 559,237 554,242 549,237" fill="#FFFEF7"/>
+    </g>
+    <circle cx="426" cy="232" r="9" fill="#E1DD60" stroke="#1E1C14" stroke-width="2.5"/>
+  </g>
+
+  <!-- 右下：タイムライン -->
+  <rect x="276" y="284" width="300" height="90" rx="10" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+  <rect x="279" y="287" width="294" height="15" rx="7" fill="#E1DD60"/>
+  <g stroke="#1E1C14" stroke-width="2">
+    <line x1="276" y1="330" x2="576" y2="330"/>
+    <polygon points="316,316 324,323 316,330 308,323" fill="#E1DD60"/>
+    <polygon points="404,316 412,323 404,330 396,323" fill="#E1DD60"/>
+    <polygon points="516,316 524,323 516,330 508,323" fill="#E1DD60"/>
+    <polygon points="352,350 360,357 352,364 344,357" fill="#F2A0B8"/>
+    <polygon points="468,350 476,357 468,364 460,357" fill="#E1DD60"/>
+  </g>
+  <line x1="352" y1="290" x2="352" y2="372" stroke="#F2A0B8" stroke-width="3"/>
+</svg>

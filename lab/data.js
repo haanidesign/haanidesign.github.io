@@ -122,6 +122,17 @@ const TOOLS = [
     thumb: "thumbs/anime-kobo.svg",
     url: "tools/anime-kobo/index.html",
     status: "wip"
+  },
+  {
+    no: 12,
+    slug: "param-doll",
+    title: "パラメータ人形",
+    desc: "Live2Dのパラメータ画面をスマホに持ってきた台。PSDを投げるとレイヤーがパーツになり、「目の開閉」「顔の左右」などのスライダーを作って、点ごとに形を覚えさせるとその間をなめらかに動く。パーツにピンを刺して引っぱれば、まわりのあみがついてきて髪や布がぐにゃっと曲がる。うごきタブでキーを打てばアニメになり、MP4で書き出せる。",
+    tags: ["スマホ", "PSD", "パラメータ", "ピン変形", "MP4"],
+    cat: "anime",
+    thumb: "thumbs/param-doll.svg",
+    url: "tools/param-doll/index.html",
+    status: "live"
   }
 ];
 

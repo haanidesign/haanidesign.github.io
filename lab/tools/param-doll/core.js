@@ -17,8 +17,9 @@ const D = {
 let _seq = 1;
 const uid = (p) => p + (_seq++).toString(36) + Date.now().toString(36).slice(-3);
 
-/* ずれ の ゼロ */
-const zero = () => ({ dx: 0, dy: 0, rot: 0, dsx: 0, dsy: 0, dop: 0 });
+/* ずれ の ゼロ。pd は ピンの ずらし かた（ピンの数だけ） */
+const zero = (n) => ({ dx: 0, dy: 0, rot: 0, dsx: 0, dsy: 0, dop: 0,
+                       pd: Array.from({ length: n || 0 }, () => ({ dx: 0, dy: 0 })) });
 
 /* ---------- パーツ ---------- */
 
@@ -29,6 +30,9 @@ function addPart(name, img, w, h, x, y, opacity, group){
     px: w / 2, py: h / 2,          // 基準点（回す・伸ばすときの 中心）
     x, y, rot: 0, sx: 1, sy: 1, op: opacity === undefined ? 1 : opacity,
     visible: true,
+    pins: [],                       // ピン（絵の中の 座標）
+    pd: [],                         // ピンの もとの ずらし かた
+    grid: 8,                        // ゆがませる あみの こまかさ
     src: null                       // 保存用の dataURL（保存するときに 作る）
   };
   D.parts.push(p);
@@ -84,7 +88,8 @@ function bindPart(paramId, partId){
   const pr = paramById(paramId); if(!pr) return;
   if(!D.binds[paramId]) D.binds[paramId] = {};
   if(D.binds[paramId][partId]) return;
-  D.binds[paramId][partId] = pr.keys.map(() => zero());
+  const part = partById(partId);
+  D.binds[paramId][partId] = pr.keys.map(() => zero(part ? part.pins.length : 0));
 }
 
 function unbindPart(paramId, partId){
@@ -108,11 +113,14 @@ function setKeyCount(paramId, n){
   }
 }
 
-const cloneForm = (f) => ({ dx: f.dx, dy: f.dy, rot: f.rot, dsx: f.dsx, dsy: f.dsy, dop: f.dop });
+const cloneForm = (f) => ({
+  dx: f.dx, dy: f.dy, rot: f.rot, dsx: f.dsx, dsy: f.dsy, dop: f.dop,
+  pd: (f.pd || []).map(d => ({ dx: d.dx, dy: d.dy }))
+});
 
 /** 点の 並び keys と ずれの 並び forms から、値 v の ずれを 作る */
 function sampleForms(keys, forms, v){
-  if(!keys.length) return zero();
+  if(!keys.length) return zero(0);
   if(v <= keys[0]) return forms[0];
   if(v >= keys[keys.length - 1]) return forms[forms.length - 1];
   let i = 0;
@@ -120,14 +128,55 @@ function sampleForms(keys, forms, v){
   const a = keys[i], b = keys[i + 1];
   const t = b === a ? 0 : (v - a) / (b - a);
   const fa = forms[i], fb = forms[i + 1];
+  const na = fa.pd || [], nb = fb.pd || [];
+  const pd = [];
+  for(let k = 0; k < Math.max(na.length, nb.length); k++){
+    const a2 = na[k] || { dx: 0, dy: 0 }, b2 = nb[k] || { dx: 0, dy: 0 };
+    pd.push({ dx: a2.dx + (b2.dx - a2.dx) * t, dy: a2.dy + (b2.dy - a2.dy) * t });
+  }
   return {
     dx:  fa.dx  + (fb.dx  - fa.dx)  * t,
     dy:  fa.dy  + (fb.dy  - fa.dy)  * t,
     rot: fa.rot + (fb.rot - fa.rot) * t,
     dsx: fa.dsx + (fb.dsx - fa.dsx) * t,
     dsy: fa.dsy + (fb.dsy - fa.dsy) * t,
-    dop: fa.dop + (fb.dop - fa.dop) * t
+    dop: fa.dop + (fb.dop - fa.dop) * t,
+    pd
   };
+}
+
+/* ---------- ピン ---------- */
+
+/** 絵の 中の (x,y) に ピンを 1本 さす。すべての フォームにも 席を つくる */
+function addPin(part, x, y){
+  part.pins.push({ x, y });
+  part.pd.push({ dx: 0, dy: 0 });
+  for(const pid in D.binds){
+    const forms = D.binds[pid][part.id];
+    if(!forms) continue;
+    for(const f of forms){ if(!f.pd) f.pd = []; f.pd.push({ dx: 0, dy: 0 }); }
+  }
+  return part.pins.length - 1;
+}
+
+function removePin(part, i){
+  if(i < 0 || i >= part.pins.length) return;
+  part.pins.splice(i, 1);
+  part.pd.splice(i, 1);
+  for(const pid in D.binds){
+    const forms = D.binds[pid][part.id];
+    if(!forms) continue;
+    for(const f of forms) if(f.pd) f.pd.splice(i, 1);
+  }
+}
+
+function clearPins(part){
+  part.pins.length = 0; part.pd.length = 0;
+  for(const pid in D.binds){
+    const forms = D.binds[pid][part.id];
+    if(!forms) continue;
+    for(const f of forms) f.pd = [];
+  }
 }
 
 /** v に いちばん近い 点の 番号 */
@@ -196,12 +245,19 @@ function delKeyframe(paramId, frame){
  */
 function poseOf(part, values){
   const o = { x: part.x, y: part.y, rot: part.rot, sx: part.sx, sy: part.sy, op: part.op };
+  o.pd = part.pd.map(d => ({ dx: d.dx, dy: d.dy }));
   for(const pr of D.params){
     const b = D.binds[pr.id];
     if(!b || !b[part.id]) continue;
-    const f = sampleForms(pr.keys, b[part.id], values[pr.id]);
+    const v = values[pr.id];
+    if(!isFinite(v)) continue;              // 値が 来ていない ときは 何も 足さない
+    const f = sampleForms(pr.keys, b[part.id], v);
     o.x += f.dx; o.y += f.dy; o.rot += f.rot;
     o.sx += f.dsx; o.sy += f.dsy; o.op += f.dop;
+    const pd = f.pd || [];
+    for(let i = 0; i < o.pd.length && i < pd.length; i++){
+      o.pd[i].dx += pd[i].dx; o.pd[i].dy += pd[i].dy;
+    }
   }
   o.op = Math.max(0, Math.min(1, o.op));
   return o;
@@ -233,9 +289,147 @@ function drawDoc(g, opt = {}){
     g.translate(o.x, o.y);
     g.rotate(o.rot * Math.PI / 180);
     g.scale(o.sx, o.sy);
-    g.drawImage(part.img, -part.px, -part.py, part.w, part.h);
+    g.translate(-part.px, -part.py);
+    if(part.pins.length) drawWarped(g, part, o.pd);
+    else g.drawImage(part.img, 0, 0, part.w, part.h);
     g.restore();
   }
+}
+
+
+/* ---------- ピンで ゆがませる ----------
+   ピンを うごかすと、その まわりの あみ（三角形）が ついてくる。
+   どれだけ ついてくるかは「ピンからの 遠さ」で きめる（近いほど よく ついてくる）。
+   After Effects の パペットピンと 同じ かんがえかた。 */
+
+/** あみの 点と、点ごとの「どのピンに どれだけ ついていくか」を 用意する（使いまわす） */
+function meshOf(part){
+  const n = Math.max(2, Math.min(16, part.grid || 8));
+  const sig = n + '|' + part.pins.map(p => (p.x | 0) + ',' + (p.y | 0)).join(';');
+  if(part._mesh && part._mesh.sig === sig) return part._mesh;
+
+  const cols = n + 1, rows = n + 1;
+  const vx = [], vy = [], wt = [];
+  const eps = Math.pow(Math.max(part.w, part.h) * 0.06, 2);
+  for(let j = 0; j < rows; j++){
+    for(let i = 0; i < cols; i++){
+      const x = part.w * i / n, y = part.h * j / n;
+      vx.push(x); vy.push(y);
+      const w = new Float32Array(part.pins.length);
+      let sum = 0;
+      for(let k = 0; k < part.pins.length; k++){
+        const dx = x - part.pins[k].x, dy = y - part.pins[k].y;
+        const v = 1 / (dx * dx + dy * dy + eps);
+        w[k] = v; sum += v;
+      }
+      if(sum > 0) for(let k = 0; k < w.length; k++) w[k] /= sum;
+      wt.push(w);
+    }
+  }
+  part._mesh = { sig, n, cols, rows, vx, vy, wt };
+  return part._mesh;
+}
+
+/** 三角形1枚ぶんの 絵を、行き先の 三角形に あわせて 貼る */
+function _tri(g, img, iw, ih, sw, sh, s0, s1, s2, d0, d1, d2){
+  const x0 = s0[0], y0 = s0[1], x1 = s1[0], y1 = s1[1], x2 = s2[0], y2 = s2[1];
+  const det = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  if(!det) return;
+  const a = ((d1[0] - d0[0]) * (y2 - y0) - (d2[0] - d0[0]) * (y1 - y0)) / det;
+  const b = ((d1[1] - d0[1]) * (y2 - y0) - (d2[1] - d0[1]) * (y1 - y0)) / det;
+  const c = ((d2[0] - d0[0]) * (x1 - x0) - (d1[0] - d0[0]) * (x2 - x0)) / det;
+  const d = ((d2[1] - d0[1]) * (x1 - x0) - (d1[1] - d0[1]) * (x2 - x0)) / det;
+  const e = d0[0] - a * x0 - c * y0;
+  const f = d0[1] - b * x0 - d * y0;
+
+  // つなぎ目に すじが 出ないよう、行き先を ほんの少し ふくらませる
+  const cx = (d0[0] + d1[0] + d2[0]) / 3, cy = (d0[1] + d1[1] + d2[1]) / 3;
+  const gr = Math.max(0.9, Math.hypot(d1[0] - d0[0], d1[1] - d0[1]) * 0.035);
+  const ex = (p) => {
+    const vx = p[0] - cx, vy = p[1] - cy, L = Math.hypot(vx, vy) || 1;
+    return [p[0] + vx / L * gr, p[1] + vy / L * gr];
+  };
+  const e0 = ex(d0), e1 = ex(d1), e2 = ex(d2);
+
+  g.save();
+  g.beginPath();
+  g.moveTo(e0[0], e0[1]); g.lineTo(e1[0], e1[1]); g.lineTo(e2[0], e2[1]); g.closePath();
+  g.clip();
+  g.transform(a, b, c, d, e, f);
+  g.drawImage(img, 0, 0, iw, ih, 0, 0, sw, sh);
+  g.restore();
+}
+
+/** pd … ピンごとの ずらし かた（絵の中の 座標で） */
+function drawWarped(g, part, pd){
+  const m = meshOf(part);
+  const nPin = part.pins.length;
+  const ox = new Float32Array(m.vx.length), oy = new Float32Array(m.vx.length);
+  for(let v = 0; v < m.vx.length; v++){
+    const w = m.wt[v];
+    let ax = 0, ay = 0;
+    for(let k = 0; k < nPin; k++){
+      const d = pd[k]; if(!d) continue;
+      ax += w[k] * d.dx; ay += w[k] * d.dy;
+    }
+    ox[v] = ax; oy[v] = ay;
+  }
+  const iw = part.img.width, ih = part.img.height;
+  const at = (i, j) => {
+    const v = j * m.cols + i;
+    return [m.vx[v] + ox[v], m.vy[v] + oy[v]];
+  };
+  const src = (i, j) => [part.w * i / m.n, part.h * j / m.n];
+  for(let j = 0; j < m.n; j++){
+    for(let i = 0; i < m.n; i++){
+      const s00 = src(i, j), s10 = src(i + 1, j), s01 = src(i, j + 1), s11 = src(i + 1, j + 1);
+      const d00 = at(i, j), d10 = at(i + 1, j), d01 = at(i, j + 1), d11 = at(i + 1, j + 1);
+      _tri(g, part.img, iw, ih, part.w, part.h, s00, s10, s11, d00, d10, d11);
+      _tri(g, part.img, iw, ih, part.w, part.h, s00, s11, s01, d00, d11, d01);
+    }
+  }
+}
+
+/** 絵の中の (lx,ly) が、ピンの ずれで どこへ 行くか（ピンを 画面に 出すため） */
+function warpPoint(part, pd, lx, ly){
+  if(!part.pins.length) return { x: lx, y: ly };
+  const eps = Math.pow(Math.max(part.w, part.h) * 0.06, 2);
+  let sum = 0, ax = 0, ay = 0;
+  for(let k = 0; k < part.pins.length; k++){
+    const dx = lx - part.pins[k].x, dy = ly - part.pins[k].y;
+    const w = 1 / (dx * dx + dy * dy + eps);
+    const d = pd[k] || { dx: 0, dy: 0 };
+    ax += w * d.dx; ay += w * d.dy; sum += w;
+  }
+  return sum > 0 ? { x: lx + ax / sum, y: ly + ay / sum } : { x: lx, y: ly };
+}
+
+/** 絵の中の 座標 → 紙の 座標 */
+function localToWorld(part, o, lx, ly){
+  const p = warpPoint(part, o.pd, lx, ly);
+  const s = Math.sin(o.rot * Math.PI / 180), c = Math.cos(o.rot * Math.PI / 180);
+  const x = (p.x - part.px) * o.sx, y = (p.y - part.py) * o.sy;
+  return { x: o.x + x * c - y * s, y: o.y + x * s + y * c };
+}
+
+/** ゆがみを 逆に たどる。ゆがんだ 先が (tx,ty) になる もとの 点を さがす */
+function unwarpPoint(part, pd, tx, ty){
+  let x = tx, y = ty;
+  for(let i = 0; i < 4; i++){
+    const p = warpPoint(part, pd, x, y);
+    x += tx - p.x; y += ty - p.y;
+  }
+  return { x, y };
+}
+
+/** 紙の 座標 → 絵の中の 座標（ゆがみは 見ない。だいたいで よい ところで 使う） */
+function worldToLocal(part, o, wx, wy){
+  const s = Math.sin(-o.rot * Math.PI / 180), c = Math.cos(-o.rot * Math.PI / 180);
+  const dx = wx - o.x, dy = wy - o.y;
+  return {
+    x: (dx * c - dy * s) / (o.sx || .0001) + part.px,
+    y: (dx * s + dy * c) / (o.sy || .0001) + part.py
+  };
 }
 
 /** その座標に どのパーツが いるか（手前から 探す）。透明なところは 素通り */
@@ -388,7 +582,8 @@ function toJSON(){
     parts: D.parts.map(p => ({
       id: p.id, name: p.name, group: p.group, w: p.w, h: p.h,
       px: p.px, py: p.py, x: p.x, y: p.y, rot: p.rot, sx: p.sx, sy: p.sy,
-      op: p.op, visible: p.visible, src: p.src
+      op: p.op, visible: p.visible, src: p.src,
+      pins: p.pins, pd: p.pd, grid: p.grid
     })),
     params: D.params, binds: D.binds, tl: D.tl
   });
@@ -402,7 +597,7 @@ async function fromJSON(text){
   for(const p of (j.parts || [])){
     if(!p.src) continue;
     const img = await loadImage(p.src);
-    D.parts.push(Object.assign({}, p, { img }));
+    D.parts.push(Object.assign({ pins: [], pd: [], grid: 8 }, p, { img }));
   }
   for(const pr of D.params) if(!pr.auto) pr.auto = { type: 'none', speed: 1, amp: 1 };
 }
