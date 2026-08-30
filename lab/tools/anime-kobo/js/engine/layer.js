@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=99';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=99';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=99';
-import { handTime } from './hand.js?v=99';
-import { WORK_KEYS } from '../state.js?v=99';
+import { M, uid, ptInQuad } from './math.js?v=100';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=100';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=100';
+import { handTime } from './hand.js?v=100';
+import { WORK_KEYS } from '../state.js?v=100';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){

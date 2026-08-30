@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=99';
+import { M } from './engine/math.js?v=100';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=99';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=100';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=99';
-import { createStage } from './ui/stage.js?v=99';
-import { createRenderer } from './render/renderer.js?v=99';
-import { createTimeline } from './ui/timeline.js?v=99';
-import { fmtTime } from './engine/anim.js?v=99';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=100';
+import { createStage } from './ui/stage.js?v=100';
+import { createRenderer } from './render/renderer.js?v=100';
+import { createTimeline } from './ui/timeline.js?v=100';
+import { fmtTime } from './engine/anim.js?v=100';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=99';
+         setWarper } from './ui/sheet.js?v=100';
 
-import { showNewDoc } from './ui/newdoc.js?v=99';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=99';
-import { fitToCanvas, isBg } from './io/bg.js?v=99';
-import * as Audio from './io/audio.js?v=99';
+import { showNewDoc } from './ui/newdoc.js?v=100';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=100';
+import { fitToCanvas, isBg } from './io/bg.js?v=100';
+import * as Audio from './io/audio.js?v=100';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=99';
-import { importPsd } from './io/psd.js?v=99';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=100';
+import { importPsd } from './io/psd.js?v=100';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=99';
-import { pathKeys } from './engine/path.js?v=99';
-import { paintDirty } from './engine/paint.js?v=99';
+         canUseWebCodecs } from './io/export.js?v=100';
+import { pathKeys } from './engine/path.js?v=100';
+import { paintDirty } from './engine/paint.js?v=100';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=99';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=100';
 
 const $ = (s) => document.querySelector(s);
 
@@ -385,6 +385,10 @@ $('#wpWarp').addEventListener('click', () => {
    そのまわりを 引っぱっても 形が くずれない
    （顔は そのままで かみだけ ゆらす、など）。
    もう一度 おすと「とかす」がわに 切りかわる。 */
+/* 筆で なぞって「かたまり」に する。
+   なぞった ところは 中の 形を たもった まま まるごと 動く。
+   まわりは 近いほど ついてくるので、ゴムのように のびる。
+   （うでを まるごと 持ち上げる、顔を そのまま 動かす など） */
 $('#wpLock').addEventListener('click', () => {
   if(S.warpMode === 'lock'){
     S.lockErase = !S.lockErase;
@@ -394,7 +398,8 @@ $('#wpLock').addEventListener('click', () => {
   setWarpMode('lock');
   S.lockErase = false;
   warpUI();
-  toast('動かしたくない ところを 筆で なぞってね');
+  toast('まとめて 動かしたい ところを 筆で なぞってね' + String.fromCharCode(10)
+    + 'そのあと「🫳 ゆがみ」で つまむと まるごと 持ち上がります');
 });
 $('#wpBrush').addEventListener('click', () => {
   brushI = (brushI + 1) % BRUSHES.length;

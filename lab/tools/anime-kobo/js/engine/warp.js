@@ -15,7 +15,7 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
-import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=99';
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=100';
 
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
@@ -101,10 +101,50 @@ export function movePoint(cage, index, x, y, soft){
   const p = pts[index];
   if(!p) return;
   const lock = cage.lock || [];
-  if(lock[index]) return;                    // かためた 目は 動かさない
   const dx = x - p.x, dy = y - p.y;
   const s = Math.max(0, soft || 0);
 
+  /* ---------- なぞって かためた ところを つまんだ とき ----------
+     かためた ところは「1つの かたまり」。
+     中は 形を たもった まま、まるごと 持ち上がる。
+     まわりの あみの目は、かたまりに 近いほど ついてくるので、
+     ゴムのように のびて つながる。 */
+  if(lock[index]){
+    // ① かたまりは そっくり そのまま 動かす
+    const inLock = [];
+    for(let j = 0; j <= rows; j++){
+      for(let i = 0; i <= cols; i++){
+        const k = idxAt(cage, i, j);
+        if(!lock[k]) continue;
+        inLock.push({ i, j });
+        pts[k].x += dx;
+        pts[k].y += dy;
+      }
+    }
+    // ② まわりは かたまりからの 近さで ついてくる
+    if(s >= 0.01){
+      for(let j = 0; j <= rows; j++){
+        for(let i = 0; i <= cols; i++){
+          const k = idxAt(cage, i, j);
+          if(lock[k]) continue;
+          let near = Infinity;
+          for(const q of inLock){
+            const d = Math.hypot(i - q.i, j - q.j);
+            if(d < near) near = d;
+          }
+          const d = near / s;
+          if(d >= 1) continue;
+          const w = (1 - d * d) * (1 - d * d);
+          pts[k].x += dx * w;
+          pts[k].y += dy * w;
+        }
+      }
+    }
+    return;
+  }
+
+  /* ---------- ふつうの あみの目を つまんだ とき ----------
+     かためた ところは 動かさない（そこは 形を まもりたい ところ）。 */
   if(s < 0.01){ p.x = x; p.y = y; return; }
 
   // つまんだ 目からの「あみの目 いくつぶん」で きめる
@@ -113,10 +153,10 @@ export function movePoint(cage, index, x, y, soft){
     for(let i = 0; i <= cols; i++){
       const d = Math.hypot(i - ci, j - cj) / s;
       if(d >= 1) continue;
+      const k = idxAt(cage, i, j);
+      if(lock[k]) continue;                  // かためた ところは そのまま
       // なめらかに 小さく なる（まん中 1 → はし 0）
       const w = (1 - d * d) * (1 - d * d);
-      const k = idxAt(cage, i, j);
-      if(lock[k]) continue;                  // かためた 目は そのまま
       const q = pts[k];
       q.x += dx * w;
       q.y += dy * w;

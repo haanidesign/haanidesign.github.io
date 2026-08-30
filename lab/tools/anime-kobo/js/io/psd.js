@@ -2,9 +2,9 @@
    位置・重なり順・不透明度をPSDのまま引き継ぐので、並べ直す作業が要らない。
    ミニSpine で実測済みの ag-psd をそのまま使う。 */
 
-import { S, addAsset, edit } from '../state.js?v=99';
-import { newLayer, newFolder, setParent } from '../engine/layer.js?v=99';
-import { contentBox, loadImage } from './image.js?v=99';
+import { S, addAsset, edit } from '../state.js?v=100';
+import { newLayer, newFolder, setParent } from '../engine/layer.js?v=100';
+import { contentBox, loadImage } from './image.js?v=100';
 
 /** 透明な余白を切り落として left/top を詰め直す */
 function trim(l){
