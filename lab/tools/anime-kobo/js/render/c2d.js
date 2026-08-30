@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=96';
-import { frameAsset, frameImage } from '../state.js?v=96';
+         nearestFolder } from '../engine/layer.js?v=97';
+import { frameAsset, frameImage } from '../state.js?v=97';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=96';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=96';
-import { paintCanvas } from '../engine/paint.js?v=96';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=96';
+         meshSizeFor } from '../engine/puppet.js?v=97';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=97';
+import { paintCanvas } from '../engine/paint.js?v=97';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=97';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -460,6 +460,30 @@ export function createC2D(canvas){
       gx.translate(-project.w / 2, -project.h / 2);
       drawDeformed(gx, tmpC, f._hmesh, f._bxy, Math.abs(tf[0]));
       gx.restore();
+      back(1);
+
+    } else if(f.cage && !cageFlat(v.cagePts
+        ? { w:f.cage.w, h:f.cage.h, cols:f.cage.cols, rows:f.cage.rows, pts:v.cagePts }
+        : f.cage)){
+      /* フォルダ ぜんたいを ゆがめる。
+         中身を いったん まとめて 描いてから、その1まいを かごで ゆがめる。
+         かごの ものさしは キャンバスの ドット。 */
+      const cage = v.cagePts
+        ? { w:f.cage.w, h:f.cage.h, cols:f.cage.cols, rows:f.cage.rows, pts:v.cagePts }
+        : f.cage;
+      const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
+      const tmpC = alloc(), tg = tmpC.getContext('2d');
+      tg.setTransform(...tf0);
+      drawNodes(tg, project, kids, poses, tf0);
+
+      if(!f._cmesh || f._ckey !== cage.cols + 'x' + cage.rows){
+        f._cmesh = cageMesh(cage);
+        f._ckey = cage.cols + 'x' + cage.rows;
+        f._cxy = null;
+      }
+      f._cxy = cageXY(cage, f._cxy);
+      // まとめた絵は 画面の ドットなので、あみの ものさしを 合わせる
+      drawDeformed(gx, tmpC, f._cmesh, f._cxy, Math.abs(tf[0]));
       back(1);
 
     } else if(v.pins && v.pins.length && f.mesh){

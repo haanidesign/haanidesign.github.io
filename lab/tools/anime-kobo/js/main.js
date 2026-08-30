@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=96';
+import { M } from './engine/math.js?v=97';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=96';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=97';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=96';
-import { createStage } from './ui/stage.js?v=96';
-import { createRenderer } from './render/renderer.js?v=96';
-import { createTimeline } from './ui/timeline.js?v=96';
-import { fmtTime } from './engine/anim.js?v=96';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=97';
+import { createStage } from './ui/stage.js?v=97';
+import { createRenderer } from './render/renderer.js?v=97';
+import { createTimeline } from './ui/timeline.js?v=97';
+import { fmtTime } from './engine/anim.js?v=97';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=96';
+         setWarper } from './ui/sheet.js?v=97';
 
-import { showNewDoc } from './ui/newdoc.js?v=96';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=96';
-import { fitToCanvas, isBg } from './io/bg.js?v=96';
-import * as Audio from './io/audio.js?v=96';
+import { showNewDoc } from './ui/newdoc.js?v=97';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=97';
+import { fitToCanvas, isBg } from './io/bg.js?v=97';
+import * as Audio from './io/audio.js?v=97';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=96';
-import { importPsd } from './io/psd.js?v=96';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=97';
+import { importPsd } from './io/psd.js?v=97';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=96';
-import { pathKeys } from './engine/path.js?v=96';
-import { paintDirty } from './engine/paint.js?v=96';
+         canUseWebCodecs } from './io/export.js?v=97';
+import { pathKeys } from './engine/path.js?v=97';
+import { paintDirty } from './engine/paint.js?v=97';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys } from './engine/warp.js?v=96';
+         clearCageKeys } from './engine/warp.js?v=97';
 
 const $ = (s) => document.querySelector(s);
 
@@ -353,7 +353,9 @@ function setWarpMode(mode){
   refresh();
 }
 setWarper((l) => {
-  const a = frameAsset(l, 0);
+  /* フォルダは 中身を 1まいに まとめてから ゆがめるので、
+     かごは キャンバスの 大きさで 作る（ピンのときと 同じ）。 */
+  const a = isFolder(l) ? { w: S.proj.w, h: S.proj.h } : frameAsset(l, 0);
   if(!a) return toast('絵の ない レイヤーには つかえません');
   if(!l.cage){
     edit('ゆがみを はじめる', () => {
@@ -381,7 +383,7 @@ $('#wpGrid').addEventListener('click', () => {
   if(!l || !l.cage) return;
   if(!cageFlat(l.cage) && !confirm('あみの こまかさを 変えると、いまの ゆがみは 消えます。いいですか？')) return;
   gridI = (gridI + 1) % GRIDS.length;
-  const a = frameAsset(l, 0);
+  const a = isFolder(l) ? { w: S.proj.w, h: S.proj.h } : frameAsset(l, 0);
   edit('あみの こまかさ', () => { l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]); });
   warpUI();
   refresh();

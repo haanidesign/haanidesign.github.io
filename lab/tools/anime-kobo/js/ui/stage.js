@@ -1,19 +1,19 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=96';
-import { cleanPath } from '../engine/path.js?v=96';
+import { M, clamp } from '../engine/math.js?v=97';
+import { cleanPath } from '../engine/path.js?v=97';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=96';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=96';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=96';
+         keepChildren, cornersOf } from '../engine/layer.js?v=97';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=97';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=97';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=96';
-import { createRenderer } from '../render/renderer.js?v=96';
-import { attachInput } from './input.js?v=96';
-import { newStroke, paintDirty } from '../engine/paint.js?v=96';
+         bendChain } from '../engine/puppet.js?v=97';
+import { createRenderer } from '../render/renderer.js?v=97';
+import { attachInput } from './input.js?v=97';
+import { newStroke, paintDirty } from '../engine/paint.js?v=97';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
-         cageToTime } from '../engine/warp.js?v=96';
+         cageToTime } from '../engine/warp.js?v=97';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -64,6 +64,8 @@ export function createStage(canvas, host, toast, onTraced){
   /* ---------- ゆがみ・自由変形の かご ---------- */
   /** かごの あみの目 → キャンバスの ざひょう */
   function cageToCanvas(l, pose, p){
+    // フォルダの かごは キャンバスの ざひょう そのもの
+    if(isFolder(l)) return { x: p.x, y: p.y };
     const asset = frameAsset(l, pose.v.frame);
     if(!asset) return null;
     return M.apply(pose.m, p.x - asset.w * l.pivot.x, p.y - asset.h * l.pivot.y);
