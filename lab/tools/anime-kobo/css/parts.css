@@ -578,6 +578,20 @@
 #pinmode button{ min-height:42px; font-size:.66rem; padding:.2rem .5rem; }
 
 /* ---------- お絵かきのモード ---------- */
+/* ---------- ゆがみ・自由変形の 帯 ---------- */
+#warpmode{
+  position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+  z-index:6; display:flex; gap:.3rem; align-items:center;
+  background:var(--cream); border:var(--bd); border-radius:16px;
+  box-shadow:0 4px 0 var(--ink);
+  padding:.35rem .4rem;
+  max-width:calc(100% - 20px);
+  overflow-x:auto; overscroll-behavior-x:contain;
+}
+#warpmode[hidden]{ display:none; }
+#warpmode::-webkit-scrollbar{ height:3px; }
+#warpmode button{ min-height:42px; font-size:.64rem; padding:.2rem .5rem; flex:0 0 auto; }
+
 /* ---------- 長さを 調節 の 帯 ---------- */
 #spanmode{
   position:absolute; left:50%; bottom:10px; transform:translateX(-50%);

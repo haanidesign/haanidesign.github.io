@@ -1,16 +1,18 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=93';
-import { cleanPath } from '../engine/path.js?v=93';
+import { M, clamp } from '../engine/math.js?v=94';
+import { cleanPath } from '../engine/path.js?v=94';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=93';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=93';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=93';
+         keepChildren, cornersOf } from '../engine/layer.js?v=94';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=94';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=94';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=93';
-import { createRenderer } from '../render/renderer.js?v=93';
-import { attachInput } from './input.js?v=93';
-import { newStroke, paintDirty } from '../engine/paint.js?v=93';
+         bendChain } from '../engine/puppet.js?v=94';
+import { createRenderer } from '../render/renderer.js?v=94';
+import { attachInput } from './input.js?v=94';
+import { newStroke, paintDirty } from '../engine/paint.js?v=94';
+import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
+         resetCage } from '../engine/warp.js?v=94';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -48,13 +50,114 @@ export function createStage(canvas, host, toast, onTraced){
     if(S.pinMode && l){
       drawPuppet(l);
       handles = null;                 // ピンモード中は枠のハンドルを出さない
-    } else if(S.traceMode || S.paintMode){
+    } else if(S.traceMode || S.paintMode || S.warpMode){
       handles = null;                 // なぞり中・おえかき中も 枠は 出さない
     } else {
       handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
     }
+    if(S.warpMode && l) drawCage(l);
     if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
+  }
+
+  /* ---------- ゆがみ・自由変形の かご ---------- */
+  /** かごの あみの目 → キャンバスの ざひょう */
+  function cageToCanvas(l, pose, p){
+    const asset = frameAsset(l, pose.v.frame);
+    if(!asset) return null;
+    return M.apply(pose.m, p.x - asset.w * l.pivot.x, p.y - asset.h * l.pivot.y);
+  }
+
+  function drawCage(l){
+    if(!l.cage) return;
+    const pose = poses[l.id] || livePoses()[l.id];
+    if(!pose) return;
+    const ctx = R.ctx;
+    const cg = l.cage;
+    const at = (i, j) => cageToCanvas(l, pose, cg.pts[idxAt(cg, i, j)]);
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const z = S.view.z;
+    const P = (p) => ({ x: p.x * z + S.view.x, y: p.y * z + S.view.y });
+
+    // あみの すじ
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(30,28,20,.35)';
+    for(let j = 0; j <= cg.rows; j++){
+      ctx.beginPath();
+      for(let i = 0; i <= cg.cols; i++){
+        const q = P(at(i, j));
+        i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+      }
+      ctx.stroke();
+    }
+    for(let i = 0; i <= cg.cols; i++){
+      ctx.beginPath();
+      for(let j = 0; j <= cg.rows; j++){
+        const q = P(at(i, j));
+        j ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+      }
+      ctx.stroke();
+    }
+
+    // 四すみの わく（自由変形の めじるし）
+    const corners = [[0,0],[cg.cols,0],[cg.cols,cg.rows],[0,cg.rows]];
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#E24A4A';
+    ctx.beginPath();
+    corners.forEach(([i, j], k) => {
+      const q = P(at(i, j));
+      k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    // つまむ ところ
+    const dot = (q, r, fill) => {
+      ctx.beginPath();
+      ctx.rect(q.x - r, q.y - r, r * 2, r * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#1E1C14';
+      ctx.stroke();
+    };
+    if(S.warpMode === 'warp'){
+      for(let j = 0; j <= cg.rows; j++){
+        for(let i = 0; i <= cg.cols; i++){
+          const on = S.warpSel === idxAt(cg, i, j);
+          dot(P(at(i, j)), on ? 9 : 6, on ? '#F2A0B8' : '#7B61E8');
+        }
+      }
+    } else {
+      corners.forEach(([i, j]) => dot(P(at(i, j)), 10, '#E24A4A'));
+    }
+    ctx.restore();
+  }
+
+  /** さわった ところに いちばん 近い あみの目 */
+  function pickCagePoint(l, cp, onlyCorners){
+    if(!l.cage) return -1;
+    const pose = poses[l.id] || livePoses()[l.id];
+    if(!pose) return -1;
+    const cg = l.cage;
+    const list = [];
+    if(onlyCorners){
+      [[0,0],[cg.cols,0],[cg.cols,cg.rows],[0,cg.rows]]
+        .forEach(([i, j]) => list.push(idxAt(cg, i, j)));
+    } else {
+      for(let k = 0; k < cg.pts.length; k++) list.push(k);
+    }
+    let best = -1, bd = Infinity;
+    const near = 26 / Math.max(0.05, S.view.z);      // 指の 太さ ぶん
+    for(const k of list){
+      const q = cageToCanvas(l, pose, cg.pts[k]);
+      if(!q) continue;
+      const d = Math.hypot(q.x - cp.x, q.y - cp.y);
+      if(d < bd){ bd = d; best = k; }
+    }
+    return bd <= near ? best : -1;
   }
 
   /* スマホは 画面の はしから 指を すべらせると「もどる」に なる。
@@ -398,6 +501,7 @@ export function createStage(canvas, host, toast, onTraced){
       if(S.traceMode) return;             // なぞり中は 選択を 変えない
       if(S.pinMode) return;               // ピンモード中は選択を変えない
       if(S.paintMode) return;             // おえかき中も 変えない
+      if(S.warpMode) return;              // ゆがみ中も 変えない
       if(hitHandle(cp)) return;           // ハンドルはドラッグ開始時に処理する
       const hit = pickPreferSelected(cp, livePoses());
       if(hit && hit.id !== S.sel){ S.sel = hit.id; onChange(); }
@@ -407,6 +511,7 @@ export function createStage(canvas, host, toast, onTraced){
       const cp = toCanvas(p);
       if(S.traceMode) return;
       if(S.paintMode) return;
+      if(S.warpMode) return;
       if(S.pinMode){ tapInPinMode(cp); return; }
       if(hitHandle(cp)) return;
       const hit = pickPreferSelected(cp, livePoses());
@@ -417,6 +522,21 @@ export function createStage(canvas, host, toast, onTraced){
       const cp = toCanvas(p);
       const l = selected();
       const P = livePoses();
+
+      /* ゆがみ・自由変形。あみの目を つまんで 動かす。 */
+      if(S.warpMode){
+        if(!l || !l.cage){
+          drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p };
+          return;
+        }
+        const k = pickCagePoint(l, cp, S.warpMode === 'free');
+        if(k < 0){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
+        S.warpSel = k;
+        beginEdit(S.warpMode === 'free' ? '自由変形' : 'ゆがみ');
+        drag = { kind:'cage', l, k, quad0: quadOf(l.cage) };
+        onChange();
+        return;
+      }
 
       /* お絵かき。えらんでいる おえかきレイヤーの 紙に 線を ひく。
          レイヤーの 中の ざひょうで おぼえるので、
@@ -563,6 +683,28 @@ export function createStage(canvas, host, toast, onTraced){
         return;
       }
 
+      if(drag.kind === 'cage'){
+        const l = drag.l;
+        const ip = toImage(l, poses[l.id] || livePoses()[l.id], cp);
+        if(!ip) return;
+        if(S.warpMode === 'free'){
+          /* 四すみ … つまんだ かどだけ 動かして、
+             中の あみの目は そこから 出しなおす */
+          const cg = l.cage;
+          const cor = [[0,0],[cg.cols,0],[cg.cols,cg.rows],[0,cg.rows]]
+            .map(([i, j]) => idxAt(cg, i, j));
+          const w = cor.indexOf(drag.k);
+          if(w < 0) return;
+          const quad = drag.quad0.map(q => ({ x: q.x, y: q.y }));
+          quad[w] = { x: ip.x, y: ip.y };
+          setQuad(cg, quad);
+        } else {
+          movePoint(l.cage, drag.k, ip.x, ip.y, S.warpSoft);
+        }
+        onChange();
+        return;
+      }
+
       if(drag.kind === 'paint'){
         const l = drag.l;
         const ip = toImage(l, poses[l.id] || livePoses()[l.id], cp);
@@ -651,6 +793,12 @@ export function createStage(canvas, host, toast, onTraced){
         } else if(onTraced){
           onTraced();
         }
+        onChange();
+        return;
+      }
+      if(drag && drag.kind === 'cage'){
+        drag = null;
+        commitEdit();
         onChange();
         return;
       }

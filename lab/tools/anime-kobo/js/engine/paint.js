@@ -10,7 +10,7 @@
      時間で きめる。とちゅうの 線は そこまでで 切る。
      ＝ 見ている 人には「いま 書いている」ように 見える。 */
 
-import { EASES, curveAt } from './anim.js?v=93';
+import { EASES, curveAt } from './anim.js?v=94';
 
 /** ひとふで 分 */
 export function newStroke(color, width, erase){

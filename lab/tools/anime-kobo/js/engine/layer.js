@@ -1,11 +1,11 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=93';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=93';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=93';
-import { handTime } from './hand.js?v=93';
-import { WORK_KEYS } from '../state.js?v=93';
+import { M, uid, ptInQuad } from './math.js?v=94';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=94';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=94';
+import { handTime } from './hand.js?v=94';
+import { WORK_KEYS } from '../state.js?v=94';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -44,6 +44,7 @@ export function newLayer(name, assetIds){
     mblur: 0,                               // うごきブラー（ざんぞう）0〜1
     hand: null,                             // 手がき風（null なら なし）
     span: null,                             // 出す ところ（null なら ずっと 出す）
+    cage: null,                             // ゆがみ・自由変形の かご（null なら まっすぐ）
     flipX: false, flipY: false              // 反転
   };
 }

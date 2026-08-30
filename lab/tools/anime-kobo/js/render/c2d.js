@@ -3,12 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=93';
-import { frameAsset, frameImage } from '../state.js?v=93';
+         nearestFolder } from '../engine/layer.js?v=94';
+import { frameAsset, frameImage } from '../state.js?v=94';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=93';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=93';
-import { paintCanvas } from '../engine/paint.js?v=93';
+         meshSizeFor } from '../engine/puppet.js?v=94';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=94';
+import { paintCanvas } from '../engine/paint.js?v=94';
+import { cageMesh, cageXY, cageFlat } from '../engine/warp.js?v=94';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -108,6 +109,30 @@ export function createC2D(canvas){
     }
 
     const px = hand ? boilPx(hand, Math.min(asset.w, asset.h)) : 0;
+
+    /* ゆがみ・自由変形。
+       絵の上に かぶせた「かご」の 形に そって 絵を はる。
+       骨（パペットピン）とは べつの しくみなので、
+       かごが ある ときは かごを つかう。 */
+    if(l.cage && !cageFlat(l.cage)){
+      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      if(!l._cmesh || l._ckey !== l.cage.cols + 'x' + l.cage.rows){
+        l._cmesh = cageMesh(l.cage);
+        l._ckey = l.cage.cols + 'x' + l.cage.rows;
+        l._cxy = null;
+      }
+      l._cxy = cageXY(l.cage, l._cxy);
+      let xy = l._cxy;
+      if(px > 0.01){
+        const n = l._cmesh.verts.length;
+        if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
+        xy = boil(l._cxy, l._bxy, px, handFrame(hand, curT), handSeed(l));
+      }
+      drawDeformed(g, img, l._cmesh, xy);
+      g.filter = 'none';
+      g.restore();
+      return;
+    }
 
     if(l.mesh && v.pins && v.pins.length){
       // パペットピンで曲げて描く。絵の中の座標なので、左上を原点にそろえる

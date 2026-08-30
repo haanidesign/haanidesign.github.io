@@ -1,32 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=93';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=94';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=93';
+         splitFrames } from '../engine/layer.js?v=94';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=93';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=93';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=93';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=93';
-import { PRESET_GROUPS } from '../engine/presets.js?v=93';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=94';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=94';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=94';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=94';
+import { PRESET_GROUPS } from '../engine/presets.js?v=94';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=93';
+         addTextLayer } from '../io/text.js?v=94';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=93';
-import { PATTERN_NAMES } from '../io/pattern.js?v=93';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=93';
-import { newHand } from '../engine/hand.js?v=93';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=93';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=94';
+import { PATTERN_NAMES } from '../io/pattern.js?v=94';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=94';
+import { newHand } from '../engine/hand.js?v=94';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=94';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=93';
+  from './colorwheel.js?v=94';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=93';
+         guessBpm, firstOnset } from '../io/audio.js?v=94';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=93';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=94';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -492,6 +492,7 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(n);
     box.appendChild(clipRow(l));
     spanRow(box, l, closeFn);
+  warpRow(box, l, closeFn);
     buildLook(box, l, { flip: true });
     parentLink(box, l, closeFn);
     otherRow(box, l, closeFn);
@@ -619,6 +620,7 @@ export function buildLayerSheet(box, closeFn){
 
   box.appendChild(clipRow(l));
   spanRow(box, l, closeFn);
+  warpRow(box, l, closeFn);
   buildLook(box, l, { flip: true });
 
   parentLink(box, l, closeFn);
@@ -3270,6 +3272,33 @@ export function buildFlipSheet(box, back){
    ここでは いまの ぐあいを 見せて、けせる ように するだけ。 */
 let onSpan = () => {};
 export function setSpanner(fn){ onSpan = fn; }
+
+let onWarp = () => {};
+export function setWarper(fn){ onWarp = fn; }
+
+/* ---------- ゆがみ・自由変形 ----------
+   絵の上に「あみの目（かご）」を かぶせて 引っぱる。
+   骨（パペットピン）が「うごかす」ための ものなのに対して、
+   こちらは「形を ととのえる」ための もの。 */
+export function warpRow(box, l, closeFn){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🫳 ゆがみ・自由変形'));
+
+  const t = document.createElement('div');
+  t.className = 'empty';
+  t.style.textAlign = 'left';
+  t.textContent = '自由変形 … 赤い 四すみを 引っぱって 形を 変える' + NL
+    + 'ゆがみ … むらさきの あみの目を つまんで 引っぱる' + NL
+    + (l.cage ? 'いま ゆがめて います。' : 'まだ さわって いません。')
+    + ((l.pins || []).length > 1
+        ? NL + '※ ゆがめて いる あいだ、パペットピンは お休みします。'
+        : '');
+  box.appendChild(t);
+
+  box.appendChild(btnRow(
+    button('🫳 ゆがみ・自由変形', () => { if(closeFn) closeFn(); onWarp(l); })
+  ));
+}
 
 export function spanRow(box, l, closeFn){
   const NL = String.fromCharCode(10);

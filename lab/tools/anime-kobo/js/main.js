@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=93';
+import { M } from './engine/math.js?v=94';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected } from './state.js?v=93';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=94';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=93';
-import { createStage } from './ui/stage.js?v=93';
-import { createRenderer } from './render/renderer.js?v=93';
-import { createTimeline } from './ui/timeline.js?v=93';
-import { fmtTime } from './engine/anim.js?v=93';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=94';
+import { createStage } from './ui/stage.js?v=94';
+import { createRenderer } from './render/renderer.js?v=94';
+import { createTimeline } from './ui/timeline.js?v=94';
+import { fmtTime } from './engine/anim.js?v=94';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -17,19 +17,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet, setSpanner } from './ui/sheet.js?v=93';
+         setEaseAsker, colorPick, buildFlipSheet, setSpanner,
+         setWarper } from './ui/sheet.js?v=94';
 
-import { showNewDoc } from './ui/newdoc.js?v=93';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=93';
-import { fitToCanvas, isBg } from './io/bg.js?v=93';
-import * as Audio from './io/audio.js?v=93';
+import { showNewDoc } from './ui/newdoc.js?v=94';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=94';
+import { fitToCanvas, isBg } from './io/bg.js?v=94';
+import * as Audio from './io/audio.js?v=94';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=93';
-import { importPsd } from './io/psd.js?v=93';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=94';
+import { importPsd } from './io/psd.js?v=94';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=93';
-import { pathKeys } from './engine/path.js?v=93';
-import { paintDirty } from './engine/paint.js?v=93';
+         canUseWebCodecs } from './io/export.js?v=94';
+import { pathKeys } from './engine/path.js?v=94';
+import { paintDirty } from './engine/paint.js?v=94';
+import { newCage, resetCage, cageFlat } from './engine/warp.js?v=94';
 
 const $ = (s) => document.querySelector(s);
 
@@ -319,6 +321,75 @@ $('#paint').addEventListener('click', () => {
   sheet.open('お絵かき', (box) => buildPaintSheet(box, () => sheet.close()));
 });
 $('#pnClose').addEventListener('click', () => setPaintMode(false));
+
+/* ---- ゆがみ・自由変形 ----
+   絵の上に あみの目（かご）を かぶせて 引っぱる。
+   ・自由変形 … 赤い 四すみだけ。中は 自動で ついてくる
+   ・ゆがみ   … むらさきの あみの目を 1つずつ */
+const SOFTS = [['かたい', 0], ['やわ 小', 0.8], ['やわ 中', 1.2], ['やわ 大', 2]];
+const GRIDS = [2, 3, 4, 6, 8];
+let softI = 2, gridI = 1;
+
+function warpUI(){
+  $('#wpFree').classList.toggle('on', S.warpMode === 'free');
+  $('#wpWarp').classList.toggle('on', S.warpMode === 'warp');
+  $('#wpSoft').textContent = SOFTS[softI][0];
+  $('#wpSoft').disabled = S.warpMode !== 'warp';
+  const l = selected();
+  $('#wpGrid').textContent = 'あみ ' + (l && l.cage ? l.cage.cols + '×' + l.cage.rows
+                                                    : GRIDS[gridI] + '×' + GRIDS[gridI]);
+}
+
+function setWarpMode(mode){
+  if(mode && S.pinMode) setPinMode(false);
+  if(mode && S.paintMode) setPaintMode(false);
+  S.warpMode = mode || null;
+  S.warpSel = -1;
+  $('#warpmode').hidden = !S.warpMode;
+  warpUI();
+  refresh();
+}
+setWarper((l) => {
+  const a = frameAsset(l, 0);
+  if(!a) return toast('絵の ない レイヤーには つかえません');
+  if(!l.cage){
+    edit('ゆがみを はじめる', () => {
+      l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]);
+    });
+  }
+  sheet.close();
+  setWarpMode('free');
+  toast('赤い 四すみを ひっぱって 形を 変えよう');
+});
+$('#wpClose').addEventListener('click', () => setWarpMode(null));
+$('#wpFree').addEventListener('click', () => setWarpMode('free'));
+$('#wpWarp').addEventListener('click', () => {
+  setWarpMode('warp');
+  toast('むらさきの あみの目を つまんで ひっぱろう');
+});
+$('#wpSoft').addEventListener('click', () => {
+  softI = (softI + 1) % SOFTS.length;
+  S.warpSoft = SOFTS[softI][1];
+  warpUI();
+  toast('やわらかさ … ' + SOFTS[softI][0]);
+});
+$('#wpGrid').addEventListener('click', () => {
+  const l = selected();
+  if(!l || !l.cage) return;
+  if(!cageFlat(l.cage) && !confirm('あみの こまかさを 変えると、いまの ゆがみは 消えます。いいですか？')) return;
+  gridI = (gridI + 1) % GRIDS.length;
+  const a = frameAsset(l, 0);
+  edit('あみの こまかさ', () => { l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]); });
+  warpUI();
+  refresh();
+});
+$('#wpReset').addEventListener('click', () => {
+  const l = selected();
+  if(!l || !l.cage) return;
+  edit('ゆがみを もどす', () => { resetCage(l.cage); });
+  toast('もとの 形に もどしました');
+  refresh();
+});
 
 /* ---- 長さを 調節（ここから ここまで 出す）----
    ふだんは タイムラインに 出さない。ここを おした ときだけ 出す。

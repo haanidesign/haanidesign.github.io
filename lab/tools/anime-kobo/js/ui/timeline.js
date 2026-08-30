@@ -1,13 +1,13 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=93';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=94';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=93';
+         nearestFolder, setParent } from '../engine/layer.js?v=94';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=93';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=94';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
