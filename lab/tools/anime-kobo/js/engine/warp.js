@@ -15,7 +15,7 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
-import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=98';
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=99';
 
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
@@ -27,7 +27,7 @@ export function newCage(w, h, cols, rows){
       pts.push({ x: w * i / c, y: h * j / r });
     }
   }
-  return { w, h, cols: c, rows: r, pts };
+  return { w, h, cols: c, rows: r, pts, lock: [] };
 }
 
 /** さわって いないか（まだ まっさら か） */
@@ -100,6 +100,8 @@ export function movePoint(cage, index, x, y, soft){
   const { cols, rows, pts } = cage;
   const p = pts[index];
   if(!p) return;
+  const lock = cage.lock || [];
+  if(lock[index]) return;                    // かためた 目は 動かさない
   const dx = x - p.x, dy = y - p.y;
   const s = Math.max(0, soft || 0);
 
@@ -113,7 +115,9 @@ export function movePoint(cage, index, x, y, soft){
       if(d >= 1) continue;
       // なめらかに 小さく なる（まん中 1 → はし 0）
       const w = (1 - d * d) * (1 - d * d);
-      const q = pts[idxAt(cage, i, j)];
+      const k = idxAt(cage, i, j);
+      if(lock[k]) continue;                  // かためた 目は そのまま
+      const q = pts[k];
       q.x += dx * w;
       q.y += dy * w;
     }
@@ -351,4 +355,39 @@ export function cageToTime(l, pts){
     if(!pts[i]) return;
     p.x = pts[i].x; p.y = pts[i].y;
   });
+}
+
+
+/* ---------- 筆で なぞって かためる ----------
+   ゆがめたく ない ところを 筆で ぬる。
+   ぬった ところの あみの目は 動かなく なるので、
+   そのまわりを 引っぱっても かたちが くずれない。
+   （顔は そのままで かみだけ ゆらす、など） */
+
+/** 筆の あたった あみの目を かためる／とかす。
+ *   x, y   … 絵の中の ざひょう（筆の まん中）
+ *   r      … 筆の 太さ（絵の中の ドット）
+ *   on     … true かためる / false とかす
+ * 戻り値 … 変わった 目の 数 */
+export function paintLock(cage, x, y, r, on){
+  if(!cage) return 0;
+  cage.lock = cage.lock || [];
+  const rr = r * r;
+  let n = 0;
+  cage.pts.forEach((p, i) => {
+    const dx = p.x - x, dy = p.y - y;
+    if(dx * dx + dy * dy > rr) return;
+    if(!!cage.lock[i] === !!on) return;
+    cage.lock[i] = !!on;
+    n++;
+  });
+  return n;
+}
+
+/** かためた 目が 1つでも あるか */
+export const hasLock = (cage) => !!(cage && (cage.lock || []).some(Boolean));
+
+/** かためたのを ぜんぶ とかす */
+export function clearLock(cage){
+  if(cage) cage.lock = [];
 }

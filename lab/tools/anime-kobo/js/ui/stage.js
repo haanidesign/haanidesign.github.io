@@ -1,19 +1,19 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=98';
-import { cleanPath } from '../engine/path.js?v=98';
+import { M, clamp } from '../engine/math.js?v=99';
+import { cleanPath } from '../engine/path.js?v=99';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=98';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=98';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=98';
+         keepChildren, cornersOf } from '../engine/layer.js?v=99';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=99';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=99';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=98';
-import { createRenderer } from '../render/renderer.js?v=98';
-import { attachInput } from './input.js?v=98';
-import { newStroke, paintDirty } from '../engine/paint.js?v=98';
+         bendChain } from '../engine/puppet.js?v=99';
+import { createRenderer } from '../render/renderer.js?v=99';
+import { attachInput } from './input.js?v=99';
+import { newStroke, paintDirty } from '../engine/paint.js?v=99';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
-         cageToTime } from '../engine/warp.js?v=98';
+         cageToTime, paintLock, hasLock } from '../engine/warp.js?v=99';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -62,6 +62,12 @@ export function createStage(canvas, host, toast, onTraced){
   }
 
   /* ---------- ゆがみ・自由変形の かご ---------- */
+  /** 筆の 太さ（絵の中の ドット） */
+  function brushR(l){
+    const cg = l.cage;
+    if(!cg) return 40;
+    return Math.max(6, Math.min(cg.w, cg.h) * S.lockBrush);
+  }
   /** かごの あみの目 → キャンバスの ざひょう */
   function cageToCanvas(l, pose, p){
     // フォルダの かごは キャンバスの ざひょう そのもの
@@ -129,12 +135,43 @@ export function createStage(canvas, host, toast, onTraced){
       ctx.strokeStyle = '#1E1C14';
       ctx.stroke();
     };
-    if(S.warpMode === 'warp'){
+    if(S.warpMode === 'warp' || S.warpMode === 'lock'){
+      const lock = l.cage.lock || [];
       for(let j = 0; j <= cg.rows; j++){
         for(let i = 0; i <= cg.cols; i++){
-          const on = S.warpSel === idxAt(cg, i, j);
-          dot(P(at(i, j)), on ? 9 : 6, on ? '#F2A0B8' : '#7B61E8');
+          const k = idxAt(cg, i, j);
+          const on = S.warpSel === k;
+          // かためた 目は 赤。引っぱっても 動かない
+          const col = lock[k] ? '#E24A4A' : (on ? '#F2A0B8' : '#7B61E8');
+          dot(P(at(i, j)), on ? 9 : 6, col);
         }
+      }
+      /* かためた ところを 赤く ぼんやり ぬる（どこを 止めたか 見える） */
+      if(hasLock(l.cage)){
+        ctx.fillStyle = 'rgba(226,74,74,.18)';
+        for(let j = 0; j < cg.rows; j++){
+          for(let i = 0; i < cg.cols; i++){
+            const c4 = [[i,j],[i+1,j],[i+1,j+1],[i,j+1]];
+            if(!c4.every(([a, b]) => lock[idxAt(cg, a, b)])) continue;
+            ctx.beginPath();
+            c4.forEach(([a, b], n) => {
+              const q = P(at(a, b));
+              n ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y);
+            });
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      }
+      // 筆の わっか
+      if(S.warpMode === 'lock' && S.brushAt){
+        const q = P(cageToCanvas(l, pose, S.brushAt));
+        const rr = brushR(l) * S.view.z * (pose.v.scaleX || 1);
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, rr, 0, Math.PI * 2);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = S.lockErase ? 'rgba(30,28,20,.7)' : 'rgba(226,74,74,.9)';
+        ctx.stroke();
       }
     } else {
       corners.forEach(([i, j]) => dot(P(at(i, j)), 10, '#E24A4A'));
@@ -536,6 +573,18 @@ export function createStage(canvas, host, toast, onTraced){
       const P = livePoses();
 
       /* ゆがみ・自由変形。あみの目を つまんで 動かす。 */
+      if(S.warpMode === 'lock'){
+        if(!l || !l.cage){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
+        const ip = toImage(l, P[l.id], cp);
+        if(!ip){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
+        beginEdit(S.lockErase ? 'かためたのを とかす' : 'かためる');
+        S.brushAt = ip;
+        paintLock(l.cage, ip.x, ip.y, brushR(l), !S.lockErase);
+        drag = { kind:'lock', l };
+        onChange();
+        return;
+      }
+
       if(S.warpMode){
         if(!l || !l.cage){
           drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p };
@@ -701,6 +750,16 @@ export function createStage(canvas, host, toast, onTraced){
         return;
       }
 
+      if(drag.kind === 'lock'){
+        const l = drag.l;
+        const ip = toImage(l, poses[l.id] || livePoses()[l.id], cp);
+        if(!ip) return;
+        S.brushAt = ip;
+        paintLock(l.cage, ip.x, ip.y, brushR(l), !S.lockErase);
+        onChange();
+        return;
+      }
+
       if(drag.kind === 'cage'){
         const l = drag.l;
         const ip = toImage(l, poses[l.id] || livePoses()[l.id], cp);
@@ -815,6 +874,13 @@ export function createStage(canvas, host, toast, onTraced){
         } else if(onTraced){
           onTraced();
         }
+        onChange();
+        return;
+      }
+      if(drag && drag.kind === 'lock'){
+        drag = null;
+        S.brushAt = null;
+        commitEdit();
         onChange();
         return;
       }

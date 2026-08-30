@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=98';
+import { M } from './engine/math.js?v=99';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=98';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=99';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=98';
-import { createStage } from './ui/stage.js?v=98';
-import { createRenderer } from './render/renderer.js?v=98';
-import { createTimeline } from './ui/timeline.js?v=98';
-import { fmtTime } from './engine/anim.js?v=98';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=99';
+import { createStage } from './ui/stage.js?v=99';
+import { createRenderer } from './render/renderer.js?v=99';
+import { createTimeline } from './ui/timeline.js?v=99';
+import { fmtTime } from './engine/anim.js?v=99';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=98';
+         setWarper } from './ui/sheet.js?v=99';
 
-import { showNewDoc } from './ui/newdoc.js?v=98';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=98';
-import { fitToCanvas, isBg } from './io/bg.js?v=98';
-import * as Audio from './io/audio.js?v=98';
+import { showNewDoc } from './ui/newdoc.js?v=99';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=99';
+import { fitToCanvas, isBg } from './io/bg.js?v=99';
+import * as Audio from './io/audio.js?v=99';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=98';
-import { importPsd } from './io/psd.js?v=98';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=99';
+import { importPsd } from './io/psd.js?v=99';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=98';
-import { pathKeys } from './engine/path.js?v=98';
-import { paintDirty } from './engine/paint.js?v=98';
+         canUseWebCodecs } from './io/export.js?v=99';
+import { pathKeys } from './engine/path.js?v=99';
+import { paintDirty } from './engine/paint.js?v=99';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys } from './engine/warp.js?v=98';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=99';
 
 const $ = (s) => document.querySelector(s);
 
@@ -329,6 +329,8 @@ $('#pnClose').addEventListener('click', () => setPaintMode(false));
    ・自由変形 … 赤い 四すみだけ。中は 自動で ついてくる
    ・ゆがみ   … むらさきの あみの目を 1つずつ */
 const SOFTS = [['かたい', 0], ['やわ 小', 0.8], ['やわ 中', 1.2], ['やわ 大', 2]];
+const BRUSHES = [['筆 細', 0.10], ['筆 中', 0.18], ['筆 太', 0.30]];
+let brushI = 1;
 const GRIDS = [2, 3, 4, 6, 8];
 let softI = 2, gridI = 1;
 
@@ -337,6 +339,10 @@ function warpUI(){
   $('#wpKey').classList.toggle('on', !!(lw && cageHasKeys(lw)));
   $('#wpFree').classList.toggle('on', S.warpMode === 'free');
   $('#wpWarp').classList.toggle('on', S.warpMode === 'warp');
+  $('#wpLock').classList.toggle('on', S.warpMode === 'lock');
+  $('#wpLock').textContent = S.warpMode === 'lock' && S.lockErase ? '🧽 とかす' : '🖌 かためる';
+  $('#wpBrush').textContent = BRUSHES[brushI][0];
+  $('#wpBrush').hidden = S.warpMode !== 'lock';
   $('#wpSoft').textContent = SOFTS[softI][0];
   $('#wpSoft').disabled = S.warpMode !== 'warp';
   const l = selected();
@@ -373,6 +379,29 @@ $('#wpWarp').addEventListener('click', () => {
   setWarpMode('warp');
   toast('むらさきの あみの目を つまんで ひっぱろう');
 });
+
+/* 筆で なぞって かためる。
+   ぬった ところは 動かなく なるので、
+   そのまわりを 引っぱっても 形が くずれない
+   （顔は そのままで かみだけ ゆらす、など）。
+   もう一度 おすと「とかす」がわに 切りかわる。 */
+$('#wpLock').addEventListener('click', () => {
+  if(S.warpMode === 'lock'){
+    S.lockErase = !S.lockErase;
+    warpUI();
+    return toast(S.lockErase ? 'なぞると とけます' : 'なぞると かたまります');
+  }
+  setWarpMode('lock');
+  S.lockErase = false;
+  warpUI();
+  toast('動かしたくない ところを 筆で なぞってね');
+});
+$('#wpBrush').addEventListener('click', () => {
+  brushI = (brushI + 1) % BRUSHES.length;
+  S.lockBrush = BRUSHES[brushI][1];
+  warpUI();
+  refresh();
+});
 $('#wpSoft').addEventListener('click', () => {
   softI = (softI + 1) % SOFTS.length;
   S.warpSoft = SOFTS[softI][1];
@@ -408,6 +437,12 @@ $('#wpKey').addEventListener('click', () => {
 $('#wpReset').addEventListener('click', () => {
   const l = selected();
   if(!l || !l.cage) return;
+  if(S.warpMode === 'lock'){
+    if(!hasLock(l.cage)) return toast('かためた ところは ありません');
+    edit('かためたのを ぜんぶ とかす', () => { clearLock(l.cage); });
+    toast('ぜんぶ とかしました');
+    return refresh();
+  }
   edit('ゆがみを もどす', () => { resetCage(l.cage); });
   toast('もとの 形に もどしました');
   refresh();
