@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=95';
-import { frameAsset, frameImage } from '../state.js?v=95';
+         nearestFolder } from '../engine/layer.js?v=96';
+import { frameAsset, frameImage } from '../state.js?v=96';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=95';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=95';
-import { paintCanvas } from '../engine/paint.js?v=95';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=95';
+         meshSizeFor } from '../engine/puppet.js?v=96';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=96';
+import { paintCanvas } from '../engine/paint.js?v=96';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=96';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -110,7 +110,14 @@ export function createC2D(canvas){
 
     const px = hand ? boilPx(hand, Math.min(asset.w, asset.h)) : 0;
 
-    const warped = l.cage && !cageFlat(l.cage);
+    /* ゆがみに ピンが うって あれば、その 時こくの 形を つかう。
+       うって いなければ いまの 形の まま。 */
+    const cage = l.cage
+      ? (v.cagePts ? { w: l.cage.w, h: l.cage.h, cols: l.cage.cols, rows: l.cage.rows,
+                       pts: v.cagePts }
+                   : l.cage)
+      : null;
+    const warped = cage && !cageFlat(cage);
     const boned = !!(v.pins && v.pins.length);
 
     /* ---------- あみで ゆがめた 形に、さらに 骨で 動きを つける ----------
@@ -134,10 +141,10 @@ export function createC2D(canvas){
 
         /* あみで ゆがめた あとの 場所を「骨の もとの 形」に する。
            かごを いじった ときだけ 作り直す。 */
-        const key = JSON.stringify(l.cage.pts);
+        const key = JSON.stringify(cage.pts);
         if(!l._wmesh || l._wkey !== key || l._wmesh.verts.length !== n){
           const verts = l.mesh.verts.map(p => {
-            const q = cagePoint(l.cage, p.u, p.v);
+            const q = cagePoint(cage, p.u, p.v);
             return { u: q.x, v: q.y };
           });
           l._wmesh = { verts, tris: l.mesh.tris };
@@ -168,12 +175,12 @@ export function createC2D(canvas){
        絵の上に かぶせた「かご」の 形に そって 絵を はる。 */
     if(warped){
       g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
-      if(!l._cmesh || l._ckey !== l.cage.cols + 'x' + l.cage.rows){
-        l._cmesh = cageMesh(l.cage);
-        l._ckey = l.cage.cols + 'x' + l.cage.rows;
+      if(!l._cmesh || l._ckey !== cage.cols + 'x' + cage.rows){
+        l._cmesh = cageMesh(cage);
+        l._ckey = cage.cols + 'x' + cage.rows;
         l._cxy = null;
       }
-      l._cxy = cageXY(l.cage, l._cxy);
+      l._cxy = cageXY(cage, l._cxy);
       let xy = l._cxy;
       if(px > 0.01){
         const n = l._cmesh.verts.length;

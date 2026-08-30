@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=95';
+import { M } from './engine/math.js?v=96';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=95';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=96';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=95';
-import { createStage } from './ui/stage.js?v=95';
-import { createRenderer } from './render/renderer.js?v=95';
-import { createTimeline } from './ui/timeline.js?v=95';
-import { fmtTime } from './engine/anim.js?v=95';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=96';
+import { createStage } from './ui/stage.js?v=96';
+import { createRenderer } from './render/renderer.js?v=96';
+import { createTimeline } from './ui/timeline.js?v=96';
+import { fmtTime } from './engine/anim.js?v=96';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,20 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=95';
+         setWarper } from './ui/sheet.js?v=96';
 
-import { showNewDoc } from './ui/newdoc.js?v=95';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=95';
-import { fitToCanvas, isBg } from './io/bg.js?v=95';
-import * as Audio from './io/audio.js?v=95';
+import { showNewDoc } from './ui/newdoc.js?v=96';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=96';
+import { fitToCanvas, isBg } from './io/bg.js?v=96';
+import * as Audio from './io/audio.js?v=96';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=95';
-import { importPsd } from './io/psd.js?v=95';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=96';
+import { importPsd } from './io/psd.js?v=96';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=95';
-import { pathKeys } from './engine/path.js?v=95';
-import { paintDirty } from './engine/paint.js?v=95';
-import { newCage, resetCage, cageFlat } from './engine/warp.js?v=95';
+         canUseWebCodecs } from './io/export.js?v=96';
+import { pathKeys } from './engine/path.js?v=96';
+import { paintDirty } from './engine/paint.js?v=96';
+import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
+         clearCageKeys } from './engine/warp.js?v=96';
 
 const $ = (s) => document.querySelector(s);
 
@@ -331,6 +332,8 @@ const GRIDS = [2, 3, 4, 6, 8];
 let softI = 2, gridI = 1;
 
 function warpUI(){
+  const lw = selected();
+  $('#wpKey').classList.toggle('on', !!(lw && cageHasKeys(lw)));
   $('#wpFree').classList.toggle('on', S.warpMode === 'free');
   $('#wpWarp').classList.toggle('on', S.warpMode === 'warp');
   $('#wpSoft').textContent = SOFTS[softI][0];
@@ -383,6 +386,27 @@ $('#wpGrid').addEventListener('click', () => {
   warpUI();
   refresh();
 });
+/* いまの 形を、その 時こくの ピンに する。
+   1回 うつと、あとは 引っぱるたび に その時間の ピンが
+   書きかわるので、そのまま ゆがみの アニメに なる。 */
+$('#wpKey').addEventListener('click', () => {
+  const l = selected();
+  if(!l || !l.cage) return;
+  if(cageHasKeys(l)){
+    const nl = String.fromCharCode(10);
+    if(!confirm('ゆがみの ピンを ぜんぶ けしますか？' + nl + nl
+      + '（けすと、いまの 形の まま 動かなく なります）')) return;
+    edit('ゆがみの ピンを けす', () => { clearCageKeys(l); });
+    toast('ゆがみの ピンを けしました');
+  } else {
+    edit('ゆがみに ピンをうつ', () => { cageKeys(l, S.time); });
+    toast(S.time.toFixed(2) + '秒に ピンを うちました' + String.fromCharCode(10)
+      + '時間を うごかして 形を 変えると アニメに なります');
+  }
+  warpUI();
+  refresh();
+});
+
 $('#wpReset').addEventListener('click', () => {
   const l = selected();
   if(!l || !l.cage) return;

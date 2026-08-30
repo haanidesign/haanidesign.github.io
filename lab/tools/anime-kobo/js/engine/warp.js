@@ -15,6 +15,8 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=96';
+
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
   const c = Math.max(1, Math.min(12, cols || 3));
@@ -301,4 +303,52 @@ export function cageInverse(cage, x, y){
   }
   const { s, t } = solve(bi, bj);
   return { x: w * (bi + s) / cols, y: h * (bj + t) / rows };
+}
+
+
+/* ---------- 時間で ゆがみを 変える ----------
+   あみの目 1つ1つに ピンを うつ。
+   そうすると「1秒めは こう、3秒めは こう」と
+   形が だんだん 変わって いく。 */
+
+/** その レイヤーに ゆがみの ピンが うってあるか */
+export function cageHasKeys(l){
+  const tr = l.tracks || {};
+  return Object.keys(tr).some(c => isWarpCh(c) && (tr[c] || []).length);
+}
+
+/**
+ * いまの かごの 形を、その 時こくの ピンに する。
+ *   only … 番号の ならびを わたすと、その あみの目 だけ
+ * 戻り値 … うった ピンの 数
+ */
+export function cageKeys(l, time, only){
+  if(!l.cage) return 0;
+  const list = only || l.cage.pts.map((_, i) => i);
+  let n = 0;
+  for(const i of list){
+    const p = l.cage.pts[i];
+    if(!p) continue;
+    setPin(l, warpChX(i), time, p.x, 'smooth');
+    setPin(l, warpChY(i), time, p.y, 'smooth');
+    n += 2;
+  }
+  return n;
+}
+
+/** ゆがみの ピンを ぜんぶ けす */
+export function clearCageKeys(l){
+  const tr = l.tracks || {};
+  let n = 0;
+  Object.keys(tr).forEach(c => { if(isWarpCh(c)){ delete tr[c]; n++; } });
+  return n;
+}
+
+/** かごの 形を、その 時こくの 見た目に あわせる（ピンから 読む） */
+export function cageToTime(l, pts){
+  if(!l.cage || !pts) return;
+  l.cage.pts.forEach((p, i) => {
+    if(!pts[i]) return;
+    p.x = pts[i].x; p.y = pts[i].y;
+  });
 }

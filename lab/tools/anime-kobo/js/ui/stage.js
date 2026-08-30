@@ -1,18 +1,19 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=95';
-import { cleanPath } from '../engine/path.js?v=95';
+import { M, clamp } from '../engine/math.js?v=96';
+import { cleanPath } from '../engine/path.js?v=96';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=95';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=95';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=95';
+         keepChildren, cornersOf } from '../engine/layer.js?v=96';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=96';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=96';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=95';
-import { createRenderer } from '../render/renderer.js?v=95';
-import { attachInput } from './input.js?v=95';
-import { newStroke, paintDirty } from '../engine/paint.js?v=95';
+         bendChain } from '../engine/puppet.js?v=96';
+import { createRenderer } from '../render/renderer.js?v=96';
+import { attachInput } from './input.js?v=96';
+import { newStroke, paintDirty } from '../engine/paint.js?v=96';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
-         resetCage, cageFlat } from '../engine/warp.js?v=95';
+         resetCage, cageFlat, cageHasKeys, cageKeys,
+         cageToTime } from '../engine/warp.js?v=96';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -73,7 +74,10 @@ export function createStage(canvas, host, toast, onTraced){
     const pose = poses[l.id] || livePoses()[l.id];
     if(!pose) return;
     const ctx = R.ctx;
-    const cg = l.cage;
+    /* ピンが うって あれば その 時こくの 形を 出す */
+    const cg = pose.v.cagePts
+      ? { w:l.cage.w, h:l.cage.h, cols:l.cage.cols, rows:l.cage.rows, pts: pose.v.cagePts }
+      : l.cage;
     const at = (i, j) => cageToCanvas(l, pose, cg.pts[idxAt(cg, i, j)]);
 
     ctx.save();
@@ -141,7 +145,9 @@ export function createStage(canvas, host, toast, onTraced){
     if(!l.cage) return -1;
     const pose = poses[l.id] || livePoses()[l.id];
     if(!pose) return -1;
-    const cg = l.cage;
+    const cg = pose.v.cagePts
+      ? { w:l.cage.w, h:l.cage.h, cols:l.cage.cols, rows:l.cage.rows, pts: pose.v.cagePts }
+      : l.cage;
     const list = [];
     if(onlyCorners){
       [[0,0],[cg.cols,0],[cg.cols,cg.rows],[0,cg.rows]]
@@ -537,6 +543,9 @@ export function createStage(canvas, host, toast, onTraced){
         if(k < 0){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
         S.warpSel = k;
         beginEdit(S.warpMode === 'free' ? '自由変形' : 'ゆがみ');
+        /* ピンが うって あれば、いま 見えている 形から いじる
+           （そうしないと 前の 形に もどって しまう） */
+        if(cageHasKeys(l)) cageToTime(l, P[l.id] && P[l.id].v.cagePts);
         drag = { kind:'cage', l, k, quad0: quadOf(l.cage) };
         onChange();
         return;
@@ -705,6 +714,9 @@ export function createStage(canvas, host, toast, onTraced){
         } else {
           movePoint(l.cage, drag.k, ip.x, ip.y, S.warpSoft);
         }
+        /* ピンが うって あれば、いまの 時こくの ピンを 書きかえる。
+           ＝ そのまま ゆがみの アニメに なる。 */
+        if(cageHasKeys(l)) cageKeys(l, S.time);
         onChange();
         return;
       }

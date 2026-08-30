@@ -21,6 +21,12 @@ export const ALL_CHANNELS = [...CHANNELS, ...STEP_CHANNELS];
 /* パペットピンのずれは、ピンごとにチャンネルが増える。
    名前は Pxxxxx:x / Pxxxxx:y。決め打ちの一覧では足りないので、
    ピンを数える処理は「いま実際にあるチャンネル」を見る。 */
+/* ゆがみ（かご）の あみの目 1つぶんの チャンネル。
+   これに ピンを うつと、ゆがみが 時間で 変わる。 */
+export const warpChX = (i) => 'W' + i + ':x';
+export const warpChY = (i) => 'W' + i + ':y';
+export const isWarpCh = (c) => /^W\d+:(x|y)$/.test(c);
+
 export const pinChX = (id) => 'P' + id + ':x';
 export const pinChY = (id) => 'P' + id + ':y';
 
@@ -366,6 +372,13 @@ export function valuesAt(layer, time){
     flipY: !!sampleStep(tr.flipY, t, layer.flipY),
 
     frame: Math.max(0, Math.round(sampleStep(tr.frame, t, 0))),
+
+    /* ゆがみ（かご）の あみの目の、その時の 場所。
+       ピンが 無ければ いまの 形の まま。 */
+    cagePts: layer.cage ? layer.cage.pts.map((p, i) => ({
+      x: sample(tr[warpChX(i)], t, p.x),
+      y: sample(tr[warpChY(i)], t, p.y)
+    })) : null,
 
     // パペットピンの、その時のずれ
     pins: (layer.pins || []).map(p => ({
