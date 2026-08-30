@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>パラメータ人形</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+
+<div id="app">
+
+  <div id="top">
+    <button class="name" id="home" title="ラボにもどる">パラメータ人形</button>
+    <span class="spacer"></span>
+    <button id="btnOpen" class="btn btn-sm" title="PSD / PNG を よみこむ">＋ よみこむ</button>
+    <button id="btnFit"  class="btn btn-sm" title="画面に あわせる">⤢</button>
+    <button id="btnMenu" class="btn btn-sm" title="そのほか">…</button>
+    <button id="btnExport" class="btn btn-sm btn-g" title="動画に する">▶ 書き出す</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="stageCv"></canvas>
+
+    <div id="drop">
+      <span>
+        ここに <b>PSD</b> か <b>PNG / JPEG</b> を おいてください<br>
+        <span style="font-weight:400;font-size:.72rem">
+          PSD なら レイヤーが そのまま パーツに なります。<br>
+          スマホは 上の「＋ よみこむ」から。
+        </span>
+      </span>
+    </div>
+
+    <div id="editbar" hidden>
+      <span class="title">◆編集</span>
+      <span class="who" id="ebName">—</span>
+      <span class="keys" id="ebKeys"></span>
+      <span style="flex:1"></span>
+      <button id="ebPivot" class="btn btn-sm" title="回すときの 中心を うつす">◎</button>
+      <button id="ebDone"  class="btn btn-sm btn-g">おわり</button>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <div id="sheet">
+    <div id="tabs">
+      <button class="btn btn-sm on" data-pane="parts">パーツ</button>
+      <button class="btn btn-sm"    data-pane="params">パラメータ</button>
+      <button class="btn btn-sm"    data-pane="tl">うごき</button>
+    </div>
+
+    <div id="panes">
+
+      <!-- パーツ -->
+      <div class="pane" id="paneParts">
+        <div class="row">
+          <span class="title">パーツ</span>
+          <span class="spacer" style="flex:1"></span>
+          <button id="pUp"   class="btn btn-sm" title="奥へ">↓奥</button>
+          <button id="pDown" class="btn btn-sm" title="手前へ">↑手前</button>
+          <button id="pDel"  class="btn btn-sm btn-p" title="けす">けす</button>
+        </div>
+        <div id="partList"></div>
+        <div id="partProps"></div>
+      </div>
+
+      <!-- パラメータ -->
+      <div class="pane" id="paneParams" hidden>
+        <div class="row">
+          <span class="title">パラメータ</span>
+          <span style="flex:1"></span>
+          <button id="vAdd"   class="btn btn-sm btn-y">＋ ふやす</button>
+          <button id="vReset" class="btn btn-sm">ぜんぶ もどす</button>
+        </div>
+        <div id="paramList"></div>
+        <div class="hint" style="margin-top:.5rem">
+          スライダーの となりの <b>✎</b> を おすと フォーム編集。
+          点（◆）を えらんで、ステージで パーツを うごかすと
+          「その点のとき この形」が おぼえられます。
+        </div>
+      </div>
+
+      <!-- うごき -->
+      <div class="pane" id="paneTl" hidden>
+        <div id="tlbar">
+          <button id="tPlay" class="btn btn-sm btn-y">▶ さいせい</button>
+          <span class="num dot" id="tFrame" style="padding:.2rem .4rem;border:2px solid var(--ink);border-radius:6px;background:var(--paper);font-size:.68rem">0 / 72</span>
+          <button id="tKey" class="btn btn-sm">◆ キーを おく</button>
+          <button id="tDel" class="btn btn-sm btn-p">◇ けす</button>
+          <button id="tLen" class="btn btn-sm">長さ</button>
+        </div>
+        <div class="slwrap"><input type="range" id="tScrub" min="0" max="71" value="0" step="1"></div>
+        <div id="tlwrap">
+          <div id="tlgrid">
+            <div id="tlhead"><div class="lb"></div><div class="ruler" id="tRuler"></div></div>
+            <div id="tlRows"></div>
+          </div>
+          <div id="playhead" hidden></div>
+        </div>
+        <div class="hint" style="margin-top:.5rem">
+          キーを 1つも おかない パラメータは、
+          パラメータの タブで えらんだ <b>自動</b>（ゆれ・まばたき）で うごきます。
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="modal" hidden><div class="box" id="modalBox"></div></div>
+
+<input type="file" id="file" accept=".psd,image/*,application/json" multiple hidden>
+
+<script src="lib/ag-psd.js?v=1"></script>
+<script src="lib/mp4-muxer.js?v=1"></script>
+<script src="core.js?v=1"></script>
+<script src="ui.js?v=1"></script>
+</body>
+</html>

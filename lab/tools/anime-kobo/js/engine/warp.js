@@ -15,7 +15,7 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
-import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=100';
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=101';
 
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
@@ -162,6 +162,71 @@ export function movePoint(cage, index, x, y, soft){
       q.y += dy * w;
     }
   }
+}
+
+/**
+ * かたまりを まるごと まわす・大きさを 変える・ずらす。
+ * （2本指で くいっと やる ときに つかう）
+ *
+ *   rot  … まわす 角（ラジアン）
+ *   k    … 大きさ の ばい
+ *   dx dy… ずらす ぶん
+ * まわりの あみの目は、かたまりに 近いほど ついてくる。
+ */
+export function transformLock(cage, rot, k, dx, dy, soft){
+  const { cols, rows, pts } = cage;
+  const lock = cage.lock || [];
+  const inLock = [];
+  let sx = 0, sy = 0;
+  for(let j = 0; j <= rows; j++){
+    for(let i = 0; i <= cols; i++){
+      const n = idxAt(cage, i, j);
+      if(!lock[n]) continue;
+      inLock.push({ i, j, n });
+      sx += pts[n].x; sy += pts[n].y;
+    }
+  }
+  if(!inLock.length) return false;
+
+  // かたまりの まん中を 軸に する（そこで くるっと まわる）
+  const cx = sx / inLock.length, cy = sy / inLock.length;
+  const c = Math.cos(rot), si = Math.sin(rot);
+  const kk = Math.max(0.05, Math.min(20, k || 1));
+  /** その 点が 行く さき */
+  const to = (p) => {
+    const x = p.x - cx, y = p.y - cy;
+    return { x: cx + (x * c - y * si) * kk + dx, y: cy + (x * si + y * c) * kk + dy };
+  };
+
+  const s = Math.max(0, soft || 0);
+  for(let j = 0; j <= rows; j++){
+    for(let i = 0; i <= cols; i++){
+      const n = idxAt(cage, i, j);
+      const p = pts[n];
+      const q = to(p);
+      if(lock[n]){ p.x = q.x; p.y = q.y; continue; }   // かたまりは そのまま
+      if(s < 0.01) continue;
+      // まわりは 近いほど ついてくる
+      let near = Infinity;
+      for(const g of inLock){
+        const d = Math.hypot(i - g.i, j - g.j);
+        if(d < near) near = d;
+      }
+      const d = near / s;
+      if(d >= 1) continue;
+      const w = (1 - d * d) * (1 - d * d);
+      p.x += (q.x - p.x) * w;
+      p.y += (q.y - p.y) * w;
+    }
+  }
+  return true;
+}
+
+/** かごの 形を まるごと 写す（2本指の とちゅうで つかう） */
+export const copyPts = (cage) => cage.pts.map(p => ({ x: p.x, y: p.y }));
+export function setPts(cage, list){
+  if(!list) return;
+  cage.pts.forEach((p, i) => { if(list[i]){ p.x = list[i].x; p.y = list[i].y; } });
 }
 
 /* ---------- 自由変形（四すみ） ---------- */

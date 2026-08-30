@@ -55,7 +55,8 @@ body{
   padding:0 .5rem;background:var(--main);border-bottom:var(--bd);
 }
 #top .name{
-  background:none;border:none;font:inherit;font-size:.9rem;padding:0 .2rem;cursor:pointer;
+  background:none;border:none;font:inherit;font-size:.86rem;padding:0 .2rem;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;
 }
 #top .spacer{ flex:1; }
 
@@ -79,10 +80,12 @@ body{
   position:absolute;left:8px;right:8px;top:8px;display:flex;align-items:center;
   gap:.3rem;flex-wrap:wrap;
   background:var(--paper);border:var(--bd);border-radius:var(--r);
-  box-shadow:0 3px 0 var(--ink);padding:.4rem .5rem;font-size:.7rem;
+  box-shadow:0 3px 0 var(--ink);padding:.35rem .4rem;font-size:.7rem;
 }
+#editbar .btn-sm{ padding:.25rem .45rem;font-size:.66rem; }
 #editbar[hidden]{ display:none; }
-#editbar .who{ font-size:.72rem; }
+#editbar .who{ font-size:.68rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                max-width:44%; }
 #editbar .keys{ display:flex;gap:.25rem; }
 
 #toast{

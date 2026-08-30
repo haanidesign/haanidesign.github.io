@@ -1,19 +1,20 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=100';
-import { cleanPath } from '../engine/path.js?v=100';
+import { M, clamp } from '../engine/math.js?v=101';
+import { cleanPath } from '../engine/path.js?v=101';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=100';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=100';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=100';
+         keepChildren, cornersOf } from '../engine/layer.js?v=101';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=101';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=101';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=100';
-import { createRenderer } from '../render/renderer.js?v=100';
-import { attachInput } from './input.js?v=100';
-import { newStroke, paintDirty } from '../engine/paint.js?v=100';
+         bendChain } from '../engine/puppet.js?v=101';
+import { createRenderer } from '../render/renderer.js?v=101';
+import { attachInput } from './input.js?v=101';
+import { newStroke, paintDirty } from '../engine/paint.js?v=101';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
-         cageToTime, paintLock, hasLock } from '../engine/warp.js?v=100';
+         cageToTime, paintLock, hasLock, transformLock,
+         copyPts, setPts } from '../engine/warp.js?v=101';
 
 export function createStage(canvas, host, toast, onTraced){
   const R = createRenderer(canvas);
@@ -21,6 +22,7 @@ export function createStage(canvas, host, toast, onTraced){
   let handles = null;
   let drag = null;
   let viewStart = null;
+  let pinchWarp = null;      // 2本指で かたまりを うごかしている とちゅう
 
   /* ---- 画面と座標 ---- */
   function resize(){
@@ -922,9 +924,36 @@ export function createStage(canvas, host, toast, onTraced){
 
     onPinchStart(g){
       viewStart = { ...S.view, cx: g.cx, cy: g.cy, d: g.d };
+
+      /* ゆがみ中 で、筆で なぞった かたまりが あれば、
+         2本指は 画面では なく かたまりを うごかす。
+         くいっと まわす・大きく する・ずらす が できる。 */
+      const l = selected();
+      if(S.warpMode === 'warp' && l && l.cage && hasLock(l.cage)){
+        beginEdit('かたまりを まわす');
+        S.warpDrag = l.id;
+        pinchWarp = { l, a: g.a, d: g.d, cx: g.cx, cy: g.cy, pts0: copyPts(l.cage) };
+      }
     },
 
     onPinch(now, start){
+      /* かたまりを 2本指で うごかす */
+      if(pinchWarp){
+        const l = pinchWarp.l;
+        setPts(l.cage, pinchWarp.pts0);            // いつも もとの 形から やり直す
+        let da = now.a - pinchWarp.a;
+        while(da > Math.PI) da -= Math.PI * 2;      // まわりすぎない ように
+        while(da < -Math.PI) da += Math.PI * 2;
+        const k = clamp(now.d / Math.max(1, pinchWarp.d), 0.2, 6);
+        // 指の 動きは 画面の ドット。絵の中の ドットに なおす
+        const z = Math.max(0.001, S.view.z) * (livePoses()[l.id] ? (livePoses()[l.id].v.scaleX || 1) : 1);
+        const dx = (now.cx - pinchWarp.cx) / z;
+        const dy = (now.cy - pinchWarp.cy) / z;
+        transformLock(l.cage, da, k, dx, dy, S.warpSoft);
+        onChange();
+        return;
+      }
+
       if(!viewStart) return;
       const k = clamp(now.d / Math.max(1, start.d), 0.15, 12);
       const z = clamp(viewStart.z * k, 0.05, 12);
@@ -937,7 +966,18 @@ export function createStage(canvas, host, toast, onTraced){
       onChange();
     },
 
-    onPinchEnd(){ viewStart = null; },
+    onPinchEnd(){
+      viewStart = null;
+      // 2本指で かたまりを うごかして いたら、ここで しまう
+      if(pinchWarp){
+        const l = pinchWarp.l;
+        pinchWarp = null;
+        S.warpDrag = null;
+        if(cageHasKeys(l)) cageKeys(l, S.time);
+        commitEdit();
+        onChange();
+      }
+    },
 
     onWheel(p, dy){
       const before = toCanvas(p);
