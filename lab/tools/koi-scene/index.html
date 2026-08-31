@@ -271,7 +271,7 @@ body.two .only2{display:block}
   display:none;gap:8px;flex:none}
 #fab.on{display:flex}
 input[type=file]{display:none}
-input[type=range]{width:100%;accent-color:var(--danger)}
+input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
 </style>
 
 <div id="app">
@@ -1780,6 +1780,36 @@ $('#btnExport').onclick=function(){
 window.addEventListener('visibilitychange',function(){ if(document.hidden)autoNow() });
 window.addEventListener('pagehide',function(){ autoNow() });
 window.addEventListener('beforeunload',function(){ autoNow() });
+
+/* スライダーの上で 画面を上下にスクロールしたとき、数字が変わらないように。
+   よこに動かしたときだけ スライダーとして扱う。 */
+var rg=null;
+document.addEventListener('pointerdown',function(e){
+  var el=e.target&&e.target.closest&&e.target.closest('input[type=range]');
+  rg = el ? {el:el,v:el.value,x:e.clientX,y:e.clientY,lock:0} : null;
+},true);
+document.addEventListener('pointermove',function(e){
+  if(!rg)return;
+  var dx=Math.abs(e.clientX-rg.x), dy=Math.abs(e.clientY-rg.y);
+  if(rg.lock===0){
+    if(dy>8&&dy>dx*1.3)rg.lock=-1;      /* たて＝スクロールのつもり */
+    else if(dx>6)rg.lock=1;             /* よこ＝スライダーを動かすつもり */
+  }
+  if(rg.lock<0&&rg.el.value!==rg.v){
+    rg.el.value=rg.v;
+    rg.el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+},true);
+['pointerup','pointercancel'].forEach(function(ev){
+  document.addEventListener(ev,function(){
+    if(rg&&rg.lock<0&&rg.el.value!==rg.v){
+      rg.el.value=rg.v;
+      rg.el.dispatchEvent(new Event('input',{bubbles:true}));
+      rg.el.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+    rg=null;
+  },true);
+});
 
 /* ---------- 起動 ---------- */
 load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
