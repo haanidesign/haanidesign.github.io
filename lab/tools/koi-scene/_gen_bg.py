@@ -34,16 +34,14 @@ SCENES = [
  ("classroom_dusk", 1, "indoors, classroom interior, empty tidy desks, green blackboard, windows glowing orange at sunset, long shadows on the floor, evening", ""),
  ("my_room",        1, "indoors, cozy teenage bedroom interior, a single bed against the wall covered by one smooth flat bedspread, wooden study desk with a chair, bookshelf, window with curtains, warm room light, evening, tidy and simple", ", blackboard, classroom, desks in rows, messy, crumpled blanket, folded blanket, two blankets, two beds, bunk bed"),
  ("her_room",       1, "indoors, cute girls bedroom interior, neatly made bed with pastel pink bedding, one cream colored teddy bear, dresser with mirror, round rug, daylight from window, tidy, soft pastel colors", ", blackboard, classroom, messy, two beds, black doll, dark stuffed animal, creepy"),
- ("hallway",        1, "indoors, japanese school hallway interior, long corridor, tall windows on the left letting in daylight, beige lockers on the right, pale cream walls, white ceiling with fluorescent lights, light gray linoleum floor, daytime, empty", ", desks, blackboard, blue walls, orange floor, complementary colors, two tone, black ceiling, dark ceiling"),
+ ("hallway",        1, "indoors, japanese school hallway interior, long corridor, tall windows on the left with warm afternoon sunlight, beige lockers on the right, cream walls, wooden trim, white ceiling with fluorescent lights, light wooden floor, bright and friendly, daytime", ", desks, blackboard, blue walls, orange floor, two tone, black ceiling, dark, creepy, horror, ominous, liminal space, hospital, deserted, cold light"),
  ("rooftop",        0, "school rooftop, chain link fence along the edge, blue sky with simple white clouds, city buildings far away below, daytime, wide empty concrete floor", ", indoors, ceiling, water tank, tank, bottle, canister, spray can, large object in the center"),
  ("park",           0, "park path, cherry blossom trees, one wooden bench, green lawn, blue sky, daytime", ", indoors, ceiling"),
- ("night_street",   0, "japanese city street at night, street lamps, shop signs, a vending machine, dark blue sky, empty road", ", indoors, ceiling, daylight"),
- ("castle_hall",    1, "indoors, fantasy castle throne hall interior, tall stone pillars, long red carpet, stained glass windows, hanging banners, chandelier", ", modern, desks"),
- ("inn",            1, "indoors, fantasy tavern room, a long wooden dining table with wooden chairs standing in the middle of the room, plaster and timber walls, a small window, a fireplace on the left wall, hanging lantern, warm daylight, wooden floor, tidy, simple", ", modern, school desks, empty room, dark, gloomy, purple tint, burning walls, cave, dungeon, stone cellar, vaulted ceiling, clutter"),
+  ("castle_hall",    1, "indoors, grand medieval european castle great hall, bright and elegant, stone arches and columns, red and gold heraldic banners, long red carpet, tall windows with warm daylight, iron chandeliers, polished stone floor, noble and majestic", ", gothic horror, dark, gloomy, creepy, ominous, demonic, purple tint, cathedral rose window, ruins"),
+ ("inn",            1, "indoors, fantasy tavern interior, highly detailed linework, wooden plank walls and ceiling beams, a long wooden table with several chairs in the middle, shelves lined with bottles and mugs, a stone fireplace on the left, hanging lanterns, a window with daylight, wooden barrels, warm cozy light, lots of detail", ", modern, school desks, empty room, plain walls, dark, gloomy, purple tint, burning walls, cave, dungeon, minimal, bare"),
  ("forest_path",    0, "fantasy forest, no animals, tall straight trees on both sides, thick green foliage, mossy rocks, ferns, a quiet empty clearing of soft grass in the middle, sunlight from above, natural green and brown colors", ", indoors, ceiling, pink trees, animal, cat, dog, deer, fox, bear, bird, wildlife, fur, tail, paws, creature, mascot, dirt trail, road"),
- ("magic_class",    1, "indoors, magic academy classroom interior, tall arched windows, sturdy wooden desks, stacks of old books, floating candles, fantasy", ", modern, fluorescent light"),
- ("night_hill",     0, "grassy hill at night, starry sky, crescent moon, distant fantasy castle on the horizon, fireflies, empty stone path", ", indoors, ceiling, daylight, animal, figure in the foreground"),
-]
+ ("magic_class",    1, "indoors, magic academy classroom, wide shot of the whole room, many rows of wooden student desks with chairs, a large blackboard at the front with chalk magic circles, tall arched windows with bright daylight, bookshelves along the wall, floating candles, warm and inviting, fantasy school, calm daylight", ", modern, fluorescent light, dark, gloomy, empty hall, church, altar, close up, red glow, ominous, horror, purple tint, animal, creature"),
+ ]
 
 def post(p, d):
     r = urllib.request.Request(HOST+p, json.dumps(d).encode(), {"Content-Type":"application/json"})
@@ -64,7 +62,23 @@ def wf(pos, neg, seed):
       "8":{"class_type":"SaveImage","inputs":{"images":["7",0],"filename_prefix":"koiscene"}},
     }
 
+def trim_bars(im):
+    """上下左右にできた黒帯を切り落とす。"""
+    g = im.convert("L"); w, h = g.size; px = g.load()
+    def dark_row(y): return sum(px[x, y] for x in range(0, w, 8)) / len(range(0, w, 8)) < 40
+    def dark_col(x): return sum(px[x, y] for y in range(0, h, 8)) / len(range(0, h, 8)) < 40
+    t = 0
+    while t < h // 8 and dark_row(t): t += 1
+    b = h - 1
+    while b > h - h // 8 and dark_row(b): b -= 1
+    l = 0
+    while l < w // 8 and dark_col(l): l += 1
+    r = w - 1
+    while r > w - w // 8 and dark_col(r): r -= 1
+    return im.crop((l, t, r + 1, b + 1)) if (t or l or b != h - 1 or r != w - 1) else im
+
 def cover(im):
+    im = trim_bars(im)
     s = max(TW/im.width, TH/im.height)
     im = im.resize((round(im.width*s), round(im.height*s)), Image.LANCZOS)
     x, y = (im.width-TW)//2, (im.height-TH)//2
