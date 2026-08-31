@@ -41,7 +41,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.land.playing #win{left:16px;right:16px;bottom:calc(14px + var(--winup,0px));min-height:120px}
 
 /* ================= さいせい画面 ================= */
-#play{position:relative;flex:1;min-height:0;display:none;background:#000;overflow:hidden}
+#play{position:relative;flex:1;min-height:0;display:none;background:#000;overflow:hidden;
+  touch-action:none;user-select:none;-webkit-user-select:none}
 #play.on{display:block}
 #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .chWrap{position:absolute;bottom:0;left:0;height:88%;
@@ -661,6 +662,7 @@ $('#play').addEventListener('pointerdown',function(e){
   if(placing||e.target.closest('#playTools'))return;
   clearTimeout(holdT);
   var sx=e.clientX,sy=e.clientY,id=e.pointerId;
+  holdPos={x:sx,y:sy};
   holdT=setTimeout(function(){
     var sc=S.scenes[idx]; if(!sc)return;
     var t=grabTarget(sx);
@@ -671,8 +673,9 @@ $('#play').addEventListener('pointerdown',function(e){
     pts[id]={x:sx,y:sy};
     var q=P(sc,pt); base={x:q.x,y:q.y,s:q.s,d:0};
     try{$('#play').setPointerCapture(id)}catch(err){}
-    toast('つかみました');
-  },320);
+    toast('つかんだ！ そのまま動かせます');
+    try{navigator.vibrate&&navigator.vibrate(18)}catch(err){}
+  },260);
 });
 /* 押した場所に近いほうのキャラをつかむ */
 function grabTarget(clientX){
@@ -684,9 +687,9 @@ function grabTarget(clientX){
   var r=$('#play').getBoundingClientRect(),x=(clientX-r.left)/r.width;
   return Math.abs(x-P(sc,'a').x)<=Math.abs(x-P(sc,'b').x)?'a':'b';
 }
-['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+['pointerup','pointercancel'].forEach(function(ev){
   $('#play').addEventListener(ev,function(){
-    clearTimeout(holdT);
+    clearTimeout(holdT); holdT=null; holdPos=null;
     if(grabbing){
       grabbing=false; placing=false; app.classList.remove('placing','grabbing');
       W('a').classList.remove('sel'); W('b').classList.remove('sel');
@@ -700,7 +703,7 @@ $('#play').addEventListener('click',function(e){
   if(e.target.closest('#playTools'))return;next()});
 
 /* ---------- いち合わせ（ドラッグ／2本指） ---------- */
-var placing=false,pts={},base=null,moveQ=0,grabbing=false;
+var placing=false,pts={},base=null,moveQ=0,grabbing=false,holdPos=null;
 var pt='a';
 function setPT(t){
   pt=t;
@@ -749,7 +752,11 @@ function dist(){
   return Math.hypot(a.x-b.x,a.y-b.y);
 }
 $('#play').addEventListener('pointermove',function(e){
-  if(!placing&&holdT)clearTimeout(holdT);
+  if(!placing&&holdT&&holdPos){
+    if(Math.abs(e.clientX-holdPos.x)>12||Math.abs(e.clientY-holdPos.y)>12){
+      clearTimeout(holdT); holdT=null; holdPos=null;
+    }
+  }
   if(!placing||!pts[e.pointerId]||!base)return;
   e.preventDefault();
   var prev=pts[e.pointerId];
@@ -767,7 +774,7 @@ $('#play').addEventListener('pointermove',function(e){
   }
   if(!moveQ){moveQ=requestAnimationFrame(function(){moveQ=0;placeCh()})}
 },{passive:false});
-['pointerup','pointercancel','pointerleave'].forEach(function(ev){
+['pointerup','pointercancel'].forEach(function(ev){
   $('#play').addEventListener(ev,function(e){
     if(!pts[e.pointerId])return;
     delete pts[e.pointerId];
