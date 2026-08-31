@@ -235,6 +235,15 @@ input[type=text]:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(225
 .face .nm{font-size:10px;margin-top:4px;font-family:"DotGothic16",monospace}
 .face .del{position:absolute;top:-1px;right:-1px;background:var(--danger);color:#fff;
   font-size:10px;line-height:1;padding:3px 4px;border-radius:0 0 0 8px}
+#docList{margin-top:10px}
+.doc{display:flex;align-items:center;gap:8px;border:2.5px solid var(--ink);border-radius:12px;
+  background:#fff;box-shadow:0 2px 0 var(--ink);padding:6px;margin-bottom:8px}
+.doc img{width:44px;height:60px;object-fit:cover;border:2px solid var(--ink);border-radius:6px;
+  background:var(--bg);flex:none}
+.doc .t{flex:1;min-width:0}
+.doc .t b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc .t span{font-size:10px;color:var(--muted);font-family:"DotGothic16",monospace}
+.doc.cur{box-shadow:0 2px 0 var(--ink),0 0 0 3px var(--pop)}
 .only2{display:none}
 body.two .only2{display:block}
 .seg{display:flex;border:2.5px solid var(--ink);border-radius:10px;overflow:hidden;
@@ -285,8 +294,25 @@ input[type=range]{width:100%;accent-color:var(--danger)}
   <!-- ============ へんしゅう ============ -->
   <div id="edit">
     <div class="sec">
+      <h2>さくひん</h2>
+      <label class="f">なまえ</label>
+      <input type="text" id="docName" placeholder="むだい" maxlength="24">
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="docSave">💾 ほぞんする</button>
+        <button class="btn g" id="docNew">＋ あたらしく</button>
+      </div>
+      <div id="docList"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn g" id="jsonOut">JSONで書き出す</button>
+        <button class="btn g" id="jsonIn">JSONから よみこむ</button>
+      </div>
+      <p class="hint">ほぞんは この端末の中に8こまで。JSONで書き出しておけば、
+        べつの端末やパソコンでも つづきを作れます。</p>
+    </div>
+
+    <div class="sec">
       <h2>そざい</h2>
-      <label class="f">はいけい（さいしょの5つは見本）</label>
+      <label class="f">はいけい（「見本」は もとから入っているもの）</label>
       <div class="thumbs" id="bgList"></div>
       <label class="f">キャラ（背景ぬきPNG推奨・タップで表情を足す）</label>
       <div class="thumbs" id="chList"></div>
@@ -375,6 +401,7 @@ input[type=range]{width:100%;accent-color:var(--danger)}
 <input type="file" id="fileBg" accept="image/*" multiple>
 <input type="file" id="fileCh" accept="image/*" multiple>
 <input type="file" id="fileFace" accept="image/*">
+<input type="file" id="fileJson" accept=".json,application/json">
 
 <script>
 var $=function(s){return document.querySelector(s)};
@@ -854,6 +881,138 @@ $('#play').addEventListener('pointermove',function(e){
 });
 $('#btnFirst').onclick=function(){idx=0;setAuto(false);render()};
 $('#btnAuto').onclick=function(){setAuto(!auto)};
+
+/* ---------- さくひんの ほぞん（IndexedDB） ----------
+   絵をそのまま持つので localStorage では足りない。アニメ工房と同じ作り。 */
+var DB='koi-scene',DOCS='docs',MAXDOC=8;
+function dbOpen(){
+  return new Promise(function(ok,ng){
+    if(!self.indexedDB)return ng(new Error('この端末ではほぞんできません'));
+    var r=indexedDB.open(DB,1);
+    r.onupgradeneeded=function(){
+      var db=r.result;
+      if(!db.objectStoreNames.contains(DOCS))db.createObjectStore(DOCS,{keyPath:'id'});
+    };
+    r.onsuccess=function(){ok(r.result)};
+    r.onerror=function(){ng(r.error)};
+  });
+}
+function dbRun(mode,fn){
+  return dbOpen().then(function(db){
+    return new Promise(function(ok,ng){
+      var tx=db.transaction(DOCS,mode),req=fn(tx.objectStore(DOCS));
+      tx.oncomplete=function(){db.close();ok(req?req.result:undefined)};
+      tx.onerror=function(){db.close();ng(tx.error)};
+    });
+  });
+}
+var curDoc='';
+function docThumb(){
+  return new Promise(function(ok){
+    var bg=findBg(effBg(0));
+    if(!bg)return ok(null);
+    var im=new Image();
+    im.onload=function(){
+      var c=document.createElement('canvas');c.width=88;c.height=120;
+      var x=c.getContext('2d');
+      var sc=Math.max(88/im.width,120/im.height);
+      var w=im.width*sc,h=im.height*sc;
+      x.drawImage(im,(88-w)/2,(120-h)/2,w,h);
+      try{ok(c.toDataURL('image/webp',.7))}catch(e){ok(null)}
+    };
+    im.onerror=function(){ok(null)};
+    im.src=bg.src;
+  });
+}
+function docSave(){
+  var name=($('#docName').value||'').trim()||'むだい';
+  return dbRun('readonly',function(st){return st.getAll()}).then(function(all){
+    all=all||[];
+    if(!curDoc&&all.length>=MAXDOC){
+      alert('ほぞんは8こまでです。いらないものを消してください。');
+      throw new Error('full');
+    }
+    return docThumb();
+  }).then(function(th){
+    var id=curDoc||('d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+    curDoc=id;
+    return dbRun('readwrite',function(st){
+      return st.put({id:id,at:Date.now(),name:name,thumb:th,data:JSON.parse(JSON.stringify(S))});
+    });
+  }).then(function(){ drawDocs(); toast('ほぞんしました'); })
+    .catch(function(e){ if(e&&e.message!=='full')alert('ほぞんできませんでした：'+(e&&e.message||e)); });
+}
+function drawDocs(){
+  var w=$('#docList'); if(!w)return;
+  dbRun('readonly',function(st){return st.getAll()}).then(function(all){
+    all=(all||[]).sort(function(a,b){return b.at-a.at});
+    w.innerHTML='';
+    if(!all.length){w.innerHTML='<p class="hint">まだ ほぞんは ありません。</p>';return}
+    all.forEach(function(d){
+      var el=document.createElement('div');
+      el.className='doc'+(d.id===curDoc?' cur':'');
+      var dt=new Date(d.at),ds=(dt.getMonth()+1)+'/'+dt.getDate()+' '+
+        ('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
+      var n=(d.data&&d.data.scenes)?d.data.scenes.length:0;
+      el.innerHTML=(d.thumb?'<img src="'+d.thumb+'">':'<img>')+
+        '<div class="t"><b>'+esc(d.name)+'</b><span>'+ds+' ・ セリフ'+n+'</span></div>';
+      var b1=document.createElement('button');b1.className='btn g';b1.textContent='ひらく';
+      b1.onclick=function(){docOpen(d.id)};
+      var b2=document.createElement('button');b2.className='ico';b2.textContent='×';
+      b2.onclick=function(){
+        if(!confirm('「'+d.name+'」を消しますか？'))return;
+        dbRun('readwrite',function(st){return st.delete(d.id)}).then(function(){
+          if(curDoc===d.id)curDoc='';drawDocs();});
+      };
+      el.appendChild(b1);el.appendChild(b2);w.appendChild(el);
+    });
+  }).catch(function(){ w.innerHTML='<p class="hint">ほぞんを よみだせませんでした。</p>'; });
+}
+function applyState(j,name){
+  S.bgs=j.bgs||[]; S.chs=j.chs||[]; S.scenes=(j.scenes||[]).map(fixScene);
+  if(!S.scenes.length)S.scenes=[mkScene('','')];
+  var c=j.cfg||{};
+  S.cfg={spd:c.spd!=null?c.spd:35, ppc:c.ppc||90, snd:c.snd!=null?c.snd:1,
+         pitch:c.pitch||3, edge:c.edge||0, edgeW:c.edgeW||3, winY:c.winY||0,
+         two:c.two||0, ratio:c.ratio||'v', fs:c.fs||1, bgmV:c.bgmV!=null?c.bgmV:60};
+  idx=0; save();
+  cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();
+  if(name!=null)$('#docName').value=name;
+  toEdit();
+}
+function docOpen(id){
+  dbRun('readonly',function(st){return st.get(id)}).then(function(d){
+    if(!d)return;
+    curDoc=id; applyState(d.data,d.name); drawDocs(); toast('ひらきました');
+  });
+}
+$('#docSave').onclick=docSave;
+$('#docNew').onclick=function(){
+  if(!confirm('あたらしく作りはじめます。いまの内容は ほぞんしていないと消えます。'))return;
+  curDoc=''; $('#docName').value='';
+  applyState({scenes:[mkScene('ひなた','')],cfg:S.cfg},'');
+  drawDocs();
+};
+$('#jsonOut').onclick=function(){
+  var name=($('#docName').value||'').trim()||'むだい';
+  var b=new Blob([JSON.stringify({name:name,data:S})],{type:'application/json'});
+  var u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download=name+'.koi.json';document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500);
+};
+$('#jsonIn').onclick=function(){$('#fileJson').click()};
+$('#fileJson').onchange=function(e){
+  var f=e.target.files[0]; if(!f)return;
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var j=JSON.parse(r.result);
+      var d=j.data||j, nm=j.name||f.name.replace(/\.koi\.json$|\.json$/,'');
+      curDoc=''; applyState(d,nm); drawDocs(); alert('よみこみました');
+    }catch(err){ alert('よみこめませんでした'); }
+  };
+  r.readAsText(f); e.target.value='';
+};
 
 /* ---------- BGM ---------- */
 var bgmEl=null,bgmCur='',bgmFade=null;
@@ -1485,5 +1644,5 @@ $('#btnExport').onclick=function(){
 };
 
 /* ---------- 起動 ---------- */
-load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
+load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawDocs();drawAll();render();
 </script>
