@@ -38,7 +38,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.land{width:min(980px,100vw - 8px)}
 #app.land.playing{height:auto}
 #app.land.playing #play{flex:none;width:100%;aspect-ratio:16/9}
-#app.land.playing #win{left:16px;right:16px;bottom:calc(14px + var(--winup,0px));min-height:120px}
+#app.land.playing #win{left:calc(14px * var(--u));right:calc(14px * var(--u));
+  bottom:calc(12px * var(--u) + var(--winup,0px));min-height:calc(120px * var(--u))}
 
 /* ================= さいせい画面 ================= */
 #play{position:relative;flex:1;min-height:0;display:none;background:#000;overflow:hidden;
@@ -65,25 +66,38 @@ button,input,select,textarea{font:inherit;color:inherit}
   transition:opacity .22s}
 
 /* セリフ窓 */
-#win{position:absolute;left:10px;right:10px;bottom:calc(10px + var(--winup,0px));
-  background:rgba(255,254,247,.96);background-image:var(--dots);background-size:14px 14px;
-  border:2.5px solid var(--ink);border-radius:14px;box-shadow:0 4px 0 var(--ink);
-  padding:16px 14px 14px;min-height:150px;display:flex;flex-direction:column}
-#nameTag{position:absolute;top:-15px;left:14px;background:var(--pop);
-  border:2.5px solid var(--ink);border-radius:100px;padding:2px 14px;
-  font-size:14px;box-shadow:0 3px 0 var(--ink);max-width:70%;
+/* --u はステージの大きさに合わせた倍率。MP4と同じ見た目にするために全部これで測る */
+#play{--u:1}
+#win{position:absolute;left:calc(10px * var(--u));right:calc(10px * var(--u));
+  bottom:calc(10px * var(--u) + var(--winup,0px));
+  background:rgba(255,254,247,.96);background-image:var(--dots);
+  background-size:calc(14px * var(--u)) calc(14px * var(--u));
+  border:calc(2.5px * var(--u)) solid var(--ink);border-radius:calc(14px * var(--u));
+  box-shadow:0 calc(4px * var(--u)) 0 var(--ink);
+  padding:calc(16px * var(--u)) calc(14px * var(--u)) calc(14px * var(--u));
+  min-height:calc(150px * var(--u));display:flex;flex-direction:column}
+#nameTag{position:absolute;top:calc(-15px * var(--u));left:calc(14px * var(--u));
+  background:var(--pop);
+  border:calc(2.5px * var(--u)) solid var(--ink);border-radius:100px;
+  padding:calc(2px * var(--u)) calc(14px * var(--u));
+  font-size:calc(14px * var(--u) * var(--fs,1));box-shadow:0 calc(3px * var(--u)) 0 var(--ink);max-width:70%;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #nameTag:empty{display:none}
-#body{flex:1;font-size:16px;line-height:1.75;letter-spacing:.3px;
+#body{flex:1;font-size:calc(16px * var(--u) * var(--fs,1));line-height:1.75;letter-spacing:.3px;
   white-space:pre-wrap;overflow:hidden}
-#caret{position:absolute;right:12px;bottom:8px;font-size:13px;opacity:0;
+#caret{position:absolute;right:calc(12px * var(--u));bottom:calc(8px * var(--u));
+  font-size:calc(13px * var(--u));opacity:0;
   font-family:"DotGothic16",monospace}
 #caret.on{opacity:1;animation:bob .9s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
-#playTools{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:5px;z-index:6;
+#playTools{position:absolute;top:calc(8px * var(--u));left:calc(8px * var(--u));
+  right:calc(8px * var(--u));display:flex;gap:calc(5px * var(--u));z-index:6;
   justify-content:flex-end}
-.mini{font-family:"DotGothic16",monospace;font-size:10px;letter-spacing:0;background:var(--card);
-  border:2.5px solid var(--ink);border-radius:100px;padding:3px 7px;box-shadow:var(--sh);
+.mini{font-family:"DotGothic16",monospace;letter-spacing:0;background:var(--card);
+  font-size:max(8px, calc(10px * var(--u)));
+  border:max(1.5px, calc(2.5px * var(--u))) solid var(--ink);border-radius:100px;
+  padding:max(2px, calc(3px * var(--u))) max(4px, calc(7px * var(--u)));
+  box-shadow:0 max(2px, calc(3px * var(--u))) 0 var(--ink);
   cursor:pointer;white-space:nowrap;flex:none}
 .mini.off{background:rgba(255,254,247,.55);color:var(--muted)}
 .mini:active{box-shadow:none;transform:translateY(3px)}
@@ -303,6 +317,8 @@ input[type=range]{width:100%;accent-color:var(--danger)}
       <div class="seg" id="segEdge"><button data-e="0">なし</button><button data-e="1">しろ</button><button data-e="2">くろ</button></div>
       <label class="f">ふちの太さ <span id="edgeV"></span></label>
       <input type="range" id="edgeW" min="1" max="8" step="1">
+      <label class="f">もじの大きさ <span id="fsV"></span></label>
+      <input type="range" id="fsR" min="80" max="180" step="5">
       <label class="f">セリフ窓のいち <span id="winV"></span></label>
       <input type="range" id="winY" min="0" max="35" step="1">
       <label class="f">ぽぽぽの高さ（きほん） <span id="pitV"></span></label>
@@ -365,7 +381,7 @@ var PRESETS=[
 ];
 
 /* ---------- 状態 ---------- */
-var S={bgs:[],chs:[],scenes:[],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v'}};
+var S={bgs:[],chs:[],scenes:[],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1}};
 
 /* ---------- 「ぽ」の音 ---------- */
 var AC=null,recDest=null;
@@ -416,7 +432,8 @@ function load(){
   S.cfg={spd:(S.cfg&&S.cfg.spd!=null)?S.cfg.spd:35,ppc:(S.cfg&&S.cfg.ppc)||90,
          snd:(S.cfg&&S.cfg.snd!=null)?S.cfg.snd:1,pitch:(S.cfg&&S.cfg.pitch)||3,
          edge:(S.cfg&&S.cfg.edge)||0,edgeW:(S.cfg&&S.cfg.edgeW)||3,winY:(S.cfg&&S.cfg.winY)||0,
-         two:(S.cfg&&S.cfg.two)||0,ratio:(S.cfg&&S.cfg.ratio)||'v'};
+         two:(S.cfg&&S.cfg.two)||0,ratio:(S.cfg&&S.cfg.ratio)||'v',
+         fs:(S.cfg&&S.cfg.fs)||1};
   S.scenes.forEach(fixScene);
   if(!S.scenes.length){
     S.scenes=[mkScene('ひなた','ねえ、ちょっとだけ……時間ある？\nどうしても、伝えたいことがあって。'),
@@ -515,6 +532,7 @@ var EDGEC=['','#fff','#1e1c14'];
 function ratioUI(){
   var h=S.cfg.ratio==='h';
   app.classList.toggle('land',h);
+  app.classList.toggle('narrow', h && window.innerWidth<window.innerHeight);
   Array.prototype.forEach.call($('#segRatio').querySelectorAll('button'),function(b){
     b.classList.toggle('on',(b.dataset.r==='h')===h)});
   setStage();
@@ -522,7 +540,10 @@ function ratioUI(){
 }
 $('#segRatio').onclick=function(e){
   var b=e.target.closest('button'); if(!b)return;
-  S.cfg.ratio=b.dataset.r; save(); ratioUI();
+  var was=S.cfg.ratio; S.cfg.ratio=b.dataset.r;
+  if(was!=='h'&&S.cfg.ratio==='h'&&S.cfg.fs===1)S.cfg.fs=1.3;
+  if(was==='h'&&S.cfg.ratio==='v'&&S.cfg.fs===1.3)S.cfg.fs=1;
+  save(); ratioUI();
 };
 function twoUIAll(){
   Array.prototype.forEach.call($('#segTwo').querySelectorAll('button'),function(b){
@@ -544,6 +565,10 @@ function styleUI0(){
   var ff=f+'drop-shadow(0 0 10px rgba(0,0,0,.25))';
   W('a').style.setProperty('--chfx',ff); W('b').style.setProperty('--chfx',ff);
   $('#win').style.setProperty('--winup', (S.cfg.winY/100*$('#play').getBoundingClientRect().height)+'px');
+  stageScale();
+  $('#play').style.setProperty('--fs',S.cfg.fs);
+  $('#fsV').textContent=Math.round(S.cfg.fs*100)+'%';
+  $('#fsR').value=Math.round(S.cfg.fs*100);
   $('#edgeV').textContent=S.cfg.edge?S.cfg.edgeW+'px':'（ふちなし）';
   $('#winV').textContent=S.cfg.winY?('上に'+S.cfg.winY+'%'):'いちばん下';
   $('#edgeW').value=S.cfg.edgeW; $('#winY').value=S.cfg.winY;
@@ -555,6 +580,12 @@ function W(t){return $(t==='b'?'#chB2':'#chA')}
 function P(sc,t){ return t==='b'
   ? {x:sc.x2==null?.73:sc.x2, y:sc.y2||0, s:sc.s2||1}
   : {x:sc.x==null?.5:sc.x,    y:sc.y||0,  s:sc.s||1}; }
+function stageScale(){
+  var pl=$('#play'),r=pl.getBoundingClientRect();
+  if(!r.width)return;
+  var base=(S.cfg.ratio==='h')?764:430;
+  pl.style.setProperty('--u', (r.width/base).toFixed(4));
+}
 function placeOne(t){
   var sc=S.scenes[idx],el=W(t); if(!sc)return;
   var q=P(sc,t),r=$('#play').getBoundingClientRect();
@@ -563,7 +594,7 @@ function placeOne(t){
   el.style.setProperty('--base','translate('+(q.x*r.width)+'px,'+(-q.y*r.height)+'px) translateX(-50%)');
   el.style.height=(88*q.s)+'%';
 }
-function placeCh(){ placeOne('a'); placeOne('b') }
+function placeCh(){ stageScale(); placeOne('a'); placeOne('b') }
 window.addEventListener('resize',function(){placeCh();styleUI()});
 /* ---------- びっくり効果 ---------- */
 function fire(fx){
@@ -824,6 +855,8 @@ $('#segEdge').onclick=function(e){
 };
 $('#edgeW').oninput=function(e){S.cfg.edgeW=+e.target.value;styleUI()};
 $('#edgeW').onchange=save;
+$('#fsR').oninput=function(e){S.cfg.fs=(+e.target.value)/100;styleUI0()};
+$('#fsR').onchange=save;
 $('#winY').oninput=function(e){S.cfg.winY=+e.target.value;styleUI()};
 $('#winY').onchange=save;
 $('#segPitch').onclick=function(e){
@@ -1026,6 +1059,8 @@ function drawAll(){drawAssets();drawScenes()}
 /* ---------- タブ ---------- */
 function toPlay(){
   app.classList.add('playing');
+  if(S.cfg.ratio==='h'&&window.innerWidth<window.innerHeight)
+    setTimeout(function(){toast('スマホを横向きにすると大きく見えます')},400);
   $('#play').classList.add('on');$('#edit').classList.remove('on');$('#fab').classList.remove('on');
   $('#tabPlay').classList.add('on');$('#tabEdit').classList.remove('on');render();
 }
@@ -1071,7 +1106,7 @@ $('#ppc').oninput=function(e){S.cfg.ppc=+e.target.value;cfgUI();save()};
 $('#clearAll').onclick=function(){
   if(!confirm('セリフも画像もぜんぶ消えます。いい？'))return;
   localStorage.removeItem(KEY); localStorage.removeItem(MK);
-  S={bgs:[],chs:[],scenes:[mkScene('','')],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v'}};
+  S={bgs:[],chs:[],scenes:[mkScene('','')],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1}};
   idx=0;save();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
 };
 
@@ -1150,23 +1185,24 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   drawCh(chIm ,sc,'a',two&&who==='b',(who!=='b')?fx:'',fp);
   if(veilA>0){CX.fillStyle='rgba(0,0,0,'+veilA+')';CX.fillRect(0,0,VW,VH)}
 
-  CX.font='700 16px '+FONT;
-  var padT=16,padB=14,lh=28;
+  var FS=S.cfg.fs||1;
+  CX.font='700 '+(16*FS)+'px '+FONT;
+  var padT=16,padB=14,lh=28*FS;
   var winH=Math.max(150,padT+lines.length*lh+padB);
   var wx=10,ww=VW-20,wy=VH-10-winH-VH*(S.cfg.winY||0)/100;
   CX.fillStyle='rgba(255,254,247,.96)';rr(wx,wy,ww,winH,14);CX.fill();
   CX.lineWidth=2.5;CX.strokeStyle='#1e1c14';CX.stroke();
 
   if(sc.name){
-    CX.font='700 14px '+FONT;
+    CX.font='700 '+(14*FS)+'px '+FONT;
     var tw=CX.measureText(sc.name).width,nw=tw+28;
     CX.fillStyle='#e1dd60';rr(wx+14,wy-15,nw,26,13);CX.fill();CX.stroke();
     CX.fillStyle='#1e1c14';CX.textBaseline='middle';CX.textAlign='left';
     CX.fillText(sc.name,wx+28,wy-1);
   }
-  CX.font='700 16px '+FONT;CX.fillStyle='#1e1c14';
+  CX.font='700 '+(16*FS)+'px '+FONT;CX.fillStyle='#1e1c14';
   CX.textBaseline='alphabetic';CX.textAlign='left';
-  var left=shown,ty=wy+padT+20;
+  var left=shown,ty=wy+padT+20*FS;
   for(var i=0;i<lines.length;i++){
     if(left<=0)break;
     var ln=lines[i].slice(0,left);left-=lines[i].length;
@@ -1300,7 +1336,8 @@ $('#btnExport').onclick=function(){
         if(t<s.fade/2){veil=t/(s.fade/2);bi=Math.max(0,s.i-1)}
         else veil=1-(t-s.fade/2)/(s.fade/2);
       }
-      if(cache!==s){cache=s;CX.font='700 16px '+FONT;s.lines=wrapLines(s.text,VW-20-28);lastN=-1}
+      if(cache!==s){cache=s;CX.font='700 '+(16*(S.cfg.fs||1))+'px '+FONT;
+        s.lines=wrapLines(s.text,VW-20-28);lastN=-1}
       var n=(s.type<=0)?s.text.length:
             Math.max(0,Math.min(s.text.length,Math.floor((t-s.fade)/(s.type/Math.max(1,s.text.length)))));
       if(t<s.fade)n=0;
