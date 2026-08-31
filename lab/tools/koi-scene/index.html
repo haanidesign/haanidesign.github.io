@@ -38,13 +38,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 #play{position:relative;flex:1;min-height:0;display:none;background:#000;overflow:hidden}
 #play.on{display:block}
 #bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#chImg{position:absolute;bottom:0;left:0;height:88%;width:auto;max-width:none;
-  object-fit:contain;object-position:center bottom;
+#chWrap{position:absolute;bottom:0;left:0;height:88%;
   transform:translate(var(--cx,0px),var(--cy,0px)) translateX(-50%);
   transition:transform .35s cubic-bezier(.3,1.4,.5,1),opacity .3s;
-  will-change:transform;filter:var(--chfx,drop-shadow(0 0 10px rgba(0,0,0,.25)))}
-#app.placing #chImg{transition:none}
-#chImg.in{animation:pin .4s cubic-bezier(.2,1.5,.4,1)}
+  will-change:transform;transform-origin:50% 100%;
+  filter:var(--chfx,drop-shadow(0 0 10px rgba(0,0,0,.25)))}
+#chWrap img{position:absolute;bottom:0;left:0;height:100%;width:auto;max-width:none;
+  object-fit:contain;object-position:center bottom}
+#chWrap img.sub{opacity:0}
+#chWrap img.sub.on{opacity:1}
+#app.placing #chWrap{transition:none}
+#chWrap.in{animation:pin .4s cubic-bezier(.2,1.5,.4,1)}
 @keyframes pin{
   from{transform:translate(var(--cx,0px),var(--cy,0px)) translateX(-50%) translateY(14px) scale(.98);opacity:0}
   to{transform:translate(var(--cx,0px),var(--cy,0px)) translateX(-50%);opacity:1}}
@@ -82,8 +86,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.clean #bar,#app.clean #playTools{display:none}
 
 /* びっくり効果（キャラだけ動く） */
-#chImg{transform-origin:50% 100%}
-#chImg.fxJolt{animation:fxJolt .42s cubic-bezier(.2,1.6,.4,1)}
+#chWrap.fxJolt{animation:fxJolt .42s cubic-bezier(.2,1.6,.4,1)}
 @keyframes fxJolt{
   0%{transform:var(--base) translate(0,0)}
   12%{transform:var(--base) translate(0,-14px) scale(1.04)}
@@ -91,7 +94,7 @@ button,input,select,textarea{font:inherit;color:inherit}
   46%{transform:var(--base) translate(0,-4px) scale(1.01)}
   62%{transform:var(--base) translate(0,1px)}
   100%{transform:var(--base) translate(0,0)}}
-#chImg.fxShake{animation:fxShake .55s linear}
+#chWrap.fxShake{animation:fxShake .55s linear}
 @keyframes fxShake{
   0%,100%{transform:var(--base) translate(0,0)}
   10%{transform:var(--base) translate(-5px,1px)}
@@ -109,7 +112,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.placing #placeBar{display:block}
 #placeBar .row{gap:8px}
 #placeHint{font-size:11px;color:var(--muted);font-weight:500;line-height:1.6;margin:0 0 6px}
-#app.placing #chImg{outline:3px dashed rgba(242,84,91,.9);outline-offset:2px;
+#app.placing #chWrap{outline:3px dashed rgba(242,84,91,.9);outline-offset:2px;
   transition:none;cursor:move}
 
 /* 書き出しオーバーレイ */
@@ -183,6 +186,20 @@ input[type=text]:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(225
   white-space:nowrap;overflow:hidden}
 .th.none{display:flex;align-items:center;justify-content:center;font-size:10px;
   font-family:"DotGothic16",monospace;color:var(--muted);text-align:center;padding:2px}
+#chEdit{display:none;margin-top:8px;border:2.5px solid var(--ink);border-radius:12px;
+  background:#fff;padding:8px 10px}
+#chEdit.on{display:block}
+#chEdit h3{margin:0 0 6px;font-size:13px}
+.faces{display:flex;gap:8px}
+.face{flex:1 1 0;text-align:center}
+.face .box{position:relative;height:96px;border:2.5px solid var(--ink);border-radius:10px;
+  background:var(--bg);overflow:hidden;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;box-shadow:0 2px 0 var(--ink)}
+.face .box img{max-width:100%;max-height:100%;object-fit:contain}
+.face .box span{font-size:10px;font-family:"DotGothic16",monospace;color:var(--muted);padding:4px}
+.face .nm{font-size:10px;margin-top:4px;font-family:"DotGothic16",monospace}
+.face .del{position:absolute;top:-1px;right:-1px;background:var(--danger);color:#fff;
+  font-size:10px;line-height:1;padding:3px 4px;border-radius:0 0 0 8px}
 .seg{display:flex;border:2.5px solid var(--ink);border-radius:10px;overflow:hidden;
   box-shadow:var(--sh);width:100%}
 .seg button{flex:1;background:var(--card);border:0;border-right:2.5px solid var(--ink);
@@ -207,7 +224,7 @@ input[type=range]{width:100%;accent-color:var(--danger)}
   <!-- ============ さいせい ============ -->
   <div id="play" class="on">
     <img id="bgImg" alt="">
-    <img id="chImg" alt="">
+    <div id="chWrap"><img id="chBase" alt=""><img id="chB" class="sub" alt=""><img id="chM" class="sub" alt=""></div>
     <div id="veil"></div>
     <div id="playTools">
       <button class="mini" id="btnSnd">おと</button>
@@ -243,8 +260,9 @@ input[type=range]{width:100%;accent-color:var(--danger)}
       <h2>そざい</h2>
       <label class="f">はいけい（さいしょの5つは見本）</label>
       <div class="thumbs" id="bgList"></div>
-      <label class="f">キャラ（背景ぬきPNG推奨）</label>
+      <label class="f">キャラ（背景ぬきPNG推奨・タップで表情を足す）</label>
       <div class="thumbs" id="chList"></div>
+      <div id="chEdit"></div>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="addBg">＋ はいけい</button>
         <button class="btn" id="addCh">＋ キャラ</button>
@@ -302,6 +320,7 @@ input[type=range]{width:100%;accent-color:var(--danger)}
 
 <input type="file" id="fileBg" accept="image/*" multiple>
 <input type="file" id="fileCh" accept="image/*" multiple>
+<input type="file" id="fileFace" accept="image/*">
 
 <script>
 var $=function(s){return document.querySelector(s)};
@@ -383,6 +402,23 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}
   catch(e){alert('保存できませんでした。画像がおおすぎるかもしれません。')}}
 
 /* ---------- 画像とりこみ（縮小してWebP化） ---------- */
+function importOne(f,done){
+  var r=new FileReader();
+  r.onload=function(){
+    var im=new Image();
+    im.onload=function(){
+      var s=Math.min(1,1100/Math.max(im.width,im.height));
+      var c=document.createElement('canvas');
+      c.width=Math.round(im.width*s); c.height=Math.round(im.height*s);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      var src=c.toDataURL('image/webp',.86);
+      if(src.indexOf('data:image/webp')!==0)src=c.toDataURL('image/png');
+      done(src);
+    };
+    im.src=r.result;
+  };
+  r.readAsDataURL(f);
+}
 function importFiles(files,kind,done){
   var left=files.length; if(!left)return;
   Array.prototype.forEach.call(files,function(f){
@@ -434,11 +470,14 @@ function render(){
   var sc=S.scenes[idx]; if(!sc)return;
   var bg=findBg(effBg(idx));
   $('#bgImg').src=bg?bg.src:PRESETS[0].src;
-  var ch=findCh(sc.ch),el=$('#chImg');
+  var ch=findCh(sc.ch),el=$('#chWrap');
   if(ch){
     if(el.dataset.cur!==ch.id){el.classList.remove('in');void el.offsetWidth;el.classList.add('in')}
-    el.dataset.cur=ch.id; el.src=ch.src; el.style.display='';
-  }else{el.style.display='none';el.removeAttribute('src');el.dataset.cur=''}
+    el.dataset.cur=ch.id; el.style.display='';
+    $('#chBase').src=ch.src;
+    setSub($('#chB'),ch.blink); setSub($('#chM'),ch.mouth);
+  }else{el.style.display='none';el.dataset.cur=''}
+  face(ch);
   placeCh();
   fire(sc.fx);
   $('#nameTag').textContent=sc.name||'';
@@ -450,7 +489,7 @@ function styleUI(){
   if(e){ f=['('+w+'px 0 0 '+c+')','(-'+w+'px 0 0 '+c+')',
             '(0 '+w+'px 0 '+c+')','(0 -'+w+'px 0 '+c+')']
           .map(function(o){return 'drop-shadow'+o}).join(' ')+' '; }
-  $('#chImg').style.setProperty('--chfx', f+'drop-shadow(0 0 10px rgba(0,0,0,.25))');
+  $('#chWrap').style.setProperty('--chfx', f+'drop-shadow(0 0 10px rgba(0,0,0,.25))');
   $('#win').style.setProperty('--winup', (S.cfg.winY/100*$('#play').getBoundingClientRect().height)+'px');
   $('#edgeV').textContent=S.cfg.edge?S.cfg.edgeW+'px':'（ふちなし）';
   $('#winV').textContent=S.cfg.winY?('上に'+S.cfg.winY+'%'):'いちばん下';
@@ -459,7 +498,7 @@ function styleUI(){
     b.classList.toggle('on',+b.dataset.e===S.cfg.edge)});
 }
 function placeCh(){
-  var sc=S.scenes[idx],el=$('#chImg'); if(!sc)return;
+  var sc=S.scenes[idx],el=$('#chWrap'); if(!sc)return;
   var r=$('#play').getBoundingClientRect();
   el.style.setProperty('--cx',(sc.x*r.width)+'px');
   el.style.setProperty('--cy',(-sc.y*r.height)+'px');
@@ -469,9 +508,31 @@ function placeCh(){
 window.addEventListener('resize',function(){placeCh();styleUI()});
 /* ---------- びっくり効果 ---------- */
 function fire(fx){
-  var el=$('#chImg'); el.classList.remove('fxJolt','fxShake');
+  var el=$('#chWrap'); el.classList.remove('fxJolt','fxShake');
   if(!fx)return; void el.offsetWidth;
   el.classList.add(fx==='shake'?'fxShake':'fxJolt');
+}
+/* ---------- まばたきと口パク ---------- */
+var blinkT=null,blinkOff=null,mouthOff=null;
+function setSub(el,src){ if(src){el.src=src;el.dataset.has='1'}else{el.removeAttribute('src');el.dataset.has=''} }
+function face(ch){
+  clearTimeout(blinkT);clearTimeout(blinkOff);clearTimeout(mouthOff);
+  $('#chB').classList.remove('on'); $('#chM').classList.remove('on');
+  if(ch&&ch.blink)loopBlink();
+}
+function loopBlink(){
+  clearTimeout(blinkT);
+  blinkT=setTimeout(function(){
+    if(!$('#chB').dataset.has)return;
+    $('#chM').classList.remove('on');
+    $('#chB').classList.add('on');
+    blinkOff=setTimeout(function(){$('#chB').classList.remove('on');loopBlink()},120);
+  }, 2600+Math.random()*3200);
+}
+function mouthOpen(){
+  var m=$('#chM'); if(!m.dataset.has||$('#chB').classList.contains('on'))return;
+  m.classList.add('on'); clearTimeout(mouthOff);
+  mouthOff=setTimeout(function(){m.classList.remove('on')},85);
 }
 function showPage(){ type(pages[page]) }
 function type(t){
@@ -482,7 +543,7 @@ function type(t){
   typing=setInterval(function(){
     var c=t.charAt(i);
     b.textContent=t.slice(0,++i);
-    if(i%2===1&&' 　\n、。！？…・'.indexOf(c)<0)po(voiceOf(S.scenes[idx]));
+    if(i%2===1&&' 　\n、。！？…・'.indexOf(c)<0){po(voiceOf(S.scenes[idx]));mouthOpen()}
     if(i>=t.length){clearInterval(typing);typing=null;finishType()}
   },Math.max(8,130-S.cfg.spd));
 }
@@ -663,9 +724,38 @@ function drawAssets(){
   thumbs($('#bgList'),allBgs(),'',function(){},function(id){
     S.bgs=S.bgs.filter(function(b){return b.id!==id});
     S.scenes.forEach(function(s){if(s.bg===id)s.bg=''});save();drawAll();},'');
-  thumbs($('#chList'),S.chs,'',function(){},function(id){
+  thumbs($('#chList'),S.chs,faceId,function(id){
+    faceId=(faceId===id)?'':id; drawAssets();},function(id){
     S.chs=S.chs.filter(function(c){return c.id!==id});
+    if(faceId===id)faceId='';
     S.scenes.forEach(function(s){if(s.ch===id)s.ch=''});save();drawAll();},'');
+  drawFaces();
+}
+var faceId='',faceSlot='';
+var SLOTS=[['src','ふつうの絵'],['blink','めをとじた絵'],['mouth','くちをあけた絵']];
+function drawFaces(){
+  var box=$('#chEdit'),ch=findCh(faceId);
+  if(!ch){box.classList.remove('on');box.innerHTML='';return}
+  box.classList.add('on');
+  var h='<h3>'+esc(ch.name||'キャラ')+' の表情</h3><div class="faces">';
+  SLOTS.forEach(function(sl){
+    var v=ch[sl[0]];
+    h+='<div class="face"><div class="box" data-k="'+sl[0]+'">'+
+       (v?'<img src="'+v+'">':'<span>タップして<br>えらぶ</span>')+
+       (v&&sl[0]!=='src'?'<div class="del" data-d="'+sl[0]+'">×</div>':'')+
+       '</div><div class="nm">'+sl[1]+'</div></div>';
+  });
+  h+='</div><p class="hint">同じ大きさ・同じ位置で描いた絵を入れてください。'+
+     'めをとじた絵があれば数秒おきにまばたきし、くちをあけた絵があればぽぽぽに合わせて口が動きます。</p>';
+  box.innerHTML=h;
+  Array.prototype.forEach.call(box.querySelectorAll('.box'),function(b){
+    b.onclick=function(e){
+      if(e.target.dataset.d){
+        ch[e.target.dataset.d]=''; save(); drawFaces(); render(); return;
+      }
+      faceSlot=b.dataset.k; $('#fileFace').click();
+    };
+  });
 }
 var openId=null;
 function label(sc){return (sc.name?sc.name+'：':'')+((sc.text||'（からっぽ）').replace(/\n/g,' ').slice(0,18))}
@@ -787,6 +877,11 @@ $('#addBg').onclick=function(){$('#fileBg').click()};
 $('#addCh').onclick=function(){$('#fileCh').click()};
 $('#fileBg').onchange=function(e){importFiles(e.target.files,'bg',drawAll);e.target.value=''};
 $('#fileCh').onchange=function(e){importFiles(e.target.files,'ch',drawAll);e.target.value=''};
+$('#fileFace').onchange=function(e){
+  var f=e.target.files[0],ch=findCh(faceId),k=faceSlot; if(!f||!ch||!k){e.target.value='';return}
+  importOne(f,function(src){ ch[k]=src; save(); drawFaces(); render(); });
+  e.target.value='';
+};
 
 function cfgUI(){
   $('#spd').value=S.cfg.spd; $('#ppc').value=S.cfg.ppc;
@@ -953,6 +1048,7 @@ $('#btnExport').onclick=function(){
   S.scenes.forEach(function(sc,i){
     var b=findBg(effBg(i)),c=findCh(sc.ch);
     srcs['b'+i]=b?b.src:'';srcs['c'+i]=c?c.src:'';
+    srcs['cb'+i]=(c&&c.blink)||'';srcs['cm'+i]=(c&&c.mouth)||'';
   });
   var keys=Object.keys(srcs);
   var ready=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
@@ -988,6 +1084,7 @@ $('#btnExport').onclick=function(){
 
     var total=0;tl.forEach(function(s){total+=s.fade+s.type+s.hold});
     var k=0,t0=performance.now(),done=0,lastN=-1,cache=null;
+    var blinkEnd=0,mouthEnd=0,blinkNext=performance.now()+2000;
     exporting=true;recorder.start(1000);
 
     recTimer=setInterval(function(){
@@ -1004,12 +1101,19 @@ $('#btnExport').onclick=function(){
       var n=(s.type<=0)?s.text.length:
             Math.max(0,Math.min(s.text.length,Math.floor((t-s.fade)/(s.type/Math.max(1,s.text.length)))));
       if(t<s.fade)n=0;
+      if(n>lastN&&n>0){
+        if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)mouthEnd=now+85;
+      }
       if(n>lastN&&n>0&&S.cfg.snd){
         if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)po(s.v);
         lastN=n;
       }
       var fdur=(s.fx==='shake')?550:420;
-      paint(S.scenes[bi]||sc,im['b'+bi],im['c'+bi],s.lines,n,s.text.length,veil,
+      var now=performance.now(),chIm=im['c'+bi];
+      if(now<blinkEnd&&im['cb'+bi])chIm=im['cb'+bi];
+      else if(now<mouthEnd&&im['cm'+bi])chIm=im['cm'+bi];
+      if(now>blinkNext){blinkEnd=now+120;blinkNext=now+120+2600+Math.random()*3200}
+      paint(S.scenes[bi]||sc,im['b'+bi],chIm,s.lines,n,s.text.length,veil,
             s.fx,s.fx?((t-s.fade)/fdur):-1);
       msg.textContent='書き出しちゅう… '+Math.round((done+Math.min(t,s.fade+s.type+s.hold))/total*100)+'%';
       bar.style.width=Math.min(100,(done+t)/total*100)+'%';
