@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=103';
-import { S, frameAsset, frameImage } from '../state.js?v=103';
+         nearestFolder } from '../engine/layer.js?v=105';
+import { S, frameAsset, frameImage } from '../state.js?v=105';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=103';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=103';
-import { paintCanvas } from '../engine/paint.js?v=103';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=103';
+         meshSizeFor } from '../engine/puppet.js?v=105';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=105';
+import { paintCanvas } from '../engine/paint.js?v=105';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=105';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

@@ -1,32 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=103';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=105';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=103';
+         splitFrames } from '../engine/layer.js?v=105';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=103';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=103';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=103';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=103';
-import { PRESET_GROUPS } from '../engine/presets.js?v=103';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=105';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=105';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=105';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=105';
+import { PRESET_GROUPS } from '../engine/presets.js?v=105';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=103';
+         addTextLayer } from '../io/text.js?v=105';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=103';
-import { PATTERN_NAMES } from '../io/pattern.js?v=103';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=103';
-import { newHand } from '../engine/hand.js?v=103';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=103';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=105';
+import { PATTERN_NAMES } from '../io/pattern.js?v=105';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=105';
+import { newHand } from '../engine/hand.js?v=105';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=105';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=103';
+  from './colorwheel.js?v=105';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=103';
+         guessBpm, firstOnset } from '../io/audio.js?v=105';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=103';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=105';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -202,6 +202,41 @@ export function field(label, node, valueNode){
   return r;
 }
 
+/* ---------- すべりを「よこに 動かした ときだけ」効かせる ----------
+   シートを 上下に めくって いる とちゅう、指が すべりの 上を
+   通る だけで 数字が 変わって しまって いた。
+
+   ・さわった しゅんかんの 数字を おぼえておく
+   ・たてに 動いた ぶんが よこより 大きい あいだは、
+     数字を もどして なかった ことに する
+   ・よこに 8ドット 動いたら「これは いじる 気だ」と きめて 効かせる
+
+   さらに touch-action:pan-y で、たての めくりは ブラウザに まかせる。 */
+function guardSlide(i, apply){
+  let x0 = 0, y0 = 0, v0 = null, armed = false;
+
+  i.addEventListener('pointerdown', (e) => {
+    x0 = e.clientX; y0 = e.clientY; v0 = i.value;
+    // マウスは まちがえようが ないので すぐ 効かせる
+    armed = e.pointerType === 'mouse';
+    if(armed) apply();
+  });
+
+  i.addEventListener('pointermove', (e) => {
+    if(armed || v0 === null) return;
+    const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+    if(dx >= 8 && dx > dy){ armed = true; apply(); }
+  });
+
+  i.addEventListener('input', () => {
+    if(armed) return apply();
+    i.value = v0;                 // まだ その気が ないので もどす
+  });
+
+  const end = () => { armed = false; v0 = null; };
+  ['pointerup', 'pointercancel', 'blur'].forEach(ev => i.addEventListener(ev, end));
+}
+
 export function slider(label, get, set, min, max, step, fmt){
   const i = document.createElement('input');
   i.type = 'range'; i.min = min; i.max = max; i.step = step; i.value = get();
@@ -210,7 +245,7 @@ export function slider(label, get, set, min, max, step, fmt){
   const show = () => v.textContent = (fmt ? fmt(+i.value) : (+i.value).toFixed(2));
   show();
   i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label + 'をかえる'); });
-  i.addEventListener('input', () => { set(+i.value); show(); onChange(); });
+  guardSlide(i, () => { set(+i.value); show(); onChange(); });
   i.addEventListener('change', () => { holdSheet(false); commitEdit(); });
   ['pointerup','pointercancel','blur'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
   return field(label, i, v);
@@ -237,7 +272,7 @@ export function animSlider(label, layer, ch, min, max, step, fmt){
   const show = () => val.textContent = (fmt ? fmt(+i.value) : (+i.value).toFixed(2));
   show();
   i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label + 'をかえる'); });
-  i.addEventListener('input', () => { set(+i.value); show(); onChange(); });
+  guardSlide(i, () => { set(+i.value); show(); onChange(); });
   i.addEventListener('change', () => { holdSheet(false); commitEdit(); });
   ['pointerup','pointercancel','blur'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
   return field(label, i, val);
@@ -1604,7 +1639,7 @@ export function buildTextSheet(box, closeFn){
     const show = () => v.textContent = fmt ? fmt(+i.value) : String(Math.round(+i.value));
     show();
     i.addEventListener('pointerdown', () => { holdSheet(true); if(editing) beginEdit(label); });
-    i.addEventListener('input', () => { set(+i.value); show(); if(!editing) redraw(); });
+    guardSlide(i, () => { set(+i.value); show(); if(!editing) redraw(); });
     i.addEventListener('change', () => { holdSheet(false); if(editing) commitEdit(); redraw(); });
     ['pointerup','pointercancel'].forEach(ev => i.addEventListener(ev, () => holdSheet(false)));
     return field(label, i, v);

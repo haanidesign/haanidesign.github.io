@@ -427,7 +427,10 @@
   flex:0 0 52px; text-align:right; font-size:.72rem; color:var(--gray); font-weight:400;
   font-variant-numeric:tabular-nums;
 }
-.field input[type=range]{ flex:1; }
+/* たてに めくる ときは ブラウザに まかせて、
+   すべりは よこの うごき だけを 受けとる。
+   （シートを めくって いる とちゅうに 数字が 変わるのを ふせぐ） */
+.field input[type=range]{ flex:1; touch-action:pan-y; }
 .rowbtns{ display:flex; gap:.4rem; padding-top:.4rem; }
 .rowbtns button{ flex:1; }
 
