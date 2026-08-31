@@ -941,7 +941,8 @@ function placeCh(){ stageScale(); placeOne('a'); placeOne('b') }
 window.addEventListener('resize',function(){placeCh();styleUI()});
 /* ---------- びっくり効果 ---------- */
 function fire(fx){
-  var t=(S.scenes[idx]&&S.scenes[idx].who==='b')?'b':'a',el=W(t);
+  var w=S.scenes[idx]&&S.scenes[idx].who;
+  var t=(w==='b')?'b':'a',el=W(t);
   W('a').classList.remove('fxJolt','fxShake'); W('b').classList.remove('fxJolt','fxShake');
   if(!fx)return; void el.offsetWidth;
   el.classList.add(fx==='shake'?'fxShake':'fxJolt');
@@ -965,6 +966,7 @@ function dimUI(){
   var two=!!(S.cfg.two&&effCh(idx,'ch')&&effCh(idx,'ch2')), w=sc.who||'a';
   W('a').classList.toggle('dim', two&&w==='b');
   W('b').classList.toggle('dim', two&&w==='a');
+  if(w==='n'){ W('a').classList.remove('dim'); W('b').classList.remove('dim'); }
 }
 function face(t,ch){
   var q=tm[t]; clearTimeout(q.b);clearTimeout(q.bo);clearTimeout(q.mo);
@@ -982,7 +984,7 @@ function loopBlink(t){
   }, 2600+Math.random()*3200);
 }
 function mouthOpen(){
-  var sc=S.scenes[idx]; if(!sc)return;
+  var sc=S.scenes[idx]; if(!sc||sc.who==='n')return;
   var t=(sc.who==='b')?'b':'a',el=W(t),q=tm[t];
   var m=el.querySelector('.mo');
   if(!m.dataset.has||el.querySelector('.bl').classList.contains('on'))return;
@@ -1566,9 +1568,11 @@ function drawScenes(){
       '<div class="seg i-bgm" style="flex-wrap:wrap;display:none;margin-top:6px"></div>'+
       '<label class="f">はいけい</label><div class="thumbs i-bg"></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1':'キャラ')+'</label><div class="thumbs i-ch"></div>'+
-      '<div class="only2"><label class="f">キャラ2</label><div class="thumbs i-ch2"></div>'+
+      '<div class="only2"><label class="f">キャラ2</label><div class="thumbs i-ch2"></div></div>'+
       '<label class="f">しゃべっているのは</label>'+
-      '<div class="seg i-who"><button data-w="a">キャラ1</button><button data-w="b">キャラ2</button></div></div>'+
+      '<div class="seg i-who"><button data-w="a">'+(S.cfg.two?'キャラ1':'このキャラ')+'</button>'+
+      (S.cfg.two?'<button data-w="b">キャラ2</button>':'')+
+      '<button data-w="n">だれも（ナレーション）</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1の立ちいち':'立ちいち')+'</label>'+
       '<div class="seg i-pos"><button data-p="0.27">ひだり</button><button data-p="0.5">まんなか</button><button data-p="0.73">みぎ</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1のおおきさ':'おおきさ')+' <span class="i-sv"></span></label>'+
@@ -1625,8 +1629,7 @@ function drawScenes(){
     }
     function twoUI(){
       var two=!!(S.cfg.two&&effCh(i,'ch')&&effCh(i,'ch2'));
-      b.querySelector('.i-who').style.opacity=two?1:.4;
-      if(!two)sc.who='a';
+      if(!two&&sc.who==='b')sc.who='a';
       Array.prototype.forEach.call(b.querySelectorAll('.i-who button'),function(y){
         y.classList.toggle('on',y.dataset.w===(sc.who||'a'))});
       if(i===idx&&$('#play').classList.contains('on')){placeCh();dimUI()}
@@ -1709,7 +1712,7 @@ $('#goPlay').onclick=function(){idx=0;toPlay()};
 /* ---------- ボタン ---------- */
 $('#addScene').onclick=function(){
   var p=S.scenes[S.scenes.length-1]||{};
-  var n=mkScene(p.name||'',''); n.ch='';
+  var n=mkScene(p.name||'',''); n.ch=''; n.who=p.who||'a';
   S.scenes.push(n); openId=n.id; save(); drawScenes();
   setTimeout(function(){
     var c=$('#scenes').lastElementChild; if(!c)return;
@@ -1804,9 +1807,9 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   CX.clearRect(0,0,VW,VH);
   CX.fillStyle='#000';CX.fillRect(0,0,VW,VH);
   cover(bgIm,0,0,VW,VH);
-  var two=!!(chIm&&chIm2), who=(sc.who==='b')?'b':'a';
+  var two=!!(chIm&&chIm2), who=(sc.who==='n')?'n':((sc.who==='b')?'b':'a');
   drawCh(chIm2,sc.__i||0,'b',two&&who==='a',(who==='b')?fx:'',fp);
-  drawCh(chIm ,sc.__i||0,'a',two&&who==='b',(who!=='b')?fx:'',fp);
+  drawCh(chIm ,sc.__i||0,'a',two&&who==='b',(who==='a')?fx:'',fp);
   if(veilA>0){CX.fillStyle='rgba(0,0,0,'+veilA+')';CX.fillRect(0,0,VW,VH)}
 
   var FS=S.cfg.fs||1;
@@ -1993,7 +1996,7 @@ $('#btnExport').onclick=function(){
       }
       var fdur=(s.fx==='shake')?550:420;
       var now=performance.now(),sb=S.scenes[bi]||sc;
-      var talk=(sb.who==='b')?'b':'a';
+      var talk=(sb.who==='n')?'':((sb.who==='b')?'b':'a');
       if(now>blinkNext){blinkEnd=now+120;blinkNext=now+120+2600+Math.random()*3200}
       if(now>blinkNext2){blinkEnd2=now+120;blinkNext2=now+120+2600+Math.random()*3200}
       var chIm=im['c'+bi], chIm2=im['d'+bi];
