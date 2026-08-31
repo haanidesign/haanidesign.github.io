@@ -27,8 +27,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* ---- 上バー ---- */
 #bar{display:flex;align-items:center;gap:8px;padding:8px 10px;
   background:var(--pop);border-bottom:2.5px solid var(--ink);flex:none}
-#bar h1{margin:0;font-size:14px;letter-spacing:.5px;flex:1;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
+#bar #home{margin:0;font-size:14px;font-weight:700;letter-spacing:.5px;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;
+  background:none;border:0;padding:0;cursor:pointer}
+#bar #home::before{content:"‹ ";font-size:16px}
+#app.athome #bar #home::before{content:""}
+#app.athome .tab{display:none}
 .tab{font-family:"DotGothic16",monospace;font-size:12px;letter-spacing:1px;
   background:var(--card);border:2.5px solid var(--ink);border-radius:100px;
   padding:4px 12px;box-shadow:var(--sh);cursor:pointer}
@@ -235,6 +239,16 @@ input[type=text]:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(225
 .face .nm{font-size:10px;margin-top:4px;font-family:"DotGothic16",monospace}
 .face .del{position:absolute;top:-1px;right:-1px;background:var(--danger);color:#fff;
   font-size:10px;line-height:1;padding:3px 4px;border-radius:0 0 0 8px}
+#homeView{flex:1;min-height:0;overflow-y:auto;display:none;padding:14px 12px 20px;
+  background:var(--bg);background-image:var(--dots);background-size:14px 14px}
+#app.athome #homeView{display:block}
+#app.athome #play,#app.athome #edit,#app.athome #fab,#app.athome #placeBar{display:none!important}
+.hh{margin:0 0 10px;font-size:12px;font-family:"DotGothic16",monospace;letter-spacing:1px;
+  display:flex;align-items:center;gap:6px}
+.hh::before{content:"";width:10px;height:10px;background:var(--pop);
+  border:2px solid var(--ink);border-radius:3px}
+#homeList .doc{background:var(--card);padding:8px}
+#homeList .doc img{width:56px;height:76px}
 #docList{margin-top:10px}
 .doc{display:flex;align-items:center;gap:8px;border:2.5px solid var(--ink);border-radius:12px;
   background:#fff;box-shadow:0 2px 0 var(--ink);padding:6px;margin-bottom:8px}
@@ -262,7 +276,7 @@ input[type=range]{width:100%;accent-color:var(--danger)}
 
 <div id="app">
   <div id="bar">
-    <h1>恋愛ゲーム画面メーカー</h1>
+    <button id="home" title="さくひん えらびに もどる">恋愛ゲーム画面メーカー</button>
     <button class="tab" id="tabEdit">つくる</button>
     <button class="tab on" id="tabPlay">みる</button>
   </div>
@@ -289,6 +303,20 @@ input[type=range]{width:100%;accent-color:var(--danger)}
       <div id="body"></div>
       <div id="caret">▼</div>
     </div>
+  </div>
+
+  <!-- ============ さくひん えらび ============ -->
+  <div id="homeView">
+    <h2 class="hh">さくひん</h2>
+    <div id="homeList"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn grow" id="homeNew">＋ あたらしく作る</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn g grow" id="homeIn">JSONから よみこむ</button>
+    </div>
+    <p class="hint">ほぞんは この端末の中に8こまで。JSONで書き出しておけば、
+      べつの端末やパソコンでも つづきを作れます。</p>
   </div>
 
   <!-- ============ へんしゅう ============ -->
@@ -443,6 +471,9 @@ function ac(){
   if(AC.state==='suspended')AC.resume();
   return AC;
 }
+/* そのセリフのはやさ。0 なら ぜんたいの設定に合わせる */
+function spdOf(sc){ return (sc&&sc.sp)?sc.sp:S.cfg.spd }
+
 /* こえの高さ 1..5（3がふつう） */
 var PITCH=[0,430,560,720,920,1180];
 function voiceOf(sc){
@@ -467,7 +498,7 @@ function po(base){
   }catch(e){}
 }
 function mkScene(n,t){return{id:uid(),name:n||'',text:t||'',bg:'',ch:'',x:.5,y:0,s:1,
-                            ch2:'',x2:.73,y2:0,s2:1,who:'a',fx:'',bgm:''}}
+                            ch2:'',x2:.73,y2:0,s2:1,who:'a',fx:'',bgm:'',sp:0}}
 function fixScene(sc){
   if(sc.x==null)sc.x=(sc.pos==='l')?.27:(sc.pos==='r')?.73:.5;
   if(sc.y==null)sc.y=0; if(sc.s==null)sc.s=1; if(sc.fx==null)sc.fx='';
@@ -714,15 +745,16 @@ function mouthOpen(){
 function showPage(){ type(pages[page]) }
 function type(t){
   clearInterval(typing);typing=null;
+  var sp=spdOf(S.scenes[idx]);
   var b=$('#body'); b.textContent=''; $('#caret').classList.remove('on');
-  if(S.cfg.spd<=0){b.textContent=t;finishType();return}
+  if(sp<=0){b.textContent=t;finishType();return}
   var i=0;
   typing=setInterval(function(){
     var c=t.charAt(i);
     b.textContent=t.slice(0,++i);
     if(i%2===1&&' 　\n、。！？…・'.indexOf(c)<0){po(voiceOf(S.scenes[idx]));mouthOpen()}
     if(i>=t.length){clearInterval(typing);typing=null;finishType()}
-  },Math.max(8,130-S.cfg.spd));
+  },Math.max(8,130-sp));
 }
 function finishType(){
   $('#caret').classList.add('on');
@@ -942,12 +974,23 @@ function docSave(){
   }).then(function(){ drawDocs(); toast('ほぞんしました'); })
     .catch(function(e){ if(e&&e.message!=='full')alert('ほぞんできませんでした：'+(e&&e.message||e)); });
 }
+function goHome(){
+  playing0=false; bgmStop(); setAuto(false);
+  clearInterval(typing); typing=null;
+  app.classList.add('athome');
+  app.classList.remove('playing','clean','placing');
+  drawDocs();
+}
+function leaveHome(){ app.classList.remove('athome'); toEdit(); }
 function drawDocs(){
-  var w=$('#docList'); if(!w)return;
+  var boxes=[$('#docList'),$('#homeList')].filter(Boolean);
+  if(!boxes.length)return;
   dbRun('readonly',function(st){return st.getAll()}).then(function(all){
     all=(all||[]).sort(function(a,b){return b.at-a.at});
+    boxes.forEach(function(w){ paint(w) });
+    function paint(w){
     w.innerHTML='';
-    if(!all.length){w.innerHTML='<p class="hint">まだ ほぞんは ありません。</p>';return}
+    if(!all.length){w.innerHTML='<p class="hint">まだ ほぞんは ありません。「あたらしく作る」から どうぞ。</p>';return}
     all.forEach(function(d){
       var el=document.createElement('div');
       el.className='doc'+(d.id===curDoc?' cur':'');
@@ -966,7 +1009,10 @@ function drawDocs(){
       };
       el.appendChild(b1);el.appendChild(b2);w.appendChild(el);
     });
-  }).catch(function(){ w.innerHTML='<p class="hint">ほぞんを よみだせませんでした。</p>'; });
+    }
+  }).catch(function(){
+    boxes.forEach(function(w){w.innerHTML='<p class="hint">ほぞんを よみだせませんでした。</p>'});
+  });
 }
 function applyState(j,name){
   S.bgs=j.bgs||[]; S.chs=j.chs||[]; S.scenes=(j.scenes||[]).map(fixScene);
@@ -983,15 +1029,28 @@ function applyState(j,name){
 function docOpen(id){
   dbRun('readonly',function(st){return st.get(id)}).then(function(d){
     if(!d)return;
-    curDoc=id; applyState(d.data,d.name); drawDocs(); toast('ひらきました');
+    curDoc=id; app.classList.remove('athome'); applyState(d.data,d.name); drawDocs();
   });
 }
 $('#docSave').onclick=docSave;
+function docNew(){
+  curDoc=''; $('#docName').value='';
+  app.classList.remove('athome');
+  applyState({scenes:[mkScene('ひなた','はじめまして。……えっと、なんて言えばいいのかな。'),
+                      mkScene('','うつむいたまま、彼女はスカートのすそをぎゅっと握った。')],
+              cfg:S.cfg},'');
+  S.scenes[0].bg='p_class'; save(); drawAll();
+  drawDocs();
+}
 $('#docNew').onclick=function(){
   if(!confirm('あたらしく作りはじめます。いまの内容は ほぞんしていないと消えます。'))return;
-  curDoc=''; $('#docName').value='';
-  applyState({scenes:[mkScene('ひなた','')],cfg:S.cfg},'');
-  drawDocs();
+  docNew();
+};
+$('#homeNew').onclick=docNew;
+$('#homeIn').onclick=function(){$('#fileJson').click()};
+$('#home').onclick=function(){
+  if(app.classList.contains('athome'))return;
+  goHome();
 };
 $('#jsonOut').onclick=function(){
   var name=($('#docName').value||'').trim()||'むだい';
@@ -1008,7 +1067,7 @@ $('#fileJson').onchange=function(e){
     try{
       var j=JSON.parse(r.result);
       var d=j.data||j, nm=j.name||f.name.replace(/\.koi\.json$|\.json$/,'');
-      curDoc=''; applyState(d,nm); drawDocs(); alert('よみこみました');
+      curDoc=''; app.classList.remove('athome'); applyState(d,nm); drawDocs();
     }catch(err){ alert('よみこめませんでした'); }
   };
   r.readAsText(f); e.target.value='';
@@ -1234,6 +1293,8 @@ function drawScenes(){
       '<button class="btn g i-place" style="width:100%;margin-top:4px">✥ 指でいちを合わせる</button>'+
       '<label class="f">この人のこえ <span class="i-vv"></span></label>'+
       '<input type="range" class="i-voice" min="0" max="5" step="1" value="'+(sc.v||0)+'">'+
+      '<label class="f">このセリフのはやさ <span class="i-spv"></span></label>'+
+      '<input type="range" class="i-spd" min="0" max="120" step="5" value="'+(sc.sp||0)+'">'+
       '<label class="f">とうじょうの効果</label>'+
       '<div class="seg i-fx"><button data-f="">なし</button><button data-f="jolt">びくっ</button><button data-f="shake">ぶるぶる</button></div>'+
       '<div class="row" style="margin-top:10px">'+
@@ -1310,6 +1371,14 @@ function drawScenes(){
       var n=0,iv=setInterval(function(){po(voiceOf(sc));if(++n>2)clearInterval(iv)},110);
     };
     voUI();
+    var sp=b.querySelector('.i-spd'),spv=b.querySelector('.i-spv');
+    function spUI(){
+      spv.textContent = !sc.sp ? 'ぜんたいの設定のまま'
+        : (sc.sp>=110?'とてもはやい':(sc.sp>=70?'はやい':(sc.sp<=25?'とてもゆっくり':(sc.sp<=45?'ゆっくり':'ふつう'))));
+    }
+    sp.oninput=function(e){ sc.sp=+e.target.value; spUI(); };
+    sp.onchange=function(){ save(); if(i===idx&&$('#play').classList.contains('on'))showPage(); };
+    spUI();
     b.querySelector('.i-play').onclick=function(){idx=i;toPlay()};
     b.querySelector('.i-dup').onclick=function(){
       var n=JSON.parse(JSON.stringify(sc)); n.id=uid();
@@ -1513,8 +1582,9 @@ function pickMime(){
 }
 
 function buildTimeline(){
-  var per=S.cfg.spd<=0?0:Math.max(8,130-S.cfg.spd),tl=[],prevBg=null;
+  var tl=[],prevBg=null;
   S.scenes.forEach(function(sc,i){
+    var sp=spdOf(sc), per=sp<=0?0:Math.max(8,130-sp);
     var bg=effBg(i),fade=(prevBg!==null&&bg!==prevBg)?380:0;prevBg=bg;
     splitPages(sc.text,S.cfg.ppc).forEach(function(tx,pi){
       var n=tx.length;
@@ -1644,5 +1714,6 @@ $('#btnExport').onclick=function(){
 };
 
 /* ---------- 起動 ---------- */
-load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawDocs();drawAll();render();
+load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
+goHome();
 </script>
