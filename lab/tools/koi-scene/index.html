@@ -180,7 +180,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .sec{background:var(--card);border:2.5px solid var(--ink);border-radius:14px;
   box-shadow:var(--sh);padding:10px;margin-bottom:12px}
 .sec>h2{margin:0 0 8px;font-size:12px;font-family:"DotGothic16",monospace;letter-spacing:1px;
-  display:flex;align-items:center;gap:6px}
+  display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+.sec>h2::after{content:"▾";margin-left:auto;font-size:11px;color:var(--muted)}
+.sec.closed>h2::after{content:"▸"}
+.sec.closed>h2{margin:0}
+.sec.closed>*:not(h2){display:none}
 .sec>h2::before{content:"";width:10px;height:10px;background:var(--pop);
   border:2px solid var(--ink);border-radius:3px}
 label.f{display:block;font-size:11px;color:var(--muted);margin:8px 0 3px;
@@ -324,7 +328,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
   <!-- ============ へんしゅう ============ -->
   <div id="edit">
     <div class="sec">
-      <h2>さくひん</h2>
+      <h2 data-k="doc">さくひん</h2>
       <label class="f">なまえ</label>
       <input type="text" id="docName" placeholder="むだい" maxlength="24">
       <div class="row" style="margin-top:8px">
@@ -341,7 +345,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
     </div>
 
     <div class="sec">
-      <h2>そざい</h2>
+      <h2 data-k="mat">そざい</h2>
       <label class="f">はいけい（「見本」は もとから入っているもの）</label>
       <div class="thumbs" id="bgList"></div>
       <label class="f">キャラ（背景ぬきPNG・PSD どちらでも／タップで表情を足す）</label>
@@ -355,7 +359,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
     </div>
 
     <div class="sec">
-      <h2>せってい</h2>
+      <h2 data-k="cfg">せってい</h2>
       <label class="f">もじの出るはやさ <span id="spdV"></span></label>
       <input type="range" id="spd" min="0" max="120" step="5">
       <label class="f">1ページの文字数（じどう改ページ） <span id="ppcV"></span></label>
@@ -393,7 +397,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
     </div>
 
     <div class="sec">
-      <h2>セリフ</h2>
+      <h2 data-k="line">セリフ</h2>
       <div id="scenes"></div>
       <button class="btn" id="addScene" style="width:100%">＋ セリフを追加</button>
     </div>
@@ -1899,8 +1903,25 @@ document.addEventListener('pointermove',function(e){
   },true);
 });
 
+/* ---------- 見出しを おして 開け閉め ---------- */
+var FOLD=KEY+'_fold';
+function foldGet(){ try{return JSON.parse(localStorage.getItem(FOLD))||null}catch(e){return null} }
+function foldSet(o){ try{localStorage.setItem(FOLD,JSON.stringify(o))}catch(e){} }
+function foldInit(){
+  var st=foldGet()||{doc:1,mat:1,cfg:1,line:0};   /* さいしょは セリフだけ ひらく */
+  Array.prototype.forEach.call(document.querySelectorAll('.sec>h2[data-k]'),function(h){
+    var sec=h.parentElement,k=h.dataset.k;
+    sec.classList.toggle('closed',!!st[k]);
+    h.onclick=function(){
+      var o=foldGet()||st;
+      o[k]=sec.classList.toggle('closed')?1:0;
+      foldSet(o);
+    };
+  });
+}
+
 /* ---------- 起動 ---------- */
-load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
+load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();foldInit();drawAll();render();
 app.classList.add('athome');drawDocs();
 if(curDoc)dbRun('readonly',function(st){return st.get(curDoc)}).then(function(d){
   if(d)$('#docName').value=d.name||'';
