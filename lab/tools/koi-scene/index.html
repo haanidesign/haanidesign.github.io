@@ -525,8 +525,13 @@ function load(){
     S.scenes[0].bg='p_class';
   }
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}
-  catch(e){alert('保存できませんでした。画像がおおすぎるかもしれません。')}}
+var saveWarned=false;
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(S))}
+  catch(e){ if(!saveWarned){saveWarned=true;
+    alert('この端末の かんたん保存が いっぱいです。さくひんの ほぞんは つづきます。');} }
+  if(typeof autoSave==='function')autoSave();
+}
 
 /* ---------- 画像とりこみ（縮小してWebP化） ---------- */
 function importOne(f,done){
@@ -953,6 +958,8 @@ function dbRun(mode,fn){
   });
 }
 var curDoc='';
+try{curDoc=localStorage.getItem(KEY+'_doc')||''}catch(e){}
+function setCur(id){curDoc=id;try{localStorage.setItem(KEY+'_doc',id||'')}catch(e){}}
 function docThumb(){
   return new Promise(function(ok){
     var bg=findBg(effBg(0));
@@ -981,7 +988,7 @@ function docSave(){
     return docThumb();
   }).then(function(th){
     var id=curDoc||('d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-    curDoc=id;
+    setCur(id);
     return dbRun('readwrite',function(st){
       return st.put({id:id,at:Date.now(),name:name,thumb:th,data:JSON.parse(JSON.stringify(S))});
     });
@@ -989,6 +996,7 @@ function docSave(){
     .catch(function(e){ if(e&&e.message!=='full')alert('ほぞんできませんでした：'+(e&&e.message||e)); });
 }
 function goHome(){
+  autoNow();
   playing0=false; bgmStop(); setAuto(false);
   clearInterval(typing); typing=null;
   app.classList.add('athome');
@@ -996,6 +1004,35 @@ function goHome(){
   drawDocs();
 }
 function leaveHome(){ app.classList.remove('athome'); toEdit(); }
+/* 手が止まったら ひとりでに しまう。ボタンを押さなくても消えないように */
+var autoT=null,autoWarn=false;
+function autoSave(){
+  if(app.classList.contains('athome'))return;
+  clearTimeout(autoT);
+  autoT=setTimeout(function(){ autoNow() },1200);
+}
+function autoNow(){
+  if(app.classList.contains('athome'))return Promise.resolve();
+  var name=($('#docName').value||'').trim()||'むだい';
+  var snap=JSON.parse(JSON.stringify(S));
+  return dbRun('readonly',function(st){return st.getAll()}).then(function(all){
+    all=all||[];
+    if(!curDoc&&all.length>=MAXDOC){
+      if(!autoWarn){autoWarn=true;toast('ほぞんが8こでいっぱいです');}
+      return;
+    }
+    var id=curDoc;
+    if(!id){ id='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); setCur(id); }
+    var old=null;
+    for(var i=0;i<all.length;i++)if(all[i].id===id)old=all[i];
+    var th=(old&&old.thumb)?Promise.resolve(old.thumb):docThumb();
+    return th.then(function(t){
+      return dbRun('readwrite',function(st){
+        return st.put({id:id,at:Date.now(),name:name,thumb:t||null,data:snap});
+      });
+    }).then(function(){ drawDocs() });
+  }).catch(function(){});
+}
 function drawDocs(){
   var boxes=[$('#docList'),$('#homeList')].filter(Boolean);
   if(!boxes.length)return;
@@ -1012,14 +1049,15 @@ function drawDocs(){
         ('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
       var n=(d.data&&d.data.scenes)?d.data.scenes.length:0;
       el.innerHTML=(d.thumb?'<img src="'+d.thumb+'">':'<img>')+
-        '<div class="t"><b>'+esc(d.name)+'</b><span>'+ds+' ・ セリフ'+n+'</span></div>';
+        '<div class="t"><b>'+esc(d.name)+'</b><span>'+ds+' ・ セリフ'+n+
+         (d.id===curDoc?' ・ 作りかけ':'')+'</span></div>';
       var b1=document.createElement('button');b1.className='btn g';b1.textContent='ひらく';
       b1.onclick=function(){docOpen(d.id)};
       var b2=document.createElement('button');b2.className='ico';b2.textContent='×';
       b2.onclick=function(){
         if(!confirm('「'+d.name+'」を消しますか？'))return;
         dbRun('readwrite',function(st){return st.delete(d.id)}).then(function(){
-          if(curDoc===d.id)curDoc='';drawDocs();});
+          if(curDoc===d.id)setCur('');drawDocs();});
       };
       el.appendChild(b1);el.appendChild(b2);w.appendChild(el);
     });
@@ -1043,12 +1081,13 @@ function applyState(j,name){
 function docOpen(id){
   dbRun('readonly',function(st){return st.get(id)}).then(function(d){
     if(!d)return;
-    curDoc=id; app.classList.remove('athome'); applyState(d.data,d.name); drawDocs();
+    setCur(id); app.classList.remove('athome'); applyState(d.data,d.name); drawDocs();
   });
 }
+$('#docName').oninput=function(){autoSave()};
 $('#docSave').onclick=docSave;
 function docNew(){
-  curDoc=''; $('#docName').value='';
+  setCur(''); $('#docName').value='';
   app.classList.remove('athome');
   applyState({scenes:[mkScene('ひなた','はじめまして。……えっと、なんて言えばいいのかな。'),
                       mkScene('','うつむいたまま、彼女はスカートのすそをぎゅっと握った。')],
@@ -1081,7 +1120,7 @@ $('#fileJson').onchange=function(e){
     try{
       var j=JSON.parse(r.result);
       var d=j.data||j, nm=j.name||f.name.replace(/\.koi\.json$|\.json$/,'');
-      curDoc=''; app.classList.remove('athome'); applyState(d,nm); drawDocs();
+      setCur(''); app.classList.remove('athome'); applyState(d,nm); drawDocs();
     }catch(err){ alert('よみこめませんでした'); }
   };
   r.readAsText(f); e.target.value='';
@@ -1737,7 +1776,15 @@ $('#btnExport').onclick=function(){
   });
 };
 
+/* 画面を閉じる・タブを裏に回す・もどるボタン。そのときも しまう */
+window.addEventListener('visibilitychange',function(){ if(document.hidden)autoNow() });
+window.addEventListener('pagehide',function(){ autoNow() });
+window.addEventListener('beforeunload',function(){ autoNow() });
+
 /* ---------- 起動 ---------- */
 load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
-goHome();
+app.classList.add('athome');drawDocs();
+if(curDoc)dbRun('readonly',function(st){return st.get(curDoc)}).then(function(d){
+  if(d)$('#docName').value=d.name||'';
+}).catch(function(){});
 </script>
