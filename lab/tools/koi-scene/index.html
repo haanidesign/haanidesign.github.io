@@ -155,6 +155,28 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.placing .chWrap.sel .base{outline:3px dashed rgba(225,221,96,.95);outline-offset:2px}
 #app.placing .chWrap{cursor:move}
 
+/* PSDの レイヤーえらび */
+#psdOv{position:absolute;inset:0;background:rgba(30,28,20,.86);z-index:22;
+  display:none;align-items:center;justify-content:center;padding:12px}
+#psdOv.on{display:flex}
+.psdBox{width:100%;max-width:360px;max-height:92%;overflow-y:auto;background:var(--card);
+  border:2.5px solid var(--ink);border-radius:14px;box-shadow:0 5px 0 #000;padding:12px}
+.psdBox h3{margin:0 0 6px;font-size:14px}
+.psdPrev{display:flex;gap:6px;margin-bottom:10px}
+.psdPrev>div{flex:1;text-align:center}
+.psdPrev canvas{width:100%;height:92px;object-fit:contain;border:2.5px solid var(--ink);
+  border-radius:8px;background:var(--bg)}
+.psdPrev span{font-size:10px;font-family:"DotGothic16",monospace;color:var(--muted)}
+.psdHead{display:flex;align-items:center;gap:4px;font-size:10px;
+  font-family:"DotGothic16",monospace;color:var(--muted);padding:0 2px 4px}
+.psdHead b{flex:1;font-weight:400}
+.psdHead i{width:44px;text-align:center;font-style:normal}
+.pl{display:flex;align-items:center;gap:4px;border-bottom:2px solid var(--line);padding:5px 2px}
+.pl b{flex:1;min-width:0;font-size:12px;font-weight:700;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.pl label{width:44px;display:flex;justify-content:center}
+.pl input{width:20px;height:20px;accent-color:var(--danger)}
+
 /* 書き出しオーバーレイ */
 #expOv{position:absolute;inset:0;background:rgba(30,28,20,.86);z-index:20;
   display:none;align-items:center;justify-content:center;padding:16px}
@@ -348,14 +370,14 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
       <h2 data-k="mat">そざい</h2>
       <label class="f">はいけい（「見本」は もとから入っているもの）</label>
       <div class="thumbs" id="bgList"></div>
-      <label class="f">キャラ（背景ぬきPNG・PSD どちらでも／タップで表情を足す）</label>
+      <label class="f">キャラ（PNG・PSD どちらでも／タップで表情を足す）</label>
       <div class="thumbs" id="chList"></div>
       <div id="chEdit"></div>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="addBg">＋ はいけい</button>
         <button class="btn" id="addCh">＋ キャラ</button>
       </div>
-      <p class="hint">画像はこの端末の中だけに保存されます。サムネ右上の「×」で削除。</p>
+      <p class="hint">画像はこの端末の中だけに保存されます。サムネ右上の「×」で削除。<br>PSDを入れると レイヤーを えらぶ画面が出ます。「めとじ」「くちあけ」を作れば まばたきと 口パクに つかわれます。</p>
     </div>
 
     <div class="sec">
@@ -418,6 +440,25 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
 
   <div id="fab">
     <button class="btn grow" id="goPlay">▶ さいしょから見る</button>
+  </div>
+
+  <div id="psdOv">
+    <div class="psdBox">
+      <h3>PSDの レイヤー</h3>
+      <p class="hint" style="margin:0 0 8px">どの絵を つかうか チェックしてください。
+        「めとじ」「くちあけ」を 入れておくと、まばたきと 口パクに つかわれます。</p>
+      <div class="psdPrev">
+        <div><canvas class="pv" data-c="0"></canvas><span>ふつう</span></div>
+        <div><canvas class="pv" data-c="1"></canvas><span>めとじ</span></div>
+        <div><canvas class="pv" data-c="2"></canvas><span>くちあけ</span></div>
+      </div>
+      <div class="psdHead"><b>レイヤー</b><i>ふつう</i><i>めとじ</i><i>くちあけ</i></div>
+      <div id="psdList"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn grow" id="psdOk">これで 入れる</button>
+        <button class="btn g" id="psdNo">やめる</button>
+      </div>
+    </div>
   </div>
 
   <div id="expOv">
@@ -580,6 +621,101 @@ function psdFlatten(psd){
   })(psd.children);
   return c;
 }
+/* グループを ひらいて 絵を持つレイヤーだけ 順番に ならべる */
+function psdLayers(psd){
+  var out=[];
+  (function walk(list,pre){
+    (list||[]).forEach(function(l){
+      if(l.children&&l.children.length){ walk(l.children,pre+(l.name||'')+' / '); return }
+      if(!l.canvas)return;
+      out.push({name:pre+(l.name||'なまえなし'),canvas:l.canvas,
+                left:l.left||0,top:l.top||0,
+                opacity:(l.opacity==null?1:l.opacity),hidden:!!l.hidden});
+    });
+  })(psd.children,'');
+  return out;
+}
+/* なまえから めとじ・くちあけ を あてる */
+function psdGuess(name,hidden){
+  var n=(name||'').toLowerCase();
+  var eye=/目|め|eye|まぶた|eyelid/.test(name)||/eye/.test(n);
+  var mouth=/口|くち|mouth|lip/.test(name)||/mouth|lip/.test(n);
+  var close=/閉|とじ|つむ|close|shut|blink/.test(name)||/close|shut|blink/.test(n);
+  var open=/開|あけ|あき|open/.test(name)||/open/.test(n);
+  if(eye&&close)  return [0,1,0];
+  if(eye&&open)   return [1,0,1];
+  if(mouth&&open) return [0,0,1];
+  if(mouth&&close)return [1,1,0];
+  return hidden?[0,0,0]:[1,1,1];
+}
+function psdCompose(psd,layers,col,max){
+  var c=document.createElement('canvas');
+  c.width=psd.width; c.height=psd.height;
+  var x=c.getContext('2d');
+  layers.forEach(function(l){
+    if(!l.use[col])return;
+    x.globalAlpha=l.opacity; x.drawImage(l.canvas,l.left,l.top); x.globalAlpha=1;
+  });
+  if(max&&Math.max(c.width,c.height)>max){
+    var sc=max/Math.max(c.width,c.height);
+    var d=document.createElement('canvas');
+    d.width=Math.round(c.width*sc); d.height=Math.round(c.height*sc);
+    d.getContext('2d').drawImage(c,0,0,d.width,d.height);
+    return d;
+  }
+  return c;
+}
+function toSrc(c){
+  var out=c.toDataURL('image/webp',.86);
+  if(out.indexOf('data:image/webp')!==0)out=c.toDataURL('image/png');
+  return out;
+}
+/* PSD を ひらいて レイヤーを えらんでもらう。3枚ぶんを かえす */
+function psdPick(f,max){
+  return needPsd().then(function(){ return f.arrayBuffer() }).then(function(buf){
+    var psd=self.agPsd.readPsd(buf,{skipThumbnail:true,skipCompositeImageData:true});
+    var layers=psdLayers(psd);
+    if(!layers.length)throw new Error('絵のレイヤーが 見つかりませんでした');
+    layers.forEach(function(l){ l.use=psdGuess(l.name,l.hidden) });
+    return new Promise(function(ok,ng){
+      var ov=$('#psdOv'),list=$('#psdList');
+      list.innerHTML='';
+      layers.slice().reverse().forEach(function(l){
+        var row=document.createElement('div'); row.className='pl';
+        row.innerHTML='<b>'+esc(l.name)+'</b>';
+        [0,1,2].forEach(function(ci){
+          var lb=document.createElement('label');
+          var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!l.use[ci];
+          cb.onchange=function(){ l.use[ci]=cb.checked?1:0; prev() };
+          lb.appendChild(cb); row.appendChild(lb);
+        });
+        list.appendChild(row);
+      });
+      function prev(){
+        [0,1,2].forEach(function(ci){
+          var cv=ov.querySelector('.pv[data-c="'+ci+'"]');
+          var src=psdCompose(psd,layers,ci,220);
+          cv.width=src.width; cv.height=src.height;
+          cv.getContext('2d').drawImage(src,0,0);
+        });
+      }
+      prev();
+      ov.classList.add('on');
+      $('#psdOk').onclick=function(){
+        ov.classList.remove('on');
+        var base=toSrc(psdCompose(psd,layers,0,max));
+        var same1=JSON.stringify(layers.map(function(l){return l.use[1]}))===
+                  JSON.stringify(layers.map(function(l){return l.use[0]}));
+        var same2=JSON.stringify(layers.map(function(l){return l.use[2]}))===
+                  JSON.stringify(layers.map(function(l){return l.use[0]}));
+        ok({src:base,
+            blink:same1?'':toSrc(psdCompose(psd,layers,1,max)),
+            mouth:same2?'':toSrc(psdCompose(psd,layers,2,max))});
+      };
+      $('#psdNo').onclick=function(){ ov.classList.remove('on'); ng(new Error('やめました')) };
+    });
+  });
+}
 function psdToSrc(f,max){
   return needPsd().then(function(ag){
     return f.arrayBuffer();
@@ -630,11 +766,18 @@ function importFiles(files,kind,done){
   Array.prototype.forEach.call(files,function(f){
     if(isPsd(f)){
       toast('PSDを ひらいています…');
-      psdToSrc(f,(kind==='bg')?1280:1100).then(function(src){
-        (kind==='bg'?S.bgs:S.chs).push({id:uid(),name:f.name.replace(/\.[^.]+$/,'').slice(0,8),src:src});
+      var nm=f.name.replace(/\.[^.]+$/,'').slice(0,8);
+      var job=(kind==='bg')
+        ? psdToSrc(f,1280).then(function(src){return {src:src}})
+        : psdPick(f,1100);
+      job.then(function(r){
+        var rec={id:uid(),name:nm,src:r.src};
+        if(r.blink)rec.blink=r.blink;
+        if(r.mouth)rec.mouth=r.mouth;
+        (kind==='bg'?S.bgs:S.chs).push(rec);
         if(--left===0){save();done()}
       }).catch(function(e){
-        alert('PSDを ひらけませんでした：'+(e&&e.message||e));
+        if(!/やめました/.test(e&&e.message||''))alert('PSDを ひらけませんでした：'+(e&&e.message||e));
         if(--left===0){save();done()}
       });
       return;
