@@ -33,6 +33,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 #bar #home::before{content:"‹ ";font-size:16px}
 #app.athome #bar #home::before{content:""}
 #app.athome .tab{display:none}
+#undo{padding:4px 10px;font-size:14px}
+#undo[disabled]{opacity:.35;box-shadow:none;transform:translateY(3px);cursor:default}
 .tab{font-family:"DotGothic16",monospace;font-size:12px;letter-spacing:1px;
   background:var(--card);border:2.5px solid var(--ink);border-radius:100px;
   padding:4px 12px;box-shadow:var(--sh);cursor:pointer}
@@ -287,6 +289,8 @@ input[type=text]:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(225
 .doc .t span{font-size:10px;color:var(--muted);font-family:"DotGothic16",monospace}
 .doc.cur{box-shadow:0 2px 0 var(--ink),0 0 0 3px var(--pop)}
 .only2{display:none}
+body.locked .i-pos,body.locked .i-size{opacity:.4}
+body.locked #btnPlace,body.locked .i-place{opacity:.5}
 body.two .only2{display:block}
 .seg{display:flex;border:2.5px solid var(--ink);border-radius:10px;overflow:hidden;
   box-shadow:var(--sh);width:100%}
@@ -305,6 +309,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
 <div id="app">
   <div id="bar">
     <button id="home" title="さくひん えらびに もどる">恋愛ゲーム画面メーカー</button>
+    <button class="tab" id="undo" title="ひとつ もどす">↩</button>
     <button class="tab" id="tabEdit">つくる</button>
     <button class="tab on" id="tabPlay">みる</button>
   </div>
@@ -388,6 +393,9 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
       <input type="range" id="ppc" min="30" max="200" step="5">
       <label class="f">文字が出るときの音</label>
       <div class="seg" id="segSnd"><button data-s="1">ぽぽぽ鳴らす</button><button data-s="0">しずかに</button></div>
+      <label class="f">キャラの立ちいち</label>
+      <div class="seg" id="segLock"><button data-l="0">うごかせる</button><button data-l="1">かためる</button></div>
+      <p class="hint">「かためる」にすると、まちがえて 動かしてしまうことが なくなります。</p>
       <label class="f">画面のかたち</label>
       <div class="seg" id="segRatio"><button data-r="v">たて（スマホ）</button><button data-r="h">よこ（据え置き風）</button></div>
       <p class="hint">よこは16:9で書き出します。YouTube向け。たては9:16でTikTok・リール向け。</p>
@@ -509,7 +517,7 @@ var BGMS=[
 function findBgm(id){for(var i=0;i<BGMS.length;i++)if(BGMS[i].id===id)return BGMS[i];return null}
 
 /* ---------- 状態 ---------- */
-var S={bgs:[],chs:[],scenes:[],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60}};
+var S={bgs:[],chs:[],scenes:[],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60,lock:0}};
 
 /* ---------- 「ぽ」の音 ---------- */
 var AC=null,recDest=null;
@@ -578,6 +586,7 @@ function save(){
   try{localStorage.setItem(KEY,JSON.stringify(S))}
   catch(e){ if(!saveWarned){saveWarned=true;
     alert('この端末の かんたん保存が いっぱいです。さくひんの ほぞんは つづきます。');} }
+  if(typeof pushHist==='function')pushHist();
   if(typeof autoSave==='function')autoSave();
 }
 
@@ -856,6 +865,17 @@ function render(){
   pages=splitPages(sc.text,S.cfg.ppc); page=0; showPage();
 }
 var EDGEC=['','#fff','#1e1c14'];
+function lockUI(){
+  var on=!!S.cfg.lock;
+  Array.prototype.forEach.call($('#segLock').querySelectorAll('button'),function(b){
+    b.classList.toggle('on',(+b.dataset.l===1)===on)});
+  document.body.classList.toggle('locked',on);
+}
+$('#segLock').onclick=function(e){
+  var b=e.target.closest('button'); if(!b)return;
+  S.cfg.lock=+b.dataset.l; save(); lockUI();
+  if(S.cfg.lock&&placing)setPlacing(false);
+};
 function ratioUI(){
   var h=S.cfg.ratio==='h';
   app.classList.toggle('land',h);
@@ -1036,7 +1056,7 @@ $('#play').addEventListener('pointerdown',function(e){
     holdT=setTimeout(function(){app.classList.remove('clean');eatTap=true;toast('もどりました')},600);
     return;
   }
-  if(placing||e.target.closest('#playTools'))return;
+  if(placing||S.cfg.lock||e.target.closest('#playTools'))return;
   clearTimeout(holdT);
   var sx=e.clientX,sy=e.clientY,id=e.pointerId;
   holdPos={x:sx,y:sy};
@@ -1105,7 +1125,10 @@ $('#placeWho').onclick=function(e){
   var b=e.target.closest('button'); if(b)setPT(b.dataset.t);
 };
 function setP(sc,t,k,v){ sc[t==='b'?k+'2':k]=v }
-$('#btnPlace').onclick=function(){setPlacing(true)};
+$('#btnPlace').onclick=function(){
+  if(S.cfg.lock){toast('立ちいちを かためています');return}
+  setPlacing(true);
+};
 $('#placeOk').onclick=function(){setPlacing(false)};
 function nudge(x){var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'x',x);placeCh();save()}
 $('#placeL').onclick=function(){nudge(.22)};
@@ -1303,8 +1326,8 @@ function applyState(j,name){
   S.cfg={spd:c.spd!=null?c.spd:35, ppc:c.ppc||90, snd:c.snd!=null?c.snd:1,
          pitch:c.pitch||3, edge:c.edge||0, edgeW:c.edgeW||3, winY:c.winY||0,
          two:c.two||0, ratio:c.ratio||'v', fs:c.fs||1, bgmV:c.bgmV!=null?c.bgmV:60};
-  idx=0; save();
-  cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();
+  idx=0; hist=[]; lastSnap=null; save(); undoUI();
+  cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();lockUI();markUI();drawAll();
   if(name!=null)$('#docName').value=name;
   toEdit();
 }
@@ -1644,7 +1667,9 @@ function drawScenes(){
         y.classList.toggle('on',(sel==='.i-pos'?+y.dataset.p:y.dataset.f)===val)});
     }
     Array.prototype.forEach.call(b.querySelectorAll('.i-pos button'),function(x){
-      x.onclick=function(){sc.x=+x.dataset.p;save();segSel('.i-pos',sc.x);
+      x.onclick=function(){
+        if(S.cfg.lock){toast('立ちいちを かためています');return}
+        sc.x=+x.dataset.p;save();segSel('.i-pos',sc.x);
         if(i===idx)placeCh();};
     });
     segSel('.i-pos',posOf(i,'a').x);
@@ -1655,7 +1680,9 @@ function drawScenes(){
     segSel('.i-fx',sc.fx);
     var sz=b.querySelector('.i-size'),sv=b.querySelector('.i-sv');
     function szUI(){sv.textContent=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100)+'%'}
-    sz.oninput=function(e){sc.s=(+e.target.value)/100;szUI();if(i===idx)placeCh()};
+    sz.oninput=function(e){
+      if(S.cfg.lock){e.target.value=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100);return}
+      sc.s=(+e.target.value)/100;szUI();if(i===idx)placeCh()};
     sz.onchange=function(){save()}; szUI();
     b.querySelector('.i-place').onclick=function(){idx=i;toPlay();setPlacing(true)};
     var VN=['きほんに合わせる','とても低い','低い','ふつう','高い','とても高い'];
@@ -1740,7 +1767,7 @@ $('#ppc').oninput=function(e){S.cfg.ppc=+e.target.value;cfgUI();save()};
 $('#clearAll').onclick=function(){
   if(!confirm('セリフも画像もぜんぶ消えます。いい？'))return;
   localStorage.removeItem(KEY); localStorage.removeItem(MK);
-  S={bgs:[],chs:[],scenes:[mkScene('','')],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60}};
+  S={bgs:[],chs:[],scenes:[mkScene('','')],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60,lock:0}};
   idx=0;save();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
 };
 
@@ -1984,10 +2011,11 @@ $('#btnExport').onclick=function(){
       if(cache!==s){cache=s;CX.font='700 '+(16*(S.cfg.fs||1))+'px '+FONT;
         s.lines=wrapLines(s.text,VW-20-28);lastN=-1;
         if((S.cfg.bgmV||0)>0)bgmPlay(effBgm(s.i));}
+      var now=performance.now();
       var n=(s.type<=0)?s.text.length:
             Math.max(0,Math.min(s.text.length,Math.floor((t-s.fade)/(s.type/Math.max(1,s.text.length)))));
       if(t<s.fade)n=0;
-      if(n>lastN&&n>0){
+      if(n>lastN&&n>0&&(S.scenes[s.i]||{}).who!=='n'){
         if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)mouthEnd=now+85;
       }
       if(n>lastN&&n>0&&S.cfg.snd){
@@ -1995,7 +2023,7 @@ $('#btnExport').onclick=function(){
         lastN=n;
       }
       var fdur=(s.fx==='shake')?550:420;
-      var now=performance.now(),sb=S.scenes[bi]||sc;
+      var sb=S.scenes[bi]||sc;
       var talk=(sb.who==='n')?'':((sb.who==='b')?'b':'a');
       if(now>blinkNext){blinkEnd=now+120;blinkNext=now+120+2600+Math.random()*3200}
       if(now>blinkNext2){blinkEnd2=now+120;blinkNext2=now+120+2600+Math.random()*3200}
@@ -2049,6 +2077,30 @@ document.addEventListener('pointermove',function(e){
   },true);
 });
 
+/* ---------- ひとつ もどす ----------
+   絵は 変えずに、セリフと せっていだけ 覚えておく（軽くするため） */
+var hist=[],lastSnap=null;
+function snapNow(){ return JSON.stringify({scenes:S.scenes,cfg:S.cfg}) }
+function pushHist(){
+  var cur=snapNow();
+  if(cur===lastSnap)return;
+  if(lastSnap!==null){ hist.push(lastSnap); if(hist.length>40)hist.shift(); }
+  lastSnap=cur; undoUI();
+}
+function undoUI(){ var b=$('#undo'); if(b)b.disabled=!hist.length }
+function undo(){
+  if(!hist.length)return;
+  var prev=hist.pop(); lastSnap=prev;
+  var o=JSON.parse(prev);
+  S.scenes=(o.scenes||[]).map(fixScene); S.cfg=o.cfg||S.cfg;
+  if(!S.scenes.length)S.scenes=[mkScene('','')];
+  idx=Math.min(idx,S.scenes.length-1);
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();lockUI();drawAll();render();
+  undoUI(); autoSave(); toast('ひとつ もどしました');
+}
+$('#undo').onclick=undo;
+
 /* ---------- 見出しを おして 開け閉め ---------- */
 var FOLD=KEY+'_fold';
 function foldGet(){ try{return JSON.parse(localStorage.getItem(FOLD))||null}catch(e){return null} }
@@ -2067,7 +2119,8 @@ function foldInit(){
 }
 
 /* ---------- 起動 ---------- */
-load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();foldInit();drawAll();render();
+load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();lockUI();markUI();foldInit();
+lastSnap=snapNow();undoUI();drawAll();render();
 app.classList.add('athome');drawDocs();
 if(curDoc)dbRun('readonly',function(st){return st.get(curDoc)}).then(function(d){
   if(d)$('#docName').value=d.name||'';
