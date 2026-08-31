@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=102';
-import { S, frameAsset, frameImage } from '../state.js?v=102';
+         nearestFolder } from '../engine/layer.js?v=103';
+import { S, frameAsset, frameImage } from '../state.js?v=103';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=102';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=102';
-import { paintCanvas } from '../engine/paint.js?v=102';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=102';
+         meshSizeFor } from '../engine/puppet.js?v=103';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=103';
+import { paintCanvas } from '../engine/paint.js?v=103';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=103';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -44,6 +44,28 @@ export function createC2D(canvas){
     return c;
   }
   const back = (n) => { lent -= n; };
+
+  /* ---------- はみ出しも 入る 大きい 別紙 ----------
+     フォルダを ゆがめる とき、中身を いったん 別紙に まとめる。
+     その 別紙が キャンバスと 同じ 大きさ だと、画面の 外に ある ぶんが
+     そこで 切れて しまい、ゆがめて 中へ 持ってきても
+     切れた まま に なる。
+     まわりに ゆとりを つけた 別紙に まとめる。 */
+  const MARGIN = 0.3;                 // キャンバスの 3わり ぶん まわりに たす
+  let bigC = null;
+  function bigSheet(){
+    if(!bigC) bigC = document.createElement('canvas');
+    const w = Math.ceil(canvas.width  * (1 + MARGIN * 2));
+    const h = Math.ceil(canvas.height * (1 + MARGIN * 2));
+    if(bigC.width !== w || bigC.height !== h){ bigC.width = w; bigC.height = h; }
+    const g = bigC.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, w, h);
+    return bigC;
+  }
 
   function dots(){
     if(dotPat === null){
@@ -471,8 +493,13 @@ export function createC2D(canvas){
       const cage = (v.cagePts && S.warpDrag !== f.id)
         ? { w:f.cage.w, h:f.cage.h, cols:f.cage.cols, rows:f.cage.rows, pts:v.cagePts }
         : f.cage;
-      const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
-      const tmpC = alloc(), tg = tmpC.getContext('2d');
+      /* 中身は まわりに ゆとりの ある 別紙に まとめる。
+         画面の 外に ある ぶんも 切らずに とっておく ので、
+         ゆがめて 中へ 持ってきても 切れない。 */
+      const k0 = Math.abs(tf[0]);
+      const mx = canvas.width * MARGIN, my = canvas.height * MARGIN;
+      const tf0 = [tf[0], 0, 0, tf[3], mx, my];
+      const tmpC = bigSheet(), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
       drawNodes(tg, project, kids, poses, tf0);
 
@@ -480,11 +507,18 @@ export function createC2D(canvas){
         f._cmesh = cageMesh(cage);
         f._ckey = cage.cols + 'x' + cage.rows;
         f._cxy = null;
+        f._cuv = null;
       }
       f._cxy = cageXY(cage, f._cxy);
-      // まとめた絵は 画面の ドットなので、あみの ものさしを 合わせる
-      drawDeformed(gx, tmpC, f._cmesh, f._cxy, Math.abs(tf[0]));
-      back(1);
+
+      /* 別紙の どこを はるか。まとめる ときに ずらした ぶんを たす。 */
+      const n0 = f._cmesh.verts.length;
+      if(!f._cuv || f._cuv.length < n0 * 2) f._cuv = new Float32Array(n0 * 2);
+      for(let i = 0; i < n0; i++){
+        f._cuv[i * 2]     = f._cmesh.verts[i].u * k0 + mx;
+        f._cuv[i * 2 + 1] = f._cmesh.verts[i].v * k0 + my;
+      }
+      drawDeformed(gx, tmpC, f._cmesh, f._cxy, 1, f._cuv);
 
     } else if(v.pins && v.pins.length && f.mesh){
       /* フォルダ ぜんたいを ピンで 曲げる。
@@ -493,8 +527,12 @@ export function createC2D(canvas){
       /* まとめた絵は「ずらしなし」で 描く。
          そうすると 絵の中の ドットが キャンバスの ドット×ズーム に
          そろうので、あみとの ものさし合わせが かけ算だけで すむ。 */
-      const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
-      const tmpC = alloc(), tg = tmpC.getContext('2d');
+      /* こちらも まわりに ゆとりの ある 別紙に まとめる
+         （画面の 外の ぶんが 切れない ように） */
+      const k0 = Math.abs(tf[0]);
+      const mx = canvas.width * MARGIN, my = canvas.height * MARGIN;
+      const tf0 = [tf[0], 0, 0, tf[3], mx, my];
+      const tmpC = bigSheet(), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
       drawNodes(tg, project, kids, poses, tf0);
 
@@ -502,9 +540,13 @@ export function createC2D(canvas){
       const n = f.mesh.verts.length;
       if(!f._xy || f._xy.length < n * 2) f._xy = new Float32Array(n * 2);
       deform(f.mesh, v.pins, f._xy);
-      // まとめた絵は 画面の ドットなので、あみの ものさしを 合わせる
-      drawDeformed(gx, tmpC, f.mesh, f._xy, Math.abs(tf[0]));
-      back(1);
+
+      if(!f._puv || f._puv.length < n * 2) f._puv = new Float32Array(n * 2);
+      for(let i = 0; i < n; i++){
+        f._puv[i * 2]     = f.mesh.verts[i].u * k0 + mx;
+        f._puv[i * 2 + 1] = f.mesh.verts[i].v * k0 + my;
+      }
+      drawDeformed(gx, tmpC, f.mesh, f._xy, 1, f._puv);
     } else {
       drawNodes(gx, project, kids, poses, tf);
     }

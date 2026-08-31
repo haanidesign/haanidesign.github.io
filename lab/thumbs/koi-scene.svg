@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" role="img" aria-label="恋愛ゲーム画面メーカー">
+  <defs>
+    <pattern id="ks-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+    <pattern id="ks-dots-s" width="12" height="12" patternUnits="userSpaceOnUse">
+      <circle cx="6" cy="6" r="1.3" fill="rgba(30,28,20,.10)"/>
+    </pattern>
+    <clipPath id="ks-clip">
+      <rect x="196" y="86" width="208" height="286" rx="12"/>
+    </clipPath>
+  </defs>
+
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#ks-dots)"/>
+
+  <!-- タイトルバー -->
+  <rect x="0" y="0" width="600" height="52" fill="#E1DD60"/>
+  <line x1="0" y1="52" x2="600" y2="52" stroke="#1E1C14" stroke-width="3"/>
+  <text x="22" y="35" font-family="'M PLUS Rounded 1c',sans-serif" font-size="21" font-weight="800" fill="#1E1C14">💗 恋愛ゲーム画面メーカー</text>
+
+  <!-- 左：セリフのリスト -->
+  <g>
+    <rect x="26" y="86" width="150" height="40" rx="10" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+    <rect x="26" y="89" width="150" height="40" rx="10" fill="none" stroke="#1E1C14" stroke-width="0"/>
+    <circle cx="47" cy="106" r="10" fill="#1E1C14"/>
+    <text x="47" y="110" text-anchor="middle" font-family="monospace" font-size="11" fill="#E1DD60">01</text>
+    <rect x="64" y="99" width="96" height="7" rx="3.5" fill="rgba(30,28,20,.5)"/>
+    <rect x="64" y="112" width="62" height="7" rx="3.5" fill="rgba(30,28,20,.22)"/>
+
+    <rect x="26" y="142" width="150" height="40" rx="10" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+    <circle cx="47" cy="162" r="10" fill="#1E1C14"/>
+    <text x="47" y="166" text-anchor="middle" font-family="monospace" font-size="11" fill="#E1DD60">02</text>
+    <rect x="64" y="155" width="82" height="7" rx="3.5" fill="rgba(30,28,20,.5)"/>
+    <rect x="64" y="168" width="96" height="7" rx="3.5" fill="rgba(30,28,20,.22)"/>
+
+    <rect x="26" y="198" width="150" height="40" rx="10" fill="#E1DD60" stroke="#1E1C14" stroke-width="3"/>
+    <circle cx="47" cy="218" r="10" fill="#1E1C14"/>
+    <text x="47" y="222" text-anchor="middle" font-family="monospace" font-size="11" fill="#E1DD60">03</text>
+    <rect x="64" y="211" width="96" height="7" rx="3.5" fill="rgba(30,28,20,.55)"/>
+    <rect x="64" y="224" width="54" height="7" rx="3.5" fill="rgba(30,28,20,.3)"/>
+
+    <!-- 素材サムネ -->
+    <rect x="26" y="258" width="44" height="44" rx="9" fill="#F0DCB8" stroke="#1E1C14" stroke-width="3"/>
+    <rect x="31" y="266" width="20" height="16" fill="#2F5D4A"/>
+    <rect x="80" y="258" width="44" height="44" rx="9" fill="#3F4F74" stroke="#1E1C14" stroke-width="3"/>
+    <path d="M84 296 L96 274 L108 296 Z" fill="#6F7FA8"/>
+    <rect x="134" y="258" width="44" height="44" rx="9" fill="#1B2340" stroke="#1E1C14" stroke-width="3"/>
+    <circle cx="150" cy="272" r="7" fill="#FFF6C9"/>
+    <text x="26" y="330" font-family="'M PLUS Rounded 1c',sans-serif" font-size="15" font-weight="700" fill="rgba(30,28,20,.55)">はいけい／キャラ</text>
+    <text x="26" y="352" font-family="'M PLUS Rounded 1c',sans-serif" font-size="15" font-weight="700" fill="rgba(30,28,20,.55)">を入れて並べるだけ</text>
+  </g>
+
+  <!-- 右：スマホのADV画面 -->
+  <g>
+    <rect x="196" y="86" width="208" height="286" rx="12" fill="#F0DCB8"/>
+    <g clip-path="url(#ks-clip)">
+      <rect x="196" y="86" width="208" height="286" fill="#FDF3DC"/>
+      <rect x="196" y="286" width="208" height="86" fill="#DCBB8A"/>
+      <rect x="206" y="116" width="96" height="74" fill="#2F5D4A" stroke="#C9B183" stroke-width="5"/>
+      <rect x="322" y="116" width="86" height="96" fill="#CFEAFF" stroke="#F2F2F2" stroke-width="5"/>
+      <!-- キャラのシルエット -->
+      <g>
+        <path d="M300 372 L300 250 Q300 226 322 222 L338 222 Q360 226 360 250 L360 372 Z" fill="#F2545B" opacity=".9"/>
+        <circle cx="330" cy="204" r="24" fill="#FFE0C8"/>
+        <path d="M306 200 Q306 176 330 176 Q354 176 354 200 L354 208 Q346 192 330 192 Q314 192 306 208 Z" fill="#6B4A3A"/>
+      </g>
+    </g>
+    <rect x="196" y="86" width="208" height="286" rx="12" fill="none" stroke="#1E1C14" stroke-width="4"/>
+
+    <!-- セリフ窓 -->
+    <rect x="208" y="272" width="184" height="88" rx="11" fill="#FFFEF7" stroke="#1E1C14" stroke-width="4"/>
+    <rect x="208" y="272" width="184" height="88" rx="11" fill="url(#ks-dots-s)"/>
+    <rect x="220" y="262" width="76" height="24" rx="12" fill="#E1DD60" stroke="#1E1C14" stroke-width="3.5"/>
+    <text x="258" y="279" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="14" font-weight="800" fill="#1E1C14">ひなた</text>
+    <rect x="220" y="300" width="150" height="8" rx="4" fill="rgba(30,28,20,.62)"/>
+    <rect x="220" y="318" width="120" height="8" rx="4" fill="rgba(30,28,20,.62)"/>
+    <rect x="220" y="336" width="52" height="8" rx="4" fill="rgba(30,28,20,.3)"/>
+    <path d="M368 340 L382 340 L375 350 Z" fill="#1E1C14"/>
+  </g>
+
+  <!-- 右上の吹き出し -->
+  <g>
+    <rect x="424" y="96" width="152" height="46" rx="12" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3.5"/>
+    <text x="500" y="126" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="19" font-weight="800" fill="#1E1C14">ぽぽぽぽ…</text>
+    <rect x="424" y="160" width="152" height="46" rx="12" fill="#E1DD60" stroke="#1E1C14" stroke-width="3.5"/>
+    <text x="500" y="190" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-size="18" font-weight="800" fill="#1E1C14">タップで次へ</text>
+  </g>
+</svg>

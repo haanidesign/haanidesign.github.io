@@ -133,6 +133,17 @@ const TOOLS = [
     thumb: "thumbs/param-doll.svg",
     url: "tools/param-doll/index.html",
     status: "live"
+  },
+  {
+    no: 13,
+    slug: "koi-scene",
+    title: "恋愛ゲーム画面メーカー",
+    desc: "スマホで恋愛ゲームの一場面を作る台。なまえとセリフを打って、背景とキャラのPNGを選ぶだけ。画面をタップすると文字がぽぽぽっと出て、長い文は自動で次のページへ送られる。立ちいちは ひだり／まんなか／みぎ、背景が変わるところだけ暗転が入る。作ったものはJSONで持ち出せる。",
+    tags: ["スマホ", "ノベルゲーム", "立ち絵", "文字送り"],
+    cat: "game",
+    thumb: "thumbs/koi-scene.svg",
+    url: "tools/koi-scene/index.html",
+    status: "live"
   }
 ];
 

@@ -1,11 +1,12 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=102';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=102';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=102';
-import { handTime } from './hand.js?v=102';
-import { WORK_KEYS } from '../state.js?v=102';
+import { M, uid, ptInQuad } from './math.js?v=103';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=103';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=103';
+import { cageDeformPoint, cageMoved } from './warp.js?v=103';
+import { handTime } from './hand.js?v=103';
+import { WORK_KEYS } from '../state.js?v=103';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 export function newLayer(name, assetIds){
@@ -171,6 +172,25 @@ export function computeAll(project, time){
         const ox = pa.w * pl.pivot.x, oy = pa.h * pl.pivot.y;
         const d = deformPoint(p.v.pins, pl.stiff, lx + ox, ly + oy);
         lx = d.x - ox; ly = d.y - oy; lrot = v.rot + d.rot;
+      }
+    }
+
+    /* 親を ゆがめた ときも、くっついて いる 子は ついてくる。
+       つく 場所を 親の 絵の中の 点に なおして、
+       その点が かごで どこへ 行くかを 見る。 */
+    /* フォルダは 中身を 1まいに まとめてから ゆがめる ので、
+       ここで 中身を 動かすと 二重に かかって しまう。
+       ふつうの おやこ（絵の レイヤーに ぶら下げた もの）だけ。 */
+    if(p && p.layer.cage && !isFolder(p.layer)){
+      const pl = p.layer;
+      const cg = p.v.cagePts
+        ? { w:pl.cage.w, h:pl.cage.h, cols:pl.cage.cols, rows:pl.cage.rows, pts:p.v.cagePts }
+        : pl.cage;
+      const pa = assetOf(project, pl, p.v.frame);
+      if(pa && cageMoved(cg)){
+        const ox = pa.w * pl.pivot.x, oy = pa.h * pl.pivot.y;
+        const d = cageDeformPoint(cg, lx + ox, ly + oy);
+        lx = d.x - ox; ly = d.y - oy; lrot = lrot + d.rot;
       }
     }
 

@@ -15,7 +15,7 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
-import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=102';
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=103';
 
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
@@ -495,4 +495,38 @@ export const hasLock = (cage) => !!(cage && (cage.lock || []).some(Boolean));
 /** かためたのを ぜんぶ とかす */
 export function clearLock(cage){
   if(cage) cage.lock = [];
+}
+
+
+/**
+ * 絵の中の 1点が かごで どこへ 行くか＋そこの かたむきの 変わりぶん。
+ *
+ * 親レイヤーを ゆがめた とき、くっついて いる 子（手・小物）を
+ * いっしょに 動かす ために つかう。
+ * かたむきは、すぐ となりの 点が どこへ 行くかを 見て 出す。
+ *
+ * 戻り値 … { x, y, rot }（rot は 度）
+ */
+export function cageDeformPoint(cage, x, y){
+  const a = cagePoint(cage, x, y);
+  const e = Math.max(1, Math.min(cage.w, cage.h) * 0.02);   // となりを 見る きょり
+  const b = cagePoint(cage, x + e, y);
+  const rot = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+  return { x: a.x, y: a.y, rot };
+}
+
+/** かごが さわられて いるか（点が もとの ところに ある か） */
+export function cageMoved(cage, pts){
+  if(!cage) return false;
+  const list = pts || cage.pts;
+  const { w, h, cols, rows } = cage;
+  for(let j = 0; j <= rows; j++){
+    for(let i = 0; i <= cols; i++){
+      const p = list[idxAt(cage, i, j)];
+      if(!p) continue;
+      if(Math.abs(p.x - w * i / cols) > 0.01) return true;
+      if(Math.abs(p.y - h * j / rows) > 0.01) return true;
+    }
+  }
+  return false;
 }
