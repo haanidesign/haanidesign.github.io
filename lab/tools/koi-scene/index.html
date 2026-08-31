@@ -45,7 +45,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.land.playing #play{aspect-ratio:16/9}
 #app.playing.placing{--chrome:240px}
 #app.land.playing #win{left:calc(14px * var(--u));right:calc(14px * var(--u));
-  bottom:calc(12px * var(--u) + var(--winup,0px));min-height:calc(120px * var(--u))}
+  bottom:calc(12px * var(--u) + var(--winup,0px))}
 
 /* ================= さいせい画面 ================= */
 #play{position:relative;flex:1;min-height:0;display:none;background:#000;overflow:hidden;
@@ -81,9 +81,11 @@ button,input,select,textarea{font:inherit;color:inherit}
   border:calc(2.5px * var(--u)) solid var(--ink);border-radius:calc(14px * var(--u));
   box-shadow:0 calc(4px * var(--u)) 0 var(--ink);
   padding:calc(16px * var(--u)) calc(14px * var(--u)) calc(14px * var(--u));
-  min-height:calc(150px * var(--u));display:flex;flex-direction:column;
+  min-height:calc((16px + 14px + 56px * var(--fs,1)) * var(--u));
+  display:flex;flex-direction:column;
   transition:padding-top .15s}
-#win.hasName{padding-top:calc(28px * var(--u))}
+#win.hasName{padding-top:calc(28px * var(--u));
+  min-height:calc((28px + 14px + 56px * var(--fs,1)) * var(--u))}
 #nameTag{position:absolute;top:calc(-15px * var(--u));left:calc(14px * var(--u));
   background:var(--pop);
   border:calc(2.5px * var(--u)) solid var(--ink);border-radius:100px;
@@ -1197,7 +1199,7 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   var FS=S.cfg.fs||1;
   CX.font='700 '+(16*FS)+'px '+FONT;
   var padT=(sc.name?28:16),padB=14,lh=28*FS;
-  var winH=Math.max(150,padT+lines.length*lh+padB);
+  var winH=Math.max(padT+2*lh+padB, padT+lines.length*lh+padB);
   var wx=10,ww=VW-20,wy=VH-10-winH-VH*(S.cfg.winY||0)/100;
   CX.fillStyle='rgba(255,254,247,.96)';rr(wx,wy,ww,winH,14);CX.fill();
   CX.lineWidth=2.5;CX.strokeStyle='#1e1c14';CX.stroke();
