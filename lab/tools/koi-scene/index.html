@@ -1149,7 +1149,7 @@ $('#play').addEventListener('pointermove',function(e){
       setP(sc,pt,'s',ns); $('#placeSize').value=Math.round(ns*100)}
   }else{
     setP(sc,pt,'x',Math.max(-.15,Math.min(1.15,q.x+(e.clientX-prev.x)/r.width)));
-    setP(sc,pt,'y',Math.max(-.5,Math.min(.6,q.y-(e.clientY-prev.y)/r.height)));
+    setP(sc,pt,'y',Math.max(-1.2,Math.min(.9,q.y-(e.clientY-prev.y)/r.height)));
   }
   if(!moveQ){moveQ=requestAnimationFrame(function(){moveQ=0;placeCh()})}
 },{passive:false});
@@ -1572,7 +1572,7 @@ function drawScenes(){
       '<label class="f">しゃべっているのは</label>'+
       '<div class="seg i-who"><button data-w="a">'+(S.cfg.two?'キャラ1':'このキャラ')+'</button>'+
       (S.cfg.two?'<button data-w="b">キャラ2</button>':'')+
-      '<button data-w="n">だれも（ナレーション）</button></div>'+
+      '<button data-w="n">ナレ</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1の立ちいち':'立ちいち')+'</label>'+
       '<div class="seg i-pos"><button data-p="0.27">ひだり</button><button data-p="0.5">まんなか</button><button data-p="0.73">みぎ</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1のおおきさ':'おおきさ')+' <span class="i-sv"></span></label>'+
