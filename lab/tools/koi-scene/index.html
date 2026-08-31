@@ -34,10 +34,16 @@ button,input,select,textarea{font:inherit;color:inherit}
   padding:4px 12px;box-shadow:var(--sh);cursor:pointer}
 .tab.on{background:var(--ink);color:var(--pop);box-shadow:none;transform:translateY(3px)}
 
-/* よこ画面（据え置きゲーム風） */
+/* 見ている画面と書き出す動画の形をそろえる。
+   たては9:16、よこは16:9。ステージが画面からはみ出さないよう幅も抑える。 */
+#app.playing{height:auto;
+  width:min(430px, 100vw - 8px, calc((100dvh - var(--chrome,74px)) * 0.5625))}
+#app.playing #play{flex:none;width:100%;aspect-ratio:9/16}
 #app.land{width:min(980px,100vw - 8px)}
-#app.land.playing{height:auto}
-#app.land.playing #play{flex:none;width:100%;aspect-ratio:16/9}
+#app.land.playing{
+  width:min(980px, 100vw - 8px, calc((100dvh - var(--chrome,74px)) * 1.7778))}
+#app.land.playing #play{aspect-ratio:16/9}
+#app.playing.placing{--chrome:240px}
 #app.land.playing #win{left:calc(14px * var(--u));right:calc(14px * var(--u));
   bottom:calc(12px * var(--u) + var(--winup,0px));min-height:calc(120px * var(--u))}
 
@@ -75,7 +81,9 @@ button,input,select,textarea{font:inherit;color:inherit}
   border:calc(2.5px * var(--u)) solid var(--ink);border-radius:calc(14px * var(--u));
   box-shadow:0 calc(4px * var(--u)) 0 var(--ink);
   padding:calc(16px * var(--u)) calc(14px * var(--u)) calc(14px * var(--u));
-  min-height:calc(150px * var(--u));display:flex;flex-direction:column}
+  min-height:calc(150px * var(--u));display:flex;flex-direction:column;
+  transition:padding-top .15s}
+#win.hasName{padding-top:calc(28px * var(--u))}
 #nameTag{position:absolute;top:calc(-15px * var(--u));left:calc(14px * var(--u));
   background:var(--pop);
   border:calc(2.5px * var(--u)) solid var(--ink);border-radius:100px;
@@ -134,8 +142,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 #app.placing #placeBar{display:block}
 #placeBar .row{gap:8px}
 #placeHint{font-size:11px;color:var(--muted);font-weight:500;line-height:1.6;margin:0 0 6px}
-#app.placing .chWrap.sel{outline:3px dashed rgba(225,221,96,.95);outline-offset:2px;
-  transition:none;cursor:move}
+#app.placing .chWrap.sel .base{outline:3px dashed rgba(225,221,96,.95);outline-offset:2px}
+#app.placing .chWrap{cursor:move}
 
 /* 書き出しオーバーレイ */
 #expOv{position:absolute;inset:0;background:rgba(30,28,20,.86);z-index:20;
@@ -526,6 +534,7 @@ function render(){
   placeCh();
   fire(sc.fx);
   $('#nameTag').textContent=sc.name||'';
+  $('#win').classList.toggle('hasName',!!sc.name);
   pages=splitPages(sc.text,S.cfg.ppc); page=0; showPage();
 }
 var EDGEC=['','#fff','#1e1c14'];
@@ -748,9 +757,9 @@ function setPlacing(v){
   placing=v; app.classList.toggle('placing',v);
   if(v){setAuto(false);app.classList.remove('clean');
         var sc=S.scenes[idx];
-        $('#placeWho').style.display=(S.cfg.two&&sc&&sc.ch&&sc.ch2)?'':'none';
-        if(sc&&!findCh(sc.ch)&&!findCh(sc.ch2))toast('このセリフにキャラがいません');
-        setPT(sc&&!findCh(sc.ch)&&ch2Of(sc)?'b':'a');}
+        $('#placeWho').style.display=(S.cfg.two&&sc&&effCh(idx,'ch')&&effCh(idx,'ch2'))?'':'none';
+        if(sc&&!findCh(effCh(idx,'ch'))&&!ch2Of(idx))toast('このセリフにキャラがいません');
+        setPT(sc&&!findCh(effCh(idx,'ch'))&&ch2Of(idx)?'b':'a');}
   else {W('a').classList.remove('sel');W('b').classList.remove('sel');save()}
 }
 $('#placeWho').onclick=function(e){
@@ -760,9 +769,9 @@ function setP(sc,t,k,v){ sc[t==='b'?k+'2':k]=v }
 $('#btnPlace').onclick=function(){setPlacing(true)};
 $('#placeOk').onclick=function(){setPlacing(false)};
 function nudge(x){var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'x',x);placeCh();save()}
-$('#placeL').onclick=function(){nudge(.27)};
+$('#placeL').onclick=function(){nudge(.22)};
 $('#placeC').onclick=function(){nudge(.5)};
-$('#placeR').onclick=function(){nudge(.73)};
+$('#placeR').onclick=function(){nudge(.78)};
 $('#placeSize').oninput=function(e){
   var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'s',(+e.target.value)/100);placeCh();
 };
@@ -800,8 +809,8 @@ $('#play').addEventListener('pointermove',function(e){
     if(base.d>10&&d>10){var ns=Math.max(.4,Math.min(3,base.s*(d/base.d)));
       setP(sc,pt,'s',ns); $('#placeSize').value=Math.round(ns*100)}
   }else{
-    setP(sc,pt,'x',Math.max(.05,Math.min(.95,q.x+(e.clientX-prev.x)/r.width)));
-    setP(sc,pt,'y',Math.max(-.35,Math.min(.5,q.y-(e.clientY-prev.y)/r.height)));
+    setP(sc,pt,'x',Math.max(-.15,Math.min(1.15,q.x+(e.clientX-prev.x)/r.width)));
+    setP(sc,pt,'y',Math.max(-.5,Math.min(.6,q.y-(e.clientY-prev.y)/r.height)));
   }
   if(!moveQ){moveQ=requestAnimationFrame(function(){moveQ=0;placeCh()})}
 },{passive:false});
@@ -1187,7 +1196,7 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
 
   var FS=S.cfg.fs||1;
   CX.font='700 '+(16*FS)+'px '+FONT;
-  var padT=16,padB=14,lh=28*FS;
+  var padT=(sc.name?28:16),padB=14,lh=28*FS;
   var winH=Math.max(150,padT+lines.length*lh+padB);
   var wx=10,ww=VW-20,wy=VH-10-winH-VH*(S.cfg.winY||0)/100;
   CX.fillStyle='rgba(255,254,247,.96)';rr(wx,wy,ww,winH,14);CX.fill();
