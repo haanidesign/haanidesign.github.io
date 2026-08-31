@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """恋愛ゲーム画面メーカー用の背景を ComfyUI で生成する。
-絵柄は「太めの線＋フラット塗り＋にじませない」漫画寄り。
+絵柄はアニメ背景でくっきり（太めの線＋セル塗り、にじませない）。
 使い方:  python _gen_bg.py            … 足りないぶんだけ作る
          python _gen_bg.py park inn   … 名前を指定して作りなおす（上書き）
 """
@@ -12,11 +12,11 @@ OUT  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bg")
 CKPT = "flanimeIllustriousXL_v20.safetensors"   # 線が太くフラットに出るほう
 W, H = 832, 1216
 TW, TH = 720, 1280
-STEPS, CFG = 32, 4.8
+STEPS, CFG = 30, 7.0
 
 STYLE = ("masterpiece, best quality, very aesthetic, absurdres, no humans, scenery, "
-         "shoujo manga illustration background, thick uniform ink outlines, bold lineart, "
-         "flat colors, simple shading, natural harmonious colors, crisp sharp edges, "
+         "anime visual novel background, bold black outlines, thick lineart, clean linework, "
+         "flat cel shading, vivid saturated colors, crisp sharp edges, "
          "eye level view, open floor in the foreground, ")
 
 NEG = ("blurry, soft focus, depth of field, bokeh, hazy, painterly, oil painting, "
@@ -33,13 +33,13 @@ SCENES = [
  ("classroom_day",  1, "indoors, classroom interior, inside a japanese high school classroom, tidy rows of wooden desks and chairs, green blackboard, large windows with curtains, daytime, wide aisle in the foreground", ""),
  ("classroom_dusk", 1, "indoors, classroom interior, empty tidy desks, green blackboard, windows glowing orange at sunset, long shadows on the floor, evening", ""),
  ("my_room",        1, "indoors, cozy teenage bedroom interior, a single bed against the wall covered by one smooth flat bedspread, wooden study desk with a chair, bookshelf, window with curtains, warm room light, evening, tidy and simple", ", blackboard, classroom, desks in rows, messy, crumpled blanket, folded blanket, two blankets, two beds, bunk bed"),
- ("her_room",       1, "indoors, cute girls bedroom interior, neatly made bed with pastel pink bedding, stuffed animals on the bed, dresser with mirror, round rug, daylight from window, tidy", ", blackboard, classroom, messy, two beds"),
- ("hallway",        1, "indoors, japanese school hallway interior, long corridor, tall windows on the left letting in daylight, beige lockers on the right, pale cream walls, light gray linoleum floor, daytime, empty", ", desks, blackboard, blue walls, orange floor, complementary colors, two tone"),
+ ("her_room",       1, "indoors, cute girls bedroom interior, neatly made bed with pastel pink bedding, one cream colored teddy bear, dresser with mirror, round rug, daylight from window, tidy, soft pastel colors", ", blackboard, classroom, messy, two beds, black doll, dark stuffed animal, creepy"),
+ ("hallway",        1, "indoors, japanese school hallway interior, long corridor, tall windows on the left letting in daylight, beige lockers on the right, pale cream walls, white ceiling with fluorescent lights, light gray linoleum floor, daytime, empty", ", desks, blackboard, blue walls, orange floor, complementary colors, two tone, black ceiling, dark ceiling"),
  ("rooftop",        0, "school rooftop, chain link fence along the edge, blue sky with simple white clouds, city buildings far away below, daytime, wide empty concrete floor", ", indoors, ceiling, water tank, tank, bottle, canister, spray can, large object in the center"),
  ("park",           0, "park path, cherry blossom trees, one wooden bench, green lawn, blue sky, daytime", ", indoors, ceiling"),
  ("night_street",   0, "japanese city street at night, street lamps, shop signs, a vending machine, dark blue sky, empty road", ", indoors, ceiling, daylight"),
  ("castle_hall",    1, "indoors, fantasy castle throne hall interior, tall stone pillars, long red carpet, stained glass windows, hanging banners, chandelier", ", modern, desks"),
- ("inn",            1, "indoors, fantasy tavern inn interior, several sturdy wooden tables with chairs around them, stone fireplace with a fire, wooden barrels, hanging lanterns, bright warm cozy light, wooden floor", ", modern, school desks, empty room, dark, gloomy, purple tint"),
+ ("inn",            1, "indoors, fantasy tavern room, a long wooden dining table with wooden chairs standing in the middle of the room, plaster and timber walls, a small window, a fireplace on the left wall, hanging lantern, warm daylight, wooden floor, tidy, simple", ", modern, school desks, empty room, dark, gloomy, purple tint, burning walls, cave, dungeon, stone cellar, vaulted ceiling, clutter"),
  ("forest_path",    0, "fantasy forest, no animals, tall straight trees on both sides, thick green foliage, mossy rocks, ferns, a quiet empty clearing of soft grass in the middle, sunlight from above, natural green and brown colors", ", indoors, ceiling, pink trees, animal, cat, dog, deer, fox, bear, bird, wildlife, fur, tail, paws, creature, mascot, dirt trail, road"),
  ("magic_class",    1, "indoors, magic academy classroom interior, tall arched windows, sturdy wooden desks, stacks of old books, floating candles, fantasy", ", modern, fluorescent light"),
  ("night_hill",     0, "grassy hill at night, starry sky, crescent moon, distant fantasy castle on the horizon, fireflies, empty stone path", ", indoors, ceiling, daylight, animal, figure in the foreground"),

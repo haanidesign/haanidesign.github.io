@@ -77,21 +77,25 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* セリフとキャラと背景だけにする */
 #app.clean #bar,#app.clean #playTools{display:none}
 
-/* びっくり効果 */
-#play.fxJolt{animation:fxJolt .42s cubic-bezier(.2,1.6,.4,1)}
+/* びっくり効果（キャラだけ動く） */
+#chImg{transform-origin:50% 100%}
+#chImg.fxJolt{animation:fxJolt .42s cubic-bezier(.2,1.6,.4,1)}
 @keyframes fxJolt{
-  0%{transform:translate(0,0) scale(1)}
-  12%{transform:translate(0,-9px) scale(1.025)}
-  30%{transform:translate(4px,3px) scale(1)}
-  46%{transform:translate(-3px,0)}
-  62%{transform:translate(2px,1px)}
-  100%{transform:translate(0,0)}}
-#play.fxShake{animation:fxShake .55s linear}
+  0%{transform:translateX(-50%)}
+  12%{transform:translateX(-50%) translateY(-14px) scale(1.04)}
+  30%{transform:translateX(-50%) translateY(2px) scale(.99)}
+  46%{transform:translateX(-50%) translateY(-4px) scale(1.01)}
+  62%{transform:translateX(-50%) translateY(1px)}
+  100%{transform:translateX(-50%)}}
+#chImg.fxShake{animation:fxShake .55s linear}
 @keyframes fxShake{
-  0%,100%{transform:translate(0,0)}
-  10%{transform:translate(-4px,1px)}25%{transform:translate(4px,-1px)}
-  40%{transform:translate(-3px,-1px)}55%{transform:translate(3px,1px)}
-  70%{transform:translate(-2px,0)}85%{transform:translate(2px,0)}}
+  0%,100%{transform:translateX(-50%)}
+  10%{transform:translateX(-50%) translate(-5px,1px)}
+  25%{transform:translateX(-50%) translate(5px,-1px)}
+  40%{transform:translateX(-50%) translate(-4px,-1px)}
+  55%{transform:translateX(-50%) translate(4px,1px)}
+  70%{transform:translateX(-50%) translate(-3px,0)}
+  85%{transform:translateX(-50%) translate(3px,0)}}
 
 /* いち合わせ */
 #app.placing #win,#app.placing #playTools{display:none}
@@ -436,9 +440,9 @@ function placeCh(){
 }
 /* ---------- びっくり効果 ---------- */
 function fire(fx){
-  var p=$('#play'); p.classList.remove('fxJolt','fxShake');
-  if(!fx)return; void p.offsetWidth;
-  p.classList.add(fx==='shake'?'fxShake':'fxJolt');
+  var el=$('#chImg'); el.classList.remove('fxJolt','fxShake');
+  if(!fx)return; void el.offsetWidth;
+  el.classList.add(fx==='shake'?'fxShake':'fxJolt');
 }
 function showPage(){ type(pages[page]) }
 function type(t){
@@ -788,7 +792,7 @@ var FONT='"M PLUS Rounded 1c","Hiragino Maru Gothic ProN",sans-serif';
 function fxOffset(fx,p){
   if(!fx||p<0||p>1)return[0,0,1];
   if(fx==='shake'){var a=(1-p)*4;return[Math.sin(p*Math.PI*10)*a,Math.sin(p*Math.PI*13)*a*.4,1]}
-  if(p<.12)return[0,-9*(p/.12),1+.025*(p/.12)];
+  if(p<.12)return[0,-14*(p/.12),1+.04*(p/.12)];
   var q=(p-.12)/.88;
   return[Math.sin(q*Math.PI*4)*4*(1-q),3*(1-q)*Math.cos(q*Math.PI*3),1+.025*(1-q)*0.4];
 }
@@ -796,14 +800,15 @@ function paint(sc,bgIm,chIm,lines,shown,total,veilA,fx,fp){
   CX.setTransform(SCALE,0,0,SCALE,0,0);
   CX.clearRect(0,0,VW,VH);
   CX.fillStyle='#000';CX.fillRect(0,0,VW,VH);
-  var o=fxOffset(fx,fp);
-  CX.save();
-  CX.translate(VW/2+o[0],VH/2+o[1]);CX.scale(o[2],o[2]);CX.translate(-VW/2,-VH/2);
   cover(bgIm,0,0,VW,VH);
   if(chIm&&chIm.width){
+    var o=fxOffset(fx,fp);
     var h=VH*0.88*(sc.s==null?1:sc.s),w=chIm.width*(h/chIm.height);
     var cx=VW*(sc.x==null?.5:sc.x),by=VH-h-VH*(sc.y||0);
+    CX.save();
+    CX.translate(cx+o[0],by+h+o[1]);CX.scale(o[2],o[2]);CX.translate(-cx,-(by+h));
     CX.drawImage(chIm,cx-w/2,by,w,h);
+    CX.restore();
   }
   if(veilA>0){CX.fillStyle='rgba(0,0,0,'+veilA+')';CX.fillRect(0,0,VW,VH)}
 
@@ -833,7 +838,6 @@ function paint(sc,bgIm,chIm,lines,shown,total,veilA,fx,fp){
     CX.font='700 13px '+FONT;CX.textAlign='right';
     CX.fillText('▼',wx+ww-12,wy+winH-10);CX.textAlign='left';
   }
-  CX.restore();
 }
 
 function loadIm(src){
