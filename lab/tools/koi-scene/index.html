@@ -64,8 +64,10 @@ button,input,select,textarea{font:inherit;color:inherit}
   transition:transform .35s cubic-bezier(.3,1.4,.5,1),opacity .3s;
   will-change:transform;transform-origin:50% 100%;
   filter:var(--chfx,drop-shadow(0 0 10px rgba(0,0,0,.25)))}
-.chWrap img{position:absolute;bottom:0;left:0;height:100%;width:auto;max-width:none;
-  object-fit:contain;object-position:center bottom}
+/* 1枚目は ふつうに置いて 箱の大きさを 絵に合わせる。
+   （箱の幅が0だと translateX(-50%) が効かず、絵の左はしが いちの位置になってしまう） */
+.chWrap img.base{position:relative;display:block;height:100%;width:auto;max-width:none}
+.chWrap img.sub{position:absolute;bottom:0;left:0;height:100%;width:auto;max-width:none}
 .chWrap img.sub{opacity:0}
 .chWrap img.sub.on{opacity:1}
 .chWrap.dim{filter:var(--chfx,none) brightness(.58) saturate(.85)}
@@ -1559,13 +1561,7 @@ function drawCh(im,si,t,dim,fx,fp){
     [[e,0],[-e,0],[0,e],[0,-e],[e*.7,e*.7],[-e*.7,e*.7],[e*.7,-e*.7],[-e*.7,-e*.7]]
       .forEach(function(d){CX.drawImage(sil,cx-w/2+d[0],by+d[1],w,h)});
   }
-  CX.drawImage(im,cx-w/2,by,w,h);
-  if(dim){
-    CX.globalCompositeOperation='source-atop';
-    CX.fillStyle='rgba(10,8,20,.42)';
-    CX.fillRect(cx-w/2-20,by-20,w+40,h+40);
-    CX.globalCompositeOperation='source-over';
-  }
+  CX.drawImage(dim?dimmed(im):im,cx-w/2,by,w,h);
   CX.restore();
 }
 
@@ -1616,6 +1612,19 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   }
 }
 
+var dimCache={};
+function dimmed(im){
+  var k=(im.src||'').slice(-40);
+  if(dimCache[k])return dimCache[k];
+  var c=document.createElement('canvas');
+  c.width=im.width; c.height=im.height;
+  var x=c.getContext('2d');
+  x.drawImage(im,0,0);
+  x.globalCompositeOperation='source-atop';
+  x.fillStyle='rgba(12,10,24,.42)';
+  x.fillRect(0,0,c.width,c.height);
+  dimCache[k]=c; return c;
+}
 var silCache={};
 function silhouette(im,color){
   var k=(im.src||'').slice(-40)+color;
