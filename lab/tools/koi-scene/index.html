@@ -129,9 +129,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* いち合わせ */
 #app.placing #win,#app.placing #playTools{display:none}
-#placeBar{position:absolute;left:10px;right:10px;bottom:10px;z-index:7;display:none;
-  background:var(--card);border:2.5px solid var(--ink);border-radius:14px;
-  box-shadow:0 4px 0 var(--ink);padding:10px 12px}
+#placeBar{flex:none;display:none;background:var(--card);
+  border-top:2.5px solid var(--ink);padding:8px 10px 10px}
 #app.placing #placeBar{display:block}
 #placeBar .row{gap:8px}
 #placeHint{font-size:11px;color:var(--muted);font-weight:500;line-height:1.6;margin:0 0 6px}
@@ -262,18 +261,6 @@ input[type=range]{width:100%;accent-color:var(--danger)}
       <button class="mini" id="btnPlace">いち</button>
       <button class="mini" id="btnClean">がめんだけ</button>
     </div>
-    <div id="placeBar">
-      <div class="seg" id="placeWho" style="margin-bottom:8px">
-        <button data-t="a">キャラ1</button><button data-t="b">キャラ2</button></div>
-      <p id="placeHint">キャラを指でドラッグ／2本指でおおきさ。ここのスライダーでも変えられます。</p>
-      <input type="range" id="placeSize" min="40" max="300" step="2">
-      <div class="row" style="margin-top:8px">
-        <button class="btn g" id="placeL">ひだり</button>
-        <button class="btn g" id="placeC">まんなか</button>
-        <button class="btn g" id="placeR">みぎ</button>
-        <button class="btn grow" id="placeOk">できた</button>
-      </div>
-    </div>
     <div id="toast"></div>
     <div id="emptyNote">「つくる」からセリフを<br>入れてください</div>
     <div id="win">
@@ -338,6 +325,19 @@ input[type=range]{width:100%;accent-color:var(--danger)}
       <button class="btn" id="addScene" style="width:100%">＋ セリフを追加</button>
     </div>
   </div>
+
+  <div id="placeBar">
+      <div class="seg" id="placeWho" style="margin-bottom:8px">
+        <button data-t="a">キャラ1</button><button data-t="b">キャラ2</button></div>
+      <p id="placeHint">キャラを指でドラッグ／2本指でおおきさ。ここのスライダーでも変えられます。</p>
+      <input type="range" id="placeSize" min="40" max="300" step="2">
+      <div class="row" style="margin-top:8px">
+        <button class="btn g" id="placeL">ひだり</button>
+        <button class="btn g" id="placeC">まんなか</button>
+        <button class="btn g" id="placeR">みぎ</button>
+        <button class="btn grow" id="placeOk">できた</button>
+      </div>
+    </div>
 
   <div id="fab">
     <button class="btn grow" id="goPlay">▶ さいしょから見る</button>
