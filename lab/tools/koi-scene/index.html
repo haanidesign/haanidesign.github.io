@@ -497,13 +497,13 @@ function po(base){
     o.start(t); o.stop(t+.1);
   }catch(e){}
 }
-function mkScene(n,t){return{id:uid(),name:n||'',text:t||'',bg:'',ch:'',x:.5,y:0,s:1,
-                            ch2:'',x2:.73,y2:0,s2:1,who:'a',fx:'',bgm:'',sp:0}}
+function mkScene(n,t){return{id:uid(),name:n||'',text:t||'',bg:'',ch:'',
+                            x:null,y:null,s:null,ch2:'',x2:null,y2:null,s2:null,
+                            who:'a',fx:'',bgm:'',sp:0}}
 function fixScene(sc){
-  if(sc.x==null)sc.x=(sc.pos==='l')?.27:(sc.pos==='r')?.73:.5;
-  if(sc.y==null)sc.y=0; if(sc.s==null)sc.s=1; if(sc.fx==null)sc.fx='';
-  if(sc.ch2==null)sc.ch2=''; if(sc.x2==null)sc.x2=.73;
-  if(sc.y2==null)sc.y2=0; if(sc.s2==null)sc.s2=1; if(sc.who==null)sc.who='a';
+  if(sc.x==null&&sc.pos)sc.x=(sc.pos==='l')?.27:(sc.pos==='r')?.73:.5;
+  if(sc.fx==null)sc.fx='';
+  if(sc.ch2==null)sc.ch2=''; if(sc.who==null)sc.who='a';
   return sc;
 }
 function allBgs(){return PRESETS.concat(S.bgs)}
@@ -673,9 +673,23 @@ function styleUI0(){
 }
 function styleUI(){ styleUI0() }
 function W(t){return $(t==='b'?'#chB2':'#chA')}
-function P(sc,t){ return t==='b'
-  ? {x:sc.x2==null?.73:sc.x2, y:sc.y2||0, s:sc.s2||1}
-  : {x:sc.x==null?.5:sc.x,    y:sc.y||0,  s:sc.s||1}; }
+/* 立ちいち・おおきさは、そのセリフに指定がなければ前のセリフから受けつぐ */
+function posOf(i,t){
+  var kx=(t==='b')?'x2':'x', ky=(t==='b')?'y2':'y', ks=(t==='b')?'s2':'s';
+  var r={x:null,y:null,s:null};
+  for(var k=i;k>=0;k--){
+    var sc=S.scenes[k]; if(!sc)break;
+    if(r.x==null&&sc[kx]!=null)r.x=sc[kx];
+    if(r.y==null&&sc[ky]!=null)r.y=sc[ky];
+    if(r.s==null&&sc[ks]!=null)r.s=sc[ks];
+    if(r.x!=null&&r.y!=null&&r.s!=null)break;
+  }
+  if(r.x==null)r.x=(t==='b')?.73:.5;
+  if(r.y==null)r.y=0;
+  if(r.s==null)r.s=1;
+  return r;
+}
+function P(i,t){ return posOf(i,t) }
 function stageScale(){
   var pl=$('#play'),r=pl.getBoundingClientRect();
   if(!r.width)return;
@@ -684,7 +698,7 @@ function stageScale(){
 }
 function placeOne(t){
   var sc=S.scenes[idx],el=W(t); if(!sc)return;
-  var q=P(sc,t),r=$('#play').getBoundingClientRect();
+  var q=posOf(idx,t),r=$('#play').getBoundingClientRect();
   el.style.setProperty('--cx',(q.x*r.width)+'px');
   el.style.setProperty('--cy',(-q.y*r.height)+'px');
   el.style.setProperty('--base','translate('+(q.x*r.width)+'px,'+(-q.y*r.height)+'px) translateX(-50%)');
@@ -799,7 +813,7 @@ $('#play').addEventListener('pointerdown',function(e){
     app.classList.add('placing','grabbing');
     $('#placeWho').style.display=(S.cfg.two&&effCh(idx,'ch')&&effCh(idx,'ch2'))?'':'none';
     pts[id]={x:sx,y:sy};
-    var q=P(sc,pt); base={x:q.x,y:q.y,s:q.s,d:0};
+    var q=posOf(idx,pt); base={x:q.x,y:q.y,s:q.s,d:0};
     try{$('#play').setPointerCapture(id)}catch(err){}
     toast('つかんだ！ そのまま動かせます');
     try{navigator.vibrate&&navigator.vibrate(18)}catch(err){}
@@ -813,7 +827,7 @@ function grabTarget(clientX){
   if(a&&!b)return 'a';
   if(b&&!a)return 'b';
   var r=$('#play').getBoundingClientRect(),x=(clientX-r.left)/r.width;
-  return Math.abs(x-P(sc,'a').x)<=Math.abs(x-P(sc,'b').x)?'a':'b';
+  return Math.abs(x-posOf(idx,'a').x)<=Math.abs(x-posOf(idx,'b').x)?'a':'b';
 }
 ['pointerup','pointercancel'].forEach(function(ev){
   $('#play').addEventListener(ev,function(){
@@ -840,7 +854,7 @@ function setPT(t){
   Array.prototype.forEach.call($('#placeWho').querySelectorAll('button'),function(b){
     b.classList.toggle('on',b.dataset.t===pt)});
   var sc=S.scenes[idx];
-  $('#placeSize').value=Math.round(P(sc,pt).s*100);
+  $('#placeSize').value=Math.round(posOf(idx,pt).s*100);
   W('a').classList.toggle('sel',pt==='a'); W('b').classList.toggle('sel',pt==='b');
 }
 function setPlacing(v){
@@ -872,7 +886,7 @@ $('#play').addEventListener('pointerdown',function(e){
   pts[e.pointerId]={x:e.clientX,y:e.clientY};
   var sc=S.scenes[idx],ks=Object.keys(pts);
   if(!sc)return;
-  var q=P(sc,pt);
+  var q=posOf(idx,pt);
   base={x:q.x,y:q.y,s:q.s,d:ks.length>1?dist():0};
   try{$('#play').setPointerCapture(e.pointerId)}catch(err){}
 });
@@ -893,7 +907,7 @@ $('#play').addEventListener('pointermove',function(e){
   var sc=S.scenes[idx],r=$('#play').getBoundingClientRect(); if(!sc)return;
   var ks=Object.keys(pts);
   pts[e.pointerId]={x:e.clientX,y:e.clientY};
-  var q=P(sc,pt);
+  var q=posOf(idx,pt);
   if(ks.length>1){
     var d=dist();
     if(base.d>10&&d>10){var ns=Math.max(.4,Math.min(3,base.s*(d/base.d)));
@@ -1280,7 +1294,9 @@ function drawScenes(){
       '<label class="f">なまえ</label>'+
       '<input type="text" class="i-name" placeholder="（地の文なら空っぽ）" value="'+esc(sc.name)+'">'+
       '<label class="f">テキスト</label><textarea class="i-text"></textarea>'+
-      '<label class="f">BGM</label><div class="seg i-bgm" style="flex-wrap:wrap"></div>'+
+      '<label class="f">BGM</label>'+
+      '<button class="btn g i-bgmb" style="width:100%;text-align:left"></button>'+
+      '<div class="seg i-bgm" style="flex-wrap:wrap;display:none;margin-top:6px"></div>'+
       '<label class="f">はいけい</label><div class="thumbs i-bg"></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1':'キャラ')+'</label><div class="thumbs i-ch"></div>'+
       '<div class="only2"><label class="f">キャラ2</label><div class="thumbs i-ch2"></div>'+
@@ -1289,7 +1305,7 @@ function drawScenes(){
       '<label class="f">'+(S.cfg.two?'キャラ1の立ちいち':'立ちいち')+'</label>'+
       '<div class="seg i-pos"><button data-p="0.27">ひだり</button><button data-p="0.5">まんなか</button><button data-p="0.73">みぎ</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1のおおきさ':'おおきさ')+' <span class="i-sv"></span></label>'+
-      '<input type="range" class="i-size" min="40" max="300" step="2" value="'+Math.round(sc.s*100)+'">'+
+      '<input type="range" class="i-size" min="40" max="300" step="2" value="'+Math.round(posOf(i,'a').s*100)+'">'+
       '<button class="btn g i-place" style="width:100%;margin-top:4px">✥ 指でいちを合わせる</button>'+
       '<label class="f">この人のこえ <span class="i-vv"></span></label>'+
       '<input type="range" class="i-voice" min="0" max="5" step="1" value="'+(sc.v||0)+'">'+
@@ -1309,17 +1325,25 @@ function drawScenes(){
     ta.oninput=function(e){
       sc.text=e.target.value;save();head.querySelector('.who').textContent=label(sc)};
 
-    var mW=b.querySelector('.i-bgm');
+    var mW=b.querySelector('.i-bgm'),mB=b.querySelector('.i-bgmb');
     var opts=[{id:'',name:'まえと同じ'},{id:'none',name:'なし'}].concat(BGMS);
+    function mName(){
+      var o=opts.filter(function(x){return x.id===(sc.bgm||'')})[0];
+      return o?o.name:'まえと同じ';
+    }
+    function mUI(){ mB.textContent='♪ '+mName()+'　▾'; }
     mW.innerHTML=opts.map(function(o){
       return '<button data-m="'+o.id+'"'+(o.id===(sc.bgm||'')?' class="on"':'')+'>'+esc(o.name)+'</button>';
     }).join('');
+    mB.onclick=function(){ mW.style.display=(mW.style.display==='none')?'flex':'none'; };
     mW.onclick=function(e){
       var t=e.target.closest('button'); if(!t)return;
-      sc.bgm=t.dataset.m; save();
+      sc.bgm=t.dataset.m; save(); mUI(); mW.style.display='none';
       Array.prototype.forEach.call(mW.querySelectorAll('button'),function(y){
         y.classList.toggle('on',y.dataset.m===(sc.bgm||''))});
+      if(i===idx&&playing0)bgmPlay(effBgm(idx));
     };
+    mUI();
     var bgW=b.querySelector('.i-bg'),chW=b.querySelector('.i-ch'),chW2=b.querySelector('.i-ch2');
     function redraw(){
       thumbs(bgW,allBgs(),sc.bg,function(id){sc.bg=id;save();redraw()},null,'まえと同じ');
@@ -1327,8 +1351,8 @@ function drawScenes(){
       thumbs(chW2,S.chs,sc.ch2,function(id){
         sc.ch2=id;
         var real=id&&id!=='none';
-        if(real&&sc.x===0.5)sc.x=0.27;
-        if(real){ if(sc.s===1)sc.s=.78; if(sc.s2===1)sc.s2=.78; }
+        if(real&&posOf(i,'a').x===0.5)sc.x=0.27;
+        if(real){ if(posOf(i,'a').s===1)sc.s=.78; if(posOf(i,'b').s===1)sc.s2=.78; }
         if(id==='none')sc.who='a';
         save();redraw();twoUI();},null,'なし','まえと同じ');
     }
@@ -1350,17 +1374,18 @@ function drawScenes(){
         y.classList.toggle('on',(sel==='.i-pos'?+y.dataset.p:y.dataset.f)===val)});
     }
     Array.prototype.forEach.call(b.querySelectorAll('.i-pos button'),function(x){
-      x.onclick=function(){sc.x=+x.dataset.p;save();segSel('.i-pos',sc.x)};
+      x.onclick=function(){sc.x=+x.dataset.p;save();segSel('.i-pos',sc.x);
+        if(i===idx)placeCh();};
     });
-    segSel('.i-pos',sc.x);
+    segSel('.i-pos',posOf(i,'a').x);
     Array.prototype.forEach.call(b.querySelectorAll('.i-fx button'),function(x){
       x.onclick=function(){sc.fx=x.dataset.f;save();segSel('.i-fx',sc.fx);
         if(sc.fx){idx=i;toPlay()}};
     });
     segSel('.i-fx',sc.fx);
     var sz=b.querySelector('.i-size'),sv=b.querySelector('.i-sv');
-    function szUI(){sv.textContent=Math.round(sc.s*100)+'%'}
-    sz.oninput=function(e){sc.s=(+e.target.value)/100;szUI()};
+    function szUI(){sv.textContent=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100)+'%'}
+    sz.oninput=function(e){sc.s=(+e.target.value)/100;szUI();if(i===idx)placeCh()};
     sz.onchange=function(){save()}; szUI();
     b.querySelector('.i-place').onclick=function(){idx=i;toPlay();setPlacing(true)};
     var VN=['きほんに合わせる','とても低い','低い','ふつう','高い','とても高い'];
@@ -1418,7 +1443,6 @@ $('#goPlay').onclick=function(){idx=0;toPlay()};
 $('#addScene').onclick=function(){
   var p=S.scenes[S.scenes.length-1]||{};
   var n=mkScene(p.name||'',''); n.ch='';
-  n.x=(p.x==null?.5:p.x); n.y=p.y||0; n.s=p.s||1;
   S.scenes.push(n); openId=n.id; save(); drawScenes();
   setTimeout(function(){
     var c=$('#scenes').lastElementChild; if(!c)return;
@@ -1483,11 +1507,10 @@ function wrapLines(text,maxW){
 var FONT='"M PLUS Rounded 1c","Hiragino Maru Gothic ProN",sans-serif';
 
 /* キャラ1体を描く。dim なら暗くする */
-function drawCh(im,sc,t,dim,fx,fp){
+function drawCh(im,si,t,dim,fx,fp){
   if(!im||!im.width)return;
   var o=fxOffset(fx,fp);
-  var q=(t==='b')?{x:sc.x2==null?.73:sc.x2,y:sc.y2||0,s:sc.s2||1}
-                 :{x:sc.x==null?.5:sc.x,   y:sc.y||0, s:sc.s||1};
+  var q=posOf(si,t);
   var h=VH*0.88*q.s,w=im.width*(h/im.height);
   var cx=VW*q.x,by=VH-h-VH*q.y;
   CX.save();
@@ -1521,8 +1544,8 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   CX.fillStyle='#000';CX.fillRect(0,0,VW,VH);
   cover(bgIm,0,0,VW,VH);
   var two=!!(chIm&&chIm2), who=(sc.who==='b')?'b':'a';
-  drawCh(chIm2,sc,'b',two&&who==='a',(who==='b')?fx:'',fp);
-  drawCh(chIm ,sc,'a',two&&who==='b',(who!=='b')?fx:'',fp);
+  drawCh(chIm2,sc.__i||0,'b',two&&who==='a',(who==='b')?fx:'',fp);
+  drawCh(chIm ,sc.__i||0,'a',two&&who==='b',(who!=='b')?fx:'',fp);
   if(veilA>0){CX.fillStyle='rgba(0,0,0,'+veilA+')';CX.fillRect(0,0,VW,VH)}
 
   var FS=S.cfg.fs||1;
@@ -1704,6 +1727,7 @@ $('#btnExport').onclick=function(){
       else if(talk==='a'&&now<mouthEnd&&im['cm'+bi])chIm=im['cm'+bi];
       if(now<blinkEnd2&&im['db'+bi])chIm2=im['db'+bi];
       else if(talk==='b'&&now<mouthEnd&&im['dm'+bi])chIm2=im['dm'+bi];
+      sb.__i=bi;
       paint(sb,im['b'+bi],chIm,chIm2,s.lines,n,s.text.length,veil,
             s.fx,s.fx?((t-s.fade)/fdur):-1);
       msg.textContent='書き出しちゅう… '+Math.round((done+Math.min(t,s.fade+s.type+s.hold))/total*100)+'%';
