@@ -33,8 +33,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 #bar #home::before{content:"‹ ";font-size:16px}
 #app.athome #bar #home::before{content:""}
 #app.athome .tab{display:none}
-#undo{padding:4px 10px;font-size:14px}
-#undo[disabled]{opacity:.35;box-shadow:none;transform:translateY(3px);cursor:default}
+#undo,#redo{padding:4px 9px;font-size:14px}
+#undo[disabled],#redo[disabled]{opacity:.35;box-shadow:none;transform:translateY(3px);cursor:default}
 .tab{font-family:"DotGothic16",monospace;font-size:12px;letter-spacing:1px;
   background:var(--card);border:2.5px solid var(--ink);border-radius:100px;
   padding:4px 12px;box-shadow:var(--sh);cursor:pointer}
@@ -290,7 +290,7 @@ input[type=text]:focus,textarea:focus,select:focus{box-shadow:0 0 0 3px rgba(225
 .doc.cur{box-shadow:0 2px 0 var(--ink),0 0 0 3px var(--pop)}
 .only2{display:none}
 body.locked .i-pos,body.locked .i-size{opacity:.4}
-body.locked #btnPlace,body.locked .i-place{opacity:.5}
+body.locked .i-place{opacity:.5}
 body.two .only2{display:block}
 .seg{display:flex;border:2.5px solid var(--ink);border-radius:10px;overflow:hidden;
   box-shadow:var(--sh);width:100%}
@@ -310,6 +310,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
   <div id="bar">
     <button id="home" title="さくひん えらびに もどる">恋愛ゲーム画面メーカー</button>
     <button class="tab" id="undo" title="ひとつ もどす">↩</button>
+    <button class="tab" id="redo" title="ひとつ すすむ">↪</button>
     <button class="tab" id="tabEdit">つくる</button>
     <button class="tab on" id="tabPlay">みる</button>
   </div>
@@ -1125,10 +1126,7 @@ $('#placeWho').onclick=function(e){
   var b=e.target.closest('button'); if(b)setPT(b.dataset.t);
 };
 function setP(sc,t,k,v){ sc[t==='b'?k+'2':k]=v }
-$('#btnPlace').onclick=function(){
-  if(S.cfg.lock){toast('立ちいちを かためています');return}
-  setPlacing(true);
-};
+$('#btnPlace').onclick=function(){ setPlacing(true) };
 $('#placeOk').onclick=function(){setPlacing(false)};
 function nudge(x){var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'x',x);placeCh();save()}
 $('#placeL').onclick=function(){nudge(.22)};
@@ -2079,27 +2077,41 @@ document.addEventListener('pointermove',function(e){
 
 /* ---------- ひとつ もどす ----------
    絵は 変えずに、セリフと せっていだけ 覚えておく（軽くするため） */
-var hist=[],lastSnap=null;
+var hist=[],redoS=[],lastSnap=null;
 function snapNow(){ return JSON.stringify({scenes:S.scenes,cfg:S.cfg}) }
 function pushHist(){
   var cur=snapNow();
   if(cur===lastSnap)return;
-  if(lastSnap!==null){ hist.push(lastSnap); if(hist.length>40)hist.shift(); }
+  if(lastSnap!==null){ hist.push(lastSnap); if(hist.length>40)hist.shift(); redoS=[]; }
   lastSnap=cur; undoUI();
 }
-function undoUI(){ var b=$('#undo'); if(b)b.disabled=!hist.length }
-function undo(){
-  if(!hist.length)return;
-  var prev=hist.pop(); lastSnap=prev;
-  var o=JSON.parse(prev);
+function undoUI(){
+  var b=$('#undo'); if(b)b.disabled=!hist.length;
+  var f=$('#redo'); if(f)f.disabled=!redoS.length;
+}
+function applySnap(js){
+  var o=JSON.parse(js);
   S.scenes=(o.scenes||[]).map(fixScene); S.cfg=o.cfg||S.cfg;
   if(!S.scenes.length)S.scenes=[mkScene('','')];
   idx=Math.min(idx,S.scenes.length-1);
   try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();lockUI();drawAll();render();
-  undoUI(); autoSave(); toast('ひとつ もどしました');
+  undoUI(); autoSave();
+}
+function undo(){
+  if(!hist.length)return;
+  redoS.push(lastSnap); if(redoS.length>40)redoS.shift();
+  var prev=hist.pop(); lastSnap=prev;
+  applySnap(prev); toast('ひとつ もどしました');
+}
+function redo(){
+  if(!redoS.length)return;
+  hist.push(lastSnap); if(hist.length>40)hist.shift();
+  var next=redoS.pop(); lastSnap=next;
+  applySnap(next); toast('ひとつ すすめました');
 }
 $('#undo').onclick=undo;
+$('#redo').onclick=redo;
 
 /* ---------- 見出しを おして 開け閉め ---------- */
 var FOLD=KEY+'_fold';
