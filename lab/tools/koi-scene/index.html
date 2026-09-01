@@ -1044,22 +1044,32 @@ function loopBlink(t){
    おそいときは ほとんど動かない、になってしまうため。 */
 var mouthOn={a:false,b:false};
 function mouthClose(){
+  clearTimeout(mouthT);
   ['a','b'].forEach(function(t){
     mouthOn[t]=false;
     var el=W(t); if(!el)return;
     var m=el.querySelector('.mo'); if(m)m.classList.remove('on');
   });
 }
-function mouthTick(){
-  var sc=S.scenes[idx]; if(!sc||sc.who==='n')return;
+/* 文字1つに 1回ずつ 開け閉めすると、腹話術のように 見えてしまう。
+   しゃべっているあいだ、ゆらぎのある リズムで 開け閉めする。 */
+var mouthT=null;
+function mouthSet(on){
+  var sc=S.scenes[idx]; if(!sc)return;
   var t=(sc.who==='b')?'b':'a',el=W(t);
-  var m=el.querySelector('.mo');
-  if(!m||!m.dataset.has)return;
-  if(el.querySelector('.bl').classList.contains('on')){   /* まばたき中は 口を閉じておく */
-    mouthOn[t]=false; m.classList.remove('on'); return;
-  }
-  mouthOn[t]=!mouthOn[t];
-  m.classList.toggle('on',mouthOn[t]);
+  var m=el&&el.querySelector('.mo'); if(!m||!m.dataset.has)return;
+  if(el.querySelector('.bl').classList.contains('on'))on=false;  /* まばたき中は 閉じる */
+  mouthOn[t]=on; m.classList.toggle('on',on);
+}
+function mouthLoop(){
+  clearTimeout(mouthT);
+  var sc=S.scenes[idx];
+  if(!typing||!sc||sc.who==='n'){ mouthClose(); return; }
+  var t=(sc.who==='b')?'b':'a';
+  var on=!mouthOn[t];
+  mouthSet(on);
+  /* 開いている時間を すこし長めに。毎回 ゆらす */
+  mouthT=setTimeout(mouthLoop, on ? 95+Math.random()*75 : 70+Math.random()*60);
 }
 function showPage(){ type(pages[page]) }
 function type(t){
@@ -1072,10 +1082,10 @@ function type(t){
     var c=t.charAt(i);
     b.textContent=t.slice(0,++i);
     var kuten=' 　\n、。！？…・'.indexOf(c)<0;
-    if(kuten)mouthTick();                    /* 口は 1文字ごと */
     if(kuten&&i%2===1)po(voiceOf(S.scenes[idx]));   /* 音は 2文字に1回 */
     if(i>=t.length){clearInterval(typing);typing=null;finishType()}
   },Math.max(8,130-sp));
+  mouthLoop();                      /* しゃべっているあいだ 口を動かす */
 }
 function finishType(){
   mouthClose();
@@ -2137,7 +2147,7 @@ $('#btnExport').onclick=function(){
 
     var total=0;tl.forEach(function(s){total+=s.fade+s.type+s.hold});
     var k=0,t0=performance.now(),done=0,lastN=-1,cache=null;
-    var blinkEnd=0,mouthFlip=false,blinkNext=performance.now()+2000;
+    var blinkEnd=0,mouthFlip=false,mouthNext=0,blinkNext=performance.now()+2000;
     var blinkEnd2=0,blinkNext2=performance.now()+3500;
     exporting=true;recT0=performance.now();recorder.start(1000);
 
@@ -2158,9 +2168,10 @@ $('#btnExport').onclick=function(){
       var n=(s.type<=0)?s.text.length:
             Math.max(0,Math.min(s.text.length,Math.floor((t-s.fade)/(s.type/Math.max(1,s.text.length)))));
       if(t<s.fade)n=0;
-      if(n>lastN&&n>0&&(S.scenes[s.i]||{}).who!=='n'){
-        /* 口は 1文字ごとに 開け閉め */
-        if(' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)mouthFlip=!mouthFlip;
+      if(n>0&&n<s.text.length&&(S.scenes[s.i]||{}).who!=='n'){
+        /* しゃべっているあいだ、ゆらぎのある リズムで 開け閉め */
+        if(now>mouthNext){ mouthFlip=!mouthFlip;
+          mouthNext=now+(mouthFlip?95+Math.random()*75:70+Math.random()*60); }
       }
       if(n>lastN&&n>0&&S.cfg.snd){
         if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)po(s.v);
