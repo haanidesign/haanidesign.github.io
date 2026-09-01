@@ -470,6 +470,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
         <button class="btn g" id="placeL">ひだり</button>
         <button class="btn g" id="placeC">まんなか</button>
         <button class="btn g" id="placeR">みぎ</button>
+        <button class="btn g" id="placeSame">まえと同じに もどす</button>
         <button class="btn grow" id="placeOk">できた</button>
       </div>
     </div>
@@ -1162,6 +1163,14 @@ function setP(sc,t,k,v){ sc[t==='b'?k+'2':k]=v }
 $('#btnPlace').onclick=function(){ setPlacing(true) };
 $('#placeOk').onclick=function(){setPlacing(false)};
 function nudge(x){var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'x',x);placeCh();save()}
+$('#placeSame').onclick=function(){
+  var sc=S.scenes[idx]; if(!sc)return;
+  if(pt==='b'){ sc.x2=null;sc.y2=null;sc.s2=null; }
+  else { sc.x=null;sc.y=null;sc.s=null; }
+  placeCh(); save();
+  $('#placeSize').value=Math.round(posOf(idx,pt).s*100);
+  toast('まえと同じに もどしました');
+};
 $('#placeL').onclick=function(){nudge(.22)};
 $('#placeC').onclick=function(){nudge(.5)};
 $('#placeR').onclick=function(){nudge(.78)};
@@ -1708,7 +1717,7 @@ function drawScenes(){
     }
     Array.prototype.forEach.call(b.querySelectorAll('.i-pos button'),function(x){
       x.onclick=function(){
-        if(S.cfg.lock){toast('立ちいちを かためています');return}
+        if(S.cfg.lock&&x.dataset.p!==''){toast('立ちいちを かためています');return}
         if(x.dataset.p===''){ sc.x=null;sc.y=null;sc.s=null; }
         else sc.x=+x.dataset.p;
         save();segSel('.i-pos',sc.x==null?null:sc.x);szUI();
