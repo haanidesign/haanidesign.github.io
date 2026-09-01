@@ -327,12 +327,24 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
   /* ふくらませる 量は「画面の ドットで いくつぶん」で きめる。
      絵の中の ドットで きめると、ズームや レイヤーの 大きさで
      効いたり 効かなかったり して しまう。 */
+  const cv0 = ctx.canvas;
   let scale = 1;
   try{
     const m = ctx.getTransform();
     scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
   }catch(_){ scale = 1; }
-  const ex = Math.min(6, Math.max(0.5, 0.6 / scale));
+  /* 画面に 出す ときの 紙は、じっさいの 画面より あらい ことが ある
+     （こまかすぎると 重いので 2ばい までに おさえて いる）。
+     その ぶん ブラウザが ひきのばして 出す ので、
+     ほんの少しの すきまも 大きく なって 見える。
+     ＝ 書き出した 動画では 出ないのに 画面では すじが 見える。
+     ひきのばされる ぶんだけ 多めに ふくらませる。 */
+  let up = 1;
+  try{
+    const cw = cv0.clientWidth;                     // 書き出し用の 紙は 0
+    if(cw > 0) up = Math.max(1, Math.min(3, (cw * (devicePixelRatio || 1)) / cv0.width));
+  }catch(_){ up = 1; }
+  const ex = Math.min(6, Math.max(0.5, 0.6 * up / scale));
 
   /* ---------- かさなっても 濃く ならない ように ----------
      三角を ふくらませて 重ねると すきまは 消えるが、
@@ -344,8 +356,7 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
      レイヤーの すけ具合は その 1回に かかる ので、
      重なった ところが 2回 うすめられる ことが なくなる。
      （すけた レイヤーを ゆがめた ときの こい すじが これで 消える） */
-  const cv = ctx.canvas;
-  const sc = sheet(cv.width, cv.height);
+  const sc = sheet(cv0.width, cv0.height);
   const g = sc.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, sc.width, sc.height);

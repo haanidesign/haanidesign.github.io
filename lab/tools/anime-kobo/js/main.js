@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=118';
+import { M } from './engine/math.js?v=120';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=118';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=120';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=118';
-import { createStage } from './ui/stage.js?v=118';
-import { createRenderer } from './render/renderer.js?v=118';
-import { createTimeline } from './ui/timeline.js?v=118';
-import { fmtTime } from './engine/anim.js?v=118';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=120';
+import { createStage } from './ui/stage.js?v=120';
+import { createRenderer } from './render/renderer.js?v=120';
+import { createTimeline } from './ui/timeline.js?v=120';
+import { fmtTime } from './engine/anim.js?v=120';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=118';
+         setWarper } from './ui/sheet.js?v=120';
 
-import { showNewDoc } from './ui/newdoc.js?v=118';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=118';
-import { fitToCanvas, isBg } from './io/bg.js?v=118';
-import * as Audio from './io/audio.js?v=118';
+import { showNewDoc } from './ui/newdoc.js?v=120';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=120';
+import { fitToCanvas, isBg } from './io/bg.js?v=120';
+import * as Audio from './io/audio.js?v=120';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=118';
-import { importPsd } from './io/psd.js?v=118';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=120';
+import { importPsd } from './io/psd.js?v=120';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=118';
-import { pathKeys } from './engine/path.js?v=118';
-import { paintDirty } from './engine/paint.js?v=118';
+         canUseWebCodecs } from './io/export.js?v=120';
+import { pathKeys } from './engine/path.js?v=120';
+import { paintDirty } from './engine/paint.js?v=120';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=118';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=120';
 
 const $ = (s) => document.querySelector(s);
 
@@ -82,6 +82,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 let lastT = performance.now();
+let lastStageW = 0, lastStageH = 0;
 (function loop(){
   const now = performance.now();
   const dt = Math.min(0.1, (now - lastT) / 1000);
@@ -105,6 +106,20 @@ let lastT = performance.now();
   }
   // 目もりを さわるなど、ほかの所で 止まったときも 音を そろえる
   if(!S.playing && Audio.isPlaying()) Audio.stop();
+
+  /* 絵の 欄の 大きさが 変わって いないか、毎コマ たしかめる。
+
+     ウィンドウを 変えなくても 欄の 大きさは 変わる
+     （シートの 出し入れ、タイムラインの たたみ、
+       アドレスバーの 出入り、道具の ならびなおし など）。
+     気づかないと 紙が 古いままに なって、下の ほうが 切れて 見える。
+     はかるだけ なので 軽い。 */
+  const sr = stageHost.getBoundingClientRect();
+  if(Math.abs(sr.width - lastStageW) > 0.5 || Math.abs(sr.height - lastStageH) > 0.5){
+    lastStageW = sr.width; lastStageH = sr.height;
+    stage.resize();
+    dirty = true;
+  }
 
   if(dirty){ stage.draw(); dirty = false; }
   requestAnimationFrame(loop);
@@ -821,6 +836,15 @@ function onResize(){
   dirty = true;
 }
 window.addEventListener('resize', onResize);
+
+/* 絵の 欄の 大きさは、ウィンドウを 変えなくても 変わる
+   （シートの 出し入れ、タイムラインの たたみ、道具の ならびなおし など）。
+   そのとき「resize」は 来ない ので、紙の 大きさが 古いままに なり、
+   下の ほうが 切れて 見える。
+   欄そのものを 見はって、変わったら すぐ 作り直す。 */
+if(window.ResizeObserver){
+  new ResizeObserver(() => onResize()).observe(stageHost);
+}
 
 /* いま ほんとうに 見えて いる たかさを CSS に わたす。
 
