@@ -1008,6 +1008,10 @@ function placeOne(t){
   el.style.height=(88*q.s)+'%';
 }
 function placeCh(){ stageScale(); placeBg(); placeOne('a'); placeOne('b') }
+if(window.ResizeObserver){
+  try{ new ResizeObserver(function(){ placeCh(); styleUI0(); })
+        .observe($('#play')); }catch(e){}
+}
 window.addEventListener('resize',function(){placeCh();styleUI()});
 /* ---------- びっくり効果 ---------- */
 var FXC={jolt:'fxJolt',shake:'fxShake',run:'fxRun',
@@ -1218,6 +1222,8 @@ function setPlacing(v){
         if(sc&&!findCh(effCh(idx,'ch'))&&!ch2Of(idx))toast('このセリフにキャラがいません');
         setPT(sc&&!findCh(effCh(idx,'ch'))&&ch2Of(idx)?'b':'a');}
   else {W('a').classList.remove('sel');W('b').classList.remove('sel');save()}
+  setTimeout(function(){placeCh()},0);
+  setTimeout(function(){placeCh()},260);   /* 見た目が おちついてから もう一度 */
 }
 $('#placeWho').onclick=function(e){
   var b=e.target.closest('button'); if(b)setPT(b.dataset.t);
