@@ -2044,31 +2044,84 @@ $('#btnExport').onclick=function(){
              recDest.stream.getAudioTracks().forEach(function(t){stream.addTrack(t)});
              var g=bgmGraph(); if(g){try{g.connect(recDest)}catch(e){}} }
     }
-    var chunks=[];
+    /* MediaRecorder の MP4 は「ながさ」を書く欄が 0 のまま。
+       プレイヤーが 尺を読めず 00:03 のように 出てしまうので、
+       録りおわってから 実際のながさを 書きこむ。 */
+    function mp4FixDuration(blob,sec){
+      if(blob.type.indexOf('mp4')<0)return Promise.resolve(blob);
+      return blob.arrayBuffer().then(function(buf){
+        try{
+          var u8=new Uint8Array(buf),dv=new DataView(buf);
+          function typeAt(i){return String.fromCharCode(u8[i+4],u8[i+5],u8[i+6],u8[i+7])}
+          var movieTs=1000;                       /* mvhd の timescale */
+          function setDur(off,ver,ts){
+            var d=Math.max(1,Math.round(sec*ts));
+            if(ver===1){ dv.setUint32(off,0); dv.setUint32(off+4,d>>>0); }
+            else dv.setUint32(off,d);
+          }
+          function walk(from,to){
+            var i=from;
+            while(i+8<=to){
+              var sz=dv.getUint32(i); if(sz<8)break;
+              var ty=typeAt(i),body=i+8,ver;
+              if(ty==='mvhd'){
+                ver=u8[body];
+                var tso=(ver===1)?body+4+8+8:body+4+4+4;
+                movieTs=dv.getUint32(tso)||1000;
+                setDur(tso+4,ver,movieTs);
+              }else if(ty==='tkhd'){
+                ver=u8[body];
+                /* creation, modification, track_id, reserved, duration。ながさは movie の timescale */
+                setDur((ver===1)?body+4+8+8+4+4:body+4+4+4+4+4, ver, movieTs);
+              }else if(ty==='mdhd'){
+                ver=u8[body];
+                var t2=(ver===1)?body+4+8+8:body+4+4+4;
+                setDur(t2+4, ver, dv.getUint32(t2)||movieTs);
+              }
+              if(ty==='moov'||ty==='trak'||ty==='mdia')walk(body,i+sz);
+              i+=sz;
+            }
+          }
+          var j=0;
+          while(j+8<=u8.length){
+            var sz2=dv.getUint32(j); if(sz2<8)break;
+            if(typeAt(j)==='moov'){ walk(j+8,j+sz2); break; }
+            j+=sz2;
+          }
+          return new Blob([buf],{type:blob.type});
+        }catch(e){ return blob }
+      });
+    }
+    var chunks=[],recT0=0;
     recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:4500000});
     recorder.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
     recorder.onstop=function(){
       try{ if(bgmGain&&recDest)bgmGain.disconnect(recDest) }catch(e){}
       bgmStop();
       recDest=null;
-      var blob=new Blob(chunks,{type:mime});
+      var raw=new Blob(chunks,{type:mime});
       var ext=(mime.indexOf('mp4')>=0)?'mp4':'webm';
-      var url=URL.createObjectURL(blob);
-      bar.style.width='100%';
-      $('#expStop').textContent='とじる';
-      msg.textContent='できました（'+ext.toUpperCase()+' / '+
-        (blob.size/1048576).toFixed(1)+'MB）。保存が始まらないときは、下の動画を長おしして保存してください。';
-      var v=$('#expVid'); v.src=url; v.style.display='block'; CV.style.display='none';
-      $('#expDl').style.display='block'; $('#expDl').href=url; $('#expDl').download='koi_scene.'+ext;
-      try{ var a2=document.createElement('a');a2.href=url;a2.download='koi_scene.'+ext;
-           document.body.appendChild(a2);a2.click();a2.remove(); }catch(e){}
+      var sec=(performance.now()-recT0)/1000;
+      msg.textContent='ながさを ととのえています…';
+      mp4FixDuration(raw,sec).then(function(blob){
+        var url=URL.createObjectURL(blob);
+        bar.style.width='100%';
+        $('#expStop').textContent='とじる';
+        msg.textContent='できました（'+ext.toUpperCase()+' / '+
+          (blob.size/1048576).toFixed(1)+'MB / '+sec.toFixed(1)+'びょう）。'+
+          '保存が始まらないときは、下の動画を長おしして保存してください。';
+        var v=$('#expVid'); v.src=url; v.style.display='block'; CV.style.display='none';
+        $('#expDl').style.display='block'; $('#expDl').href=url; $('#expDl').download='koi_scene.'+ext;
+        try{ var a2=document.createElement('a');a2.href=url;a2.download='koi_scene.'+ext;
+             document.body.appendChild(a2);a2.click();a2.remove(); }catch(e){}
+      });
     };
 
     var total=0;tl.forEach(function(s){total+=s.fade+s.type+s.hold});
     var k=0,t0=performance.now(),done=0,lastN=-1,cache=null;
     var blinkEnd=0,mouthEnd=0,blinkNext=performance.now()+2000;
     var blinkEnd2=0,blinkNext2=performance.now()+3500;
-    exporting=true;recorder.start(1000);
+    exporting=true;recT0=performance.now();recorder.start(1000);
 
     recTimer=setInterval(function(){
       if(!exporting)return;
