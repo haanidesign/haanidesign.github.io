@@ -180,6 +180,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 #placeBar{flex:none;display:none;background:var(--card);
   border-top:2.5px solid var(--ink);padding:8px 10px 10px}
 #app.placing #placeBar{display:block}
+#placeBar.bgmode #placeL,#placeBar.bgmode #placeC,#placeBar.bgmode #placeR{
+  opacity:.35;pointer-events:none}
 #placeBar .row{gap:8px}
 #placeHint{font-size:11px;color:var(--muted);font-weight:500;line-height:1.6;margin:0 0 6px}
 #app.placing .chWrap.sel .base{outline:3px dashed rgba(225,221,96,.95);outline-offset:2px}
@@ -1190,12 +1192,21 @@ function setPT(t){
   pt=t;
   Array.prototype.forEach.call($('#placeWho').querySelectorAll('button'),function(b){
     b.classList.toggle('on',b.dataset.t===pt)});
-  $('#placeSize').value=(pt==='bg')?Math.round(bgPosOf(idx).z*100)
-                                   :Math.round(posOf(idx,pt).s*100);
+  var sz=$('#placeSize');
+  if(pt==='bg'){
+    sz.min=100; sz.max=300;
+    var sc0=S.scenes[idx];
+    if(sc0&&bgPosOf(idx).z<=1){ sc0.bz=1.2; placeCh(); }   /* うごかせる ゆとりを作る */
+    sz.value=Math.round(bgPosOf(idx).z*100);
+  }else{
+    sz.min=40; sz.max=300;
+    sz.value=Math.round(posOf(idx,pt).s*100);
+  }
   $('#placeHint').textContent=(pt==='bg')
     ? 'はいけいを 指でドラッグ／2本指か スライダーで ズーム。'
     : 'キャラを 指でドラッグ／2本指でおおきさ。ここのスライダーでも 変えられます。';
   W('a').classList.toggle('sel',pt==='a'); W('b').classList.toggle('sel',pt==='b');
+  $('#placeBar').classList.toggle('bgmode',pt==='bg');
 }
 function setPlacing(v){
   placing=v; app.classList.toggle('placing',v);
@@ -1226,8 +1237,16 @@ $('#placeSame').onclick=function(){
   else if(pt==='b'){ sc.x2=null;sc.y2=null;sc.s2=null; }
   else { sc.x=null;sc.y=null;sc.s=null; }
   placeCh(); save();
-  $('#placeSize').value=(pt==='bg')?Math.round(bgPosOf(idx).z*100)
-                                   :Math.round(posOf(idx,pt).s*100);
+  var sz=$('#placeSize');
+  if(pt==='bg'){
+    sz.min=100; sz.max=300;
+    var sc0=S.scenes[idx];
+    if(sc0&&bgPosOf(idx).z<=1){ sc0.bz=1.2; placeCh(); }   /* うごかせる ゆとりを作る */
+    sz.value=Math.round(bgPosOf(idx).z*100);
+  }else{
+    sz.min=40; sz.max=300;
+    sz.value=Math.round(posOf(idx,pt).s*100);
+  }
   toast('まえと同じに もどしました');
 };
 $('#placeL').onclick=function(){nudge(.22)};
@@ -1235,7 +1254,9 @@ $('#placeC').onclick=function(){nudge(.5)};
 $('#placeR').onclick=function(){nudge(.78)};
 $('#placeSize').oninput=function(e){
   var sc=S.scenes[idx];if(!sc)return;
-  setP(sc,pt,(pt==='bg')?'z':'s',(+e.target.value)/100);placeCh();
+  var v=(+e.target.value)/100;
+  if(pt==='bg')v=Math.max(1,v);
+  setP(sc,pt,(pt==='bg')?'z':'s',v);placeCh();
 };
 $('#placeSize').onchange=save;
 
