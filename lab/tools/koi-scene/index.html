@@ -91,11 +91,10 @@ button,input,select,textarea{font:inherit;color:inherit}
   background-size:calc(14px * var(--u)) calc(14px * var(--u));
   border:calc(2.5px * var(--u)) solid var(--ink);border-radius:calc(14px * var(--u));
   box-shadow:0 calc(4px * var(--u)) 0 var(--ink);
-  padding:calc(16px * var(--u)) calc(14px * var(--u)) calc(14px * var(--u));
+  padding:calc(28px * var(--u)) calc(14px * var(--u)) calc(14px * var(--u));
   min-height:calc((28px + 14px + 5px + 56px * var(--fs,1)) * var(--u));
   display:flex;flex-direction:column;
   transition:padding-top .15s}
-#win.hasName{padding-top:calc(28px * var(--u))}
 #nameTag{position:absolute;top:calc(-15px * var(--u));left:calc(14px * var(--u));
   background:var(--pop);
   border:calc(2.5px * var(--u)) solid var(--ink);border-radius:100px;
@@ -890,7 +889,6 @@ function render(){
   fire(sc.fx);
   if(playing0)bgmPlay(effBgm(idx));
   $('#nameTag').textContent=sc.name||'';
-  $('#win').classList.toggle('hasName',!!sc.name);
   pages=splitPages(sc.text,S.cfg.ppc); page=0; showPage();
 }
 var EDGEC=['','#fff','#1e1c14'];
@@ -1941,7 +1939,7 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
 
   var FS=S.cfg.fs||1;
   CX.font='700 '+(16*FS)+'px '+FONT;
-  var padT=(sc.name?28:16),padB=14,lh=28*FS;
+  var padT=28,padB=14,lh=28*FS;
   var winH=Math.max(28+2*lh+padB+5, padT+lines.length*lh+padB);
   var wx=10,ww=VW-20,wy=VH-10-winH-VH*(S.cfg.winY||0)/100;
   CX.fillStyle='rgba(255,254,247,.96)';rr(wx,wy,ww,winH,14);CX.fill();
