@@ -1,7 +1,20 @@
 /* 3サイズとも同じ部品。画面が広くなるほど隠していたものが出てくるだけ。 */
 
+/* たかさは「いま ほんとうに 見えて いる ぶん」に あわせる。
+
+   スマホは 上の アドレスバーが 出たり ひっこんだり する。
+   inset:0 だけ だと、バーが ひっこんだ ときの 大きさの ままに なり、
+   バーが 出て いる あいだは 画面の 下が バーの 下に かくれる。
+   ＝ 絵の 下が 見えなく なる。
+
+   ・100dvh … いま 見えて いる ぶん（新しい ブラウザ）
+   ・--appH … JS が visualViewport から 入れる（いちばん たしか）
+   古い ブラウザ用に 100% も のこす。 */
 #app{
-  position:fixed; inset:0;
+  position:fixed; left:0; top:0; right:0;
+  height:100%;
+  height:100dvh;
+  height:var(--appH, 100dvh);
   display:grid;
   overflow:hidden;
   grid-template-rows:auto 1fr auto auto;

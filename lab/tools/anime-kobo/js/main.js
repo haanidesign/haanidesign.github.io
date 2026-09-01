@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=116';
+import { M } from './engine/math.js?v=118';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=116';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=118';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=116';
-import { createStage } from './ui/stage.js?v=116';
-import { createRenderer } from './render/renderer.js?v=116';
-import { createTimeline } from './ui/timeline.js?v=116';
-import { fmtTime } from './engine/anim.js?v=116';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=118';
+import { createStage } from './ui/stage.js?v=118';
+import { createRenderer } from './render/renderer.js?v=118';
+import { createTimeline } from './ui/timeline.js?v=118';
+import { fmtTime } from './engine/anim.js?v=118';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=116';
+         setWarper } from './ui/sheet.js?v=118';
 
-import { showNewDoc } from './ui/newdoc.js?v=116';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=116';
-import { fitToCanvas, isBg } from './io/bg.js?v=116';
-import * as Audio from './io/audio.js?v=116';
+import { showNewDoc } from './ui/newdoc.js?v=118';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=118';
+import { fitToCanvas, isBg } from './io/bg.js?v=118';
+import * as Audio from './io/audio.js?v=118';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=116';
-import { importPsd } from './io/psd.js?v=116';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=118';
+import { importPsd } from './io/psd.js?v=118';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=116';
-import { pathKeys } from './engine/path.js?v=116';
-import { paintDirty } from './engine/paint.js?v=116';
+         canUseWebCodecs } from './io/export.js?v=118';
+import { pathKeys } from './engine/path.js?v=118';
+import { paintDirty } from './engine/paint.js?v=118';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=116';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=118';
 
 const $ = (s) => document.querySelector(s);
 
@@ -821,6 +821,28 @@ function onResize(){
   dirty = true;
 }
 window.addEventListener('resize', onResize);
+
+/* いま ほんとうに 見えて いる たかさを CSS に わたす。
+
+   スマホの アドレスバーが 出入りすると 見える ぶんが 変わる。
+   visualViewport は その「いま 見えて いる」大きさを 教えて くれる。
+   これを たかさに つかうと、バーが 出て いる あいだも
+   絵の 下が かくれない。 */
+function syncViewport(){
+  const vv = window.visualViewport;
+  const h = Math.round(vv ? vv.height : window.innerHeight);
+  /* おかしな 数（0 など）が 来る ことが ある。
+     そのまま つかうと 画面が つぶれて しまうので、
+     ちいさすぎる ときは CSS の 100dvh に まかせる。 */
+  if(h >= 200) document.documentElement.style.setProperty('--appH', h + 'px');
+  else document.documentElement.style.removeProperty('--appH');
+  onResize();
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', syncViewport);
+  window.visualViewport.addEventListener('scroll', syncViewport);
+}
+syncViewport();
 window.addEventListener('orientationchange', () => setTimeout(() => { onResize(); stage.fit(); }, 260));
 
 /* ================= 書き出し ================= */
