@@ -60,7 +60,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 #play img{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;
   pointer-events:none;-webkit-user-drag:none}
 #play.on{display:block}
-#bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  object-position:var(--bpx,50%) var(--bpy,50%);
+  transform:scale(var(--bz,1));transform-origin:var(--bpx,50%) var(--bpy,50%)}
 .chWrap{position:absolute;bottom:0;left:0;height:88%;
   transform:translate(var(--cx,0px),var(--cy,0px)) translateX(-50%);
   transition:transform .35s cubic-bezier(.3,1.4,.5,1),opacity .3s;
@@ -462,7 +464,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
 
   <div id="placeBar">
       <div class="seg" id="placeWho" style="margin-bottom:8px">
-        <button data-t="a">キャラ1</button><button data-t="b">キャラ2</button></div>
+        <button data-t="a">キャラ1</button><button data-t="b">キャラ2</button><button data-t="bg">はいけい</button></div>
       <p id="placeHint">キャラを指でドラッグ／2本指でおおきさ。ここのスライダーでも変えられます。</p>
       <input type="range" id="placeSize" min="40" max="300" step="2">
       <div class="row" style="margin-top:8px">
@@ -583,7 +585,8 @@ function po(base,force){
 }
 function mkScene(n,t){return{id:uid(),name:n||'',text:t||'',bg:'',ch:'',
                             x:null,y:null,s:null,ch2:'',x2:null,y2:null,s2:null,
-                            who:'a',fx:'',bgm:'',sp:0}}
+                            who:'a',fx:'',bgm:'',sp:0,
+                            bx:null,by:null,bz:null}}
 function fixScene(sc){
   if(sc.x==null&&sc.pos)sc.x=(sc.pos==='l')?.27:(sc.pos==='r')?.73:.5;
   if(sc.fx==null)sc.fx='';
@@ -954,6 +957,24 @@ function styleUI0(){
 function styleUI(){ styleUI0() }
 function W(t){return $(t==='b'?'#chB2':'#chA')}
 /* 立ちいち・おおきさは、そのセリフに指定がなければ前のセリフから受けつぐ */
+function bgPosOf(i){
+  var r={x:null,y:null,z:null};
+  for(var k=i;k>=0;k--){
+    var sc=S.scenes[k]; if(!sc)break;
+    if(r.x==null&&sc.bx!=null)r.x=sc.bx;
+    if(r.y==null&&sc.by!=null)r.y=sc.by;
+    if(r.z==null&&sc.bz!=null)r.z=sc.bz;
+    if(r.x!=null&&r.y!=null&&r.z!=null)break;
+  }
+  if(r.x==null)r.x=.5; if(r.y==null)r.y=.5; if(r.z==null)r.z=1;
+  return r;
+}
+function placeBg(){
+  var q=bgPosOf(idx),el=$('#bgImg'); if(!el)return;
+  el.style.setProperty('--bpx',(q.x*100)+'%');
+  el.style.setProperty('--bpy',(q.y*100)+'%');
+  el.style.setProperty('--bz',q.z);
+}
 function posOf(i,t){
   var kx=(t==='b')?'x2':'x', ky=(t==='b')?'y2':'y', ks=(t==='b')?'s2':'s';
   var r={x:null,y:null,s:null};
@@ -984,7 +1005,7 @@ function placeOne(t){
   el.style.setProperty('--base','translate('+(q.x*r.width)+'px,'+(-q.y*r.height)+'px) translateX(-50%)');
   el.style.height=(88*q.s)+'%';
 }
-function placeCh(){ stageScale(); placeOne('a'); placeOne('b') }
+function placeCh(){ stageScale(); placeBg(); placeOne('a'); placeOne('b') }
 window.addEventListener('resize',function(){placeCh();styleUI()});
 /* ---------- びっくり効果 ---------- */
 var FXC={jolt:'fxJolt',shake:'fxShake',run:'fxRun',
@@ -1169,15 +1190,20 @@ function setPT(t){
   pt=t;
   Array.prototype.forEach.call($('#placeWho').querySelectorAll('button'),function(b){
     b.classList.toggle('on',b.dataset.t===pt)});
-  var sc=S.scenes[idx];
-  $('#placeSize').value=Math.round(posOf(idx,pt).s*100);
+  $('#placeSize').value=(pt==='bg')?Math.round(bgPosOf(idx).z*100)
+                                   :Math.round(posOf(idx,pt).s*100);
+  $('#placeHint').textContent=(pt==='bg')
+    ? 'はいけいを 指でドラッグ／2本指か スライダーで ズーム。'
+    : 'キャラを 指でドラッグ／2本指でおおきさ。ここのスライダーでも 変えられます。';
   W('a').classList.toggle('sel',pt==='a'); W('b').classList.toggle('sel',pt==='b');
 }
 function setPlacing(v){
   placing=v; app.classList.toggle('placing',v);
   if(v){setAuto(false);app.classList.remove('clean');
         var sc=S.scenes[idx];
-        $('#placeWho').style.display=(S.cfg.two&&sc&&effCh(idx,'ch')&&effCh(idx,'ch2'))?'':'none';
+        $('#placeWho').style.display='';
+        $('#placeWho').querySelector('[data-t="b"]').style.display=
+          (S.cfg.two&&sc&&effCh(idx,'ch')&&effCh(idx,'ch2'))?'':'none';
         if(sc&&!findCh(effCh(idx,'ch'))&&!ch2Of(idx))toast('このセリフにキャラがいません');
         setPT(sc&&!findCh(effCh(idx,'ch'))&&ch2Of(idx)?'b':'a');}
   else {W('a').classList.remove('sel');W('b').classList.remove('sel');save()}
@@ -1185,23 +1211,31 @@ function setPlacing(v){
 $('#placeWho').onclick=function(e){
   var b=e.target.closest('button'); if(b)setPT(b.dataset.t);
 };
-function setP(sc,t,k,v){ sc[t==='b'?k+'2':k]=v }
+function setP(sc,t,k,v){
+  if(t==='bg'){ sc[k==='x'?'bx':(k==='y'?'by':'bz')]=v; return }
+  sc[t==='b'?k+'2':k]=v;
+}
 $('#btnPlace').onclick=function(){ setPlacing(true) };
 $('#placeOk').onclick=function(){setPlacing(false)};
-function nudge(x){var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'x',x);placeCh();save()}
+function nudge(x){var sc=S.scenes[idx];if(!sc)return;
+  if(pt==='bg'){toast('はいけいは ドラッグで 動かせます');return}
+  setP(sc,pt,'x',x);placeCh();save()}
 $('#placeSame').onclick=function(){
   var sc=S.scenes[idx]; if(!sc)return;
-  if(pt==='b'){ sc.x2=null;sc.y2=null;sc.s2=null; }
+  if(pt==='bg'){ sc.bx=null;sc.by=null;sc.bz=null; }
+  else if(pt==='b'){ sc.x2=null;sc.y2=null;sc.s2=null; }
   else { sc.x=null;sc.y=null;sc.s=null; }
   placeCh(); save();
-  $('#placeSize').value=Math.round(posOf(idx,pt).s*100);
+  $('#placeSize').value=(pt==='bg')?Math.round(bgPosOf(idx).z*100)
+                                   :Math.round(posOf(idx,pt).s*100);
   toast('まえと同じに もどしました');
 };
 $('#placeL').onclick=function(){nudge(.22)};
 $('#placeC').onclick=function(){nudge(.5)};
 $('#placeR').onclick=function(){nudge(.78)};
 $('#placeSize').oninput=function(e){
-  var sc=S.scenes[idx];if(!sc)return;setP(sc,pt,'s',(+e.target.value)/100);placeCh();
+  var sc=S.scenes[idx];if(!sc)return;
+  setP(sc,pt,(pt==='bg')?'z':'s',(+e.target.value)/100);placeCh();
 };
 $('#placeSize').onchange=save;
 
@@ -1210,8 +1244,8 @@ $('#play').addEventListener('pointerdown',function(e){
   pts[e.pointerId]={x:e.clientX,y:e.clientY};
   var sc=S.scenes[idx],ks=Object.keys(pts);
   if(!sc)return;
-  var q=posOf(idx,pt);
-  base={x:q.x,y:q.y,s:q.s,d:ks.length>1?dist():0};
+  var q=(pt==='bg')?bgPosOf(idx):posOf(idx,pt);
+  base={x:q.x,y:q.y,s:(pt==='bg'?q.z:q.s),d:ks.length>1?dist():0};
   try{$('#play').setPointerCapture(e.pointerId)}catch(err){}
 });
 function dist(){
@@ -1231,11 +1265,17 @@ $('#play').addEventListener('pointermove',function(e){
   var sc=S.scenes[idx],r=$('#play').getBoundingClientRect(); if(!sc)return;
   var ks=Object.keys(pts);
   pts[e.pointerId]={x:e.clientX,y:e.clientY};
-  var q=posOf(idx,pt);
+  var bgMode=(pt==='bg'), q=bgMode?bgPosOf(idx):posOf(idx,pt);
   if(ks.length>1){
     var d=dist();
-    if(base.d>10&&d>10){var ns=Math.max(.4,Math.min(3,base.s*(d/base.d)));
-      setP(sc,pt,'s',ns); $('#placeSize').value=Math.round(ns*100)}
+    if(base.d>10&&d>10){
+      var ns=bgMode?Math.max(1,Math.min(3,base.s*(d/base.d)))
+                   :Math.max(.4,Math.min(3,base.s*(d/base.d)));
+      setP(sc,pt,bgMode?'z':'s',ns); $('#placeSize').value=Math.round(ns*100)}
+  }else if(bgMode){
+    /* 背景は 見えている向きに ついてくるよう 逆に動かす */
+    setP(sc,'bg','x',Math.max(0,Math.min(1,q.x-(e.clientX-prev.x)/r.width)));
+    setP(sc,'bg','y',Math.max(0,Math.min(1,q.y-(e.clientY-prev.y)/r.height)));
   }else{
     setP(sc,pt,'x',Math.max(-.15,Math.min(1.15,q.x+(e.clientX-prev.x)/r.width)));
     setP(sc,pt,'y',Math.max(-1.2,Math.min(.9,q.y-(e.clientY-prev.y)/r.height)));
@@ -1246,7 +1286,7 @@ $('#play').addEventListener('pointermove',function(e){
   $('#play').addEventListener(ev,function(e){
     if(!pts[e.pointerId])return;
     delete pts[e.pointerId];
-    if(!Object.keys(pts).length){base=null;save()}
+    if(!Object.keys(pts).length){base=null;placeCh();save()}
   });
 });
 $('#btnFirst').onclick=function(){idx=0;setAuto(false);render()};
@@ -1864,11 +1904,12 @@ function rr(x,y,w,h,r){
   CX.beginPath();CX.moveTo(x+r,y);CX.arcTo(x+w,y,x+w,y+h,r);CX.arcTo(x+w,y+h,x,y+h,r);
   CX.arcTo(x,y+h,x,y,r);CX.arcTo(x,y,x+w,y,r);CX.closePath();
 }
-function cover(im,x,y,w,h){
+function cover(im,x,y,w,h,px,py,z){
   if(!im||!im.width)return;
-  var s=Math.max(w/im.width,h/im.height),dw=im.width*s,dh=im.height*s;
+  px=(px==null)?.5:px; py=(py==null)?.5:py; z=z||1;
+  var s=Math.max(w/im.width,h/im.height)*z,dw=im.width*s,dh=im.height*s;
   CX.save();CX.beginPath();CX.rect(x,y,w,h);CX.clip();
-  CX.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);CX.restore();
+  CX.drawImage(im,x+(w-dw)*px,y+(h-dh)*py,dw,dh);CX.restore();
 }
 function wrapLines(text,maxW){
   var lines=[],cur='';
@@ -1931,7 +1972,8 @@ function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   CX.setTransform(SCALE,0,0,SCALE,0,0);
   CX.clearRect(0,0,VW,VH);
   CX.fillStyle='#000';CX.fillRect(0,0,VW,VH);
-  cover(bgIm,0,0,VW,VH);
+  var bq=bgPosOf(sc.__i||0);
+  cover(bgIm,0,0,VW,VH,bq.x,bq.y,bq.z);
   var two=!!(chIm&&chIm2), who=(sc.who==='n')?'n':((sc.who==='b')?'b':'a');
   drawCh(chIm2,sc.__i||0,'b',two&&who==='a',(who==='b')?fx:'',fp);
   drawCh(chIm ,sc.__i||0,'a',two&&who==='b',(who==='a')?fx:'',fp);
