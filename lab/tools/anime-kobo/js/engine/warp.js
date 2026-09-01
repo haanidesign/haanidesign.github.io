@@ -15,7 +15,7 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
-import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=105';
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=112';
 
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
@@ -59,6 +59,14 @@ export const idxAt = (cage, i, j) => j * (cage.cols + 1) + i;
  *   verts … もとの 場所（＝絵の どこを はるか）
  *   tris  … 三角の つなぎ方
  * 動いた あとの 場所は cageXY で 出す。
+ */
+/**
+ * かごから「絵を はる ための あみ」を 作る。
+ *
+ * 1ますを 三角 2つに する（それ 以上 こまかく しない）。
+ * こまかく 割ると 三角が 小さく なりすぎて、
+ * すきま よけに ふくらませた ぶんが 面積の 半分を しめて しまい、
+ * すけた 絵で こい すじが 出る。
  */
 export function cageMesh(cage){
   const { cols, rows } = cage;

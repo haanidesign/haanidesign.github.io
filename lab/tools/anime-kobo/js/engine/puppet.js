@@ -247,13 +247,50 @@ function framesLenOf(pre, b, pins){
 }
 
 /* ---------- 描く ---------- */
+/* ---------- 三角を ほんの少し ふくらませる ----------
+   三角と 三角の あいだに すきまが できると、下じきの 色が
+   すじに なって 見える。ふせぐには 少しだけ 重ねて 描く。
+
+   まえは「まん中から 外へ 角を おし出す」だった。
+   これだと 三角が 大きい・ほそながい ときに、
+   へりの まん中あたりが じゅうぶん 外へ 出ず、すじが のこる。
+
+   いまは「3本の へりを それぞれ まっすぐ 外へ ずらして、
+   その 交わる ところを 新しい 角に する」。
+   どの へりも きっちり ex ドット 外へ 出るので、
+   となりの 三角と かならず 重なる。 */
 function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
-  const cx = (x0 + x1 + x2) / 3, cy = (y0 + y1 + y2) / 3;
   const EX = ex == null ? 0.4 : ex;
-  let d;
-  d = Math.hypot(x0 - cx, y0 - cy) || 1; x0 += (x0 - cx) / d * EX; y0 += (y0 - cy) / d * EX;
-  d = Math.hypot(x1 - cx, y1 - cy) || 1; x1 += (x1 - cx) / d * EX; y1 += (y1 - cy) / d * EX;
-  d = Math.hypot(x2 - cx, y2 - cy) || 1; x2 += (x2 - cx) / d * EX; y2 += (y2 - cy) / d * EX;
+
+  // まわる 向き（時計 or 反時計）。外がわを まちがえない ように
+  const area2 = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  if(area2 !== 0){
+    const sgn = area2 > 0 ? 1 : -1;
+    const px = [x0, x1, x2], py = [y0, y1, y2];
+    /** へり i→i+1 の 外を むく たんいベクトル */
+    const nrm = (i) => {
+      const j = (i + 1) % 3;
+      const dx = px[j] - px[i], dy = py[j] - py[i];
+      const L = Math.hypot(dx, dy) || 1;
+      return { x: sgn * dy / L, y: -sgn * dx / L };
+    };
+    const n = [nrm(0), nrm(1), nrm(2)];
+    const out = [];
+    for(let i = 0; i < 3; i++){
+      // 角 i に くっついて いる 2本の へり
+      const a = n[(i + 2) % 3], b = n[i];
+      let bx = a.x + b.x, by = a.y + b.y;
+      const L = Math.hypot(bx, by);
+      if(L < 1e-6){ out.push({ x: px[i], y: py[i] }); continue; }
+      bx /= L; by /= L;
+      // とがった 角ほど 遠くへ 出る。出すぎない ように 3ばい までに する
+      const k = Math.min(3, 1 / Math.max(0.34, bx * a.x + by * a.y));
+      out.push({ x: px[i] + bx * EX * k, y: py[i] + by * EX * k });
+    }
+    x0 = out[0].x; y0 = out[0].y;
+    x1 = out[1].x; y1 = out[1].y;
+    x2 = out[2].x; y2 = out[2].y;
+  }
 
   const det = (u1 - u0) * (v2 - v0) - (u2 - u0) * (v1 - v0);
   if(!det) return;
@@ -265,6 +302,7 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineTo(x2, y2); ctx.closePath();
+
   ctx.clip();
   ctx.transform(a, b, c, e, x0 - a * u0 - c * v0, y0 - b * u0 - e * v0);
   ctx.drawImage(img, 0, 0);
@@ -286,11 +324,7 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
 export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
   const k = srcK || 1;
 
-  /* 三角形を ほんの少し ふくらませて 重ねる。
-     こうしないと 三角と 三角の あいだに すきまが できて、
-     下じきの色が すじに なって 見える（かみの毛の 上で とくに 目立つ）。
-
-     ふくらませる 量は「画面の ドットで いくつぶん」で きめる。
+  /* ふくらませる 量は「画面の ドットで いくつぶん」で きめる。
      絵の中の ドットで きめると、ズームや レイヤーの 大きさで
      効いたり 効かなかったり して しまう。 */
   let scale = 1;
@@ -298,10 +332,25 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
     const m = ctx.getTransform();
     scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
   }catch(_){ scale = 1; }
-  /* 画面の ドットで 1.8こぶん 重ねる。
-     0.75 では まだ すじが のこり、2.5 だと ほとんど 変わらない。
-     （まっ平らな 色で 実測：すじの ドット数 5106→1732） */
-  const ex = Math.min(6, Math.max(0.5, 1.8 / scale));
+  const ex = Math.min(6, Math.max(0.5, 0.6 / scale));
+
+  /* ---------- かさなっても 濃く ならない ように ----------
+     三角を ふくらませて 重ねると すきまは 消えるが、
+     こんどは 重なった ところが 2回 塗られて 濃い すじに なる
+     （うすい 色や やわらかい ふちの 絵で とくに 目立つ）。
+
+     そこで いったん 別紙に「すけ具合 100%」で 組み立てて、
+     さいごに 1回だけ 本番へ うつす。
+     レイヤーの すけ具合は その 1回に かかる ので、
+     重なった ところが 2回 うすめられる ことが なくなる。
+     （すけた レイヤーを ゆがめた ときの こい すじが これで 消える） */
+  const cv = ctx.canvas;
+  const sc = sheet(cv.width, cv.height);
+  const g = sc.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, sc.width, sc.height);
+  const m0 = ctx.getTransform();
+  g.setTransform(m0.a, m0.b, m0.c, m0.d, m0.e, m0.f);
 
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){
@@ -310,11 +359,24 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
     const u0 = uv ? uv[i0 * 2] : v[i0].u, w0 = uv ? uv[i0 * 2 + 1] : v[i0].v;
     const u1 = uv ? uv[i1 * 2] : v[i1].u, w1 = uv ? uv[i1 * 2 + 1] : v[i1].v;
     const u2 = uv ? uv[i2 * 2] : v[i2].u, w2 = uv ? uv[i2 * 2 + 1] : v[i2].v;
-    drawTri(ctx, img,
+    drawTri(g, img,
       xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
       u0 * k, w0 * k, u1 * k, w1 * k, u2 * k, w2 * k,
       ex);
   }
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(sc, 0, 0);
+  ctx.restore();
+}
+
+/* 別紙（使いまわす） */
+let _sheet = null;
+function sheet(w, h){
+  if(!_sheet) _sheet = document.createElement('canvas');
+  if(_sheet.width !== w || _sheet.height !== h){ _sheet.width = w; _sheet.height = h; }
+  return _sheet;
 }
 
 /** 中身が つまった あみ（フォルダ用）。絵の あるなしを 見ない */
