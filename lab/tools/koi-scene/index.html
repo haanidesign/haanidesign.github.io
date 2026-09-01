@@ -625,6 +625,19 @@ function save(){
 
 /* ---------- 画像とりこみ（縮小してWebP化） ---------- */
 /* PSD は ag-psd で ひらく。おもいので 使うときだけ よみこむ */
+var muxLib=null;
+function needMux(){
+  if(muxLib)return muxLib;
+  muxLib=new Promise(function(ok,ng){
+    if(self.Mp4Muxer)return ok(self.Mp4Muxer);
+    var sc=document.createElement('script');
+    sc.src='lib/mp4-muxer.js';
+    sc.onload=function(){ self.Mp4Muxer?ok(self.Mp4Muxer):ng(new Error('no Mp4Muxer')) };
+    sc.onerror=function(){ ng(new Error('動画のしくみを よみこめませんでした')) };
+    document.head.appendChild(sc);
+  });
+  return muxLib;
+}
 var psdLib=null;
 function needPsd(){
   if(psdLib)return psdLib;
@@ -2088,6 +2101,271 @@ function buildTimeline(){
   });
   return tl;
 }
+/* ===== コマ番号から 絵を作る（時計まかせだと 端末ごとに ぶれるため） ===== */
+function rnd32(seed){
+  return function(){
+    seed|=0; seed=seed+0x6D2B79F5|0;
+    var t=Math.imul(seed^seed>>>15,1|seed);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+/* 開け閉めの 切りかえ時こくを 先に ぜんぶ 作っておく */
+function mkSchedule(totalMs,onMin,onRange,offMin,offRange,seed){
+  var r=rnd32(seed),t=0,on=false,arr=[];
+  while(t<totalMs+2000){ arr.push({t:t,on:on});
+    t+=on?(onMin+r()*onRange):(offMin+r()*offRange); on=!on; }
+  return arr;
+}
+function schAt(arr,t){
+  var lo=0,hi=arr.length-1,ans=0;
+  while(lo<=hi){var m=(lo+hi)>>1; if(arr[m].t<=t){ans=m;lo=m+1}else hi=m-1}
+  return arr[ans].on;
+}
+/* その時こくが タイムラインの どこか */
+function tlAt(tl,tMs){
+  var acc=0;
+  for(var k=0;k<tl.length;k++){
+    var d=tl[k].fade+tl[k].type+tl[k].hold;
+    if(tMs<acc+d)return {s:tl[k],k:k,t:tMs-acc};
+    acc+=d;
+  }
+  var last=tl[tl.length-1];
+  return {s:last,k:tl.length-1,t:last.fade+last.type+last.hold};
+}
+/* その時こくの 文字数 */
+function shownAt(s,t){
+  if(t<s.fade)return 0;
+  if(s.type<=0)return s.text.length;
+  return Math.max(0,Math.min(s.text.length,
+    Math.floor((t-s.fade)/(s.type/Math.max(1,s.text.length)))));
+}
+/* ぽ音の 鳴る時こくを ぜんぶ 出す */
+function poTimes(tl){
+  var out=[],acc=0;
+  tl.forEach(function(s){
+    if(S.cfg.snd&&s.type>0){
+      var per=s.type/Math.max(1,s.text.length);
+      for(var n=1;n<=s.text.length;n++){
+        if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)
+          out.push({t:acc+s.fade+per*n,v:s.v});
+      }
+    }
+    acc+=s.fade+s.type+s.hold;
+  });
+  return out;
+}
+/* BGM の 区間 */
+function bgmSegs(tl){
+  var segs=[],acc=0,cur=null;
+  tl.forEach(function(s){
+    var id=effBgm(s.i)||'';
+    var d=s.fade+s.type+s.hold;
+    if(!cur||cur.id!==id){ if(cur)cur.end=acc; cur={id:id,start:acc}; segs.push(cur) }
+    acc+=d;
+  });
+  if(cur)cur.end=acc;
+  return segs.filter(function(x){return x.id});
+}
+/* ===== 1コマぶんを 描く ===== */
+function renderFrame(tl,tMs,im,sch){
+  var a=tlAt(tl,tMs),s=a.s,t=a.t;
+  var bi=s.i,veil=0;
+  if(s.fade&&t<s.fade){
+    if(t<s.fade/2){veil=t/(s.fade/2);bi=Math.max(0,s.i-1)}
+    else veil=1-(t-s.fade/2)/(s.fade/2);
+  }
+  var n=shownAt(s,t);
+  var sb=S.scenes[bi]||S.scenes[s.i]; if(!sb)return;
+  sb.__i=bi;
+  var talk=(sb.who==='n')?'':((sb.who==='b')?'b':'a');
+  var speaking=(n>0&&n<s.text.length&&talk);
+  var mouth=speaking&&schAt(sch.mouth,tMs);
+  var bl1=schAt(sch.blink1,tMs), bl2=schAt(sch.blink2,tMs);
+
+  var chIm=im['c'+bi],chIm2=im['d'+bi];
+  if(bl1&&im['cb'+bi])chIm=im['cb'+bi];
+  else if(talk==='a'&&mouth&&im['cm'+bi])chIm=im['cm'+bi];
+  if(bl2&&im['db'+bi])chIm2=im['db'+bi];
+  else if(talk==='b'&&mouth&&im['dm'+bi])chIm2=im['dm'+bi];
+
+  if(!s.lines){CX.font='700 '+(16*(S.cfg.fs||1))+'px '+FONT;
+    s.lines=wrapLines(s.text,VW-20-28)}
+  var fdur=(s.fx==='shake')?550:((s.fx==='run')?900:
+    (/^(in|out)/.test(s.fx||'')?500:420));
+  CX.font='700 '+(16*(S.cfg.fs||1))+'px '+FONT;
+  paint(sb,im['b'+bi],chIm,chIm2,s.lines,n,s.text.length,veil,
+        s.fx,s.fx?((t-s.fade)/fdur):-1);
+}
+
+/* ===== 音を まとめて 作る ===== */
+function renderAudio(tl,totalMs){
+  var sr=44100, len=Math.ceil((totalMs+400)/1000*sr);
+  var OC=self.OfflineAudioContext||self.webkitOfflineAudioContext;
+  if(!OC)return Promise.resolve(null);
+  var oc=new OC(2,len,sr);
+  var master=oc.createGain(); master.gain.value=1; master.connect(oc.destination);
+
+  /* ぽ音 */
+  poTimes(tl).forEach(function(e){
+    var base=e.v||PITCH[S.cfg.pitch||3];
+    var t=e.t/1000;
+    var o=oc.createOscillator(),g=oc.createGain();
+    o.type='triangle';
+    o.frequency.setValueAtTime(base*1.1,t);
+    o.frequency.exponentialRampToValueAtTime(base*.6,t+.075);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(.11,t+.008);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.09);
+    o.connect(g);g.connect(master);
+    o.start(t);o.stop(t+.1);
+  });
+
+  /* BGM */
+  var segs=(S.cfg.bgmV||0)>0?bgmSegs(tl):[];
+  var need={};
+  segs.forEach(function(x){ var m=BGMS.filter(function(b){return b.id===x.id})[0];
+    if(m)need[x.id]=m.src; });
+  var ids=Object.keys(need);
+  return Promise.all(ids.map(function(id){
+    return fetch(need[id]).then(function(r){return r.arrayBuffer()})
+      .then(function(buf){return oc.decodeAudioData(buf)})
+      .then(function(ab){return {id:id,buf:ab}})
+      .catch(function(){return null});
+  })).then(function(list){
+    var map={}; list.forEach(function(x){if(x)map[x.id]=x.buf});
+    var vol=(S.cfg.bgmV==null?60:S.cfg.bgmV)/100;
+    segs.forEach(function(seg){
+      var ab=map[seg.id]; if(!ab)return;
+      var g=oc.createGain(); g.gain.value=vol; g.connect(master);
+      var t0=seg.start/1000, t1=seg.end/1000;
+      /* 区間のながさぶん くりかえす */
+      for(var t=t0; t<t1; t+=ab.duration){
+        var src=oc.createBufferSource(); src.buffer=ab; src.connect(g);
+        src.start(t);
+        if(t+ab.duration>t1)src.stop(t1);
+      }
+      /* きりかわりで すっと */
+      g.gain.setValueAtTime(0,t0);
+      g.gain.linearRampToValueAtTime(vol,t0+.35);
+      g.gain.setValueAtTime(vol,Math.max(t0+.35,t1-.35));
+      g.gain.linearRampToValueAtTime(0,t1);
+    });
+    return oc.startRendering();
+  });
+}
+
+/* ===== WebCodecs で 書き出す（スマホでも ふつうに 見られる MP4） ===== */
+function canWebCodecs(){
+  return typeof VideoEncoder!=='undefined' && typeof VideoFrame!=='undefined';
+}
+function pickVideoCfg(w,h,fps,br){
+  var list=['avc1.640034','avc1.640033','avc1.640032','avc1.640028',
+            'avc1.4d0034','avc1.4d0028','avc1.42003e','avc1.42002a','avc1.42001f'];
+  var i=0;
+  function next(){
+    if(i>=list.length)return Promise.resolve(null);
+    var cfg={codec:list[i++],width:w,height:h,bitrate:br,framerate:fps};
+    return VideoEncoder.isConfigSupported(cfg).then(function(r){
+      return (r&&r.supported)?cfg:next();
+    }).catch(next);
+  }
+  return next();
+}
+function exportWebCodecs(tl,ui){
+  var fps=30, totalMs=0;
+  tl.forEach(function(x){totalMs+=x.fade+x.type+x.hold});
+  var frames=Math.max(1,Math.ceil(totalMs/1000*fps));
+  var W=CV.width,H=CV.height;
+  var sch={ mouth:mkSchedule(totalMs,95,75,70,60,12345),
+            blink1:mkSchedule(totalMs,120,0,2600,3200,777),
+            blink2:mkSchedule(totalMs,120,0,2900,3200,999) };
+  var im=ui.im, muxer=null, enc=null, acfg=null, audioBuf=null;
+
+  return needMux()
+    .then(function(){ return pickVideoCfg(W,H,fps,Math.min(12000000,Math.round(W*H*fps*0.12))) })
+    .then(function(cfg){
+      if(!cfg)throw new Error('この端末では H.264 で 書き出せません');
+      ui.msg('音を つくっています…');
+      return renderAudio(tl,totalMs).then(function(ab){
+        audioBuf=ab;
+        if(!ab||typeof AudioEncoder==='undefined')return cfg;
+        var ac={codec:'mp4a.40.2',sampleRate:ab.sampleRate,
+                numberOfChannels:Math.min(2,ab.numberOfChannels),bitrate:128000};
+        return AudioEncoder.isConfigSupported(ac).then(function(r){
+          if(r&&r.supported)acfg=ac; return cfg;
+        }).catch(function(){return cfg});
+      });
+    })
+    .then(function(cfg){
+      var opt={ target:new self.Mp4Muxer.ArrayBufferTarget(),
+                video:{codec:'avc',width:W,height:H,frameRate:fps},
+                fastStart:'in-memory' };
+      if(acfg)opt.audio={codec:'aac',numberOfChannels:acfg.numberOfChannels,
+                         sampleRate:acfg.sampleRate};
+      muxer=new self.Mp4Muxer.Muxer(opt);
+      var failed=null;
+      enc=new VideoEncoder({ output:function(c,m){muxer.addVideoChunk(c,m)},
+                             error:function(e){failed=e} });
+      enc.configure(cfg);
+      var usPer=1e6/fps, i=0;
+      function step(){
+        if(!exporting)throw new Error('やめました');
+        if(failed)throw failed;
+        var end=Math.min(frames,i+6);
+        for(;i<end;i++){
+          renderFrame(tl,i*1000/fps,im,sch);
+          var f=new VideoFrame(CV,{timestamp:Math.round(i*usPer),duration:Math.round(usPer)});
+          enc.encode(f,{keyFrame:i%(fps*2)===0});
+          f.close();
+        }
+        ui.progress(i/frames);
+        if(i<frames){
+          if(enc.encodeQueueSize>8)return new Promise(function(r){setTimeout(r,8)}).then(step);
+          return new Promise(function(r){setTimeout(r,0)}).then(step);
+        }
+        return enc.flush().then(function(){ enc.close(); if(failed)throw failed; });
+      }
+      return step();
+    })
+    .then(function(){
+      if(!acfg||!audioBuf)return;
+      ui.msg('音を 詰めています…');
+      return new Promise(function(ok,ng){
+        var bad=null;
+        var ae=new AudioEncoder({ output:function(c,m){muxer.addAudioChunk(c,m)},
+                                  error:function(e){bad=e} });
+        ae.configure(acfg);
+        var ch=acfg.numberOfChannels, rate=audioBuf.sampleRate;
+        var total=Math.min(audioBuf.length,Math.floor((totalMs/1000)*rate));
+        var chans=[]; for(var c=0;c<ch;c++)chans.push(audioBuf.getChannelData(c));
+        var block=4096,i2=0;
+        function pump(){
+          try{
+            for(var k=0;k<40&&i2<total;k++){
+              var n=Math.min(block,total-i2);
+              var data=new Float32Array(n*ch);
+              for(var c2=0;c2<ch;c2++)data.set(chans[c2].subarray(i2,i2+n),c2*n);
+              var ad=new AudioData({format:'f32-planar',sampleRate:rate,
+                numberOfFrames:n,numberOfChannels:ch,
+                timestamp:Math.round((i2/rate)*1e6),data:data});
+              ae.encode(ad); ad.close(); i2+=n;
+              if(bad)break;
+            }
+          }catch(e){ bad=e }
+          if(bad){ try{ae.close()}catch(e){} return ok() }
+          if(i2<total)return setTimeout(pump,0);
+          ae.flush().then(function(){ae.close();ok()}).catch(function(){ok()});
+        }
+        pump();
+      });
+    })
+    .then(function(){
+      muxer.finalize();
+      return { blob:new Blob([muxer.target.buffer],{type:'video/mp4'}),
+               ext:'mp4', sec:totalMs/1000 };
+    });
+}
 function stopExport(msg){
   if(!exporting)return;
   exporting=false;clearInterval(recTimer);recTimer=null;
@@ -2099,11 +2377,24 @@ $('#expStop').onclick=function(){
   else{$('#expOv').classList.remove('on')}
 };
 
+function showResult(blob,ext,sec){
+  var url=URL.createObjectURL(blob);
+  $('#expBar i').style.width='100%';
+  $('#expStop').textContent='とじる';
+  $('#expMsg').textContent='できました（'+ext.toUpperCase()+' / '+
+    (blob.size/1048576).toFixed(1)+'MB / '+sec.toFixed(1)+'びょう）。'+
+    '保存が始まらないときは、下の動画を長おしして保存してください。';
+  var v=$('#expVid'); v.src=url; v.style.display='block'; CV.style.display='none';
+  $('#expDl').style.display='block'; $('#expDl').href=url; $('#expDl').download='koi_scene.'+ext;
+  try{ var a=document.createElement('a');a.href=url;a.download='koi_scene.'+ext;
+       document.body.appendChild(a);a.click();a.remove(); }catch(e){}
+}
 $('#btnExport').onclick=function(){
   if(exporting)return;
-  if(!window.MediaRecorder||!CV.captureStream){alert('この端末では動画の書き出しができません。');return}
+  if(!canWebCodecs()&&(!window.MediaRecorder||!CV.captureStream)){
+    alert('この端末では動画の書き出しができません。');return}
+  if(!canWebCodecs()&&!pickMime()){alert('この端末では動画の書き出しができません。');return}
   var mime=pickMime();
-  if(!mime){alert('この端末では動画の書き出しができません。');return}
   setStage();
   var tl=buildTimeline();
   if(!tl.length){alert('セリフがありません。');return}
@@ -2130,6 +2421,31 @@ $('#btnExport').onclick=function(){
     return Promise.all(keys.map(function(k){return loadIm(srcs[k])}));
   }).then(function(ims){
     var im={};keys.forEach(function(k,n){im[k]=ims[n]});
+
+    if(canWebCodecs()){
+      exporting=true;
+      msg.textContent='したくちゅう…';
+      return exportWebCodecs(tl,{
+        im:im,
+        msg:function(m){msg.textContent=m},
+        progress:function(v){
+          bar.style.width=Math.round(v*100)+'%';
+          msg.textContent='書き出しちゅう… '+Math.round(v*100)+'%';
+        }
+      }).then(function(r){
+        exporting=false;
+        showResult(r.blob,r.ext,r.sec);
+      }).catch(function(e){
+        exporting=false;
+        if(/やめました/.test(e&&e.message||'')){ msg.textContent='やめました'; $('#expStop').textContent='とじる'; return }
+        console.warn('webcodecs',e);
+        msg.textContent='ちがうやり方で 書き出します…';
+        return exportOld(im);   /* だめなら 今までのやり方 */
+      });
+    }
+    return exportOld(im);
+
+    function exportOld(im){
 
     var stream=CV.captureStream(30);
     var wantBgm=(S.cfg.bgmV||0)>0&&buildTimeline().some(function(x){return !!effBgm(x.i)});
@@ -2198,18 +2514,7 @@ $('#btnExport').onclick=function(){
       var ext=(mime.indexOf('mp4')>=0)?'mp4':'webm';
       var sec=(performance.now()-recT0)/1000;
       msg.textContent='ながさを ととのえています…';
-      mp4FixDuration(raw,sec).then(function(blob){
-        var url=URL.createObjectURL(blob);
-        bar.style.width='100%';
-        $('#expStop').textContent='とじる';
-        msg.textContent='できました（'+ext.toUpperCase()+' / '+
-          (blob.size/1048576).toFixed(1)+'MB / '+sec.toFixed(1)+'びょう）。'+
-          '保存が始まらないときは、下の動画を長おしして保存してください。';
-        var v=$('#expVid'); v.src=url; v.style.display='block'; CV.style.display='none';
-        $('#expDl').style.display='block'; $('#expDl').href=url; $('#expDl').download='koi_scene.'+ext;
-        try{ var a2=document.createElement('a');a2.href=url;a2.download='koi_scene.'+ext;
-             document.body.appendChild(a2);a2.click();a2.remove(); }catch(e){}
-      });
+      mp4FixDuration(raw,sec).then(function(blob){ showResult(blob,ext,sec) });
     };
 
     var total=0;tl.forEach(function(s){total+=s.fade+s.type+s.hold});
@@ -2263,6 +2568,7 @@ $('#btnExport').onclick=function(){
       bar.style.width=Math.min(100,(done+t)/total*100)+'%';
       if(t>=s.fade+s.type+s.hold){done+=s.fade+s.type+s.hold;k++;t0=performance.now()}
     },33);
+    }
   });
 };
 
