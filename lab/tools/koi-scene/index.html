@@ -138,6 +138,33 @@ button,input,select,textarea{font:inherit;color:inherit}
   62%{transform:var(--base) translate(0,1px)}
   100%{transform:var(--base) translate(0,0)}}
 .chWrap.fxShake{animation:fxShake .55s linear}
+.chWrap.fxRun{animation:fxRun .9s ease-in-out}
+@keyframes fxRun{
+  0%{transform:var(--base) translate(0,0)}
+  15%{transform:var(--base) translate(-3px,-12px)}
+  30%{transform:var(--base) translate(0,0)}
+  45%{transform:var(--base) translate(3px,-12px)}
+  60%{transform:var(--base) translate(0,0)}
+  78%{transform:var(--base) translate(-2px,-7px)}
+  100%{transform:var(--base) translate(0,0)}}
+.chWrap.fxInL{animation:fxInL .5s cubic-bezier(.2,.9,.3,1) both}
+.chWrap.fxInR{animation:fxInR .5s cubic-bezier(.2,.9,.3,1) both}
+.chWrap.fxInD{animation:fxInD .5s cubic-bezier(.2,.9,.3,1) both}
+@keyframes fxInL{from{opacity:0;transform:var(--base) translate(-70px,0)}
+  to{opacity:1;transform:var(--base) translate(0,0)}}
+@keyframes fxInR{from{opacity:0;transform:var(--base) translate(70px,0)}
+  to{opacity:1;transform:var(--base) translate(0,0)}}
+@keyframes fxInD{from{opacity:0;transform:var(--base) translate(0,70px)}
+  to{opacity:1;transform:var(--base) translate(0,0)}}
+.chWrap.fxOutL{animation:fxOutL .5s cubic-bezier(.4,0,.8,.4) both}
+.chWrap.fxOutR{animation:fxOutR .5s cubic-bezier(.4,0,.8,.4) both}
+.chWrap.fxOutD{animation:fxOutD .5s cubic-bezier(.4,0,.8,.4) both}
+@keyframes fxOutL{from{opacity:1;transform:var(--base) translate(0,0)}
+  to{opacity:0;transform:var(--base) translate(-70px,0)}}
+@keyframes fxOutR{from{opacity:1;transform:var(--base) translate(0,0)}
+  to{opacity:0;transform:var(--base) translate(70px,0)}}
+@keyframes fxOutD{from{opacity:1;transform:var(--base) translate(0,0)}
+  to{opacity:0;transform:var(--base) translate(0,70px)}}
 @keyframes fxShake{
   0%,100%{transform:var(--base) translate(0,0)}
   10%{transform:var(--base) translate(-5px,1px)}
@@ -961,12 +988,18 @@ function placeOne(t){
 function placeCh(){ stageScale(); placeOne('a'); placeOne('b') }
 window.addEventListener('resize',function(){placeCh();styleUI()});
 /* ---------- びっくり効果 ---------- */
+var FXC={jolt:'fxJolt',shake:'fxShake',run:'fxRun',
+         inL:'fxInL',inR:'fxInR',inD:'fxInD',
+         outL:'fxOutL',outR:'fxOutR',outD:'fxOutD'};
+var FXALL=Object.keys(FXC).map(function(k){return FXC[k]});
 function fire(fx){
   var w=S.scenes[idx]&&S.scenes[idx].who;
   var t=(w==='b')?'b':'a',el=W(t);
-  W('a').classList.remove('fxJolt','fxShake'); W('b').classList.remove('fxJolt','fxShake');
-  if(!fx)return; void el.offsetWidth;
-  el.classList.add(fx==='shake'?'fxShake':'fxJolt');
+  FXALL.forEach(function(c){W('a').classList.remove(c);W('b').classList.remove(c)});
+  if(!fx||!FXC[fx])return;
+  el.classList.remove('in');           /* いつもの とうじょうと ぶつからないように */
+  void el.offsetWidth;
+  el.classList.add(FXC[fx]);
 }
 /* ---------- まばたきと口パク ---------- */
 var tm={a:{},b:{}};
@@ -1595,7 +1628,7 @@ function drawScenes(){
       (S.cfg.two?'<button data-w="b">キャラ2</button>':'')+
       '<button data-w="n">ナレ</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1の立ちいち':'立ちいち')+'</label>'+
-      '<div class="seg i-pos"><button data-p="0.27">ひだり</button><button data-p="0.5">まんなか</button><button data-p="0.73">みぎ</button></div>'+
+      '<div class="seg i-pos"><button data-p="">まえと同じ</button><button data-p="0.27">ひだり</button><button data-p="0.5">まんなか</button><button data-p="0.73">みぎ</button></div>'+
       '<label class="f">'+(S.cfg.two?'キャラ1のおおきさ':'おおきさ')+' <span class="i-sv"></span></label>'+
       '<input type="range" class="i-size" min="40" max="300" step="2" value="'+Math.round(posOf(i,'a').s*100)+'">'+
       '<button class="btn g i-place" style="width:100%;margin-top:4px">✥ 指でいちを合わせる</button>'+
@@ -1603,8 +1636,13 @@ function drawScenes(){
       '<input type="range" class="i-voice" min="0" max="5" step="1" value="'+(sc.v||0)+'">'+
       '<label class="f">このセリフのはやさ <span class="i-spv"></span></label>'+
       '<input type="range" class="i-spd" min="0" max="120" step="5" value="'+(sc.sp||0)+'">'+
-      '<label class="f">とうじょうの効果</label>'+
-      '<div class="seg i-fx"><button data-f="">なし</button><button data-f="jolt">びくっ</button><button data-f="shake">ぶるぶる</button></div>'+
+      '<label class="f">うごき</label>'+
+      '<div class="seg i-fx"><button data-f="">なし</button><button data-f="jolt">びくっ</button>'+
+      '<button data-f="shake">ぶるぶる</button><button data-f="run">るんるん</button></div>'+
+      '<div class="seg i-fx" style="margin-top:4px"><button data-f="inL">←から登場</button>'+
+      '<button data-f="inD">↑から登場</button><button data-f="inR">→から登場</button></div>'+
+      '<div class="seg i-fx" style="margin-top:4px"><button data-f="outL">←へ退場</button>'+
+      '<button data-f="outD">↓へ退場</button><button data-f="outR">→へ退場</button></div>'+
       '<div class="row" style="margin-top:10px">'+
         '<button class="btn g i-play">▶ ここから</button>'+
         '<button class="btn g i-dup">コピー</button>'+
@@ -1639,9 +1677,13 @@ function drawScenes(){
     var bgW=b.querySelector('.i-bg'),chW=b.querySelector('.i-ch'),chW2=b.querySelector('.i-ch2');
     function redraw(){
       thumbs(bgW,allBgs(),sc.bg,function(id){sc.bg=id;save();redraw()},null,'まえと同じ');
-      thumbs(chW,S.chs,sc.ch,function(id){sc.ch=id;save();redraw();twoUI()},null,'なし','まえと同じ');
+      thumbs(chW,S.chs,sc.ch,function(id){
+        sc.ch=id;
+        if(id===''){ sc.x=null;sc.y=null;sc.s=null; }   /* いちも まえと同じに */
+        save();redraw();twoUI();if(i===idx)placeCh();},null,'なし','まえと同じ');
       thumbs(chW2,S.chs,sc.ch2,function(id){
         sc.ch2=id;
+        if(id===''){ sc.x2=null;sc.y2=null;sc.s2=null; }
         var real=id&&id!=='none';
         if(real&&posOf(i,'a').x===0.5)sc.x=0.27;
         if(real){ if(posOf(i,'a').s===1)sc.s=.78; if(posOf(i,'b').s===1)sc.s2=.78; }
@@ -1662,22 +1704,25 @@ function drawScenes(){
 
     function segSel(sel,val){
       Array.prototype.forEach.call(b.querySelectorAll(sel+' button'),function(y){
-        y.classList.toggle('on',(sel==='.i-pos'?+y.dataset.p:y.dataset.f)===val)});
+        y.classList.toggle('on',(sel==='.i-pos'?(y.dataset.p===''?null:+y.dataset.p):y.dataset.f)===val)});
     }
     Array.prototype.forEach.call(b.querySelectorAll('.i-pos button'),function(x){
       x.onclick=function(){
         if(S.cfg.lock){toast('立ちいちを かためています');return}
-        sc.x=+x.dataset.p;save();segSel('.i-pos',sc.x);
+        if(x.dataset.p===''){ sc.x=null;sc.y=null;sc.s=null; }
+        else sc.x=+x.dataset.p;
+        save();segSel('.i-pos',sc.x==null?null:sc.x);szUI();
         if(i===idx)placeCh();};
     });
-    segSel('.i-pos',posOf(i,'a').x);
+    segSel('.i-pos',sc.x==null?null:sc.x);
     Array.prototype.forEach.call(b.querySelectorAll('.i-fx button'),function(x){
       x.onclick=function(){sc.fx=x.dataset.f;save();segSel('.i-fx',sc.fx);
         if(sc.fx){idx=i;toPlay()}};
     });
     segSel('.i-fx',sc.fx);
     var sz=b.querySelector('.i-size'),sv=b.querySelector('.i-sv');
-    function szUI(){sv.textContent=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100)+'%'}
+    function szUI(){
+      sz.value=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100);sv.textContent=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100)+'%'}
     sz.oninput=function(e){
       if(S.cfg.lock){e.target.value=Math.round((sc.s!=null?sc.s:posOf(i,'a').s)*100);return}
       sc.s=(+e.target.value)/100;szUI();if(i===idx)placeCh()};
@@ -1809,6 +1854,7 @@ function drawCh(im,si,t,dim,fx,fp){
   var h=VH*0.88*q.s,w=im.width*(h/im.height);
   var cx=VW*q.x,by=VH-h-VH*q.y;
   CX.save();
+  if(o[3]!=null&&o[3]<1)CX.globalAlpha=Math.max(0,o[3]);
   CX.translate(cx+o[0],by+h+o[1]);CX.scale(o[2],o[2]);CX.translate(-cx,-(by+h));
   if(S.cfg.edge){
     var sil=silhouette(im,EDGEC[S.cfg.edge]),e=S.cfg.edgeW;
@@ -1820,12 +1866,31 @@ function drawCh(im,si,t,dim,fx,fp){
 }
 
 /* 効果のずれ（0..1 の進み具合） */
+/* [よこ, たて, 大きさ, こさ] を かえす */
 function fxOffset(fx,p){
-  if(!fx||p<0||p>1)return[0,0,1];
-  if(fx==='shake'){var a=(1-p)*4;return[Math.sin(p*Math.PI*10)*a,Math.sin(p*Math.PI*13)*a*.4,1]}
-  if(p<.12)return[0,-14*(p/.12),1+.04*(p/.12)];
+  if(!fx)return[0,0,1,1];
+  var IN={inL:-1,inR:1,inD:0},OUT={outL:-1,outR:1,outD:0};
+  if(IN[fx]!==undefined||fx==='inD'){
+    if(p<0)return[0,0,1,0];
+    if(p>1)return[0,0,1,1];
+    var e=1-Math.pow(1-p,3), d=(1-e)*70;
+    return[(IN[fx]||0)*d, (fx==='inD'?d:0), 1, p];
+  }
+  if(OUT[fx]!==undefined||fx==='outD'){
+    if(p<0)return[0,0,1,1];
+    if(p>1)return[0,0,1,0];
+    var e2=p*p, d2=e2*70;
+    return[(OUT[fx]||0)*d2, (fx==='outD'?d2:0), 1, 1-p];
+  }
+  if(p<0||p>1)return[0,0,1,1];
+  if(fx==='run'){
+    var b=Math.abs(Math.sin(p*Math.PI*2.5))*(1-p*.5);
+    return[Math.sin(p*Math.PI*5)*3,-12*b,1,1];
+  }
+  if(fx==='shake'){var a=(1-p)*4;return[Math.sin(p*Math.PI*10)*a,Math.sin(p*Math.PI*13)*a*.4,1,1]}
+  if(p<.12)return[0,-14*(p/.12),1+.04*(p/.12),1];
   var q=(p-.12)/.88;
-  return[Math.sin(q*Math.PI*4)*4*(1-q),3*(1-q)*Math.cos(q*Math.PI*3),1+.025*(1-q)*0.4];
+  return[Math.sin(q*Math.PI*4)*4*(1-q),3*(1-q)*Math.cos(q*Math.PI*3),1+.025*(1-q)*0.4,1];
 }
 function paint(sc,bgIm,chIm,chIm2,lines,shown,total,veilA,fx,fp){
   CX.setTransform(SCALE,0,0,SCALE,0,0);
@@ -2020,7 +2085,8 @@ $('#btnExport').onclick=function(){
         if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)po(s.v);
         lastN=n;
       }
-      var fdur=(s.fx==='shake')?550:420;
+      var fdur=(s.fx==='shake')?550:((s.fx==='run')?900:
+        (/^(in|out)/.test(s.fx||'')?500:420));
       var sb=S.scenes[bi]||sc;
       var talk=(sb.who==='n')?'':((sb.who==='b')?'b':'a');
       if(now>blinkNext){blinkEnd=now+120;blinkNext=now+120+2600+Math.random()*3200}
