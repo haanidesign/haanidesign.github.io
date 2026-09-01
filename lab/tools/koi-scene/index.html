@@ -1025,6 +1025,7 @@ function dimUI(){
 }
 function face(t,ch){
   var q=tm[t]; clearTimeout(q.b);clearTimeout(q.bo);clearTimeout(q.mo);
+  mouthOn[t]=false;
   var el=W(t);
   el.querySelector('.bl').classList.remove('on'); el.querySelector('.mo').classList.remove('on');
   if(ch&&ch.blink)loopBlink(t);
@@ -1038,29 +1039,46 @@ function loopBlink(t){
     q.bo=setTimeout(function(){bl.classList.remove('on');loopBlink(t)},120);
   }, 2600+Math.random()*3200);
 }
-function mouthOpen(){
+/* 口は 文字が1つ出るたびに 開いて 閉じてを くりかえす。
+   時間で閉じる作りだと、はやいときは 開きっぱなし、
+   おそいときは ほとんど動かない、になってしまうため。 */
+var mouthOn={a:false,b:false};
+function mouthClose(){
+  ['a','b'].forEach(function(t){
+    mouthOn[t]=false;
+    var el=W(t); if(!el)return;
+    var m=el.querySelector('.mo'); if(m)m.classList.remove('on');
+  });
+}
+function mouthTick(){
   var sc=S.scenes[idx]; if(!sc||sc.who==='n')return;
-  var t=(sc.who==='b')?'b':'a',el=W(t),q=tm[t];
+  var t=(sc.who==='b')?'b':'a',el=W(t);
   var m=el.querySelector('.mo');
-  if(!m.dataset.has||el.querySelector('.bl').classList.contains('on'))return;
-  m.classList.add('on'); clearTimeout(q.mo);
-  q.mo=setTimeout(function(){m.classList.remove('on')},85);
+  if(!m||!m.dataset.has)return;
+  if(el.querySelector('.bl').classList.contains('on')){   /* まばたき中は 口を閉じておく */
+    mouthOn[t]=false; m.classList.remove('on'); return;
+  }
+  mouthOn[t]=!mouthOn[t];
+  m.classList.toggle('on',mouthOn[t]);
 }
 function showPage(){ type(pages[page]) }
 function type(t){
   clearInterval(typing);typing=null;
   var sp=spdOf(S.scenes[idx]);
   var b=$('#body'); b.textContent=''; $('#caret').classList.remove('on');
-  if(sp<=0){b.textContent=t;finishType();return}
+  if(sp<=0){b.textContent=t;mouthClose();finishType();return}
   var i=0;
   typing=setInterval(function(){
     var c=t.charAt(i);
     b.textContent=t.slice(0,++i);
-    if(i%2===1&&' 　\n、。！？…・'.indexOf(c)<0){po(voiceOf(S.scenes[idx]));mouthOpen()}
+    var kuten=' 　\n、。！？…・'.indexOf(c)<0;
+    if(kuten)mouthTick();                    /* 口は 1文字ごと */
+    if(kuten&&i%2===1)po(voiceOf(S.scenes[idx]));   /* 音は 2文字に1回 */
     if(i>=t.length){clearInterval(typing);typing=null;finishType()}
   },Math.max(8,130-sp));
 }
 function finishType(){
+  mouthClose();
   $('#caret').classList.add('on');
   if(auto){clearTimeout(autoT);autoT=setTimeout(next,1200+$('#body').textContent.length*50)}
 }
@@ -2119,7 +2137,7 @@ $('#btnExport').onclick=function(){
 
     var total=0;tl.forEach(function(s){total+=s.fade+s.type+s.hold});
     var k=0,t0=performance.now(),done=0,lastN=-1,cache=null;
-    var blinkEnd=0,mouthEnd=0,blinkNext=performance.now()+2000;
+    var blinkEnd=0,mouthFlip=false,blinkNext=performance.now()+2000;
     var blinkEnd2=0,blinkNext2=performance.now()+3500;
     exporting=true;recT0=performance.now();recorder.start(1000);
 
@@ -2141,12 +2159,14 @@ $('#btnExport').onclick=function(){
             Math.max(0,Math.min(s.text.length,Math.floor((t-s.fade)/(s.type/Math.max(1,s.text.length)))));
       if(t<s.fade)n=0;
       if(n>lastN&&n>0&&(S.scenes[s.i]||{}).who!=='n'){
-        if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)mouthEnd=now+85;
+        /* 口は 1文字ごとに 開け閉め */
+        if(' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)mouthFlip=!mouthFlip;
       }
       if(n>lastN&&n>0&&S.cfg.snd){
         if(n%2===1&&' 　\n、。！？…・'.indexOf(s.text.charAt(n-1))<0)po(s.v);
         lastN=n;
       }
+      if(n>=s.text.length)mouthFlip=false;
       var fdur=(s.fx==='shake')?550:((s.fx==='run')?900:
         (/^(in|out)/.test(s.fx||'')?500:420));
       var sb=S.scenes[bi]||sc;
@@ -2155,9 +2175,9 @@ $('#btnExport').onclick=function(){
       if(now>blinkNext2){blinkEnd2=now+120;blinkNext2=now+120+2600+Math.random()*3200}
       var chIm=im['c'+bi], chIm2=im['d'+bi];
       if(now<blinkEnd&&im['cb'+bi])chIm=im['cb'+bi];
-      else if(talk==='a'&&now<mouthEnd&&im['cm'+bi])chIm=im['cm'+bi];
+      else if(talk==='a'&&mouthFlip&&im['cm'+bi])chIm=im['cm'+bi];
       if(now<blinkEnd2&&im['db'+bi])chIm2=im['db'+bi];
-      else if(talk==='b'&&now<mouthEnd&&im['dm'+bi])chIm2=im['dm'+bi];
+      else if(talk==='b'&&mouthFlip&&im['dm'+bi])chIm2=im['dm'+bi];
       sb.__i=bi;
       paint(sb,im['b'+bi],chIm,chIm2,s.lines,n,s.text.length,veil,
             s.fx,s.fx?((t-s.fade)/fdur):-1);
