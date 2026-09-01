@@ -1,32 +1,32 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=112';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=116';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=112';
+         splitFrames } from '../engine/layer.js?v=116';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=112';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=112';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=112';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=112';
-import { PRESET_GROUPS } from '../engine/presets.js?v=112';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=116';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=116';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=116';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=116';
+import { PRESET_GROUPS } from '../engine/presets.js?v=116';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=112';
+         addTextLayer } from '../io/text.js?v=116';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=112';
-import { PATTERN_NAMES } from '../io/pattern.js?v=112';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=112';
-import { newHand } from '../engine/hand.js?v=112';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=112';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=116';
+import { PATTERN_NAMES } from '../io/pattern.js?v=116';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=116';
+import { newHand } from '../engine/hand.js?v=116';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=116';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=112';
+  from './colorwheel.js?v=116';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=112';
+         guessBpm, firstOnset } from '../io/audio.js?v=116';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=112';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=116';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -161,6 +161,29 @@ export function createSheet(sheetEl, backEl){
   const currentTitle = () => sheetEl.querySelector('.sheettabs') ? '' : (sheetEl.querySelector('h2')?.textContent || '');
 
   backEl.addEventListener('click', close);
+
+  /* ---------- めくって いる とちゅうの ごタッチを ふせぐ ----------
+     ボタンの 上に 指を おいた まま 上下に めくると、
+     指を はなした ときに その ボタンが おされて しまう。
+
+     さわった ところから 10ドット より 多く 動いて いたら、
+     それは「めくった」ので あって「おした」のでは ない。
+     おす のを なかった ことに する。
+     （つかまえるのは 中に とどく 前。だから どの ボタンにも 効く） */
+  let tapX = 0, tapY = 0, tapMoved = false;
+  sheetEl.addEventListener('pointerdown', (e) => {
+    tapX = e.clientX; tapY = e.clientY; tapMoved = false;
+  }, true);
+  sheetEl.addEventListener('pointermove', (e) => {
+    if(tapMoved) return;
+    if(Math.hypot(e.clientX - tapX, e.clientY - tapY) > 10) tapMoved = true;
+  }, true);
+  sheetEl.addEventListener('click', (e) => {
+    if(!tapMoved) return;
+    tapMoved = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
 
   // 下に振り切ったら閉じる。横に振ったらページ送り
   let sy = null, sx = null;

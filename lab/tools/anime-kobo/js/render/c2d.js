@@ -3,13 +3,13 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=112';
-import { S, frameAsset, frameImage } from '../state.js?v=112';
+         nearestFolder } from '../engine/layer.js?v=116';
+import { S, frameAsset, frameImage } from '../state.js?v=116';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=112';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=112';
-import { paintCanvas } from '../engine/paint.js?v=112';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=112';
+         meshSizeFor } from '../engine/puppet.js?v=116';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=116';
+import { paintCanvas } from '../engine/paint.js?v=116';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=116';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -51,12 +51,18 @@ export function createC2D(canvas){
      そこで 切れて しまい、ゆがめて 中へ 持ってきても
      切れた まま に なる。
      まわりに ゆとりを つけた 別紙に まとめる。 */
-  const MARGIN = 0.3;                 // キャンバスの 3わり ぶん まわりに たす
+  /* フォルダを まとめる 別紙。
+
+     ゆがみ・ピンの あみは キャンバスの 四角 ぶんしか ない ので、
+     画面の 外に ある ぶんは そもそも あみに のらない。
+     大きい 紙に まとめても つかわれない ので、
+     キャンバスと 同じ 大きさ ＋ ほんの 少しの ゆとり だけに する
+     （ゆとりは ふちの ぎざぎざ よけ）。 */
+  const MARGIN = 8;
   let bigC = null;
   function bigSheet(){
     if(!bigC) bigC = document.createElement('canvas');
-    const w = Math.ceil(canvas.width  * (1 + MARGIN * 2));
-    const h = Math.ceil(canvas.height * (1 + MARGIN * 2));
+    const w = canvas.width + MARGIN * 2, h = canvas.height + MARGIN * 2;
     if(bigC.width !== w || bigC.height !== h){ bigC.width = w; bigC.height = h; }
     const g = bigC.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -497,7 +503,7 @@ export function createC2D(canvas){
          画面の 外に ある ぶんも 切らずに とっておく ので、
          ゆがめて 中へ 持ってきても 切れない。 */
       const k0 = Math.abs(tf[0]);
-      const mx = canvas.width * MARGIN, my = canvas.height * MARGIN;
+      const mx = MARGIN, my = MARGIN;
       const tf0 = [tf[0], 0, 0, tf[3], mx, my];
       const tmpC = bigSheet(), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
@@ -530,7 +536,7 @@ export function createC2D(canvas){
       /* こちらも まわりに ゆとりの ある 別紙に まとめる
          （画面の 外の ぶんが 切れない ように） */
       const k0 = Math.abs(tf[0]);
-      const mx = canvas.width * MARGIN, my = canvas.height * MARGIN;
+      const mx = MARGIN, my = MARGIN;
       const tf0 = [tf[0], 0, 0, tf[3], mx, my];
       const tmpC = bigSheet(), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);

@@ -371,12 +371,21 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
   ctx.restore();
 }
 
-/* 別紙（使いまわす） */
-let _sheet = null;
+/* 別紙（使いまわす）。
+
+   大きさの ちがう ところに 描く ことが ある
+   （フォルダは まわりに ゆとりの ある 大きい 紙に まとめる）。
+   1まいを 大きさだけ 変えて 使いまわすと、
+   毎コマ 作り直す ことに なって 重いし、ちらつく ことも ある。
+   大きさごとに 分けて 持っておく（2つまで）。 */
+const _sheets = [];
 function sheet(w, h){
-  if(!_sheet) _sheet = document.createElement('canvas');
-  if(_sheet.width !== w || _sheet.height !== h){ _sheet.width = w; _sheet.height = h; }
-  return _sheet;
+  for(const c of _sheets) if(c.width === w && c.height === h) return c;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  _sheets.unshift(c);
+  if(_sheets.length > 2) _sheets.length = 2;    // 持ちすぎない
+  return c;
 }
 
 /** 中身が つまった あみ（フォルダ用）。絵の あるなしを 見ない */
