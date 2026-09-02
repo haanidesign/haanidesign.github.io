@@ -212,12 +212,6 @@ img{display:block;max-width:100%;}
   animation:tlPop .3s cubic-bezier(.34,1.56,.64,1);
 }
 
-/* ヒーローCTAの補足 */
-.cta-note{
-  font-size:.64rem;font-weight:500;color:var(--gray);
-  margin-top:.5rem;letter-spacing:.02em;
-}
-
 /* ============ 料金：主役を1つ決める ============ */
 .price-lead{
   display:grid;grid-template-columns:1.2fr 1fr;
@@ -272,19 +266,6 @@ img{display:block;max-width:100%;}
 }
 .step h3{font-size:.95rem;margin-bottom:.1rem;}
 .step p{font-size:.73rem;font-weight:500;color:var(--gray);line-height:1.9;}
-
-/* ============ 送信前の安心材料 ============ */
-.assure{
-  display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;
-  margin-top:.3rem;
-}
-.assure span{
-  font-size:.63rem;background:var(--cream);
-  border:2px solid var(--ink);border-radius:100px;
-  padding:.1rem .7rem;
-}
-.submit-lg{flex-direction:column;gap:.1rem;line-height:1.4;}
-.submit-lg small{font-size:.6rem;font-weight:500;opacity:.75;}
 
 @media(max-width:760px){
   .price-lead{grid-template-columns:1fr;}
