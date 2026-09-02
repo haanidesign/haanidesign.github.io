@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#E1DD60">
 <meta name="mobile-web-app-capable" content="yes">
-<title>ぐるり — 360°を いつもの お絵かきアプリで</title>
+<title>ぐるり — 360°の えを 描く</title>
 <style>
 :root{
   --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
@@ -21,85 +21,101 @@ body{
   font-weight:700; display:flex; flex-direction:column; overflow:hidden;
   touch-action:none; user-select:none;
 }
-.dot{font-family:'DotGothic16',monospace;}
-
 .bar{
-  display:flex; align-items:center; gap:.5rem; flex:none;
-  background:var(--main); border-bottom:var(--bd); padding:.45rem .7rem;
-  padding-top:calc(.45rem + env(safe-area-inset-top));
+  display:flex; align-items:center; gap:.35rem; flex:none;
+  background:var(--main); border-bottom:var(--bd); padding:.35rem .55rem;
+  padding-top:calc(.35rem + env(safe-area-inset-top));
 }
-.bar h1{margin:0; font-size:.95rem; white-space:nowrap;}
+.bar h1{margin:0; font-size:.86rem; white-space:nowrap;}
 .bar .grow{flex:1;}
 .chip{
-  font-size:.6rem; background:var(--cream); border:2px solid var(--ink);
-  border-radius:100px; padding:.1rem .55rem; white-space:nowrap;
+  font-size:.56rem; background:var(--cream); border:2px solid var(--ink);
+  border-radius:100px; padding:.08rem .45rem; white-space:nowrap;
 }
 .chip.ok{background:var(--green);} .chip.ng{background:var(--pink);}
 
 .btn{
-  display:inline-flex; align-items:center; justify-content:center; gap:.3rem;
+  display:inline-flex; align-items:center; justify-content:center; gap:.25rem;
   min-height:var(--tap); background:var(--paper); color:var(--ink);
-  border:var(--bd); border-radius:var(--r); padding:.5rem .8rem;
-  font:inherit; font-size:.78rem; box-shadow:0 3px 0 var(--ink); cursor:pointer;
+  border:var(--bd); border-radius:var(--r); padding:.35rem .6rem;
+  font:inherit; font-size:.74rem; box-shadow:0 3px 0 var(--ink); cursor:pointer;
   white-space:nowrap; transition:transform .08s, box-shadow .08s, background .15s;
 }
 .btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink);}
 .btn-y{background:var(--main);}
 .btn-g{background:var(--ink); color:var(--main);}
-.btn-sm{min-height:34px; padding:.3rem .6rem; font-size:.68rem; box-shadow:0 2.5px 0 var(--ink);}
+.btn-sm{min-height:34px; padding:.25rem .5rem; font-size:.64rem; box-shadow:0 2.5px 0 var(--ink);}
+.btn:disabled{opacity:.4;}
 
-#stage{flex:1; position:relative; background:#2a2a26; min-height:0; touch-action:none;}
-#view{width:100%; height:100%; display:block; touch-action:none;}
+#stage{flex:1; position:relative; background:#2a2a26; min-height:0; touch-action:none; overflow:hidden;}
+#stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none;}
+#view{z-index:1;} #guide{z-index:2; pointer-events:none;} #ink{z-index:3;}
 #empty{
-  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  position:absolute; inset:0; z-index:4; display:flex; align-items:center; justify-content:center;
   background:var(--cream); text-align:center; padding:1rem;
   background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
   background-size:16px 16px;
 }
 #empty div{
   background:var(--paper); border:var(--bd); border-radius:var(--r);
-  box-shadow:0 3px 0 var(--ink); padding:1rem 1.1rem; max-width:22rem;
-  font-size:.76rem; font-weight:400; line-height:1.9;
+  box-shadow:0 3px 0 var(--ink); padding:1rem 1.1rem; max-width:23rem;
+  font-size:.75rem; font-weight:400; line-height:1.95;
 }
 #empty b{font-weight:700;}
-
-/* 見ている向き */
-#hud{
-  position:absolute; left:.6rem; top:.6rem; display:flex; gap:.35rem;
-}
+#hud{position:absolute; left:.45rem; top:.45rem; z-index:5; display:flex; gap:.25rem; pointer-events:none;}
 #hud span{
   background:rgba(251,250,236,.92); border:2px solid var(--ink); border-radius:9px;
-  padding:.1rem .45rem; font-family:'DotGothic16',monospace; font-size:.66rem;
+  padding:.05rem .35rem; font-family:'DotGothic16',monospace; font-size:.6rem;
 }
 
 .dock{
   flex:none; background:var(--cream); border-top:var(--bd);
-  padding:.5rem .6rem; padding-bottom:calc(.5rem + env(safe-area-inset-bottom));
-  display:flex; flex-direction:column; gap:.45rem;
+  padding:.4rem .5rem; padding-bottom:calc(.4rem + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:.35rem;
 }
-.rowb{display:flex; gap:.4rem; align-items:center; flex-wrap:wrap;}
-.rowb .btn{flex:1; min-width:96px;}
-.seg{display:flex; gap:.35rem; flex:1;}
+.rowb{display:flex; gap:.3rem; align-items:center;}
+.rowb .btn{flex:1;}
+.seg{display:flex; gap:.28rem; flex:1;}
 .seg button{
-  flex:1; min-height:34px; background:var(--paper); border:2px solid var(--ink);
-  border-radius:9px; font:inherit; font-size:.68rem; box-shadow:0 2.5px 0 var(--ink);
-  cursor:pointer;
+  flex:1; min-height:36px; background:var(--paper); border:2px solid var(--ink);
+  border-radius:9px; font:inherit; font-size:.66rem; box-shadow:0 2.5px 0 var(--ink); cursor:pointer;
 }
 .seg button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
-label.f{font-size:.66rem; font-weight:400; display:flex; align-items:center; gap:.4rem; flex:1;}
-label.f input[type=range]{flex:1; accent-color:var(--main-deep); height:var(--tap);}
+label.f{font-size:.62rem; font-weight:400; display:flex; align-items:center; gap:.3rem; flex:1;}
+label.f input[type=range]{flex:1; accent-color:var(--main-deep); height:36px;}
 select{
   background:var(--paper); border:2px solid var(--ink); border-radius:9px;
-  padding:.3rem .4rem; font:inherit; font-size:.68rem; font-weight:400; min-height:34px;
+  padding:.2rem .3rem; font:inherit; font-size:.64rem; font-weight:400; min-height:34px;
 }
+.sw{display:flex; gap:.26rem; flex:1;}
+.sw button{
+  flex:1; min-height:36px; border:2px solid var(--ink); border-radius:9px;
+  box-shadow:0 2.5px 0 var(--ink); cursor:pointer; font:inherit; font-size:.6rem;
+}
+.sw button.on{transform:translateY(2.5px); box-shadow:0 0 0 var(--ink); outline:3px solid var(--ink); outline-offset:-6px;}
+
+/* レイヤーの たな */
+#layers{display:flex; gap:.28rem; overflow-x:auto; padding-bottom:.15rem;}
+.lay{
+  flex:none; display:flex; align-items:center; gap:.3rem;
+  background:var(--paper); border:2px solid var(--ink); border-radius:9px;
+  box-shadow:0 2.5px 0 var(--ink); padding:.25rem .4rem; font-size:.64rem; cursor:pointer;
+  min-height:36px;
+}
+.lay.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
+.lay .eye{font-size:.72rem; opacity:1;}
+.lay.off .eye{opacity:.25;}
 .hint{
   background:var(--main-soft); border:2px dashed var(--ink); border-radius:10px;
-  padding:.4rem .5rem; font-size:.62rem; font-weight:400; color:#5c5843; line-height:1.7;
+  padding:.3rem .4rem; font-size:.58rem; font-weight:400; color:#5c5843; line-height:1.65;
 }
+/* レイヤーの ふやす・へらす は 幅を 決めておく（flex:1 だと 横に のびる） */
+#bLayAdd, #bLayDel{flex:none; width:44px; padding:0;}
+.hide{display:none !important;}
 #toast{
-  position:fixed; left:50%; bottom:5.2rem; transform:translate(-50%,220%);
+  position:fixed; left:50%; bottom:6.5rem; transform:translate(-50%,240%);
   background:var(--ink); color:var(--main); border-radius:100px;
-  padding:.5rem 1.1rem; font-size:.74rem; max-width:86vw; text-align:center;
+  padding:.45rem 1rem; font-size:.7rem; max-width:88vw; text-align:center;
   transition:transform .18s; pointer-events:none; z-index:9;
 }
 #toast.show{transform:translate(-50%,0);}
@@ -113,72 +129,115 @@ input[type=file]{display:none;}
   <h1>ぐるり</h1>
   <span id="info" class="chip">まだ ひらいて いません</span>
   <span class="grow"></span>
-  <button class="btn btn-sm" id="bOpen">ひらく</button>
   <button class="btn btn-sm" id="bNew">しんき</button>
+  <button class="btn btn-sm" id="bOpen">ひらく</button>
+  <button class="btn btn-sm" id="bLoad">つづき</button>
+  <button class="btn btn-sm btn-g" id="bSave">保存</button>
 </header>
 
 <div id="stage">
   <canvas id="view"></canvas>
+  <canvas id="guide"></canvas>
+  <canvas id="ink"></canvas>
   <div id="hud"><span id="hYaw">よこ 0</span><span id="hPitch">たて 0</span><span id="hFov">がかく 90</span></div>
   <div id="empty"><div>
-    <b>360°の えを、いつもの お絵かきアプリで 描く ための 台です。</b><br><br>
-    ① ここで 向きを 決めて「切り出す」<br>
-    ② 保存された 四角い 絵を お絵かきアプリで 描く<br>
-    ③ ここに 戻して「貼り戻す」<br><br>
-    まずは 上の <b>ひらく</b>（よこ：たて＝2：1 の 画像）か、<b>しんき</b> を どうぞ。
+    <b>360°の えを 描く ための 台です。</b><br><br>
+    ① <b>しんき</b> で 白紙を つくる<br>
+    ② 下の <b>ペン</b> で、パース線を たよりに 描く<br>
+    ③ ゆびを はなすと そのまま 球に のります<br><br>
+    こまかく 描きたい ときは <b>切り出す</b> で 保存して、<br>
+    いつもの お絵かきアプリで 描いてから <b>もどす</b>。
   </div></div>
 </div>
 
 <div class="dock">
+  <!-- どうぐ -->
   <div class="rowb">
-    <div class="seg" id="look">
-      <button data-look="0,0">しょうめん</button>
-      <button data-look="0,88">まうえ</button>
-      <button data-look="0,-88">ました</button>
-      <button data-look="180,0">うしろ</button>
+    <div class="seg" id="tool">
+      <button data-tool="turn" class="on">まわす</button>
+      <button data-tool="pen">ペン</button>
+      <button data-tool="erase">けし</button>
+      <button data-tool="fill">ぬり</button>
+      <button data-tool="pick">スポイト</button>
     </div>
   </div>
+
+  <!-- レイヤー -->
   <div class="rowb">
-    <label class="f">がかく<input type="range" id="fov" min="20" max="120" step="1" value="90"></label>
-    <select id="cutSize">
-      <option value="1024">1024</option>
-      <option value="1536" selected>1536</option>
-      <option value="2048">2048</option>
-    </select>
+    <div id="layers"></div>
+    <button class="btn btn-sm" id="bLayAdd">＋</button>
+    <button class="btn btn-sm" id="bLayDel">－</button>
   </div>
-  <div class="rowb">
-    <button class="btn btn-y" id="bCut">この向きを 切り出す</button>
-    <button class="btn btn-y" id="bBack">描いたのを 貼り戻す</button>
-    <button class="btn btn-g" id="bSave">ぜんぶ 保存</button>
+
+  <!-- ペンの 設定 -->
+  <div id="panPen" class="hide">
+    <div class="rowb" style="margin-bottom:.35rem"><div class="sw" id="colors"></div></div>
+    <div class="rowb">
+      <label class="f">ふとさ<input type="range" id="size" min="1" max="80" step="1" value="6"></label>
+      <button class="btn btn-sm" id="bUndo">もどす</button>
+      <button class="btn btn-sm" id="bRedo">やり直す</button>
+    </div>
   </div>
+
+  <!-- まわす -->
+  <div id="panTurn">
+    <div class="rowb" style="margin-bottom:.35rem">
+      <div class="seg" id="look">
+        <button data-look="0,0">しょうめん</button>
+        <button data-look="0,88">まうえ</button>
+        <button data-look="0,-88">ました</button>
+        <button data-look="180,0">うしろ</button>
+      </div>
+      <button class="btn btn-sm" id="bGuide">パース線</button>
+    </div>
+    <div class="rowb">
+      <label class="f">がかく<input type="range" id="fov" min="20" max="120" step="1" value="90"></label>
+      <select id="cutSize"><option value="1024">1024</option><option value="1536" selected>1536</option><option value="2048">2048</option></select>
+      <button class="btn btn-sm btn-y" id="bCut">切り出す</button>
+      <button class="btn btn-sm btn-y" id="bBack">もどす</button>
+    </div>
+  </div>
+
   <div class="hint" id="tip">
-    ゆびで なぞると 回ります。2本ゆびで つまむと 寄れます。<br>
-    切り出した ファイル名に 向きが 入っているので、あとで 貼り戻しても ずれません。
+    <b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>
+    描いている ときも 2本ゆびで 寄れます。赤いのが 地平線です。
   </div>
 </div>
 
 <div id="toast"></div>
 <input type="file" id="fEqui" accept="image/*">
 <input type="file" id="fFlat" accept="image/*">
+<input type="file" id="fProj" accept="image/*">
 
 <script>
-/* ぐるり（ラボ版）— サーバーなしで動く。読み込み・投影・合成・保存を すべて この中でやる。
+/* ぐるり（ラボ版）— サーバーなしで動く 360°ペイント。
 
    正距円筒（よこ：たて＝2：1）を そのまま描くと、真上と真下が 横に伸びきって 描けない。
-   なので「見る → 歪みのない 四角を 切り出す → 描く → 球に 貼り戻す」の 往復にする。 */
+   なので 球として 見ながら 描き、ゆびを はなした ところで 球に 投影して 焼き込む。
+   こまかい ところは 四角に 切り出して、いつもの お絵かきアプリで 描いてから もどす。
+
+   レイヤーは 1枚ずつ 正距円筒の テクスチャ。表示は 下から 順に 重ねて 描くだけ。 */
 
 const $ = (id) => document.getElementById(id);
-let view = { yaw: 0, pitch: 0, fov: 90 };
-let lastCut = null;                 // {yaw,pitch,fov}
+const D2R = Math.PI/180;
+
+let view = { yaw:0, pitch:0, fov:90 };
+let lastCut = null;
 let equiW = 0, equiH = 0;
-let gl, pView, pMerge, pCopy, texBase, texFlat, ready = false;
+let gl, pView, pMerge, pCopy, texFlat, ready = false;
+let tool = 'turn';
+let guideMode = 1;                 // 0:なし 1:球 2:床 3:両方
+let pen = { color:'#1E1C14', size:6 };
+let layers = [];                   // {tex, visible, name}
+let active = 0;
+let inkDirty = false;
+let undoStack = [], redoStack = []; // 焼く前の レイヤーの 控え {i, canvas}
 
 /* ---------------------------------------------------------------- シェーダ */
 
 const VS = `attribute vec2 pos; varying vec2 vUv;
 void main(){ vUv = pos*0.5+0.5; gl_Position = vec4(pos,0.0,1.0); }`;
 
-/* 画面の各点が 向いている方角を 求めて、正距円筒から 拾う */
 const FS_VIEW = `precision highp float;
 varying vec2 vUv; uniform sampler2D tex;
 uniform float yaw, pitch, fov, aspect;
@@ -194,15 +253,14 @@ void main(){
   gl_FragColor = texture2D(tex, vec2(fract(lon/(2.0*PI)+0.5), 0.5-lat/PI));
 }`;
 
-/* 逆向き。球の各点を 四角い絵に 射影して、入っていれば 上から重ねる。
-   ふちは やわらかく 消す（塗りつぶしで書き出しても つなぎ目が 出ないように）。 */
+/* 球の各点を 四角い絵に 射影して、入っていれば 上から重ねる。
+   WebGL は 下が 原点、画像は 上が 原点。書き出しで ひっくり返らないよう iuv に 直す。
+   ここを 忘れると 貼るたび 上下が 入れかわる。 */
 const FS_MERGE = `precision highp float;
 varying vec2 vUv; uniform sampler2D base; uniform sampler2D flat_;
-uniform float yaw, pitch, fov, feather;
+uniform float yaw, pitch, fov, aspect, feather, erase;
 const float PI = 3.14159265359;
 void main(){
-  /* WebGL は 下が 原点、画像は 上が 原点。書き出したとき ひっくり返らないよう、
-     ここで 画像としての 座標 iuv に 直してから つかう。 */
   vec2 iuv = vec2(vUv.x, 1.0-vUv.y);
   vec4 b = texture2D(base, iuv);
   float lon = (iuv.x-0.5)*2.0*PI;
@@ -214,23 +272,22 @@ void main(){
   float Z = dot(d,f);
   if (Z <= 0.0001) { gl_FragColor = b; return; }
   float t = tan(fov*0.5);
-  float sx = dot(d,r)/(Z*t), sy = dot(d,u)/(Z*t);
+  float sx = dot(d,r)/(Z*t*aspect), sy = dot(d,u)/(Z*t);
   if (abs(sx) > 1.0 || abs(sy) > 1.0) { gl_FragColor = b; return; }
   vec4 c = texture2D(flat_, vec2(sx*0.5+0.5, 0.5-sy*0.5));
   float e = 1.0;
-  if (feather > 0.0) {
-    e = smoothstep(1.0, 1.0-feather, abs(sx)) * smoothstep(1.0, 1.0-feather, abs(sy));
-  }
-  gl_FragColor = mix(b, vec4(c.rgb,1.0), c.a*e);
+  if (feather > 0.0) e = smoothstep(1.0, 1.0-feather, abs(sx)) * smoothstep(1.0, 1.0-feather, abs(sy));
+  float a = c.a*e;
+  if (erase > 0.5) { gl_FragColor = vec4(b.rgb, b.a*(1.0-a)); return; }
+  gl_FragColor = vec4(mix(b.rgb, c.rgb, a), max(b.a, a));
 }`;
 
-/* そのまま 写すだけ。保存のときに つかう */
 const FS_COPY = `precision highp float;
 varying vec2 vUv; uniform sampler2D tex;
 void main(){ gl_FragColor = texture2D(tex, vec2(vUv.x, 1.0-vUv.y)); }`;
 
-function sh(type, src){
-  const s = gl.createShader(type);
+function sh(t, src){
+  const s = gl.createShader(t);
   gl.shaderSource(s, src); gl.compileShader(s);
   if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
   return s;
@@ -243,72 +300,170 @@ function prog(fs){
   if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
   return p;
 }
-function mkTex(){
+function mkTex(src){
   const t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  if(src) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
   return t;
 }
-
-function initGL(){
-  const c = $('view');
-  gl = c.getContext('webgl', { preserveDrawingBuffer:true, alpha:false })
-    || c.getContext('experimental-webgl', { preserveDrawingBuffer:true, alpha:false });
-  if(!gl){ toast('WebGL が つかえません', true); return false; }
-  pView = prog(FS_VIEW);
-  pMerge = prog(FS_MERGE);
-  pCopy = prog(FS_COPY);
-  const buf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  for(const p of [pView, pMerge, pCopy]){
-    gl.useProgram(p);
-    const l = gl.getAttribLocation(p, 'pos');
-    gl.enableVertexAttribArray(l);
-    gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0);
-  }
-  texBase = mkTex(); texFlat = mkTex();
-  return true;
-}
-
-/* ---------------------------------------------------------------- 描画 */
-
-function drawView(){
-  if(!ready) return;
-  const c = $('view');
-  const w = c.clientWidth, h = c.clientHeight;
-  if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
-  gl.viewport(0,0,c.width,c.height);
-  gl.useProgram(pView); bindQuad(pView);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
-  gl.uniform1i(gl.getUniformLocation(pView,'tex'), 0);
-  gl.uniform1f(gl.getUniformLocation(pView,'yaw'), view.yaw*Math.PI/180);
-  gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*Math.PI/180);
-  gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*Math.PI/180);
-  gl.uniform1f(gl.getUniformLocation(pView,'aspect'), c.width/c.height);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  $('hYaw').textContent = 'よこ ' + Math.round(view.yaw);
-  $('hPitch').textContent = 'たて ' + Math.round(view.pitch);
-  $('hFov').textContent = 'がかく ' + Math.round(view.fov);
-}
-
-/* 画面ではなく 指定の 大きさで 一度だけ 描いて、その絵を 返す */
 function bindQuad(p){
   const l = gl.getAttribLocation(p, 'pos');
   gl.enableVertexAttribArray(l);
   gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0);
 }
+function initGL(){
+  const c = $('view');
+  /* alpha:true が いる。false だと 描画面に 透明度が 残らず、
+     レイヤーを 書き戻した とき まっ黒な 板に なる（実際に なった）。
+     premultipliedAlpha:false は 色が 濁らない ようにする ため。 */
+  const opt = { preserveDrawingBuffer:true, alpha:true, premultipliedAlpha:false };
+  gl = c.getContext('webgl', opt) || c.getContext('experimental-webgl', opt);
+  if(!gl){ toast('WebGL が つかえません', true); return false; }
+  pView = prog(FS_VIEW); pMerge = prog(FS_MERGE); pCopy = prog(FS_COPY);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  texFlat = mkTex(null);
+  return true;
+}
 
-function renderTo(w, h, setup){
+/* ---------------------------------------------------------------- 向き */
+
+function basis(){
+  const y = view.yaw*D2R, p = view.pitch*D2R;
+  const f = [Math.cos(p)*Math.sin(y), Math.sin(p), Math.cos(p)*Math.cos(y)];
+  const r = [Math.cos(y), 0, -Math.sin(y)];
+  const u = [f[1]*r[2]-f[2]*r[1], f[2]*r[0]-f[0]*r[2], f[0]*r[1]-f[1]*r[0]];
+  return {f, r, u};
+}
+function project(d, W, H, B){
+  const {f, r, u} = B || basis();
+  const Z = d[0]*f[0]+d[1]*f[1]+d[2]*f[2];
+  if(Z <= 1e-4) return null;
+  const t = Math.tan(view.fov*D2R*0.5), aspect = W/H;
+  const X = d[0]*r[0]+d[1]*r[1]+d[2]*r[2];
+  const Y = d[0]*u[0]+d[1]*u[1]+d[2]*u[2];
+  return [ (X/(Z*t*aspect)*0.5+0.5)*W, (0.5 - Y/(Z*t)*0.5)*H ];
+}
+function dirOf(lonDeg, latDeg){
+  const lo = lonDeg*D2R, la = latDeg*D2R;
+  return [Math.cos(la)*Math.sin(lo), Math.sin(la), Math.cos(la)*Math.cos(lo)];
+}
+
+/* ---------------------------------------------------------------- パース線 */
+
+function drawGuide(){
+  const g = $('guide'), W = g.clientWidth, H = g.clientHeight;
+  if(g.width !== W || g.height !== H){ g.width = W; g.height = H; }
+  const c = g.getContext('2d');
+  c.clearRect(0,0,W,H);
+  if(!ready || guideMode === 0) return;
+  const B = basis();
+
+  /* うしろ側や 大きく はみ出た点で 線を 切る（切らないと 反対側まで 走る） */
+  const poly = (pts, color, width) => {
+    c.strokeStyle = color; c.lineWidth = width;
+    c.beginPath();
+    let on = false;
+    for(const d of pts){
+      const p = project(d, W, H, B);
+      if(!p || p[0] < -W*2 || p[0] > W*3 || p[1] < -H*2 || p[1] > H*3){ on = false; continue; }
+      if(on) c.lineTo(p[0], p[1]); else c.moveTo(p[0], p[1]);
+      on = true;
+    }
+    c.stroke();
+  };
+
+  if(guideMode === 1 || guideMode === 3){
+    for(let lon = 0; lon < 360; lon += 15){
+      const pts = [];
+      for(let lat = -88; lat <= 88; lat += 2) pts.push(dirOf(lon, lat));
+      poly(pts, lon % 90 === 0 ? 'rgba(30,28,20,.40)' : 'rgba(30,28,20,.15)', lon % 90 === 0 ? 2 : 1);
+    }
+    for(let lat = -75; lat <= 75; lat += 15){
+      if(lat === 0) continue;
+      const pts = [];
+      for(let lon = 0; lon <= 360; lon += 2) pts.push(dirOf(lon, lat));
+      poly(pts, 'rgba(30,28,20,.15)', 1);
+    }
+  }
+  if(guideMode === 2 || guideMode === 3){
+    const EY = 1.0, N = 14, S = 0.9;
+    const gp = (x, z) => { const n = Math.hypot(x, -EY, z); return [x/n, -EY/n, z/n]; };
+    for(let i = -N; i <= N; i++){
+      const a = [], b = [];
+      for(let j = -N*3; j <= N*3; j++){ a.push(gp(i*S, j*S/3)); b.push(gp(j*S/3, i*S)); }
+      poly(a, 'rgba(184,180,63,.6)', 1);
+      poly(b, 'rgba(184,180,63,.6)', 1);
+    }
+  }
+  const hz = [];
+  for(let lon = 0; lon <= 360; lon += 2) hz.push(dirOf(lon, 0));
+  poly(hz, 'rgba(226,60,60,.75)', 3);
+
+  c.fillStyle = 'rgba(226,60,60,.9)';
+  for(const lon of [0, 90, 180, 270]){
+    const p = project(dirOf(lon, 0), W, H, B);
+    if(p && p[0] > -40 && p[0] < W+40 && p[1] > -40 && p[1] < H+40){
+      c.beginPath(); c.arc(p[0], p[1], 6, 0, 7); c.fill();
+    }
+  }
+}
+
+/* ---------------------------------------------------------------- 表示 */
+
+function fitCanvas(el){
+  const w = el.clientWidth, h = el.clientHeight;
+  if(el.width !== w || el.height !== h){ el.width = w; el.height = h; return true; }
+  return false;
+}
+
+/* 下から 順に 重ねて 描く。これが レイヤーの 見え方 そのもの。 */
+function paintLayers(W, H, aspect, uniformsFor){
+  gl.clearColor(1,1,1,1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND);
+  for(const L of layers){
+    if(!L.visible) continue;
+    uniformsFor(L, aspect);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  gl.disable(gl.BLEND);
+}
+
+function drawView(){
+  if(!ready) return;
+  const c = $('view');
+  fitCanvas(c);
+  gl.viewport(0,0,c.width,c.height);
+  gl.useProgram(pView); bindQuad(pView);
+  const aspect = c.width/c.height;
+  paintLayers(c.width, c.height, aspect, (L) => {
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
+    gl.uniform1i(gl.getUniformLocation(pView,'tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(pView,'yaw'), view.yaw*D2R);
+    gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*D2R);
+    gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*D2R);
+    gl.uniform1f(gl.getUniformLocation(pView,'aspect'), aspect);
+  });
+  $('hYaw').textContent = 'よこ ' + Math.round(view.yaw);
+  $('hPitch').textContent = 'たて ' + Math.round(view.pitch);
+  $('hFov').textContent = 'がかく ' + Math.round(view.fov);
+  drawGuide();
+}
+
+function renderTo(w, h, draw){
   const c = $('view');
   const ow = c.width, oh = c.height;
   c.width = w; c.height = h;
   gl.viewport(0,0,w,h);
-  setup(w,h);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  draw(w,h);
   const out = document.createElement('canvas');
   out.width = w; out.height = h;
   out.getContext('2d').drawImage(c, 0, 0);
@@ -316,13 +471,268 @@ function renderTo(w, h, setup){
   return out;
 }
 
+/* 見えている ぜんぶを 平らに 合わせた 1枚 */
+function flatten(){
+  return renderTo(equiW, equiH, () => {
+    gl.useProgram(pCopy); bindQuad(pCopy);
+    paintLayers(equiW, equiH, 1, (L) => {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
+      gl.uniform1i(gl.getUniformLocation(pCopy,'tex'), 0);
+    });
+  });
+}
+/* レイヤー1枚を そのまま 画像に する（控え・作業データ用） */
+function layerToCanvas(L){
+  return renderTo(equiW, equiH, () => {
+    gl.disable(gl.BLEND);
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(pCopy); bindQuad(pCopy);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
+    gl.uniform1i(gl.getUniformLocation(pCopy,'tex'), 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  });
+}
+
+/* 四角い絵を いま選んでいる レイヤーに 焼き込む */
+function mergeInto(src, yaw, pitch, fov, aspect, feather, erase){
+  const L = layers[active];
+  if(!L) return;
+  gl.bindTexture(gl.TEXTURE_2D, texFlat);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+
+  const merged = renderTo(equiW, equiH, () => {
+    gl.disable(gl.BLEND);
+    gl.useProgram(pMerge); bindQuad(pMerge);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
+    gl.uniform1i(gl.getUniformLocation(pMerge,'base'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texFlat);
+    gl.uniform1i(gl.getUniformLocation(pMerge,'flat_'), 1);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'yaw'), yaw*D2R);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'pitch'), pitch*D2R);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'fov'), fov*D2R);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'aspect'), aspect);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'feather'), feather);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'erase'), erase ? 1 : 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  });
+  gl.bindTexture(gl.TEXTURE_2D, L.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, merged);
+  drawView();
+}
+
+/* ---------------------------------------------------------------- レイヤー */
+
+function blankCanvas(w, h, fill){
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  if(fill){ const g = c.getContext('2d'); g.fillStyle = fill; g.fillRect(0,0,w,h); }
+  return c;
+}
+
+function addLayer(src, name, at){
+  const L = { tex: mkTex(src || blankCanvas(equiW, equiH)), visible:true, name: name || ('レイヤー' + (layers.length+1)) };
+  if(at === undefined) layers.push(L); else layers.splice(at, 0, L);
+  active = layers.indexOf(L);
+  drawLayerBar();
+  return L;
+}
+
+function drawLayerBar(){
+  const box = $('layers');
+  box.innerHTML = '';
+  /* 上に あるものを 左に 出す（絵を 見る 順と 合わせる） */
+  for(let i = layers.length - 1; i >= 0; i--){
+    const L = layers[i];
+    const el = document.createElement('div');
+    el.className = 'lay' + (i === active ? ' on' : '') + (L.visible ? '' : ' off');
+    el.innerHTML = '<span class="eye">' + (L.visible ? '◉' : '◌') + '</span>' + L.name;
+    el.onclick = (e) => {
+      if(e.target.classList.contains('eye')){ L.visible = !L.visible; drawLayerBar(); drawView(); return; }
+      stampInk(true);
+      active = i; drawLayerBar();
+    };
+    box.appendChild(el);
+  }
+  $('bLayDel').disabled = layers.length <= 1;
+}
+
+/* ---------------------------------------------------------------- ペン */
+
+function clearInk(){
+  const k = $('ink');
+  fitCanvas(k);
+  k.getContext('2d').clearRect(0,0,k.width,k.height);
+  inkDirty = false;
+}
+
+function pushUndo(){
+  const L = layers[active];
+  if(!L) return;
+  undoStack.push({ i: active, canvas: layerToCanvas(L) });
+  if(undoStack.length > 6) undoStack.shift();
+  redoStack = [];
+}
+
+/* 手前の 紙に 描いた ものを、いまの 向きで レイヤーに 焼く */
+function stampInk(quiet){
+  if(!inkDirty || !ready) return;
+  const k = $('ink');
+  mergeInto(k, view.yaw, view.pitch, view.fov, k.width/k.height, 0.0, tool === 'erase');
+  clearInk();
+  if(!quiet) toast('のせました');
+}
+
+function bindPen(){
+  const k = $('ink');
+  let drawing = false, last = null;
+  const pos = (e) => {
+    const r = k.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return [t.clientX - r.left, t.clientY - r.top];
+  };
+  const begin = (e) => {
+    if(!ready) return;
+    if(e.touches && e.touches.length > 1) return;
+    const p = pos(e);
+    if(tool === 'pick'){ pickColor(p[0], p[1]); e.preventDefault(); return; }
+    if(tool === 'fill'){ pushUndo(); bucket(p[0], p[1]); e.preventDefault(); return; }
+    if(tool !== 'pen' && tool !== 'erase') return;
+    fitCanvas(k);
+    pushUndo();
+    drawing = true; last = p;
+    e.preventDefault();
+  };
+  const move = (e) => {
+    if(!drawing) return;
+    const p = pos(e), c = k.getContext('2d');
+    c.globalCompositeOperation = 'source-over';
+    c.strokeStyle = tool === 'erase' ? '#000' : pen.color;
+    c.lineWidth = pen.size; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(last[0], last[1]); c.lineTo(p[0], p[1]); c.stroke();
+    last = p; inkDirty = true;
+    e.preventDefault();
+  };
+  /* ゆびを はなしたら すぐ 球に のせる。元ツールと 同じ 描きごこちに するため。 */
+  const end = () => { if(drawing){ drawing = false; stampInk(true); } };
+
+  k.addEventListener('touchstart', begin, {passive:false});
+  k.addEventListener('touchmove', move, {passive:false});
+  k.addEventListener('touchend', end, {passive:true});
+  k.addEventListener('mousedown', begin);
+  k.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+}
+
+function viewPixels(){
+  const c = $('view'), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  const px = new Uint8Array(w*h*4);
+  gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px);
+  return {px, w, h};
+}
+function pickColor(x, y){
+  const {px, w, h} = viewPixels();
+  const sx = Math.round(x / $('view').clientWidth * w);
+  const sy = Math.round((1 - y / $('view').clientHeight) * h);   /* WebGL は 下が 原点 */
+  const i = (sy*w + sx)*4;
+  if(i < 0 || i >= px.length) return;
+  const hex = '#' + [px[i],px[i+1],px[i+2]].map(v => v.toString(16).padStart(2,'0')).join('');
+  pen.color = hex;
+  [...$('colors').children].forEach(b => b.classList.remove('on'));
+  toast('色を とりました ' + hex);
+  setTool('pen');
+}
+
+/* 見えている 絵の うえで 塗りつぶす。境目は 画面の 見た目で 判定する。 */
+function bucket(x, y){
+  const {px, w, h} = viewPixels();
+  const sx = Math.round(x / $('view').clientWidth * w);
+  const sy = Math.round((1 - y / $('view').clientHeight) * h);
+  const at = (i) => [px[i],px[i+1],px[i+2]];
+  const start = (sy*w + sx)*4;
+  if(start < 0 || start >= px.length) return;
+  const c0 = at(start), TOL = 40*40*3;
+  const near = (i) => {
+    const dr = px[i]-c0[0], dg = px[i+1]-c0[1], db = px[i+2]-c0[2];
+    return dr*dr+dg*dg+db*db <= TOL;
+  };
+  const seen = new Uint8Array(w*h);
+  const st = [sy*w+sx];
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const od = out.getContext('2d').createImageData(w, h);
+  const col = pen.color, R = parseInt(col.slice(1,3),16), G = parseInt(col.slice(3,5),16), B = parseInt(col.slice(5,7),16);
+  let n = 0;
+  while(st.length){
+    const p = st.pop();
+    if(p < 0 || p >= w*h || seen[p]) continue;
+    if(!near(p*4)) continue;
+    seen[p] = 1; n++;
+    const j = p*4;
+    od.data[j] = R; od.data[j+1] = G; od.data[j+2] = B; od.data[j+3] = 255;
+    const px_ = p % w;
+    st.push(p+w, p-w);
+    if(px_ > 0) st.push(p-1);
+    if(px_ < w-1) st.push(p+1);
+    if(n > w*h) break;
+  }
+  out.getContext('2d').putImageData(od, 0, 0);
+  /* readPixels は 上下が 逆なので 戻して から 焼く */
+  const fixed = document.createElement('canvas');
+  fixed.width = w; fixed.height = h;
+  const fc = fixed.getContext('2d');
+  fc.translate(0, h); fc.scale(1, -1); fc.drawImage(out, 0, 0);
+  mergeInto(fixed, view.yaw, view.pitch, view.fov, w/h, 0.0, false);
+  toast('ぬりました');
+}
+
+/* ---------------------------------------------------------------- ゆび（まわす） */
+
+function bindTurn(){
+  const k = $('ink');
+  let m = 0, lx = 0, ly = 0, ld = 0, lfov = 90;
+  const dist = (t) => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  const turn = (x, y) => {
+    const s = view.fov/90*0.22;
+    view.yaw = (view.yaw + (x-lx)*s + 540) % 360 - 180;
+    view.pitch = Math.max(-89, Math.min(89, view.pitch + (y-ly)*s));
+    lx = x; ly = y; drawView();
+  };
+  k.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 2){ stampInk(true); m = 2; ld = dist(e.touches); lfov = view.fov; e.preventDefault(); return; }
+    if(tool !== 'turn') return;
+    m = 1; lx = e.touches[0].clientX; ly = e.touches[0].clientY; e.preventDefault();
+  }, {passive:false});
+  k.addEventListener('touchmove', (e) => {
+    if(m === 2 && e.touches.length === 2){
+      const d = dist(e.touches);
+      view.fov = Math.max(20, Math.min(120, lfov * (ld/Math.max(d,1))));
+      $('fov').value = Math.round(view.fov);
+      drawView(); e.preventDefault(); return;
+    }
+    if(m === 1 && tool === 'turn'){ turn(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
+  }, {passive:false});
+  k.addEventListener('touchend', () => { m = 0; }, {passive:true});
+
+  let down = false;
+  k.addEventListener('mousedown', (e) => { if(tool==='turn'){ down = true; lx = e.clientX; ly = e.clientY; } });
+  window.addEventListener('mouseup', () => { down = false; });
+  window.addEventListener('mousemove', (e) => { if(down && tool==='turn') turn(e.clientX, e.clientY); });
+  k.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    view.fov = Math.max(20, Math.min(120, view.fov + (e.deltaY>0?4:-4)));
+    $('fov').value = Math.round(view.fov);
+    drawView();
+  }, {passive:false});
+}
+
 /* ---------------------------------------------------------------- 出し入れ */
 
-function setBaseFromImage(img){
-  equiW = img.width; equiH = img.height;
-  gl.bindTexture(gl.TEXTURE_2D, texBase);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+function startWith(img, w, h){
+  equiW = w; equiH = h;
+  layers = []; undoStack = []; redoStack = [];
+  addLayer(img || blankCanvas(w, h, '#ffffff'), '下じき');
   ready = true;
   $('empty').style.display = 'none';
   const two = Math.abs(equiW - equiH*2) <= 2;
@@ -331,6 +741,8 @@ function setBaseFromImage(img){
   if(!two) toast('よこ：たて が 2：1 では ありません。360°としては ゆがみます', true);
   const max = gl.getParameter(gl.MAX_TEXTURE_SIZE);
   if(equiW > max) toast('この端末で あつかえる 大きさ（' + max + '）を こえています', true);
+  clearInk();
+  drawLayerBar();
   drawView();
 }
 
@@ -342,7 +754,6 @@ function loadFile(file){
     img.src = URL.createObjectURL(file);
   });
 }
-
 function download(canvas, name){
   canvas.toBlob((blob) => {
     const a = document.createElement('a');
@@ -352,125 +763,89 @@ function download(canvas, name){
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }, 'image/png');
 }
-
-/* 向きを 名前に 入れておく。あとで 貼り戻すとき ここから 読む */
 function cutName(){
   const s = (n) => (n<0?'-':'+') + String(Math.abs(Math.round(n))).padStart(3,'0');
-  return 'gururi_y' + s(view.yaw) + '_p' + s(view.pitch) + '_f' +
-         String(Math.round(view.fov)).padStart(3,'0') + '.png';
+  return 'gururi_y' + s(view.yaw) + '_p' + s(view.pitch) + '_f' + String(Math.round(view.fov)).padStart(3,'0') + '.png';
 }
-function parseName(name){
-  const m = /_y([+-]\d+)_p([+-]\d+)_f(\d+)/.exec(name || '');
+function parseName(n){
+  const m = /_y([+-]\d+)_p([+-]\d+)_f(\d+)/.exec(n || '');
   return m ? { yaw:+m[1], pitch:+m[2], fov:+m[3] } : null;
 }
 
 function doCut(){
-  if(!ready) return toast('さきに 画像を ひらいて ください', true);
+  if(!ready) return toast('さきに 白紙を つくって ください', true);
+  stampInk(true);
   const n = +$('cutSize').value;
   const c = renderTo(n, n, () => {
     gl.useProgram(pView); bindQuad(pView);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
-    gl.uniform1i(gl.getUniformLocation(pView,'tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(pView,'yaw'), view.yaw*Math.PI/180);
-    gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*Math.PI/180);
-    gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*Math.PI/180);
-    gl.uniform1f(gl.getUniformLocation(pView,'aspect'), 1.0);
+    paintLayers(n, n, 1, (L) => {
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
+      gl.uniform1i(gl.getUniformLocation(pView,'tex'), 0);
+      gl.uniform1f(gl.getUniformLocation(pView,'yaw'), view.yaw*D2R);
+      gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*D2R);
+      gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*D2R);
+      gl.uniform1f(gl.getUniformLocation(pView,'aspect'), 1.0);
+    });
   });
   lastCut = { yaw:view.yaw, pitch:view.pitch, fov:view.fov };
   download(c, cutName());
   drawView();
-  toast('切り出しました。お絵かきアプリで ひらいて ください');
+  toast('保存しました。お絵かきアプリで ひらいて ください');
 }
 
 async function doBack(file){
-  if(!ready) return toast('さきに 画像を ひらいて ください', true);
+  if(!ready) return toast('さきに 白紙を つくって ください', true);
   const img = await loadFile(file);
-  const ang = parseName(file.name) || lastCut || view;
-  if(!parseName(file.name) && !lastCut) toast('向きが わからないので、いまの 向きで 貼ります', true);
-
-  gl.bindTexture(gl.TEXTURE_2D, texFlat);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-
-  const merged = renderTo(equiW, equiH, () => {
-    gl.useProgram(pMerge); bindQuad(pMerge);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
-    gl.uniform1i(gl.getUniformLocation(pMerge,'base'), 0);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texFlat);
-    gl.uniform1i(gl.getUniformLocation(pMerge,'flat_'), 1);
-    gl.uniform1f(gl.getUniformLocation(pMerge,'yaw'), ang.yaw*Math.PI/180);
-    gl.uniform1f(gl.getUniformLocation(pMerge,'pitch'), ang.pitch*Math.PI/180);
-    gl.uniform1f(gl.getUniformLocation(pMerge,'fov'), ang.fov*Math.PI/180);
-    gl.uniform1f(gl.getUniformLocation(pMerge,'feather'), 0.04);
-    gl.activeTexture(gl.TEXTURE0);
-  });
-
-  gl.bindTexture(gl.TEXTURE_2D, texBase);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, merged);
-  drawView();
-  toast('球に 貼り戻しました（よこ ' + Math.round(ang.yaw) + ' / たて ' + Math.round(ang.pitch) + '）');
+  const a = parseName(file.name) || lastCut || view;
+  if(!parseName(file.name) && !lastCut) toast('向きが わからないので いまの 向きで はります', true);
+  pushUndo();
+  mergeInto(img, a.yaw, a.pitch, a.fov, 1.0, 0.04, false);
+  toast('もどしました（よこ ' + Math.round(a.yaw) + ' / たて ' + Math.round(a.pitch) + '）');
 }
 
 function doSave(){
-  if(!ready) return toast('さきに 画像を ひらいて ください', true);
-  const c = renderTo(equiW, equiH, () => {
-    gl.useProgram(pCopy); bindQuad(pCopy);
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
-    gl.uniform1i(gl.getUniformLocation(pCopy,'tex'), 0);
-  });
-  download(c, 'panorama_' + equiW + 'x' + equiH + '.png');
+  if(!ready) return toast('さきに 白紙を つくって ください', true);
+  stampInk(true);
+  download(flatten(), 'panorama_' + equiW + 'x' + equiH + '.png');
   drawView();
-  toast('ぜんぶ 保存しました');
+  toast('1枚に して 保存しました');
 }
 
-/* ---------------------------------------------------------------- ゆび */
-
-function bindTouch(){
-  const c = $('view');
-  let mode = 0, lx = 0, ly = 0, ld = 0, lfov = 90;
-  const dist = (t) => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
-
-  const start = (x, y) => { lx = x; ly = y; };
-  const move = (x, y) => {
-    const k = view.fov/90*0.22;
-    view.yaw = (view.yaw + (x-lx)*k + 540) % 360 - 180;
-    view.pitch = Math.max(-89, Math.min(89, view.pitch + (y-ly)*k));
-    lx = x; ly = y;
-    drawView();
-  };
-
-  c.addEventListener('touchstart', (e) => {
-    if(e.touches.length === 1){ mode = 1; start(e.touches[0].clientX, e.touches[0].clientY); }
-    else if(e.touches.length === 2){ mode = 2; ld = dist(e.touches); lfov = view.fov; }
-    e.preventDefault();
-  }, {passive:false});
-
-  c.addEventListener('touchmove', (e) => {
-    if(mode === 1 && e.touches.length === 1){
-      move(e.touches[0].clientX, e.touches[0].clientY);
-    } else if(mode === 2 && e.touches.length === 2){
-      const d = dist(e.touches);
-      view.fov = Math.max(20, Math.min(120, lfov * (ld/Math.max(d,1))));
-      $('fov').value = Math.round(view.fov);
-      drawView();
-    }
-    e.preventDefault();
-  }, {passive:false});
-
-  c.addEventListener('touchend', () => { mode = 0; }, {passive:true});
-
-  /* パソコンでも 同じように さわれるように */
-  let down = false;
-  c.addEventListener('mousedown', (e) => { down = true; start(e.clientX, e.clientY); });
-  window.addEventListener('mouseup', () => { down = false; });
-  window.addEventListener('mousemove', (e) => { if(down) move(e.clientX, e.clientY); });
-  c.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    view.fov = Math.max(20, Math.min(120, view.fov + (e.deltaY>0?4:-4)));
-    $('fov').value = Math.round(view.fov);
-    drawView();
-  }, {passive:false});
+/* 作業データ＝レイヤーを たてに 並べた 1枚の PNG。名前に 枚数を 入れておく。 */
+function saveProject(){
+  if(!ready) return toast('さきに 白紙を つくって ください', true);
+  stampInk(true);
+  const n = layers.length;
+  const c = blankCanvas(equiW, equiH*n);
+  const g = c.getContext('2d');
+  for(let i = 0; i < n; i++) g.drawImage(layerToCanvas(layers[i]), 0, equiH*i);
+  download(c, 'gururi_proj_' + equiW + 'x' + equiH + '_n' + n + '.png');
+  drawView();
+  toast('つづきの ため に 保存しました（レイヤー ' + n + ' まい）');
 }
+async function loadProject(file){
+  const m = /_(\d+)x(\d+)_n(\d+)/.exec(file.name || '');
+  const img = await loadFile(file);
+  if(!m){ toast('この ファイルは つづき用では ないようです', true); return; }
+  const w = +m[1], h = +m[2], n = +m[3];
+  if(img.width !== w || img.height !== h*n){ toast('中身と 名前が 合いません', true); return; }
+  equiW = w; equiH = h;
+  layers = []; undoStack = []; redoStack = [];
+  for(let i = 0; i < n; i++){
+    const c = blankCanvas(w, h);
+    c.getContext('2d').drawImage(img, 0, h*i, w, h, 0, 0, w, h);
+    addLayer(c, i === 0 ? '下じき' : ('レイヤー' + i));
+  }
+  active = layers.length - 1;
+  ready = true;
+  $('empty').style.display = 'none';
+  $('info').textContent = w + '×' + h;
+  $('info').className = 'chip ok';
+  clearInk(); drawLayerBar(); drawView();
+  toast('つづきを ひらきました（レイヤー ' + n + ' まい）');
+}
+
+/* ---------------------------------------------------------------- しあげ */
 
 let toastTimer;
 function toast(msg, bad){
@@ -478,36 +853,99 @@ function toast(msg, bad){
   el.textContent = msg;
   el.className = 'show' + (bad ? ' bad' : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.className = ''; }, bad ? 5200 : 2600);
+  toastTimer = setTimeout(() => { el.className = ''; }, bad ? 5200 : 2400);
 }
 
-/* ---------------------------------------------------------------- 起動 */
+function setTool(t){
+  stampInk(true);
+  tool = t;
+  [...$('tool').children].forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  $('panPen').classList.toggle('hide', !(t === 'pen' || t === 'erase' || t === 'fill'));
+  $('panTurn').classList.toggle('hide', t !== 'turn');
+  $('tip').innerHTML = t === 'turn'
+    ? '<b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>こまかく 描くときは <b>切り出す</b> → お絵かきアプリ → <b>もどす</b>。'
+    : '描いて ゆびを はなすと、そのまま 球に のります。<br>2本ゆびで つまめば 描きながらでも 寄れます。';
+}
+
+const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C86A3A'];
 
 (function main(){
   if(!initGL()) return;
-  bindTouch();
+  bindPen(); bindTurn();
   window.addEventListener('resize', drawView);
 
-  $('bOpen').onclick = () => $('fEqui').click();
-  $('fEqui').onchange = async (e) => {
-    if(e.target.files[0]) setBaseFromImage(await loadFile(e.target.files[0]));
-    e.target.value = '';
+  const cbox = $('colors');
+  PALETTE.forEach((col, i) => {
+    const b = document.createElement('button');
+    b.style.background = col;
+    if(i === 0) b.classList.add('on');
+    b.onclick = () => {
+      pen.color = col;
+      [...cbox.children].forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      if(tool !== 'pen') setTool('pen');
+    };
+    cbox.appendChild(b);
+  });
+
+  $('tool').onclick = (e) => {
+    const b = e.target.closest('button[data-tool]');
+    if(b) setTool(b.dataset.tool);
   };
 
+  $('bLayAdd').onclick = () => {
+    if(!ready) return toast('さきに 白紙を つくって ください', true);
+    if(layers.length >= 6) return toast('レイヤーは 6まいまでに して います', true);
+    stampInk(true);
+    addLayer(null, 'レイヤー' + layers.length);
+    drawView();
+    toast('レイヤーを ふやしました');
+  };
+  $('bLayDel').onclick = () => {
+    if(layers.length <= 1) return;
+    if(!confirm('この レイヤーを 消します。よろしいですか？')) return;
+    layers.splice(active, 1);
+    active = Math.min(active, layers.length-1);
+    drawLayerBar(); drawView();
+  };
+
+  $('bGuide').onclick = () => {
+    guideMode = (guideMode + 1) % 4;
+    $('bGuide').classList.toggle('btn-y', guideMode !== 0);
+    drawGuide();
+    toast(['パース線 なし','球の マス','床の マス','球＋床の マス'][guideMode]);
+  };
+  $('bGuide').classList.add('btn-y');
+
   $('bNew').onclick = () => {
-    const n = prompt('よこの 大きさ（2048 / 4096）', '4096');
+    const n = prompt('よこの 大きさ（2048 / 4096 / 8192）', '4096');
     if(!n) return;
-    const w = Math.max(512, parseInt(n,10) || 4096), h = Math.round(w/2);
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const g = c.getContext('2d');
-    g.fillStyle = '#ffffff'; g.fillRect(0,0,w,h);
-    setBaseFromImage(c);
-    toast('白紙を つくりました');
+    const w = Math.max(512, parseInt(n,10) || 4096);
+    startWith(null, w, Math.round(w/2));
+    setTool('pen');
+    toast('白紙を つくりました。そのまま 描けます');
+  };
+  $('bOpen').onclick = () => $('fEqui').click();
+  $('fEqui').onchange = async (e) => {
+    if(e.target.files[0]){
+      const img = await loadFile(e.target.files[0]);
+      startWith(img, img.width, img.height);
+    }
+    e.target.value = '';
+  };
+  $('bLoad').onclick = () => $('fProj').click();
+  $('fProj').onchange = async (e) => {
+    if(e.target.files[0]) await loadProject(e.target.files[0]);
+    e.target.value = '';
+  };
+  $('bSave').onclick = () => {
+    if(confirm('1枚に して 保存しますか？\nキャンセルを えらぶと、あとで つづきを 描くための ファイルに します。')) doSave();
+    else saveProject();
   };
 
   document.querySelectorAll('[data-look]').forEach(b => {
     b.onclick = () => {
+      stampInk(true);
       const [y,p] = b.dataset.look.split(',').map(Number);
       view.yaw = y; view.pitch = p;
       document.querySelectorAll('[data-look]').forEach(x => x.classList.remove('on'));
@@ -517,13 +955,38 @@ function toast(msg, bad){
   });
 
   $('fov').oninput = (e) => { view.fov = +e.target.value; drawView(); };
+  $('size').oninput = (e) => { pen.size = +e.target.value; };
+
+  $('bUndo').onclick = () => {
+    clearInk();
+    const s = undoStack.pop();
+    if(!s) return toast('もどせる ものが ありません');
+    const L = layers[s.i];
+    if(!L) return;
+    redoStack.push({ i: s.i, canvas: layerToCanvas(L) });
+    gl.bindTexture(gl.TEXTURE_2D, L.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, s.canvas);
+    drawView();
+  };
+  $('bRedo').onclick = () => {
+    const s = redoStack.pop();
+    if(!s) return toast('やり直せる ものが ありません');
+    const L = layers[s.i];
+    if(!L) return;
+    undoStack.push({ i: s.i, canvas: layerToCanvas(L) });
+    gl.bindTexture(gl.TEXTURE_2D, L.tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, s.canvas);
+    drawView();
+  };
+
   $('bCut').onclick = doCut;
   $('bBack').onclick = () => $('fFlat').click();
   $('fFlat').onchange = async (e) => {
     if(e.target.files[0]) await doBack(e.target.files[0]);
     e.target.value = '';
   };
-  $('bSave').onclick = doSave;
 })();
 </script>
 </body>
