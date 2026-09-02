@@ -212,24 +212,6 @@ img{display:block;max-width:100%;}
   animation:tlPop .3s cubic-bezier(.34,1.56,.64,1);
 }
 
-/* ============ 実績（箱を増やさず罫線で区切る） ============ */
-.proof{
-  width:calc(100% - 1.2rem);max-width:1000px;
-  margin:1.4rem auto 0;
-  border:var(--bd);border-radius:14px;background:var(--paper);
-  box-shadow:0 4px 0 var(--ink);
-  display:grid;grid-template-columns:repeat(4,1fr);
-  overflow:hidden;
-}
-.proof > div{
-  padding:.9rem 1rem;text-align:center;
-  border-left:2.5px dotted rgba(30,28,20,.2);
-}
-.proof > div:first-child{border-left:none;}
-.proof dt{font-size:.6rem;color:var(--gray);letter-spacing:.08em;}
-.proof dd{font-size:1.1rem;margin-top:.1rem;line-height:1.4;}
-.proof dd small{font-size:.62rem;font-weight:500;color:var(--gray);margin-left:.1rem;}
-
 /* ヒーローCTAの補足 */
 .cta-note{
   font-size:.64rem;font-weight:500;color:var(--gray);
@@ -238,14 +220,37 @@ img{display:block;max-width:100%;}
 
 /* ============ 料金：主役を1つ決める ============ */
 .price-lead{
-  display:grid;grid-template-columns:1.25fr 1fr;
-  gap:.9rem;align-items:start;
+  display:grid;grid-template-columns:1.2fr 1fr;
+  gap:.9rem;align-items:stretch;   /* 左右の高さを揃える */
 }
 .price-side{display:flex;flex-direction:column;gap:.9rem;}
-.pcard.lead{text-align:left;padding:1.4rem 1.3rem;}
-.pcard.lead h3{font-size:1.35rem;margin:.45rem 0 .6rem;}
+.price-side .pcard{flex:1;display:flex;flex-direction:column;justify-content:center;}
+.pcard.lead{
+  text-align:left;padding:1.4rem 1.3rem;
+  display:flex;flex-direction:column;
+}
+.pcard.lead h3{font-size:1.35rem;margin:.45rem 0 .5rem;}
+.pcard.lead .yen{align-self:flex-start;}
+.pcard.lead p{margin-top:.6rem;}
+/* 内訳。margin-top:auto でカード下端まで伸ばし、余白を埋める */
+.lead-list{
+  list-style:none;margin-top:auto;padding-top:.85rem;
+  border-top:2.5px dotted rgba(30,28,20,.22);
+  display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;
+}
+.lead-list li{
+  font-size:.68rem;font-weight:500;color:var(--gray);
+  position:relative;padding-left:.95rem;
+}
+.lead-list li::before{
+  content:'';position:absolute;left:0;top:.62em;
+  width:6px;height:6px;background:var(--main);
+  border:1.5px solid var(--ink);border-radius:2px;
+}
 .pcard.mini{text-align:left;padding:1rem 1.1rem;}
 .pcard.mini h3{font-size:.95rem;margin:0 0 .45rem;}
+.pcard.mini .yen{font-size:.88rem;}
+.pcard.mini p{margin-top:.45rem;}
 .badge{
   display:inline-block;font-size:.6rem;
   background:var(--main);border:2px solid var(--ink);
@@ -284,10 +289,8 @@ img{display:block;max-width:100%;}
 @media(max-width:760px){
   .price-lead{grid-template-columns:1fr;}
 }
-@media(max-width:700px){
-  .proof{grid-template-columns:1fr 1fr;}
-  .proof > div:nth-child(odd){border-left:none;}
-  .proof > div:nth-child(n+3){border-top:2.5px dotted rgba(30,28,20,.2);}
+@media(max-width:480px){
+  .lead-list{grid-template-columns:1fr;}
 }
 
 /* ============ 最新ニュース（見出しをクリックで開閉するウィンドウ） ============ */
