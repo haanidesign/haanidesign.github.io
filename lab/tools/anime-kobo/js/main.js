@@ -1,14 +1,14 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=120';
+import { M } from './engine/math.js?v=122';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=120';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=122';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=120';
-import { createStage } from './ui/stage.js?v=120';
-import { createRenderer } from './render/renderer.js?v=120';
-import { createTimeline } from './ui/timeline.js?v=120';
-import { fmtTime } from './engine/anim.js?v=120';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=122';
+import { createStage } from './ui/stage.js?v=122';
+import { createRenderer } from './render/renderer.js?v=122';
+import { createTimeline } from './ui/timeline.js?v=122';
+import { fmtTime } from './engine/anim.js?v=122';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=120';
+         setWarper } from './ui/sheet.js?v=122';
 
-import { showNewDoc } from './ui/newdoc.js?v=120';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=120';
-import { fitToCanvas, isBg } from './io/bg.js?v=120';
-import * as Audio from './io/audio.js?v=120';
+import { showNewDoc } from './ui/newdoc.js?v=122';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=122';
+import { fitToCanvas, isBg } from './io/bg.js?v=122';
+import * as Audio from './io/audio.js?v=122';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=120';
-import { importPsd } from './io/psd.js?v=120';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=122';
+import { importPsd } from './io/psd.js?v=122';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=120';
-import { pathKeys } from './engine/path.js?v=120';
-import { paintDirty } from './engine/paint.js?v=120';
+         canUseWebCodecs } from './io/export.js?v=122';
+import { pathKeys } from './engine/path.js?v=122';
+import { paintDirty } from './engine/paint.js?v=122';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=120';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=122';
 
 const $ = (s) => document.querySelector(s);
 
@@ -685,6 +685,21 @@ $('#ver').addEventListener('click', async () => {
     try{ await saver.now(); }catch(_){}
     busy(false);
   }
+  /* ホーム画面に おいた ときの しくみ（サービスワーカー）が
+     古いのを つかんだ ままに なる ことが ある。
+     ここを おしたら、しまってある ぶんも ぜんぶ 捨てて
+     まっさらから 取り直す。
+     ＝ この ボタンが いつでも きく 逃げ道。 */
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if(window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  }catch(_){}
   location.href = location.pathname + '?fresh=' + Date.now();
 });
 
@@ -826,6 +841,16 @@ window.addEventListener('keydown', (e) => {
   if(e.key.toLowerCase() === 'k'){ timeline.putPin(); }
   if(e.key === 'Delete' || e.key === 'Backspace'){ timeline.delPins(); }
 });
+
+/* ================= ホーム画面から ひらけるように =================
+   ホーム画面に おくと アドレスバーが 出ない ので、
+   絵の 下が バーに かくれる ことも なくなる。
+   電波が 無い ときも、前に 見た ぶんは ひらける。 */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
 
 /* ================= 画面サイズの変化 ================= */
 let resizeTimer = null;

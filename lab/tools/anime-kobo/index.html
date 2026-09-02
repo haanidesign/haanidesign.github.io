@@ -7,12 +7,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>アニメ工房</title>
+<link rel="manifest" href="manifest.webmanifest?v=122">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=120">
-<link rel="stylesheet" href="css/layout.css?v=120">
-<link rel="stylesheet" href="css/parts.css?v=120">
+<link rel="stylesheet" href="css/tokens.css?v=122">
+<link rel="stylesheet" href="css/layout.css?v=122">
+<link rel="stylesheet" href="css/parts.css?v=122">
 </head>
 <body>
 
@@ -21,7 +24,7 @@
   <div id="top">
     <button class="name" id="home" title="さくひん えらびに もどる">アニメ工房</button>
     <button class="size dot" id="docSize" title="動画の長さと はいけい">—</button>
-    <button class="ver dot" id="ver" title="この版のばんごう。おすと さいしんに します">v120</button>
+    <button class="ver dot" id="ver" title="この版のばんごう。おすと さいしんに します">v122</button>
     <span class="spacer"></span>
     <button id="undo" class="btn-sm" title="もどす" aria-label="もどす" disabled>↶</button>
     <button id="redo" class="btn-sm" title="やりなおし" aria-label="やりなおし" disabled>↷</button>
@@ -152,8 +155,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=120"></script>
-<script src="lib/mp4-muxer.js?v=120"></script>
-<script type="module" src="js/main.js?v=120"></script>
+<script src="lib/ag-psd.js?v=122"></script>
+<script src="lib/mp4-muxer.js?v=122"></script>
+<script type="module" src="js/main.js?v=122"></script>
 </body>
 </html>

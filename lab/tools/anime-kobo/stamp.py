@@ -60,7 +60,18 @@ def main():
 
     html = stamp_attr(html, 'href')
     html = stamp_attr(html, 'src')
+    # ホーム画面用の しおり（manifest）も 同じ ばんごうに
+    html = re.compile(r'(manifest\.webmanifest)(?:\?v=\d+)?').sub(
+        lambda x: x.group(1) + tag, html)
     write('index.html', html)
+
+    # サービスワーカーの ばんごう。ここが 変わると 入れかわる
+    if os.path.exists('sw.js'):
+        sw = read('sw.js')
+        sw2 = re.compile(r"(const VER = ')v\d+(';)").sub(
+            lambda x: x.group(1) + 'v' + ver + x.group(2), sw)
+        if sw2 != sw:
+            write('sw.js', sw2)
 
     # js どうしの よびだし（import ... from './x.js'）
     imp = re.compile(r"(from\s+|import\s*\(\s*)(['\"])(\.{1,2}/[^'\"]+?\.js)(?:\?v=\d+)?\2")
