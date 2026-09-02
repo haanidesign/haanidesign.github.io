@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<title>ぐるり — 360°を いつもの お絵かきアプリで</title>
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470; --pink:#F2A0B8;
+  --green:#7FBF6A;
+  --bd:2.5px solid var(--ink); --r:12px; --tap:46px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--cream); color:var(--ink);
+  font-family:'M PLUS Rounded 1c','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif;
+  font-weight:700; display:flex; flex-direction:column; overflow:hidden;
+  touch-action:none; user-select:none;
+}
+.dot{font-family:'DotGothic16',monospace;}
+
+.bar{
+  display:flex; align-items:center; gap:.5rem; flex:none;
+  background:var(--main); border-bottom:var(--bd); padding:.45rem .7rem;
+  padding-top:calc(.45rem + env(safe-area-inset-top));
+}
+.bar h1{margin:0; font-size:.95rem; white-space:nowrap;}
+.bar .grow{flex:1;}
+.chip{
+  font-size:.6rem; background:var(--cream); border:2px solid var(--ink);
+  border-radius:100px; padding:.1rem .55rem; white-space:nowrap;
+}
+.chip.ok{background:var(--green);} .chip.ng{background:var(--pink);}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.3rem;
+  min-height:var(--tap); background:var(--paper); color:var(--ink);
+  border:var(--bd); border-radius:var(--r); padding:.5rem .8rem;
+  font:inherit; font-size:.78rem; box-shadow:0 3px 0 var(--ink); cursor:pointer;
+  white-space:nowrap; transition:transform .08s, box-shadow .08s, background .15s;
+}
+.btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink);}
+.btn-y{background:var(--main);}
+.btn-g{background:var(--ink); color:var(--main);}
+.btn-sm{min-height:34px; padding:.3rem .6rem; font-size:.68rem; box-shadow:0 2.5px 0 var(--ink);}
+
+#stage{flex:1; position:relative; background:#2a2a26; min-height:0; touch-action:none;}
+#view{width:100%; height:100%; display:block; touch-action:none;}
+#empty{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:var(--cream); text-align:center; padding:1rem;
+  background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
+  background-size:16px 16px;
+}
+#empty div{
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink); padding:1rem 1.1rem; max-width:22rem;
+  font-size:.76rem; font-weight:400; line-height:1.9;
+}
+#empty b{font-weight:700;}
+
+/* 見ている向き */
+#hud{
+  position:absolute; left:.6rem; top:.6rem; display:flex; gap:.35rem;
+}
+#hud span{
+  background:rgba(251,250,236,.92); border:2px solid var(--ink); border-radius:9px;
+  padding:.1rem .45rem; font-family:'DotGothic16',monospace; font-size:.66rem;
+}
+
+.dock{
+  flex:none; background:var(--cream); border-top:var(--bd);
+  padding:.5rem .6rem; padding-bottom:calc(.5rem + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:.45rem;
+}
+.rowb{display:flex; gap:.4rem; align-items:center; flex-wrap:wrap;}
+.rowb .btn{flex:1; min-width:96px;}
+.seg{display:flex; gap:.35rem; flex:1;}
+.seg button{
+  flex:1; min-height:34px; background:var(--paper); border:2px solid var(--ink);
+  border-radius:9px; font:inherit; font-size:.68rem; box-shadow:0 2.5px 0 var(--ink);
+  cursor:pointer;
+}
+.seg button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
+label.f{font-size:.66rem; font-weight:400; display:flex; align-items:center; gap:.4rem; flex:1;}
+label.f input[type=range]{flex:1; accent-color:var(--main-deep); height:var(--tap);}
+select{
+  background:var(--paper); border:2px solid var(--ink); border-radius:9px;
+  padding:.3rem .4rem; font:inherit; font-size:.68rem; font-weight:400; min-height:34px;
+}
+.hint{
+  background:var(--main-soft); border:2px dashed var(--ink); border-radius:10px;
+  padding:.4rem .5rem; font-size:.62rem; font-weight:400; color:#5c5843; line-height:1.7;
+}
+#toast{
+  position:fixed; left:50%; bottom:5.2rem; transform:translate(-50%,220%);
+  background:var(--ink); color:var(--main); border-radius:100px;
+  padding:.5rem 1.1rem; font-size:.74rem; max-width:86vw; text-align:center;
+  transition:transform .18s; pointer-events:none; z-index:9;
+}
+#toast.show{transform:translate(-50%,0);}
+#toast.bad{background:#7a2338; color:#fff;}
+input[type=file]{display:none;}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <h1>ぐるり</h1>
+  <span id="info" class="chip">まだ ひらいて いません</span>
+  <span class="grow"></span>
+  <button class="btn btn-sm" id="bOpen">ひらく</button>
+  <button class="btn btn-sm" id="bNew">しんき</button>
+</header>
+
+<div id="stage">
+  <canvas id="view"></canvas>
+  <div id="hud"><span id="hYaw">よこ 0</span><span id="hPitch">たて 0</span><span id="hFov">がかく 90</span></div>
+  <div id="empty"><div>
+    <b>360°の えを、いつもの お絵かきアプリで 描く ための 台です。</b><br><br>
+    ① ここで 向きを 決めて「切り出す」<br>
+    ② 保存された 四角い 絵を お絵かきアプリで 描く<br>
+    ③ ここに 戻して「貼り戻す」<br><br>
+    まずは 上の <b>ひらく</b>（よこ：たて＝2：1 の 画像）か、<b>しんき</b> を どうぞ。
+  </div></div>
+</div>
+
+<div class="dock">
+  <div class="rowb">
+    <div class="seg" id="look">
+      <button data-look="0,0">しょうめん</button>
+      <button data-look="0,88">まうえ</button>
+      <button data-look="0,-88">ました</button>
+      <button data-look="180,0">うしろ</button>
+    </div>
+  </div>
+  <div class="rowb">
+    <label class="f">がかく<input type="range" id="fov" min="20" max="120" step="1" value="90"></label>
+    <select id="cutSize">
+      <option value="1024">1024</option>
+      <option value="1536" selected>1536</option>
+      <option value="2048">2048</option>
+    </select>
+  </div>
+  <div class="rowb">
+    <button class="btn btn-y" id="bCut">この向きを 切り出す</button>
+    <button class="btn btn-y" id="bBack">描いたのを 貼り戻す</button>
+    <button class="btn btn-g" id="bSave">ぜんぶ 保存</button>
+  </div>
+  <div class="hint" id="tip">
+    ゆびで なぞると 回ります。2本ゆびで つまむと 寄れます。<br>
+    切り出した ファイル名に 向きが 入っているので、あとで 貼り戻しても ずれません。
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="fEqui" accept="image/*">
+<input type="file" id="fFlat" accept="image/*">
+
+<script>
+/* ぐるり（ラボ版）— サーバーなしで動く。読み込み・投影・合成・保存を すべて この中でやる。
+
+   正距円筒（よこ：たて＝2：1）を そのまま描くと、真上と真下が 横に伸びきって 描けない。
+   なので「見る → 歪みのない 四角を 切り出す → 描く → 球に 貼り戻す」の 往復にする。 */
+
+const $ = (id) => document.getElementById(id);
+let view = { yaw: 0, pitch: 0, fov: 90 };
+let lastCut = null;                 // {yaw,pitch,fov}
+let equiW = 0, equiH = 0;
+let gl, pView, pMerge, pCopy, texBase, texFlat, ready = false;
+
+/* ---------------------------------------------------------------- シェーダ */
+
+const VS = `attribute vec2 pos; varying vec2 vUv;
+void main(){ vUv = pos*0.5+0.5; gl_Position = vec4(pos,0.0,1.0); }`;
+
+/* 画面の各点が 向いている方角を 求めて、正距円筒から 拾う */
+const FS_VIEW = `precision highp float;
+varying vec2 vUv; uniform sampler2D tex;
+uniform float yaw, pitch, fov, aspect;
+const float PI = 3.14159265359;
+void main(){
+  float t = tan(fov*0.5);
+  vec2 s = vUv*2.0-1.0;
+  vec3 f = vec3(cos(pitch)*sin(yaw), sin(pitch), cos(pitch)*cos(yaw));
+  vec3 r = vec3(cos(yaw), 0.0, -sin(yaw));
+  vec3 u = cross(f, r);
+  vec3 d = normalize(f + s.x*t*aspect*r + s.y*t*u);
+  float lon = atan(d.x, d.z), lat = asin(clamp(d.y,-1.0,1.0));
+  gl_FragColor = texture2D(tex, vec2(fract(lon/(2.0*PI)+0.5), 0.5-lat/PI));
+}`;
+
+/* 逆向き。球の各点を 四角い絵に 射影して、入っていれば 上から重ねる。
+   ふちは やわらかく 消す（塗りつぶしで書き出しても つなぎ目が 出ないように）。 */
+const FS_MERGE = `precision highp float;
+varying vec2 vUv; uniform sampler2D base; uniform sampler2D flat_;
+uniform float yaw, pitch, fov, feather;
+const float PI = 3.14159265359;
+void main(){
+  /* WebGL は 下が 原点、画像は 上が 原点。書き出したとき ひっくり返らないよう、
+     ここで 画像としての 座標 iuv に 直してから つかう。 */
+  vec2 iuv = vec2(vUv.x, 1.0-vUv.y);
+  vec4 b = texture2D(base, iuv);
+  float lon = (iuv.x-0.5)*2.0*PI;
+  float lat = (0.5-iuv.y)*PI;
+  vec3 d = vec3(cos(lat)*sin(lon), sin(lat), cos(lat)*cos(lon));
+  vec3 f = vec3(cos(pitch)*sin(yaw), sin(pitch), cos(pitch)*cos(yaw));
+  vec3 r = vec3(cos(yaw), 0.0, -sin(yaw));
+  vec3 u = cross(f, r);
+  float Z = dot(d,f);
+  if (Z <= 0.0001) { gl_FragColor = b; return; }
+  float t = tan(fov*0.5);
+  float sx = dot(d,r)/(Z*t), sy = dot(d,u)/(Z*t);
+  if (abs(sx) > 1.0 || abs(sy) > 1.0) { gl_FragColor = b; return; }
+  vec4 c = texture2D(flat_, vec2(sx*0.5+0.5, 0.5-sy*0.5));
+  float e = 1.0;
+  if (feather > 0.0) {
+    e = smoothstep(1.0, 1.0-feather, abs(sx)) * smoothstep(1.0, 1.0-feather, abs(sy));
+  }
+  gl_FragColor = mix(b, vec4(c.rgb,1.0), c.a*e);
+}`;
+
+/* そのまま 写すだけ。保存のときに つかう */
+const FS_COPY = `precision highp float;
+varying vec2 vUv; uniform sampler2D tex;
+void main(){ gl_FragColor = texture2D(tex, vec2(vUv.x, 1.0-vUv.y)); }`;
+
+function sh(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function prog(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+function mkTex(){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  return t;
+}
+
+function initGL(){
+  const c = $('view');
+  gl = c.getContext('webgl', { preserveDrawingBuffer:true, alpha:false })
+    || c.getContext('experimental-webgl', { preserveDrawingBuffer:true, alpha:false });
+  if(!gl){ toast('WebGL が つかえません', true); return false; }
+  pView = prog(FS_VIEW);
+  pMerge = prog(FS_MERGE);
+  pCopy = prog(FS_COPY);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  for(const p of [pView, pMerge, pCopy]){
+    gl.useProgram(p);
+    const l = gl.getAttribLocation(p, 'pos');
+    gl.enableVertexAttribArray(l);
+    gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0);
+  }
+  texBase = mkTex(); texFlat = mkTex();
+  return true;
+}
+
+/* ---------------------------------------------------------------- 描画 */
+
+function drawView(){
+  if(!ready) return;
+  const c = $('view');
+  const w = c.clientWidth, h = c.clientHeight;
+  if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  gl.viewport(0,0,c.width,c.height);
+  gl.useProgram(pView); bindQuad(pView);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
+  gl.uniform1i(gl.getUniformLocation(pView,'tex'), 0);
+  gl.uniform1f(gl.getUniformLocation(pView,'yaw'), view.yaw*Math.PI/180);
+  gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*Math.PI/180);
+  gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*Math.PI/180);
+  gl.uniform1f(gl.getUniformLocation(pView,'aspect'), c.width/c.height);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  $('hYaw').textContent = 'よこ ' + Math.round(view.yaw);
+  $('hPitch').textContent = 'たて ' + Math.round(view.pitch);
+  $('hFov').textContent = 'がかく ' + Math.round(view.fov);
+}
+
+/* 画面ではなく 指定の 大きさで 一度だけ 描いて、その絵を 返す */
+function bindQuad(p){
+  const l = gl.getAttribLocation(p, 'pos');
+  gl.enableVertexAttribArray(l);
+  gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0);
+}
+
+function renderTo(w, h, setup){
+  const c = $('view');
+  const ow = c.width, oh = c.height;
+  c.width = w; c.height = h;
+  gl.viewport(0,0,w,h);
+  setup(w,h);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  out.getContext('2d').drawImage(c, 0, 0);
+  c.width = ow; c.height = oh;
+  return out;
+}
+
+/* ---------------------------------------------------------------- 出し入れ */
+
+function setBaseFromImage(img){
+  equiW = img.width; equiH = img.height;
+  gl.bindTexture(gl.TEXTURE_2D, texBase);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+  ready = true;
+  $('empty').style.display = 'none';
+  const two = Math.abs(equiW - equiH*2) <= 2;
+  $('info').textContent = equiW + '×' + equiH;
+  $('info').className = 'chip ' + (two ? 'ok' : 'ng');
+  if(!two) toast('よこ：たて が 2：1 では ありません。360°としては ゆがみます', true);
+  const max = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  if(equiW > max) toast('この端末で あつかえる 大きさ（' + max + '）を こえています', true);
+  drawView();
+}
+
+function loadFile(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function download(canvas, name){
+  canvas.toBlob((blob) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }, 'image/png');
+}
+
+/* 向きを 名前に 入れておく。あとで 貼り戻すとき ここから 読む */
+function cutName(){
+  const s = (n) => (n<0?'-':'+') + String(Math.abs(Math.round(n))).padStart(3,'0');
+  return 'gururi_y' + s(view.yaw) + '_p' + s(view.pitch) + '_f' +
+         String(Math.round(view.fov)).padStart(3,'0') + '.png';
+}
+function parseName(name){
+  const m = /_y([+-]\d+)_p([+-]\d+)_f(\d+)/.exec(name || '');
+  return m ? { yaw:+m[1], pitch:+m[2], fov:+m[3] } : null;
+}
+
+function doCut(){
+  if(!ready) return toast('さきに 画像を ひらいて ください', true);
+  const n = +$('cutSize').value;
+  const c = renderTo(n, n, () => {
+    gl.useProgram(pView); bindQuad(pView);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
+    gl.uniform1i(gl.getUniformLocation(pView,'tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(pView,'yaw'), view.yaw*Math.PI/180);
+    gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*Math.PI/180);
+    gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*Math.PI/180);
+    gl.uniform1f(gl.getUniformLocation(pView,'aspect'), 1.0);
+  });
+  lastCut = { yaw:view.yaw, pitch:view.pitch, fov:view.fov };
+  download(c, cutName());
+  drawView();
+  toast('切り出しました。お絵かきアプリで ひらいて ください');
+}
+
+async function doBack(file){
+  if(!ready) return toast('さきに 画像を ひらいて ください', true);
+  const img = await loadFile(file);
+  const ang = parseName(file.name) || lastCut || view;
+  if(!parseName(file.name) && !lastCut) toast('向きが わからないので、いまの 向きで 貼ります', true);
+
+  gl.bindTexture(gl.TEXTURE_2D, texFlat);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+
+  const merged = renderTo(equiW, equiH, () => {
+    gl.useProgram(pMerge); bindQuad(pMerge);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
+    gl.uniform1i(gl.getUniformLocation(pMerge,'base'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texFlat);
+    gl.uniform1i(gl.getUniformLocation(pMerge,'flat_'), 1);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'yaw'), ang.yaw*Math.PI/180);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'pitch'), ang.pitch*Math.PI/180);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'fov'), ang.fov*Math.PI/180);
+    gl.uniform1f(gl.getUniformLocation(pMerge,'feather'), 0.04);
+    gl.activeTexture(gl.TEXTURE0);
+  });
+
+  gl.bindTexture(gl.TEXTURE_2D, texBase);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, merged);
+  drawView();
+  toast('球に 貼り戻しました（よこ ' + Math.round(ang.yaw) + ' / たて ' + Math.round(ang.pitch) + '）');
+}
+
+function doSave(){
+  if(!ready) return toast('さきに 画像を ひらいて ください', true);
+  const c = renderTo(equiW, equiH, () => {
+    gl.useProgram(pCopy); bindQuad(pCopy);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texBase);
+    gl.uniform1i(gl.getUniformLocation(pCopy,'tex'), 0);
+  });
+  download(c, 'panorama_' + equiW + 'x' + equiH + '.png');
+  drawView();
+  toast('ぜんぶ 保存しました');
+}
+
+/* ---------------------------------------------------------------- ゆび */
+
+function bindTouch(){
+  const c = $('view');
+  let mode = 0, lx = 0, ly = 0, ld = 0, lfov = 90;
+  const dist = (t) => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+
+  const start = (x, y) => { lx = x; ly = y; };
+  const move = (x, y) => {
+    const k = view.fov/90*0.22;
+    view.yaw = (view.yaw + (x-lx)*k + 540) % 360 - 180;
+    view.pitch = Math.max(-89, Math.min(89, view.pitch + (y-ly)*k));
+    lx = x; ly = y;
+    drawView();
+  };
+
+  c.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 1){ mode = 1; start(e.touches[0].clientX, e.touches[0].clientY); }
+    else if(e.touches.length === 2){ mode = 2; ld = dist(e.touches); lfov = view.fov; }
+    e.preventDefault();
+  }, {passive:false});
+
+  c.addEventListener('touchmove', (e) => {
+    if(mode === 1 && e.touches.length === 1){
+      move(e.touches[0].clientX, e.touches[0].clientY);
+    } else if(mode === 2 && e.touches.length === 2){
+      const d = dist(e.touches);
+      view.fov = Math.max(20, Math.min(120, lfov * (ld/Math.max(d,1))));
+      $('fov').value = Math.round(view.fov);
+      drawView();
+    }
+    e.preventDefault();
+  }, {passive:false});
+
+  c.addEventListener('touchend', () => { mode = 0; }, {passive:true});
+
+  /* パソコンでも 同じように さわれるように */
+  let down = false;
+  c.addEventListener('mousedown', (e) => { down = true; start(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', () => { down = false; });
+  window.addEventListener('mousemove', (e) => { if(down) move(e.clientX, e.clientY); });
+  c.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    view.fov = Math.max(20, Math.min(120, view.fov + (e.deltaY>0?4:-4)));
+    $('fov').value = Math.round(view.fov);
+    drawView();
+  }, {passive:false});
+}
+
+let toastTimer;
+function toast(msg, bad){
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, bad ? 5200 : 2600);
+}
+
+/* ---------------------------------------------------------------- 起動 */
+
+(function main(){
+  if(!initGL()) return;
+  bindTouch();
+  window.addEventListener('resize', drawView);
+
+  $('bOpen').onclick = () => $('fEqui').click();
+  $('fEqui').onchange = async (e) => {
+    if(e.target.files[0]) setBaseFromImage(await loadFile(e.target.files[0]));
+    e.target.value = '';
+  };
+
+  $('bNew').onclick = () => {
+    const n = prompt('よこの 大きさ（2048 / 4096）', '4096');
+    if(!n) return;
+    const w = Math.max(512, parseInt(n,10) || 4096), h = Math.round(w/2);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0,0,w,h);
+    setBaseFromImage(c);
+    toast('白紙を つくりました');
+  };
+
+  document.querySelectorAll('[data-look]').forEach(b => {
+    b.onclick = () => {
+      const [y,p] = b.dataset.look.split(',').map(Number);
+      view.yaw = y; view.pitch = p;
+      document.querySelectorAll('[data-look]').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      drawView();
+    };
+  });
+
+  $('fov').oninput = (e) => { view.fov = +e.target.value; drawView(); };
+  $('bCut').onclick = doCut;
+  $('bBack').onclick = () => $('fFlat').click();
+  $('fFlat').onchange = async (e) => {
+    if(e.target.files[0]) await doBack(e.target.files[0]);
+    e.target.value = '';
+  };
+  $('bSave').onclick = doSave;
+})();
+</script>
+</body>
+</html>

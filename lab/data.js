@@ -144,6 +144,17 @@ const TOOLS = [
     thumb: "thumbs/koi-scene.svg",
     url: "tools/koi-scene/index.html",
     status: "live"
+  },
+  {
+    no: 14,
+    slug: "gururi",
+    title: "ぐるり 360°",
+    desc: "360度パノラマを、いつものお絵かきアプリで描くための台。球のまま見て、向きを決めて歪みのない四角に切り出し、描いたら貼り戻す。真上と真下も普通の絵として描ける。ファイル名に向きが入るので、あとで戻してもずれない。タブレットでも動く。",
+    tags: ["360度", "パノラマ", "背景", "タブレット"],
+    cat: "other",
+    thumb: "thumbs/gururi.svg",
+    url: "tools/gururi/index.html",
+    status: "live"
   }
 ];
 
