@@ -110,7 +110,9 @@ select{
   padding:.3rem .4rem; font-size:.58rem; font-weight:400; color:#5c5843; line-height:1.65;
 }
 /* レイヤーの ふやす・へらす は 幅を 決めておく（flex:1 だと 横に のびる） */
-#bLayAdd, #bLayDel{flex:none; width:44px; padding:0;}
+#bLayAdd, #bLayDel, #bLayUp, #bLayDown{flex:none; width:42px; padding:0;}
+#freeColor{flex:none; width:56px; height:36px; border:2px solid var(--ink); border-radius:9px; background:var(--paper); padding:2px;}
+#bUndo, #bRedo{width:42px; padding:0; font-size:1rem;}
 #bGuide{flex:none; width:96px;}
 .hide{display:none !important;}
 #toast{
@@ -130,6 +132,8 @@ input[type=file]{display:none;}
   <h1>ぐるり</h1>
   <span id="info" class="chip">まだ ひらいて いません</span>
   <span class="grow"></span>
+  <button class="btn btn-sm" id="bUndo" title="もどす">↶</button>
+  <button class="btn btn-sm" id="bRedo" title="やり直す">↷</button>
   <button class="btn btn-sm" id="bNew">しんき</button>
   <button class="btn btn-sm" id="bOpen">ひらく</button>
   <button class="btn btn-sm" id="bLoad">つづき</button>
@@ -160,6 +164,7 @@ input[type=file]{display:none;}
       <button data-tool="erase">けし</button>
       <button data-tool="fill">ぬり</button>
       <button data-tool="pick">スポイト</button>
+      <button data-tool="person">ひと</button>
     </div>
     <button class="btn btn-sm" id="bGuide">パース線</button>
   </div>
@@ -167,8 +172,14 @@ input[type=file]{display:none;}
   <!-- レイヤー -->
   <div class="rowb">
     <div id="layers"></div>
+    <button class="btn btn-sm" id="bLayUp">▲</button>
+    <button class="btn btn-sm" id="bLayDown">▼</button>
     <button class="btn btn-sm" id="bLayAdd">＋</button>
     <button class="btn btn-sm" id="bLayDel">－</button>
+  </div>
+  <div class="rowb">
+    <label class="f">こさ <b id="vOp" class="dot">100</b>%<input type="range" id="layOp" min="0" max="100" step="5" value="100"></label>
+    <input type="color" id="freeColor" value="#1e1c14" title="すきな色">
   </div>
 
   <!-- ペンの 設定 -->
@@ -176,8 +187,21 @@ input[type=file]{display:none;}
     <div class="rowb" style="margin-bottom:.35rem"><div class="sw" id="colors"></div></div>
     <div class="rowb">
       <label class="f">ふとさ<input type="range" id="size" min="1" max="80" step="1" value="6"></label>
-      <button class="btn btn-sm" id="bUndo">もどす</button>
-      <button class="btn btn-sm" id="bRedo">やり直す</button>
+    </div>
+  </div>
+
+  <!-- ひと -->
+  <div id="panPerson" class="hide">
+    <div class="rowb" style="margin-bottom:.35rem">
+      <select id="poseSel"></select>
+      <label class="f">せ <b id="vPH" class="dot">1.7</b>m<input type="range" id="pHeight" min="60" max="220" step="5" value="170"></label>
+      <button class="btn btn-sm" id="pTurnL">◀ むき</button>
+      <button class="btn btn-sm" id="pTurnR">むき ▶</button>
+    </div>
+    <div class="rowb">
+      <button class="btn btn-sm" id="pDel">この ひとを 消す</button>
+      <button class="btn btn-sm" id="pClear">ぜんぶ 消す</button>
+      <button class="btn btn-sm btn-y" id="pBake">ひとを 絵に する</button>
     </div>
   </div>
 
@@ -190,6 +214,10 @@ input[type=file]{display:none;}
         <button data-look="0,-88">ました</button>
         <button data-look="180,0">うしろ</button>
       </div>
+    </div>
+    <div class="rowb" style="margin-bottom:.35rem">
+      <label class="f">目線 <b id="vEye" class="dot">1.5</b>m<input type="range" id="eye" min="0.3" max="5" step="0.1" value="1.5"></label>
+      <label class="f">天井 <b id="vCeil" class="dot">2.5</b>m<input type="range" id="ceil" min="1.6" max="12" step="0.1" value="2.5"></label>
     </div>
     <div class="rowb">
       <label class="f">がかく<input type="range" id="fov" min="20" max="120" step="1" value="90"></label>
@@ -225,14 +253,18 @@ const D2R = Math.PI/180;
 let view = { yaw:0, pitch:0, fov:90 };
 let lastCut = null;
 let equiW = 0, equiH = 0;
-let gl, pView, pMerge, pCopy, texFlat, ready = false;
+let gl, pView, pMerge, pCopy, texFlat, fbo, texScratch, ready = false;
 let tool = 'turn';
 let guideMode = 1;                 // 0:なし 1:球 2:床 3:両方
 let pen = { color:'#1E1C14', size:6 };
 let layers = [];                   // {tex, visible, name}
 let active = 0;
 let inkDirty = false;
-let inRender = false;
+let people = [];                   // {x, z, rot, h, pose}
+let selPerson = -1;
+let EYE = 1.5;                     // 目線の 高さ(m)。ゆかは y = -EYE
+let CEIL = 2.5;                    // 天井の 高さ(m)。天井は y = CEIL-EYE
+let gridM = 1.0;                   // マスの 間かく(m)
 let undoStack = [], redoStack = []; // 焼く前の レイヤーの 控え {i, canvas}
 
 /* ---------------------------------------------------------------- シェーダ */
@@ -242,7 +274,7 @@ void main(){ vUv = pos*0.5+0.5; gl_Position = vec4(pos,0.0,1.0); }`;
 
 const FS_VIEW = `precision highp float;
 varying vec2 vUv; uniform sampler2D tex;
-uniform float yaw, pitch, fov, aspect;
+uniform float yaw, pitch, fov, aspect, opacity;
 const float PI = 3.14159265359;
 void main(){
   float t = tan(fov*0.5);
@@ -252,7 +284,8 @@ void main(){
   vec3 u = cross(f, r);
   vec3 d = normalize(f + s.x*t*aspect*r + s.y*t*u);
   float lon = atan(d.x, d.z), lat = asin(clamp(d.y,-1.0,1.0));
-  gl_FragColor = texture2D(tex, vec2(fract(lon/(2.0*PI)+0.5), 0.5-lat/PI));
+  vec4 c = texture2D(tex, vec2(fract(lon/(2.0*PI)+0.5), 0.5-lat/PI));
+  gl_FragColor = vec4(c.rgb, c.a*opacity);
 }`;
 
 /* 球の各点を 四角い絵に 射影して、入っていれば 上から重ねる。
@@ -263,7 +296,9 @@ varying vec2 vUv; uniform sampler2D base; uniform sampler2D flat_;
 uniform float yaw, pitch, fov, aspect, feather, erase;
 const float PI = 3.14159265359;
 void main(){
-  vec2 iuv = vec2(vUv.x, 1.0-vUv.y);
+  /* FBO に 直接 描くので 上下の 入れかえは いらない。
+     v=0 が 画像の 上、で そろえて ある。 */
+  vec2 iuv = vUv;
   vec4 b = texture2D(base, iuv);
   float lon = (iuv.x-0.5)*2.0*PI;
   float lat = (0.5-iuv.y)*PI;
@@ -280,13 +315,19 @@ void main(){
   float e = 1.0;
   if (feather > 0.0) e = smoothstep(1.0, 1.0-feather, abs(sx)) * smoothstep(1.0, 1.0-feather, abs(sy));
   float a = c.a*e;
-  if (erase > 0.5) { gl_FragColor = vec4(b.rgb, b.a*(1.0-a)); return; }
+  /* 消しゴムは 中途はんぱな こさを 残さない。残すと 焼きなおす たびに
+     灰色の よごれに なって いく。 */
+  if (erase > 0.5) {
+    float ea = smoothstep(0.30, 0.55, a);
+    gl_FragColor = vec4(b.rgb, b.a*(1.0-ea));
+    return;
+  }
   gl_FragColor = vec4(mix(b.rgb, c.rgb, a), max(b.a, a));
 }`;
 
 const FS_COPY = `precision highp float;
-varying vec2 vUv; uniform sampler2D tex;
-void main(){ gl_FragColor = texture2D(tex, vec2(vUv.x, 1.0-vUv.y)); }`;
+varying vec2 vUv; uniform sampler2D tex; uniform float opacity;
+void main(){ vec4 c = texture2D(tex, vUv); gl_FragColor = vec4(c.rgb, c.a*opacity); }`;
 
 function sh(t, src){
   const s = gl.createShader(t);
@@ -313,6 +354,43 @@ function mkTex(src){
   if(src) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
   return t;
 }
+/* 中身の ない テクスチャ。FBO の 書きこみ先に つかう。 */
+function allocTex(w, h){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  return t;
+}
+
+/* テクスチャに 直接 描く。2Dキャンバスを 経由しないので
+   半とうめいの 画素が 劣化しない（消しゴムの よごれの 原因は これ だった）。 */
+function renderToTex(tex, w, h, draw){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.viewport(0, 0, w, h);
+  draw(w, h);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+/* しまってある テクスチャを 画像に する。保存の ときだけ つかう。 */
+function texToCanvas(tex, w, h){
+  const px = new Uint8Array(w*h*4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const img = c.getContext('2d').createImageData(w, h);
+  img.data.set(px);
+  c.getContext('2d').putImageData(img, 0, 0);
+  return c;
+}
+
 function bindQuad(p){
   const l = gl.getAttribLocation(p, 'pos');
   gl.enableVertexAttribArray(l);
@@ -332,6 +410,7 @@ function initGL(){
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   texFlat = mkTex(null);
+  fbo = gl.createFramebuffer();
   return true;
 }
 
@@ -358,6 +437,105 @@ function dirOf(lonDeg, latDeg){
   return [Math.cos(la)*Math.sin(lo), Math.sin(la), Math.cos(la)*Math.cos(lo)];
 }
 
+/* ---------------------------------------------------------------- 糸人間 */
+
+/* 足もとを (0,0,0)、上を +y、正面を +z と した ときの 骨。
+   数字は 身長を 1 と した ときの 比。ここを 足せば ポーズが 増える。 */
+const POSES = {
+  "立つ": {
+    j: { head:[0,.94,0], neck:[0,.83,0], hip:[0,.52,0],
+         sL:[-.10,.81,0], sR:[.10,.81,0], eL:[-.14,.64,.02], eR:[.14,.64,.02],
+         hL:[-.16,.47,.04], hR:[.16,.47,.04],
+         kL:[-.07,.27,0], kR:[.07,.27,0], fL:[-.07,0,.02], fR:[.07,0,.02] } },
+  "歩く": {
+    j: { head:[0,.94,0], neck:[0,.83,0], hip:[0,.52,0],
+         sL:[-.10,.81,0], sR:[.10,.81,0], eL:[-.13,.65,-.10], eR:[.13,.65,.12],
+         hL:[-.14,.50,-.18], hR:[.14,.50,.20],
+         kL:[-.07,.27,.14], kR:[.07,.28,-.10], fL:[-.07,.02,.26], fR:[.07,0,-.20] } },
+  "すわる": {
+    j: { head:[0,.72,-.02], neck:[0,.61,-.02], hip:[0,.32,-.06],
+         sL:[-.10,.59,-.02], sR:[.10,.59,-.02], eL:[-.14,.44,.04], eR:[.14,.44,.04],
+         hL:[-.14,.32,.12], hR:[.14,.32,.12],
+         kL:[-.08,.30,.22], kR:[.08,.30,.22], fL:[-.08,0,.22], fR:[.08,0,.22] } },
+  "バンザイ": {
+    j: { head:[0,.94,0], neck:[0,.83,0], hip:[0,.52,0],
+         sL:[-.10,.81,0], sR:[.10,.81,0], eL:[-.17,.95,0], eR:[.17,.95,0],
+         hL:[-.20,1.08,0], hR:[.20,1.08,0],
+         kL:[-.07,.27,0], kR:[.07,.27,0], fL:[-.07,0,.02], fR:[.07,0,.02] } },
+  "しゃがむ": {
+    j: { head:[0,.62,.02], neck:[0,.52,.02], hip:[0,.28,-.02],
+         sL:[-.10,.50,.02], sR:[.10,.50,.02], eL:[-.13,.36,.08], eR:[.13,.36,.08],
+         hL:[-.13,.24,.16], hR:[.13,.24,.16],
+         kL:[-.09,.26,.20], kR:[.09,.26,.20], fL:[-.08,0,.10], fR:[.08,0,.10] } }
+};
+const BONES = [["neck","hip"],["neck","sL"],["neck","sR"],["sL","eL"],["eL","hL"],
+               ["sR","eR"],["eR","hR"],["hip","kL"],["kL","fL"],["hip","kR"],["kR","fR"]];
+
+/* ゆか（y=-EYE）の どこを 見ているか。画面の 点 → 3Dの 向き → ゆかとの 交点 */
+function floorHit(px, py, W, H){
+  const {f, r, u} = basis();
+  const t = Math.tan(view.fov*D2R*0.5), aspect = W/H;
+  const sx = (px/W*2-1)*t*aspect, sy = (1-py/H*2)*t;
+  const d = [f[0]+sx*r[0]+sy*u[0], f[1]+sx*r[1]+sy*u[1], f[2]+sx*r[2]+sy*u[2]];
+  if(d[1] >= -1e-4) return null;                 // 上を 向いて いる＝ゆかに 当たらない
+  const k = -EYE / d[1];
+  return { x: d[0]*k, z: d[2]*k };
+}
+
+/* ひとりぶんの 骨を、画面の 座標に して 返す */
+function personPoints(P, W, H, B){
+  const pose = POSES[P.pose] || POSES["立つ"];
+  const c = Math.cos(P.rot*D2R), sn = Math.sin(P.rot*D2R);
+  const out = {};
+  for(const k in pose.j){
+    const [lx, ly, lz] = pose.j[k];
+    const wx = P.x + (lx*c + lz*sn) * P.h;
+    const wz = P.z + (-lx*sn + lz*c) * P.h;
+    const wy = -EYE + ly * P.h;
+    out[k] = project([wx, wy, wz], W, H, B);
+  }
+  return out;
+}
+
+function drawPeople(c, W, H, B){
+  for(let i = 0; i < people.length; i++){
+    const P = people[i];
+    const j = personPoints(P, W, H, B);
+    const on = i === selPerson;
+    c.strokeStyle = on ? 'rgba(226,60,60,.95)' : 'rgba(30,28,20,.62)';
+    c.fillStyle = c.strokeStyle;
+    c.lineWidth = on ? 3 : 2.4;
+    c.lineCap = 'round';
+    for(const [a,b] of BONES){
+      if(!j[a] || !j[b]) continue;
+      c.beginPath(); c.moveTo(j[a][0], j[a][1]); c.lineTo(j[b][0], j[b][1]); c.stroke();
+    }
+    /* あたま。首との 間かくから 大きさを 決める（遠いほど 小さく なる） */
+    if(j.head && j.neck){
+      const r = Math.max(3, Math.hypot(j.head[0]-j.neck[0], j.head[1]-j.neck[1]) * 0.62);
+      c.beginPath(); c.arc(j.head[0], j.head[1], r, 0, 7); c.stroke();
+    }
+    /* 足もとの わ。ゆかの どこに 立って いるか 分かる ように */
+    if(j.fL && j.fR && on){
+      c.beginPath();
+      c.ellipse((j.fL[0]+j.fR[0])/2, (j.fL[1]+j.fR[1])/2,
+                Math.max(6, Math.abs(j.fR[0]-j.fL[0])*1.6), Math.max(3, Math.abs(j.fR[0]-j.fL[0])*0.6),
+                0, 0, 7);
+      c.stroke();
+    }
+  }
+}
+
+function savePeople(){
+  try { localStorage.setItem('gururi_people', JSON.stringify(people)); } catch(e){}
+}
+function loadPeople(){
+  try {
+    const v = JSON.parse(localStorage.getItem('gururi_people') || '[]');
+    if(Array.isArray(v)) people = v;
+  } catch(e){}
+}
+
 /* ---------------------------------------------------------------- パース線 */
 
 function drawGuide(){
@@ -382,7 +560,7 @@ function drawGuide(){
     c.stroke();
   };
 
-  if(guideMode === 1 || guideMode === 3){
+  if(guideMode >= 3){
     for(let lon = 0; lon < 360; lon += 15){
       const pts = [];
       for(let lat = -88; lat <= 88; lat += 2) pts.push(dirOf(lon, lat));
@@ -395,16 +573,23 @@ function drawGuide(){
       poly(pts, 'rgba(30,28,20,.15)', 1);
     }
   }
-  if(guideMode === 2 || guideMode === 3){
-    const EY = 1.0, N = 14, S = 0.9;
-    const gp = (x, z) => { const n = Math.hypot(x, -EY, z); return [x/n, -EY/n, z/n]; };
+  /* ゆかと 天井の マス目。どちらも 地平線に 向かって 集まる。
+     高さは メートルで もつ（目線 1.5m なら ゆかは 1.5m 下、天井は その ぶん 上）。 */
+  const plane = (y, color) => {
+    const N = 16, S = gridM;
+    const gp = (x, z) => [x, y, z];
     for(let i = -N; i <= N; i++){
       const a = [], b = [];
-      for(let j = -N*3; j <= N*3; j++){ a.push(gp(i*S, j*S/3)); b.push(gp(j*S/3, i*S)); }
-      poly(a, 'rgba(184,180,63,.6)', 1);
-      poly(b, 'rgba(184,180,63,.6)', 1);
+      for(let j = -N*4; j <= N*4; j++){
+        a.push(gp(i*S, j*S/4));
+        b.push(gp(j*S/4, i*S));
+      }
+      poly(a, color, 1);
+      poly(b, color, 1);
     }
-  }
+  };
+  if(guideMode >= 1) plane(-EYE, 'rgba(120,150,210,.55)');            // ゆか
+  if(guideMode >= 2) plane(CEIL - EYE, 'rgba(120,150,210,.42)');      // 天井
   const hz = [];
   for(let lon = 0; lon <= 360; lon += 2) hz.push(dirOf(lon, 0));
   poly(hz, 'rgba(226,60,60,.75)', 3);
@@ -416,6 +601,15 @@ function drawGuide(){
       c.beginPath(); c.arc(p[0], p[1], 6, 0, 7); c.fill();
     }
   }
+}
+
+/* パース線が 消えて いても ひとは 出す（下絵として つかう ため） */
+function drawOverlay(){
+  drawGuide();
+  const g = $('guide'), W = g.clientWidth, H = g.clientHeight;
+  if(g.width !== W || g.height !== H){ g.width = W; g.height = H; }
+  if(!ready || !people.length) return;
+  drawPeople(g.getContext('2d'), W, H, basis());
 }
 
 /* ---------------------------------------------------------------- 表示 */
@@ -454,49 +648,47 @@ function drawView(){
     gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*D2R);
     gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*D2R);
     gl.uniform1f(gl.getUniformLocation(pView,'aspect'), aspect);
+    gl.uniform1f(gl.getUniformLocation(pView,'opacity'), L.op === undefined ? 1 : L.op);
   });
-  } catch(e) { /* 絵が 出せなくても パース線は 出す */ }
+  } catch(e) { /* 絵が 出せなくても パース線と ひとは 出す */ }
   $('hYaw').textContent = 'よこ ' + Math.round(view.yaw);
   $('hPitch').textContent = 'たて ' + Math.round(view.pitch);
   $('hFov').textContent = 'がかく ' + Math.round(view.fov);
-  drawGuide();
-}
-
-function renderTo(w, h, draw){
-  const c = $('view');
-  const ow = c.width, oh = c.height;
-  c.width = w; c.height = h;
-  gl.viewport(0,0,w,h);
-  draw(w,h);
-  const out = document.createElement('canvas');
-  out.width = w; out.height = h;
-  out.getContext('2d').drawImage(c, 0, 0);
-  c.width = ow; c.height = oh;
-  /* 大きさを 変えると 描画面は 空に なる。ここで 描き直さないと 画面が 黒く なる。 */
-  if(!inRender){ inRender = true; try { drawView(); } finally { inRender = false; } }
-  return out;
+  drawOverlay();
 }
 
 /* 見えている ぜんぶを 平らに 合わせた 1枚 */
 function flatten(){
-  return renderTo(equiW, equiH, () => {
+  const out = allocTex(equiW, equiH);
+  renderToTex(out, equiW, equiH, () => {
     gl.useProgram(pCopy); bindQuad(pCopy);
     paintLayers(equiW, equiH, 1, (L) => {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
       gl.uniform1i(gl.getUniformLocation(pCopy,'tex'), 0);
+      gl.uniform1f(gl.getUniformLocation(pCopy,'opacity'), L.op === undefined ? 1 : L.op);
     });
   });
+  const c = texToCanvas(out, equiW, equiH);
+  gl.deleteTexture(out);
+  return c;
 }
-/* レイヤー1枚を そのまま 画像に する（控え・作業データ用） */
+/* レイヤー1枚を そのまま 画像に する（作業データ用） */
 function layerToCanvas(L){
-  return renderTo(equiW, equiH, () => {
+  return texToCanvas(L.tex, equiW, equiH);
+}
+/* 控えは GPU の 上に 置く。画像に 直すと 遅いし、色も にごる。 */
+function copyLayerTex(L){
+  const t = allocTex(equiW, equiH);
+  renderToTex(t, equiW, equiH, () => {
     gl.disable(gl.BLEND);
     gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(pCopy); bindQuad(pCopy);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
     gl.uniform1i(gl.getUniformLocation(pCopy,'tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(pCopy,'opacity'), 1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   });
+  return t;
 }
 
 /* 四角い絵を いま選んでいる レイヤーに 焼き込む */
@@ -507,7 +699,9 @@ function mergeInto(src, yaw, pitch, fov, aspect, feather, erase){
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
 
-  const merged = renderTo(equiW, equiH, () => {
+  /* 読みながら 同じ ところに 書けないので、いったん 別の 板に 描いて 入れかえる */
+  if(!texScratch) texScratch = allocTex(equiW, equiH);
+  renderToTex(texScratch, equiW, equiH, () => {
     gl.disable(gl.BLEND);
     gl.useProgram(pMerge); bindQuad(pMerge);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
@@ -523,8 +717,7 @@ function mergeInto(src, yaw, pitch, fov, aspect, feather, erase){
     gl.activeTexture(gl.TEXTURE0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   });
-  gl.bindTexture(gl.TEXTURE_2D, L.tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, merged);
+  const t = L.tex; L.tex = texScratch; texScratch = t;
   drawView();
 }
 
@@ -538,7 +731,7 @@ function blankCanvas(w, h, fill){
 }
 
 function addLayer(src, name, at){
-  const L = { tex: mkTex(src || blankCanvas(equiW, equiH)), visible:true, name: name || ('レイヤー' + (layers.length+1)) };
+  const L = { tex: mkTex(src || blankCanvas(equiW, equiH)), visible:true, op:1, name: name || ('レイヤー' + (layers.length+1)) };
   if(at === undefined) layers.push(L); else layers.splice(at, 0, L);
   active = layers.indexOf(L);
   drawLayerBar();
@@ -558,6 +751,8 @@ function drawLayerBar(){
       if(e.target.classList.contains('eye')){ L.visible = !L.visible; drawLayerBar(); drawView(); return; }
       stampInk(true);
       active = i; drawLayerBar();
+      const op = Math.round((layers[i].op === undefined ? 1 : layers[i].op)*100);
+      $('layOp').value = op; $('vOp').textContent = op;
     };
     box.appendChild(el);
   }
@@ -576,10 +771,20 @@ function clearInk(){
 function pushUndo(){
   const L = layers[active];
   if(!L) return;
-  undoStack.push({ i: active, canvas: layerToCanvas(L) });
-  const keep = equiW >= 8192 ? 1 : 3;      // 端末の メモリを 使いすぎない ように
-  while(undoStack.length > keep) undoStack.shift();
+  undoStack.push({ i: active, tex: copyLayerTex(L) });
+  const keep = equiW >= 8192 ? 3 : 10;
+  while(undoStack.length > keep){ const o = undoStack.shift(); gl.deleteTexture(o.tex); }
+  for(const o of redoStack) gl.deleteTexture(o.tex);
   redoStack = [];
+}
+function applySnap(snap, other){
+  const L = layers[snap.i];
+  if(!L) return false;
+  other.push({ i: snap.i, tex: copyLayerTex(L) });
+  gl.deleteTexture(L.tex);
+  L.tex = snap.tex;
+  drawView();
+  return true;
 }
 
 /* 手前の 紙に 描いた ものを、いまの 向きで レイヤーに 焼く */
@@ -604,6 +809,7 @@ function bindPen(){
     if(!ready) return;
     if(e.touches && e.touches.length > 1) return;
     const p = pos(e);
+    if(tool === 'person'){ personDown(p[0], p[1]); e.preventDefault(); return; }
     if(tool === 'pick'){ pickColor(p[0], p[1]); e.preventDefault(); return; }
     if(tool === 'fill'){ pushUndo(); bucket(p[0], p[1]); e.preventDefault(); return; }
     if(tool !== 'pen' && tool !== 'erase') return;
@@ -612,6 +818,7 @@ function bindPen(){
     e.preventDefault();
   };
   const move = (e) => {
+    if(tool === 'person'){ if(dragPerson){ const p = pos(e); personMove(p[0], p[1]); e.preventDefault(); } return; }
     if(!drawing) return;
     const p = pos(e), c = k.getContext('2d');
     c.globalCompositeOperation = 'source-over';
@@ -622,7 +829,10 @@ function bindPen(){
     e.preventDefault();
   };
   /* ゆびを はなしたら すぐ 球に のせる。元ツールと 同じ 描きごこちに するため。 */
-  const end = () => { if(drawing){ drawing = false; stampInk(true); } };
+  const end = () => {
+    if(dragPerson){ dragPerson = false; savePeople(); }
+    if(drawing){ drawing = false; stampInk(true); }
+  };
 
   k.addEventListener('touchstart', begin, {passive:false});
   k.addEventListener('touchmove', move, {passive:false});
@@ -630,6 +840,68 @@ function bindPen(){
   k.addEventListener('mousedown', begin);
   k.addEventListener('mousemove', move);
   window.addEventListener('mouseup', end);
+}
+
+let dragPerson = false;
+
+/* さわった ところに いる ひとを さがす。いなければ そこに 新しく 立たせる。 */
+function personDown(px, py){
+  const g = $('guide'), W = g.clientWidth, H = g.clientHeight, B = basis();
+  let hit = -1, best = 70;
+  for(let i = 0; i < people.length; i++){
+    const j = personPoints(people[i], W, H, B);
+    for(const k of ['hip','head','fL','fR']){
+      if(!j[k]) continue;
+      const d = Math.hypot(j[k][0]-px, j[k][1]-py);
+      if(d < best){ best = d; hit = i; }
+    }
+  }
+  if(hit >= 0){
+    selPerson = hit; dragPerson = true;
+    syncPersonPanel();
+    drawOverlay();
+    return;
+  }
+  const f = floorHit(px, py, W, H);
+  if(!f){ toast('ゆかの ある ところを さわって ください', true); return; }
+  if(people.length >= 12){ toast('ひとは 12にんまでに して います', true); return; }
+  people.push({ x:f.x, z:f.z, rot: view.yaw + 180, h: (+$('pHeight').value)/100, pose: $('poseSel').value || '立つ' });
+  selPerson = people.length - 1;
+  dragPerson = true;
+  savePeople(); syncPersonPanel(); drawOverlay();
+}
+
+function personMove(px, py){
+  const P = people[selPerson];
+  if(!P) return;
+  const g = $('guide');
+  const f = floorHit(px, py, g.clientWidth, g.clientHeight);
+  if(!f) return;
+  P.x = f.x; P.z = f.z;
+  drawOverlay();
+}
+
+function syncPersonPanel(){
+  const P = people[selPerson];
+  if(!P) return;
+  $('pHeight').value = Math.round(P.h*100);
+  $('vPH').textContent = P.h.toFixed(2);
+  $('poseSel').value = P.pose;
+}
+
+/* 糸人間を いまの 見え方の まま 絵に 焼く（下絵を 線として 残したい とき） */
+function bakePeople(){
+  if(!ready || !people.length) return toast('ひとが いません', true);
+  const k = $('ink');
+  fitCanvas(k);
+  const c = k.getContext('2d');
+  c.clearRect(0,0,k.width,k.height);
+  const keep = selPerson; selPerson = -1;
+  drawPeople(c, k.width, k.height, basis());
+  selPerson = keep;
+  inkDirty = true;
+  stampInk(true);
+  toast('ひとを 絵に しました');
 }
 
 function viewPixels(){
@@ -783,7 +1055,8 @@ function doCut(){
   if(!ready) return toast('さきに 白紙を つくって ください', true);
   stampInk(true);
   const n = +$('cutSize').value;
-  const c = renderTo(n, n, () => {
+  const out = allocTex(n, n);
+  renderToTex(out, n, n, () => {
     gl.useProgram(pView); bindQuad(pView);
     paintLayers(n, n, 1, (L) => {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, L.tex);
@@ -792,8 +1065,16 @@ function doCut(){
       gl.uniform1f(gl.getUniformLocation(pView,'pitch'), view.pitch*D2R);
       gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*D2R);
       gl.uniform1f(gl.getUniformLocation(pView,'aspect'), 1.0);
+      gl.uniform1f(gl.getUniformLocation(pView,'opacity'), L.op === undefined ? 1 : L.op);
     });
   });
+  /* FBO は 下が 原点。画像に する ときだけ 上下を もどす。 */
+  const raw = texToCanvas(out, n, n);
+  gl.deleteTexture(out);
+  const c = document.createElement('canvas');
+  c.width = n; c.height = n;
+  const cc = c.getContext('2d');
+  cc.translate(0, n); cc.scale(1, -1); cc.drawImage(raw, 0, 0);
   lastCut = { yaw:view.yaw, pitch:view.pitch, fov:view.fov };
   download(c, cutName());
   drawView();
@@ -869,9 +1150,11 @@ function setTool(t){
   [...$('tool').children].forEach(b => b.classList.toggle('on', b.dataset.tool === t));
   $('panPen').classList.toggle('hide', !(t === 'pen' || t === 'erase' || t === 'fill'));
   $('panTurn').classList.toggle('hide', t !== 'turn');
-  $('tip').innerHTML = t === 'turn'
-    ? '<b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>こまかく 描くときは <b>切り出す</b> → お絵かきアプリ → <b>もどす</b>。'
-    : '描いて ゆびを はなすと、そのまま 球に のります。<br>2本ゆびで つまめば 描きながらでも 寄れます。';
+  $('panPerson').classList.toggle('hide', t !== 'person');
+  $('tip').innerHTML =
+    t === 'turn'  ? '<b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>こまかく 描くときは <b>切り出す</b> → お絵かきアプリ → <b>もどす</b>。'
+  : t === 'person'? '<b>ひと</b>：ゆかを さわると そこに 立ちます。ひとを なぞると ゆかの 上を 動きます。<br>下絵なので 絵には なりません。線に したい ときは <b>ひとを 絵に する</b>。'
+  : '描いて ゆびを はなすと、そのまま 球に のります。<br>2本ゆびで つまめば 描きながらでも 寄れます。';
 }
 
 const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C86A3A'];
@@ -900,6 +1183,25 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
     if(b) setTool(b.dataset.tool);
   };
 
+  $('layOp').oninput = (e) => {
+    const L = layers[active];
+    $('vOp').textContent = e.target.value;
+    if(L){ L.op = (+e.target.value)/100; drawView(); }
+  };
+  $('freeColor').oninput = (e) => {
+    pen.color = e.target.value;
+    [...$('colors').children].forEach(x => x.classList.remove('on'));
+    if(tool !== 'pen') setTool('pen');
+  };
+  const swap = (a, b) => {
+    if(a < 0 || b < 0 || a >= layers.length || b >= layers.length) return;
+    stampInk(true);
+    const t = layers[a]; layers[a] = layers[b]; layers[b] = t;
+    active = b; drawLayerBar(); drawView();
+  };
+  $('bLayUp').onclick = () => swap(active, active + 1);     // 上に 出す
+  $('bLayDown').onclick = () => swap(active, active - 1);
+
   $('bLayAdd').onclick = () => {
     if(!ready) return toast('さきに 白紙を つくって ください', true);
     if(layers.length >= 6) return toast('レイヤーは 6まいまでに して います', true);
@@ -919,8 +1221,8 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
   $('bGuide').onclick = () => {
     guideMode = (guideMode + 1) % 4;
     $('bGuide').classList.toggle('btn-y', guideMode !== 0);
-    drawGuide();
-    toast(['パース線 なし','球の マス','床の マス','球＋床の マス'][guideMode]);
+    drawOverlay();
+    toast(['パース線 なし','ゆか','ゆか＋天井','ゆか＋天井＋球'][guideMode]);
   };
   $('bGuide').classList.add('btn-y');
 
@@ -962,31 +1264,65 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
   });
 
   $('fov').oninput = (e) => { view.fov = +e.target.value; drawView(); };
+  $('eye').oninput = (e) => {
+    EYE = +e.target.value; $('vEye').textContent = EYE.toFixed(1);
+    if(CEIL < EYE + 0.1){ CEIL = EYE + 0.1; $('ceil').value = CEIL; $('vCeil').textContent = CEIL.toFixed(1); }
+    drawOverlay();
+  };
+  $('ceil').oninput = (e) => {
+    CEIL = +e.target.value; $('vCeil').textContent = CEIL.toFixed(1);
+    drawOverlay();
+  };
   $('size').oninput = (e) => { pen.size = +e.target.value; };
 
   $('bUndo').onclick = () => {
     clearInk();
-    const s = undoStack.pop();
-    if(!s) return toast('もどせる ものが ありません');
-    const L = layers[s.i];
-    if(!L) return;
-    redoStack.push({ i: s.i, canvas: layerToCanvas(L) });
-    gl.bindTexture(gl.TEXTURE_2D, L.tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, s.canvas);
-    drawView();
+    const snap = undoStack.pop();
+    if(!snap) return toast('もどせる ものが ありません');
+    applySnap(snap, redoStack);
   };
   $('bRedo').onclick = () => {
-    const s = redoStack.pop();
-    if(!s) return toast('やり直せる ものが ありません');
-    const L = layers[s.i];
-    if(!L) return;
-    undoStack.push({ i: s.i, canvas: layerToCanvas(L) });
-    gl.bindTexture(gl.TEXTURE_2D, L.tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, s.canvas);
-    drawView();
+    const snap = redoStack.pop();
+    if(!snap) return toast('やり直せる ものが ありません');
+    applySnap(snap, undoStack);
   };
+
+  /* ひとの パネル */
+  const ps = $('poseSel');
+  for(const name in POSES) ps.add(new Option(name, name));
+  ps.onchange = () => {
+    const P = people[selPerson];
+    if(P){ P.pose = ps.value; savePeople(); drawOverlay(); }
+  };
+  $('pHeight').oninput = (e) => {
+    $('vPH').textContent = ((+e.target.value)/100).toFixed(2);
+    const P = people[selPerson];
+    if(P){ P.h = (+e.target.value)/100; drawOverlay(); }
+  };
+  $('pHeight').onchange = savePeople;
+  const turnP = (d) => {
+    const P = people[selPerson];
+    if(!P) return toast('ひとを えらんで ください', true);
+    P.rot = (P.rot + d + 360) % 360;
+    savePeople(); drawOverlay();
+  };
+  $('pTurnL').onclick = () => turnP(-15);
+  $('pTurnR').onclick = () => turnP(15);
+  $('pDel').onclick = () => {
+    if(selPerson < 0 || !people[selPerson]) return toast('ひとを えらんで ください', true);
+    people.splice(selPerson, 1);
+    selPerson = Math.min(selPerson, people.length-1);
+    savePeople(); drawOverlay();
+  };
+  $('pClear').onclick = () => {
+    if(!people.length) return;
+    if(!confirm('ひとを ぜんぶ 消します。よろしいですか？')) return;
+    people = []; selPerson = -1;
+    savePeople(); drawOverlay();
+  };
+  $('pBake').onclick = bakePeople;
+
+  loadPeople();
 
   $('bCut').onclick = doCut;
   $('bBack').onclick = () => $('fFlat').click();
