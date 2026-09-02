@@ -98,7 +98,7 @@ button{cursor:pointer}
   position:fixed; left:0; right:0; bottom:0; z-index:40;
   background:var(--panel); border-top:2px solid var(--line); border-radius:16px 16px 0 0;
   max-height:64dvh; display:flex; flex-direction:column;
-  transform:translateY(102%); transition:transform .18s ease-out;
+  transform:translateY(102%); will-change:transform;
   box-shadow:0 -6px 20px rgba(0,0,0,.2);
   padding-bottom:env(safe-area-inset-bottom);
 }
@@ -106,11 +106,17 @@ button{cursor:pointer}
 #sheetHead{
   flex-shrink:0; display:flex; align-items:center; gap:10px; padding:8px 12px;
   border-bottom:2px solid var(--line);
+  position:relative; touch-action:none; cursor:grab; user-select:none;
+}
+#sheetHead:active{cursor:grabbing}
+#sheetGrab{
+  position:absolute; left:50%; top:5px; width:38px; height:4px; margin-left:-19px;
+  border-radius:99px; background:var(--line); opacity:.45; pointer-events:none;
 }
 #sheetHead b{flex:1; font-size:14px}
 #sheetBody{overflow-y:auto; padding:10px 14px 20px; touch-action:pan-y}
-#scrim{position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:39; display:none}
-#scrim.on{display:block}
+#scrim{position:fixed; inset:0; background:#000; z-index:39; opacity:0; pointer-events:none}
+#scrim.on{pointer-events:auto}
 .sec{display:none}
 .sec.on{display:block}
 
@@ -215,7 +221,7 @@ select,input[type=number],input[type=text]{
 
 <div id="scrim"></div>
 <div id="sheet">
-  <div id="sheetHead"><b id="sheetTitle">色</b><button class="hb" id="sheetClose">✕</button></div>
+  <div id="sheetHead"><div id="sheetGrab"></div><b id="sheetTitle">色</b><button class="hb" id="sheetClose">✕</button></div>
   <div id="sheetBody">
 
     <div class="sec on" data-sec="color">
@@ -1473,6 +1479,7 @@ setColor("#20242a");
 requestAnimationFrame(loopFn);
 </script>
 
+<script src="../../haani-motion.js"></script>
 <script>
 /* =========================================================
    モバイル専用の上乗せ（本体JSのグローバルをそのまま使う）
@@ -1485,19 +1492,80 @@ const scrim = document.getElementById("scrim");
 const secBtns = [...document.querySelectorAll(".secbtn")];
 let openSec = null;
 
+/* 位置は「開ききった状態からの下向きpx」。0=全開 / H=しまった状態。
+   CSSのtransitionではなくバネで動かすので、途中で掴んで引き返せる。 */
+const SCRIM_MAX = .25;
+let sheetH = 1;
+function measure(){ sheetH = Math.max(1, sheet.offsetHeight); }
+
+const sy = HM.spring({
+  from: 0,
+  onUpdate(v){
+    sheet.style.transform = `translateY(${v}px)`;
+    scrim.style.opacity = String(SCRIM_MAX * Math.max(0, 1 - v / sheetH));
+  },
+  onRest(v){ if (v >= sheetH - .5) finishClose(); }
+});
+
+function finishClose(){
+  scrim.classList.remove("on");
+  secBtns.forEach(b=> b.classList.remove("on"));
+  openSec = null;
+}
+
 function showSec(name){
   document.querySelectorAll(".sec").forEach(s=> s.classList.toggle("on", s.dataset.sec === name));
   document.getElementById("sheetTitle").textContent =
     secBtns.find(b=>b.dataset.sec === name).textContent.trim();
   secBtns.forEach(b=> b.classList.toggle("on", b.dataset.sec === name));
-  sheet.classList.add("open"); scrim.classList.add("on");
+  scrim.classList.add("on");
+  measure();
+  if (openSec === null) sy.set(sheetH);   // 中身を入れ替えてから測って、下から出す
   openSec = name;
+  sy.to(0, {damping:.85, response:.3});   // 引き出しは少しだけ跳ねる
 }
 function closeSheet(){
-  sheet.classList.remove("open"); scrim.classList.remove("on");
-  secBtns.forEach(b=> b.classList.remove("on"));
-  openSec = null;
+  measure();
+  sy.to(sheetH, {damping:1, response:.3, velocity: sy.velocity});
 }
+
+/* ---- つまんで引き下げる ---- */
+(function(){
+  const head = document.getElementById("sheetHead");
+  const track = HM.tracker();
+  let grabbedAt = 0, dragging = false;
+
+  head.addEventListener("pointerdown", e=>{
+    if (e.target.closest("#sheetClose")) return;   // ✕は素直にボタンのまま
+    head.setPointerCapture(e.pointerId);
+    sy.stop();                                     // いま出ている値のまま止める
+    grabbedAt = e.clientY - sy.value;              // 掴んだ位置のズレを保つ
+    dragging = true;
+    track.clear(); track.push(e.clientX, e.clientY);
+  });
+
+  head.addEventListener("pointermove", e=>{
+    if (!dragging) return;
+    track.push(e.clientX, e.clientY);
+    let v = e.clientY - grabbedAt;
+    if (v < 0) v = -HM.rubberband(-v, sheetH);     // 上へは引っぱるほど重くする
+    sy.set(v);
+  });
+
+  function release(e){
+    if (!dragging) return;
+    dragging = false;
+    const vy = track.vy();                          // 離した瞬間の速度 px/s
+    const landing = sy.value + HM.project(vy);      // 勢いの行き先を予測して決める
+    const close = landing > sheetH * .5;
+    sy.to(close ? sheetH : 0, {
+      velocity: vy,                                 // 速度をそのまま引き継ぐ
+      damping: close ? 1 : .85, response: .3
+    });
+  }
+  head.addEventListener("pointerup", release);
+  head.addEventListener("pointercancel", release);
+})();
 secBtns.forEach(b=>{
   b.onclick = ()=> (openSec === b.dataset.sec) ? closeSheet() : showSec(b.dataset.sec);
 });
