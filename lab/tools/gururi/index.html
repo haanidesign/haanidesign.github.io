@@ -111,6 +111,7 @@ select{
 }
 /* レイヤーの ふやす・へらす は 幅を 決めておく（flex:1 だと 横に のびる） */
 #bLayAdd, #bLayDel{flex:none; width:44px; padding:0;}
+#bGuide{flex:none; width:96px;}
 .hide{display:none !important;}
 #toast{
   position:fixed; left:50%; bottom:6.5rem; transform:translate(-50%,240%);
@@ -160,6 +161,7 @@ input[type=file]{display:none;}
       <button data-tool="fill">ぬり</button>
       <button data-tool="pick">スポイト</button>
     </div>
+    <button class="btn btn-sm" id="bGuide">パース線</button>
   </div>
 
   <!-- レイヤー -->
@@ -188,7 +190,6 @@ input[type=file]{display:none;}
         <button data-look="0,-88">ました</button>
         <button data-look="180,0">うしろ</button>
       </div>
-      <button class="btn btn-sm" id="bGuide">パース線</button>
     </div>
     <div class="rowb">
       <label class="f">がかく<input type="range" id="fov" min="20" max="120" step="1" value="90"></label>
@@ -231,6 +232,7 @@ let pen = { color:'#1E1C14', size:6 };
 let layers = [];                   // {tex, visible, name}
 let active = 0;
 let inkDirty = false;
+let inRender = false;
 let undoStack = [], redoStack = []; // 焼く前の レイヤーの 控え {i, canvas}
 
 /* ---------------------------------------------------------------- シェーダ */
@@ -442,6 +444,7 @@ function drawView(){
   const c = $('view');
   fitCanvas(c);
   gl.viewport(0,0,c.width,c.height);
+  try {
   gl.useProgram(pView); bindQuad(pView);
   const aspect = c.width/c.height;
   paintLayers(c.width, c.height, aspect, (L) => {
@@ -452,6 +455,7 @@ function drawView(){
     gl.uniform1f(gl.getUniformLocation(pView,'fov'), view.fov*D2R);
     gl.uniform1f(gl.getUniformLocation(pView,'aspect'), aspect);
   });
+  } catch(e) { /* 絵が 出せなくても パース線は 出す */ }
   $('hYaw').textContent = 'よこ ' + Math.round(view.yaw);
   $('hPitch').textContent = 'たて ' + Math.round(view.pitch);
   $('hFov').textContent = 'がかく ' + Math.round(view.fov);
@@ -468,6 +472,8 @@ function renderTo(w, h, draw){
   out.width = w; out.height = h;
   out.getContext('2d').drawImage(c, 0, 0);
   c.width = ow; c.height = oh;
+  /* 大きさを 変えると 描画面は 空に なる。ここで 描き直さないと 画面が 黒く なる。 */
+  if(!inRender){ inRender = true; try { drawView(); } finally { inRender = false; } }
   return out;
 }
 
@@ -571,13 +577,15 @@ function pushUndo(){
   const L = layers[active];
   if(!L) return;
   undoStack.push({ i: active, canvas: layerToCanvas(L) });
-  if(undoStack.length > 6) undoStack.shift();
+  const keep = equiW >= 8192 ? 1 : 3;      // 端末の メモリを 使いすぎない ように
+  while(undoStack.length > keep) undoStack.shift();
   redoStack = [];
 }
 
 /* 手前の 紙に 描いた ものを、いまの 向きで レイヤーに 焼く */
 function stampInk(quiet){
   if(!inkDirty || !ready) return;
+  pushUndo();
   const k = $('ink');
   mergeInto(k, view.yaw, view.pitch, view.fov, k.width/k.height, 0.0, tool === 'erase');
   clearInk();
@@ -600,7 +608,6 @@ function bindPen(){
     if(tool === 'fill'){ pushUndo(); bucket(p[0], p[1]); e.preventDefault(); return; }
     if(tool !== 'pen' && tool !== 'erase') return;
     fitCanvas(k);
-    pushUndo();
     drawing = true; last = p;
     e.preventDefault();
   };
