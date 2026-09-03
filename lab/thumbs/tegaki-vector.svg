@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs>
+    <pattern id="d" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#d)"/>
+
+  <!-- 左：きっちりしたベクター線 -->
+  <g>
+    <rect x="34" y="58" width="232" height="286" rx="14" fill="#FFFEF7" stroke="#1E1C14" stroke-width="4"/>
+    <g fill="none" stroke="#1E1C14" stroke-width="4" stroke-linecap="round">
+      <path d="M78 300 C78 210 108 156 150 156 C192 156 222 210 222 300"/>
+      <circle cx="150" cy="118" r="36"/>
+      <path d="M112 232 H188"/>
+    </g>
+    <g fill="#B8B43F">
+      <circle cx="78" cy="300" r="6"/><circle cx="222" cy="300" r="6"/>
+      <circle cx="150" cy="156" r="6"/><circle cx="150" cy="82" r="6"/>
+    </g>
+  </g>
+
+  <!-- 矢印 -->
+  <g transform="translate(300,200)">
+    <circle r="30" fill="#E1DD60" stroke="#1E1C14" stroke-width="4"/>
+    <path d="M-12 0 H10 M2 -9 L12 0 L2 9" fill="none" stroke="#1E1C14" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- 右：手書き風になった線 -->
+  <g>
+    <rect x="334" y="58" width="232" height="286" rx="14" fill="#FFFEF7" stroke="#1E1C14" stroke-width="4"/>
+    <g fill="none" stroke="#1E1C14" stroke-width="4.5" stroke-linecap="round">
+      <path d="M375 304 C372 214 407 152 449 158 C493 164 521 214 523 302"/>
+      <path d="M486 116 C486 137 470 155 450 155 C429 154 413 136 414 116 C415 96 431 80 451 81 C471 82 487 97 486 118"/>
+      <path d="M411 231 C440 227 462 234 490 229"/>
+    </g>
+  </g>
+
+  <g font-family="'M PLUS Rounded 1c','Noto Sans JP',sans-serif" font-weight="800" text-anchor="middle">
+    <text x="150" y="378" font-size="22" fill="#8A8470">きっちり</text>
+    <text x="450" y="378" font-size="22" fill="#1E1C14">手書き風</text>
+  </g>
+</svg>
