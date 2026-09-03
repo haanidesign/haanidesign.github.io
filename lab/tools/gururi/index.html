@@ -113,6 +113,26 @@ select{
 #bLayAdd, #bLayDel, #bLayUp, #bLayDown{flex:none; width:42px; padding:0;}
 #bUndo, #bRedo{width:42px; padding:0; font-size:1rem;}
 #bGuide{flex:none; width:96px;}
+#preview{
+  position:fixed; inset:0; z-index:20; background:rgba(30,28,20,.55);
+  display:flex; align-items:center; justify-content:center; padding:1rem;
+}
+#preview.hide{display:none;}
+.pv-card{
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink); padding:.6rem; width:min(96vw, 1400px);
+  max-height:92vh; display:flex; flex-direction:column; gap:.4rem;
+}
+.pv-head{display:flex; align-items:center; gap:.4rem;}
+.pv-head .grow{flex:1;}
+.pv-body{
+  flex:1; min-height:0; overflow:auto; border:2px solid var(--ink); border-radius:9px;
+  background:
+    linear-gradient(45deg,#eee 25%,transparent 25%,transparent 75%,#eee 75%),
+    linear-gradient(45deg,#eee 25%,#fff 25%,#fff 75%,#eee 75%);
+  background-size:20px 20px; background-position:0 0,10px 10px;
+}
+.pv-body canvas{display:block; width:100%; height:auto;}
 #layPanel{
   position:absolute; right:.5rem; top:2.6rem; z-index:6; width:210px;
   background:var(--paper); border:var(--bd); border-radius:var(--r);
@@ -161,6 +181,7 @@ input[type=file]{display:none;}
   <button class="btn btn-sm" id="bRedo" title="やり直す">↷</button>
   <button class="btn btn-sm" id="bNew">しんき</button>
   <button class="btn btn-sm" id="bOpen">ひらく</button>
+  <button class="btn btn-sm" id="bPrev">ぜんぶ見る</button>
   <button class="btn btn-sm" id="bLoad">つづき</button>
   <button class="btn btn-sm btn-g" id="bSave">保存</button>
 </header>
@@ -261,6 +282,23 @@ input[type=file]{display:none;}
   <div class="hint" id="tip">
     <b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>
     描いている ときも 2本ゆびで 寄れます。赤いのが 地平線です。
+  </div>
+</div>
+
+<div id="preview" class="hide">
+  <div class="pv-card">
+    <div class="pv-head">
+      <b>360° ぜんぶ</b>
+      <span id="pvSize" class="chip"></span>
+      <span class="grow"></span>
+      <button class="btn btn-sm" id="pvSave">PNGで 保存</button>
+      <button class="btn btn-sm btn-g" id="pvClose">とじる</button>
+    </div>
+    <div class="pv-body"><canvas id="pvCanvas"></canvas></div>
+    <div class="hint">
+      よこは ぐるり 一周、たては 真上から 真下まで。<br>
+      はしと はしが つながって います。上下が のびて 見えるのは 正しい すがたです。
+    </div>
   </div>
 </div>
 
@@ -466,6 +504,20 @@ function project(d, W, H, B){
 function dirOf(lonDeg, latDeg){
   const lo = lonDeg*D2R, la = latDeg*D2R;
   return [Math.cos(la)*Math.sin(lo), Math.sin(la), Math.cos(la)*Math.cos(lo)];
+}
+
+/* ---------------------------------------------------------------- ぜんぶ見る */
+
+/* 正距円筒の まま 1枚で 見る。よこが 一周、たてが 真上から 真下。 */
+function openPreview(){
+  if(!ready) return toast('さきに 白紙を つくって ください', true);
+  stampInk(true);
+  const flat = flatten();
+  const pv = $('pvCanvas');
+  pv.width = flat.width; pv.height = flat.height;
+  pv.getContext('2d').drawImage(flat, 0, 0);
+  $('pvSize').textContent = flat.width + '×' + flat.height;
+  $('preview').classList.remove('hide');
 }
 
 /* ---------------------------------------------------------------- 色えらび */
@@ -1484,6 +1536,14 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
   $('pBake').onclick = bakePeople;
 
   loadPeople();
+
+  $('bPrev').onclick = openPreview;
+  $('pvClose').onclick = () => $('preview').classList.add('hide');
+  $('preview').onclick = (e) => { if(e.target === $('preview')) $('preview').classList.add('hide'); };
+  $('pvSave').onclick = () => {
+    download($('pvCanvas'), 'panorama_' + equiW + 'x' + equiH + '.png');
+    toast('保存しました');
+  };
 
   $('bCut').onclick = doCut;
   $('bBack').onclick = () => $('fFlat').click();
