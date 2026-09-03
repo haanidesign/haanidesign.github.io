@@ -155,6 +155,17 @@ const TOOLS = [
     thumb: "thumbs/gururi.svg",
     url: "tools/gururi/index.html",
     status: "live"
+  },
+  {
+    no: 15,
+    slug: "tegaki-vector",
+    title: "手書き風ベクター",
+    desc: "きれいすぎる線画を、手で描いたような線に直す台。PSDを渡すとレイヤーごとに読み、ベクターパスのレイヤーはそのまま、絵のレイヤーは中心線を拾ってベクターに起こす。ゆらぎ・入り抜き・太さのムラ・はみ出しを付けて、SVGのまま書き出せる。ゆらぎ違いを複数枚出せば、そのままボイル（ふるえる止め絵）になる。",
+    tags: ["PSD", "SVG", "ベクター", "線画", "手描き風", "ボイル"],
+    cat: "anime",
+    thumb: "thumbs/tegaki-vector.svg",
+    url: "tools/tegaki-vector/index.html",
+    status: "live"
   }
 ];
 

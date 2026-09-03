@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>手書き風ベクター｜HAANI LAB</title>
+<meta name="description" content="PSDやSVGの線画を読み込んで、アニメ工房でいう手書き風の線に変換する道具。ベクター(SVG)のまま書き出せます。">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<script src="lib/ag-psd.js"></script>
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470;
+  --bd:2.5px solid var(--ink); --r:12px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--ink); font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif; font-weight:700;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px; line-height:1.8;
+}
+a{color:inherit}
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+  background:var(--paper); color:var(--ink); border:var(--bd); border-radius:var(--r);
+  padding:.5rem 1rem; font:inherit; font-weight:700; font-size:.78rem;
+  box-shadow:0 3px 0 var(--ink); cursor:pointer; text-decoration:none;
+  transition:transform .08s, box-shadow .08s;
+}
+.btn:hover{transform:translateY(-2px); box-shadow:0 5px 0 var(--ink)}
+.btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink)}
+.btn:disabled{opacity:.45; cursor:not-allowed; transform:none; box-shadow:0 3px 0 var(--ink)}
+.btn-y{background:var(--main)} .btn-g{background:var(--ink); color:var(--main)}
+.btn-sm{padding:.34rem .75rem; font-size:.7rem; box-shadow:0 2px 0 var(--ink)}
+.app{max-width:1340px; margin:1rem auto; border:var(--bd); border-radius:18px; background:var(--paper);
+  box-shadow:0 6px 0 var(--ink); overflow:hidden}
+.titlebar{background:var(--main); border-bottom:var(--bd); padding:.7rem .9rem;
+  display:flex; align-items:center; gap:.7rem; flex-wrap:wrap}
+.tb-title{font-size:1rem; font-weight:800; letter-spacing:.06em}
+.tb-spec{font-size:.62rem; background:var(--paper); border:2px solid var(--ink); border-radius:999px; padding:.1rem .6rem}
+.tb-actions{margin-left:auto; display:flex; gap:.5rem; flex-wrap:wrap}
+.app-body{padding:1rem; display:grid; grid-template-columns:320px 1fr; gap:1rem; align-items:start}
+
+/* ---- 左：操作盤 ---- */
+.panel{display:flex; flex-direction:column; gap:.8rem}
+.box{background:var(--main-soft); border:var(--bd); border-radius:var(--r); box-shadow:0 3px 0 var(--ink); padding:.75rem .8rem}
+.box h3{margin:0 0 .5rem; font-size:.76rem; letter-spacing:.08em}
+#drop{
+  border:2.5px dashed var(--ink); border-radius:var(--r); background:var(--paper);
+  padding:1.1rem .8rem; text-align:center; font-size:.76rem; cursor:pointer;
+}
+#drop.on{background:var(--main)}
+#fileInfo{margin-top:.4rem; font-size:.66rem; color:var(--gray); word-break:break-all; font-weight:500}
+.row{display:flex; align-items:center; gap:.5rem; margin:.35rem 0; font-size:.7rem}
+.row label{flex:0 0 7.4em; letter-spacing:.02em}
+.row input[type=range]{flex:1; min-width:0; accent-color:var(--main-deep)}
+.row output{flex:0 0 3.2em; text-align:right; font-size:.68rem; color:#5c5847}
+.row select, .row input[type=number], .row input[type=text]{
+  flex:1; min-width:0; font:inherit; font-size:.7rem; font-weight:700; color:var(--ink);
+  background:var(--paper); border:2px solid var(--ink); border-radius:8px; padding:.25rem .45rem;
+}
+.row input[type=color]{width:34px; height:24px; padding:0; border:2px solid var(--ink); border-radius:6px; background:none}
+.chk{display:flex; align-items:center; gap:.4rem; font-size:.7rem; margin:.3rem 0}
+.chk input{width:15px; height:15px; accent-color:var(--main-deep)}
+.presets{display:flex; flex-wrap:wrap; gap:.35rem}
+.note{font-size:.63rem; font-weight:500; color:var(--gray); line-height:1.7; margin:.4rem 0 0}
+
+/* ---- 右：ビュー ---- */
+.view{border:var(--bd); border-radius:var(--r); box-shadow:0 3px 0 var(--ink); overflow:hidden; background:var(--paper)}
+.viewbar{background:var(--main); border-bottom:var(--bd); padding:.4rem .6rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; font-size:.68rem}
+.viewbar .sp{margin-left:auto}
+#stage{
+  height:min(72vh,760px); overflow:auto; display:flex; align-items:center; justify-content:center;
+  background:#fff; background-image:linear-gradient(45deg,#eee 25%,transparent 25%,transparent 75%,#eee 75%),
+    linear-gradient(45deg,#eee 25%,transparent 25%,transparent 75%,#eee 75%);
+  background-size:18px 18px; background-position:0 0,9px 9px;
+}
+#stage.dark{background:#20242c; background-image:none}
+#stage svg{max-width:100%; height:auto}
+#stage img{max-width:100%; height:auto; image-rendering:auto}
+#log{font-size:.66rem; font-weight:500; color:#5c5847; padding:.4rem .7rem; border-top:var(--bd); background:var(--main-soft); min-height:2.2em}
+.foot{max-width:1340px; margin:0 auto 2.4rem; padding:1rem; display:flex; gap:.8rem; justify-content:center; flex-wrap:wrap; font-size:.68rem; color:var(--gray)}
+@media (max-width:900px){ .app-body{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="titlebar">
+    <div class="tb-title">手書き風ベクター</div>
+    <span class="tb-spec">PSD / SVG → 手書き風SVG</span>
+    <div class="tb-actions">
+      <a href="../../" class="btn btn-sm">← LAB</a>
+      <a href="../../../" class="btn btn-sm btn-g">工房トップ</a>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- ============ 操作盤 ============ -->
+    <div class="panel">
+      <div class="box">
+        <h3>1. 線画をよみこむ</h3>
+        <div id="drop">
+          クリック、または<br>PSD / SVG / PNG をドロップ
+          <div id="fileInfo">未読込</div>
+        </div>
+        <input type="file" id="file" accept=".psd,.svg,.png,.jpg,.jpeg,.webp" hidden>
+        <p class="note">PSDはレイヤーごとに読みます。ベクターマスク（パス）を持つレイヤーはそのままベクターとして使い、絵で描かれたレイヤーは中心線を拾ってベクターに起こします。</p>
+      </div>
+
+      <div class="box">
+        <h3>2. 手のクセ</h3>
+        <div class="presets">
+          <button class="btn btn-sm btn-y" data-preset="clean">きれいめ</button>
+          <button class="btn btn-sm" data-preset="anime">アニメ塗り線</button>
+          <button class="btn btn-sm" data-preset="rough">ラフ</button>
+          <button class="btn btn-sm" data-preset="brush">筆ペン</button>
+        </div>
+        <div class="row"><label>ゆらぎ</label><input type="range" id="amp" min="0" max="12" step="0.1" value="1.8"><output id="ampO"></output></div>
+        <div class="row"><label>ゆらぎの細かさ</label><input type="range" id="freq" min="0.5" max="14" step="0.1" value="4"><output id="freqO"></output></div>
+        <div class="row"><label>線の太さ</label><input type="range" id="w" min="0.4" max="14" step="0.1" value="2.6"><output id="wO"></output></div>
+        <div class="row"><label>入り抜き</label><input type="range" id="taper" min="0" max="1" step="0.01" value="0.45"><output id="taperO"></output></div>
+        <div class="row"><label>太さのムラ</label><input type="range" id="wj" min="0" max="1" step="0.01" value="0.35"><output id="wjO"></output></div>
+        <div class="row"><label>はみ出し</label><input type="range" id="over" min="0" max="24" step="0.5" value="3"><output id="overO"></output></div>
+        <div class="row"><label>にじり書き</label><input type="range" id="passes" min="1" max="3" step="1" value="1"><output id="passesO"></output></div>
+        <div class="row"><label>線のかんたん化</label><input type="range" id="simp" min="0.3" max="6" step="0.1" value="1.4"><output id="simpO"></output></div>
+        <div class="row"><label>タネ</label><input type="number" id="seed" value="1" min="0" step="1"><button class="btn btn-sm" id="reseed">ふりなおす</button></div>
+      </div>
+
+      <div class="box">
+        <h3>3. 拾いかた（絵レイヤー）</h3>
+        <div class="row"><label>線のしきい値</label><input type="range" id="th" min="0.05" max="0.95" step="0.01" value="0.55"><output id="thO"></output></div>
+        <div class="row"><label>最短の線</label><input type="range" id="minLen" min="2" max="60" step="1" value="8"><output id="minLenO"></output></div>
+        <div class="row"><label>解析の細かさ</label>
+          <select id="res">
+            <option value="900">あらい（速い）</option>
+            <option value="1400" selected>ふつう</option>
+            <option value="2200">こまかい（重い）</option>
+          </select>
+        </div>
+        <div class="chk"><input type="checkbox" id="useVec" checked><label for="useVec">PSDのベクターパスを優先して使う</label></div>
+      </div>
+
+      <div class="box">
+        <h3>4. 色と書き出し</h3>
+        <div class="row"><label>線の色</label>
+          <select id="colMode"><option value="src">元の色のまま</option><option value="fix">指定の色</option></select>
+          <input type="color" id="col" value="#1E1C14">
+        </div>
+        <div class="row"><label>ボイル枚数</label><input type="range" id="frames" min="1" max="6" step="1" value="1"><output id="framesO"></output></div>
+        <p class="note">ボイルは、同じ絵をゆらぎ違いで複数枚出す機能です。3枚出してループさせると、止め絵がふるえる、あの感じになります。</p>
+        <div class="presets" style="margin-top:.5rem">
+          <button class="btn btn-sm btn-y" id="dlSvg" disabled>SVGで保存</button>
+          <button class="btn btn-sm" id="dlPng" disabled>PNGで保存</button>
+          <button class="btn btn-sm" id="copySvg" disabled>SVGをコピー</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ビュー ============ -->
+    <div class="view">
+      <div class="viewbar">
+        <button class="btn btn-sm btn-y" id="run" disabled>変換する</button>
+        <button class="btn btn-sm" id="tgl">元の絵とくらべる</button>
+        <span class="sp"></span>
+        <label class="chk" style="margin:0"><input type="checkbox" id="dark"> 暗い背景</label>
+        <span id="cnt"></span>
+      </div>
+      <div id="stage"><div style="color:#8A8470; font-size:.8rem; padding:3rem">ここに結果が出ます</div></div>
+      <div id="log">PSD・SVG・PNGのどれでも読み込めます。書き出しはベクター（SVG）のままです。</div>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  <span>© 2026 はぁにデザイン工房</span>
+  <a href="../../" class="btn btn-sm">HAANI LAB</a>
+</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const log = m => { $("log").textContent = m; };
+
+/* =========================================================
+   乱数とノイズ（同じタネなら毎回同じ線になる）
+   ========================================================= */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function makeNoise(seed){
+  const rnd = mulberry32(seed>>>0), N = 512, tab = new Float32Array(N);
+  for(let i=0;i<N;i++) tab[i] = rnd()*2-1;
+  return t => {                       // なめらかな1次元ノイズ（-1〜1）
+    const i = Math.floor(t), f = t-i, a = tab[((i%N)+N)%N], b = tab[(((i+1)%N)+N)%N];
+    const s = f*f*(3-2*f);
+    return a+(b-a)*s;
+  };
+}
+
+/* =========================================================
+   ストローク＝ {pts:[{x,y}], color, closed}
+   読み込みは全部これに変換してから手書き化する
+   ========================================================= */
+let SRC = { strokes: [], w: 0, h: 0, name: "linework", preview: null };
+let OUT_SVGS = [];
+
+/* ---------- 幾何の下ごしらえ ---------- */
+function resample(pts, step){
+  if(pts.length<2) return pts.slice();
+  const out=[pts[0]]; let acc=0;
+  for(let i=1;i<pts.length;i++){
+    let p=pts[i-1], q=pts[i];
+    let d=Math.hypot(q.x-p.x,q.y-p.y);
+    while(acc+d>=step){
+      const t=(step-acc)/d;
+      const n={x:p.x+(q.x-p.x)*t, y:p.y+(q.y-p.y)*t};
+      out.push(n); p=n; d=Math.hypot(q.x-p.x,q.y-p.y); acc=0;
+    }
+    acc+=d;
+  }
+  const last=pts[pts.length-1];
+  if(Math.hypot(last.x-out[out.length-1].x,last.y-out[out.length-1].y)>step*0.35) out.push(last);
+  return out;
+}
+function rdp(pts, eps){
+  if(pts.length<3) return pts.slice();
+  const keep = new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const stack=[[0,pts.length-1]];
+  while(stack.length){
+    const [a,b]=stack.pop(); const A=pts[a],B=pts[b];
+    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy)||1e-6;
+    let best=-1, bi=-1;
+    for(let i=a+1;i<b;i++){
+      const d=Math.abs((pts[i].x-A.x)*dy-(pts[i].y-A.y)*dx)/len;
+      if(d>best){best=d;bi=i;}
+    }
+    if(best>eps && bi>0){ keep[bi]=1; stack.push([a,bi],[bi,b]); }
+  }
+  const out=[]; for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
+  return out;
+}
+function smooth(pts, times){
+  let p = pts;
+  for(let t=0;t<times;t++){
+    const q = p.slice();
+    for(let i=1;i<p.length-1;i++){
+      q[i] = {x:(p[i-1].x+p[i].x*2+p[i+1].x)/4, y:(p[i-1].y+p[i].y*2+p[i+1].y)/4};
+    }
+    p = q;
+  }
+  return p;
+}
+
+/* =========================================================
+   ラスター → 中心線ベクター
+   ========================================================= */
+function traceRaster(canvas, opt){
+  const w=canvas.width, h=canvas.height;
+  const im = canvas.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  const m = new Uint8Array(w*h);
+  const th = opt.threshold*255;
+  for(let i=0,p=0;i<m.length;i++,p+=4){
+    const a=im[p+3];
+    if(a<40){ continue; }
+    // 白地に重ねたときの明るさで判定（透過線画でも白地線画でも同じように拾える）
+    const l = (im[p]*0.299+im[p+1]*0.587+im[p+2]*0.114);
+    const over = 255 - a*(255-l)/255;
+    if(over < th) m[i]=1;
+  }
+  thinZS(m,w,h);
+  return skeletonToPolylines(m,w,h,opt.minLen);
+}
+
+/* Zhang–Suen 細線化：線を1pxの芯にする */
+function thinZS(m,w,h){
+  let changed=true, guard=0;
+  const del=[];
+  while(changed && guard++<60){
+    changed=false;
+    for(let step=0;step<2;step++){
+      del.length=0;
+      for(let y=1;y<h-1;y++){
+        for(let x=1;x<w-1;x++){
+          const i=y*w+x; if(!m[i])continue;
+          const p2=m[i-w],p3=m[i-w+1],p4=m[i+1],p5=m[i+w+1],p6=m[i+w],p7=m[i+w-1],p8=m[i-1],p9=m[i-w-1];
+          const B=p2+p3+p4+p5+p6+p7+p8+p9;
+          if(B<2||B>6)continue;
+          const s=[p2,p3,p4,p5,p6,p7,p8,p9,p2];
+          let A=0; for(let k=0;k<8;k++) if(s[k]===0&&s[k+1]===1)A++;
+          if(A!==1)continue;
+          if(step===0){ if(p2&&p4&&p6)continue; if(p4&&p6&&p8)continue; }
+          else       { if(p2&&p4&&p8)continue; if(p2&&p6&&p8)continue; }
+          del.push(i);
+        }
+      }
+      if(del.length){ changed=true; for(const i of del) m[i]=0; }
+    }
+  }
+}
+
+/* 芯の画像を、線の連なり（ポリライン）に変換 */
+function skeletonToPolylines(m,w,h,minLen){
+  const off=[-w-1,-w,-w+1,-1,1,w-1,w,w+1];
+  const nbs = i => {
+    const x=i%w, y=(i-x)/w, r=[];
+    if(x<1||y<1||x>w-2||y>h-2) return r;
+    const N=m[i-w],S=m[i+w],E=m[i+1],W=m[i-1];
+    for(const o of off){
+      const j=i+o; if(!m[j])continue;
+      // ナナメは、となりのタテヨコが埋まっているなら重複なので数えない
+      if(o===-w-1 && (N||W)) continue;
+      if(o===-w+1 && (N||E)) continue;
+      if(o=== w-1 && (S||W)) continue;
+      if(o=== w+1 && (S||E)) continue;
+      r.push(j);
+    }
+    return r;
+  };
+  const used = new Set(), key=(a,b)=> a<b? a+"_"+b : b+"_"+a;
+  const lines=[];
+  const walk = (start,next) => {
+    const pts=[start]; let prev=start, cur=next;
+    used.add(key(prev,cur));
+    for(let guard=0; guard<200000; guard++){
+      pts.push(cur);
+      const nn = nbs(cur).filter(j=>j!==prev);
+      if(nn.length!==1) break;                 // 端点か分岐で止める
+      const nx=nn[0], k=key(cur,nx);
+      if(used.has(k)) break;
+      used.add(k); prev=cur; cur=nx;
+    }
+    return pts;
+  };
+  const push = pts => {
+    if(pts.length<2) return;
+    const poly = pts.map(i=>({x:i%w+0.5, y:Math.floor(i/w)+0.5}));
+    let L=0; for(let i=1;i<poly.length;i++) L+=Math.hypot(poly[i].x-poly[i-1].x, poly[i].y-poly[i-1].y);
+    if(L<minLen) return;
+    lines.push(poly);
+  };
+  // 端点・分岐から
+  for(let i=0;i<m.length;i++){
+    if(!m[i])continue;
+    const n=nbs(i);
+    if(n.length===2)continue;
+    for(const j of n){ if(!used.has(key(i,j))) push(walk(i,j)); }
+  }
+  // 残った輪（閉じた線）
+  for(let i=0;i<m.length;i++){
+    if(!m[i])continue;
+    const n=nbs(i);
+    for(const j of n){ if(!used.has(key(i,j))) push(walk(i,j)); }
+  }
+  return lines;
+}
+
+/* レイヤーの代表色（濃い所の平均）を拾う */
+function inkColor(canvas){
+  const w=canvas.width,h=canvas.height;
+  const d=canvas.getContext("2d",{willReadFrequently:true}).getImageData(0,0,w,h).data;
+  let r=0,g=0,b=0,n=0;
+  const stepPx = Math.max(1, Math.floor((w*h)/40000));
+  for(let i=0;i<w*h;i+=stepPx){
+    const p=i*4; if(d[p+3]<128)continue;
+    const l=d[p]*0.299+d[p+1]*0.587+d[p+2]*0.114;
+    if(l>200)continue;
+    r+=d[p];g+=d[p+1];b+=d[p+2];n++;
+  }
+  if(!n) return "#1E1C14";
+  const hex=v=>Math.round(v/n).toString(16).padStart(2,"0");
+  return "#"+hex(r)+hex(g)+hex(b);
+}
+
+/* =========================================================
+   読み込み：PSD
+   ========================================================= */
+function flattenLayers(node, out){
+  for(const c of (node.children||[])){
+    if(c.hidden) continue;
+    if(c.children && c.children.length) flattenLayers(c, out);
+    else out.push(c);
+  }
+}
+async function loadPSD(buf, name){
+  const psd = agPsd.readPsd(buf, {skipThumbnail:true});
+  const W=psd.width, H=psd.height;
+  const layers=[]; flattenLayers(psd, layers);
+  const strokes=[];
+  const scale = Math.min(1, (+$("res").value)/Math.max(W,H));
+  const opt = { threshold:+$("th").value, minLen:+$("minLen").value/Math.max(scale,0.001) };
+  let vecCount=0, rasCount=0;
+
+  for(const L of layers.slice(0,24)){
+    // ベクターマスク（シェイプ）を持つレイヤーは、そのままパスとして使う
+    const vm = L.vectorMask;
+    if($("useVec").checked && vm && vm.paths && vm.paths.length){
+      const col = (L.vectorStroke && L.vectorStroke.strokeStyleContent && cssOf(L.vectorStroke.strokeStyleContent.color)) || "#1E1C14";
+      for(const p of vm.paths){
+        const pts = knotsToPoints(p, W, H);
+        if(pts.length>1){ strokes.push({pts, color:col, closed:!p.open}); vecCount++; }
+      }
+      continue;
+    }
+    const cv = L.canvas;
+    if(!cv || !cv.width || !cv.height) continue;
+    // レイヤーを原寸位置に置きなおしてから、縮小して解析する
+    const tw=Math.max(1,Math.round(W*scale)), thh=Math.max(1,Math.round(H*scale));
+    const work=document.createElement("canvas"); work.width=tw; work.height=thh;
+    const g=work.getContext("2d",{willReadFrequently:true});
+    g.drawImage(cv, (L.left||0)*scale, (L.top||0)*scale, cv.width*scale, cv.height*scale);
+    const color = inkColor(work);
+    const polys = traceRaster(work, {threshold:opt.threshold, minLen:+$("minLen").value});
+    for(const pl of polys){ strokes.push({pts: pl.map(p=>({x:p.x/scale, y:p.y/scale})), color, closed:false}); rasCount++; }
+  }
+  SRC = { strokes, w:W, h:H, name:name.replace(/\.psd$/i,""), preview: psd.canvas ? psd.canvas.toDataURL() : null };
+  log(`PSD ${W}×${H} / レイヤー${layers.length} → ベクターパス${vecCount}本・トレース${rasCount}本`);
+}
+function cssOf(c){
+  if(!c) return "#1E1C14";
+  const h=v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,"0");
+  if("r" in c) return "#"+h(c.r)+h(c.g)+h(c.b);
+  return "#1E1C14";
+}
+/* ベクターマスクのベジェ節点をサンプリングして点列にする */
+function knotsToPoints(path, W, H){
+  const k = path.knots||[]; if(k.length<2) return [];
+  const P = k.map(n=>{
+    const a=n.points; // [inY,inX, y,x, outY,outX] の順（ag-psd）
+    const sc = v => v; // ag-psd は既にドキュメント座標へ直してくれる
+    return { in:{x:sc(a[1]),y:sc(a[0])}, p:{x:sc(a[3]),y:sc(a[2])}, out:{x:sc(a[5]),y:sc(a[4])} };
+  });
+  // 0〜1 の正規化値で来た場合に備えて、実寸へ直す
+  let mx=0; for(const q of P) mx=Math.max(mx,Math.abs(q.p.x),Math.abs(q.p.y));
+  const f = mx<=1.5 ? {x:W,y:H} : {x:1,y:1};
+  const pts=[];
+  const seg=(a,b)=>{
+    const n=Math.max(6, Math.round(Math.hypot((b.p.x-a.p.x)*f.x,(b.p.y-a.p.y)*f.y)/4));
+    for(let i=0;i<=n;i++){
+      const t=i/n, u=1-t;
+      const x=u*u*u*a.p.x*f.x + 3*u*u*t*a.out.x*f.x + 3*u*t*t*b.in.x*f.x + t*t*t*b.p.x*f.x;
+      const y=u*u*u*a.p.y*f.y + 3*u*u*t*a.out.y*f.y + 3*u*t*t*b.in.y*f.y + t*t*t*b.p.y*f.y;
+      if(i||!pts.length) pts.push({x,y});
+    }
+  };
+  for(let i=0;i<P.length-1;i++) seg(P[i],P[i+1]);
+  if(!path.open) seg(P[P.length-1],P[0]);
+  return pts;
+}
+
+/* =========================================================
+   読み込み：SVG（ベクターのまま拾う）
+   ========================================================= */
+function loadSVG(text, name){
+  const holder=document.createElement("div");
+  holder.style.cssText="position:fixed;left:-99999px;top:0;opacity:0";
+  holder.innerHTML=text; document.body.appendChild(holder);
+  const svg=holder.querySelector("svg");
+  if(!svg){ holder.remove(); throw new Error("SVGが読めません"); }
+  let W=parseFloat(svg.getAttribute("width"))||0, H=parseFloat(svg.getAttribute("height"))||0;
+  const vb=(svg.getAttribute("viewBox")||"").trim().split(/[ ,]+/).map(Number);
+  if(vb.length===4){ if(!W)W=vb[2]; if(!H)H=vb[3]; }
+  if(!W||!H){ W=W||1000; H=H||1000; }
+  svg.setAttribute("width",W); svg.setAttribute("height",H);
+
+  const sel="path,line,polyline,polygon,circle,ellipse,rect";
+  const strokes=[];
+  const root=svg.getScreenCTM();
+  for(const el of svg.querySelectorAll(sel)){
+    let len=0; try{ len=el.getTotalLength(); }catch(e){ continue; }
+    if(!isFinite(len)||len<1) continue;
+    const cs=getComputedStyle(el);
+    let col=cs.stroke && cs.stroke!=="none" ? cs.stroke : (cs.fill && cs.fill!=="none" ? cs.fill : "#1E1C14");
+    const m=el.getScreenCTM(); const inv=root? root.inverse() : null;
+    const step=Math.max(1, len/Math.max(24, Math.min(1200, len/2)));
+    const pts=[];
+    for(let d=0; d<=len; d+=step){
+      let p=el.getPointAtLength(Math.min(d,len));
+      if(m&&inv){ p=p.matrixTransform(m).matrixTransform(inv); }
+      pts.push({x:p.x, y:p.y});
+    }
+    if(pts.length>1) strokes.push({pts, color:col, closed:false});
+  }
+  const preview="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg.outerHTML);
+  holder.remove();
+  SRC={ strokes, w:W, h:H, name:name.replace(/\.svg$/i,""), preview };
+  log(`SVG ${Math.round(W)}×${Math.round(H)} / パス${strokes.length}本をそのまま読み込みました`);
+}
+
+/* =========================================================
+   読み込み：PNG / JPG
+   ========================================================= */
+async function loadImage(file){
+  const url=URL.createObjectURL(file);
+  const img=await new Promise((ok,ng)=>{const i=new Image(); i.onload=()=>ok(i); i.onerror=ng; i.src=url;});
+  const W=img.naturalWidth, H=img.naturalHeight;
+  const scale=Math.min(1,(+$("res").value)/Math.max(W,H));
+  const cv=document.createElement("canvas"); cv.width=Math.round(W*scale); cv.height=Math.round(H*scale);
+  cv.getContext("2d",{willReadFrequently:true}).drawImage(img,0,0,cv.width,cv.height);
+  const color=inkColor(cv);
+  const polys=traceRaster(cv,{threshold:+$("th").value, minLen:+$("minLen").value});
+  SRC={ strokes: polys.map(pl=>({pts:pl.map(p=>({x:p.x/scale,y:p.y/scale})), color, closed:false})),
+        w:W, h:H, name:file.name.replace(/\.[a-z]+$/i,""), preview:url };
+  log(`画像 ${W}×${H} → ${polys.length}本の線を拾いました`);
+}
+
+/* =========================================================
+   手書き化：点列 → 幅つきアウトライン
+   ========================================================= */
+function handDraw(stroke, P, noise, rnd, passIdx){
+  const step = Math.max(1.2, P.simp*1.6);
+  let pts = resample(stroke.pts, step);
+  pts = rdp(pts, P.simp);
+  pts = resample(pts, step);
+  pts = smooth(pts, 1);
+  if(pts.length<2) return null;
+
+  // 全体をほんの少しだけ、ずらす／かたむける（人の手のブレ）
+  let cx=0, cy=0; for(const p of pts){cx+=p.x;cy+=p.y;} cx/=pts.length; cy/=pts.length;
+  const rot=(rnd()-0.5)*0.008*P.amp, ox=(rnd()-0.5)*P.amp*0.7+passIdx*(rnd()-0.5)*P.amp,
+        oy=(rnd()-0.5)*P.amp*0.7+passIdx*(rnd()-0.5)*P.amp;
+  const ph = rnd()*400;
+
+  const N=pts.length, out=new Array(N);
+  for(let i=0;i<N;i++){
+    const a=pts[Math.max(0,i-1)], b=pts[Math.min(N-1,i+1)];
+    let tx=b.x-a.x, ty=b.y-a.y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+    const nx=-ty, ny=tx;
+    const t=i/(N-1);
+    const n1=noise(ph + t*N*step/40*P.freq);          // 細かいふるえ
+    const n2=noise(ph*0.37 + t*N*step/220*P.freq);    // 大きなうねり
+    const d=(n1*0.55+n2*0.85)*P.amp;
+    let x=pts[i].x+nx*d, y=pts[i].y+ny*d;
+    const dx=x-cx, dy=y-cy;
+    out[i]={ x: cx+dx*Math.cos(rot)-dy*Math.sin(rot)+ox,
+             y: cy+dx*Math.sin(rot)+dy*Math.cos(rot)+oy, tx, ty };
+  }
+  // 端をちょっと行き過ぎさせる（勢い）
+  if(P.over>0 && !stroke.closed){
+    const o1=P.over*(0.4+rnd()*0.6), o2=P.over*(0.4+rnd()*0.6);
+    const s=out[0], e=out[N-1];
+    out.unshift({x:s.x-s.tx*o1, y:s.y-s.ty*o1, tx:s.tx, ty:s.ty});
+    out.push({x:e.x+e.tx*o2, y:e.y+e.ty*o2, tx:e.tx, ty:e.ty});
+  }
+  return outlinePath(out, P, noise, ph);
+}
+
+/* 幅のプロファイルを作って、左右のふちで閉じた図形にする（＝真のベクター） */
+function outlinePath(pts, P, noise, ph){
+  const M=pts.length, half=new Float64Array(M);
+  for(let i=0;i<M;i++){
+    const t=i/(M-1);
+    // 入り抜き：両端を細く
+    const e=Math.min(1, Math.pow(Math.min(t,1-t)/Math.max(0.001,P.taper*0.5), 0.65));
+    const taper=1-P.taper+P.taper*e;
+    const wob=1+noise(ph*0.11 + t*20*Math.max(0.4,P.freq*0.35))*P.wj*0.6;
+    half[i]=Math.max(0.06, P.w*0.5*taper*wob);
+  }
+  const L=[],R=[];
+  for(let i=0;i<M;i++){
+    const a=pts[Math.max(0,i-1)], b=pts[Math.min(M-1,i+1)];
+    let tx=b.x-a.x, ty=b.y-a.y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+    const nx=-ty, ny=tx;
+    L.push({x:pts[i].x+nx*half[i], y:pts[i].y+ny*half[i]});
+    R.push({x:pts[i].x-nx*half[i], y:pts[i].y-ny*half[i]});
+  }
+  R.reverse();
+  return curveTo(L)+" "+curveSeg(R)+" Z";
+}
+/* Catmull-Rom → ベジェ（なめらかな曲線として書き出す） */
+function toBez(p){
+  let d="";
+  for(let i=0;i<p.length-1;i++){
+    const p0=p[Math.max(0,i-1)], p1=p[i], p2=p[i+1], p3=p[Math.min(p.length-1,i+2)];
+    const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
+    const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
+    d+=`C${f(c1x)},${f(c1y)} ${f(c2x)},${f(c2y)} ${f(p2.x)},${f(p2.y)}`;
+  }
+  return d;
+}
+const f = v => Math.round(v*100)/100;
+const curveTo  = p => `M${f(p[0].x)},${f(p[0].y)}`+toBez(p);
+const curveSeg = p => `L${f(p[0].x)},${f(p[0].y)}`+toBez(p);
+
+/* =========================================================
+   1枚ぶんのSVGを組み立てる
+   ========================================================= */
+function buildSVG(frameIdx){
+  const P={
+    amp:+$("amp").value, freq:+$("freq").value, w:+$("w").value, taper:+$("taper").value,
+    wj:+$("wj").value, over:+$("over").value, passes:+$("passes").value, simp:+$("simp").value
+  };
+  const seed=(+$("seed").value||0)+frameIdx*7919;
+  const noise=makeNoise(seed+13), rnd=mulberry32(seed+91);
+  const fixed=$("colMode").value==="fix" ? $("col").value : null;
+
+  const byColor=new Map();
+  for(const st of SRC.strokes){
+    if(st.pts.length<2) continue;
+    const col=fixed||st.color||"#1E1C14";
+    for(let pass=0; pass<P.passes; pass++){
+      const d=handDraw(st, P, noise, rnd, pass);
+      if(!d) continue;
+      if(!byColor.has(col)) byColor.set(col,[]);
+      byColor.get(col).push(d);
+    }
+  }
+  let body="", n=0;
+  for(const [col,ds] of byColor){
+    body+=`<g fill="${col}" fill-rule="nonzero" fill-opacity="${P.passes>1?0.62:1}">\n`;
+    for(const d of ds){ body+=`<path d="${d}"/>\n`; n++; }
+    body+="</g>\n";
+  }
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${SRC.w}" height="${SRC.h}" viewBox="0 0 ${SRC.w} ${SRC.h}">\n${body}</svg>`;
+  return {svg, count:n};
+}
+
+/* =========================================================
+   実行・表示・書き出し
+   ========================================================= */
+let showOriginal=false;
+function render(){
+  const stage=$("stage");
+  if(showOriginal && SRC.preview){
+    stage.innerHTML=`<img src="${SRC.preview}" alt="元の絵">`;
+    return;
+  }
+  stage.innerHTML = OUT_SVGS.length ? OUT_SVGS[0].svg : `<div style="color:#8A8470;font-size:.8rem;padding:3rem">ここに結果が出ます</div>`;
+}
+function run(){
+  if(!SRC.strokes.length){ log("先に線画を読み込んでください"); return; }
+  const t0=performance.now();
+  const frames=+$("frames").value;
+  OUT_SVGS=[]; for(let i=0;i<frames;i++) OUT_SVGS.push(buildSVG(i));
+  showOriginal=false; render();
+  $("cnt").textContent=`${OUT_SVGS[0].count}本 / ${frames}枚`;
+  for(const id of ["dlSvg","dlPng","copySvg"]) $(id).disabled=false;
+  log(`手書き化しました（${Math.round(performance.now()-t0)}ms）。SVGはパスの集まりなので、Illustratorやクリスタでそのまま編集できます。`);
+}
+function download(name, blob){
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+
+/* ---------- ファイル受け取り ---------- */
+async function accept(file){
+  if(!file) return;
+  $("fileInfo").textContent="読み込み中… "+file.name;
+  try{
+    const ext=(file.name.split(".").pop()||"").toLowerCase();
+    if(ext==="psd"){ await loadPSD(await file.arrayBuffer(), file.name); }
+    else if(ext==="svg"){ loadSVG(await file.text(), file.name); }
+    else { await loadImage(file); }
+    $("fileInfo").textContent=`${file.name} — ${SRC.strokes.length}本 / ${SRC.w}×${SRC.h}`;
+    $("run").disabled=false;
+    run();
+  }catch(e){
+    console.error(e);
+    $("fileInfo").textContent="読み込みに失敗しました";
+    log("読み込みに失敗しました："+e.message);
+  }
+}
+const drop=$("drop");
+drop.addEventListener("click",()=>$("file").click());
+$("file").addEventListener("change",e=>accept(e.target.files[0]));
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("on")}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("on")}));
+drop.addEventListener("drop",e=>accept(e.dataTransfer.files[0]));
+document.addEventListener("dragover",e=>e.preventDefault());
+document.addEventListener("drop",e=>{ e.preventDefault(); if(e.target.closest("#drop"))return; accept(e.dataTransfer.files[0]); });
+
+/* ---------- ボタン ---------- */
+$("run").addEventListener("click",run);
+$("tgl").addEventListener("click",()=>{ showOriginal=!showOriginal; render(); });
+$("dark").addEventListener("change",e=>$("stage").classList.toggle("dark",e.target.checked));
+$("reseed").addEventListener("click",()=>{ $("seed").value=Math.floor(Math.random()*99999); run(); });
+$("dlSvg").addEventListener("click",()=>{
+  OUT_SVGS.forEach((o,i)=>{
+    const nm = OUT_SVGS.length>1 ? `${SRC.name}_tegaki_${String(i+1).padStart(2,"0")}.svg` : `${SRC.name}_tegaki.svg`;
+    setTimeout(()=>download(nm, new Blob([o.svg],{type:"image/svg+xml"})), i*250);
+  });
+});
+$("copySvg").addEventListener("click",async()=>{
+  try{ await navigator.clipboard.writeText(OUT_SVGS[0].svg); log("SVGをコピーしました。Illustratorにそのまま貼れます。"); }
+  catch(e){ log("コピーできませんでした"); }
+});
+$("dlPng").addEventListener("click",()=>{
+  const url="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(OUT_SVGS[0].svg);
+  const img=new Image();
+  img.onload=()=>{
+    const cv=document.createElement("canvas"); cv.width=SRC.w; cv.height=SRC.h;
+    cv.getContext("2d").drawImage(img,0,0);
+    cv.toBlob(b=>download(`${SRC.name}_tegaki.png`,b));
+  };
+  img.src=url;
+});
+
+/* ---------- スライダーの数値表示 ---------- */
+const SL=[["amp","ampO",1],["freq","freqO",1],["w","wO",1],["taper","taperO",2],["wj","wjO",2],
+          ["over","overO",1],["passes","passesO",0],["simp","simpO",1],["th","thO",2],
+          ["minLen","minLenO",0],["frames","framesO",0]];
+let timer=null;
+function sync(auto){
+  for(const [id,o,dg] of SL) $(o).textContent = (+$(id).value).toFixed(dg);
+  if(auto && SRC.strokes.length){ clearTimeout(timer); timer=setTimeout(run,180); }
+}
+for(const [id] of SL) $(id).addEventListener("input",()=>sync(true));
+["colMode","col"].forEach(id=>$(id).addEventListener("input",()=>{ if(SRC.strokes.length) run(); }));
+
+/* ---------- プリセット ---------- */
+const PRESETS={
+  clean:{amp:1.2, freq:3, w:2.4, taper:0.4,  wj:0.25, over:2,  passes:1, simp:1.2},
+  anime:{amp:2.2, freq:4.5, w:3.2, taper:0.55, wj:0.4, over:4, passes:1, simp:1.6},
+  rough:{amp:5.5, freq:7, w:2.2, taper:0.3,  wj:0.6,  over:9,  passes:2, simp:2.4},
+  brush:{amp:2.6, freq:2.5, w:6.5, taper:0.85, wj:0.7, over:5, passes:1, simp:1.8}
+};
+document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{
+  const p=PRESETS[b.dataset.preset]; if(!p)return;
+  for(const k in p) $(k).value=p[k];
+  document.querySelectorAll("[data-preset]").forEach(x=>x.classList.toggle("btn-y", x===b));
+  sync(false); if(SRC.strokes.length) run();
+}));
+sync(false);
+</script>
+</body>
+</html>
