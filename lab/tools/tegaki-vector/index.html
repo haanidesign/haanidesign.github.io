@@ -113,31 +113,33 @@ a{color:inherit}
       <div class="box">
         <h3>2. 手のクセ</h3>
         <div class="presets">
-          <button class="btn btn-sm btn-y" data-preset="clean">きれいめ</button>
+          <button class="btn btn-sm btn-y" data-preset="soft">描き直したくらい</button>
           <button class="btn btn-sm" data-preset="anime">アニメ塗り線</button>
           <button class="btn btn-sm" data-preset="rough">ラフ</button>
           <button class="btn btn-sm" data-preset="brush">筆ペン</button>
         </div>
-        <div class="row"><label>ゆらぎ</label><input type="range" id="amp" min="0" max="12" step="0.1" value="1.8"><output id="ampO"></output></div>
-        <div class="row"><label>ゆらぎの細かさ</label><input type="range" id="freq" min="0.5" max="14" step="0.1" value="4"><output id="freqO"></output></div>
-        <div class="row"><label>線の太さ</label><input type="range" id="w" min="0.4" max="14" step="0.1" value="2.6"><output id="wO"></output></div>
-        <div class="row"><label>入り抜き</label><input type="range" id="taper" min="0" max="1" step="0.01" value="0.45"><output id="taperO"></output></div>
-        <div class="row"><label>太さのムラ</label><input type="range" id="wj" min="0" max="1" step="0.01" value="0.35"><output id="wjO"></output></div>
-        <div class="row"><label>はみ出し</label><input type="range" id="over" min="0" max="24" step="0.5" value="3"><output id="overO"></output></div>
+        <div class="row"><label>ゆらぎ</label><input type="range" id="amp" min="0" max="1.5" step="0.01" value="0.25"><output id="ampO"></output></div>
+        <div class="row"><label>ゆらぎの細かさ</label><input type="range" id="freq" min="0.3" max="8" step="0.1" value="2.5"><output id="freqO"></output></div>
+        <div class="row"><label>線の太さ</label><input type="range" id="wmul" min="0.4" max="2.2" step="0.02" value="1"><output id="wmulO"></output></div>
+        <div class="row"><label>入り抜き</label><input type="range" id="taper" min="0" max="1" step="0.01" value="0.25"><output id="taperO"></output></div>
+        <div class="row"><label>太さのムラ</label><input type="range" id="wj" min="0" max="1" step="0.01" value="0.2"><output id="wjO"></output></div>
+        <div class="row"><label>はみ出し</label><input type="range" id="over" min="0" max="3" step="0.05" value="0.3"><output id="overO"></output></div>
         <div class="row"><label>にじり書き</label><input type="range" id="passes" min="1" max="3" step="1" value="1"><output id="passesO"></output></div>
-        <div class="row"><label>線のかんたん化</label><input type="range" id="simp" min="0.3" max="6" step="0.1" value="1.4"><output id="simpO"></output></div>
+        <div class="row"><label>線のかんたん化</label><input type="range" id="simp" min="0.1" max="2" step="0.05" value="0.5"><output id="simpO"></output></div>
         <div class="row"><label>タネ</label><input type="number" id="seed" value="1" min="0" step="1"><button class="btn btn-sm" id="reseed">ふりなおす</button></div>
+        <p class="note">ゆらぎ・はみ出し・かんたん化・最短の線は、すべて「元の線の太さの何倍か」で効きます。絵の解像度が変わっても、見た目の強さは変わりません。</p>
       </div>
 
       <div class="box">
         <h3>3. 拾いかた（絵レイヤー）</h3>
-        <div class="row"><label>線のしきい値</label><input type="range" id="th" min="0.05" max="0.95" step="0.01" value="0.55"><output id="thO"></output></div>
-        <div class="row"><label>最短の線</label><input type="range" id="minLen" min="2" max="60" step="1" value="8"><output id="minLenO"></output></div>
+        <div class="chk"><input type="checkbox" id="keepW" checked><label for="keepW">元の線の太さを引き継ぐ</label></div>
+        <div class="row"><label>線のしきい値</label><input type="range" id="th" min="0.05" max="0.95" step="0.01" value="0.6"><output id="thO"></output></div>
+        <div class="row"><label>最短の線</label><input type="range" id="minLen" min="0.3" max="8" step="0.1" value="1.2"><output id="minLenO"></output></div>
         <div class="row"><label>解析の細かさ</label>
           <select id="res">
-            <option value="900">あらい（速い）</option>
-            <option value="1400" selected>ふつう</option>
-            <option value="2200">こまかい（重い）</option>
+            <option value="1400">あらい（速い）</option>
+            <option value="2200" selected>ふつう</option>
+            <option value="3200">こまかい（重い）</option>
           </select>
         </div>
         <div class="chk"><input type="checkbox" id="useVec" checked><label for="useVec">PSDのベクターパスを優先して使う</label></div>
@@ -205,53 +207,6 @@ function makeNoise(seed){
 let SRC = { strokes: [], w: 0, h: 0, name: "linework", preview: null };
 let OUT_SVGS = [];
 
-/* ---------- 幾何の下ごしらえ ---------- */
-function resample(pts, step){
-  if(pts.length<2) return pts.slice();
-  const out=[pts[0]]; let acc=0;
-  for(let i=1;i<pts.length;i++){
-    let p=pts[i-1], q=pts[i];
-    let d=Math.hypot(q.x-p.x,q.y-p.y);
-    while(acc+d>=step){
-      const t=(step-acc)/d;
-      const n={x:p.x+(q.x-p.x)*t, y:p.y+(q.y-p.y)*t};
-      out.push(n); p=n; d=Math.hypot(q.x-p.x,q.y-p.y); acc=0;
-    }
-    acc+=d;
-  }
-  const last=pts[pts.length-1];
-  if(Math.hypot(last.x-out[out.length-1].x,last.y-out[out.length-1].y)>step*0.35) out.push(last);
-  return out;
-}
-function rdp(pts, eps){
-  if(pts.length<3) return pts.slice();
-  const keep = new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
-  const stack=[[0,pts.length-1]];
-  while(stack.length){
-    const [a,b]=stack.pop(); const A=pts[a],B=pts[b];
-    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy)||1e-6;
-    let best=-1, bi=-1;
-    for(let i=a+1;i<b;i++){
-      const d=Math.abs((pts[i].x-A.x)*dy-(pts[i].y-A.y)*dx)/len;
-      if(d>best){best=d;bi=i;}
-    }
-    if(best>eps && bi>0){ keep[bi]=1; stack.push([a,bi],[bi,b]); }
-  }
-  const out=[]; for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
-  return out;
-}
-function smooth(pts, times){
-  let p = pts;
-  for(let t=0;t<times;t++){
-    const q = p.slice();
-    for(let i=1;i<p.length-1;i++){
-      q[i] = {x:(p[i-1].x+p[i].x*2+p[i+1].x)/4, y:(p[i-1].y+p[i].y*2+p[i+1].y)/4};
-    }
-    p = q;
-  }
-  return p;
-}
-
 /* =========================================================
    ラスター → 中心線ベクター
    ========================================================= */
@@ -262,14 +217,55 @@ function traceRaster(canvas, opt){
   const th = opt.threshold*255;
   for(let i=0,p=0;i<m.length;i++,p+=4){
     const a=im[p+3];
-    if(a<40){ continue; }
+    if(a<40) continue;
     // 白地に重ねたときの明るさで判定（透過線画でも白地線画でも同じように拾える）
     const l = (im[p]*0.299+im[p+1]*0.587+im[p+2]*0.114);
     const over = 255 - a*(255-l)/255;
     if(over < th) m[i]=1;
   }
+  const dist = distanceMap(m,w,h);   // 元の線の「太さの半分」を、あとで芯の各点にのせる
   thinZS(m,w,h);
-  return skeletonToPolylines(m,w,h,opt.minLen);
+  return skeletonToPolylines(m,dist,w,h,opt.minLenPx);
+}
+
+/* 各インク画素から、線のふちまでの距離（＝線の太さの半分）を求める。
+   チャンファー法（5-7-11 / 5）。これで元の絵の強弱をそのまま引き継げる。 */
+function distanceMap(m,w,h){
+  const INF=1e9, d=new Float32Array(w*h);
+  for(let i=0;i<d.length;i++) d[i] = m[i] ? INF : 0;
+  const A=1, B=1.4142, C=2.2361;   // 縦横 / ナナメ / 桂馬
+  const step=(i,j,c)=>{ const v=d[j]+c; if(v<d[i]) d[i]=v; };
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    const i=y*w+x; if(!d[i])continue;
+    if(x>0) step(i,i-1,A);
+    if(y>0){
+      step(i,i-w,A);
+      if(x>0) step(i,i-w-1,B);
+      if(x<w-1) step(i,i-w+1,B);
+      if(x>1) step(i,i-w-2,C);
+      if(x<w-2) step(i,i-w+2,C);
+    }
+    if(y>1){
+      if(x>0) step(i,i-2*w-1,C);
+      if(x<w-1) step(i,i-2*w+1,C);
+    }
+  }
+  for(let y=h-1;y>=0;y--) for(let x=w-1;x>=0;x--){
+    const i=y*w+x; if(!d[i])continue;
+    if(x<w-1) step(i,i+1,A);
+    if(y<h-1){
+      step(i,i+w,A);
+      if(x<w-1) step(i,i+w+1,B);
+      if(x>0) step(i,i+w-1,B);
+      if(x<w-2) step(i,i+w+2,C);
+      if(x>1) step(i,i+w-2,C);
+    }
+    if(y<h-2){
+      if(x<w-1) step(i,i+2*w+1,C);
+      if(x>0) step(i,i+2*w-1,C);
+    }
+  }
+  return d;
 }
 
 /* Zhang–Suen 細線化：線を1pxの芯にする */
@@ -299,8 +295,9 @@ function thinZS(m,w,h){
   }
 }
 
-/* 芯の画像を、線の連なり（ポリライン）に変換 */
-function skeletonToPolylines(m,w,h,minLen){
+/* 芯の画像を、線の連なりに変換。
+   各点に元の太さ(w)を持たせ、両端が「本当の線の端」か「他の線との継ぎ目」かも覚えておく。 */
+function skeletonToPolylines(m,dist,w,h,minLenPx){
   const off=[-w-1,-w,-w+1,-1,1,w-1,w,w+1];
   const nbs = i => {
     const x=i%w, y=(i-x)/w, r=[];
@@ -317,40 +314,39 @@ function skeletonToPolylines(m,w,h,minLen){
     }
     return r;
   };
-  const used = new Set(), key=(a,b)=> a<b? a+"_"+b : b+"_"+a;
+  const used=new Set(), key=(a,b)=> a<b? a+"_"+b : b+"_"+a;
   const lines=[];
   const walk = (start,next) => {
-    const pts=[start]; let prev=start, cur=next;
+    const idx=[start]; let prev=start, cur=next;
     used.add(key(prev,cur));
-    for(let guard=0; guard<200000; guard++){
-      pts.push(cur);
+    for(let guard=0; guard<400000; guard++){
+      idx.push(cur);
       const nn = nbs(cur).filter(j=>j!==prev);
       if(nn.length!==1) break;                 // 端点か分岐で止める
       const nx=nn[0], k=key(cur,nx);
       if(used.has(k)) break;
       used.add(k); prev=cur; cur=nx;
     }
-    return pts;
+    return idx;
   };
-  const push = pts => {
-    if(pts.length<2) return;
-    const poly = pts.map(i=>({x:i%w+0.5, y:Math.floor(i/w)+0.5}));
-    let L=0; for(let i=1;i<poly.length;i++) L+=Math.hypot(poly[i].x-poly[i-1].x, poly[i].y-poly[i-1].y);
-    if(L<minLen) return;
-    lines.push(poly);
+  const push = idx => {
+    if(idx.length<2) return;
+    const pts = idx.map(i=>({x:i%w+0.5, y:Math.floor(i/w)+0.5, w:Math.max(0.5,dist[i])}));
+    let L=0; for(let i=1;i<pts.length;i++) L+=Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y);
+    // 継ぎ目で太る（分岐点は距離が大きく出る）ので、その線の代表値で抑える
+    const sorted=pts.map(p=>p.w).sort((a,b)=>a-b), med=sorted[sorted.length>>1];
+    for(const p of pts) p.w=Math.min(p.w, med*1.6);
+    if(L < minLenPx*med*2) return;             // 「線の太さの何倍」で足切り
+    lines.push({ pts, capA: nbs(idx[0]).length<=1, capB: nbs(idx[idx.length-1]).length<=1, len:L });
   };
-  // 端点・分岐から
-  for(let i=0;i<m.length;i++){
+  for(let i=0;i<m.length;i++){                 // 端点・分岐から
     if(!m[i])continue;
-    const n=nbs(i);
-    if(n.length===2)continue;
+    const n=nbs(i); if(n.length===2)continue;
     for(const j of n){ if(!used.has(key(i,j))) push(walk(i,j)); }
   }
-  // 残った輪（閉じた線）
-  for(let i=0;i<m.length;i++){
+  for(let i=0;i<m.length;i++){                 // 残った輪（閉じた線）
     if(!m[i])continue;
-    const n=nbs(i);
-    for(const j of n){ if(!used.has(key(i,j))) push(walk(i,j)); }
+    for(const j of nbs(i)){ if(!used.has(key(i,j))) push(walk(i,j)); }
   }
   return lines;
 }
@@ -388,7 +384,6 @@ async function loadPSD(buf, name){
   const layers=[]; flattenLayers(psd, layers);
   const strokes=[];
   const scale = Math.min(1, (+$("res").value)/Math.max(W,H));
-  const opt = { threshold:+$("th").value, minLen:+$("minLen").value/Math.max(scale,0.001) };
   let vecCount=0, rasCount=0;
 
   for(const L of layers.slice(0,24)){
@@ -396,9 +391,15 @@ async function loadPSD(buf, name){
     const vm = L.vectorMask;
     if($("useVec").checked && vm && vm.paths && vm.paths.length){
       const col = (L.vectorStroke && L.vectorStroke.strokeStyleContent && cssOf(L.vectorStroke.strokeStyleContent.color)) || "#1E1C14";
+      const lw = (L.vectorStroke && L.vectorStroke.strokeStyleLineWidth && L.vectorStroke.strokeStyleLineWidth.value) || 0;
       for(const p of vm.paths){
         const pts = knotsToPoints(p, W, H);
-        if(pts.length>1){ strokes.push({pts, color:col, closed:!p.open}); vecCount++; }
+        if(pts.length>1){
+          const hw = (lw||Math.max(1.6, Math.max(W,H)/700))/2;
+          for(const q of pts) q.w = hw;
+          strokes.push({pts, color:col, closed:!p.open, capA:!!p.open, capB:!!p.open});
+          vecCount++;
+        }
       }
       continue;
     }
@@ -410,8 +411,11 @@ async function loadPSD(buf, name){
     const g=work.getContext("2d",{willReadFrequently:true});
     g.drawImage(cv, (L.left||0)*scale, (L.top||0)*scale, cv.width*scale, cv.height*scale);
     const color = inkColor(work);
-    const polys = traceRaster(work, {threshold:opt.threshold, minLen:+$("minLen").value});
-    for(const pl of polys){ strokes.push({pts: pl.map(p=>({x:p.x/scale, y:p.y/scale})), color, closed:false}); rasCount++; }
+    for(const ln of traceRaster(work, {threshold:+$("th").value, minLenPx:+$("minLen").value})){
+      strokes.push({ pts: ln.pts.map(p=>({x:p.x/scale, y:p.y/scale, w:p.w/scale})),
+                     color, closed:false, capA:ln.capA, capB:ln.capB });
+      rasCount++;
+    }
   }
   SRC = { strokes, w:W, h:H, name:name.replace(/\.psd$/i,""), preview: psd.canvas ? psd.canvas.toDataURL() : null };
   log(`PSD ${W}×${H} / レイヤー${layers.length} → ベクターパス${vecCount}本・トレース${rasCount}本`);
@@ -479,7 +483,9 @@ function loadSVG(text, name){
       if(m&&inv){ p=p.matrixTransform(m).matrixTransform(inv); }
       pts.push({x:p.x, y:p.y});
     }
-    if(pts.length>1) strokes.push({pts, color:col, closed:false});
+    const sw = parseFloat(cs.strokeWidth)||Math.max(1.6, Math.max(W,H)/700);
+    for(const q of pts) q.w = sw/2;
+    if(pts.length>1) strokes.push({pts, color:col, closed:false, capA:true, capB:true});
   }
   const preview="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg.outerHTML);
   holder.remove();
@@ -498,63 +504,116 @@ async function loadImage(file){
   const cv=document.createElement("canvas"); cv.width=Math.round(W*scale); cv.height=Math.round(H*scale);
   cv.getContext("2d",{willReadFrequently:true}).drawImage(img,0,0,cv.width,cv.height);
   const color=inkColor(cv);
-  const polys=traceRaster(cv,{threshold:+$("th").value, minLen:+$("minLen").value});
-  SRC={ strokes: polys.map(pl=>({pts:pl.map(p=>({x:p.x/scale,y:p.y/scale})), color, closed:false})),
+  const lines=traceRaster(cv,{threshold:+$("th").value, minLenPx:+$("minLen").value});
+  SRC={ strokes: lines.map(ln=>({pts:ln.pts.map(p=>({x:p.x/scale,y:p.y/scale,w:p.w/scale})),
+        color, closed:false, capA:ln.capA, capB:ln.capB})),
         w:W, h:H, name:file.name.replace(/\.[a-z]+$/i,""), preview:url };
-  log(`画像 ${W}×${H} → ${polys.length}本の線を拾いました`);
+  log(`画像 ${W}×${H} → ${lines.length}本の線を拾いました`);
 }
 
 /* =========================================================
    手書き化：点列 → 幅つきアウトライン
    ========================================================= */
 function handDraw(stroke, P, noise, rnd, passIdx){
-  const step = Math.max(1.2, P.simp*1.6);
-  let pts = resample(stroke.pts, step);
-  pts = rdp(pts, P.simp);
-  pts = resample(pts, step);
-  pts = smooth(pts, 1);
+  // 元の線の太さを基準にする。ゆらぎもはみ出しも簡略化も、すべてこの太さ基準。
+  const wOf = p => P.flat || p.w || 1;
+  let sum=0; for(const p of stroke.pts) sum += wOf(p);
+  const baseHalf = Math.max(0.2, (sum/stroke.pts.length) * P.wmul);
+  const unit = baseHalf*2;                       // ＝線の太さ
+
+  const step = Math.max(0.8, unit*0.45);
+  let pts = resampleW(stroke.pts, step);
+  pts = rdpW(pts, P.simp*unit*0.5);
+  pts = resampleW(pts, step);
+  pts = smoothW(pts, 1);
   if(pts.length<2) return null;
 
-  // 全体をほんの少しだけ、ずらす／かたむける（人の手のブレ）
-  let cx=0, cy=0; for(const p of pts){cx+=p.x;cy+=p.y;} cx/=pts.length; cy/=pts.length;
-  const rot=(rnd()-0.5)*0.008*P.amp, ox=(rnd()-0.5)*P.amp*0.7+passIdx*(rnd()-0.5)*P.amp,
-        oy=(rnd()-0.5)*P.amp*0.7+passIdx*(rnd()-0.5)*P.amp;
-  const ph = rnd()*400;
+  const ampPx = P.amp*unit, ph = rnd()*400;
+  const wave = Math.max(0.15, P.freq)/ (unit*3);  // 波の細かさも太さ基準
 
   const N=pts.length, out=new Array(N);
+  let run=0;
   for(let i=0;i<N;i++){
+    if(i) run += Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y);
     const a=pts[Math.max(0,i-1)], b=pts[Math.min(N-1,i+1)];
     let tx=b.x-a.x, ty=b.y-a.y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
     const nx=-ty, ny=tx;
-    const t=i/(N-1);
-    const n1=noise(ph + t*N*step/40*P.freq);          // 細かいふるえ
-    const n2=noise(ph*0.37 + t*N*step/220*P.freq);    // 大きなうねり
-    const d=(n1*0.55+n2*0.85)*P.amp;
-    let x=pts[i].x+nx*d, y=pts[i].y+ny*d;
-    const dx=x-cx, dy=y-cy;
-    out[i]={ x: cx+dx*Math.cos(rot)-dy*Math.sin(rot)+ox,
-             y: cy+dx*Math.sin(rot)+dy*Math.cos(rot)+oy, tx, ty };
+    const d = (noise(ph + run*wave)*0.5 + noise(ph*0.37 + run*wave*0.22)*0.9) * ampPx;
+    out[i]={ x:pts[i].x+nx*d, y:pts[i].y+ny*d, w:wOf(pts[i]), tx, ty };
   }
-  // 端をちょっと行き過ぎさせる（勢い）
-  if(P.over>0 && !stroke.closed){
-    const o1=P.over*(0.4+rnd()*0.6), o2=P.over*(0.4+rnd()*0.6);
-    const s=out[0], e=out[N-1];
-    out.unshift({x:s.x-s.tx*o1, y:s.y-s.ty*o1, tx:s.tx, ty:s.ty});
-    out.push({x:e.x+e.tx*o2, y:e.y+e.ty*o2, tx:e.tx, ty:e.ty});
+  // 端の始末：本当の線の端だけ「行き過ぎ」、他の線との継ぎ目は少し伸ばして重ねる
+  const capA = stroke.capA!==false, capB = stroke.capB!==false;
+  const s0=out[0], e0=out[N-1];
+  const extA = capA ? P.over*unit*(0.5+rnd()*0.7) : baseHalf*0.9;
+  const extB = capB ? P.over*unit*(0.5+rnd()*0.7) : baseHalf*0.9;
+  if(extA>0.01) out.unshift({x:s0.x-s0.tx*extA, y:s0.y-s0.ty*extA, w:s0.w, tx:s0.tx, ty:s0.ty, joint:!capA});
+  if(extB>0.01) out.push({x:e0.x+e0.tx*extB, y:e0.y+e0.ty*extB, w:e0.w, tx:e0.tx, ty:e0.ty, joint:!capB});
+
+  return outlinePath(out, P, noise, ph, {capA, capB, wmul:P.wmul});
+}
+
+/* 太さ(w)を持ったまま、点を打ち直す・間引く・ならす */
+function resampleW(pts, step){
+  if(pts.length<2) return pts.slice();
+  const out=[pts[0]]; let acc=0;
+  for(let i=1;i<pts.length;i++){
+    let p=pts[i-1], q=pts[i];
+    let d=Math.hypot(q.x-p.x,q.y-p.y);
+    while(acc+d>=step){
+      const t=(step-acc)/d;
+      const n={x:p.x+(q.x-p.x)*t, y:p.y+(q.y-p.y)*t, w:(p.w||1)+((q.w||1)-(p.w||1))*t};
+      out.push(n); p=n; d=Math.hypot(q.x-p.x,q.y-p.y); acc=0;
+    }
+    acc+=d;
   }
-  return outlinePath(out, P, noise, ph);
+  const last=pts[pts.length-1];
+  if(Math.hypot(last.x-out[out.length-1].x,last.y-out[out.length-1].y)>step*0.35) out.push(last);
+  return out;
+}
+function rdpW(pts, eps){
+  if(pts.length<3) return pts.slice();
+  const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const stack=[[0,pts.length-1]];
+  while(stack.length){
+    const [a,b]=stack.pop(); const A=pts[a],B=pts[b];
+    const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy)||1e-6;
+    let best=-1, bi=-1;
+    for(let i=a+1;i<b;i++){
+      const d=Math.abs((pts[i].x-A.x)*dy-(pts[i].y-A.y)*dx)/len;
+      if(d>best){best=d;bi=i;}
+    }
+    if(best>eps && bi>0){ keep[bi]=1; stack.push([a,bi],[bi,b]); }
+  }
+  const out=[]; for(let i=0;i<pts.length;i++) if(keep[i]) out.push(pts[i]);
+  return out;
+}
+function smoothW(pts, times){
+  let p=pts;
+  for(let t=0;t<times;t++){
+    const q=p.slice();
+    for(let i=1;i<p.length-1;i++){
+      q[i]={x:(p[i-1].x+p[i].x*2+p[i+1].x)/4, y:(p[i-1].y+p[i].y*2+p[i+1].y)/4, w:p[i].w};
+    }
+    p=q;
+  }
+  return p;
 }
 
 /* 幅のプロファイルを作って、左右のふちで閉じた図形にする（＝真のベクター） */
-function outlinePath(pts, P, noise, ph){
+function outlinePath(pts, P, noise, ph, info){
   const M=pts.length, half=new Float64Array(M);
+  let run=0; const arc=new Float64Array(M);
+  for(let i=1;i<M;i++){ run+=Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y); arc[i]=run; }
+  const total=run||1;
   for(let i=0;i<M;i++){
-    const t=i/(M-1);
-    // 入り抜き：両端を細く
-    const e=Math.min(1, Math.pow(Math.min(t,1-t)/Math.max(0.001,P.taper*0.5), 0.65));
-    const taper=1-P.taper+P.taper*e;
-    const wob=1+noise(ph*0.11 + t*20*Math.max(0.4,P.freq*0.35))*P.wj*0.6;
-    half[i]=Math.max(0.06, P.w*0.5*taper*wob);
+    const base = (pts[i].w||1)*P.wmul;
+    const t = arc[i]/total;
+    // 入り抜き：本当の線の端だけ細くする（継ぎ目は太いまま＝線が途切れない）
+    const dA = info.capA ? t : 1, dB = info.capB ? 1-t : 1;
+    const soft = v => Math.min(1, Math.pow(v/Math.max(0.004, P.taper*0.5), 0.6));
+    const taper = 1 - P.taper + P.taper*Math.min(soft(dA), soft(dB));
+    const wob = 1 + noise(ph*0.11 + arc[i]/(base*8+1))*P.wj*0.5;
+    half[i]=Math.max(0.05, base*taper*wob);
   }
   const L=[],R=[];
   for(let i=0;i<M;i++){
@@ -586,9 +645,12 @@ const curveSeg = p => `L${f(p[0].x)},${f(p[0].y)}`+toBez(p);
    1枚ぶんのSVGを組み立てる
    ========================================================= */
 function buildSVG(frameIdx){
+  const keepW=$("keepW").checked;
+  const flatHalf = Math.max(0.8, Math.max(SRC.w,SRC.h)/700);   // 太さを引き継がないときの基準
   const P={
-    amp:+$("amp").value, freq:+$("freq").value, w:+$("w").value, taper:+$("taper").value,
-    wj:+$("wj").value, over:+$("over").value, passes:+$("passes").value, simp:+$("simp").value
+    amp:+$("amp").value, freq:+$("freq").value, wmul:+$("wmul").value, taper:+$("taper").value,
+    wj:+$("wj").value, over:+$("over").value, passes:+$("passes").value, simp:+$("simp").value,
+    flat: keepW ? 0 : flatHalf
   };
   const seed=(+$("seed").value||0)+frameIdx*7919;
   const noise=makeNoise(seed+13), rnd=mulberry32(seed+91);
@@ -643,8 +705,10 @@ function download(name, blob){
 }
 
 /* ---------- ファイル受け取り ---------- */
+let LAST_FILE=null;
 async function accept(file){
   if(!file) return;
+  LAST_FILE=file;
   $("fileInfo").textContent="読み込み中… "+file.name;
   try{
     const ext=(file.name.split(".").pop()||"").toLowerCase();
@@ -696,31 +760,37 @@ $("dlPng").addEventListener("click",()=>{
 });
 
 /* ---------- スライダーの数値表示 ---------- */
-const SL=[["amp","ampO",1],["freq","freqO",1],["w","wO",1],["taper","taperO",2],["wj","wjO",2],
-          ["over","overO",1],["passes","passesO",0],["simp","simpO",1],["th","thO",2],
-          ["minLen","minLenO",0],["frames","framesO",0]];
-let timer=null;
-function sync(auto){
-  for(const [id,o,dg] of SL) $(o).textContent = (+$(id).value).toFixed(dg);
-  if(auto && SRC.strokes.length){ clearTimeout(timer); timer=setTimeout(run,180); }
+const SL=[["amp","ampO",2],["freq","freqO",1],["wmul","wmulO",2],["taper","taperO",2],["wj","wjO",2],
+          ["over","overO",2],["passes","passesO",0],["simp","simpO",2],["th","thO",2],
+          ["minLen","minLenO",1],["frames","framesO",0]];
+let timer=null, rtimer=null;
+const TRACE_IDS=["th","minLen","res"];            // 拾い直しが要るツマミ
+function reload(){ if(LAST_FILE) accept(LAST_FILE); }
+function sync(auto, id){
+  for(const [i,o,dg] of SL) $(o).textContent = (+$(i).value).toFixed(dg);
+  if(!auto) return;
+  if(TRACE_IDS.includes(id)){ clearTimeout(rtimer); rtimer=setTimeout(reload,320); return; }
+  if(SRC.strokes.length){ clearTimeout(timer); timer=setTimeout(run,180); }
 }
-for(const [id] of SL) $(id).addEventListener("input",()=>sync(true));
+for(const [id] of SL) $(id).addEventListener("input",()=>sync(true,id));
+["res","useVec"].forEach(id=>$(id).addEventListener("change",()=>{ clearTimeout(rtimer); rtimer=setTimeout(reload,60); }));
+$("keepW").addEventListener("change",()=>{ if(SRC.strokes.length) run(); });
 ["colMode","col"].forEach(id=>$(id).addEventListener("input",()=>{ if(SRC.strokes.length) run(); }));
 
 /* ---------- プリセット ---------- */
 const PRESETS={
-  clean:{amp:1.2, freq:3, w:2.4, taper:0.4,  wj:0.25, over:2,  passes:1, simp:1.2},
-  anime:{amp:2.2, freq:4.5, w:3.2, taper:0.55, wj:0.4, over:4, passes:1, simp:1.6},
-  rough:{amp:5.5, freq:7, w:2.2, taper:0.3,  wj:0.6,  over:9,  passes:2, simp:2.4},
-  brush:{amp:2.6, freq:2.5, w:6.5, taper:0.85, wj:0.7, over:5, passes:1, simp:1.8}
+  soft: {amp:0.18, freq:2.2, wmul:1,    taper:0.2,  wj:0.15, over:0.2, passes:1, simp:0.4},
+  anime:{amp:0.35, freq:3,   wmul:1,    taper:0.45, wj:0.3,  over:0.6, passes:1, simp:0.6},
+  rough:{amp:0.8,  freq:4.5, wmul:0.9,  taper:0.35, wj:0.55, over:1.4, passes:2, simp:1.0},
+  brush:{amp:0.3,  freq:1.6, wmul:1.5,  taper:0.8,  wj:0.6,  over:0.5, passes:1, simp:0.7}
 };
 document.querySelectorAll("[data-preset]").forEach(b=>b.addEventListener("click",()=>{
   const p=PRESETS[b.dataset.preset]; if(!p)return;
   for(const k in p) $(k).value=p[k];
   document.querySelectorAll("[data-preset]").forEach(x=>x.classList.toggle("btn-y", x===b));
-  sync(false); if(SRC.strokes.length) run();
+  sync(false,null); if(SRC.strokes.length) run();
 }));
-sync(false);
+sync(false,null);
 </script>
 </body>
 </html>
