@@ -153,11 +153,15 @@ a{color:inherit}
         </div>
         <div class="row"><label>ボイル枚数</label><input type="range" id="frames" min="1" max="6" step="1" value="1"><output id="framesO"></output></div>
         <p class="note">ボイルは、同じ絵をゆらぎ違いで複数枚出す機能です。3枚出してループさせると、止め絵がふるえる、あの感じになります。</p>
+        <div class="chk"><input type="checkbox" id="psdOrig" checked><label for="psdOrig">元のレイヤーも残す</label></div>
+        <div class="chk"><input type="checkbox" id="psdVec" checked><label for="psdVec">ベクター（シェイプ）レイヤーにする</label></div>
         <div class="presets" style="margin-top:.5rem">
+          <button class="btn btn-sm btn-y" id="dlPsd" disabled>PSDで保存</button>
           <button class="btn btn-sm btn-y" id="dlSvg" disabled>SVGで保存</button>
           <button class="btn btn-sm" id="dlPng" disabled>PNGで保存</button>
           <button class="btn btn-sm" id="copySvg" disabled>SVGをコピー</button>
         </div>
+        <p class="note">PSDは、元のレイヤーの上に「手書き線」レイヤーを足して保存します。シェイプレイヤーにするとPhotoshopでパスとして編集できます（見た目用のピクセルも一緒に入るので、クリスタなど他のソフトでもそのまま見えます）。</p>
       </div>
     </div>
 
@@ -204,7 +208,7 @@ function makeNoise(seed){
    ストローク＝ {pts:[{x,y}], color, closed}
    読み込みは全部これに変換してから手書き化する
    ========================================================= */
-let SRC = { strokes: [], w: 0, h: 0, name: "linework", preview: null };
+let SRC = { strokes: [], w: 0, h: 0, name: "linework", preview: null, psd: null };
 let OUT_SVGS = [];
 
 /* =========================================================
@@ -417,7 +421,7 @@ async function loadPSD(buf, name){
       rasCount++;
     }
   }
-  SRC = { strokes, w:W, h:H, name:name.replace(/\.psd$/i,""), preview: psd.canvas ? psd.canvas.toDataURL() : null };
+  SRC = { strokes, w:W, h:H, name:name.replace(/\.psd$/i,""), preview: psd.canvas ? psd.canvas.toDataURL() : null, psd };
   log(`PSD ${W}×${H} / レイヤー${layers.length} → ベクターパス${vecCount}本・トレース${rasCount}本`);
 }
 function cssOf(c){
@@ -599,7 +603,8 @@ function smoothW(pts, times){
   return p;
 }
 
-/* 幅のプロファイルを作って、左右のふちで閉じた図形にする（＝真のベクター） */
+/* 幅のプロファイルを作って、左右のふちで閉じた図形にする（＝真のベクター）。
+   SVGのdと、PSDのシェイプレイヤー用の節点を、同じ輪から作る。 */
 function outlinePath(pts, P, noise, ph, info){
   const M=pts.length, half=new Float64Array(M);
   let run=0; const arc=new Float64Array(M);
@@ -624,22 +629,37 @@ function outlinePath(pts, P, noise, ph, info){
     R.push({x:pts[i].x-nx*half[i], y:pts[i].y-ny*half[i]});
   }
   R.reverse();
-  return curveTo(L)+" "+curveSeg(R)+" Z";
+  const ring = L.concat(R);
+  return { d: ringToPath(ring), ring };
 }
-/* Catmull-Rom → ベジェ（なめらかな曲線として書き出す） */
-function toBez(p){
-  let d="";
-  for(let i=0;i<p.length-1;i++){
-    const p0=p[Math.max(0,i-1)], p1=p[i], p2=p[i+1], p3=p[Math.min(p.length-1,i+2)];
-    const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
-    const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
-    d+=`C${f(c1x)},${f(c1y)} ${f(c2x)},${f(c2y)} ${f(p2.x)},${f(p2.y)}`;
+
+/* 閉じた点の輪 → なめらかな三次ベジェ。制御点はCatmull-Romから求める */
+function ringCtrl(ring){
+  const n=ring.length, out=new Array(n);
+  for(let i=0;i<n;i++){
+    const p=ring[i], a=ring[(i-1+n)%n], b=ring[(i+1)%n];
+    const dx=(b.x-a.x)/6, dy=(b.y-a.y)/6;
+    out[i]={ p, in:{x:p.x-dx, y:p.y-dy}, out:{x:p.x+dx, y:p.y+dy} };
   }
-  return d;
+  return out;
 }
+function ringToPath(ring){
+  const k=ringCtrl(ring), n=k.length;
+  if(n<2) return "";
+  let d=`M${f(k[0].p.x)},${f(k[0].p.y)}`;
+  for(let i=0;i<n;i++){
+    const a=k[i], b=k[(i+1)%n];
+    d+=`C${f(a.out.x)},${f(a.out.y)} ${f(b.in.x)},${f(b.in.y)} ${f(b.p.x)},${f(b.p.y)}`;
+  }
+  return d+"Z";
+}
+/* PSDのシェイプレイヤー（vmsk）用の節点。points は [inX,inY, x,y, outX,outY] の順に詰める */
+function ringToKnots(ring){
+  return ringCtrl(ring).map(k=>({ linked:false,
+    points:[k.in.x, k.in.y, k.p.x, k.p.y, k.out.x, k.out.y] }));
+}
+
 const f = v => Math.round(v*100)/100;
-const curveTo  = p => `M${f(p[0].x)},${f(p[0].y)}`+toBez(p);
-const curveSeg = p => `L${f(p[0].x)},${f(p[0].y)}`+toBez(p);
 
 /* =========================================================
    1枚ぶんのSVGを組み立てる
@@ -661,20 +681,22 @@ function buildSVG(frameIdx){
     if(st.pts.length<2) continue;
     const col=fixed||st.color||"#1E1C14";
     for(let pass=0; pass<P.passes; pass++){
-      const d=handDraw(st, P, noise, rnd, pass);
-      if(!d) continue;
-      if(!byColor.has(col)) byColor.set(col,[]);
-      byColor.get(col).push(d);
+      const r=handDraw(st, P, noise, rnd, pass);
+      if(!r) continue;
+      if(!byColor.has(col)) byColor.set(col,{ds:[], rings:[]});
+      const g=byColor.get(col); g.ds.push(r.d); g.rings.push(r.ring);
     }
   }
   let body="", n=0;
-  for(const [col,ds] of byColor){
+  const groups=[];
+  for(const [col,g] of byColor){
     body+=`<g fill="${col}" fill-rule="nonzero" fill-opacity="${P.passes>1?0.62:1}">\n`;
-    for(const d of ds){ body+=`<path d="${d}"/>\n`; n++; }
+    for(const d of g.ds){ body+=`<path d="${d}"/>\n`; n++; }
     body+="</g>\n";
+    groups.push({color:col, rings:g.rings});
   }
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${SRC.w}" height="${SRC.h}" viewBox="0 0 ${SRC.w} ${SRC.h}">\n${body}</svg>`;
-  return {svg, count:n};
+  return {svg, count:n, groups};
 }
 
 /* =========================================================
@@ -696,12 +718,85 @@ function run(){
   OUT_SVGS=[]; for(let i=0;i<frames;i++) OUT_SVGS.push(buildSVG(i));
   showOriginal=false; render();
   $("cnt").textContent=`${OUT_SVGS[0].count}本 / ${frames}枚`;
-  for(const id of ["dlSvg","dlPng","copySvg"]) $(id).disabled=false;
+  for(const id of ["dlSvg","dlPng","copySvg","dlPsd"]) $(id).disabled=false;
   log(`手書き化しました（${Math.round(performance.now()-t0)}ms）。SVGはパスの集まりなので、Illustratorやクリスタでそのまま編集できます。`);
 }
 function download(name, blob){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+}
+
+/* =========================================================
+   PSDで書き出す：元のレイヤーはそのまま、手書き線を足す
+   ベクター指定のときは vectorMask + ベタ塗り（＝Photoshopのシェイプレイヤー）
+   ========================================================= */
+function renderRings(rings, color){
+  const cv=document.createElement("canvas"); cv.width=SRC.w; cv.height=SRC.h;
+  const g=cv.getContext("2d");
+  g.fillStyle=color;
+  const p=new Path2D();
+  for(const ring of rings) p.addPath(new Path2D(ringToPath(ring)));
+  g.fill(p,"nonzero");
+  return cv;
+}
+function rgbOf(css){
+  const c=document.createElement("canvas"); c.width=c.height=1;
+  const g=c.getContext("2d"); g.fillStyle=css; g.fillRect(0,0,1,1);
+  const d=g.getImageData(0,0,1,1).data;
+  return {r:d[0], g:d[1], b:d[2]};
+}
+function exportPSD(){
+  const out=OUT_SVGS[0];
+  if(!out) return;
+  const keepOrig=$("psdOrig").checked, asVec=$("psdVec").checked;
+  const children=[];
+
+  if(keepOrig){
+    if(SRC.psd && SRC.psd.children && SRC.psd.children.length){
+      for(const c of SRC.psd.children) children.push(c);           // 読み込んだレイヤーをそのまま
+    }else if(SRC.preview){
+      const cv=document.createElement("canvas"); cv.width=SRC.w; cv.height=SRC.h;
+      if(SRC.img && SRC.img.complete) cv.getContext("2d").drawImage(SRC.img,0,0,SRC.w,SRC.h);
+      children.push({name:"元の絵", canvas:cv, opacity:1, blendMode:"normal"});
+    }
+  }
+
+  const madeAt = OUT_SVGS.length>1 ? "（1枚目）" : "";
+  out.groups.forEach((grp,i)=>{
+    const cv=renderRings(grp.rings, grp.color);
+    const layer={
+      name: `手書き線${out.groups.length>1?" "+(i+1):""}${madeAt}`,
+      canvas: cv, opacity:1, blendMode:"normal", hidden:false,
+      left:0, top:0
+    };
+    if(asVec){
+      layer.vectorFill = { type:"color", color: rgbOf(grp.color) };
+      layer.vectorMask = {
+        fillStartsWithAllPixels:false,
+        paths: grp.rings.map(ring=>({ open:false, fillRule:"non-zero", knots:ringToKnots(ring) }))
+      };
+    }
+    children.push(layer);
+  });
+
+  // 合成プレビュー（他のソフトで開いたときの見た目）
+  const comp=document.createElement("canvas"); comp.width=SRC.w; comp.height=SRC.h;
+  const cg=comp.getContext("2d");
+  cg.fillStyle="#ffffff"; cg.fillRect(0,0,SRC.w,SRC.h);
+  if(keepOrig && SRC.psd && SRC.psd.canvas) cg.drawImage(SRC.psd.canvas,0,0);
+  for(const grp of out.groups) cg.drawImage(renderRings(grp.rings, grp.color),0,0);
+
+  log("PSDを組み立て中…");
+  setTimeout(()=>{
+    try{
+      const buf=agPsd.writePsd({ width:SRC.w, height:SRC.h, children, canvas:comp }, {generateThumbnail:false});
+      download(`${SRC.name}_tegaki.psd`, new Blob([buf],{type:"image/vnd.adobe.photoshop"}));
+      log(`PSDを保存しました（レイヤー${children.length}枚${asVec?" / 手書き線はシェイプレイヤー":""}）。`);
+    }catch(e){
+      console.error(e);
+      log("PSDの書き出しに失敗しました："+e.message+"（「ベクターにする」を外すと通ることがあります）");
+    }
+  }, 30);
 }
 
 /* ---------- ファイル受け取り ---------- */
@@ -715,6 +810,7 @@ async function accept(file){
     if(ext==="psd"){ await loadPSD(await file.arrayBuffer(), file.name); }
     else if(ext==="svg"){ loadSVG(await file.text(), file.name); }
     else { await loadImage(file); }
+      if(SRC.preview){ SRC.img=new Image(); SRC.img.src=SRC.preview; }
     $("fileInfo").textContent=`${file.name} — ${SRC.strokes.length}本 / ${SRC.w}×${SRC.h}`;
     $("run").disabled=false;
     run();
@@ -738,6 +834,7 @@ $("run").addEventListener("click",run);
 $("tgl").addEventListener("click",()=>{ showOriginal=!showOriginal; render(); });
 $("dark").addEventListener("change",e=>$("stage").classList.toggle("dark",e.target.checked));
 $("reseed").addEventListener("click",()=>{ $("seed").value=Math.floor(Math.random()*99999); run(); });
+$("dlPsd").addEventListener("click",exportPSD);
 $("dlSvg").addEventListener("click",()=>{
   OUT_SVGS.forEach((o,i)=>{
     const nm = OUT_SVGS.length>1 ? `${SRC.name}_tegaki_${String(i+1).padStart(2,"0")}.svg` : `${SRC.name}_tegaki.svg`;
