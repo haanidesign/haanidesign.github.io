@@ -63,6 +63,7 @@ body{
 }
 #empty b{font-weight:700;}
 #hud{position:absolute; left:.45rem; top:.45rem; z-index:5; display:flex; gap:.25rem; pointer-events:none;}
+#hFov{pointer-events:auto; cursor:pointer;}
 #hud span{
   background:rgba(251,250,236,.92); border:2px solid var(--ink); border-radius:9px;
   padding:.05rem .35rem; font-family:'DotGothic16',monospace; font-size:.6rem;
@@ -126,13 +127,13 @@ select{
 .pv-head{display:flex; align-items:center; gap:.4rem;}
 .pv-head .grow{flex:1;}
 .pv-body{
-  flex:1; min-height:0; overflow:auto; border:2px solid var(--ink); border-radius:9px;
+  flex:1; min-height:0; overflow:hidden; touch-action:none; border:2px solid var(--ink); border-radius:9px;
   background:
     linear-gradient(45deg,#eee 25%,transparent 25%,transparent 75%,#eee 75%),
     linear-gradient(45deg,#eee 25%,#fff 25%,#fff 75%,#eee 75%);
   background-size:20px 20px; background-position:0 0,10px 10px;
 }
-.pv-body canvas{display:block; width:100%; height:auto;}
+.pv-body canvas{display:block; width:100%; height:auto; transform-origin:0 0;}
 #layPanel{
   position:absolute; right:.5rem; top:2.6rem; z-index:6; width:210px;
   background:var(--paper); border:var(--bd); border-radius:var(--r);
@@ -210,7 +211,7 @@ input[type=file]{display:none;}
     </div>
   </div>
   <button class="btn btn-sm" id="bLayToggle">レイヤー</button>
-  <div id="hud"><span id="hYaw">よこ 0</span><span id="hPitch">たて 0</span><span id="hFov">がかく 90</span></div>
+  <div id="hud"><span id="hYaw">よこ 0</span><span id="hPitch">たて 0</span><span id="hFov">ズーム ×1.0</span></div>
   <div id="empty"><div>
     <b>360°の えを 描く ための 台です。</b><br><br>
     ① <b>しんき</b> で 白紙を つくる<br>
@@ -275,7 +276,7 @@ input[type=file]{display:none;}
       <label class="f">天井 <b id="vCeil" class="dot">2.5</b>m<input type="range" id="ceil" min="1.6" max="12" step="0.1" value="2.5"></label>
     </div>
     <div class="rowb">
-      <label class="f">がかく<input type="range" id="fov" min="20" max="120" step="1" value="90"></label>
+      <label class="f">がかく<input type="range" id="fov" min="3" max="150" step="1" value="90"></label>
       <select id="cutSize"><option value="1024">1024</option><option value="1536" selected>1536</option><option value="2048">2048</option></select>
       <button class="btn btn-sm btn-y" id="bCut">切り出す</button>
       <button class="btn btn-sm btn-y" id="bBack">もどす</button>
@@ -307,8 +308,8 @@ input[type=file]{display:none;}
     </div>
     <div class="pv-body"><canvas id="pvCanvas"></canvas></div>
     <div class="hint">
-      よこは ぐるり 一周、たては 真上から 真下まで。<br>
-      はしと はしが つながって います。上下が のびて 見えるのは 正しい すがたです。
+      よこは ぐるり 一周、たては 真上から 真下まで。はしと はしが つながって います。<br>
+      <b>2本ゆびで つまむと 寄れます</b>。1本で なぞると 動かせます。トン2回で もとの 大きさ。
     </div>
   </div>
 </div>
@@ -332,6 +333,7 @@ const $ = (id) => document.getElementById(id);
 const D2R = Math.PI/180;
 
 let view = { yaw:0, pitch:0, fov:90 };
+const FOV_MIN = 3, FOV_MAX = 150;   // 3°まで 寄れる。90°が もとの 大きさ
 let lastCut = null;
 let equiW = 0, equiH = 0;
 let gl, pView, pMerge, pCopy, texFlat, fbo, texScratch, ready = false;
@@ -521,6 +523,75 @@ function dirOf(lonDeg, latDeg){
 /* ---------------------------------------------------------------- ぜんぶ見る */
 
 /* 正距円筒の まま 1枚で 見る。よこが 一周、たてが 真上から 真下。 */
+let pvView = { s:1, x:0, y:0 };
+
+function pvApply(){
+  const c = $('pvCanvas');
+  c.style.transform = 'translate(' + pvView.x + 'px,' + pvView.y + 'px) scale(' + pvView.s + ')';
+}
+
+/* プレビューの 中で つまむ・動かす */
+function bindPreview(){
+  const body = document.querySelector('.pv-body');
+  const dist = (t) => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  const mid  = (t) => [(t[0].clientX+t[1].clientX)/2, (t[0].clientY+t[1].clientY)/2];
+  let g = null, lastTap = 0;
+
+  body.addEventListener('touchstart', (e) => {
+    if(e.touches.length >= 2){
+      g = { two:true, d0:dist(e.touches), s0:pvView.s, mid:mid(e.touches) };
+    } else {
+      const now = Date.now();
+      if(now - lastTap < 300){ pvView = { s:1, x:0, y:0 }; pvApply(); }
+      lastTap = now;
+      g = { two:false, x:e.touches[0].clientX, y:e.touches[0].clientY };
+    }
+    e.preventDefault();
+  }, {passive:false});
+
+  body.addEventListener('touchmove', (e) => {
+    if(!g) return;
+    if(g.two && e.touches.length >= 2){
+      const d = dist(e.touches), m = mid(e.touches);
+      const ns = Math.max(1, Math.min(12, g.s0 * (d/Math.max(g.d0,1))));
+      /* つまんだ ところを 中心に 寄る */
+      const r = body.getBoundingClientRect();
+      const cx = m[0]-r.left, cy = m[1]-r.top;
+      pvView.x = cx - (cx - pvView.x) * (ns/pvView.s);
+      pvView.y = cy - (cy - pvView.y) * (ns/pvView.s);
+      pvView.s = ns;
+      pvView.x += m[0]-g.mid[0]; pvView.y += m[1]-g.mid[1];
+      g.mid = m;
+    } else if(!g.two && e.touches.length === 1){
+      pvView.x += e.touches[0].clientX - g.x;
+      pvView.y += e.touches[0].clientY - g.y;
+      g.x = e.touches[0].clientX; g.y = e.touches[0].clientY;
+    }
+    pvApply(); e.preventDefault();
+  }, {passive:false});
+
+  body.addEventListener('touchend', () => { g = null; }, {passive:true});
+
+  /* パソコン用 */
+  body.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = body.getBoundingClientRect(), cx = e.clientX-r.left, cy = e.clientY-r.top;
+    const ns = Math.max(1, Math.min(12, pvView.s * (e.deltaY>0 ? 0.9 : 1.1)));
+    pvView.x = cx - (cx - pvView.x) * (ns/pvView.s);
+    pvView.y = cy - (cy - pvView.y) * (ns/pvView.s);
+    pvView.s = ns; pvApply();
+  }, {passive:false});
+  let down = false, lx = 0, ly = 0;
+  body.addEventListener('mousedown', (e) => { down = true; lx = e.clientX; ly = e.clientY; });
+  window.addEventListener('mouseup', () => { down = false; });
+  window.addEventListener('mousemove', (e) => {
+    if(!down) return;
+    pvView.x += e.clientX-lx; pvView.y += e.clientY-ly;
+    lx = e.clientX; ly = e.clientY; pvApply();
+  });
+  body.addEventListener('dblclick', () => { pvView = { s:1, x:0, y:0 }; pvApply(); });
+}
+
 function openPreview(){
   if(!ready) return toast('さきに 白紙を つくって ください', true);
   stampInk(true);
@@ -529,6 +600,8 @@ function openPreview(){
   pv.width = flat.width; pv.height = flat.height;
   pv.getContext('2d').drawImage(flat, 0, 0);
   $('pvSize').textContent = flat.width + '×' + flat.height;
+  pvView = { s:1, x:0, y:0 };
+  pvApply();
   $('preview').classList.remove('hide');
 }
 
@@ -872,7 +945,8 @@ function drawView(){
   } catch(e) { /* 絵が 出せなくても パース線と ひとは 出す */ }
   $('hYaw').textContent = 'よこ ' + Math.round(view.yaw);
   $('hPitch').textContent = 'たて ' + Math.round(view.pitch);
-  $('hFov').textContent = 'がかく ' + Math.round(view.fov);
+  /* 90°を もとの 大きさ と して、何ばい 寄って いるかで 出す */
+  $('hFov').textContent = 'ズーム ×' + (90/view.fov).toFixed(view.fov < 30 ? 1 : 1);
   drawOverlay();
 }
 
@@ -1265,7 +1339,7 @@ function bindTurn(){
       view.yaw = (view.yaw + dx*s + 540) % 360 - 180;
       view.pitch = clampP(view.pitch + dy*s);
       /* ひらき ぐあいで 寄る。はじめの ひらきから 決めるので ずれない。 */
-      view.fov = Math.max(20, Math.min(120, g.fov0 * (g.d0/Math.max(d,1))));
+      view.fov = Math.max(FOV_MIN, Math.min(FOV_MAX, g.fov0 * (g.d0/Math.max(d,1))));
       $('fov').value = Math.round(view.fov);
       g.mid = m;
       drawView(); e.preventDefault();
@@ -1296,7 +1370,7 @@ function bindTurn(){
   });
   k.addEventListener('wheel', (e) => {
     e.preventDefault();
-    view.fov = Math.max(20, Math.min(120, view.fov + (e.deltaY>0?4:-4)));
+    view.fov = Math.max(FOV_MIN, Math.min(FOV_MAX, view.fov + (e.deltaY>0?4:-4)));
     $('fov').value = Math.round(view.fov);
     drawView();
   }, {passive:false});
@@ -1457,7 +1531,7 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
 
 (function main(){
   if(!initGL()) return;
-  bindPen(); bindTurn();
+  bindPen(); bindTurn(); bindPreview();
   window.addEventListener('resize', drawView);
 
   const cbox = $('colors');
@@ -1638,6 +1712,13 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
     if(popOpen && !pop.contains(e.target) && e.target.closest('#colorBtn') === null) setPop(false);
   });
   window.addEventListener('resize', () => { if(popOpen) placePop(); });
+
+  /* 倍率を 押したら もとの 大きさ に もどす */
+  $('hFov').style.pointerEvents = 'auto';
+  $('hFov').style.cursor = 'pointer';
+  $('hFov').onclick = () => {
+    view.fov = 90; $('fov').value = 90; drawView(); toast('もとの 大きさに もどしました');
+  };
 
   $('bPrev').onclick = openPreview;
   $('pvClose').onclick = () => $('preview').classList.add('hide');
