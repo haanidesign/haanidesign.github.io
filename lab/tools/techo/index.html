@@ -2040,8 +2040,8 @@ document.addEventListener("pointerdown",(e)=>{
 /* 大きさ */
 $("#zoomIn").onclick=()=>stepZoom(1);
 $("#zoomOut").onclick=()=>stepZoom(-1);
-$("#zoomFit").onclick=()=>{ setZoom(1); setStatus("画面に合わせました",true); };      // 紙まるごと画面に
-$("#zoomFit").ondblclick=()=>{ setZoom(1/Math.max(fitK,.01)); setStatus("原寸",true); }; // 二度押しで原寸
+$("#zoomFit").onclick=()=>setZoom(1);                        // 紙まるごと画面に
+$("#zoomFit").ondblclick=()=>setZoom(1/Math.max(fitK,.01));  // 二度押しで原寸
 
 /* 新規・削除 */
 $("#newPage").onclick=async()=>{
