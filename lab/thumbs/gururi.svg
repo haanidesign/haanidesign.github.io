@@ -3,49 +3,57 @@
     <pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse">
       <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
     </pattern>
-    <clipPath id="ball"><circle cx="300" cy="196" r="118"/></clipPath>
+    <clipPath id="win"><rect x="34" y="96" width="440" height="230" rx="10"/></clipPath>
   </defs>
 
   <rect width="600" height="400" fill="#FBFAEC"/>
   <rect width="600" height="400" fill="url(#dots)"/>
 
-  <!-- 球 -->
-  <g clip-path="url(#ball)">
-    <circle cx="300" cy="196" r="118" fill="#FFFEF7"/>
-    <!-- 経線 -->
-    <g stroke="#B8B43F" stroke-width="3" fill="none">
-      <path d="M300 78 v236"/>
-      <ellipse cx="300" cy="196" rx="40" ry="118"/>
-      <ellipse cx="300" cy="196" rx="80" ry="118"/>
+  <!-- 見ている ところ -->
+  <rect x="34" y="96" width="440" height="230" rx="10" fill="#FFFEF7"/>
+  <g clip-path="url(#win)">
+    <!-- ゆかの パース -->
+    <g stroke="#7896D2" stroke-opacity=".55" stroke-width="1.4" fill="none">
+      <path d="M254 211 L-140 340 M254 211 L-40 340 M254 211 L60 340 M254 211 L160 340
+               M254 211 L254 340 M254 211 L348 340 M254 211 L448 340 M254 211 L548 340 M254 211 L648 340"/>
+      <path d="M-20 232 H540 M-40 248 H560 M-70 270 H590 M-110 300 H620 M-150 336 H660"/>
     </g>
-    <!-- 緯線 -->
-    <g stroke="#B8B43F" stroke-width="3" fill="none">
-      <path d="M182 196 h236"/>
-      <path d="M196 138 q104 -26 208 0"/>
-      <path d="M196 254 q104 26 208 0"/>
+    <!-- 天井の パース -->
+    <g stroke="#7896D2" stroke-opacity=".38" stroke-width="1.4" fill="none">
+      <path d="M254 211 L-140 82 M254 211 L-40 82 M254 211 L60 82 M254 211 L160 82
+               M254 211 L254 82 M254 211 L348 82 M254 211 L448 82 M254 211 L548 82 M254 211 L648 82"/>
+      <path d="M-20 190 H540 M-40 174 H560 M-70 152 H590 M-110 122 H620"/>
     </g>
-    <!-- 切り出している 範囲 -->
-    <path d="M258 150 q42 -12 84 0 v92 q-42 12 -84 0 z" fill="#E1DD60" fill-opacity=".75"/>
+    <!-- 地平線と 消失点 -->
+    <path d="M34 211 H474" stroke="#E23C3C" stroke-opacity=".75" stroke-width="3"/>
+    <circle cx="254" cy="211" r="5.5" fill="#E23C3C"/>
+
+    <!-- 糸人間（あたまは 地平線あたりに そろう） -->
+    <g stroke="#1E1C14" stroke-width="3.4" stroke-linecap="round" fill="none">
+      <circle cx="120" cy="200" r="11"/>
+      <path d="M120 211 V254 M120 220 L104 238 M120 220 L136 238 M120 254 L108 292 M120 254 L133 292"/>
+    </g>
+    <g stroke="#1E1C14" stroke-width="2.6" stroke-linecap="round" fill="none" opacity=".8">
+      <circle cx="352" cy="203" r="8"/>
+      <path d="M352 211 V242 M352 218 L340 232 M352 218 L364 232 M352 242 L343 270 M352 242 L361 270"/>
+    </g>
   </g>
-  <circle cx="300" cy="196" r="118" fill="none" stroke="#1E1C14" stroke-width="6"/>
+  <rect x="34" y="96" width="440" height="230" rx="10" fill="none" stroke="#1E1C14" stroke-width="6"/>
 
   <!-- 切り出した 四角 -->
-  <g transform="translate(430,120)">
-    <rect x="0" y="0" width="120" height="120" rx="10" fill="#E1DD60" stroke="#1E1C14" stroke-width="6"/>
-    <path d="M22 60 h76 M60 22 v76" stroke="#1E1C14" stroke-width="5" stroke-linecap="round"/>
+  <g transform="translate(492,150)">
+    <rect x="0" y="0" width="76" height="76" rx="9" fill="#E1DD60" stroke="#1E1C14" stroke-width="5"/>
+    <path d="M16 38 h44 M38 16 v44" stroke="#1E1C14" stroke-width="4" stroke-linecap="round"/>
   </g>
-  <!-- 矢印（球 → 四角、四角 → 球） -->
-  <g stroke="#1E1C14" stroke-width="6" fill="none" stroke-linecap="round">
-    <path d="M398 152 h20"/>
-    <path d="M410 144 l10 8 -10 8"/>
-    <path d="M418 236 h-20"/>
-    <path d="M406 228 l-10 8 10 8"/>
+  <g stroke="#1E1C14" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M478 176 h10"/><path d="M482 170 l8 6 -8 6"/>
+    <path d="M488 206 h-10"/><path d="M484 200 l-8 6 8 6"/>
   </g>
 
   <!-- 見出し -->
-  <rect x="40" y="36" width="196" height="44" rx="22" fill="#1E1C14"/>
-  <text x="138" y="66" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif"
+  <rect x="34" y="34" width="196" height="44" rx="22" fill="#1E1C14"/>
+  <text x="132" y="64" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif"
         font-weight="700" font-size="24" fill="#E1DD60">ぐるり 360°</text>
-  <text x="40" y="352" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="700"
-        font-size="20" fill="#1E1C14">まうえも ましたも、ゆがまずに 描ける</text>
+  <text x="34" y="366" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="700"
+        font-size="19" fill="#1E1C14">ゆか と 天井の パース線、糸人間を おいて 描く</text>
 </svg>
