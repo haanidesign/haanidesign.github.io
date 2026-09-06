@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。二本指でつまんで大きさを変えられる。">
+<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。綴じ目を軸に紙がめくれる。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -189,11 +189,15 @@ a{color:var(--blue)}
   touch-action:pan-y;   /* 横は自分でめくる。縦はページのスクロールに渡す */
   border-radius:var(--r-l);
 }
-.stage.zoomed{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:auto}
+.stage.zoomed{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.leafwrap{
+  transform:translateX(var(--dx,0px)) rotateY(var(--ry,0deg)) scale(var(--pz,1));
+  transform-origin:left center;transform-style:preserve-3d;
+  will-change:transform;
+}
 .paper{
   width:var(--pw);min-height:1130px;
-  transform:translateX(var(--dx,0px)) scale(var(--k));transform-origin:top left;
-  will-change:transform;
+  transform:scale(var(--k));transform-origin:top left;
   position:relative;background:var(--paper);color:var(--ink);
   border-radius:calc(var(--r-l) / var(--k));
   box-shadow:var(--lift-2);
@@ -202,13 +206,27 @@ a{color:var(--blue)}
   background-size:100% 32px;background-position:0 51px;
   transform-style:preserve-3d;backface-visibility:hidden;
 }
-@keyframes leaf-out{ from{transform:translateX(var(--dx,0px)) scale(var(--k)) rotateY(0);opacity:1}
-                     to{transform:translateX(var(--dx,0px)) scale(var(--k)) rotateY(var(--turn,-14deg));opacity:0} }
-@keyframes leaf-in{ from{transform:scale(var(--k)) rotateY(calc(var(--turn,-14deg) * -1));opacity:0}
-                    to{transform:scale(var(--k)) rotateY(0);opacity:1} }
-.paper.turn-out{animation:leaf-out .18s cubic-bezier(.32,.06,.75,.3) forwards}
-.paper.turn-in{animation:leaf-in .32s cubic-bezier(.16,.8,.28,1) forwards}
-@media (prefers-reduced-motion:reduce){ .paper.turn-out,.paper.turn-in{animation-duration:.01s} }
+/* めくり：綴じ目（左端）を軸に紙が起き上がって伏せる */
+@keyframes leaf-out{
+  from{ transform:translateX(0) rotateY(0deg); }
+  to  { transform:translateX(var(--turnx,-6%)) rotateY(var(--turn,-58deg)); }
+}
+@keyframes leaf-in{
+  from{ transform:translateX(calc(var(--turnx,-6%) * -1)) rotateY(calc(var(--turn,-58deg) * -1)); }
+  to  { transform:translateX(0) rotateY(0deg); }
+}
+.leafwrap.turn-out{animation:leaf-out .2s cubic-bezier(.4,0,.85,.4) forwards}
+.leafwrap.turn-in{animation:leaf-in .34s cubic-bezier(.16,.84,.3,1) forwards}
+@media (prefers-reduced-motion:reduce){ .leafwrap.turn-out,.leafwrap.turn-in{animation-duration:.01s} }
+
+/* めくっている間、紙面に落ちる陰と、起きた紙の縁の光 */
+.shade{
+  position:absolute;inset:0;z-index:20;pointer-events:none;border-radius:inherit;
+  opacity:var(--shade,0);
+  background:linear-gradient(var(--shadedir,90deg),
+    rgba(0,0,0,.32) 0%, rgba(0,0,0,.12) 22%, rgba(0,0,0,0) 55%),
+    linear-gradient(var(--shadedir,90deg), rgba(255,255,255,0) 78%, rgba(255,255,255,.5) 100%);
+}
 
 .dividers{display:flex;flex-direction:column;gap:8px;padding-top:30px;width:36px;flex:none}
 .divider{
@@ -380,8 +398,6 @@ a{color:var(--blue)}
 .pager button:disabled{opacity:.35;color:var(--label-3)}
 .stat2{display:none;font-size:12px;color:var(--label-3);margin:0;text-align:center}
 .stat2.ok{color:var(--green)}
-.tip{font-size:12px;color:var(--label-3);text-align:center;max-width:520px;line-height:1.7}
-.tip span{overflow-wrap:anywhere}
 
 /* ---- 小窓 ---- */
 .ask{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.32);display:grid;place-items:center;padding:20px;backdrop-filter:blur(6px)}
@@ -445,8 +461,7 @@ a{color:var(--blue)}
   .bar .stat{display:none}
   .bar .grow{flex:0 0 4px}
   .stat2{display:block}
-  .tip{font-size:11.5px;padding:0 10px}
-}
+  }
 @media (max-width:900px) and (display-mode:standalone){ .desk{padding-bottom:150px} }
 </style>
 
@@ -503,6 +518,7 @@ a{color:var(--blue)}
 
     <div class="book">
       <div class="stage" id="stage">
+        <div class="leafwrap" id="leafwrap">
         <article class="paper" id="paper">
           <div class="title-line">
             <div class="p-title" id="pTitle" contenteditable="plaintext-only" spellcheck="false"></div>
@@ -515,7 +531,9 @@ a{color:var(--blue)}
             <button class="add" id="addImg">＋ 写真</button>
           </div>
           <canvas id="inkLayer"></canvas>
+          <div class="shade" id="shade"></div>
         </article>
+        </div>
       </div>
       <div class="dividers" id="dividers" role="tablist" aria-label="フォルダ"></div>
     </div>
@@ -527,7 +545,7 @@ a{color:var(--blue)}
     </div>
 
     <p class="stat2" id="status2" aria-live="polite"></p>
-    <p class="tip"><span id="tipText">紙を横にはらうと頁がめくれます。⤢ で原寸と全体を切り替え。写真は貼り付け・ドラッグでも入ります。</span></p>
+    
   </main>
 </div>
 
@@ -983,19 +1001,26 @@ async function openPage(id,dir){
 }
 
 function turn(dir,swap){
-  const el=$("#paper");
-  if(typeof leaf!=="undefined" && Math.abs(leaf.value)<1) el.style.setProperty("--dx","0px");
+  const el=$("#leafwrap"), sh=$("#shade");
+  if(typeof leaf!=="undefined"){ leaf.stop(); leaf.set(0); }
   el.classList.remove("turn-out","turn-in");
-  el.style.setProperty("--turn", dir==="prev"?"14deg":"-14deg");
+  el.style.setProperty("--turn", dir==="prev"?"58deg":"-58deg");
+  el.style.setProperty("--turnx", dir==="prev"?"6%":"-6%");
+  if(sh) sh.style.setProperty("--shadedir", dir==="prev"?"90deg":"270deg");
   if(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches){ swap(); fit(); return Promise.resolve(); }
   return new Promise(res=>{
     el.classList.add("turn-out");
+    if(sh) sh.style.setProperty("--shade",".55");
     setTimeout(()=>{
       el.classList.remove("turn-out");
       swap(); fit();
       el.classList.add("turn-in");
-      setTimeout(()=>{ el.classList.remove("turn-in"); res(); },320);
-    },180);
+      setTimeout(()=>{
+        el.classList.remove("turn-in");
+        if(sh) sh.style.setProperty("--shade","0");
+        res();
+      },340);
+    },200);
   });
 }
 
@@ -1614,18 +1639,31 @@ document.addEventListener("keydown",(e)=>{
 });
 
 /* 指に貼りつく頁めくり：1:1で追い、離した速度で行き先を決め、端はゴムで粘る */
-const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
+const leaf=makeSpring(v=>{
+  const el=$("#leafwrap"); if(!el) return;
+  const w=($("#stage").clientWidth)||1;
+  const t=Math.max(-1,Math.min(1, v/w));           // -1〜1（左へ引くと負）
+  el.style.setProperty("--dx", (v*0.35)+"px");     // 紙は少しだけ横へ逃げ
+  el.style.setProperty("--ry", (t*-58)+"deg");     // 綴じ目を軸に起き上がる
+  const sh=$("#shade");
+  if(sh){
+    sh.style.setProperty("--shade", Math.min(.85, Math.abs(t)*1.25));
+    sh.style.setProperty("--shadedir", t<0 ? "270deg" : "90deg");
+  }
+});
 (function drag(){
   const st=$("#stage");
-  let id=null,x0=0,y0=0,locked=false,hist=[],w=0;
-  const canDrag=()=> tool==="move" && !pinching && !st.classList.contains("zoomed");
+  let id=null,x0=0,y0=0,sl0=0,locked=false,hist=[],w=0,off=0;
+  const zoomed=()=>st.classList.contains("zoomed");
+  const canDrag=()=> tool==="move" && !pinching;
   const near=(dir)=>{ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); return dir<0 ? (i>=0&&i<l.length-1) : (i>0); };
 
   st.addEventListener("pointerdown",(e)=>{
     if(!canDrag()||id!==null) return;
     if(e.pointerType==="mouse"&&e.button!==0) return;
     if(e.target.closest("a,button,[contenteditable='true'],.fitem,.i-block,.md,input")) return;
-    id=e.pointerId; x0=e.clientX; y0=e.clientY; locked=false;
+    id=e.pointerId; x0=e.clientX; y0=e.clientY; locked=false; off=0;
+    sl0=st.scrollLeft;
     w=st.clientWidth||1; hist=[[e.clientX,performance.now()]];
     leaf.stop();
   },{passive:true});
@@ -1635,15 +1673,26 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
     if(pinching){ id=null; locked=false; leaf.to(0,{damping:1,response:.3}); return; }
     const dx=e.clientX-x0, dy=e.clientY-y0;
     if(!locked){
-      const need=(e.pointerType==="mouse")?16:10;  // 動かす気があるか見極めてから掴む
+      const need=(e.pointerType==="mouse")?16:10;   // 動かす気があるか見極めてから掴む
       if(Math.abs(dx)<need) return;
-      if(Math.abs(dy)>Math.abs(dx)){ id=null; return; }  // 縦に動かしたい人の邪魔をしない
+      if(Math.abs(dy)>Math.abs(dx)){ id=null; return; }
       locked=true; try{ st.setPointerCapture(id); }catch(err){}
     }
     e.preventDefault();
     hist.push([e.clientX,performance.now()]); if(hist.length>6) hist.shift();
-    const free=near(dx<0?-1:1);
-    leaf.set(free ? dx : rubber(dx,w));           // 行き先が無い側はゴム
+
+    if(zoomed()){
+      // 拡大中：まず紙の中を横に見て、端まで来たらそこからめくりに移る
+      const max=Math.max(0, st.scrollWidth-st.clientWidth);
+      const want=sl0-dx;
+      if(want<0){ st.scrollLeft=0; off=-want; }
+      else if(want>max){ st.scrollLeft=max; off=max-want; }
+      else { st.scrollLeft=want; off=0; }
+    }else{
+      off=dx;
+    }
+    const free=near(off<0?-1:1);
+    leaf.set(off===0 ? 0 : (free ? off : rubber(off,w)));
   });
 
   function release(e){
@@ -1652,74 +1701,90 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
     if(!wasLocked) return;
     const now=performance.now(), old=hist[0]||[e.clientX,now];
     const dt=Math.max(now-old[1],1);
-    const vel=(e.clientX-old[0])/dt*1000;         // px/秒
+    const vel=(e.clientX-old[0])/dt*1000;          // px/秒
     const dx=leaf.value;
+    if(Math.abs(dx)<1){ leaf.to(0,{damping:1,response:.3}); return; }
     const projected=dx+project(vel);
     const dir=projected<0?-1:1;
-    const flick=Math.abs(vel)>340 && Math.abs(dx)>24;   // 速ければ短くてもめくる
+    const flick=Math.abs(vel)>340 && Math.abs(dx)>24;
     if((flick||Math.abs(projected)>w*0.22) && near(dir)){
-      leaf.to(dir*w*1.05,{damping:.9,response:.3,velocity:vel,onDone:()=>{
-        leaf.set(-dir*w*0.6);                     // 次の紙は反対側から入ってくる
+      leaf.to(dir*w*1.05,{damping:.9,response:.28,velocity:vel,onDone:()=>{
+        leaf.set(-dir*w*0.55);                     // 次の紙は反対側から起き上がってくる
         (dir<0?$("#next"):$("#prev")).click();
-        leaf.to(0,{damping:1,response:.35});
+        leaf.to(0,{damping:1,response:.34});
       }});
     }else{
-      leaf.to(0,{damping:1,response:.35,velocity:vel});  // 戻す（速度は引き継ぐ）
+      leaf.to(0,{damping:1,response:.35,velocity:vel});
     }
   }
   st.addEventListener("pointerup",release);
   st.addEventListener("pointercancel",(e)=>{ if(e.pointerId===id){ id=null; locked=false; leaf.to(0,{damping:1,response:.35}); } });
 })();
-/* 二本指でつまむと紙が伸び縮みする（指の間の距離に 1:1 で追う） */
+
+/* 二本指でつまむと紙が伸び縮みする。
+   指を動かしている間は合成（transform）だけで拡縮し、離した時に一度だけ組み直す。 */
 (function pinch(){
   const st=$("#stage");
   const pts=new Map();
-  let d0=0,k0=1,anchor=0,contentX=0,touchAction="";
-  const dist=()=>{
-    const a=[...pts.values()];
-    return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
-  };
-  const mid=()=>{
-    const a=[...pts.values()];
-    return [(a[0].x+a[1].x)/2,(a[0].y+a[1].y)/2];
-  };
+  let d0=0,k0=1,scale=1,raf=0,mx=0,my=0,contentX=0,touchAction="";
+  const lw=()=>$("#leafwrap");
+  const two=()=>[...pts.values()];
+  const dist=()=>{ const a=two(); return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y); };
+  const mid =()=>{ const a=two(); return [(a[0].x+a[1].x)/2,(a[0].y+a[1].y)/2]; };
+
+  function apply(){
+    raf=0;
+    lw().style.setProperty("--pz", scale);
+  }
+
   st.addEventListener("pointerdown",(e)=>{
     if(e.pointerType==="mouse") return;
     pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pts.size===2){
-      pinching=true;
+      pinching=true; scale=1;
       touchAction=st.style.touchAction; st.style.touchAction="none";
-      d0=dist(); k0=fitK*userZoom;
-      const m=mid(), r=st.getBoundingClientRect();
-      anchor=m[0]-r.left;
-      contentX=(st.scrollLeft+anchor)/k0;      // 指の下にある紙の位置を覚える
+      d0=dist()||1; k0=fitK*userZoom;
+      const m=mid(), r=lw().getBoundingClientRect(), sr=st.getBoundingClientRect();
+      mx=m[0]; my=m[1];
+      // つまんだ所を軸にする＝指の下の紙が動かない
+      lw().style.transformOrigin=(((m[0]-r.left)/(r.width||1))*100)+"% "+(((m[1]-r.top)/(r.height||1))*100)+"%";
+      contentX=(st.scrollLeft+(m[0]-sr.left))/k0;
+      leaf.stop(); leaf.set(0);
     }
   },{passive:true});
+
   st.addEventListener("pointermove",(e)=>{
     if(!pts.has(e.pointerId)) return;
     pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pts.size!==2||!pinching) return;
     e.preventDefault();
-    const scale=dist()/(d0||1);
-    let k=k0*scale;
+    const m=mid(); mx=m[0]; my=m[1];
+    let k=k0*(dist()/d0);
     const lo=.3, hi=2.2;
     if(k<lo) k=lo-rubber(lo-k,st.clientWidth||300)*0.4;   // 端はゴムで粘る
     if(k>hi) k=hi+rubber(k-hi,st.clientWidth||300)*0.4;
-    userZoom=k/Math.max(fitK,.01);
-    const kNow=fit();
-    st.scrollLeft=contentX*kNow-anchor;                   // 指の下の紙は動かさない
+    scale=k/k0;
+    if(!raf) raf=requestAnimationFrame(apply);            // 1フレームに1回だけ描く
   },{passive:false});
+
   const up=(e)=>{
     if(!pts.has(e.pointerId)) return;
     pts.delete(e.pointerId);
     if(pts.size<2&&pinching){
       pinching=false;
       st.style.touchAction=touchAction;
-      const k=fitK*userZoom;
-      const clamped=Math.max(.3,Math.min(2.2,k));
-      if(Math.abs(clamped-k)>.001) setZoom(clamped/Math.max(fitK,.01));   // 行き過ぎた分は戻す
-      else setZoom(userZoom);                                            // 覚えておく
+      if(raf){ cancelAnimationFrame(raf); raf=0; }
+      const el=lw();
+      const finalK=Math.max(.3,Math.min(2.2,k0*scale));
+      el.style.setProperty("--pz",1);
+      el.style.transformOrigin="left center";
+      userZoom=finalK/Math.max(fitK,.01);
+      const kNow=fit();                                   // 組み直しはここで一度だけ
       sizeCanvas();
+      const sr=st.getBoundingClientRect();
+      st.scrollLeft=contentX*kNow-(mx-sr.left);           // つまんでいた所を画面に残す
+      try{ localStorage.setItem("techo:zoom",String(userZoom)); }catch(err){}
+      scale=1;
     }
   };
   st.addEventListener("pointerup",up);
@@ -1730,7 +1795,7 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
 (function wheelTurn(){
   let acc=0,cool=0,timer=null;
   $("#stage").addEventListener("wheel",(e)=>{
-    if(tool!=="move"||$("#stage").classList.contains("zoomed")) return;
+    if(tool!=="move") return;
     if(Math.abs(e.deltaX)<=Math.abs(e.deltaY)) return;      // 縦スクロールは邪魔しない
     e.preventDefault();
     const now=Date.now();
@@ -1893,7 +1958,6 @@ function watchAll(){
   $("#app").classList.toggle("readonly",!canEdit);
   $("#role").textContent=canEdit?"書き込めます":"";
   $("#role").hidden=!canEdit;
-  if(!canEdit) $("#tipText").textContent="紙を横にはらうと頁がめくれます。二本指でつまむと大きさが変わります。";
 
   try{ folders=await store.getFolders(); }catch(e){ folders=[]; }
   if(!folders.length){
