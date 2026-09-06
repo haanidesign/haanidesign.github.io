@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="紙を触った場所に文字や写真を置ける手帳。手書き・月間予定表つき。">
+<meta name="description" content="紙の右下に頁番号が入る手帳。触った場所に文字や写真を置ける。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -270,6 +270,13 @@ a{color:var(--blue)}
 }
 .p-title:empty::before{content:"無題の頁";color:var(--ink-3)}
 .p-date{font-size:11.5px;color:var(--ink-3);padding-bottom:10px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.folio{
+  position:absolute;right:34px;bottom:34px;z-index:3;
+  font-size:12.5px;letter-spacing:.06em;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;pointer-events:none;user-select:none;
+}
+.folio b{font-weight:600;color:var(--ink-2);font-size:14px}
 
 .blocks{display:flex;flex-direction:column;gap:6px;position:relative;z-index:2}
 .block{position:relative}
@@ -562,6 +569,7 @@ a{color:var(--blue)}
             <button class="add" id="addText">＋ 文字</button>
             <button class="add" id="addImg">＋ 写真</button>
           </div>
+          <div class="folio" id="folio"></div>
           <canvas id="inkLayer"></canvas>
           <div class="shade" id="shade"></div>
         </article>
@@ -939,6 +947,8 @@ function renderList(){
   }
   const list2=ordered(), i=cur?list2.findIndex(p=>p.id===cur.id):-1;
   $("#pageNo").textContent=list2.length?((i<0?1:i+1)+" / "+list2.length):"— / —";
+  const fo=$("#folio");
+  if(fo) fo.innerHTML = list2.length ? ("<b>"+(i<0?1:i+1)+"</b> / "+list2.length) : "";
   $("#prev").disabled=i<=0;
   $("#next").disabled=i<0||i>=list2.length-1;
 }
