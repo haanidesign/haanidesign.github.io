@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。文字も写真も好きな場所に置ける。">
+<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。紙をシュッとはらうとめくれる。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -1595,8 +1595,9 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
   const near=(dir)=>{ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); return dir<0 ? (i>=0&&i<l.length-1) : (i>0); };
 
   st.addEventListener("pointerdown",(e)=>{
-    if(!canDrag()||e.pointerType==="mouse"||id!==null) return;
-    if(e.target.closest("a,button,[contenteditable='true']")) return;
+    if(!canDrag()||id!==null) return;
+    if(e.pointerType==="mouse"&&e.button!==0) return;
+    if(e.target.closest("a,button,[contenteditable='true'],.fitem,.i-block,.md,input")) return;
     id=e.pointerId; x0=e.clientX; y0=e.clientY; locked=false;
     w=st.clientWidth||1; hist=[[e.clientX,performance.now()]];
     leaf.stop();
@@ -1606,7 +1607,8 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
     if(e.pointerId!==id) return;
     const dx=e.clientX-x0, dy=e.clientY-y0;
     if(!locked){
-      if(Math.abs(dx)<10) return;                 // 10px 動くまでは向きを決めない
+      const need=(e.pointerType==="mouse")?16:10;  // 動かす気があるか見極めてから掴む
+      if(Math.abs(dx)<need) return;
       if(Math.abs(dy)>Math.abs(dx)){ id=null; return; }  // 縦に動かしたい人の邪魔をしない
       locked=true; try{ st.setPointerCapture(id); }catch(err){}
     }
@@ -1626,7 +1628,8 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
     const dx=leaf.value;
     const projected=dx+project(vel);
     const dir=projected<0?-1:1;
-    if(Math.abs(projected)>w*0.28 && near(dir)){
+    const flick=Math.abs(vel)>340 && Math.abs(dx)>24;   // 速ければ短くてもめくる
+    if((flick||Math.abs(projected)>w*0.22) && near(dir)){
       leaf.to(dir*w*1.05,{damping:.9,response:.3,velocity:vel,onDone:()=>{
         leaf.set(-dir*w*0.6);                     // 次の紙は反対側から入ってくる
         (dir<0?$("#next"):$("#prev")).click();
@@ -1639,6 +1642,24 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
   st.addEventListener("pointerup",release);
   st.addEventListener("pointercancel",(e)=>{ if(e.pointerId===id){ id=null; locked=false; leaf.to(0,{damping:1,response:.35}); } });
 })();
+/* トラックパッドの横スワイプでもめくる */
+(function wheelTurn(){
+  let acc=0,cool=0,timer=null;
+  $("#stage").addEventListener("wheel",(e)=>{
+    if(tool!=="move"||$("#stage").classList.contains("zoomed")) return;
+    if(Math.abs(e.deltaX)<=Math.abs(e.deltaY)) return;      // 縦スクロールは邪魔しない
+    e.preventDefault();
+    const now=Date.now();
+    if(now<cool) return;
+    acc+=e.deltaX;
+    clearTimeout(timer); timer=setTimeout(()=>{ acc=0; },220);
+    if(Math.abs(acc)>90){
+      (acc>0?$("#next"):$("#prev")).click();
+      acc=0; cool=now+520;
+    }
+  },{passive:false});
+})();
+
 /* 紙の空いている所をダブルタップ → そこに文字を置く */
 $("#paper").addEventListener("dblclick",(e)=>{
   if(!canEdit||tool!=="move") return;
