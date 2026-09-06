@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。綴じ目を軸に紙がめくれる。">
+<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。右下の角からめくれる。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -185,14 +185,15 @@ a{color:var(--blue)}
 .book{display:flex;align-items:flex-start;width:100%;justify-content:center}
 .stage{
   width:var(--stageW,800px);height:var(--stageH,1130px);
-  perspective:2400px;overflow:hidden;flex:none;
+  perspective:1500px;perspective-origin:80% 78%;overflow:hidden;flex:none;
   touch-action:pan-y;   /* 横は自分でめくる。縦はページのスクロールに渡す */
   border-radius:var(--r-l);
 }
 .stage.zoomed{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 .leafwrap{
-  transform:translateX(var(--dx,0px)) rotateY(var(--ry,0deg)) scale(var(--pz,1));
-  transform-origin:left center;transform-style:preserve-3d;
+  transform:translateX(var(--dx,0px)) rotateZ(var(--rz,0deg)) rotateY(var(--ry,0deg)) scale(var(--pz,1));
+  transform-origin:0% 100%;                 /* 綴じ目の下＝紙の左下を軸に */
+  transform-style:preserve-3d;
   will-change:transform;
 }
 .paper{
@@ -208,12 +209,12 @@ a{color:var(--blue)}
 }
 /* めくり：綴じ目（左端）を軸に紙が起き上がって伏せる */
 @keyframes leaf-out{
-  from{ transform:translateX(0) rotateY(0deg); }
-  to  { transform:translateX(var(--turnx,-6%)) rotateY(var(--turn,-58deg)); }
+  from{ transform:translateX(0) rotateZ(0deg) rotateY(0deg); }
+  to  { transform:translateX(var(--turnx,-3%)) rotateZ(var(--turnz,-7deg)) rotateY(var(--turn,-46deg)); }
 }
 @keyframes leaf-in{
-  from{ transform:translateX(calc(var(--turnx,-6%) * -1)) rotateY(calc(var(--turn,-58deg) * -1)); }
-  to  { transform:translateX(0) rotateY(0deg); }
+  from{ transform:translateX(calc(var(--turnx,-3%) * -1)) rotateZ(calc(var(--turnz,-7deg) * -1)) rotateY(calc(var(--turn,-46deg) * -1)); }
+  to  { transform:translateX(0) rotateZ(0deg) rotateY(0deg); }
 }
 .leafwrap.turn-out{animation:leaf-out .2s cubic-bezier(.4,0,.85,.4) forwards}
 .leafwrap.turn-in{animation:leaf-in .34s cubic-bezier(.16,.84,.3,1) forwards}
@@ -223,9 +224,11 @@ a{color:var(--blue)}
 .shade{
   position:absolute;inset:0;z-index:20;pointer-events:none;border-radius:inherit;
   opacity:var(--shade,0);
-  background:linear-gradient(var(--shadedir,90deg),
-    rgba(0,0,0,.32) 0%, rgba(0,0,0,.12) 22%, rgba(0,0,0,0) 55%),
-    linear-gradient(var(--shadedir,90deg), rgba(255,255,255,0) 78%, rgba(255,255,255,.5) 100%);
+  background:
+    /* めくれ上がった角の照り */
+    radial-gradient(120% 90% at 100% 100%, rgba(255,255,255,.55) 0%, rgba(255,255,255,.12) 18%, rgba(255,255,255,0) 34%),
+    /* 角から紙面に落ちる陰 */
+    linear-gradient(var(--shadedir,315deg), rgba(0,0,0,.34) 0%, rgba(0,0,0,.14) 26%, rgba(0,0,0,0) 62%);
 }
 
 .dividers{display:flex;flex-direction:column;gap:8px;padding-top:30px;width:36px;flex:none}
@@ -1004,9 +1007,10 @@ function turn(dir,swap){
   const el=$("#leafwrap"), sh=$("#shade");
   if(typeof leaf!=="undefined"){ leaf.stop(); leaf.set(0); }
   el.classList.remove("turn-out","turn-in");
-  el.style.setProperty("--turn", dir==="prev"?"58deg":"-58deg");
-  el.style.setProperty("--turnx", dir==="prev"?"6%":"-6%");
-  if(sh) sh.style.setProperty("--shadedir", dir==="prev"?"90deg":"270deg");
+  el.style.setProperty("--turn", dir==="prev"?"46deg":"-46deg");
+  el.style.setProperty("--turnz", dir==="prev"?"7deg":"-7deg");
+  el.style.setProperty("--turnx", dir==="prev"?"3%":"-3%");
+  if(sh) sh.style.setProperty("--shadedir", dir==="prev"?"45deg":"315deg");
   if(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches){ swap(); fit(); return Promise.resolve(); }
   return new Promise(res=>{
     el.classList.add("turn-out");
@@ -1643,12 +1647,13 @@ const leaf=makeSpring(v=>{
   const el=$("#leafwrap"); if(!el) return;
   const w=($("#stage").clientWidth)||1;
   const t=Math.max(-1,Math.min(1, v/w));           // -1〜1（左へ引くと負）
-  el.style.setProperty("--dx", (v*0.35)+"px");     // 紙は少しだけ横へ逃げ
-  el.style.setProperty("--ry", (t*-58)+"deg");     // 綴じ目を軸に起き上がる
+  el.style.setProperty("--dx", (v*0.10)+"px");     // 横滑りはごく僅か
+  el.style.setProperty("--ry", (t*-46)+"deg");     // 右下の角が持ち上がる
+  el.style.setProperty("--rz", (t*-7)+"deg");
   const sh=$("#shade");
   if(sh){
-    sh.style.setProperty("--shade", Math.min(.85, Math.abs(t)*1.25));
-    sh.style.setProperty("--shadedir", t<0 ? "270deg" : "90deg");
+    sh.style.setProperty("--shade", Math.min(.9, Math.abs(t)*1.4));
+    sh.style.setProperty("--shadedir", t<0 ? "315deg" : "45deg");
   }
 });
 (function drag(){
@@ -1789,6 +1794,34 @@ const leaf=makeSpring(v=>{
   };
   st.addEventListener("pointerup",up);
   st.addEventListener("pointercancel",up);
+})();
+
+/* 二本指でトンと触れば前の頁、三本指なら次の頁 */
+(function multiTap(){
+  const st=$("#stage");
+  const live=new Map();
+  let most=0, t0=0, slipped=false;
+  st.addEventListener("pointerdown",(e)=>{
+    if(e.pointerType==="mouse") return;
+    if(live.size===0){ most=0; t0=Date.now(); slipped=false; }
+    live.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    most=Math.max(most,live.size);
+  },{passive:true});
+  st.addEventListener("pointermove",(e)=>{
+    const p=live.get(e.pointerId); if(!p) return;
+    if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>14) slipped=true;   // 動いたらタップではない
+  },{passive:true});
+  const up=(e)=>{
+    if(!live.has(e.pointerId)) return;
+    live.delete(e.pointerId);
+    if(live.size) return;                       // 全部離れてから決める
+    const quick=Date.now()-t0<420;
+    if(!quick||slipped||tool!=="move") return;
+    if(most===2) $("#prev").click();            // 二本指 → 戻る
+    else if(most>=3) $("#next").click();        // 三本指 → 進む
+  };
+  st.addEventListener("pointerup",up);
+  st.addEventListener("pointercancel",(e)=>{ live.delete(e.pointerId); slipped=true; });
 })();
 
 /* トラックパッドの横スワイプでもめくる */
