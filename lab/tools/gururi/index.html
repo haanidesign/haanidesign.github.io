@@ -155,8 +155,18 @@ select{
 .lrow input[type=range]{width:100%; accent-color:var(--main-deep); height:24px;}
 .lrow .op{display:flex; justify-content:space-between; font-size:.56rem; color:#5c5843; font-weight:400;}
 #bLayToggle{position:absolute; right:.5rem; top:.5rem; z-index:7;}
+#colorPop{
+  position:fixed; z-index:15; display:flex; gap:.4rem; align-items:flex-start;
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink); padding:.45rem;
+  transform-origin:left bottom;      /* 呼び出した ボタンから 生える */
+}
+#colorPop.hide{display:none;}
+.cp-right{display:flex; flex-direction:column; gap:.3rem; width:150px;}
+#colorBtn{gap:.35rem;}
+#curColor{display:inline-block; width:20px; height:20px; border:2px solid var(--ink);
+  border-radius:6px; background:#1E1C14;}
 #wheel{flex:none; border:2px solid var(--ink); border-radius:12px; background:var(--paper); touch-action:none;}
-#curColor{flex:none; width:44px; height:36px; border:2px solid var(--ink); border-radius:9px; background:#1E1C14;}
 .recent{display:grid; grid-template-columns:repeat(8,1fr); gap:.22rem;}
 .recent button{height:26px; border:2px solid var(--ink); border-radius:7px; cursor:pointer; padding:0;}
 .hide{display:none !important;}
@@ -228,16 +238,9 @@ input[type=file]{display:none;}
 
   <!-- ペンの 設定 -->
   <div id="panPen" class="hide">
-    <div class="rowb" style="margin-bottom:.35rem; align-items:flex-start">
-      <canvas id="wheel" width="170" height="170"></canvas>
-      <div style="flex:1; display:flex; flex-direction:column; gap:.3rem">
-        <div class="rowb">
-          <div id="curColor" title="いまの色"></div>
-          <label class="f">ふとさ <b id="vSize" class="dot">6</b><input type="range" id="size" min="1" max="80" step="1" value="6"></label>
-        </div>
-        <div class="sw" id="colors"></div>
-        <div id="recent" class="recent"></div>
-      </div>
+    <div class="rowb">
+      <button class="btn btn-sm" id="colorBtn"><span id="curColor"></span>いろ</button>
+      <label class="f">ふとさ <b id="vSize" class="dot">6</b><input type="range" id="size" min="1" max="80" step="1" value="6"></label>
     </div>
 
   </div>
@@ -280,8 +283,16 @@ input[type=file]{display:none;}
   </div>
 
   <div class="hint" id="tip">
-    <b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>
-    描いている ときも 2本ゆびで 寄れます。赤いのが 地平線です。
+    <b>2本ゆびで なぞると どの道具でも 回ります</b>。つまめば 寄る。<br>
+    2本ゆびで トン＝もどす／3本ゆびで トン＝やり直す。赤いのが 地平線です。
+  </div>
+</div>
+
+<div id="colorPop" class="hide">
+  <canvas id="wheel" width="164" height="164"></canvas>
+  <div class="cp-right">
+    <div class="sw" id="colors"></div>
+    <div id="recent" class="recent"></div>
   </div>
 </div>
 
@@ -307,6 +318,7 @@ input[type=file]{display:none;}
 <input type="file" id="fFlat" accept="image/*">
 <input type="file" id="fProj" accept="image/*">
 
+<script src="../../haani-motion.js"></script>
 <script>
 /* ぐるり（ラボ版）— サーバーなしで動く 360°ペイント。
 
@@ -1033,6 +1045,11 @@ function bindPen(){
   const begin = (e) => {
     if(!ready) return;
     if(e.touches && e.touches.length > 1) return;
+    /* 2本目の ゆびが 来た ときに 消せる ように、引く前の 紙を 覚えて おく */
+    strokeSnap = document.createElement('canvas');
+    strokeSnap.width = k.width; strokeSnap.height = k.height;
+    if(k.width) strokeSnap.getContext('2d').drawImage(k, 0, 0);
+    snapDirty = inkDirty;
     const p = pos(e);
     if(tool === 'person'){ personDown(p[0], p[1]); e.preventDefault(); return; }
     if(tool === 'pick'){ pickColor(p[0], p[1]); e.preventDefault(); return; }
@@ -1058,6 +1075,14 @@ function bindPen(){
     if(dragPerson){ dragPerson = false; savePeople(); }
     if(drawing){ drawing = false; stampInk(true); }
   };
+  cancelStroke = () => {
+    if(!drawing) return;
+    drawing = false;
+    const c = k.getContext('2d');
+    c.clearRect(0, 0, k.width, k.height);
+    if(strokeSnap && strokeSnap.width) c.drawImage(strokeSnap, 0, 0);
+    inkDirty = snapDirty;
+  };
 
   k.addEventListener('touchstart', begin, {passive:false});
   k.addEventListener('touchmove', move, {passive:false});
@@ -1068,6 +1093,8 @@ function bindPen(){
 }
 
 let dragPerson = false;
+let strokeSnap = null, snapDirty = false;
+let cancelStroke = () => {};
 
 /* さわった ところに いる ひとを さがす。いなければ そこに 新しく 立たせる。 */
 function personDown(px, py){
@@ -1194,34 +1221,79 @@ function bucket(x, y){
 
 function bindTurn(){
   const k = $('ink');
-  let m = 0, lx = 0, ly = 0, ld = 0, lfov = 90;
   const dist = (t) => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
-  const turn = (x, y) => {
-    const s = view.fov/90*0.22;
-    view.yaw = (view.yaw + (x-lx)*s + 540) % 360 - 180;
-    view.pitch = Math.max(-89, Math.min(89, view.pitch + (y-ly)*s));
-    lx = x; ly = y; drawView();
-  };
-  k.addEventListener('touchstart', (e) => {
-    if(e.touches.length === 2){ stampInk(true); m = 2; ld = dist(e.touches); lfov = view.fov; e.preventDefault(); return; }
-    if(tool !== 'turn') return;
-    m = 1; lx = e.touches[0].clientX; ly = e.touches[0].clientY; e.preventDefault();
-  }, {passive:false});
-  k.addEventListener('touchmove', (e) => {
-    if(m === 2 && e.touches.length === 2){
-      const d = dist(e.touches);
-      view.fov = Math.max(20, Math.min(120, lfov * (ld/Math.max(d,1))));
-      $('fov').value = Math.round(view.fov);
-      drawView(); e.preventDefault(); return;
-    }
-    if(m === 1 && tool === 'turn'){ turn(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); }
-  }, {passive:false});
-  k.addEventListener('touchend', () => { m = 0; }, {passive:true});
+  const mid  = (t) => [(t[0].clientX+t[1].clientX)/2, (t[0].clientY+t[1].clientY)/2];
+  const clampP = (v) => Math.max(-89, Math.min(89, v));
 
-  let down = false;
+  /* 2本ゆび以上の ジェスチャ。
+     動かせば「回す・寄る」、動かさずに はなせば「もどす／やり直す」。
+     描きもの アプリの ふつうの わりあて（2本＝もどす／3本＝やり直す）に そろえた。 */
+  let g = null;
+
+  k.addEventListener('touchstart', (e) => {
+    if(e.touches.length >= 2){
+      cancelStroke();                      // 引きかけの 線は なかった ことに する
+      stampInk(true);
+      g = { n:e.touches.length, t0:Date.now(), moved:0,
+            d0:dist(e.touches), fov0:view.fov, mid:mid(e.touches) };
+      e.preventDefault();
+      return;
+    }
+    if(tool !== 'turn') return;
+    g = { n:1, one:true, mid:[e.touches[0].clientX, e.touches[0].clientY], moved:0 };
+    e.preventDefault();
+  }, {passive:false});
+
+  k.addEventListener('touchmove', (e) => {
+    if(!g) return;
+    if(g.one && e.touches.length === 1 && tool === 'turn'){
+      const x = e.touches[0].clientX, y = e.touches[0].clientY;
+      const s = view.fov/90*0.22;
+      view.yaw = (view.yaw + (x-g.mid[0])*s + 540) % 360 - 180;
+      view.pitch = clampP(view.pitch + (y-g.mid[1])*s);
+      g.mid = [x, y];
+      drawView(); e.preventDefault();
+      return;
+    }
+    if(e.touches.length >= 2){
+      g.n = Math.max(g.n, e.touches.length);
+      const d = dist(e.touches), m = mid(e.touches);
+      const dx = m[0]-g.mid[0], dy = m[1]-g.mid[1];
+      g.moved += Math.hypot(dx, dy) + Math.abs(d - g.d0)*0.35;
+      /* まんなかの 動きで 回す。ゆびに 1:1 で つく。 */
+      const s = view.fov/90*0.22;
+      view.yaw = (view.yaw + dx*s + 540) % 360 - 180;
+      view.pitch = clampP(view.pitch + dy*s);
+      /* ひらき ぐあいで 寄る。はじめの ひらきから 決めるので ずれない。 */
+      view.fov = Math.max(20, Math.min(120, g.fov0 * (g.d0/Math.max(d,1))));
+      $('fov').value = Math.round(view.fov);
+      g.mid = m;
+      drawView(); e.preventDefault();
+    }
+  }, {passive:false});
+
+  k.addEventListener('touchend', (e) => {
+    if(g && e.touches.length === 0){
+      /* ほとんど 動かさずに 離した＝タップ。ゆびの 数で 決める。 */
+      if(!g.one && g.moved < 18 && Date.now()-g.t0 < 400){
+        if(g.n === 2){ $('bUndo').click(); toast('もどしました'); }
+        else if(g.n >= 3){ $('bRedo').click(); toast('やり直しました'); }
+      }
+      g = null;
+    }
+  }, {passive:true});
+
+  /* パソコン用 */
+  let down = false, lx = 0, ly = 0;
   k.addEventListener('mousedown', (e) => { if(tool==='turn'){ down = true; lx = e.clientX; ly = e.clientY; } });
   window.addEventListener('mouseup', () => { down = false; });
-  window.addEventListener('mousemove', (e) => { if(down && tool==='turn') turn(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', (e) => {
+    if(!down || tool!=='turn') return;
+    const s = view.fov/90*0.22;
+    view.yaw = (view.yaw + (e.clientX-lx)*s + 540) % 360 - 180;
+    view.pitch = clampP(view.pitch + (e.clientY-ly)*s);
+    lx = e.clientX; ly = e.clientY; drawView();
+  });
   k.addEventListener('wheel', (e) => {
     e.preventDefault();
     view.fov = Math.max(20, Math.min(120, view.fov + (e.deltaY>0?4:-4)));
@@ -1376,9 +1448,9 @@ function setTool(t){
   $('panTurn').classList.toggle('hide', t !== 'turn');
   $('panPerson').classList.toggle('hide', t !== 'person');
   $('tip').innerHTML =
-    t === 'turn'  ? '<b>まわす</b>：ゆびで なぞると 回る／2本ゆびで つまむと 寄る。<br>こまかく 描くときは <b>切り出す</b> → お絵かきアプリ → <b>もどす</b>。'
+    t === 'turn'  ? '<b>まわす</b>：1本でも 2本でも 回る。つまめば 寄る。<br>こまかく 描くときは <b>切り出す</b> → お絵かきアプリ → <b>もどす</b>。'
   : t === 'person'? '<b>ひと</b>：ゆかを さわると そこに 立ちます。ひとを なぞると ゆかの 上を 動きます。<br>下絵なので 絵には なりません。線に したい ときは <b>ひとを 絵に する</b>。'
-  : '描いて ゆびを はなすと、そのまま 球に のります。<br>2本ゆびで つまめば 描きながらでも 寄れます。';
+  : '描いて ゆびを はなすと、そのまま 球に のります。<br>2本ゆびで なぞれば 描きながらでも 回せます。2本トン＝もどす／3本トン＝やり直す。';
 }
 
 const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C86A3A'];
@@ -1536,6 +1608,36 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
   $('pBake').onclick = bakePeople;
 
   loadPeople();
+
+  /* 色の 板。ボタンの すぐ上に 出して、そこから 生える ように 見せる。 */
+  const pop = $('colorPop');
+  let popSpring = null, popOpen = false;
+  const placePop = () => {
+    const r = $('colorBtn').getBoundingClientRect();
+    pop.style.left = Math.max(6, Math.min(r.left, innerWidth - pop.offsetWidth - 6)) + 'px';
+    pop.style.top = Math.max(6, r.top - pop.offsetHeight - 8) + 'px';
+  };
+  const setPop = (open) => {
+    if(open){
+      pop.classList.remove('hide');
+      placePop();
+      drawWheel();
+    }
+    if(!popSpring){
+      popSpring = HM.spring({ from: open ? 0 : 1, onUpdate: (v) => {
+        pop.style.transform = 'scale(' + (0.82 + 0.18*v) + ')';
+        pop.style.opacity = v;
+        if(v < 0.02 && !popOpen) pop.classList.add('hide');
+      }});
+    }
+    popOpen = open;
+    popSpring.to(open ? 1 : 0, { damping: 0.85, response: 0.3 });
+  };
+  $('colorBtn').onclick = () => setPop(!popOpen);
+  document.addEventListener('pointerdown', (e) => {
+    if(popOpen && !pop.contains(e.target) && e.target.closest('#colorBtn') === null) setPop(false);
+  });
+  window.addEventListener('resize', () => { if(popOpen) placePop(); });
 
   $('bPrev').onclick = openPreview;
   $('pvClose').onclick = () => $('preview').classList.add('hide');
