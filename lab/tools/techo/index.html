@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。見出しシールは名前も色も変えられる。">
+<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。二本指でつまんで大きさを変えられる。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -574,7 +574,7 @@ let store=null, index=[], cur=null;
 let folders=[], folderId=null;
 let tool="move", color=COLORS[0], size=SIZES[1];
 let dirty=false, saving=false, canEdit=true;
-let sortMode="new", query="", fitK=1, userZoom=1;
+let sortMode="new", query="", fitK=1, userZoom=1, pinching=false;
 /* 公開用（読むだけ）で開かれているか：?view / #view / view.html */
 const VIEW_ONLY = /[?&#]view(=|&|$)/i.test(location.search+location.hash) || /view[.]html?$/i.test(location.pathname);
 
@@ -978,7 +978,7 @@ async function openPage(id,dir){
   p.blocks.forEach(b=>{ if(b.type==="image") b.src=imgs[b.id]||""; });
   p.free.forEach(it=>{ if(it.type==="image") it.src=imgs[it.id]||""; });
   await turn(dir||"next",()=>{ cur=p; renderPage(); renderList(); });
-  setStatus(canEdit?"保存済み "+fmt(cur.updated):"閲覧のみ", canEdit);
+  setStatus(canEdit?"保存済み "+fmt(cur.updated):fmt(cur.updated), canEdit);
   backfill(); watchCurrentPage();
 }
 
@@ -1618,7 +1618,7 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
 (function drag(){
   const st=$("#stage");
   let id=null,x0=0,y0=0,locked=false,hist=[],w=0;
-  const canDrag=()=> tool==="move" && !st.classList.contains("zoomed");
+  const canDrag=()=> tool==="move" && !pinching && !st.classList.contains("zoomed");
   const near=(dir)=>{ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); return dir<0 ? (i>=0&&i<l.length-1) : (i>0); };
 
   st.addEventListener("pointerdown",(e)=>{
@@ -1632,6 +1632,7 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
 
   st.addEventListener("pointermove",(e)=>{
     if(e.pointerId!==id) return;
+    if(pinching){ id=null; locked=false; leaf.to(0,{damping:1,response:.3}); return; }
     const dx=e.clientX-x0, dy=e.clientY-y0;
     if(!locked){
       const need=(e.pointerType==="mouse")?16:10;  // 動かす気があるか見極めてから掴む
@@ -1669,6 +1670,62 @@ const leaf=makeSpring(v=>{ $("#paper").style.setProperty("--dx", v+"px"); });
   st.addEventListener("pointerup",release);
   st.addEventListener("pointercancel",(e)=>{ if(e.pointerId===id){ id=null; locked=false; leaf.to(0,{damping:1,response:.35}); } });
 })();
+/* 二本指でつまむと紙が伸び縮みする（指の間の距離に 1:1 で追う） */
+(function pinch(){
+  const st=$("#stage");
+  const pts=new Map();
+  let d0=0,k0=1,anchor=0,contentX=0,touchAction="";
+  const dist=()=>{
+    const a=[...pts.values()];
+    return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y);
+  };
+  const mid=()=>{
+    const a=[...pts.values()];
+    return [(a[0].x+a[1].x)/2,(a[0].y+a[1].y)/2];
+  };
+  st.addEventListener("pointerdown",(e)=>{
+    if(e.pointerType==="mouse") return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===2){
+      pinching=true;
+      touchAction=st.style.touchAction; st.style.touchAction="none";
+      d0=dist(); k0=fitK*userZoom;
+      const m=mid(), r=st.getBoundingClientRect();
+      anchor=m[0]-r.left;
+      contentX=(st.scrollLeft+anchor)/k0;      // 指の下にある紙の位置を覚える
+    }
+  },{passive:true});
+  st.addEventListener("pointermove",(e)=>{
+    if(!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size!==2||!pinching) return;
+    e.preventDefault();
+    const scale=dist()/(d0||1);
+    let k=k0*scale;
+    const lo=.3, hi=2.2;
+    if(k<lo) k=lo-rubber(lo-k,st.clientWidth||300)*0.4;   // 端はゴムで粘る
+    if(k>hi) k=hi+rubber(k-hi,st.clientWidth||300)*0.4;
+    userZoom=k/Math.max(fitK,.01);
+    const kNow=fit();
+    st.scrollLeft=contentX*kNow-anchor;                   // 指の下の紙は動かさない
+  },{passive:false});
+  const up=(e)=>{
+    if(!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if(pts.size<2&&pinching){
+      pinching=false;
+      st.style.touchAction=touchAction;
+      const k=fitK*userZoom;
+      const clamped=Math.max(.3,Math.min(2.2,k));
+      if(Math.abs(clamped-k)>.001) setZoom(clamped/Math.max(fitK,.01));   // 行き過ぎた分は戻す
+      else setZoom(userZoom);                                            // 覚えておく
+      sizeCanvas();
+    }
+  };
+  st.addEventListener("pointerup",up);
+  st.addEventListener("pointercancel",up);
+})();
+
 /* トラックパッドの横スワイプでもめくる */
 (function wheelTurn(){
   let acc=0,cool=0,timer=null;
@@ -1834,8 +1891,9 @@ function watchAll(){
   $("#pubFoot").hidden = !(canEdit && store.kind==="local" && typeof claude==="undefined");  // 書き出せない場所には出さない
   $("#pubOut").onclick=exportPublic;
   $("#app").classList.toggle("readonly",!canEdit);
-  $("#role").textContent=canEdit?"書き込めます":(VIEW_ONLY?"公開ページ":"閲覧のみ");
-  if(!canEdit) $("#tipText").textContent="この手帳は読むだけです。紙を横にはらうと頁がめくれます。";
+  $("#role").textContent=canEdit?"書き込めます":"";
+  $("#role").hidden=!canEdit;
+  if(!canEdit) $("#tipText").textContent="紙を横にはらうと頁がめくれます。二本指でつまむと大きさが変わります。";
 
   try{ folders=await store.getFolders(); }catch(e){ folders=[]; }
   if(!folders.length){
@@ -1859,7 +1917,7 @@ function watchAll(){
       }
     }catch(e){}
     renderPage();
-    setStatus(canEdit?"保存済み "+fmt(cur.updated):"閲覧のみ",canEdit);
+    setStatus(canEdit?"保存済み "+fmt(cur.updated):fmt(cur.updated),canEdit);
   }else{
     renderPage();
     setStatus(canEdit?"新しい手帳です":"まだ何も書かれていません");
