@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="写真も文字も紙の好きな場所に置ける手帳。手書き・月間予定表つき。">
+<meta name="description" content="紙を触った場所に文字や写真を置ける手帳。手書き・月間予定表つき。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -308,6 +308,22 @@ a{color:var(--blue)}
 .readonly .i-block .knob{display:none !important}
 
 /* 写真をさわると出る操作卓：紙の外にあるので縮まない＝押しやすい */
+.spot{
+  position:fixed;z-index:58;display:none;align-items:center;gap:2px;padding:4px;
+  background:var(--chrome);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:.5px solid var(--sep);border-radius:999px;box-shadow:var(--lift-2);
+  transform:translate(-50%,-50%) scale(var(--pop,1));transform-origin:center;
+  transition:transform .16s cubic-bezier(.2,.9,.3,1),opacity .16s ease;
+}
+.spot.on{display:flex}
+.spot button{
+  min-width:46px;height:38px;padding:0 14px;border-radius:999px;
+  font-size:14px;font-weight:600;color:var(--blue);white-space:nowrap;
+}
+.spot button:active{background:var(--blue-soft)}
+.spot .x{color:var(--label-3);min-width:38px;padding:0 10px}
+@media (prefers-reduced-motion:reduce){ .spot{transition:none} }
+
 .photobar{
   position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(16px + env(safe-area-inset-bottom));z-index:55;
@@ -575,6 +591,12 @@ a{color:var(--blue)}
       <button id="askYes" type="button" class="go">はい</button>
     </div>
   </div>
+</div>
+
+<div class="spot" id="spot" role="menu" aria-label="ここに置く">
+  <button type="button" id="spotText">✏️ 文字</button>
+  <button type="button" id="spotImg">🖼 写真</button>
+  <button type="button" id="spotClose" class="x" aria-label="やめる">✕</button>
 </div>
 
 <div class="photobar" id="photobar" role="toolbar" aria-label="写真の操作">
@@ -1044,6 +1066,7 @@ function turn(dir,swap){
 
 function renderPage(){
   if(typeof deselectPhoto==="function") deselectPhoto();
+  if(typeof closeSpot==="function") closeSpot();
   if(typeof renderFree==="function") setTimeout(renderFree,0);
   $("#pTitle").textContent=cur.title||"";
   $("#pTitle").contentEditable=canEdit?"plaintext-only":"false";
@@ -1645,7 +1668,7 @@ $("#addText").onclick=()=>{
 };
 $("#addImg").onclick=()=>$("#file").click();
 $("#addImg").title="写真を置く（紙の上に自由に置けます）";
-$("#file").onchange=(e)=>{ takeFiles(e.target.files); e.target.value=""; };
+$("#file").onchange=(e)=>{ const at=pendingSpot; pendingSpot=null; takeFiles(e.target.files,at); e.target.value=""; };
 $("#tMove").onclick=()=>setTool("move");
 $("#tPen").onclick=()=>setTool("pen");
 $("#tErase").onclick=()=>setTool("erase");
@@ -1885,14 +1908,58 @@ const leaf=makeSpring(v=>{
   },{passive:false});
 })();
 
-/* 紙の空いている所をダブルタップ → そこに文字を置く */
-$("#paper").addEventListener("dblclick",(e)=>{
-  if(!canEdit||tool!=="move") return;
-  if(e.target.closest("a,[contenteditable='true'],.fitem,.i-block,button,.md,.t-view,.p-title")) return;
-  const p=paperPos(e);
+/* 紙の空いている所をトンと触ると、その場所に「文字／写真」の札が出る */
+let spotAt=null;
+function openSpot(clientX,clientY,paperXY){
+  spotAt=paperXY;
+  const el=$("#spot");
+  el.style.left=clientX+"px";
+  el.style.top=(clientY-46)+"px";
+  el.classList.add("on");
+  el.style.setProperty("--pop",".9");
+  requestAnimationFrame(()=>el.style.setProperty("--pop","1"));
+}
+function closeSpot(){ $("#spot").classList.remove("on"); spotAt=null; }
+$("#spotClose").onclick=closeSpot;
+$("#spotText").onclick=()=>{
+  if(!spotAt) return;
+  const p=spotAt; closeSpot();
   placeFreeText(p[0]-20,p[1]-16);
-  setStatus("ここに文字を置きました",true);
-});
+};
+$("#spotImg").onclick=()=>{
+  if(!spotAt) return;
+  pendingSpot=spotAt.slice(); closeSpot();
+  $("#file").click();
+};
+let pendingSpot=null;
+
+(function tapToPlace(){
+  const paper=$("#paper");
+  let x0=0,y0=0,t0=0,ok=false;
+  paper.addEventListener("pointerdown",(e)=>{
+    ok=false;
+    if(!canEdit||tool!=="move"||pinching) return;
+    if(e.target.closest("a,button,[contenteditable='true'],.fitem,.i-block,.md,.p-title,.t-view,input")) return;
+    x0=e.clientX; y0=e.clientY; t0=Date.now(); ok=true;
+  },{passive:true});
+  paper.addEventListener("pointerup",(e)=>{
+    if(!ok) return;
+    ok=false;
+    if(Date.now()-t0>420) return;
+    if(Math.hypot(e.clientX-x0,e.clientY-y0)>12) return;   // ずれたら置かない
+    if($("#spot").classList.contains("on")){ closeSpot(); return; }
+    openSpot(e.clientX,e.clientY,paperPos(e));
+  });
+})();
+/* ほかを触ったら札を閉じる */
+document.addEventListener("pointerdown",(e)=>{
+  if(!spotAt) return;
+  if(e.target.closest("#spot")||e.target.closest("#paper")) return;
+  closeSpot();
+},true);
+
+/* （旧）ダブルタップで文字を置く */
+
 /* 大きさ */
 $("#zoomIn").onclick=()=>stepZoom(1);
 $("#zoomOut").onclick=()=>stepZoom(-1);
