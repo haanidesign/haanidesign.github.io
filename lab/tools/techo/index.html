@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。本のように紙がめくれる。">
+<meta name="description" content="写真も文字も紙の好きな場所に置ける手帳。手書き・月間予定表つき。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -543,7 +543,7 @@ a{color:var(--blue)}
           <div class="blocks" id="blocks"></div>
           <div class="free" id="free"></div>
           <div class="addbar editonly">
-            <button class="add" id="addText">＋ 文章</button>
+            <button class="add" id="addText">＋ 文字</button>
             <button class="add" id="addImg">＋ 写真</button>
           </div>
           <canvas id="inkLayer"></canvas>
@@ -1299,6 +1299,7 @@ function freeEl(it){
     if(el.classList.contains("editing")) return;
     if(e.target.closest("a")) return;
     e.stopPropagation();
+    if(e.cancelable) e.preventDefault();
     try{ el.setPointerCapture(e.pointerId); }catch(err){}
     const p=paperPos(e); px=p[0]; py=p[1]; ox=it.x||0; oy=it.y||0; moved=false; downT=Date.now(); grabbing=true;
     selectFree(it,el,img);
@@ -1489,17 +1490,26 @@ function shrink(file){
     fr.readAsDataURL(file);
   });
 }
-async function takeFiles(files){
-  if(!canEdit||!cur||cur.kind==="month") return;
+async function takeFiles(files,at){
+  if(!canEdit||!cur) return;
+  let n=0;
   for(const f of [...files].filter(f=>f.type.startsWith("image/"))){
     try{
       const src=await shrink(f);
-      const b={id:uid(),type:"image",src,caption:""};
+      const it={id:uid(),type:"image",src,alt:"",
+        w:320,r:0,
+        x:Math.round((at?at[0]:PW*0.5)-160+n*24),
+        y:Math.round((at?at[1]:220)-100+n*24)};
+      it.x=Math.max(-40,Math.min(PW-80,it.x));
+      it.y=Math.max(0,it.y);
       setStatus("写真をしまっています…");
-      await store.putImage(cur.id,b.id,src);
-      addBlock(b);
+      await store.putImage(cur.id,it.id,src);
+      cur.free=cur.free||[]; cur.free.push(it);
+      renderFree(); touch(); fit(); sizeCanvas();
+      n++;
     }catch(e){ setStatus("写真をしまえませんでした（もっと小さい画像でお試しを）"); }
   }
+  if(n) setStatus("写真を置きました。ひっぱって場所を決められます",true);
 }
 
 /* ================= 手書き ================= */
@@ -1616,8 +1626,25 @@ async function flush(){
 
 /* ================= 配線 ================= */
 $("#pTitle").addEventListener("input",touch);
-$("#addText").onclick=()=>addBlock({id:uid(),type:"text",text:""});
+function placeFreeText(x,y){
+  const it={id:uid(),type:"text",x:Math.round(x),y:Math.round(y),w:260,r:0,text:""};
+  cur.free=cur.free||[]; cur.free.push(it);
+  renderFree(); touch();
+  const el=$("#free").lastElementChild;
+  if(el){
+    const ed=el.querySelector(".fedit");
+    ed.contentEditable="plaintext-only"; el.classList.add("editing"); ed.focus();
+  }
+  return it;
+}
+$("#addText").onclick=()=>{
+  // いま見えている辺りの、まだ何も無い高さに置く
+  const used=(cur.free||[]).filter(f=>f.type==="text").length;
+  placeFreeText(90, 180+used*70);
+  setStatus("文字を置きました。ひっぱって場所を決められます",true);
+};
 $("#addImg").onclick=()=>$("#file").click();
+$("#addImg").title="写真を置く（紙の上に自由に置けます）";
 $("#file").onchange=(e)=>{ takeFiles(e.target.files); e.target.value=""; };
 $("#tMove").onclick=()=>setTool("move");
 $("#tPen").onclick=()=>setTool("pen");
@@ -1863,12 +1890,7 @@ $("#paper").addEventListener("dblclick",(e)=>{
   if(!canEdit||tool!=="move") return;
   if(e.target.closest("a,[contenteditable='true'],.fitem,.i-block,button,.md,.t-view,.p-title")) return;
   const p=paperPos(e);
-  const it={id:uid(),type:"text",x:Math.round(p[0]-20),y:Math.round(p[1]-16),w:260,r:0,text:""};
-  cur.free=cur.free||[]; cur.free.push(it);
-  renderFree(); touch();
-  const el=$("#free").lastElementChild;
-  if(el){ el.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true})); el.querySelector(".fedit").click(); 
-    const ed=el.querySelector(".fedit"); ed.contentEditable="plaintext-only"; el.classList.add("editing"); ed.focus(); }
+  placeFreeText(p[0]-20,p[1]-16);
   setStatus("ここに文字を置きました",true);
 });
 /* 大きさ */
@@ -1920,7 +1942,11 @@ window.addEventListener("dragenter",()=>{ if(!canEdit) return; dragDepth++; $("#
 window.addEventListener("dragleave",()=>{ if(--dragDepth<=0) $("#drop").classList.remove("on"); });
 window.addEventListener("drop",e=>{
   e.preventDefault(); dragDepth=0; $("#drop").classList.remove("on");
-  if(canEdit&&e.dataTransfer&&e.dataTransfer.files.length) takeFiles(e.dataTransfer.files);
+  if(canEdit&&e.dataTransfer&&e.dataTransfer.files.length){
+    const r=$("#paper").getBoundingClientRect();
+    const inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
+    takeFiles(e.dataTransfer.files, inside?paperPos(e):null);
+  }
 });
 window.addEventListener("resize",()=>{ fit(); sizeCanvas(); });
 if(window.visualViewport) visualViewport.addEventListener("resize",()=>fit());
