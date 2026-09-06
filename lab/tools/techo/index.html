@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="付箋が紙の上に並ぶ手帳。触った場所に文字や写真を置ける。手書き・月間予定表つき。">
+<meta name="description" content="綴じ穴のあるノートの紙に、文字も写真も手書きも重ねて残す手帳。月間予定表つき。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -216,10 +216,27 @@ a{color:var(--blue)}
   position:relative;background:var(--paper);color:var(--ink);
   border-radius:calc(var(--r-l) / var(--k));
   box-shadow:var(--lift-2);
-  padding:52px 60px 96px;
-  background-image:linear-gradient(var(--rule) 1px,transparent 1px);
-  background-size:100% 32px;background-position:0 51px;
+  padding:52px 60px 96px 104px;      /* 綴じ側を広くとる */
+  background-image:
+    linear-gradient(var(--rule) 1px,transparent 1px);
+  background-size:100% 32px;
+  background-position:0 51px;
   transform-style:preserve-3d;backface-visibility:hidden;
+}
+/* 綴じ側：影と綴じ穴 */
+.paper::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:78px;pointer-events:none;z-index:1;
+  background:
+    radial-gradient(circle at 39px 130px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
+    radial-gradient(circle at 39px 430px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
+    radial-gradient(circle at 39px 730px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
+    radial-gradient(circle at 39px 1030px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
+    linear-gradient(90deg, rgba(0,0,0,.05), rgba(0,0,0,0) 78px);
+}
+/* 綴じ側の縦罫 */
+.paper::after{
+  content:"";position:absolute;left:78px;top:0;bottom:0;width:1px;z-index:1;pointer-events:none;
+  background:rgba(255,59,48,.28);
 }
 /* めくり：綴じ目（左端）を軸に紙が起き上がって伏せる */
 @keyframes leaf-out{
@@ -275,6 +292,7 @@ a{color:var(--blue)}
   flex:1;min-width:0;outline:none;text-wrap:balance;
 }
 .p-title:empty::before{content:"無題の頁";color:var(--ink-3)}
+.readonly .p-title:empty::before{content:""}
 .p-date{font-size:11.5px;color:var(--ink-3);padding-bottom:10px;white-space:nowrap;font-variant-numeric:tabular-nums}
 
 .folio{
@@ -306,6 +324,7 @@ a{color:var(--blue)}
 .t-block{line-height:32px;min-height:32px;word-break:break-word}
 .t-view{white-space:pre-wrap;cursor:text;min-height:32px}
 .t-view.ph{color:var(--ink-3)}
+.readonly .t-view.ph,.readonly .fview.ph{display:none}
 .t-edit{white-space:pre-wrap;outline:none;min-height:32px;display:none}
 .t-block.editing .t-view{display:none}
 .t-block.editing .t-edit{display:block}
@@ -536,7 +555,7 @@ a{color:var(--blue)}
       <button class="btn" id="newMonth">＋ 予定表</button>
       <button class="btn warn" id="delPage">破り取る</button>
     </div>
-    <div class="side-foot" id="pubFoot" hidden>
+    <div class="side-foot editonly" id="pubFoot" hidden>
       <button class="btn" id="pubOut">公開ページに反映（書き出し）</button>
     </div>
   </aside>
@@ -943,7 +962,9 @@ function renderList(){
       b.setAttribute("aria-current", String(!!cur&&p.id===cur.id));
       const t=document.createElement("div"); t.className="t";
       if(p.kind==="month"){ const k=document.createElement("span"); k.className="kind"; k.textContent="▦"; t.appendChild(k); }
-      const name=document.createElement("span"); name.textContent=p.title||"無題の頁"; t.appendChild(name);
+      const name=document.createElement("span");
+      name.textContent = p.title || (canEdit ? "無題の頁" : ((p.q||"").slice(0,18) || "（書かれていません）"));
+      t.appendChild(name);
       if(searching){
         const f=folders.find(x=>x.id===folderOf(p));
         if(f){ const c=document.createElement("span"); c.className="chip"; c.style.setProperty("--c",colorOf(f.id)); c.textContent=f.name; t.appendChild(c); }
@@ -1100,7 +1121,7 @@ function renderPage(){
   const isMonth=cur.kind==="month";
   $(".addbar").style.display=isMonth?"none":"";
   if(isMonth) box.appendChild(monthEl());
-  else cur.blocks.forEach(b=>box.appendChild(blockEl(b)));
+  else cur.blocks.forEach(b=>{ const el=blockEl(b); if(el) box.appendChild(el); });
   requestAnimationFrame(()=>{ fit(); sizeCanvas(); });
 }
 
@@ -1145,6 +1166,7 @@ function blockEl(b){
   grip.appendChild(del); wrap.appendChild(grip);
 
   if(b.type==="text"){
+    if(!canEdit && !(b.text||"").trim()) return null;      // 未記入は出さない
     const host=document.createElement("div"); host.className="t-block";
     const view=document.createElement("div"); view.className="t-view";
     const ed=document.createElement("div"); ed.className="t-edit"; ed.spellcheck=false;
@@ -1305,9 +1327,13 @@ function paperPos(e){                                   // 画面の座標 → �
 function renderFree(){
   const layer=$("#free"); if(!layer) return;
   layer.innerHTML="";
-  (cur&&cur.free||[]).forEach(it=>layer.appendChild(freeEl(it)));
+  (cur&&cur.free||[]).forEach(it=>{ const el=freeEl(it); if(el) layer.appendChild(el); });
 }
 function freeEl(it){
+  if(!canEdit){
+    if(it.type==="text" && !(it.text||"").trim()) return null;
+    if(it.type==="image" && !it.src) return null;
+  }
   const el=document.createElement("div");
   el.className="fitem "+(it.type==="image"?"img":"txt");
   el.style.setProperty("--x",(it.x||0)+"px");
@@ -1371,6 +1397,47 @@ function freeEl(it){
   el.addEventListener("pointercancel",()=>{ moved=false; grabbing=false; });
 
   if(canEdit){
+    // 二本指：つまんで大きさ、ひねって角度、動かして場所
+    let g=null;
+    const paperK=()=>{ const r=$("#paper").getBoundingClientRect(); return (r.width/PW)||1; };
+    const pair=(t)=>{
+      const a=t[0], b=t[1];
+      return {
+        d:Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY)||1,
+        a:Math.atan2(b.clientY-a.clientY, b.clientX-a.clientX)*180/Math.PI,
+        mx:(a.clientX+b.clientX)/2, my:(a.clientY+b.clientY)/2
+      };
+    };
+    el.addEventListener("touchstart",(e)=>{
+      if(e.touches.length!==2||tool!=="move") return;
+      e.preventDefault(); e.stopPropagation();
+      const p=pair(e.touches);
+      g={d0:p.d,a0:p.a,mx:p.mx,my:p.my,w0:it.w||240,r0:it.r||0,x0:it.x||0,y0:it.y||0};
+      selectFree(it,el,img);
+    },{passive:false});
+    el.addEventListener("touchmove",(e)=>{
+      if(!g||e.touches.length!==2) return;
+      e.preventDefault(); e.stopPropagation();
+      const p=pair(e.touches), k=paperK();
+      it.w=Math.max(60,Math.min(PW-40, Math.round(g.w0*(p.d/g.d0))));
+      let d=g.r0+(p.a-g.a0);
+      d=Math.round(d/5)*5;
+      if(Math.abs(d)<4) d=0;
+      if(d>180) d-=360;
+      if(d<-180) d+=360;
+      it.r=d;
+      it.x=Math.round(g.x0+(p.mx-g.mx)/k);
+      it.y=Math.round(g.y0+(p.my-g.my)/k);
+      el.style.setProperty("--w",it.w+"px");
+      el.style.setProperty("--r",it.r+"deg");
+      el.style.setProperty("--x",it.x+"px");
+      el.style.setProperty("--y",it.y+"px");
+      syncPhotoBar();
+    },{passive:false});
+    const endPinch=(e)=>{ if(!g) return; if(e.touches&&e.touches.length>=2) return; g=null; touch(); fit(); sizeCanvas(); };
+    el.addEventListener("touchend",endPinch);
+    el.addEventListener("touchcancel",endPinch);
+
     // 大きさ
     const knob=document.createElement("button"); knob.className="knob size"; knob.type="button";
     knob.textContent="↔"; knob.setAttribute("aria-label","大きさを変える");
