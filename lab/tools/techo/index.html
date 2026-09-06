@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。紙をシュッとはらうとめくれる。">
+<meta name="description" content="文字・写真・手書き・月間予定表を1枚の紙に重ねて残す手帳。見出しシールは名前も色も変えられる。">
 <title>紙の手帳 | HAANI LAB</title>
 </head>
 <body>
@@ -396,6 +396,13 @@ a{color:var(--blue)}
   padding:11px 12px;outline:none;font-size:16px;text-align:center;
 }
 .ask input:focus{border-color:var(--blue)}
+.askcolors{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:2px 0 4px}
+.askcolors[hidden]{display:none}
+.askcolors button{
+  width:32px;height:32px;border-radius:999px;background:var(--c);
+  border:2.5px solid transparent;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);
+}
+.askcolors button[aria-pressed="true"]{border-color:var(--label);transform:scale(1.08)}
 .ask .actions{display:flex;gap:8px}
 .ask .actions button{flex:1;border-radius:var(--r-s);padding:11px;font-size:15px;font-weight:600;background:var(--bg-3);color:var(--label)}
 .ask .actions button.go{background:var(--blue);color:#fff}
@@ -528,6 +535,7 @@ a{color:var(--blue)}
   <div class="card" role="dialog" aria-modal="true" aria-labelledby="askTitle">
     <h2 id="askTitle"></h2>
     <input id="askInput" type="text" autocomplete="off">
+    <div class="askcolors" id="askColors" hidden></div>
     <div class="actions">
       <button id="askNo" type="button">やめる</button>
       <button id="askYes" type="button" class="go">はい</button>
@@ -740,19 +748,33 @@ const hits=()=>{
 };
 
 /* 小窓（prompt / confirm の代わり） */
-function ask(title,value,yes){
+function ask(title,value,yes,colors){
   return new Promise(res=>{
-    const box=$("#ask"), input=$("#askInput");
+    const box=$("#ask"), input=$("#askInput"), cbox=$("#askColors");
     $("#askTitle").textContent=title;
     $("#askYes").textContent=yes||"はい";
     input.hidden=value===null;
     input.value=value===null?"":value;
+    let picked=colors?colors.current:null;
+    cbox.hidden=!colors;
+    cbox.innerHTML="";
+    if(colors){
+      colors.list.forEach(c=>{
+        const b=document.createElement("button");
+        b.type="button"; b.style.setProperty("--c",c);
+        b.setAttribute("aria-label","色 "+c);
+        b.setAttribute("aria-pressed",String(c===picked));
+        b.onclick=()=>{ picked=c; [...cbox.children].forEach(x=>x.setAttribute("aria-pressed",String(x===b))); };
+        cbox.appendChild(b);
+      });
+    }
     box.hidden=false;
     if(value!==null){ input.focus(); input.select(); } else $("#askYes").focus();
-    const done=(v)=>{ box.hidden=true; $("#askYes").onclick=$("#askNo").onclick=null; input.onkeydown=null; box.onclick=null; res(v); };
-    $("#askYes").onclick=()=>done(value===null?true:input.value.trim());
+    const done=(v)=>{ box.hidden=true; cbox.hidden=true; $("#askYes").onclick=$("#askNo").onclick=null; input.onkeydown=null; box.onclick=null; res(v); };
+    const answer=()=> colors ? {name:input.value.trim(), color:picked} : (value===null?true:input.value.trim());
+    $("#askYes").onclick=()=>done(answer());
     $("#askNo").onclick=()=>done(null);
-    input.onkeydown=(e)=>{ if(e.key==="Enter"){ e.preventDefault(); done(input.value.trim()); } if(e.key==="Escape") done(null); };
+    input.onkeydown=(e)=>{ if(e.key==="Enter"){ e.preventDefault(); done(answer()); } if(e.key==="Escape") done(null); };
     box.onclick=(e)=>{ if(e.target===box) done(null); };
   });
 }
@@ -887,8 +909,9 @@ function renderDividers(){
     b.setAttribute("aria-current", String(f.id===folderId));
     b.textContent=f.name;
     b.title=f.name;
-    b.onclick=()=>openFolder(f.id);
-    if(canEdit) b.ondblclick=()=>renameFolder(f);
+    b.onclick=()=>{ if(f.id===folderId && canEdit) editFolder(f); else openFolder(f.id); };
+    if(canEdit) b.ondblclick=()=>editFolder(f);
+    if(canEdit) b.title=f.name+"（開いている見出しをもう一度押すと名前と色を変えられます）";
     box.appendChild(b);
   });
   if(canEdit){
@@ -921,11 +944,15 @@ async function newFolder(){
   folders.push(f); await saveFolders();
   folderId=null; await openFolder(f.id);
 }
-async function renameFolder(f){
-  const name=await ask("フォルダの名前",f.name,"変える");
-  if(!name||name===f.name) return;
-  f.name=name; await saveFolders(); renderDividers(); renderList();
+async function editFolder(f){
+  const r=await ask("フォルダの名前と色", f.name, "変える", {list:STICKERS, current:f.color||STICKERS[0]});
+  if(!r) return;
+  if(r.name) f.name=r.name;
+  if(r.color) f.color=r.color;
+  await saveFolders(); renderDividers(); renderList();
+  setStatus("見出しを変えました",true);
 }
+const renameFolder=editFolder;
 
 /* ================= 頁 ================= */
 function normalize(p){
