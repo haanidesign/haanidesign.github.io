@@ -255,17 +255,40 @@ a{color:var(--blue)}
 .t-view a,.memo a{color:var(--blue);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 
 .i-block{margin:10px 0;position:relative;width:var(--w,100%);max-width:100%}
-.i-block img{max-width:100%;display:block;border-radius:12px;box-shadow:0 2px 14px rgba(0,0,0,.14)}
-.i-block .knob{
-  position:absolute;right:-11px;bottom:22px;width:26px;height:26px;border-radius:999px;
-  background:var(--paper);border:1px solid rgba(0,0,0,.14);box-shadow:0 2px 8px rgba(0,0,0,.18);
-  display:grid;place-items:center;color:var(--ink-3);font-size:12px;cursor:ew-resize;
-  touch-action:none;opacity:0;transition:opacity .15s ease,transform .1s ease-out;
+.i-block img{
+  max-width:100%;display:block;border-radius:12px;box-shadow:0 2px 14px rgba(0,0,0,.14);
+  transform:rotate(var(--r,0deg));transform-origin:center;
 }
-.i-block:hover .knob,.i-block.sizing .knob{opacity:1}
-.i-block.sizing .knob{transform:scale(1.1);color:var(--blue);border-color:var(--blue)}
-.readonly .i-block .knob{display:none}
-@media (pointer:coarse){ .i-block .knob{opacity:1} }
+.i-block.sel img{outline:2.5px solid var(--blue);outline-offset:3px}
+.i-block .knob{
+  position:absolute;width:34px;height:34px;border-radius:999px;
+  background:var(--paper);border:1.5px solid var(--blue);box-shadow:0 2px 10px rgba(0,0,0,.22);
+  display:none;place-items:center;color:var(--blue);font-size:15px;font-weight:700;
+  touch-action:none;cursor:ew-resize;
+  transform:scale(calc(1 / var(--k)));    /* 紙を縮めても、つまむ所は指の大きさのまま */
+  transform-origin:center;
+}
+.i-block.sel .knob{display:grid}
+.i-block .knob.size{right:-17px;bottom:38px}
+.i-block .knob.rot{left:-17px;top:-17px;cursor:grab}
+.i-block.sizing .knob.size,.i-block.turning .knob.rot{background:var(--blue);color:#fff}
+.readonly .i-block .knob{display:none !important}
+
+/* 写真をさわると出る操作卓：紙の外にあるので縮まない＝押しやすい */
+.photobar{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(16px + env(safe-area-inset-bottom));z-index:55;
+  display:none;align-items:center;gap:2px;padding:5px;
+  background:var(--chrome);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  border:.5px solid var(--sep);border-radius:999px;box-shadow:var(--lift-2);max-width:calc(100vw - 20px);
+}
+.photobar.on{display:flex}
+.photobar button{min-width:44px;height:38px;padding:0 12px;border-radius:999px;font-size:15px;font-weight:600;color:var(--blue)}
+.photobar button:active{background:var(--blue-soft)}
+.photobar .val{min-width:50px;text-align:center;font-size:12.5px;color:var(--label-2);font-variant-numeric:tabular-nums}
+.photobar .kill{color:var(--red)}
+.photobar .sep-v{width:.5px;height:22px;background:var(--sep-strong);margin:0 3px}
+@media (max-width:900px){ .photobar{bottom:calc(64px + env(safe-area-inset-bottom))} }
 .i-block .wtag{
   position:absolute;right:6px;top:6px;background:rgba(0,0,0,.55);color:#fff;
   font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;opacity:0;transition:opacity .15s ease;
@@ -414,6 +437,9 @@ a{color:var(--blue)}
       <button class="btn" id="newMonth">＋ 予定表</button>
       <button class="btn warn" id="delPage">破り取る</button>
     </div>
+    <div class="side-foot" id="pubFoot" hidden>
+      <button class="btn" id="pubOut">公開ページに反映（書き出し）</button>
+    </div>
   </aside>
   <div class="scrim" id="scrim"></div>
 
@@ -476,6 +502,19 @@ a{color:var(--blue)}
       <button id="askYes" type="button" class="go">はい</button>
     </div>
   </div>
+</div>
+
+<div class="photobar" id="photobar" role="toolbar" aria-label="写真の操作">
+  <button type="button" id="pSmaller" aria-label="小さく">−</button>
+  <span class="val" id="pSize">100%</span>
+  <button type="button" id="pBigger" aria-label="大きく">＋</button>
+  <span class="sep-v"></span>
+  <button type="button" id="pLeft" aria-label="左にかたむける">⟲</button>
+  <span class="val" id="pAngle">0°</span>
+  <button type="button" id="pRight" aria-label="右にかたむける">⟳</button>
+  <span class="sep-v"></span>
+  <button type="button" id="pReset">もどす</button>
+  <button type="button" id="pKill" class="kill" aria-label="写真を消す">✕</button>
 </div>
 
 <div class="drop" id="drop">写真をここに落とす</div>
@@ -545,6 +584,51 @@ async function connect(){
     async putFolders(list){ await db.doc("meta/folders").set({list}); },
     async writable(){ try{ await db.doc("meta/lastOpened").set({at:Date.now()}); return true; }catch(e){ return false; } }
   };
+}
+
+/* ================= 公開ページ用の写し ================= */
+/* 編集ページで書き出した public.json を、公開ページが読む（手元保存版のとき）。
+   Artifact 版はサーバー保存なので、編集した時点で公開側にもそのまま出る。 */
+function snapshotStore(snap){
+  return {
+    kind:"snapshot",
+    async list(){ return (snap.pages||[]).map(p=>({id:p.id,title:p.title||"",updated:p.updated||0,folder:p.folder||"",kind:p.kind||"note",q:p.q||""})); },
+    async save(){},
+    async get(id){ const p=(snap.pages||[]).find(x=>x.id===id); return p?JSON.parse(JSON.stringify(p)):null; },
+    async put(){}, async del(){},
+    async getImages(pid){ return (snap.images||{})[pid]||{}; },
+    async putImage(){}, async delImage(){}, async delImages(){},
+    async getFolders(){ return snap.folders||[]; },
+    async putFolders(){},
+    async writable(){ return false; }
+  };
+}
+async function loadSnapshot(){
+  try{
+    const res=await fetch("public.json?"+Date.now(),{cache:"no-store"});
+    if(!res.ok) return null;
+    const j=await res.json();
+    return (j&&j.pages)?j:null;
+  }catch(e){ return null; }
+}
+async function exportPublic(){
+  setStatus("公開用にまとめています…");
+  const snap={v:1,at:Date.now(),folders,pages:[],images:{}};
+  for(const row of index){
+    try{
+      const p=await store.get(row.id);
+      if(!p) continue;
+      snap.pages.push(p);
+      const imgs=await store.getImages(row.id);
+      if(imgs&&Object.keys(imgs).length) snap.images[row.id]=imgs;
+    }catch(e){}
+  }
+  const blob=new Blob([JSON.stringify(snap)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="public.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  setStatus("public.json を書き出しました（tools/techo/ に置けば公開ページに出ます）",true);
 }
 
 /* ================= 小道具 ================= */
@@ -811,6 +895,7 @@ function turn(dir,swap){
 }
 
 function renderPage(){
+  if(typeof deselectPhoto==="function") deselectPhoto();
   $("#pTitle").textContent=cur.title||"";
   $("#pTitle").contentEditable=canEdit?"plaintext-only":"false";
   $("#pDate").textContent=fmt(cur.updated);
@@ -902,27 +987,38 @@ function blockEl(b){
     fig.appendChild(cap);
 
     if(b.src&&canEdit){
-      const tag=document.createElement("div"); tag.className="wtag"; tag.textContent=Math.round(b.w)+"%";
+      const tag=document.createElement("div"); tag.className="wtag";
+      const show=()=>{ tag.textContent=Math.round(b.w)+"% / "+Math.round(b.r)+"°"; };
+      show();
 
-      const knob=document.createElement("button"); knob.className="knob"; knob.type="button";
+      // 触れば選ばれる（選ばれている間だけ、つまむ所と操作卓が出る）
+      fig.addEventListener("pointerdown",(e)=>{
+        if(e.target.closest(".knob")||e.target.closest("figcaption")) return;
+        selectPhoto(b,fig,img,tag);
+      });
+
+      // 大きさ：指と 1:1
+      const knob=document.createElement("button"); knob.className="knob size"; knob.type="button";
       knob.textContent="↔"; knob.setAttribute("aria-label","写真の大きさを変える");
       let startW=0,x0=0,pw=1;
       knob.addEventListener("pointerdown",(e)=>{
         e.preventDefault(); e.stopPropagation();
         try{ knob.setPointerCapture(e.pointerId); }catch(err){}
-        startW=b.w; x0=e.clientX; pw=$("#blocks").getBoundingClientRect().width||1;
-        fig.classList.add("sizing"); tag.textContent=Math.round(b.w)+"%";
+        selectPhoto(b,fig,img,tag);
+        startW=b.w; x0=e.clientX;
+        pw=($("#blocks").getBoundingClientRect().width)||1;
+        fig.classList.add("sizing");
       });
       knob.addEventListener("pointermove",(e)=>{
         if(!fig.classList.contains("sizing")) return;
-        const w=Math.min(100,Math.max(20, startW+(e.clientX-x0)/pw*100));   // 指と1:1
-        b.w=w; fig.style.setProperty("--w", w+"%"); tag.textContent=Math.round(w)+"%";
+        const w=Math.min(100,Math.max(20, startW+(e.clientX-x0)/pw*100));
+        b.w=w; fig.style.setProperty("--w",w+"%"); show(); syncPhotoBar();
       });
       const endSize=()=>{ if(fig.classList.contains("sizing")){ fig.classList.remove("sizing"); touch(); fit(); sizeCanvas(); } };
       knob.addEventListener("pointerup",endSize);
       knob.addEventListener("pointercancel",endSize);
-      knob.addEventListener("dblclick",(e)=>{ e.preventDefault(); b.w=100; fig.style.setProperty("--w","100%"); tag.textContent="100%"; touch(); });
 
+      // 角度：中心まわりに指を追い、5度きざみ。まっすぐ近くは吸い付く
       const rot=document.createElement("button"); rot.className="knob rot"; rot.type="button";
       rot.textContent="⟳"; rot.setAttribute("aria-label","写真をかたむける");
       let a0=0,r0=0;
@@ -930,21 +1026,21 @@ function blockEl(b){
       rot.addEventListener("pointerdown",(e)=>{
         e.preventDefault(); e.stopPropagation();
         try{ rot.setPointerCapture(e.pointerId); }catch(err){}
-        a0=angleOf(e); r0=b.r||0; fig.classList.add("turning"); tag.textContent=Math.round(b.r)+"°";
+        selectPhoto(b,fig,img,tag);
+        a0=angleOf(e); r0=b.r||0; fig.classList.add("turning");
       });
       rot.addEventListener("pointermove",(e)=>{
         if(!fig.classList.contains("turning")) return;
         let d=r0+(angleOf(e)-a0);
-        d=Math.round(d/5)*5;                 // 5度きざみ
-        if(Math.abs(d)<4) d=0;               // まっすぐに吸い付く
+        d=Math.round(d/5)*5;
+        if(Math.abs(d)<4) d=0;
         if(d>180) d-=360;
         if(d<-180) d+=360;
-        b.r=d; if(img) img.style.setProperty("--r", d+"deg"); tag.textContent=Math.round(d)+"°";
+        setAngle(b,img,d); show(); syncPhotoBar();
       });
-      const endRot=()=>{ if(fig.classList.contains("turning")){ fig.classList.remove("turning"); tag.textContent=Math.round(b.w)+"%"; touch(); } };
+      const endRot=()=>{ if(fig.classList.contains("turning")){ fig.classList.remove("turning"); touch(); } };
       rot.addEventListener("pointerup",endRot);
       rot.addEventListener("pointercancel",endRot);
-      rot.addEventListener("dblclick",(e)=>{ e.preventDefault(); b.r=0; if(img) img.style.setProperty("--r","0deg"); touch(); });
 
       fig.append(tag,knob,rot);
     }
@@ -1002,6 +1098,54 @@ function monthEl(){
   }
   return wrap;
 }
+
+/* ---- 写真をえらぶ・整える ---- */
+let sel=null;   // {b,fig,img,tag}
+function setAngle(b,img,d){ b.r=d; if(img) img.style.setProperty("--r",d+"deg"); }
+function selectPhoto(b,fig,img,tag){
+  if(sel&&sel.fig!==fig) sel.fig.classList.remove("sel");
+  sel={b,fig,img,tag};
+  fig.classList.add("sel");
+  $("#photobar").classList.add("on");
+  syncPhotoBar();
+}
+function deselectPhoto(){
+  if(sel) sel.fig.classList.remove("sel");
+  sel=null;
+  $("#photobar").classList.remove("on");
+}
+function syncPhotoBar(){
+  if(!sel) return;
+  $("#pSize").textContent=Math.round(sel.b.w)+"%";
+  $("#pAngle").textContent=Math.round(sel.b.r)+"°";
+}
+function nudgePhoto(dw,dr){
+  if(!sel) return;
+  if(dw){ sel.b.w=Math.min(100,Math.max(20,sel.b.w+dw)); sel.fig.style.setProperty("--w",sel.b.w+"%"); }
+  if(dr){ let d=(sel.b.r||0)+dr; if(d>180)d-=360; if(d<-180)d+=360; setAngle(sel.b,sel.img,d); }
+  if(sel.tag) sel.tag.textContent=Math.round(sel.b.w)+"% / "+Math.round(sel.b.r)+"°";
+  syncPhotoBar(); touch(); fit(); sizeCanvas();
+}
+$("#pSmaller").onclick=()=>nudgePhoto(-10,0);
+$("#pBigger").onclick=()=>nudgePhoto(10,0);
+$("#pLeft").onclick=()=>nudgePhoto(0,-5);
+$("#pRight").onclick=()=>nudgePhoto(0,5);
+$("#pReset").onclick=()=>{ if(!sel) return; sel.b.w=100; sel.fig.style.setProperty("--w","100%"); setAngle(sel.b,sel.img,0); nudgePhoto(0,0); };
+$("#pKill").onclick=()=>{
+  if(!sel) return;
+  const b=sel.b, fig=sel.fig;
+  deselectPhoto();
+  store.delImage(cur.id,b.id).catch(()=>{});
+  cur.blocks=cur.blocks.filter(x=>x.id!==b.id);
+  if(!cur.blocks.length) cur.blocks=[{id:uid(),type:"text",text:""}];
+  renderPage(); touch();
+};
+/* 写真の外をさわったら選択をやめる */
+document.addEventListener("pointerdown",(e)=>{
+  if(!sel) return;
+  if(e.target.closest(".i-block")||e.target.closest("#photobar")) return;
+  deselectPhoto();
+},true);
 
 function addBlock(b){
   cur.blocks.push(b); $("#blocks").appendChild(blockEl(b)); touch(); fit(); sizeCanvas();
@@ -1338,9 +1482,16 @@ SIZES.forEach((s)=>{
   cur=blankPage(); renderPage(); fit(); setStatus("読み込み中…");
   store=local;
   try{ store=await connect(); }catch(e){ store=local; }
+  if(VIEW_ONLY && store.kind!=="db"){
+    const snap=await loadSnapshot();
+    if(snap) store=snapshotStore(snap);
+  }
   try{ index=await store.list(); }catch(e){ index=[]; }
 
   canEdit=VIEW_ONLY ? false : await store.writable().catch(()=>false);
+  // 手元保存（ラボ版）で編集している時だけ、公開ページへ写す道を出す
+  $("#pubFoot").hidden = !(canEdit && store.kind==="local" && typeof claude==="undefined");  // 書き出せない場所には出さない
+  $("#pubOut").onclick=exportPublic;
   $("#app").classList.toggle("readonly",!canEdit);
   $("#role").textContent=canEdit?"書き込めます":(VIEW_ONLY?"公開ページ":"閲覧のみ");
   if(!canEdit) $("#tipText").textContent="この手帳は読むだけです。紙を横にはらうと頁がめくれます。";
