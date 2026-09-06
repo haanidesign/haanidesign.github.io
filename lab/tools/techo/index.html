@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="綴じ穴のあるノートの紙に、文字も写真も手書きも重ねて残す手帳。月間予定表つき。">
-<title>紙の手帳 | HAANI LAB</title>
+<meta name="description" content="文字も写真も好きな場所に置けるノート。手書き・月間予定表・公開ページつき。">
+<title>ノート | HAANI LAB</title>
 </head>
 <body>
-<title>紙の手帳</title>
+<title>ノート</title>
 
 <style>
 :root{
@@ -216,27 +216,10 @@ a{color:var(--blue)}
   position:relative;background:var(--paper);color:var(--ink);
   border-radius:calc(var(--r-l) / var(--k));
   box-shadow:var(--lift-2);
-  padding:52px 60px 96px 104px;      /* 綴じ側を広くとる */
-  background-image:
-    linear-gradient(var(--rule) 1px,transparent 1px);
-  background-size:100% 32px;
-  background-position:0 51px;
+  padding:52px 60px 96px;
+  background-image:linear-gradient(var(--rule) 1px,transparent 1px);
+  background-size:100% 32px;background-position:0 51px;
   transform-style:preserve-3d;backface-visibility:hidden;
-}
-/* 綴じ側：影と綴じ穴 */
-.paper::before{
-  content:"";position:absolute;left:0;top:0;bottom:0;width:78px;pointer-events:none;z-index:1;
-  background:
-    radial-gradient(circle at 39px 130px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
-    radial-gradient(circle at 39px 430px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
-    radial-gradient(circle at 39px 730px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
-    radial-gradient(circle at 39px 1030px, var(--bg) 9px, rgba(0,0,0,.10) 10px, transparent 11px),
-    linear-gradient(90deg, rgba(0,0,0,.05), rgba(0,0,0,0) 78px);
-}
-/* 綴じ側の縦罫 */
-.paper::after{
-  content:"";position:absolute;left:78px;top:0;bottom:0;width:1px;z-index:1;pointer-events:none;
-  background:rgba(255,59,48,.28);
 }
 /* めくり：綴じ目（左端）を軸に紙が起き上がって伏せる */
 @keyframes leaf-out{
@@ -535,12 +518,12 @@ a{color:var(--blue)}
   <aside class="side" id="side">
     <div class="side-head">
       <div class="brand">
-        <h1>手帳</h1>
+        <h1>ノート</h1>
         <span class="who" id="role">—</span>
       </div>
       <div class="search">
         <svg viewBox="0 0 16 16"><path d="M11.3 10.2a5.6 5.6 0 1 0-1.1 1.1l3.2 3.2a.8.8 0 0 0 1.1-1.1l-3.2-3.2Zm-4.4.7a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/></svg>
-        <input id="q" type="search" placeholder="手帳の中を探す" autocomplete="off" enterkeyhint="search">
+        <input id="q" type="search" placeholder="ノートの中を探す" autocomplete="off" enterkeyhint="search">
         <button id="qClear" hidden aria-label="検索をやめる">✕</button>
       </div>
       <div class="seg" id="sort" role="group" aria-label="並べ替え">
@@ -2198,7 +2181,7 @@ function watchAll(){
 
   try{ folders=await store.getFolders(); }catch(e){ folders=[]; }
   if(!folders.length){
-    folders=[{id:"main",name:"ノート",color:STICKERS[0]}];
+    folders=[{id:"main",name:"メモ",color:STICKERS[0]}];
     if(canEdit) await saveFolders();
   }
   folderId=folders[0].id;
@@ -2221,7 +2204,7 @@ function watchAll(){
     setStatus(canEdit?"保存済み "+fmt(cur.updated):"",canEdit);
   }else{
     renderPage();
-    setStatus(canEdit?"新しい手帳です":"まだ何も書かれていません");
+    setStatus(canEdit?"新しいノートです":"まだ何も書かれていません");
   }
   renderList(); fit();
   watchAll(); watchCurrentPage();
