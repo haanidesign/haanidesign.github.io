@@ -1,32 +1,35 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=122';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=127';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=122';
+         splitFrames } from '../engine/layer.js?v=127';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=122';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=122';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=122';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=122';
-import { PRESET_GROUPS } from '../engine/presets.js?v=122';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=127';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=127';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=127';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=127';
+import { PRESET_GROUPS } from '../engine/presets.js?v=127';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=122';
+         addTextLayer } from '../io/text.js?v=127';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=122';
-import { PATTERN_NAMES } from '../io/pattern.js?v=122';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=122';
-import { newHand } from '../engine/hand.js?v=122';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=122';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=127';
+import { PATTERN_NAMES } from '../io/pattern.js?v=127';
+import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
+         PITCH_MAX } from '../engine/pano.js?v=127';
+import { readAsDataURL, loadImage } from '../io/image.js?v=127';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=127';
+import { newHand } from '../engine/hand.js?v=127';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=127';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=122';
+  from './colorwheel.js?v=127';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=122';
+         guessBpm, firstOnset } from '../io/audio.js?v=127';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=122';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=127';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -677,6 +680,7 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(h);
   }
 
+  panoRow(box, l);
   box.appendChild(clipRow(l));
   spanRow(box, l, closeFn);
   warpRow(box, l, closeFn);
@@ -1717,6 +1721,69 @@ let draftText = null;
 export function clearDraftText(){ draftText = null; }
 
 
+
+/* ================= ぐるり360 =================
+   正距円筒（ぐるり1しゅうの 絵）を、その場に 立って 見まわす ように 出す。
+   よこ回転・たて回転・ズーム は ふつうの チャンネルなので、
+   タイミングピンが うてる＝そのまま 動画に なる。 */
+function panoRow(box, l){
+  if(!isPano(l)) return;
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('ぐるり360'));
+
+  const help = document.createElement('div');
+  help.className = 'empty';
+  help.style.textAlign = 'left';
+  help.textContent = '「ぐるり 360°」で 作った 絵です。' + NL
+    + 'むきを かえると、その場で 見まわした 絵に なります。' + NL
+    + '下の ボタンを おすと ピンが うたれて、動画に なります。';
+  box.appendChild(help);
+
+  const deg = v => Math.round(v) + '°';
+  box.appendChild(animSlider('よこ回転', l, 'panY', -720, 720, 1, deg));
+  box.appendChild(animSlider('たて回転', l, 'panP', -PITCH_MAX, PITCH_MAX, 1, deg));
+  box.appendChild(animSlider('ズーム',   l, 'panZ', 25, 130, 1,
+    v => v <= 40 ? 'よる（' + Math.round(v) + '°）'
+       : v >= 110 ? 'ひろい（' + Math.round(v) + '°）'
+       : Math.round(v) + '°'));
+
+  const spin = (label, fn, msg) => button(label, () => {
+    edit(label, fn);
+    notify(msg);
+    onChange();
+  });
+
+  box.appendChild(field('うごきを つける', btnRow(
+    spin('🔄 ぐるっと1しゅう', () => spinKeys(l, S.proj.duration, 1, false),
+      'さいしょから おわりまでで 1しゅう します'),
+    spin('👀 見わたす', () => sweepKeys(l, S.proj.duration, 60),
+      'ゆっくり 左右に 見わたします')
+  )));
+  box.appendChild(btnRow(
+    spin('🔄 ゆっくり 2しゅう', () => spinKeys(l, S.proj.duration, 2, false),
+      '2しゅう します'),
+    spin('↩ ぎゃくまわり', () => spinKeys(l, S.proj.duration, 1, true),
+      'ぎゃく に まわります'),
+    button('むきを もどす', () => {
+      edit('ぐるりを もどす', () => {
+        const d = panoDefaults();
+        Object.assign(l, d);
+        ['panY','panP','panZ'].forEach(ch => { if(l.tracks) delete l.tracks[ch]; });
+      });
+      notify('まっすぐ 前を 見ます');
+      onChange();
+    })
+  ));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = 'ピンを うった あとは、タイムラインで 速さを 直せます。' + NL
+    + 'ほかの レイヤーは この 上に かさなるので、' + NL
+    + 'キャラクターを おいて いっしょに 動かせます。';
+  box.appendChild(note);
+}
+
 /* ---------- 見た目（塗り・ぼかし・ふちどり） ----------
    ふつうのレイヤーでも フォルダでも 同じものが使える。
    フォルダは 中身を1まいにまとめてから かかるので、
@@ -1964,6 +2031,55 @@ export function buildDocSheet(box, closeFn){
    はいけいのことだけ。動画の長さや 音は 「どうがの せってい」に ある。 */
 export function buildBgSheet(box, closeFn){
   const NL = String.fromCharCode(10);
+
+  /* ---------- ぐるり360 ----------
+     「ぐるり 360°」で かいた 絵を いれると、
+     その場に 立って 見まわす はいけいに なる。 */
+  box.appendChild(heading('ぐるり360の 絵'));
+  const pano = S.proj.layers.find(isPano);
+  const pn = document.createElement('div');
+  pn.className = 'empty';
+  pn.style.textAlign = 'left';
+  pn.textContent = pano
+    ? ('いま「' + pano.name + '」が 入っています。' + NL
+       + 'むきや うごきは、そのレイヤーの「かたち」で かえられます。')
+    : ('「ぐるり 360°」で 作った 絵（よこが たての 2ばいの 絵）を いれると、' + NL
+       + 'その場で 見まわす はいけいに なります。' + NL
+       + 'ぐるっと まわす ボタンを おすだけで 動画に できます。');
+  box.appendChild(pn);
+
+  const ppick = document.createElement('input');
+  ppick.type = 'file';
+  ppick.accept = 'image/*';
+  ppick.hidden = true;
+  ppick.addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    try{
+      onBusy(true, 'ぐるりの 絵を よみこんでいます…');
+      const src = await readAsDataURL(f);
+      const im = await loadImage(src);
+      const ratio = im.naturalWidth / Math.max(1, im.naturalHeight);
+      beginEdit('ぐるり360を いれる');
+      const l = addPanoLayer(f.name.replace(/\.[a-z0-9]+$/i, '') || 'ぐるり360', src, im);
+      commitEdit();
+      notify(ratio < 1.6 || ratio > 2.4
+        ? 'いれました（よこが たての 2ばいの 絵だと きれいです）'
+        : 'ぐるり360を いれました');
+      onChange();
+      if(closeFn) closeFn();
+    }catch(err){
+      notify('よみこめませんでした（' + (err && err.message || '') + '）');
+    }finally{
+      onBusy(false);
+    }
+  });
+  box.appendChild(ppick);
+  box.appendChild(btnRow(
+    button(pano ? '🌐 べつの 絵に する' : '🌐 ぐるり360の 絵を いれる', () => ppick.click())
+  ));
+
   box.appendChild(heading('はいけい'));
   const bg = S.proj.layers.find(isBg);
 

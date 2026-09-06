@@ -1,13 +1,14 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=122';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=127';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=122';
+         nearestFolder, setParent } from '../engine/layer.js?v=127';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=122';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=127';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=127';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -956,7 +957,9 @@ export function createTimeline(root, opts = {}){
     if(!l) return toast('レイヤーをえらんでね');
     edit('ピンをうつ', () => {
       // チャンネル名と値の名前がずれているものがあるので channelValue 経由で取る
-      CHANNELS.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'smooth'));
+      /* ぐるり360だけは 見ている むきも いっしょに 残す */
+      const chs = CHANNELS.concat(isPano(l) ? PANO_CHANNELS : []);
+      chs.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'smooth'));
       STEP_CHANNELS.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'hold'));
       // パペットピンのずれも いっしょに残す（固定ピンは動かないので要らない）
       const v = valuesAt(l, S.time);

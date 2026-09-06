@@ -1,22 +1,22 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=122';
-import { cleanPath } from '../engine/path.js?v=122';
+import { M, clamp } from '../engine/math.js?v=127';
+import { cleanPath } from '../engine/path.js?v=127';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=122';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=122';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=122';
+         keepChildren, cornersOf } from '../engine/layer.js?v=127';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=127';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=127';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=122';
-import { createRenderer } from '../render/renderer.js?v=122';
-import { attachInput } from './input.js?v=122';
-import { newStroke, paintDirty } from '../engine/paint.js?v=122';
+         bendChain } from '../engine/puppet.js?v=127';
+import { createRenderer } from '../render/renderer.js?v=127';
+import { attachInput } from './input.js?v=127';
+import { newStroke, paintDirty } from '../engine/paint.js?v=127';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=122';
+         copyPts, setPts } from '../engine/warp.js?v=127';
 
-export function createStage(canvas, host, toast, onTraced){
+export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
   let poses = {};
   let handles = null;
@@ -578,6 +578,12 @@ export function createStage(canvas, host, toast, onTraced){
       if(hitHandle(cp)) return;           // ハンドルはドラッグ開始時に処理する
       const hit = pickPreferSelected(cp, livePoses());
       if(hit && hit.id !== S.sel){ S.sel = hit.id; onChange(); }
+    },
+
+    /* 2本指トン＝もどす、3本指トン＝やりなおし。
+       絵の上なら どこでも きく（お絵かき中・ゆがみ中 も おなじ）。 */
+    onMultiTap(n){
+      if(onGesture) onGesture(n);
     },
 
     onTap(p){

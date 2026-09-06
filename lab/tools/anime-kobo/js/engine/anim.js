@@ -37,7 +37,8 @@ export function channelsOf(layer){
 
 export const CH_LABEL = {
   x:'よこ', y:'たて', scaleX:'よこ幅', scaleY:'たて幅', rot:'かたむき', opacity:'すけ具合',
-  tint:'塗り', blur:'ぼかし', stroke:'ふちどり', flipX:'左右反転', flipY:'上下反転', frame:'コマ'
+  tint:'塗り', blur:'ぼかし', stroke:'ふちどり', flipX:'左右反転', flipY:'上下反転', frame:'コマ',
+  panY:'よこ回転', panP:'たて回転', panZ:'ズーム'
 };
 
 /** そのレイヤーにピンが1つでもあるか */
@@ -372,6 +373,11 @@ export function valuesAt(layer, time){
     flipY: !!sampleStep(tr.flipY, t, layer.flipY),
 
     frame: Math.max(0, Math.round(sampleStep(tr.frame, t, 0))),
+
+    /* ぐるり360の 見ている むき。ふつうの レイヤーには 出てこない */
+    panY: sample(tr.panY, t, layer.panY || 0),
+    panP: sample(tr.panP, t, layer.panP || 0),
+    panZ: sample(tr.panZ, t, layer.panZ == null ? 75 : layer.panZ),
 
     /* ゆがみ（かご）の あみの目の、その時の 場所。
        ピンが 無ければ いまの 形の まま。 */

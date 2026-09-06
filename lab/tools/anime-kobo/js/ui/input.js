@@ -6,12 +6,21 @@
 const LONG_PRESS = 400;
 const DRAG_SLOP = 6;      // これ以上動いたらドラッグ開始
 
+/* ---- 2本指トン＝もどす / 3本指トン＝やりなおし ----
+   ぜんぶの 指が「ほとんど 動かず」「さっと はなれた」ときだけ。
+   すこしでも 動いたら、いままでどおり 画面を うごかす 方に なる。 */
+const TAP_MS = 340;       // これより 長く さわっていたら トン では ない
+const MULTI_SLOP = 16;    // これいないの ずれなら 止まって いたと みなす
+const PINCH_SLOP = 12;    // 2本指は これだけ 動いてから 画面を うごかす
+
 export function attachInput(el, handlers){
   const pts = new Map();          // pointerId -> {x,y,x0,y0}
   let mode = null;                // 'maybe' | 'drag' | 'pinch'
   let longTimer = null;
   let pinch0 = null;
   let grabbed = false;
+  let pinchLive = false;          // 2本指が「ほんとうに 画面を うごかし はじめた」か
+  let gest = null;                // いまの さわり ぜんたい { t0, max, moved }
 
   const pos = (e) => {
     const r = el.getBoundingClientRect();
@@ -38,6 +47,9 @@ export function attachInput(el, handlers){
     const p = pos(e);
     pts.set(e.pointerId, { ...p, x0: p.x, y0: p.y });
 
+    if(!gest) gest = { t0: performance.now(), max: 0, moved: false };
+    gest.max = Math.max(gest.max, pts.size);
+
     if(pts.size === 2){
       // 2本目が来たら、1本目のドラッグはやめて画面操作に切り替える
       clearLong();
@@ -45,7 +57,10 @@ export function attachInput(el, handlers){
       grabbed = false;
       mode = 'pinch';
       pinch0 = twoFingers();
-      if(handlers.onPinchStart) handlers.onPinchStart(pinch0);
+      /* ここでは まだ 画面を うごかさない。
+         トンと おいただけで 絵が ずれると、2本指トンが つかえない。
+         すこし 動いてから onPinchStart を 出す。 */
+      pinchLive = false;
       return;
     }
     if(pts.size > 2) return;
@@ -70,8 +85,23 @@ export function attachInput(el, handlers){
     if(!rec) return;
     const p = pos(e);
     rec.x = p.x; rec.y = p.y;
+    if(gest && !gest.moved && Math.hypot(p.x - rec.x0, p.y - rec.y0) > MULTI_SLOP){
+      gest.moved = true;
+    }
 
     if(mode === 'pinch' && pts.size >= 2){
+      if(!pinchLive){
+        let far = 0;
+        for(const r of pts.values()) far = Math.max(far, Math.hypot(r.x - r.x0, r.y - r.y0));
+        if(far <= PINCH_SLOP) return;              // まだ トンの とちゅう かも しれない
+        pinchLive = true;
+        /* 画面が うごいた いじょう、これは もう「トン」では ない。
+           すこし ずらして 指を はなした ときに、
+           画面も うごいて さらに もどる、の 二重に なるのを ふせぐ。 */
+        if(gest) gest.moved = true;
+        pinch0 = twoFingers();                     // 動きだした ところを 起点に する
+        if(handlers.onPinchStart) handlers.onPinchStart(pinch0);
+      }
       const now = twoFingers();
       if(handlers.onPinch) handlers.onPinch(now, pinch0);
       return;
@@ -92,21 +122,38 @@ export function attachInput(el, handlers){
     pts.delete(e.pointerId);
     clearLong();
 
+    /* 2本・3本の「トン」だったか。ぜんぶの指が はなれた ときに 見る */
+    const finish = () => {
+      const g = gest;
+      gest = null;
+      mode = null; grabbed = false; pinchLive = false;
+      if(!g || g.moved) return;
+      if(performance.now() - g.t0 > TAP_MS) return;
+      if(g.max === 2 || g.max === 3){
+        if(handlers.onMultiTap) handlers.onMultiTap(g.max);
+      }
+    };
+
     if(mode === 'pinch'){
       if(pts.size < 2){
-        if(handlers.onPinchEnd) handlers.onPinchEnd();
+        if(pinchLive && handlers.onPinchEnd) handlers.onPinchEnd();
+        pinchLive = false;
         mode = pts.size === 1 ? 'maybe' : null;
         // 残った指の基準位置を今の場所に取り直す（急に飛ばないように）
         for(const r of pts.values()){ r.x0 = r.x; r.y0 = r.y; }
       }
+      if(pts.size === 0) finish();
       return;
     }
     if(mode === 'drag'){
       if(handlers.onDragEnd) handlers.onDragEnd(false);
     } else if(mode === 'maybe' && rec){
-      if(handlers.onTap) handlers.onTap({ x: rec.x, y: rec.y });
+      /* 2本以上 さわった あとの 最後の1本は「タップ」に しない。
+         （2本指トンで レイヤーの えらびが 外れて しまう） */
+      const multi = gest && gest.max >= 2;
+      if(!multi && handlers.onTap) handlers.onTap({ x: rec.x, y: rec.y });
     }
-    if(pts.size === 0){ mode = null; grabbed = false; }
+    if(pts.size === 0) finish();
   };
 
   el.addEventListener('pointerup', up);
@@ -125,6 +172,6 @@ export function attachInput(el, handlers){
     // 手元での動作確認用に、いまの状態を見えるようにしておく
     peek: () => ({ mode, pointers: pts.size, grabbed }),
     isGrabbed: () => grabbed,
-    reset(){ pts.clear(); mode = null; grabbed = false; clearLong(); }
+    reset(){ pts.clear(); mode = null; grabbed = false; pinchLive = false; gest = null; clearLong(); }
   };
 }

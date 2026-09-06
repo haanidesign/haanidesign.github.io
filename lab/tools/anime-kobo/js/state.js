@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=122';
+import { uid } from './engine/math.js?v=127';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -77,7 +77,9 @@ export const WORK_KEYS = new Set([
   '_pc', '_pkey',                       // おえかきの 紙
   '_cmesh', '_cxy', '_ckey',            // ゆがみの あみ
   '_wmesh', '_wuv', '_wkey',            // ゆがみ＋骨の あみ
-  '_cuv', '_puv'                        // フォルダを まとめた 別紙の はりどころ
+  '_cuv', '_puv',                       // フォルダを まとめた 別紙の はりどころ
+  '_pnSrc', '_pnKey', '_pnW', '_pnH',   // ぐるり360の もとの 絵（よこ2まい）
+  '_pnMesh', '_pnXY', '_pnUV'           // ぐるり360の あみ
 ]);
 
 /** 作業だけの ものを のぞいた 写しを 作る（ほぞん・もどす で つかう） */
@@ -167,7 +169,7 @@ export function addAsset(name, src, w, h, img){
 export const selected = () => S.proj.layers.find(l => l.id === S.sel) || null;
 
 /** 自分で 紙に 描く レイヤー（おえかき・いろ） */
-const paintKind = (l) => !!l && (l.kind === 'paint' || l.kind === 'solid');
+const paintKind = (l) => !!l && (l.kind === 'paint' || l.kind === 'solid' || l.kind === 'pano');
 
 /** レイヤーの、いま出すべき画像。
     おえかき・いろ の レイヤーは ファイルを 持たないので、
