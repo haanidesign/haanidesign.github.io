@@ -556,6 +556,7 @@ a{color:var(--blue)}
       <span class="sep-v"></span>
       <span class="zoomer">
         <button class="tool" id="zoomOut" aria-label="紙を小さく">−</button>
+        <button class="tool" id="zoomFit" aria-label="画面に合わせる（二度押しで原寸）">⤢</button>
         <button class="tool" id="zoomIn" aria-label="紙を大きく">＋</button>
       </span>
       <span class="grow"></span>
@@ -1989,7 +1990,8 @@ document.addEventListener("pointerdown",(e)=>{
 /* 大きさ */
 $("#zoomIn").onclick=()=>stepZoom(1);
 $("#zoomOut").onclick=()=>stepZoom(-1);
-$("#zoomOut").ondblclick=toggleZoom;   // 二度押しで全体と原寸を行き来
+$("#zoomFit").onclick=()=>{ setZoom(1); setStatus("画面に合わせました",true); };      // 紙まるごと画面に
+$("#zoomFit").ondblclick=()=>{ setZoom(1/Math.max(fitK,.01)); setStatus("原寸",true); }; // 二度押しで原寸
 
 /* 新規・削除 */
 $("#newPage").onclick=async()=>{
