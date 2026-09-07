@@ -541,6 +541,9 @@ a{color:var(--blue)}
     <div class="side-foot editonly" id="pubFoot" hidden>
       <button class="btn" id="pubOut">公開ページに反映（書き出し）</button>
     </div>
+    <div class="side-foot" id="signFoot" hidden>
+      <button class="btn" id="signBtn">サインインして書く</button>
+    </div>
   </aside>
   <div class="scrim" id="scrim"></div>
 
@@ -723,6 +726,82 @@ async function connect(){
     },
     watchFolders(cb){
       try{ return db.doc("meta/folders").onSnapshot(d=>{ if(d&&d.exists) cb((d.data()||{}).list||[]); }, ()=>{}); }catch(e){ return null; }
+    }
+  };
+}
+
+/* ================= クラウド保存（サイトが勝手に変わる） =================
+   cloud.json（Firebase の設定）が隣に置かれていれば、そちらに保存する。
+   書いた端から、同じサイトを開いている全員の画面が入れ替わる。
+   書けるのは持ち主だけ（ownerUid）、読むのは誰でも。 */
+let cloudAuth=null, cloudUser=null;
+async function loadCloudConfig(){
+  try{
+    const res=await fetch("cloud.json?"+Date.now(),{cache:"no-store"});
+    if(!res.ok) return null;
+    const j=await res.json();
+    return (j&&j.apiKey&&j.projectId)?j:null;
+  }catch(e){ return null; }
+}
+async function cloudStore(cfg){
+  const base="https://www.gstatic.com/firebasejs/10.12.5/";
+  let app,fs,F,A;
+  try{
+    const appMod=await import(base+"firebase-app.js");
+    F=await import(base+"firebase-firestore.js");
+    A=await import(base+"firebase-auth.js");
+    app=appMod.initializeApp(cfg);
+    fs=F.getFirestore(app);
+  }catch(e){ return null; }
+
+  cloudAuth=A.getAuth(app);
+  await new Promise(res=>{
+    const off=A.onAuthStateChanged(cloudAuth,(u)=>{ cloudUser=u||null; off(); res(); });
+    setTimeout(res,4000);
+  });
+  A.onAuthStateChanged(cloudAuth,(u)=>{ cloudUser=u||null; });
+
+  const root="notes/"+(cfg.book||"main");
+  const pagesCol=()=>F.collection(fs, root+"/pages");
+  const pageDoc=(id)=>F.doc(fs, root+"/pages/"+id);
+  const imgCol=(pid)=>F.collection(fs, root+"/pages/"+pid+"/images");
+  const imgDoc=(pid,bid)=>F.doc(fs, root+"/pages/"+pid+"/images/"+bid);
+  const metaDoc=(name)=>F.doc(fs, root+"/meta/"+name);
+  const row=(d)=>{ const v=d.data()||{}; return {id:d.id,title:v.title||"",updated:v.updated||0,folder:v.folder||"",kind:v.kind||"note",q:v.q||""}; };
+
+  return {
+    kind:"cloud",
+    signedIn:()=>!!cloudUser,
+    async signIn(){
+      const p=new A.GoogleAuthProvider();
+      try{ await A.signInWithPopup(cloudAuth,p); }
+      catch(e){ try{ await A.signInWithRedirect(cloudAuth,p); }catch(err){} }
+    },
+    async signOut(){ try{ await A.signOut(cloudAuth); }catch(e){} },
+    async list(){
+      const s=await F.getDocs(F.query(pagesCol(), F.orderBy("updated","desc"), F.limit(300)));
+      return s.docs.map(row);
+    },
+    async save(){},
+    async get(id){ const d=await F.getDoc(pageDoc(id)); return d.exists()?JSON.parse(JSON.stringify(d.data())):null; },
+    async put(p){ await F.setDoc(pageDoc(p.id), p); },
+    async del(id){ await F.deleteDoc(pageDoc(id)); },
+    async getImages(pid){ const s=await F.getDocs(imgCol(pid)); const m={}; s.docs.forEach(d=>{ m[d.id]=(d.data()||{}).src; }); return m; },
+    async putImage(pid,bid,src){ await F.setDoc(imgDoc(pid,bid), {src}); },
+    async delImage(pid,bid){ await F.deleteDoc(imgDoc(pid,bid)); },
+    async delImages(pid){ const s=await F.getDocs(imgCol(pid)); await Promise.all(s.docs.map(d=>F.deleteDoc(imgDoc(pid,d.id)))); },
+    async getFolders(){ const d=await F.getDoc(metaDoc("folders")); return d.exists()?((d.data()||{}).list||[]):[]; },
+    async putFolders(list){ await F.setDoc(metaDoc("folders"), {list}); },
+    async writable(){ return !!(cloudUser && (!cfg.ownerUid || cloudUser.uid===cfg.ownerUid)); },
+    watchList(cb){
+      try{ return F.onSnapshot(F.query(pagesCol(), F.orderBy("updated","desc"), F.limit(300)),
+        (s)=>cb(s.docs.map(row)), ()=>{}); }catch(e){ return null; }
+    },
+    watchPage(id,cb){
+      try{ return F.onSnapshot(pageDoc(id), (d)=>{ if(d.exists()) cb(JSON.parse(JSON.stringify(d.data()))); }, ()=>{}); }catch(e){ return null; }
+    },
+    watchFolders(cb){
+      try{ return F.onSnapshot(metaDoc("folders"), (d)=>{ if(d.exists()) cb((d.data()||{}).list||[]); }, ()=>{}); }catch(e){ return null; }
     }
   };
 }
@@ -2165,13 +2244,29 @@ function watchAll(){
   cur=blankPage(); renderPage(); fit(); setStatus("読み込み中…");
   store=local;
   try{ store=await connect(); }catch(e){ store=local; }
-  if(VIEW_ONLY && store.kind!=="db"){
+  if(store.kind!=="db"){
+    const cfg=await loadCloudConfig();
+    if(cfg){
+      setStatus("つないでいます…");
+      const c=await cloudStore(cfg);
+      if(c) store=c;
+    }
+  }
+  if(VIEW_ONLY && store.kind==="local"){
     const snap=await loadSnapshot();
     if(snap) store=snapshotStore(snap);
   }
   try{ index=await store.list(); }catch(e){ index=[]; }
 
   canEdit=VIEW_ONLY ? false : await store.writable().catch(()=>false);
+  if(!VIEW_ONLY && store.kind==="cloud"){
+    const inn=store.signedIn();
+    $("#signFoot").hidden = canEdit;                    // 書ける人には出さない
+    $("#signBtn").textContent = inn ? "別のアカウントでサインイン" : "サインインして書く";
+    $("#signBtn").onclick=async()=>{ await store.signIn(); location.reload(); };
+  }else{
+    $("#signFoot").hidden=true;
+  }
   // 手元保存（ラボ版）で編集している時だけ、公開ページへ写す道を出す
   $("#pubFoot").hidden = !(canEdit && store.kind==="local" && typeof claude==="undefined");  // 書き出せない場所には出さない
   $("#pubOut").onclick=exportPublic;

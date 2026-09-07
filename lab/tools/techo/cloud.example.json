@@ -1,0 +1,10 @@
+{
+  "apiKey": "ここに Firebase のウェブAPIキー",
+  "authDomain": "xxxx.firebaseapp.com",
+  "projectId": "xxxx",
+  "storageBucket": "xxxx.appspot.com",
+  "messagingSenderId": "000000000000",
+  "appId": "1:000000000000:web:xxxxxxxx",
+  "ownerUid": "書き込みを許す人の uid",
+  "book": "main"
+}

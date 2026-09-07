@@ -1,0 +1,12 @@
+Firestore の決まりごと（コンソールの「ルール」にそのまま貼る）
+読むのは誰でも、書けるのは持ち主だけ。OWNER_UID は自分の uid に置き換える。
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /notes/{book}/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == "OWNER_UID";
+    }
+  }
+}
