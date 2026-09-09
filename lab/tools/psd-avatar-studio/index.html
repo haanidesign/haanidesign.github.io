@@ -4,109 +4,202 @@
 <meta charset="utf-8">
 <title>PSD アバタースタジオ</title>
 <script src="lib/ag-psd.js"></script>
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
+/* はぁにデザイン工房のダーク版。
+   黄色・太枠・ハードシャドウ・丸ゴシックはそのまま、地の色だけ暗くしている。
+   立ち絵は透過で扱うので、キャンバスの背景だけは色を持たせない。 */
   :root{
-    --bg:#14161b; --panel:#1b1e26; --panel2:#232733; --text:#d7dae2; --dim:#8b90a0;
-    --accent:#6ea8ff; --chip:#262b38; --chip-on:#31406b; --hot:#ff8a4a;
+    --main:#E1DD60;          /* 主役の黄色 */
+    --main-deep:#B8B43F;
+    --ink:#0E0D08;           /* 影と枠に使う、いちばん暗い色 */
+    --bg:#1A1913;            /* 地 */
+    --panel:#232219;         /* 操作パネル */
+    --panel2:#2E2C20;        /* パネルの中の一段くぼんだところ */
+    --text:#F2F0DE;
+    --dim:#9C977C;
+    --line:#443F2C;
+    --hot:#FF8A4A;           /* 編集中を知らせる橙 */
+    --bd:2px solid var(--ink);
+    --r:10px;
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{height:100%}
-  body{background:var(--bg); color:var(--text); font:13px/1.5 "Segoe UI","Hiragino Sans",sans-serif; display:flex; overflow:hidden}
-  #stage{flex:1; display:flex; align-items:center; justify-content:center; min-width:0; position:relative}
-  #stage.transparent{background-image:conic-gradient(#22252c 0 25%,#191c22 0 50%,#22252c 0 75%,#191c22 0);background-size:24px 24px}
-  #stage.gb{background:#00b140}
-  #stage.dark{background:#101216}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'M PLUS Rounded 1c','Hiragino Sans',sans-serif; font-weight:700;
+    font-size:13px; line-height:1.6;
+    display:flex; overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------------- ステージ ---------------- */
+  #stage{
+    flex:1; display:flex; align-items:center; justify-content:center; min-width:0; position:relative;
+    background-image:radial-gradient(circle, rgba(226,221,96,.09) 1.5px, transparent 1.6px);
+    background-size:16px 16px;
+  }
+  #stage.transparent{background-image:conic-gradient(#2A2820 0 25%,#1C1B14 0 50%,#2A2820 0 75%,#1C1B14 0);background-size:24px 24px}
+  #stage.gb{background:#00b140; background-image:none}
+  #stage.dark{background:#0B0A07; background-image:none}
   #holder{position:relative; line-height:0}
   canvas{max-width:100%; max-height:100vh; image-rendering:auto}
   #ov{position:absolute; left:0; top:0; background:none}
   #ov.edit{cursor:crosshair}
   #ov.adj{cursor:move}
-  #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(30,50,90,.5); font-size:20px; pointer-events:none}
-  #edbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000;
-    padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:6; flex-wrap:wrap}
-  #edbar.on{display:flex}
-  #edbar b{flex-shrink:0}
-  #edbar .edhint{color:#5a2c00; flex:1; min-width:140px}
-  #edbar .btn{background:rgba(255,255,255,.85); border-color:rgba(0,0,0,.2); color:#241000; padding:3px 10px}
-  #edbar .btn.go{background:#241000; border-color:#241000; color:#ffd9c2}
-  #recbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000; font-weight:600;
-    padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:5}
-  #recbar.on{display:flex}
-  #adjbar{position:absolute; left:0; right:0; top:0; background:rgba(110,168,255,.95); color:#08122a;
-    padding:7px 12px; display:none; gap:8px 12px; align-items:center; font-size:12px; z-index:7; flex-wrap:wrap}
-  #adjbar.on{display:flex}
-  #adjbar b{flex-shrink:0}
-  #adjbar .btn{background:rgba(255,255,255,.85); border-color:rgba(0,0,0,.2); color:#08122a; padding:3px 10px}
-  #adjbar .btn.go{background:#08122a; border-color:#08122a; color:#cfe1ff}
-  #adjbar select{background:rgba(255,255,255,.9); color:#08122a; border-color:rgba(0,0,0,.2)}
+  #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(226,221,96,.16); color:var(--main); font-size:20px; font-weight:800;
+    letter-spacing:.05em; pointer-events:none; border:4px dashed var(--main); border-radius:16px}
+
+  /* ---------------- 上に出る帯 ---------------- */
+  .bar{
+    position:absolute; left:0; right:0; top:0; display:none; gap:8px 12px; align-items:center;
+    padding:8px 14px; font-size:12px; font-weight:700; flex-wrap:wrap;
+    border-bottom:3px solid var(--ink);
+  }
+  .bar.on{display:flex}
+  .bar b{flex-shrink:0; font-weight:800; letter-spacing:.04em}
+  .bar .btn{
+    background:rgba(255,255,255,.92); border:var(--bd); color:var(--ink);
+    padding:3px 11px; box-shadow:0 2px 0 var(--ink);
+  }
+  .bar .btn:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink); background:#fff}
+  .bar .btn:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .bar .btn.go{background:var(--ink); border-color:var(--ink); color:var(--main)}
+  .bar select{background:rgba(255,255,255,.92); color:var(--ink); border:var(--bd); font-weight:700}
+  #edbar{background:var(--hot); color:#2A1200; z-index:6}
+  #edbar .edhint{color:#6B3000; flex:1; min-width:140px}
+  #recbar{background:var(--main); color:var(--ink); z-index:5; font-weight:800}
+  #adjbar{background:var(--main); color:var(--ink); z-index:7}
   #adjbar .adjsl{display:flex; align-items:center; gap:5px; white-space:nowrap}
-  #adjbar .adjsl input[type=range]{width:82px; accent-color:#08122a; height:4px}
-  #adjbar .adjsl .val{width:34px; text-align:right; color:#2b3f6b; font-size:11px}
-  #adjbar .adjhint{color:#2b3f6b; flex:1; min-width:150px}
-  #adjbar .adjname{font-weight:700; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  #panel{width:330px; overflow-y:auto; background:var(--panel); padding:14px 16px 40px; flex-shrink:0}
-  #panel::-webkit-scrollbar{width:8px}
-  #panel::-webkit-scrollbar-thumb{background:#333a4a; border-radius:4px}
-  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px}
-  .chip{padding:4px 12px; border-radius:14px; background:var(--chip); border:1px solid #333a4a; cursor:pointer; user-select:none; font-size:12px; color:var(--dim)}
-  .chip.on{background:var(--chip-on); border-color:var(--accent); color:#dfe9ff}
-  h3{font-size:11px; color:var(--dim); font-weight:600; margin:16px 0 8px; letter-spacing:.05em}
-  .btns{display:flex; flex-wrap:wrap; gap:6px}
-  .btn{padding:5px 13px; border-radius:6px; background:var(--panel2); border:1px solid #333a4a; color:var(--text); cursor:pointer; font-size:12px}
-  .btn:hover{border-color:var(--accent)}
-  .btn.on{background:var(--chip-on); border-color:var(--accent)}
-  .btn.go{background:var(--accent); border-color:var(--accent); color:#0b1020; font-weight:700}
-  .btn.go:hover{background:#8bb9ff}
-  .btn:disabled{opacity:.4; cursor:default}
-  .row{display:flex; align-items:center; gap:8px; margin:5px 0}
-  .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px}
-  .row input[type=range]{flex:1; accent-color:var(--accent); height:4px}
-  .row .val{width:36px; text-align:right; color:var(--dim); font-size:11px}
-  select{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font-size:11px; padding:1px 4px}
-  input[type=number]{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font:inherit; font-size:12px; padding:3px 5px; width:62px}
+  #adjbar .adjsl input[type=range]{width:82px; accent-color:var(--ink); height:4px}
+  #adjbar .adjsl .val{width:34px; text-align:right; color:#5E5A20; font-size:11px}
+  #adjbar .adjhint{color:#5E5A20; flex:1; min-width:150px; font-weight:500}
+  #adjbar .adjname{font-weight:800; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+  /* ---------------- 操作パネル ---------------- */
+  #panel{
+    width:340px; overflow-y:auto; background:var(--panel); flex-shrink:0;
+    padding:0 16px 40px; border-left:3px solid var(--ink);
+  }
+  #panel::-webkit-scrollbar{width:9px}
+  #panel::-webkit-scrollbar-track{background:var(--panel)}
+  #panel::-webkit-scrollbar-thumb{background:var(--line); border-radius:5px}
+  #panel::-webkit-scrollbar-thumb:hover{background:var(--main-deep)}
+  #titlebar{
+    position:sticky; top:0; z-index:3; margin:0 -16px 14px; padding:10px 16px;
+    background:var(--main); color:var(--ink); border-bottom:3px solid var(--ink);
+    display:flex; align-items:center; gap:8px;
+  }
+  #titlebar .ttl{font-weight:800; font-size:14px; letter-spacing:.03em}
+  #titlebar .back{
+    margin-left:auto; font-size:11px; font-weight:700; text-decoration:none; color:var(--ink);
+    background:#FFFEF7; border:var(--bd); border-radius:8px; padding:2px 10px; box-shadow:0 2px 0 var(--ink);
+  }
+  #titlebar .back:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink)}
+  #titlebar .back:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+
+  h3{
+    font-size:11px; color:var(--ink); background:var(--main); font-weight:800;
+    margin:20px -6px 10px; padding:3px 10px; letter-spacing:.08em;
+    border:var(--bd); border-radius:6px; box-shadow:0 2px 0 var(--ink); display:inline-block;
+  }
+
+  /* ---------------- 部品 ---------------- */
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px}
+  .chip{
+    padding:4px 12px; border-radius:14px; background:var(--panel2); border:var(--bd);
+    box-shadow:0 2px 0 var(--ink); cursor:pointer; user-select:none;
+    font-size:12px; font-weight:700; color:var(--dim);
+    transition:transform .08s, box-shadow .08s;
+  }
+  .chip:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink)}
+  .chip:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .chip.on{background:var(--main); color:var(--ink)}
+
+  .btns{display:flex; flex-wrap:wrap; gap:7px}
+  .btn{
+    padding:5px 13px; border-radius:8px; background:var(--panel2); border:var(--bd);
+    box-shadow:0 2px 0 var(--ink); color:var(--text); cursor:pointer;
+    font:inherit; font-size:12px; font-weight:700;
+    transition:transform .08s, box-shadow .08s, background .15s;
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink); background:#3A3728}
+  .btn:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .btn.on{background:var(--main); color:var(--ink)}
+  .btn.go{background:var(--main); color:var(--ink); font-weight:800}
+  .btn.go:hover{background:#EFEB7A}
+  .btn:disabled{opacity:.4; cursor:default; box-shadow:0 2px 0 var(--ink); transform:none}
+
+  .row{display:flex; align-items:center; gap:8px; margin:6px 0}
+  .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px; font-weight:700}
+  .row input[type=range]{flex:1; accent-color:var(--main); height:4px}
+  .row .val{width:38px; text-align:right; color:var(--main); font-size:11px; font-weight:700}
+  select{
+    background:var(--panel2); color:var(--text); border:var(--bd); border-radius:6px;
+    font:inherit; font-size:11px; font-weight:700; padding:2px 5px;
+  }
+  input[type=number]{
+    background:var(--panel2); color:var(--text); border:var(--bd); border-radius:6px;
+    font:inherit; font-size:12px; font-weight:700; padding:3px 6px; width:64px;
+  }
+  select:focus, input:focus{outline:2px solid var(--main); outline-offset:1px}
+
+  /* ---------------- レイヤー一覧 ---------------- */
   #layerlist .row label{width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  #layerlist .lrow{border-bottom:1px solid #262b38; padding:4px 0 6px}
+  #layerlist .lrow{
+    border:var(--bd); border-radius:var(--r); background:var(--panel2);
+    box-shadow:0 2px 0 var(--ink); padding:8px 10px; margin-bottom:9px;
+  }
   #layerlist .lrow.off{opacity:.45}
-  #layerlist .row{margin:2px 0}
-  #layerlist .row input[type=checkbox]{accent-color:var(--accent); width:14px; height:14px; flex-shrink:0}
+  #layerlist .row{margin:3px 0}
+  #layerlist .row input[type=checkbox]{accent-color:var(--main); width:15px; height:15px; flex-shrink:0}
   #layerlist .sub{padding-left:20px}
   #layerlist .sub label{width:auto; color:var(--dim); font-size:11px}
   #layerlist .rootchk{display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer}
-  #layerlist .rootchk:hover{color:var(--text)}
-  #layerlist .lrow.isroot .rootchk{color:var(--accent)}
+  #layerlist .rootchk:hover{color:var(--main)}
+  #layerlist .lrow.isroot{border-color:var(--main)}
+  #layerlist .lrow.isroot .rootchk{color:var(--main)}
   #layerlist .sub select{flex:1; min-width:0}
   #layerlist .sub .val{width:32px}
-  #layerlist .lrow.editing{outline:1px solid var(--hot); outline-offset:2px; border-radius:4px}
-  #layerlist .bonebar{gap:5px; flex-wrap:wrap}
-  #layerlist .btn.tiny{padding:2px 8px; font-size:11px}
-  #layerlist .bulkbar{gap:6px; margin:0 0 8px; flex-wrap:wrap}
+  #layerlist .lrow.editing{border-color:var(--hot); box-shadow:0 2px 0 var(--ink), 0 0 0 2px var(--hot)}
+  #layerlist .bonebar{gap:6px; flex-wrap:wrap}
+  #layerlist .btn.tiny{padding:2px 9px; font-size:11px; border-radius:6px}
+  #layerlist .bulkbar{gap:7px; margin:0 0 10px; flex-wrap:wrap}
   #layerlist .bulkbar .btn{flex:1; min-width:0}
-  #layerlist .reftag{font-size:10.5px; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  #layerlist .gbrow{background:var(--panel2); border-radius:6px; padding:8px 10px; margin-bottom:8px; border-bottom:none}
-  #layerlist .gbrow > .row:first-child label{color:var(--text); font-size:12px; font-weight:600}
+  #layerlist .reftag{font-size:10.5px; color:var(--main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #layerlist .gbrow{background:var(--panel); border-color:var(--main)}
+  #layerlist .gbrow > .row:first-child label{color:var(--main); font-size:12px; font-weight:800}
   #layerlist .gbrow .hint{margin-top:4px}
-  #note{color:var(--dim); font-size:11px; margin-top:6px}
+
+  /* ---------------- 読み込み口 ---------------- */
+  #note{color:var(--dim); font-size:11px; font-weight:500; margin-top:8px; line-height:1.7}
   #fileInput{display:none}
-  #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
-    color:var(--dim); cursor:pointer; margin-bottom:12px; font-size:12px; user-select:none}
-  #psdBox:hover, #psdBox.dragging{border-color:var(--accent); color:#dfe9ff; background:rgba(110,168,255,.06)}
-  #psdInfo{margin-top:4px; font-size:11px; color:var(--accent); word-break:break-all}
-  .hint{color:var(--dim); font-size:11px; line-height:1.6; margin-top:6px}
+  #psdBox{
+    border:3px dashed var(--line); border-radius:var(--r); padding:14px; text-align:center;
+    color:var(--dim); cursor:pointer; margin-bottom:14px; font-size:12px; user-select:none;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  #psdBox:hover, #psdBox.dragging{border-color:var(--main); color:var(--main); background:rgba(226,221,96,.07)}
+  #psdInfo{margin-top:5px; font-size:11px; color:var(--main); word-break:break-all}
+  .hint{color:var(--dim); font-size:11px; font-weight:500; line-height:1.7; margin-top:7px}
 </style>
 </head>
 <body>
 <div id="stage" class="transparent">
   <div id="holder"><canvas id="cv"></canvas><canvas id="ov"></canvas></div>
   <div id="drop">PSD / PNG をドロップ</div>
-  <div id="recbar"><span>書き出し中</span><span id="recinfo"></span></div>
-  <div id="edbar">
+  <div class="bar" id="recbar"><span>書き出し中</span><span id="recinfo"></span></div>
+  <div class="bar" id="edbar">
     <b>ボーン編集中</b><span id="edinfo"></span>
     <span class="edhint">根元 → 先端 の順に画像の上をクリック（2〜6点）</span>
     <button class="btn" id="edUndo">1つ戻す</button>
     <button class="btn" id="edClear">全消し</button>
     <button class="btn go" id="edDone">完了</button>
   </div>
-  <div id="adjbar">
+  <div class="bar" id="adjbar">
     <b>手直し</b><span class="adjname" id="adjName"></span>
     <span class="adjsl">連動<select id="adjParam"></select></span>
     <span class="adjsl" id="adjKeyWrap">のとき<select id="adjKey"></select></span>
@@ -119,6 +212,10 @@
   </div>
 </div>
 <div id="panel">
+  <div id="titlebar">
+    <span class="ttl">PSD アバタースタジオ</span>
+    <a class="back" href="../../index.html">← LAB</a>
+  </div>
   <h3 style="margin-top:0">読み込み</h3>
   <div id="psdBox">
     <div>クリック、または PSD / PNG複数枚 をドロップ</div>
@@ -1658,12 +1755,12 @@ function drawBoneOverlay(){
   // 出力の枠。外側を暗くして、切り取られる範囲がひと目で分かるようにする
   if(crop.on && !exporting){
     octx.save();
-    octx.fillStyle = "rgba(10,12,16,.55)";
+    octx.fillStyle = "rgba(8,7,4,.6)";
     octx.beginPath();
     octx.rect(0, 0, ov.width, ov.height);
     octx.rect(crop.x, crop.y, crop.w, crop.h);
     octx.fill("evenodd");
-    octx.strokeStyle = "#6ea8ff";
+    octx.strokeStyle = "#E1DD60";
     octx.lineWidth = Math.max(1, 2/vk);
     octx.setLineDash([10/vk, 6/vk]);
     octx.strokeRect(crop.x, crop.y, crop.w, crop.h);
@@ -1674,7 +1771,7 @@ function drawBoneOverlay(){
   if(adjTarget.layer){
     const l = adjTarget.layer;
     octx.save();
-    octx.strokeStyle = "#6ea8ff"; octx.lineWidth = Math.max(1, 2/vk);
+    octx.strokeStyle = "#E1DD60"; octx.lineWidth = Math.max(1, 2/vk);
     octx.setLineDash([8/vk, 5/vk]);
     octx.strokeRect(l.left, l.top, l.width, l.height);
     octx.restore();
@@ -1688,7 +1785,7 @@ function drawBoneOverlay(){
   pts.forEach((p,i)=> i ? octx.lineTo(p.x,p.y) : octx.moveTo(p.x,p.y));
   octx.stroke();
   pts.forEach((p,i)=>{
-    octx.fillStyle = i ? "#fff" : "#6ea8ff";
+    octx.fillStyle = i ? "#fff" : "#E1DD60";
     octx.beginPath(); octx.arc(p.x, p.y, 7/k, 0, 7); octx.fill();
     octx.strokeStyle = "#ff7a45"; octx.lineWidth = 2/k; octx.stroke();
   });
