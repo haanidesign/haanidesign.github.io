@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=152';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=153';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=152';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=153';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=152';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=152';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=152';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=152';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=152';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=153';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=153';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=153';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=153';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=153';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=152';
+         addTextLayer } from '../io/text.js?v=153';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=152';
-import { PATTERN_NAMES } from '../io/pattern.js?v=152';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=153';
+import { PATTERN_NAMES } from '../io/pattern.js?v=153';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=152';
-import { readAsDataURL, loadImage } from '../io/image.js?v=152';
+         PITCH_MAX } from '../engine/pano.js?v=153';
+import { readAsDataURL, loadImage } from '../io/image.js?v=153';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=152';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=152';
-import { newHand } from '../engine/hand.js?v=152';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=152';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=153';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=153';
+import { newHand } from '../engine/hand.js?v=153';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=153';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=152';
+  from './colorwheel.js?v=153';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=152';
+         guessBpm, firstOnset } from '../io/audio.js?v=153';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=152';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=153';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -776,7 +776,6 @@ export function buildMotionSheet(box, open){
 
   const MENU = [
     ['anim',   '✨ うごきを つける', 'イン・ループ・アウト。出る／ゆれる／消える'],
-    ['cam',    '🎥 カメラ',        '絵ではなく 見ているほうを 動かす。おくゆきで 立体に'],
     ['path',   '👆 みちを なぞる', 'なぞった みちを 何秒で 通るか'],
     ['beat',   '🥁 リズム（BPM）', '拍に あわせて ピンを うつ'],
     ['flip',   '🎞 パラパラ',      '☑ でえらんだ 絵を コマにして 順ぐりに 出す'],
@@ -853,6 +852,9 @@ function depthRow(box, l){
   const NL = String.fromCharCode(10);
 
   box.appendChild(heading('おくゆき（カメラ用）'));
+  box.appendChild(btnRow(
+    button('🎥 カメラの 画面へ', () => { onCam(); })
+  ));
 
   const note = document.createElement('div');
   note.className = 'empty';
@@ -1249,6 +1251,52 @@ export function buildCamSheet(box, back){
       onChange();
     })
   ));
+
+  /* ---- みんなの おくゆき ----
+     おくゆきは レイヤー 1まいずつの もの だけれど、
+     「どれを 手前に、どれを おくに」は ぜんぶ ならべて
+     見ないと きめられない。ここに あつめる。 */
+  box.appendChild(heading('みんなの おくゆき'));
+  const dpn = document.createElement('div');
+  dpn.className = 'empty';
+  dpn.style.textAlign = 'left';
+  dpn.textContent = 'マイナスが 手前、プラスが おく。' + NL
+    + 'おくに 置くほど 小さく なって、カメラを ふっても' + NL
+    + 'あまり 動かなく なります（これが 立体に 見える もと）。' + NL
+    + NL
+    + '⚠ おくゆきでは 前後の かさなりは 変わりません。' + NL
+    + 'かさなりは タイムラインの ならび順で きまります。' + NL
+    + 'キャラを はいけいの うしろに したい ときは、' + NL
+    + 'ならびも 下に うつして ください。';
+  box.appendChild(dpn);
+
+  /* 出す のは「カメラを 自分で 受けとる」レイヤー。
+     ふつうの フォルダは フォルダごと 1つ、
+     「バラで 動かす」フォルダは 中身を 1まいずつ。 */
+  const depthTargets = [];
+  const walk = (parent) => {
+    S.proj.layers.forEach(x => {
+      if((x.parent || null) !== parent) return;
+      if(isCam(x)) return;
+      if(isFolder(x) && x.collapse) walk(x.id);
+      else depthTargets.push(x);
+    });
+  };
+  walk(null);
+
+  if(!depthTargets.length){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = 'まだ 絵が ありません';
+    box.appendChild(e);
+  } else {
+    depthTargets.forEach(x => {
+      const name = (isFolder(x) ? '📁 ' : '') + (x.name || 'レイヤー');
+      box.appendChild(animSlider(name, x, 'depth', DEPTH_MIN, DEPTH_MAX, 0.5,
+        v => (v === 0 ? 'ふつう' : (v < 0 ? 'てまえ ' + (-v) : 'おく ' + v))
+             + '（' + Math.round(depthScale({ depth: v }) * 100) + '%）'));
+    });
+  }
 
   /* ---- カット割り（カメラを 何台か） ---- */
   const cams = S.proj.layers.filter(isCam);
@@ -2519,6 +2567,9 @@ export function setTracer(fn){ onTrace = fn; }
 
 let onTrain = () => {};
 export function setTrainer(fn){ onTrain = fn; }
+
+let onCam = () => {};
+export function setCamOpener(fn){ onCam = fn; }
 
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);

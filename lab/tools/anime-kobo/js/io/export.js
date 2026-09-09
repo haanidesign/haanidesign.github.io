@@ -7,9 +7,9 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=152';
-import { A as AUD } from './audio.js?v=152';
-import { encodeGif } from './gif.js?v=152';
+import { createRenderer } from '../render/renderer.js?v=153';
+import { A as AUD } from './audio.js?v=153';
+import { encodeGif } from './gif.js?v=153';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);

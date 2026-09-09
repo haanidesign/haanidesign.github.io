@@ -15,8 +15,8 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         withShake } from '../engine/camera.js?v=152';
-import { valuesAt } from '../engine/anim.js?v=152';
+         withShake } from '../engine/camera.js?v=153';
+import { valuesAt } from '../engine/anim.js?v=153';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;

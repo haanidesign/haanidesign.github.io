@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=152';
+import { M } from './engine/math.js?v=153';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=152';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=153';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=152';
-import { createStage } from './ui/stage.js?v=152';
-import { createRenderer } from './render/renderer.js?v=152';
-import { createTimeline } from './ui/timeline.js?v=152';
-import { fmtTime } from './engine/anim.js?v=152';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=153';
+import { createStage } from './ui/stage.js?v=153';
+import { createRenderer } from './render/renderer.js?v=153';
+import { createTimeline } from './ui/timeline.js?v=153';
+import { fmtTime } from './engine/anim.js?v=153';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -19,23 +19,23 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setTrainer, setPathReopener,
-         setWarper } from './ui/sheet.js?v=152';
+         setTrainer, setPathReopener, setCamOpener,
+         setWarper } from './ui/sheet.js?v=153';
 
-import { showNewDoc } from './ui/newdoc.js?v=152';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=152';
-import { fitToCanvas, isBg } from './io/bg.js?v=152';
-import * as Audio from './io/audio.js?v=152';
+import { showNewDoc } from './ui/newdoc.js?v=153';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=153';
+import { fitToCanvas, isBg } from './io/bg.js?v=153';
+import * as Audio from './io/audio.js?v=153';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=152';
-import { importPsd } from './io/psd.js?v=152';
-import { splitTextChars } from './io/text.js?v=152';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=153';
+import { importPsd } from './io/psd.js?v=153';
+import { splitTextChars } from './io/text.js?v=153';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=152';
-import { pathKeys, pathLength } from './engine/path.js?v=152';
-import { paintDirty } from './engine/paint.js?v=152';
+         canUseWebCodecs } from './io/export.js?v=153';
+import { pathKeys, pathLength } from './engine/path.js?v=153';
+import { paintDirty } from './engine/paint.js?v=153';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=152';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=153';
 
 const $ = (s) => document.querySelector(s);
 
@@ -713,7 +713,6 @@ $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /* うごきは 中身が 多いので、まず えらぶ画面を 出して、
    えらんだ ものだけを 別の画面で ひらく。 */
 const MOVE_PAGES = {
-  cam:    ['🎥 カメラ',        buildCamSheet],
   path:   ['👆 みちを なぞる', buildTraceSheet],
   beat:   ['🥁 リズム（BPM）', buildBeatSheet],
   flip:   ['🎞 パラパラ',      buildFlipSheet],
@@ -771,6 +770,16 @@ function openSheet(key){
   }
   sheet.open('かたち（' + l.name + '）', (box) => buildLayerSheet(box, () => sheet.close()));
 }
+
+/* ---- 🎥 カメラ ----
+   カメラの ことは ぜんぶ ここに あつめる（左の 🎥 から）。
+   レイヤーを えらんで いなくても ひらける ―― カメラは
+   さくひん ぜんたいの もので、どれか 1まいの もちものでは ない。 */
+function openCamSheet(){
+  sheet.open('🎥 カメラ', (box) => buildCamSheet(box, null));
+}
+$('#cam').addEventListener('click', openCamSheet);
+setCamOpener(openCamSheet);
 
 /* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
    ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
