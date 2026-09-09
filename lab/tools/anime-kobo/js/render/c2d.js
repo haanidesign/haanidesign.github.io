@@ -3,14 +3,15 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=130';
-import { S, frameAsset, frameImage } from '../state.js?v=130';
+         nearestFolder } from '../engine/layer.js?v=131';
+import { S, frameAsset, frameImage } from '../state.js?v=131';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=130';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=130';
-import { paintCanvas } from '../engine/paint.js?v=130';
-import { panoCanvas } from '../engine/pano.js?v=130';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=130';
+         meshSizeFor } from '../engine/puppet.js?v=131';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=131';
+import { paintCanvas } from '../engine/paint.js?v=131';
+import { panoCanvas } from '../engine/pano.js?v=131';
+import { homography, applyH } from '../engine/warp.js?v=131';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=131';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -112,24 +113,97 @@ export function createC2D(canvas){
     return l._hmesh;
   }
 
+
+/* ---------- 立体（3D）で 描く ための 道具 ----------
+
+   立体に した レイヤーは、四すみが 画面の どこに 来るかが
+   さきに 出て いる（camera.js の quad3D）。
+   絵ぜんたいを その 四すみに はめれば いい。
+
+   はめ方は「自由変形」と 同じ ホモグラフィ。
+   ふつうの 行列（アフィン）では おくゆきの ある ゆがみは 作れないが、
+   ホモグラフィなら「おくに 行くほど せまく」が 出せる。
+
+   あみの 目を 1つずつ 通す ので、
+   ゆがみ・骨・手がき風で ずらした あとの 形にも そのまま かかる。 */
+
+/** 絵の 四すみ → 画面の 四すみ。左右・上下の 反転も ここで まぜる */
+function h3For(asset, quad, flipX, flipY){
+  const w = asset.w, h = asset.h;
+  const ax = flipX ? w : 0, bx = flipX ? 0 : w;
+  const ay = flipY ? h : 0, by = flipY ? 0 : h;
+  return homography(
+    [{x:ax,y:ay}, {x:bx,y:ay}, {x:bx,y:by}, {x:ax,y:by}],
+    quad
+  );
+}
+
+/** あみの 目を ぜんぶ 通す。もとの 配列は こわさない */
+function mapXY(xy, n, H, out){
+  const o = (out && out.length >= n * 2) ? out : new Float32Array(n * 2);
+  for(let i = 0; i < n; i++){
+    const p = applyH(H, xy[i*2], xy[i*2+1]);
+    o[i*2] = p.x; o[i*2+1] = p.y;
+  }
+  return o;
+}
+
+/** 絵ぜんたいを おおう ます目（立体で ふつうに 描く ときに つかう） */
+const _flatMesh = {};
+function flatMesh(w, h){
+  const cols = 10, rows = Math.max(4, Math.round(10 * h / w));
+  const key = cols + 'x' + rows + ':' + w + 'x' + h;
+  if(_flatMesh.key === key) return _flatMesh.m;
+  const verts = [], tris = [];
+  for(let r = 0; r <= rows; r++) for(let c = 0; c <= cols; c++){
+    verts.push({ u: c / cols * w, v: r / rows * h });
+  }
+  const id = (c, r) => r * (cols + 1) + c;
+  for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
+    tris.push(id(c, r), id(c+1, r), id(c, r+1));
+    tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+  }
+  const m = { verts, tris };
+  _flatMesh.key = key; _flatMesh.m = m;
+  return m;
+}
+
   function place(g, l, pose, asset, img){
     const m = pose.m, v = pose.v;
+
+    /* 立体（3D）に して あるか。
+       して あれば 場所は 四すみで きまって いる ので、
+       ふつうの 行列は かけない（かけると 二重に なる）。 */
+    const H3 = pose.quad ? h3For(asset, pose.quad, v.flipX, v.flipY) : null;
+
     g.save();
-    g.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
+    if(!H3) g.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
 
     /* 紙の ずれ。絵ぜんたいを ほんの少し 動かす・かたむける。
        じく（回転の中心）の ところで かけるので、形は くずれない。 */
     const hand = handOn(l) ? l.hand : null;
-    if(hand){
+    if(hand && !H3){
       const fr = handFrame(hand, curT);
       const sh = handShift(hand, fr, handSeed(l), Math.min(asset.w, asset.h));
       g.translate(sh.dx, sh.dy);
       g.rotate(sh.rot);
     }
 
-    // 反転は回転軸を中心にひっくり返す
-    if(v.flipX || v.flipY) g.scale(v.flipX ? -1 : 1, v.flipY ? -1 : 1);
+    // 反転は回転軸を中心にひっくり返す（立体のときは 四すみの ほうで まぜてある）
+    if(!H3 && (v.flipX || v.flipY)) g.scale(v.flipX ? -1 : 1, v.flipY ? -1 : 1);
     if(v.blur > 0.01) g.filter = 'blur(' + v.blur + 'px)';
+
+    /* 絵の中の ざひょうに そろえる。
+       立体の ときは 四すみが すでに 画面の ざひょうなので なにも しない。 */
+    const toImageOrigin = () => {
+      if(!H3) g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+    };
+    /* あみを 描く 直前に 通す。立体の ときだけ 四すみへ はめる */
+    const via3D = (mesh, xy) => {
+      if(!H3) return xy;
+      l._q3xy = mapXY(xy, mesh.verts.length, H3, l._q3xy);
+      return l._q3xy;
+    };
 
     // もどす・やりなおしの後はあみが消えているので、必要なら張り直す
     if(!l.mesh && v.pins && v.pins.length && img.complete && img.naturalWidth){
@@ -159,7 +233,7 @@ export function createC2D(canvas){
        絵の どこを はるかは もとの まま なので、
        絵が のびたり ちぢんだり しない。 */
     if(warped && boned){
-      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      toImageOrigin();
 
       if(!l.mesh && img.complete && img.naturalWidth){
         const size = meshSizeFor(img);
@@ -193,7 +267,7 @@ export function createC2D(canvas){
           if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
           xy = boil(l._xy, l._bxy, px, handFrame(hand, curT), handSeed(l));
         }
-        drawDeformed(g, img, l._wmesh, xy, 1, l._wuv);
+        drawDeformed(g, img, l._wmesh, via3D(l._wmesh, xy), 1, l._wuv);
         g.filter = 'none';
         g.restore();
         return;
@@ -203,7 +277,7 @@ export function createC2D(canvas){
     /* ゆがみ・自由変形だけ（骨は なし）。
        絵の上に かぶせた「かご」の 形に そって 絵を はる。 */
     if(warped){
-      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      toImageOrigin();
       if(!l._cmesh || l._ckey !== cage.cols + 'x' + cage.rows){
         l._cmesh = cageMesh(cage);
         l._ckey = cage.cols + 'x' + cage.rows;
@@ -216,7 +290,7 @@ export function createC2D(canvas){
         if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
         xy = boil(l._cxy, l._bxy, px, handFrame(hand, curT), handSeed(l));
       }
-      drawDeformed(g, img, l._cmesh, xy);
+      drawDeformed(g, img, l._cmesh, via3D(l._cmesh, xy));
       g.filter = 'none';
       g.restore();
       return;
@@ -224,7 +298,7 @@ export function createC2D(canvas){
 
     if(l.mesh && v.pins && v.pins.length){
       // パペットピンで曲げて描く。絵の中の座標なので、左上を原点にそろえる
-      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      toImageOrigin();
       if(needsPrecompute(l.mesh, v.pins, l.stiff)) precompute(l.mesh, v.pins, l.stiff);
       const n = l.mesh.verts.length;
       if(!l._xy || l._xy.length < n * 2) l._xy = new Float32Array(n * 2);
@@ -235,16 +309,28 @@ export function createC2D(canvas){
         if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
         xy = boil(l._xy, l._bxy, px, handFrame(hand, curT), handSeed(l));
       }
-      drawDeformed(g, img, l.mesh, xy);
+      drawDeformed(g, img, l.mesh, via3D(l.mesh, xy));
 
     } else if(px > 0.01){
       // ピンは 無いけれど 線を ゆらす。ゆれ用の あみを 張って ずらす
-      g.translate(-asset.w * l.pivot.x, -asset.h * l.pivot.y);
+      toImageOrigin();
       const me = boilMesh(l, img);
       const n = me.verts.length;
       if(!l._bxy || l._bxy.length < n * 2) l._bxy = new Float32Array(n * 2);
       boil(l._hbase, l._bxy, px, handFrame(hand, curT), handSeed(l));
-      drawDeformed(g, img, me, l._bxy);
+      drawDeformed(g, img, me, via3D(me, l._bxy));
+
+    } else if(H3){
+      /* 立体。絵ぜんたいを ます目に 分けて 四すみに はめる。
+         1まいの まま はると、まっすぐな はずの 線が ゆがむ。 */
+      const me = flatMesh(asset.w, asset.h);
+      const n = me.verts.length;
+      if(!l._q3flat || l._q3flat.length !== n * 2) l._q3flat = new Float32Array(n * 2);
+      for(let i = 0; i < n; i++){
+        l._q3flat[i*2] = me.verts[i].u; l._q3flat[i*2+1] = me.verts[i].v;
+      }
+      l._q3xy = mapXY(l._q3flat, n, H3, l._q3xy);
+      drawDeformed(g, img, me, l._q3xy);
 
     } else {
       g.drawImage(img, -asset.w * l.pivot.x, -asset.h * l.pivot.y, asset.w, asset.h);

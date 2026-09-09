@@ -1,13 +1,13 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=130';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=130';
-import { isCam, camOf, camMatrix, depthLen } from './camera.js?v=130';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=130';
-import { cageDeformPoint, cageMoved } from './warp.js?v=130';
-import { handTime } from './hand.js?v=130';
-import { WORK_KEYS } from '../state.js?v=130';
+import { M, uid, ptInQuad } from './math.js?v=131';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=131';
+import { isCam, camOf, camMatrix, depthLen, is3D, quad3D } from './camera.js?v=131';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=131';
+import { cageDeformPoint, cageMoved } from './warp.js?v=131';
+import { handTime } from './hand.js?v=131';
+import { WORK_KEYS } from '../state.js?v=131';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -249,8 +249,17 @@ export function computeAll(project, time){
     /* パラパラフォルダの 中は、いまの コマ だけを 見せる */
     if(vis && inFolder && isFlip(p.layer) && showing(p.layer) !== l.id) vis = false;
 
+    /* 立体（3D）に して あれば、四すみが 画面の どこに 来るかも 出す。
+       描くときは これに 絵を はめる（ゆがみ・骨の あとに かける）。
+       おやこの 子は 親ごしに 動く ので、ここでは 自分の ぶんだけ。 */
+    let quad = null;
+    if(is3D(l) && !isCam(l) && !p){
+      const a = assetOf(project, l, v.frame);
+      if(a) quad = quad3D(l, v, a, project, camV);
+    }
+
     solving[l.id] = false;
-    return out[l.id] = { m, v, vis, layer: l };
+    return out[l.id] = { m, v, vis, quad, layer: l };
   };
 
   project.layers.forEach(solve);

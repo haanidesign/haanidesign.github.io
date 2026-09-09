@@ -1,37 +1,37 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=130';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=131';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=130';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=131';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=130';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=130';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=130';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=130';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=130';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=131';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=131';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=131';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=131';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=131';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=130';
+         addTextLayer } from '../io/text.js?v=131';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=130';
-import { PATTERN_NAMES } from '../io/pattern.js?v=130';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=131';
+import { PATTERN_NAMES } from '../io/pattern.js?v=131';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=130';
-import { readAsDataURL, loadImage } from '../io/image.js?v=130';
-import { isCam, camOf, resetCam, depthScale,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=130';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=130';
-import { newHand } from '../engine/hand.js?v=130';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=130';
+         PITCH_MAX } from '../engine/pano.js?v=131';
+import { readAsDataURL, loadImage } from '../io/image.js?v=131';
+import { isCam, camOf, resetCam, depthScale, is3D,
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=131';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=131';
+import { newHand } from '../engine/hand.js?v=131';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=131';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=130';
+  from './colorwheel.js?v=131';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=130';
+         guessBpm, firstOnset } from '../io/audio.js?v=131';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=130';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=131';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -683,6 +683,7 @@ export function buildLayerSheet(box, closeFn){
   }
 
   panoRow(box, l);
+  tiltRow(box, l);
   depthRow(box, l);
   box.appendChild(clipRow(l));
   spanRow(box, l, closeFn);
@@ -852,6 +853,69 @@ function depthRow(box, l){
     row.appendChild(b);
   });
   box.appendChild(field('めやす', row));
+}
+
+
+/* ================= 立体（3D） =================
+   絵を おくへ たおす・よこに まわす。
+   カメラが なくても きくが、カメラと いっしょに つかうと いちばん 生きる。 */
+function tiltRow(box, l){
+  if(isCam(l)) return;
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('立体（3D）'));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = '絵を 板だと 思って、おくへ たおしたり' + NL
+    + 'よこに まわしたり できます。' + NL
+    + 'おくに 行く ほうが せまく なる ので、ゆかや かべに 見えます。';
+  box.appendChild(note);
+
+  const deg = v => Math.round(v) + '°';
+  const put = (label, key) => {
+    const i = document.createElement('input');
+    i.type = 'range'; i.min = -80; i.max = 80; i.step = 1;
+    i.value = l[key] || 0;
+    const val = document.createElement('span');
+    val.className = 'val';
+    const show = () => val.textContent = (+i.value === 0 ? 'まっすぐ' : deg(+i.value));
+    show();
+    i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label); });
+    guardSlide(i, () => { l[key] = +i.value; show(); onChange(); });
+    i.addEventListener('change', () => { holdSheet(false); commitEdit(); });
+    ['pointerup','pointercancel','blur'].forEach(ev =>
+      i.addEventListener(ev, () => holdSheet(false)));
+    return field(label, i, val);
+  };
+  box.appendChild(put('おくへ たおす', 'rx'));
+  box.appendChild(put('よこに まわす', 'ry'));
+
+  const row = document.createElement('div');
+  row.className = 'rowbtns';
+  row.style.flexWrap = 'wrap';
+  [['ゆか', 70, 0], ['てんじょう', -70, 0], ['ひだりの かべ', 0, 55],
+   ['みぎの かべ', 0, -55], ['まっすぐ', 0, 0]].forEach(([label, rx, ry]) => {
+    const b = button(label, () => {
+      edit('立体に する', () => { l.rx = rx; l.ry = ry; });
+      onChange();
+    });
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', (l.rx || 0) === rx && (l.ry || 0) === ry);
+    row.appendChild(b);
+  });
+  box.appendChild(field('めやす', row));
+
+  if(is3D(l)){
+    const w = document.createElement('div');
+    w.className = 'empty';
+    w.style.textAlign = 'left';
+    w.textContent = 'たおして いる あいだは、この レイヤーの' + NL
+      + '「おやこ」の 子は ついてきません。' + NL
+      + 'いっしょに たおしたい ときは フォルダに 入れて、' + NL
+      + 'フォルダごと たおして ください。';
+    box.appendChild(w);
+  }
 }
 
 /* ================= カメラ =================

@@ -15,7 +15,7 @@
    もっている 数は 絵の中の ドット（左上が 0,0）。
    だから レイヤーを 動かしても 大きさを 変えても そのまま つかえる。 */
 
-import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=130';
+import { setPin, warpChX, warpChY, isWarpCh } from './anim.js?v=131';
 
 /** かごを 作る（たて・よこ に きった あみの目） */
 export function newCage(w, h, cols, rows){
@@ -275,7 +275,7 @@ export function setQuad(cage, quad){
 }
 
 /** 3x3 の 行列を あてはめる */
-function applyH(H, u, v){
+export function applyH(H, u, v){
   const w = H[6] * u + H[7] * v + 1;
   return {
     x: (H[0] * u + H[1] * v + H[2]) / w,
