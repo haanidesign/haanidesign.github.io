@@ -9,7 +9,7 @@
         時間の 割りふりを 変える。
         ゆっくり出る に すれば、はじめは のろのろ 進む。 */
 
-import { setPin, EASES, curveAt } from './anim.js?v=144';
+import { setPin, EASES, curveAt } from './anim.js?v=145';
 
 /** 点の ならびの 長さ（道のり） */
 export function pathLength(pts){
@@ -90,6 +90,22 @@ export function pathKeys(layer, pts, opt = {}){
   /* 道のりを 等分に 見て、その 場所に なる 時こくを さがす。
      （時間で 等分 ではなく 道のりで 等分に 打つと、
        まがり角でも 形が くずれない） */
+  /* 「そのまま」に した ときは、まえに 頭を むけて 走らせた ときの
+     むきの ピンを、この みちの あいだ だけ 取りのぞく。
+     そうしないと、むきを 切っても 前の むきが 残って いて
+     いつまでも 頭が まわり つづける。 */
+  if(!opt.orient){
+    const keys = (layer.tracks || {}).rot;
+    if(keys){
+      const a = start - 1e-3, b = start + dur + 1e-3;
+      const left = keys.filter(k => k.t < a || k.t > b);
+      if(left.length !== keys.length){
+        if(left.length) layer.tracks.rot = left;
+        else delete layer.tracks.rot;
+      }
+    }
+  }
+
   let n = 0;
   let last = null;                       // ひとつ前の むき（ぐるっと 回らない ため）
   for(let i = 0; i < road.length; i++){

@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=144';
+import { M } from './engine/math.js?v=145';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=144';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=145';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=144';
-import { createStage } from './ui/stage.js?v=144';
-import { createRenderer } from './render/renderer.js?v=144';
-import { createTimeline } from './ui/timeline.js?v=144';
-import { fmtTime } from './engine/anim.js?v=144';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=145';
+import { createStage } from './ui/stage.js?v=145';
+import { createRenderer } from './render/renderer.js?v=145';
+import { createTimeline } from './ui/timeline.js?v=145';
+import { fmtTime } from './engine/anim.js?v=145';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener,
-         setWarper } from './ui/sheet.js?v=144';
+         setWarper } from './ui/sheet.js?v=145';
 
-import { showNewDoc } from './ui/newdoc.js?v=144';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=144';
-import { fitToCanvas, isBg } from './io/bg.js?v=144';
-import * as Audio from './io/audio.js?v=144';
+import { showNewDoc } from './ui/newdoc.js?v=145';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=145';
+import { fitToCanvas, isBg } from './io/bg.js?v=145';
+import * as Audio from './io/audio.js?v=145';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=144';
-import { importPsd } from './io/psd.js?v=144';
-import { splitTextChars } from './io/text.js?v=144';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=145';
+import { importPsd } from './io/psd.js?v=145';
+import { splitTextChars } from './io/text.js?v=145';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=144';
-import { pathKeys } from './engine/path.js?v=144';
-import { paintDirty } from './engine/paint.js?v=144';
+         canUseWebCodecs } from './io/export.js?v=145';
+import { pathKeys } from './engine/path.js?v=145';
+import { paintDirty } from './engine/paint.js?v=145';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=144';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=145';
 
 const $ = (s) => document.querySelector(s);
 
@@ -320,7 +320,7 @@ function onTraced(){
           const start = S.time + i * (opt.gap || 0);
           n.v += pathKeys(c, pathForLayer(c, S.tracePts), {
             start, dur: opt.dur, ease: opt.ease, count: opt.count,
-            orient: opt.orient
+            orient: opt.orient, orientOff: opt.orientOff
           });
           /* 走って いる あいだ だけ 出す。
              きめないと、出るまえ・着いたあとに はしっこへ たまる。 */
@@ -336,12 +336,15 @@ function onTraced(){
     }
 
     const n = { v: 0 };
-    edit('なぞった みちで うごかす', () => {
+    edit(opt.orient ? '進む むきに むけて うごかす' : 'なぞった みちで うごかす', () => {
       n.v = pathKeys(l, pathForLayer(l, S.tracePts), {
-        start: S.time, dur: opt.dur, ease: opt.ease, count: opt.count
+        start: S.time, dur: opt.dur, ease: opt.ease, count: opt.count,
+        orient: opt.orient, orientOff: opt.orientOff
       });
     });
-    toast(n.v ? Math.round(n.v / 2) + 'コの ピンで うごきます' : 'うてませんでした');
+    toast(n.v ? (opt.orient ? '進む むきに 頭を むけて うごきます'
+                            : Math.round(n.v / 2) + 'コの ピンで うごきます')
+              : 'うてませんでした');
     setTraceMode(false);
   }));
 
