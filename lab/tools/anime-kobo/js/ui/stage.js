@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=140';
-import { cleanPath } from '../engine/path.js?v=140';
+import { M, clamp } from '../engine/math.js?v=141';
+import { cleanPath } from '../engine/path.js?v=141';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=140';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=140';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=140';
+         keepChildren, cornersOf } from '../engine/layer.js?v=141';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=141';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=141';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=140';
-import { createRenderer } from '../render/renderer.js?v=140';
-import { attachInput } from './input.js?v=140';
-import { newStroke, paintDirty } from '../engine/paint.js?v=140';
+         bendChain } from '../engine/puppet.js?v=141';
+import { createRenderer } from '../render/renderer.js?v=141';
+import { attachInput } from './input.js?v=141';
+import { newStroke, paintDirty } from '../engine/paint.js?v=141';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=140';
+         copyPts, setPts } from '../engine/warp.js?v=141';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=140';
-import { inCamView } from '../render/camview.js?v=140';
-import { ORBIT_MAX } from '../engine/camera.js?v=140';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=141';
+import { inCamView } from '../render/camview.js?v=141';
+import { ORBIT_MAX } from '../engine/camera.js?v=141';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -36,7 +36,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     const cam = camOf(S.proj, S.time);
     if(!cam || isCam(l)) return { x: dx, y: dy };
     const cm = camMatrix(withShake(valuesAt(cam, S.time), cam, S.time, S.proj),
-                         S.proj.w / 2, S.proj.h / 2, depthLen(l));
+                         S.proj.w / 2, S.proj.h / 2, depthLen(valuesAt(l, S.time)));
     return M.dir(M.inv(cm), dx, dy);
   }
 
@@ -72,6 +72,9 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   function onCamWidget(p){
     return !!camWidget() && inCamView(canvas, p.x, p.y);
   }
+  /** 板を たおせる かぎり。真横まで 行くと 線に なって 見えなく なる */
+  const TILT_MAX = 80;
+
   /** カメラの ズームの かぎり（せっていの スライダーと そろえる） */
   const CAM_Z_MIN = 0.2, CAM_Z_MAX = 4;
 
@@ -793,6 +796,13 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         drag = { kind:'rotate', l, c, a0: Math.atan2(cp.y - c.y, cp.x - c.x), r0: l.rot };
         return;
       }
+      /* 青い つまみ＝立体。よこに なぞると 板が よこに まわり、
+         たてに なぞると おくへ たおれる。カメラの のぞき窓と 同じ 手ざわり。 */
+      if(l && h === 'tilt'){
+        beginEdit('立体に する');
+        drag = { kind:'tilt', l, p0: p, rx0: l.rx || 0, ry0: l.ry || 0 };
+        return;
+      }
 
       const hit = pickPreferSelected(cp, P);
       if(hit){
@@ -914,6 +924,17 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         return;
       }
 
+      if(drag.kind === 'tilt'){
+        const l = drag.l;
+        const dpr = Math.max(1, canvas.width / Math.max(1, canvas.clientWidth || canvas.width));
+        const k = 45 / (100 * dpr);              // 100ドット なぞって だいたい 45度
+        l.ry = clamp(drag.ry0 + (p.x - drag.p0.x) * k, -TILT_MAX, TILT_MAX);
+        l.rx = clamp(drag.rx0 - (p.y - drag.p0.y) * k, -TILT_MAX, TILT_MAX);
+        liveKey(l, ['rx', 'ry']);
+        onChange();
+        return;
+      }
+
       if(drag.kind === 'camorbit'){
         const l = drag.l;
         const dpr = Math.max(1, canvas.width / Math.max(1, canvas.clientWidth || canvas.width));
@@ -1021,7 +1042,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
           const chs = drag.kind === 'move'  ? ['x','y']
                     : drag.kind === 'scale' ? ['scaleX','scaleY']
                     : drag.kind === 'rotate'? ['rot']
-                    : drag.kind === 'camorbit' ? ['rx','ry'] : [];
+                    : (drag.kind === 'camorbit' || drag.kind === 'tilt') ? ['rx','ry'] : [];
           chs.forEach(c => setPin(l, c, S.time, l[c], 'smooth'));
         }
         commitEdit();

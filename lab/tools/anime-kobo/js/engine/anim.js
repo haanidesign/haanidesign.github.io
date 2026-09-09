@@ -380,6 +380,10 @@ export function valuesAt(layer, time){
     rx: sample(tr.rx, t, layer.rx || 0),
     ry: sample(tr.ry, t, layer.ry || 0),
 
+    /* おくゆき。ピンが うてる ので、おくへ とんで いく・
+       手前に せまって くる が 作れる。 */
+    depth: sample(tr.depth, t, layer.depth || 0),
+
     /* カメラだけの もの。ふつうの レイヤーには 出てこない。
        z … ドリー（前後に 動く）、tx/ty/td … 注視点、fd … ピントの おくゆき */
     z:  sample(tr.z,  t, layer.z  || 0),

@@ -15,8 +15,8 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         withShake } from '../engine/camera.js?v=140';
-import { valuesAt } from '../engine/anim.js?v=140';
+         withShake } from '../engine/camera.js?v=141';
+import { valuesAt } from '../engine/anim.js?v=141';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -132,7 +132,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     .filter(l => l.kind !== 'cam' && l.visible !== false
                  && (!l.parent || loose[l.parent]))
     .filter(l => !(l.kind === 'folder' && l.collapse))
-    .map(l => ({ l, v: valuesAt(l, time), z: depthLen(l) }))
+    .map(l => { const v = valuesAt(l, time); return { l, v, z: depthLen(v) }; })
     .sort((a, b) => b.z - a.z);
 
   for(const it of items){

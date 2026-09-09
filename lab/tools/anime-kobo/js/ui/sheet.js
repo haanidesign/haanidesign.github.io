@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=140';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=141';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=140';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=141';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=140';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=140';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=140';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=140';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=140';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=141';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=141';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=141';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=141';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=141';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=140';
+         addTextLayer } from '../io/text.js?v=141';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=140';
-import { PATTERN_NAMES } from '../io/pattern.js?v=140';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=141';
+import { PATTERN_NAMES } from '../io/pattern.js?v=141';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=140';
-import { readAsDataURL, loadImage } from '../io/image.js?v=140';
+         PITCH_MAX } from '../engine/pano.js?v=141';
+import { readAsDataURL, loadImage } from '../io/image.js?v=141';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=140';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=140';
-import { newHand } from '../engine/hand.js?v=140';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=140';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=141';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=141';
+import { newHand } from '../engine/hand.js?v=141';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=141';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=140';
+  from './colorwheel.js?v=141';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=140';
+         guessBpm, firstOnset } from '../io/audio.js?v=141';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=140';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=141';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -861,19 +861,27 @@ function depthRow(box, l){
   const refresh = () => sizeNote.textContent = 'いまの おくゆきだと ' + show();
   refresh();
 
-  box.appendChild(slider('おくゆき',
-    () => (typeof l.depth === 'number' ? l.depth : 0),
-    v => { l.depth = v; refresh(); },
-    DEPTH_MIN, DEPTH_MAX, 0.5,
+  box.appendChild(animSlider('おくゆき', l, 'depth', DEPTH_MIN, DEPTH_MAX, 0.5,
     v => v === 0 ? 'ふつう' : (v < 0 ? 'てまえ ' + (-v) : 'おく ' + v)));
   box.appendChild(sizeNote);
+
+  const dpin = document.createElement('div');
+  dpin.className = 'empty';
+  dpin.style.textAlign = 'left';
+  dpin.textContent = 'おくゆきにも ピンが うてます。' + NL
+    + '「おくへ とんで いく」「手前に せまって くる」が 作れます。';
+  box.appendChild(dpin);
 
   const row = document.createElement('div');
   row.className = 'rowbtns';
   row.style.flexWrap = 'wrap';
   DEPTH_PRESETS.forEach(([label, v]) => {
     const b = button(label, () => {
-      edit('おくゆきを かえる', () => { l.depth = v; });
+      edit('おくゆきを かえる', () => {
+        l.depth = v;
+        if(hasPins(l)) setPin(l, 'depth', S.time, v, 'smooth');
+      });
+      refresh();
       onChange();
     });
     b.style.flex = '0 0 30%';
@@ -900,24 +908,18 @@ function tiltRow(box, l){
     + 'おくに 行く ほうが せまく なる ので、ゆかや かべに 見えます。';
   box.appendChild(note);
 
-  const deg = v => Math.round(v) + '°';
-  const put = (label, key) => {
-    const i = document.createElement('input');
-    i.type = 'range'; i.min = -80; i.max = 80; i.step = 1;
-    i.value = l[key] || 0;
-    const val = document.createElement('span');
-    val.className = 'val';
-    const show = () => val.textContent = (+i.value === 0 ? 'まっすぐ' : deg(+i.value));
-    show();
-    i.addEventListener('pointerdown', () => { holdSheet(true); beginEdit(label); });
-    guardSlide(i, () => { l[key] = +i.value; show(); onChange(); });
-    i.addEventListener('change', () => { holdSheet(false); commitEdit(); });
-    ['pointerup','pointercancel','blur'].forEach(ev =>
-      i.addEventListener(ev, () => holdSheet(false)));
-    return field(label, i, val);
-  };
-  box.appendChild(put('おくへ たおす', 'rx'));
-  box.appendChild(put('よこに まわす', 'ry'));
+  const deg = v => v === 0 ? 'まっすぐ' : (Math.round(v) + '°');
+  /* ピンが うって あれば、その 時こくの ピンも いっしょに 直す
+     ＝ 立体の かたむきにも うごきが つけられる。 */
+  box.appendChild(animSlider('おくへ たおす', l, 'rx', -80, 80, 1, deg));
+  box.appendChild(animSlider('よこに まわす', l, 'ry', -80, 80, 1, deg));
+
+  const hnote = document.createElement('div');
+  hnote.className = 'empty';
+  hnote.style.textAlign = 'left';
+  hnote.textContent = '絵の 下に 出る 青い つまみを なぞっても、' + NL
+    + '同じ ことが できます（よこ＝まわす／たて＝たおす）。';
+  box.appendChild(hnote);
 
   const row = document.createElement('div');
   row.className = 'rowbtns';
@@ -925,7 +927,11 @@ function tiltRow(box, l){
   [['ゆか', 70, 0], ['てんじょう', -70, 0], ['ひだりの かべ', 0, 55],
    ['みぎの かべ', 0, -55], ['まっすぐ', 0, 0]].forEach(([label, rx, ry]) => {
     const b = button(label, () => {
-      edit('立体に する', () => { l.rx = rx; l.ry = ry; });
+      edit('立体に する', () => {
+        l.rx = rx; l.ry = ry;
+        if(hasPins(l)) ['rx', 'ry'].forEach(
+          c => setPin(l, c, S.time, l[c], 'smooth'));
+      });
       onChange();
     });
     b.style.flex = '0 0 30%';
@@ -933,6 +939,30 @@ function tiltRow(box, l){
     row.appendChild(b);
   });
   box.appendChild(field('めやす', row));
+
+  /* いつも 正面（ビルボード）。
+     カメラが 回りこんでも、この 絵だけは こっちを 向いた まま。
+     キャラや ふきだしを 立体の 中に 置く ときに つかう。 */
+  if(camOf(S.proj, S.time)){
+    const bb = !!l.billboard;
+    box.appendChild(btnRow(
+      button(bb ? '✅ いつも 正面を むく' : '⬜ いつも 正面を むく', () => {
+        edit('いつも 正面', () => { l.billboard = !bb; });
+        notify(bb ? 'まわりこみに ついて まわるように しました'
+                  : 'カメラが まわっても こっちを 向いた ままに しました');
+        onChange();
+      })
+    ));
+    const bn = document.createElement('div');
+    bn.className = 'empty';
+    bn.style.textAlign = 'left';
+    bn.textContent = 'カメラが まわりこんでも、この 絵だけ' + NL
+      + 'いつも こっちを 向いた ままに なります。' + NL
+      + '立体の せかいに キャラや ふきだしを 置く ときに。' + NL
+      + 'おくゆきの ずれは そのまま 出る ので、' + NL
+      + '「その 場所に 立って いる」感じは のこります。';
+    box.appendChild(bn);
+  }
 
   if(is3D(l)){
     const w = document.createElement('div');

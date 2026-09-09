@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=140';
+import { M } from './math.js?v=141';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -47,7 +47,10 @@ export const CAM_CHANNELS = ['z', 'tx', 'ty', 'td', 'fd'];
 /** ドリー（前後に 動く）の かぎり。めもり。 */
 export const DOLLY_MIN = -14, DOLLY_MAX = 3.4;
 
-/** そのレイヤーの おくゆき（めもり） */
+/** そのレイヤーの おくゆき（めもり）。
+    レイヤーを そのまま わたしても、その時こくの 姿（valuesAt の けっか）を
+    わたしても いい ―― どちらも depth を 持って いる。
+    ピンが うって あれば 姿の ほうを わたす こと。 */
 export const depthOf = (l) => (l && typeof l.depth === 'number') ? l.depth : 0;
 
 /** 中で つかう 長さに なおす */
@@ -285,7 +288,7 @@ export function quad3D(l, v, asset, project, camV){
   const y0 = -h * pvy, y1 = h * (1 - pvy);
   const corners = [{x:x0,y:y0}, {x:x1,y:y0}, {x:x1,y:y1}, {x:x0,y:y1}];
 
-  const zc = depthLen(l);                    // この レイヤーの おくゆき
+  const zc = depthLen(v);                    // この レイヤーの おくゆき（その時こく）
   const ox = (v.x || 0) - cx, oy = (v.y || 0) - cy;
 
   const out = [];
@@ -320,7 +323,7 @@ export function quadFromM(l, v, a, m, project, camV){
 
   /* 行列の のび（おくへ たおした ぶんを 同じ ものさしに するため） */
   const sc = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
-  const zc = depthLen(l);
+  const zc = depthLen(v);
 
   const out = [];
   for(const c of [{x:x0,y:y0}, {x:x1,y:y0}, {x:x1,y:y1}, {x:x0,y:y1}]){
@@ -346,7 +349,7 @@ export function quadFromM(l, v, a, m, project, camV){
  */
 export function sheetQuad3D(l, v, project, camV){
   const cx = project.w / 2, cy = project.h / 2;
-  const zc = depthLen(l);
+  const zc = depthLen(v);
   const corners = [{x:-cx,y:-cy}, {x:cx,y:-cy}, {x:cx,y:cy}, {x:-cx,y:cy}];
   const out = [];
   for(const c of corners){

@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=140';
-import { camOf } from '../engine/camera.js?v=140';
-import { S, frameAsset, frameImage } from '../state.js?v=140';
+         nearestFolder } from '../engine/layer.js?v=141';
+import { camOf } from '../engine/camera.js?v=141';
+import { S, frameAsset, frameImage } from '../state.js?v=141';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=140';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=140';
-import { paintCanvas } from '../engine/paint.js?v=140';
-import { panoCanvas } from '../engine/pano.js?v=140';
-import { homography, applyH } from '../engine/warp.js?v=140';
-import { drawCamView } from './camview.js?v=140';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=140';
+         meshSizeFor } from '../engine/puppet.js?v=141';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=141';
+import { paintCanvas } from '../engine/paint.js?v=141';
+import { panoCanvas } from '../engine/pano.js?v=141';
+import { homography, applyH } from '../engine/warp.js?v=141';
+import { drawCamView } from './camview.js?v=141';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=141';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -951,17 +951,23 @@ function flatMesh(w, h){
       scale:  q[2],
       rotate: { x: (q[0].x + q[1].x)/2 + (q[1].x - q[2].x)*0.28,
                 y: (q[0].y + q[1].y)/2 + (q[1].y - q[2].y)*0.28 },
+      /* 下がわの まん中＝立体の つまみ。
+         なぞると 板が おくへ たおれる・よこに まわる。 */
+      tilt:   { x: (q[2].x + q[3].x)/2 + (q[2].x - q[1].x)*0.28,
+                y: (q[2].y + q[3].y)/2 + (q[2].y - q[1].y)*0.28 },
       anchor: piv          // まん中の印＝回転のじく。つまんで動かせる
     };
     ctx.beginPath();
     ctx.moveTo((q[0].x + q[1].x)/2, (q[0].y + q[1].y)/2);
     ctx.lineTo(handles.rotate.x, handles.rotate.y);
+    ctx.moveTo((q[2].x + q[3].x)/2, (q[2].y + q[3].y)/2);
+    ctx.lineTo(handles.tilt.x, handles.tilt.y);
     ctx.stroke();
 
     for(const [k, h] of Object.entries(handles)){
       if(k === 'anchor') continue;              // じくは上で十字を描いてある
       ctx.beginPath(); ctx.arc(h.x, h.y, 9 / z, 0, 7);
-      ctx.fillStyle = k === 'rotate' ? PINK : MAIN;
+      ctx.fillStyle = k === 'rotate' ? PINK : (k === 'tilt' ? '#5B7FD4' : MAIN);
       ctx.fill();
       ctx.lineWidth = 4 / z; ctx.strokeStyle = PAPER; ctx.stroke();
       ctx.lineWidth = 2 / z; ctx.strokeStyle = INK;  ctx.stroke();

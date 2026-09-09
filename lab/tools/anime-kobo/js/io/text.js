@@ -3,9 +3,9 @@
    こうすると、動かす・回す・塗る・ぼかす・ピンで曲げる が
    絵とまったく同じしくみで効く。文字を変えたら描き直すだけ。 */
 
-import { S, addAsset } from '../state.js?v=140';
-import { newLayer } from '../engine/layer.js?v=140';
-import { loadImage } from './image.js?v=140';
+import { S, addAsset } from '../state.js?v=141';
+import { newLayer } from '../engine/layer.js?v=141';
+import { loadImage } from './image.js?v=141';
 
 export const FONTS = [
   { key:'rounded', label:'まるゴシック', css:"'M PLUS Rounded 1c', sans-serif" },

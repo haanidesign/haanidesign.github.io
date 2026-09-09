@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=140';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=140';
+import { M, uid, ptInQuad } from './math.js?v=141';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=141';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=140';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=140';
-import { cageDeformPoint, cageMoved } from './warp.js?v=140';
-import { handTime } from './hand.js?v=140';
-import { WORK_KEYS } from '../state.js?v=140';
+         withShake } from './camera.js?v=141';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=141';
+import { cageDeformPoint, cageMoved } from './warp.js?v=141';
+import { handTime } from './hand.js?v=141';
+import { WORK_KEYS } from '../state.js?v=141';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -253,7 +253,7 @@ export function computeAll(project, time){
                     && (orbit || is3D(v)) && membersOf(project, l).length > 0;
 
     const mNoCam = m;                             // カメラを かける まえの 姿
-    if(takesCam && !sheet3D) m = M.mul(camMatrix(camV, ccx, ccy, depthLen(l)), m);
+    if(takesCam && !sheet3D) m = M.mul(camMatrix(camV, ccx, ccy, depthLen(v)), m);
 
     /* コマごとの ずれ。
        べつの ところに あった 絵を コマに した ときに、
@@ -287,25 +287,38 @@ export function computeAll(project, time){
     /* 立体（3D）に して あれば、四すみが 画面の どこに 来るかも 出す。
        描くときは これに 絵を はめる（ゆがみ・骨の あとに かける）。
        おやこの 子は 親ごしに 動く ので、ここでは 自分の ぶんだけ。 */
+    /* いつも 正面を むく（ビルボード）。
+       カメラが まわりこんだ ぶんだけ 板も まわす と、
+       むきが 打ちけし合って、いつも こっちを 向いて いる ように なる。 */
+    const v3 = (l.billboard && camV && orbit)
+      ? { ...v, rx: (v.rx || 0) + (camV.rx || 0), ry: (v.ry || 0) + (camV.ry || 0) }
+      : v;
+
+    /* 四すみで 描くか。
+       ・自分が たおれて いる（rx/ry）… カメラが なくても 立体に なる
+       ・カメラが まわりこんで いる  … まっすぐな 板も おくが せまく なる
+       どちらも「自分で うつす 番」の レイヤーだけ
+       （親の 中の ものは 親ごしに 出る。バラで 動かす フォルダの 中身は べつ）。 */
+    const mine = !p || free;
     let quad = null;
     if(sheet3D){
       /* まとめた 紙ぜんたいを 立体に する（フォルダ） */
-      quad = sheetQuad3D(l, v, project, camV);
-    } else if((is3D(v) || orbit) && !isCam(l) && takesCam && !p){
+      quad = sheetQuad3D(l, v3, project, camV);
+    } else if((is3D(v3) || orbit) && !isCam(l) && mine && !p){
       const a = assetOf(project, l, v.frame);
-      if(a) quad = quad3D(l, v, a, project, camV);
-    } else if((is3D(v) || orbit) && !isCam(l) && takesCam && p){
+      if(a) quad = quad3D(l, v3, a, project, camV);
+    } else if((is3D(v3) || orbit) && !isCam(l) && mine && p){
       /* バラで 動かす フォルダの 中身。親の ぶんも 入った 姿（m）から
          四すみを 出す ―― ここで さっき カメラを かけて いる ので、
          その ぶんを 抜いた 姿で 計算する。 */
       const a = assetOf(project, l, v.frame);
-      if(a) quad = quadFromM(l, v, a, mNoCam, project, camV);
+      if(a) quad = quadFromM(l, v3, a, mNoCam, project, camV);
     }
 
     /* ピンぼけ（被写界深度）。ピントの おくゆきから 離れた 紙ほど ぼける。
        もともとの ぼかしに 足す ので、レイヤーの ぼかしは そのまま きく。 */
-    if(camV && !isCam(l) && (free || !p)){
-      const df = camDefocus(camV, depthLen(l));
+    if(camV && !isCam(l) && mine){
+      const df = camDefocus(camV, depthLen(v));
       if(df > 0.01) v.blur = (v.blur || 0) + df;
     }
 
