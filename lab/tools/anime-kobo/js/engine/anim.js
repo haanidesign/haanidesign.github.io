@@ -380,6 +380,16 @@ export function valuesAt(layer, time){
     rx: sample(tr.rx, t, layer.rx || 0),
     ry: sample(tr.ry, t, layer.ry || 0),
 
+    /* カメラだけの もの。ふつうの レイヤーには 出てこない。
+       z … ドリー（前後に 動く）、tx/ty/td … 注視点、fd … ピントの おくゆき */
+    z:  sample(tr.z,  t, layer.z  || 0),
+    tx: sample(tr.tx, t, layer.tx == null ? 0 : layer.tx),
+    ty: sample(tr.ty, t, layer.ty == null ? 0 : layer.ty),
+    td: sample(tr.td, t, layer.td || 0),
+    fd: sample(tr.fd, t, layer.fd || 0),
+    aim: !!layer.aim,
+    dof: layer.dof || 0,
+
     /* ぐるり360の 見ている むき。ふつうの レイヤーには 出てこない */
     panY: sample(tr.panY, t, layer.panY || 0),
     panP: sample(tr.panP, t, layer.panP || 0),

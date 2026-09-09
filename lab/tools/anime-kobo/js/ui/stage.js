@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=139';
-import { cleanPath } from '../engine/path.js?v=139';
+import { M, clamp } from '../engine/math.js?v=140';
+import { cleanPath } from '../engine/path.js?v=140';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=139';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=139';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=139';
+         keepChildren, cornersOf } from '../engine/layer.js?v=140';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=140';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=140';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=139';
-import { createRenderer } from '../render/renderer.js?v=139';
-import { attachInput } from './input.js?v=139';
-import { newStroke, paintDirty } from '../engine/paint.js?v=139';
+         bendChain } from '../engine/puppet.js?v=140';
+import { createRenderer } from '../render/renderer.js?v=140';
+import { attachInput } from './input.js?v=140';
+import { newStroke, paintDirty } from '../engine/paint.js?v=140';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=139';
+         copyPts, setPts } from '../engine/warp.js?v=140';
 
-import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=139';
-import { inCamView } from '../render/camview.js?v=139';
-import { ORBIT_MAX } from '../engine/camera.js?v=139';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=140';
+import { inCamView } from '../render/camview.js?v=140';
+import { ORBIT_MAX } from '../engine/camera.js?v=140';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -33,9 +33,10 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
      カメラで 2ばいに 寄って いる ときは、指を 100 動かすと
      絵は 200 動いて 見える。その ぶんを 割りもどす。 */
   function unCam(l, dx, dy){
-    const cam = camOf(S.proj);
+    const cam = camOf(S.proj, S.time);
     if(!cam || isCam(l)) return { x: dx, y: dy };
-    const cm = camMatrix(valuesAt(cam, S.time), S.proj.w / 2, S.proj.h / 2, depthLen(l));
+    const cm = camMatrix(withShake(valuesAt(cam, S.time), cam, S.time, S.proj),
+                         S.proj.w / 2, S.proj.h / 2, depthLen(l));
     return M.dir(M.inv(cm), dx, dy);
   }
 
@@ -65,7 +66,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
      お絵かき中・ゆがみ中 などは 出して いない ので さわれない。 */
   function camWidget(){
     if(S.paintMode || S.warpMode || S.traceMode || S.pinMode) return null;
-    return camOf(S.proj);
+    return camOf(S.proj, S.time);
   }
   /* のぞき窓の 上か（p は 画面の 生の ドット） */
   function onCamWidget(p){

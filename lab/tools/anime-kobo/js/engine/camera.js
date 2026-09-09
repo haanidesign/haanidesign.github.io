@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=139';
+import { M } from './math.js?v=140';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -39,6 +39,14 @@ export const DEPTH_UNIT = 200;
 export const DEPTH_MIN = -4;      // これより 手前に すると 画面から はみ出て しまう
 export const DEPTH_MAX = 20;
 
+/* カメラだけが 持つ うごかせる ところ。
+   x/y（よこ・たてに ふる）・scaleX（画角ズーム）・rot（かたむき）は
+   ふつうの レイヤーと 同じ しくみを つかう ので ここには 入れない。 */
+export const CAM_CHANNELS = ['z', 'tx', 'ty', 'td', 'fd'];
+
+/** ドリー（前後に 動く）の かぎり。めもり。 */
+export const DOLLY_MIN = -14, DOLLY_MAX = 3.4;
+
 /** そのレイヤーの おくゆき（めもり） */
 export const depthOf = (l) => (l && typeof l.depth === 'number') ? l.depth : 0;
 
@@ -49,10 +57,67 @@ export function depthLen(l){
 }
 
 /** いま つかう カメラ（切って あれば なし） */
-export function camOf(project){
+export function camOf(project, time){
   if(!project || !project.layers) return null;
-  const c = project.layers.find(l => isCam(l) && l.visible !== false);
-  return c || null;
+  const live = project.layers.filter(l => isCam(l) && l.visible !== false);
+  if(!live.length) return null;
+  /* カメラが 何台か あって、それぞれに「ここから ここまで」を
+     きめて あれば、その 時こくの カメラに 切りかわる（カット割り）。
+     きめて いない カメラは いつでも つかえる ので、
+     きめて ある ものを 先に さがす。 */
+  if(time != null){
+    const cut = live.find(l => l.span && inCamSpan(l, time));
+    if(cut) return cut;
+  }
+  const any = live.find(l => !l.span);
+  return any || live[0];
+}
+
+/** カメラの「ここから ここまで」。layer.js の inSpan と 同じ 見方。 */
+function inCamSpan(l, time){
+  const s = l.span;
+  if(!s) return true;
+  const a = s.from == null ? -Infinity : s.from;
+  const b = s.to   == null ?  Infinity : s.to;
+  return time >= a - 1e-6 && time <= b + 1e-6;
+}
+
+/** ドリーの 長さ（中で つかう ものさし）。
+    プラスで 前へ 出る＝近づく。 */
+export function camDolly(v){
+  if(!v) return 0;
+  const z = Math.max(DOLLY_MIN, Math.min(DOLLY_MAX, v.z || 0));
+  return z * DEPTH_UNIT;
+}
+
+/**
+ * まわりこみの じく（注視点）。
+ *
+ * 「注視点を つかう」を 切って いる ときは、カメラの まん前
+ * （ふった さきの、おくゆき 0 の ところ）が じく。
+ * ＝ いままでと おなじ 回り方。
+ */
+export function camTarget(v, cx, cy){
+  if(v && v.aim){
+    return {
+      x: (v.tx == null ? cx : v.tx) - cx,
+      y: (v.ty == null ? cy : v.ty) - cy,
+      z: Math.max(DEPTH_MIN, Math.min(DEPTH_MAX, v.td || 0)) * DEPTH_UNIT
+    };
+  }
+  return { x: v ? (v.x || 0) - cx : 0, y: v ? (v.y || 0) - cy : 0, z: 0 };
+}
+
+/**
+ * ピンぼけ（被写界深度）。
+ * ピントの おくゆきから 離れた 紙ほど ぼける。
+ * かえりは ぼかしの ドット（キャンバスの ものさし）。
+ */
+export function camDefocus(v, depth){
+  if(!v || !(v.dof > 0.001)) return 0;
+  const f = (v.fd || 0) * DEPTH_UNIT;
+  const d = Math.abs((depth || 0) - f) / DEPTH_UNIT;   // めもり いくつ ずれて いるか
+  return Math.min(60, v.dof * d);
 }
 
 /**
@@ -64,7 +129,7 @@ export function camMatrix(v, cx, cy, depth){
   const f = CAM_F;
   /* おくゆきが -f より 手前に なると 裏返って しまう。
      手前がわは そこまで 行かない ところで 止める。 */
-  const d = Math.max(-0.8 * f, depth || 0);
+  const d = Math.max(-0.8 * f, (depth || 0) - camDolly(v));
   const zoom = (v.scaleX == null ? 1 : v.scaleX) || 1;
   const k = zoom * f / (f + d);
 
@@ -84,7 +149,10 @@ export function resetCam(l, project){
   l.scaleX = 1; l.scaleY = 1;
   l.rot = 0;
   l.rx = 0; l.ry = 0;
-  ['x', 'y', 'scaleX', 'scaleY', 'rot', 'rx', 'ry'].forEach(ch => {
+  l.z = 0;
+  l.tx = project.w / 2; l.ty = project.h / 2; l.td = 0;
+  l.fd = 0;
+  ['x', 'y', 'scaleX', 'scaleY', 'rot', 'rx', 'ry', ...CAM_CHANNELS].forEach(ch => {
     if(l.tracks) delete l.tracks[ch];
   });
 }
@@ -170,16 +238,20 @@ function rot3(p, rx, ry, rz){
  * カメラより うしろに 来た 点は うつせない ので null。
  */
 export function project3(X, Y, Z, camV, cx, cy){
-  const camX = camV ? (camV.x || 0) - cx : 0;
-  const camY = camV ? (camV.y || 0) - cy : 0;
-  let x = X - camX, y = Y - camY, z = Z;
+  let x = X, y = Y, z = Z;
 
   if(camV){
+    /* ① 注視点の まわりを まわす（カメラを まわす＝世界を 逆に まわす） */
     const rx = -(camV.rx || 0), ry = -(camV.ry || 0);
     if(rx || ry){
-      const r = rot3({ x, y, z }, rx, ry, 0);
-      x = r.x; y = r.y; z = r.z;
+      const T = camTarget(camV, cx, cy);
+      const r = rot3({ x: x - T.x, y: y - T.y, z: z - T.z }, rx, ry, 0);
+      x = r.x + T.x; y = r.y + T.y; z = r.z + T.z;
     }
+    /* ② カメラの ところを 原点に する（よこ・たて・前後） */
+    x -= (camV.x || 0) - cx;
+    y -= (camV.y || 0) - cy;
+    z -= camDolly(camV);
   }
   if(CAM_F + z < CAM_F * 0.2) return null;
 
@@ -229,6 +301,40 @@ export function quad3D(l, v, asset, project, camV){
 }
 
 /**
+ * 親ごしの 姿（行列）から 四すみを 出す。
+ *
+ * quad3D は「親の いない レイヤー」むけ で、レイヤーの
+ * よこ・たて・大きさ から 四すみを 組み立てて いる。
+ * バラで 動かす フォルダの 中身は 親の ぶんも かかって いる ので、
+ * すでに できあがって いる 行列（カメラを かける まえの もの）を つかう。
+ *
+ *   l  … レイヤー   v … その時こくの 姿
+ *   a  … 絵の 大きさ  m … カメラを かける まえの 姿（キャンバスざひょう）
+ */
+export function quadFromM(l, v, a, m, project, camV){
+  const cx = project.w / 2, cy = project.h / 2;
+  const pvx = (l.pivot && l.pivot.x != null) ? l.pivot.x : 0.5;
+  const pvy = (l.pivot && l.pivot.y != null) ? l.pivot.y : 0.5;
+  const x0 = -a.w * pvx, x1 = a.w * (1 - pvx);
+  const y0 = -a.h * pvy, y1 = a.h * (1 - pvy);
+
+  /* 行列の のび（おくへ たおした ぶんを 同じ ものさしに するため） */
+  const sc = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+  const zc = depthLen(l);
+
+  const out = [];
+  for(const c of [{x:x0,y:y0}, {x:x1,y:y0}, {x:x1,y:y1}, {x:x0,y:y1}]){
+    // 立体の かたむき（rx/ry）は 行列に 入らない ので ここで かける
+    const r = rot3({ x: c.x, y: c.y, z: 0 }, v.rx || 0, v.ry || 0, 0);
+    const w = M.apply(m, r.x, r.y);
+    const q = project3(w.x - cx, w.y - cy, zc + r.z * sc, camV, cx, cy);
+    if(!q) return null;
+    out.push({ x: q.x, y: q.y });
+  }
+  return out;
+}
+
+/**
  * まとめた 紙（フォルダ）の 四すみ。
  *
  * フォルダは 中身を キャンバスと 同じ 大きさの 紙 1まいに まとめて から
@@ -250,4 +356,38 @@ export function sheetQuad3D(l, v, project, camV){
     out.push({ x: q.x, y: q.y });
   }
   return out;
+}
+
+
+/* ================= 手ぶれ =================
+
+   AE では ヌル（からっぽの もの）に カメラを ぶら下げて、
+   そっちを ゆらす。ここでは カメラに 直に 1つ つけた。
+
+   ゆれは でたらめでは なく、時こくから いつも 同じ 形が 出る 波。
+   ＝ 何回 見ても・書き出しても、同じ ゆれに なる。 */
+
+/** なめらかな ゆれ（-1〜1 ぐらい）。ふしめを ずらして 2つ 足す */
+function wob(t, seed){
+  return Math.sin(t * 2.31 + seed) * 0.62
+       + Math.sin(t * 5.77 + seed * 1.7) * 0.38;
+}
+
+/**
+ * その時こくの カメラの 姿。
+ * ピンから 出した 値に、手ぶれを のせて かえす。
+ *   vals … valuesAt(cam, time) の けっか
+ */
+export function withShake(vals, cam, time, project){
+  const amt = cam ? (cam.shake || 0) : 0;
+  if(!(amt > 0.001)) return vals;
+  const spd = cam.shakeSpd == null ? 1 : cam.shakeSpd;
+  const t = time * spd;
+  const px = Math.min(project.w, project.h) * 0.035 * amt;
+  return {
+    ...vals,
+    x: (vals.x || 0) + wob(t, 0.0) * px,
+    y: (vals.y || 0) + wob(t, 2.4) * px,
+    rot: (vals.rot || 0) + wob(t, 5.1) * 1.6 * amt
+  };
 }

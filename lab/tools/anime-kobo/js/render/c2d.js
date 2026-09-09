@@ -3,16 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=139';
-import { S, frameAsset, frameImage } from '../state.js?v=139';
+         nearestFolder } from '../engine/layer.js?v=140';
+import { camOf } from '../engine/camera.js?v=140';
+import { S, frameAsset, frameImage } from '../state.js?v=140';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=139';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=139';
-import { paintCanvas } from '../engine/paint.js?v=139';
-import { panoCanvas } from '../engine/pano.js?v=139';
-import { homography, applyH } from '../engine/warp.js?v=139';
-import { drawCamView } from './camview.js?v=139';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=139';
+         meshSizeFor } from '../engine/puppet.js?v=140';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=140';
+import { paintCanvas } from '../engine/paint.js?v=140';
+import { panoCanvas } from '../engine/pano.js?v=140';
+import { homography, applyH } from '../engine/warp.js?v=140';
+import { drawCamView } from './camview.js?v=140';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=140';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -704,7 +705,7 @@ function flatMesh(w, h){
 
     /* うごきブラー … 少し前の 姿を うすく 重ねる。
        重なるほど こく なるので、うごきが はやいほど 尾を ひく。 */
-    const mb = l.mblur || 0;
+    const mb = Math.max(l.mblur || 0, l._camMB || 0);
     if(mb > 0.01 && subPoses && subPoses.length){
       const n = subPoses.length + 1;
       const a = 1 / n;
@@ -848,13 +849,26 @@ function flatMesh(w, h){
        シャッターが 開いている あいだの 姿を 何回か 重ねる。
        ＝ うごいている ものだけ 自然に ぶれる。
        置く・回す・大きさ・パペットの 曲げ、ぜんぶに 効く。 */
-    const blurLayers = project.layers.filter(l => (l.mblur || 0) > 0.01);
+    /* カメラに ざんぞうを 入れて あれば、絵ぜんぶが ぶれる。
+       カメラが 動けば 画面ぜんたいが 動く ので、
+       レイヤーを 1つずつ 入れて まわらなくて すむ。 */
+    const camMB = (() => {
+      const c = camOf(project, time);
+      return c ? (c.mblur || 0) : 0;
+    })();
+    if(camMB > 0.01){
+      project.layers.forEach(l => { if(l.kind !== 'cam') l._camMB = camMB; });
+    } else {
+      project.layers.forEach(l => { if(l._camMB) delete l._camMB; });
+    }
+    const blurLayers = project.layers.filter(
+      l => Math.max(l.mblur || 0, l._camMB || 0) > 0.01);
     let subPoses = null;
     if(blurLayers.length && !opts.noMotionBlur){
       /* シャッターが 開いている 長さ。
          きっちり 1コマぶん だと ほんの少ししか ぶれないので、
          つよさに 合わせて 長めに とる（見て わかる ように）。 */
-      const mb = Math.max(...blurLayers.map(l => l.mblur || 0));
+      const mb = Math.max(...blurLayers.map(l => Math.max(l.mblur || 0, l._camMB || 0)));
       const shutter = (1 / (project.fps || 30)) * (0.6 + 3 * mb);
       subPoses = [];
       for(let k = 1; k < MB_STEPS; k++){

@@ -14,8 +14,9 @@
 
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
-import { CAM_F, depthLen, camOf } from '../engine/camera.js?v=139';
-import { valuesAt } from '../engine/anim.js?v=139';
+import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
+         withShake } from '../engine/camera.js?v=140';
+import { valuesAt } from '../engine/anim.js?v=140';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -83,10 +84,10 @@ const line = (g, a, b) => { g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y
  *   assetOf … レイヤー → 絵の 大きさ を かえす 関数
  */
 export function drawCamView(g, canvas, project, time, selId, assetOf){
-  const cam = camOf(project);
+  const cam = camOf(project, time);
   if(!cam) return null;
   const r = camViewRect(canvas);
-  const camV = valuesAt(cam, time);
+  const camV = withShake(valuesAt(cam, time), cam, time, project);
 
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
@@ -121,8 +122,16 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
   const cx = project.w / 2, cy = project.h / 2;
 
   /* ---- レイヤーを 板として 出す。おくの ものから 描く ---- */
+  /* バラで 動かす フォルダ（コラップス）は、中身を そのまま 板に する。
+     1まいの 紙 では なく、それぞれの おくゆきに 立って いる ため。 */
+  const loose = {};
+  project.layers.forEach(l => {
+    if(l.kind === 'folder' && l.collapse) loose[l.id] = true;
+  });
   const items = project.layers
-    .filter(l => l.kind !== 'cam' && l.visible !== false && !l.parent)
+    .filter(l => l.kind !== 'cam' && l.visible !== false
+                 && (!l.parent || loose[l.parent]))
+    .filter(l => !(l.kind === 'folder' && l.collapse))
     .map(l => ({ l, v: valuesAt(l, time), z: depthLen(l) }))
     .sort((a, b) => b.z - a.z);
 
@@ -130,7 +139,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     /* フォルダは 中身を キャンバスと 同じ 大きさの 紙 1まいに まとめて
        出す ので、ここでも キャンバスぜんたいの 紙 として 立てる。
        （絵を 持たない ので、そのままだと 何も 出なかった） */
-    const folder = it.l.kind === 'folder';
+    const folder = it.l.kind === 'folder' && !it.l.collapse;
     const a = folder ? { w: project.w, h: project.h } : assetOf(it.l, it.v.frame);
     if(!a) continue;
     const w = a.w * (folder ? 1 : (it.v.scaleX || 1));
@@ -163,16 +172,44 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
   /* ---- カメラ本体と、見えている はんい ---- */
   const cX = (camV.x || 0) - cx, cY = (camV.y || 0) - cy;
   /* カメラは おくゆき -CAM_F の ところに 立って いる と 考えると、
-     0 の ところで ちょうど キャンバスぜんぶが 見える。 */
-  const cZ = -CAM_F / (camV.scaleX || 1);
+     0 の ところで ちょうど キャンバスぜんぶが 見える。
+     ドリー（前後）は その 立ち位置を そのまま 動かす。 */
+  const cZ = -CAM_F / (camV.scaleX || 1) + camDolly(camV);
   const camP = P(cX, cY, cZ);
+
+  /* ピントの めん（ぼかしを 入れて いる ときだけ） */
+  if(camV.dof > 0.001){
+    const fz = (camV.fd || 0) * DEPTH_UNIT;
+    const fw = project.w / 2, fh = project.h / 2;
+    const fq = [[-fw,-fh],[fw,-fh],[fw,fh],[-fw,fh]].map(([px, py]) => P(px, py, fz));
+    g.strokeStyle = 'rgba(91,127,212,.85)';
+    g.setLineDash([4 * r.dpr, 3 * r.dpr]);
+    g.lineWidth = 1.4 * r.dpr;
+    g.beginPath();
+    g.moveTo(fq[0].x, fq[0].y);
+    for(let i = 1; i < 4; i++) g.lineTo(fq[i].x, fq[i].y);
+    g.closePath();
+    g.stroke();
+    g.setLineDash([]);
+  }
+
+  /* 注視点（まわりこみの じく） */
+  if(camV.aim){
+    const T = camTarget(camV, cx, cy);
+    const tp = P(T.x, T.y, T.z);
+    g.strokeStyle = '#F2A0B8';
+    g.lineWidth = 2 * r.dpr;
+    g.beginPath(); g.arc(tp.x, tp.y, 5 * r.dpr, 0, Math.PI * 2); g.stroke();
+    g.beginPath(); g.arc(tp.x, tp.y, 1.6 * r.dpr, 0, Math.PI * 2);
+    g.fillStyle = '#F2A0B8'; g.fill();
+  }
 
   // 見えている はんい（0 の ところの 四すみへ 4本）
   const zoom = camV.scaleX || 1;
   const fw = project.w / 2 / zoom, fh = project.h / 2 / zoom;
   const far = [[-fw,-fh],[fw,-fh],[fw,fh],[-fw,fh]].map(([px, py]) => {
     /* カメラの まわりこみ ぶんだけ、見て いる ほうも まわる */
-    const q = rot3({ x: px, y: py, z: cZ + CAM_F / zoom }, camV.rx || 0, camV.ry || 0, 0);
+    const q = rot3({ x: px, y: py, z: CAM_F / zoom }, camV.rx || 0, camV.ry || 0, 0);
     return P(cX + q.x, cY + q.y, cZ + q.z);
   });
 

@@ -1,37 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=139';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=140';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=139';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=140';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=139';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=139';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=139';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=139';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=139';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=140';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=140';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=140';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=140';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=140';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=139';
+         addTextLayer } from '../io/text.js?v=140';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=139';
-import { PATTERN_NAMES } from '../io/pattern.js?v=139';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=140';
+import { PATTERN_NAMES } from '../io/pattern.js?v=140';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=139';
-import { readAsDataURL, loadImage } from '../io/image.js?v=139';
+         PITCH_MAX } from '../engine/pano.js?v=140';
+import { readAsDataURL, loadImage } from '../io/image.js?v=140';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=139';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=139';
-import { newHand } from '../engine/hand.js?v=139';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=139';
+         DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=140';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=140';
+import { newHand } from '../engine/hand.js?v=140';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=140';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=139';
+  from './colorwheel.js?v=140';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=139';
+         guessBpm, firstOnset } from '../io/audio.js?v=140';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=139';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=140';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -528,6 +529,33 @@ export function buildLayerSheet(box, closeFn){
     warpRow(box, l, closeFn);
     buildLook(box, l, { flip: false });
 
+    /* ---- バラで 動かす（AEの コラップス）----
+       ふだん フォルダは 中身を 1まいの 紙に まとめて 出す。
+       それを やめて、中身 1まい 1まいを カメラに 直に 見せる。 */
+    box.appendChild(heading('🎥 カメラと おくゆき'));
+    const col = !!l.collapse;
+    box.appendChild(btnRow(
+      button(col ? '✅ 中身を バラで 動かす' : '⬜ 中身を バラで 動かす', () => {
+        edit('バラで 動かす', () => { l.collapse = !col; });
+        notify(col ? 'フォルダを 1まいの 紙に もどしました'
+                   : '中身が それぞれの おくゆきで 動くように なりました');
+        onChange();
+      })
+    ));
+    const cnote = document.createElement('div');
+    cnote.className = 'empty';
+    cnote.style.textAlign = 'left';
+    cnote.textContent = col
+      ? ('中身の 1まい 1まいが、自分の おくゆきで 動きます。' + NL
+         + 'フォルダの 中でも 手前と おくの ずれが 出ます。' + NL
+         + 'そのかわり、フォルダに かける すけ具合・ふちどり・' + NL
+         + 'ゆがみ は 中身 それぞれに かかる かたちに なります。')
+      : ('いまは 中身ぜんぶで 1まいの 紙 です。' + NL
+         + 'まとめて うすく したり ゆがめたり できる かわりに、' + NL
+         + '中の おくゆきの ちがいは 出ません。' + NL
+         + 'PSDの グループを 立体に したい ときは オンに。');
+    box.appendChild(cnote);
+
     box.appendChild(btnRow(
       button('📂 フォルダを ほどく', () => {
         edit('フォルダをほどく', () => { ungroup(S.proj, l, S.time); });
@@ -813,7 +841,7 @@ function presetGrid(box, list, run){
    カメラを ふった とき、手前の ものほど 大きく ずれる。 */
 function depthRow(box, l){
   if(isCam(l)) return;
-  if(!camOf(S.proj)) return;
+  if(!camOf(S.proj, S.time)) return;
   const NL = String.fromCharCode(10);
 
   box.appendChild(heading('おくゆき（カメラ用）'));
@@ -925,7 +953,7 @@ function tiltRow(box, l){
 export function buildCamSheet(box, back){
   backRow(box, back);
   const NL = String.fromCharCode(10);
-  const cam = camOf(S.proj) || S.proj.layers.find(isCam);
+  const cam = camOf(S.proj, S.time) || S.proj.layers.find(isCam);
 
   /* まえの ばんの カメラは いちばん 下の 行に できて いた。
      さがしにくい ので 上へ 上げる。
@@ -997,7 +1025,7 @@ export function buildCamSheet(box, back){
     v => v === cx ? 'まん中' : px(v - cx)));
   box.appendChild(animSlider('たてに ふる', cam, 'y', cy - S.proj.h, cy + S.proj.h, 1,
     v => v === cy ? 'まん中' : px(v - cy)));
-  box.appendChild(animSlider('ズーム', cam, 'scaleX', 0.2, 4, 0.01,
+  box.appendChild(animSlider('ズーム（画角）', cam, 'scaleX', 0.2, 4, 0.01,
     v => (v * 100).toFixed(0) + '%'));
   box.appendChild(animSlider('かたむき', cam, 'rot', -180, 180, 1,
     v => Math.round(v) + '°'));
@@ -1025,6 +1053,112 @@ export function buildCamSheet(box, back){
     + 'べつべつに 動かしたい ものは フォルダから 出して ください。';
   box.appendChild(peek);
 
+  /* ---- ドリー（前後に 動く）----
+     ズーム（画角）との ちがいが 大事な ところ。
+     ズームは 絵ぜんたいが 同じだけ 大きく なるだけ だが、
+     前後に 動くと 手前と おくで ずれ方が 変わる＝立体に なる。 */
+  box.appendChild(heading('前後に 動く（ドリー）'));
+  box.appendChild(animSlider('前後に 動く', cam, 'z', DOLLY_MIN, DOLLY_MAX, 0.1,
+    v => v === 0 ? 'もとの ところ' : (v > 0 ? '前へ ' : 'うしろへ ') + Math.abs(v).toFixed(1)));
+  const dn = document.createElement('div');
+  dn.className = 'empty';
+  dn.style.textAlign = 'left';
+  dn.textContent = 'ズームは レンズだけ 望遠に する ので、' + NL
+    + '手前も おくも 同じだけ 大きく なります。' + NL
+    + 'ドリーは カメラごと 近づく ので、手前の ものほど' + NL
+    + 'はやく 大きく なります（これが 立体に 見える もと）。' + NL
+    + NL
+    + 'ズームを しぼりながら 前へ 出すと、まわりだけ' + NL
+    + 'ぐにゃっと 動く「めまい」の 画に なります。';
+  box.appendChild(dn);
+
+  /* ---- 注視点 ---- */
+  box.appendChild(heading('注視点（まわる じく）'));
+  const aim = !!cam.aim;
+  box.appendChild(btnRow(
+    button(aim ? '✅ 注視点を つかう' : '⬜ 注視点を つかう', () => {
+      edit('注視点', () => {
+        cam.aim = !aim;
+        if(cam.aim && cam.tx == null){ cam.tx = cx; cam.ty = cy; cam.td = 0; }
+      });
+      notify(aim ? 'カメラの まん前を じくに もどしました'
+                 : '注視点の まわりを まわるように しました');
+      onChange();
+    })
+  ));
+  const an = document.createElement('div');
+  an.className = 'empty';
+  an.style.textAlign = 'left';
+  an.textContent = aim
+    ? ('この 点の まわりを まわりこみます。' + NL
+       + '画面の はしに いる キャラの まわりを ぐるっと 回れます。')
+    : ('いまは カメラの まん前が じくです。' + NL
+       + '画面の はしの ものを じくに したい ときは オンに。');
+  box.appendChild(an);
+
+  if(aim){
+    box.appendChild(animSlider('よこ', cam, 'tx', 0, S.proj.w, 1, px));
+    box.appendChild(animSlider('たて', cam, 'ty', 0, S.proj.h, 1, px));
+    box.appendChild(animSlider('おくゆき', cam, 'td', DEPTH_MIN, DEPTH_MAX, 0.5,
+      v => v === 0 ? 'ふつう' : v.toFixed(1)));
+    box.appendChild(btnRow(
+      button('えらんだ レイヤーに 合わせる', () => {
+        const t = selected();
+        if(!t || isCam(t)) return notify('先に レイヤーを えらんでね');
+        const tv = valuesAt(t, S.time);
+        edit('注視点を 合わせる', () => {
+          cam.tx = tv.x; cam.ty = tv.y; cam.td = depthOf(t);
+          if(hasPins(cam)) ['tx','ty','td'].forEach(
+            c => setPin(cam, c, S.time, cam[c], 'smooth'));
+        });
+        notify('「' + t.name + '」を じくに しました');
+        onChange();
+      })
+    ));
+  }
+
+  /* ---- ピンぼけ ---- */
+  box.appendChild(heading('ピンぼけ（ピントの ぼかし）'));
+  box.appendChild(slider('ぼかしの つよさ', () => cam.dof || 0,
+    v => cam.dof = v, 0, 12, 0.5,
+    v => v < 0.01 ? 'なし' : v.toFixed(1)));
+  box.appendChild(animSlider('ピントの おくゆき', cam, 'fd', DEPTH_MIN, DEPTH_MAX, 0.5,
+    v => v === 0 ? 'ふつう' : v.toFixed(1)));
+  const fn2 = document.createElement('div');
+  fn2.className = 'empty';
+  fn2.style.textAlign = 'left';
+  fn2.textContent = 'ピントの おくゆきから 離れた 紙ほど ぼけます。' + NL
+    + '手前を ぼかして おくを 見せる、の 切りかえも' + NL
+    + 'ピントに ピンを うてば できます。' + NL
+    + 'のぞき窓に 青い 点線で ピントの めんが 出ます。';
+  box.appendChild(fn2);
+
+  /* ---- 手ぶれ ---- */
+  box.appendChild(heading('手ぶれ'));
+  box.appendChild(slider('ゆれの 大きさ', () => cam.shake || 0,
+    v => cam.shake = v, 0, 1, 0.05, v => v < 0.01 ? 'なし' : Math.round(v * 100) + '%'));
+  box.appendChild(slider('ゆれの はやさ', () => cam.shakeSpd == null ? 1 : cam.shakeSpd,
+    v => cam.shakeSpd = v, 0.2, 4, 0.1, v => v.toFixed(1) + 'ばい'));
+  const sn = document.createElement('div');
+  sn.className = 'empty';
+  sn.style.textAlign = 'left';
+  sn.textContent = '手持ちカメラの ゆれです。ピンは いりません。' + NL
+    + '時こくから きまる 波なので、何回 書き出しても 同じ ゆれです。';
+  box.appendChild(sn);
+
+  /* ---- ざんぞう ---- */
+  box.appendChild(heading('ざんぞう（うごきブラー）'));
+  box.appendChild(slider('カメラの ざんぞう', () => cam.mblur || 0,
+    v => cam.mblur = v, 0, 1, 0.05, v => v < 0.01 ? 'なし' : Math.round(v * 100) + '%'));
+  const mn = document.createElement('div');
+  mn.className = 'empty';
+  mn.style.textAlign = 'left';
+  mn.textContent = 'カメラが 動くと 画面ぜんぶが 動く ので、' + NL
+    + 'ここを 入れると 絵ぜんぶが まとめて ぶれます。' + NL
+    + 'レイヤー 1つずつ 入れて まわらなくて すみます。';
+  box.appendChild(mn);
+
+
   /* ---- うごかす ----
      スライダーは「ピンが 1本でも あれば」自動で ピンに なる しくみ。
      さいしょの 1本だけは 自分で うつ ひつようが ある ので、
@@ -1051,7 +1185,7 @@ export function buildCamSheet(box, back){
   box.appendChild(field('うごかす', btnRow(
     button('◆ ここに ピンを うつ', () => {
       edit('カメラの ピン', () => {
-        ['x', 'y', 'scaleX', 'rot'].forEach(ch => {
+        ['x', 'y', 'scaleX', 'rot', 'rx', 'ry', ...CAM_CHANNELS].forEach(ch => {
           setPin(cam, ch, S.time, channelValue(cam, ch, S.time), 'smooth');
         });
       });
@@ -1075,6 +1209,49 @@ export function buildCamSheet(box, back){
       onChange();
     })
   ));
+
+  /* ---- カット割り（カメラを 何台か） ---- */
+  const cams = S.proj.layers.filter(isCam);
+  box.appendChild(heading('カット割り（カメラ ' + cams.length + '台）'));
+  const cn = document.createElement('div');
+  cn.className = 'empty';
+  cn.style.textAlign = 'left';
+  cn.textContent = 'カメラを 何台か おいて、それぞれに' + NL
+    + '「出す ところ」を きめると、その 時こくで' + NL
+    + 'カメラが 切りかわります ＝ カット割り。' + NL
+    + '「出す ところ」を きめて いない カメラは、' + NL
+    + 'どこも 当たらない ときの ひかえです。';
+  box.appendChild(cn);
+
+  box.appendChild(btnRow(
+    button('＋ カメラを もう1台', () => {
+      edit('カメラを ふやす', () => {
+        const c = newCamLayer(S.proj);
+        c.name = 'カメラ' + (cams.length + 1);
+        S.proj.layers.unshift(c);
+        S.sel = c.id;
+      });
+      notify(cams.length + 1 + '台めの カメラを つくりました');
+      onChange();
+      if(back) back();
+    })
+  ));
+  if(cams.length > 1){
+    cams.forEach((c, i) => {
+      const nowOn = c === cam;
+      box.appendChild(btnRow(
+        button((nowOn ? '▶ ' : '　') + (c.name || ('カメラ' + (i + 1)))
+               + (c.span ? '（' + c.span.from.toFixed(1) + '〜' + c.span.to.toFixed(1) + '秒）'
+                         : '（ずっと）'), () => {
+          S.sel = c.id;
+          notify(c.name + ' を えらびました');
+          onChange();
+          if(back) back();
+        })
+      ));
+    });
+  }
+  spanRow(box, cam, back);
 
   const hint = document.createElement('div');
   hint.className = 'empty';
@@ -1141,6 +1318,9 @@ export function buildTraceSheet(box, back){
   tnote.textContent = '絵の上を 指で なぞると、その みちを 通ります。' + NL
     + 'なぞった あとで「何秒で 通るか」を きめます。' + NL
     + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
+  tnote.textContent += NL + NL
+    + '🎥 の 行を えらんで から なぞると、カメラが その みちを 通ります' + NL
+    + '（アフターエフェクトの「カメラを パスに 沿わせる」）。';
   box.appendChild(tnote);
   box.appendChild(btnRow(
     button('👆 みちを なぞる', () => { onTrace(); })

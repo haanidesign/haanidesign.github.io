@@ -1,15 +1,15 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=139';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=140';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=139';
+         nearestFolder, setParent } from '../engine/layer.js?v=140';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=139';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=139';
-import { isCam, is3D } from '../engine/camera.js?v=139';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=140';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=140';
+import { isCam, is3D, CAM_CHANNELS } from '../engine/camera.js?v=140';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -972,7 +972,9 @@ export function createTimeline(root, opts = {}){
         /* 立体の かたむき（カメラなら まわりこみ）。
            つかって いない レイヤーに まで うつと じゃま なので、
            いま 立体に なって いる ものだけ。 */
-        .concat((isCam(l) || is3D(l)) ? ['rx', 'ry'] : []);
+        .concat((isCam(l) || is3D(l)) ? ['rx', 'ry'] : [])
+        /* カメラだけの もの（ドリー・注視点・ピント） */
+        .concat(isCam(l) ? CAM_CHANNELS : []);
       chs.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'smooth'));
       STEP_CHANNELS.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'hold'));
       // パペットピンのずれも いっしょに残す（固定ピンは動かないので要らない）
