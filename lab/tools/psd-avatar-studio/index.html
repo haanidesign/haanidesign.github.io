@@ -4,97 +4,218 @@
 <meta charset="utf-8">
 <title>PSD アバタースタジオ</title>
 <script src="lib/ag-psd.js"></script>
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
+/* はぁにデザイン工房のダーク版。
+   黄色・太枠・ハードシャドウ・丸ゴシックはそのまま、地の色だけ暗くしている。
+   立ち絵は透過で扱うので、キャンバスの背景だけは色を持たせない。 */
   :root{
-    --bg:#14161b; --panel:#1b1e26; --panel2:#232733; --text:#d7dae2; --dim:#8b90a0;
-    --accent:#6ea8ff; --chip:#262b38; --chip-on:#31406b; --hot:#ff8a4a;
+    --main:#E1DD60;          /* 主役の黄色 */
+    --main-deep:#B8B43F;
+    --ink:#0E0D08;           /* 影と枠に使う、いちばん暗い色 */
+    --bg:#1A1913;            /* 地 */
+    --panel:#232219;         /* 操作パネル */
+    --panel2:#2E2C20;        /* パネルの中の一段くぼんだところ */
+    --text:#F2F0DE;
+    --dim:#9C977C;
+    --line:#443F2C;
+    --hot:#FF8A4A;           /* 編集中を知らせる橙 */
+    --bd:2px solid var(--ink);
+    --r:10px;
   }
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{height:100%}
-  body{background:var(--bg); color:var(--text); font:13px/1.5 "Segoe UI","Hiragino Sans",sans-serif; display:flex; overflow:hidden}
-  #stage{flex:1; display:flex; align-items:center; justify-content:center; min-width:0; position:relative}
-  #stage.transparent{background-image:conic-gradient(#22252c 0 25%,#191c22 0 50%,#22252c 0 75%,#191c22 0);background-size:24px 24px}
-  #stage.gb{background:#00b140}
-  #stage.dark{background:#101216}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'M PLUS Rounded 1c','Hiragino Sans',sans-serif; font-weight:700;
+    font-size:13px; line-height:1.6;
+    display:flex; overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------------- ステージ ---------------- */
+  #stage{
+    flex:1; display:flex; align-items:center; justify-content:center; min-width:0; position:relative;
+    background-image:radial-gradient(circle, rgba(226,221,96,.09) 1.5px, transparent 1.6px);
+    background-size:16px 16px;
+  }
+  #stage.transparent{background-image:conic-gradient(#2A2820 0 25%,#1C1B14 0 50%,#2A2820 0 75%,#1C1B14 0);background-size:24px 24px}
+  #stage.gb{background:#00b140; background-image:none}
+  #stage.dark{background:#0B0A07; background-image:none}
   #holder{position:relative; line-height:0}
   canvas{max-width:100%; max-height:100vh; image-rendering:auto}
   #ov{position:absolute; left:0; top:0; background:none}
   #ov.edit{cursor:crosshair}
-  #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(30,50,90,.5); font-size:20px; pointer-events:none}
-  #edbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000;
-    padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:6; flex-wrap:wrap}
-  #edbar.on{display:flex}
-  #edbar b{flex-shrink:0}
-  #edbar .edhint{color:#5a2c00; flex:1; min-width:140px}
-  #edbar .btn{background:rgba(255,255,255,.85); border-color:rgba(0,0,0,.2); color:#241000; padding:3px 10px}
-  #edbar .btn.go{background:#241000; border-color:#241000; color:#ffd9c2}
-  #recbar{position:absolute; left:0; right:0; top:0; background:rgba(255,138,74,.94); color:#241000; font-weight:600;
-    padding:7px 12px; display:none; gap:10px; align-items:center; font-size:12px; z-index:5}
-  #recbar.on{display:flex}
-  #panel{width:330px; overflow-y:auto; background:var(--panel); padding:14px 16px 40px; flex-shrink:0}
-  #panel::-webkit-scrollbar{width:8px}
-  #panel::-webkit-scrollbar-thumb{background:#333a4a; border-radius:4px}
-  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px}
-  .chip{padding:4px 12px; border-radius:14px; background:var(--chip); border:1px solid #333a4a; cursor:pointer; user-select:none; font-size:12px; color:var(--dim)}
-  .chip.on{background:var(--chip-on); border-color:var(--accent); color:#dfe9ff}
-  h3{font-size:11px; color:var(--dim); font-weight:600; margin:16px 0 8px; letter-spacing:.05em}
-  .btns{display:flex; flex-wrap:wrap; gap:6px}
-  .btn{padding:5px 13px; border-radius:6px; background:var(--panel2); border:1px solid #333a4a; color:var(--text); cursor:pointer; font-size:12px}
-  .btn:hover{border-color:var(--accent)}
-  .btn.on{background:var(--chip-on); border-color:var(--accent)}
-  .btn.go{background:var(--accent); border-color:var(--accent); color:#0b1020; font-weight:700}
-  .btn.go:hover{background:#8bb9ff}
-  .btn:disabled{opacity:.4; cursor:default}
-  .row{display:flex; align-items:center; gap:8px; margin:5px 0}
-  .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px}
-  .row input[type=range]{flex:1; accent-color:var(--accent); height:4px}
-  .row .val{width:36px; text-align:right; color:var(--dim); font-size:11px}
-  select{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font-size:11px; padding:1px 4px}
-  input[type=number]{background:var(--panel2); color:var(--text); border:1px solid #333a4a; border-radius:4px; font:inherit; font-size:12px; padding:3px 5px; width:62px}
+  #ov.adj{cursor:move}
+  #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(226,221,96,.16); color:var(--main); font-size:20px; font-weight:800;
+    letter-spacing:.05em; pointer-events:none; border:4px dashed var(--main); border-radius:16px}
+
+  /* ---------------- 上に出る帯 ---------------- */
+  .bar{
+    position:absolute; left:0; right:0; top:0; display:none; gap:8px 12px; align-items:center;
+    padding:8px 14px; font-size:12px; font-weight:700; flex-wrap:wrap;
+    border-bottom:3px solid var(--ink);
+  }
+  .bar.on{display:flex}
+  .bar b{flex-shrink:0; font-weight:800; letter-spacing:.04em}
+  .bar .btn{
+    background:rgba(255,255,255,.92); border:var(--bd); color:var(--ink);
+    padding:3px 11px; box-shadow:0 2px 0 var(--ink);
+  }
+  .bar .btn:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink); background:#fff}
+  .bar .btn:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .bar .btn.go{background:var(--ink); border-color:var(--ink); color:var(--main)}
+  .bar select{background:rgba(255,255,255,.92); color:var(--ink); border:var(--bd); font-weight:700}
+  #edbar{background:var(--hot); color:#2A1200; z-index:6}
+  #edbar .edhint{color:#6B3000; flex:1; min-width:140px}
+  #recbar{background:var(--main); color:var(--ink); z-index:5; font-weight:800}
+  #adjbar{background:var(--main); color:var(--ink); z-index:7}
+  #adjbar .adjsl{display:flex; align-items:center; gap:5px; white-space:nowrap}
+  #adjbar .adjsl input[type=range]{width:82px; accent-color:var(--ink); height:4px}
+  #adjbar .adjsl .val{width:34px; text-align:right; color:#5E5A20; font-size:11px}
+  #adjbar .adjhint{color:#5E5A20; flex:1; min-width:150px; font-weight:500}
+  #adjbar .adjname{font-weight:800; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+  /* ---------------- 操作パネル ---------------- */
+  #panel{
+    width:340px; overflow-y:auto; background:var(--panel); flex-shrink:0;
+    padding:0 16px 40px; border-left:3px solid var(--ink);
+  }
+  #panel::-webkit-scrollbar{width:9px}
+  #panel::-webkit-scrollbar-track{background:var(--panel)}
+  #panel::-webkit-scrollbar-thumb{background:var(--line); border-radius:5px}
+  #panel::-webkit-scrollbar-thumb:hover{background:var(--main-deep)}
+  #titlebar{
+    position:sticky; top:0; z-index:3; margin:0 -16px 14px; padding:10px 16px;
+    background:var(--main); color:var(--ink); border-bottom:3px solid var(--ink);
+    display:flex; align-items:center; gap:8px;
+  }
+  #titlebar .ttl{font-weight:800; font-size:14px; letter-spacing:.03em}
+  #titlebar .back{
+    margin-left:auto; font-size:11px; font-weight:700; text-decoration:none; color:var(--ink);
+    background:#FFFEF7; border:var(--bd); border-radius:8px; padding:2px 10px; box-shadow:0 2px 0 var(--ink);
+  }
+  #titlebar .back:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink)}
+  #titlebar .back:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+
+  h3{
+    font-size:11px; color:var(--ink); background:var(--main); font-weight:800;
+    margin:20px -6px 10px; padding:3px 10px; letter-spacing:.08em;
+    border:var(--bd); border-radius:6px; box-shadow:0 2px 0 var(--ink); display:inline-block;
+  }
+
+  /* ---------------- 部品 ---------------- */
+  .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px}
+  .chip{
+    padding:4px 12px; border-radius:14px; background:var(--panel2); border:var(--bd);
+    box-shadow:0 2px 0 var(--ink); cursor:pointer; user-select:none;
+    font-size:12px; font-weight:700; color:var(--dim);
+    transition:transform .08s, box-shadow .08s;
+  }
+  .chip:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink)}
+  .chip:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .chip.on{background:var(--main); color:var(--ink)}
+
+  .btns{display:flex; flex-wrap:wrap; gap:7px}
+  .btn{
+    padding:5px 13px; border-radius:8px; background:var(--panel2); border:var(--bd);
+    box-shadow:0 2px 0 var(--ink); color:var(--text); cursor:pointer;
+    font:inherit; font-size:12px; font-weight:700;
+    transition:transform .08s, box-shadow .08s, background .15s;
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink); background:#3A3728}
+  .btn:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .btn.on{background:var(--main); color:var(--ink)}
+  .btn.go{background:var(--main); color:var(--ink); font-weight:800}
+  .btn.go:hover{background:#EFEB7A}
+  .btn:disabled{opacity:.4; cursor:default; box-shadow:0 2px 0 var(--ink); transform:none}
+
+  .row{display:flex; align-items:center; gap:8px; margin:6px 0}
+  .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px; font-weight:700}
+  .row input[type=range]{flex:1; accent-color:var(--main); height:4px}
+  .row .val{width:38px; text-align:right; color:var(--main); font-size:11px; font-weight:700}
+  select{
+    background:var(--panel2); color:var(--text); border:var(--bd); border-radius:6px;
+    font:inherit; font-size:11px; font-weight:700; padding:2px 5px;
+  }
+  input[type=number]{
+    background:var(--panel2); color:var(--text); border:var(--bd); border-radius:6px;
+    font:inherit; font-size:12px; font-weight:700; padding:3px 6px; width:64px;
+  }
+  select:focus, input:focus{outline:2px solid var(--main); outline-offset:1px}
+
+  /* ---------------- レイヤー一覧 ---------------- */
   #layerlist .row label{width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  #layerlist .lrow{border-bottom:1px solid #262b38; padding:4px 0 6px}
+  #layerlist .lrow{
+    border:var(--bd); border-radius:var(--r); background:var(--panel2);
+    box-shadow:0 2px 0 var(--ink); padding:8px 10px; margin-bottom:9px;
+  }
   #layerlist .lrow.off{opacity:.45}
-  #layerlist .row{margin:2px 0}
-  #layerlist .row input[type=checkbox]{accent-color:var(--accent); width:14px; height:14px; flex-shrink:0}
+  #layerlist .row{margin:3px 0}
+  #layerlist .row input[type=checkbox]{accent-color:var(--main); width:15px; height:15px; flex-shrink:0}
   #layerlist .sub{padding-left:20px}
   #layerlist .sub label{width:auto; color:var(--dim); font-size:11px}
   #layerlist .rootchk{display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer}
-  #layerlist .rootchk:hover{color:var(--text)}
-  #layerlist .lrow.isroot .rootchk{color:var(--accent)}
+  #layerlist .rootchk:hover{color:var(--main)}
+  #layerlist .lrow.isroot{border-color:var(--main)}
+  #layerlist .lrow.isroot .rootchk{color:var(--main)}
   #layerlist .sub select{flex:1; min-width:0}
   #layerlist .sub .val{width:32px}
-  #layerlist .lrow.editing{outline:1px solid var(--hot); outline-offset:2px; border-radius:4px}
-  #layerlist .bonebar{gap:5px; flex-wrap:wrap}
-  #layerlist .btn.tiny{padding:2px 8px; font-size:11px}
-  #layerlist .bulkbar{gap:6px; margin:0 0 8px; flex-wrap:wrap}
+  #layerlist .lrow.editing{border-color:var(--hot); box-shadow:0 2px 0 var(--ink), 0 0 0 2px var(--hot)}
+  #layerlist .bonebar{gap:6px; flex-wrap:wrap}
+  #layerlist .btn.tiny{padding:2px 9px; font-size:11px; border-radius:6px}
+  #layerlist .bulkbar{gap:7px; margin:0 0 10px; flex-wrap:wrap}
   #layerlist .bulkbar .btn{flex:1; min-width:0}
-  #layerlist .reftag{font-size:10.5px; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  #layerlist .gbrow{background:var(--panel2); border-radius:6px; padding:8px 10px; margin-bottom:8px; border-bottom:none}
-  #layerlist .gbrow > .row:first-child label{color:var(--text); font-size:12px; font-weight:600}
+  #layerlist .reftag{font-size:10.5px; color:var(--main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #layerlist .gbrow{background:var(--panel); border-color:var(--main)}
+  #layerlist .gbrow > .row:first-child label{color:var(--main); font-size:12px; font-weight:800}
   #layerlist .gbrow .hint{margin-top:4px}
-  #note{color:var(--dim); font-size:11px; margin-top:6px}
+
+  /* ---------------- 読み込み口 ---------------- */
+  #note{color:var(--dim); font-size:11px; font-weight:500; margin-top:8px; line-height:1.7}
   #fileInput{display:none}
-  #psdBox{border:1px dashed #4a5268; border-radius:8px; padding:12px; text-align:center;
-    color:var(--dim); cursor:pointer; margin-bottom:12px; font-size:12px; user-select:none}
-  #psdBox:hover, #psdBox.dragging{border-color:var(--accent); color:#dfe9ff; background:rgba(110,168,255,.06)}
-  #psdInfo{margin-top:4px; font-size:11px; color:var(--accent); word-break:break-all}
-  .hint{color:var(--dim); font-size:11px; line-height:1.6; margin-top:6px}
+  #psdBox{
+    border:3px dashed var(--line); border-radius:var(--r); padding:14px; text-align:center;
+    color:var(--dim); cursor:pointer; margin-bottom:14px; font-size:12px; user-select:none;
+    transition:border-color .15s, color .15s, background .15s;
+  }
+  #psdBox:hover, #psdBox.dragging{border-color:var(--main); color:var(--main); background:rgba(226,221,96,.07)}
+  #psdInfo{margin-top:5px; font-size:11px; color:var(--main); word-break:break-all}
+  .hint{color:var(--dim); font-size:11px; font-weight:500; line-height:1.7; margin-top:7px}
 </style>
 </head>
 <body>
 <div id="stage" class="transparent">
   <div id="holder"><canvas id="cv"></canvas><canvas id="ov"></canvas></div>
   <div id="drop">PSD / PNG をドロップ</div>
-  <div id="recbar"><span>書き出し中</span><span id="recinfo"></span></div>
-  <div id="edbar">
+  <div class="bar" id="recbar"><span>書き出し中</span><span id="recinfo"></span></div>
+  <div class="bar" id="edbar">
     <b>ボーン編集中</b><span id="edinfo"></span>
     <span class="edhint">根元 → 先端 の順に画像の上をクリック（2〜6点）</span>
     <button class="btn" id="edUndo">1つ戻す</button>
     <button class="btn" id="edClear">全消し</button>
     <button class="btn go" id="edDone">完了</button>
   </div>
+  <div class="bar" id="adjbar">
+    <b>手直し</b><span class="adjname" id="adjName"></span>
+    <span class="adjsl">連動<select id="adjParam"></select></span>
+    <span class="adjsl" id="adjKeyWrap">のとき<select id="adjKey"></select></span>
+    <span class="adjsl">回転<input type="range" id="adjRot" min="-45" max="45" step="0.5" value="0"><span class="val" id="adjRotV">0</span></span>
+    <span class="adjsl">横<input type="range" id="adjSx" min="-0.6" max="0.6" step="0.01" value="0"><span class="val" id="adjSxV">0</span></span>
+    <span class="adjsl">縦<input type="range" id="adjSy" min="-0.6" max="0.6" step="0.01" value="0"><span class="val" id="adjSyV">0</span></span>
+    <span class="adjhint">絵の上をドラッグで位置ずらし</span>
+    <button class="btn" id="adjClear">この手直しを消す</button>
+    <button class="btn go" id="adjDone">完了</button>
+  </div>
 </div>
 <div id="panel">
+  <div id="titlebar">
+    <span class="ttl">PSD アバタースタジオ</span>
+    <a class="back" href="../../index.html">← LAB</a>
+  </div>
   <h3 style="margin-top:0">読み込み</h3>
   <div id="psdBox">
     <div>クリック、または PSD / PNG複数枚 をドロップ</div>
@@ -170,6 +291,7 @@
   </div>
 
   <h3>レイヤー(役割の割り当て)</h3>
+  <div class="hint" style="margin:0 0 8px">自動の動きが気に入らないパーツは「手直し」で、絵の上をドラッグして位置・角度・大きさを直せます。「連動」を選べば「顔が右を向いたときだけこうずれる」という直しも覚えさせられます。</div>
   <div id="layerlist"></div>
   <div id="note"></div>
   <input type="file" id="fileInput" accept=".psd,.png" multiple>
@@ -326,15 +448,18 @@ function roleOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRoles:
 /* リグ(親子付け・オンオフ)はレイヤー名をキーに保存する */
 function rigOverrides(){ try{ return JSON.parse(localStorage.getItem("psdRig:"+psdName)||"{}"); }catch(e){ return {}; } }
 function rigOf(l){
-  return {parent: l.parent || null, on: l.on !== false,
-          bone: (l.bone||[]).map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
-          boneRef: l.boneRef || null,
-          rows: l.rows, cols: l.cols, bprm: {...l.bprm}};
+  const o = {parent: l.parent || null, on: l.on !== false,
+             bone: (l.bone||[]).map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
+             boneRef: l.boneRef || null,
+             rows: l.rows, cols: l.cols, bprm: {...l.bprm}};
+  if(l.adj) o.adj = {...l.adj};
+  if(l.forms) o.forms = JSON.parse(JSON.stringify(l.forms));
+  return o;
 }
 function saveRig(){
   const o = {};
   layers.forEach(l=>{
-    if(l.parent || l.on === false || (l.bone && l.bone.length) || l.boneRef) o[l.name] = rigOf(l);
+    if(l.parent || l.on === false || (l.bone && l.bone.length) || l.boneRef || adjHas(l)) o[l.name] = rigOf(l);
   });
   if(globalMoveActive()) o.__global = {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})),
                                        bprm: {...globalBone.bprm}, mesh: globalBone.mesh};
@@ -361,6 +486,17 @@ function applyRig(){
     l.rows = (r && r.rows) || 12;
     l.cols = (r && r.cols) || Math.max(4, Math.round(((r && r.rows) || 12) * l.width / Math.max(l.height,1)));
     l.bprm = Object.assign({amp:8, speed:1, phase:0, lag:0.2}, (r && r.bprm) || {});
+    delete l.adj; delete l.forms;
+    if(r && r.adj) l.adj = Object.assign(adjZero(), r.adj);
+    if(r && r.forms){
+      l.forms = {};
+      for(const id in r.forms){
+        const f = {};
+        for(const k in r.forms[id]) if(ADJ_KEYS.includes(k)) f[k] = Object.assign(adjZero(), r.forms[id][k]);
+        if(Object.keys(f).length) l.forms[id] = f;
+      }
+      if(!Object.keys(l.forms).length) delete l.forms;
+    }
   });
   // 存在しない親・自己参照・循環を落とす
   layers.forEach(l=>{ if(l.parent && !layers.some(x=>x.name===l.parent)) l.parent = null; });
@@ -696,6 +832,13 @@ function buildLayerList(){
     pickWrap.append(pickChk, document.createTextNode("束"));
     bone.appendChild(pickWrap);
 
+    const adjBtn = document.createElement("button");
+    adjBtn.className = "btn tiny" + (adjTarget.layer === l ? " on" : "");
+    adjBtn.textContent = adjHas(l) ? "手直し済" : "手直し";
+    adjBtn.title = "位置・角度・大きさを手で直す。パラメータに連動させることもできる";
+    adjBtn.onclick = ()=> adjTarget.layer === l ? endAdj() : startAdj(l);
+    bone.appendChild(adjBtn);
+
     if(l.boneRef){
       const tag = document.createElement("span"); tag.className = "reftag";
       tag.textContent = `「${l.boneRef.trim()}」のボーンで動く`;
@@ -764,7 +907,7 @@ function buildLayerList(){
 
     box.classList.toggle("off", l.on === false);
     box.classList.toggle("isroot", isRoot(l));
-    box.classList.toggle("editing", boneEdit === l);
+    box.classList.toggle("editing", boneEdit === l || adjTarget.layer === l);
     el.appendChild(box);
   });
 }
@@ -1108,6 +1251,69 @@ const mShearX = k => [1,0,k,1,0,0];
 const mAround = (m,cx,cy)=> mul(mTranslate(cx,cy), mul(m, mTranslate(-cx,-cy)));
 const mChain = (...ms)=> ms.reduce(mul, IDENT);
 
+/* ---------------- 手直し ----------------
+   自動リグで狙いどおりに動かないパーツを、手で直すための仕組み。パラメータ人形と同じ考えかた。
+     基本ずれ … いつでも効く。立ち位置・角度・大きさ そのものの直し。
+     フォーム … 「このパラメータが この値のとき、このパーツは こうずれる」。
+                最小・中央・最大 の3点に覚えさせ、あいだは なめらかに繋ぐ。 */
+const ADJ_KEYS = ["min","def","max"];
+const ADJ_KEY_LABEL = {min:"最小", def:"中央", max:"最大"};
+const ADJ_PARAMS = ["headX","headY","headZ","eyeL","eyeR","gazeX","gazeY","browY",
+                    "mouthOpen","mouthSmile","bodyTilt"];
+const adjZero = ()=>({dx:0, dy:0, rot:0, sx:0, sy:0});
+const adjIsZero = a => !a || (!a.dx && !a.dy && !a.rot && !a.sx && !a.sy);
+const paramDef = id => PARAM_DEFS.find(d=>d.id===id);
+
+/** そのパーツに手直しが1つでも入っているか */
+function adjHas(l){
+  if(!adjIsZero(l.adj)) return true;
+  if(!l.forms) return false;
+  return Object.values(l.forms).some(f => Object.values(f).some(a=>!adjIsZero(a)));
+}
+/** 覚えさせる3点の値 */
+function adjKeyVals(id){
+  const d = paramDef(id);
+  return d ? [d.min, d.def, d.max] : [-1, 0, 1];
+}
+/** いま画面に出ている値。物理や追従で動いたあとの値(S)を優先する */
+function adjParamVal(id, S){
+  if(S && S[id] !== undefined) return S[id];
+  return P[id] !== undefined ? P[id] : 0;
+}
+/** 3点のフォームを、いまの値のところで混ぜる */
+function formAt(f, id, v){
+  if(!f) return null;
+  const ks = adjKeyVals(id);
+  const g = i => f[ADJ_KEYS[i]] || null;
+  let a, b, t;
+  if(v <= ks[1]){ a = g(0); b = g(1); t = ks[1] === ks[0] ? 1 : (v - ks[0]) / (ks[1] - ks[0]); }
+  else          { a = g(1); b = g(2); t = ks[2] === ks[1] ? 0 : (v - ks[1]) / (ks[2] - ks[1]); }
+  if(!a && !b) return null;
+  t = Math.max(0, Math.min(1, t));
+  const z = adjZero(), A = a || z, B = b || z;
+  return {dx: A.dx + (B.dx-A.dx)*t, dy: A.dy + (B.dy-A.dy)*t, rot: A.rot + (B.rot-A.rot)*t,
+          sx: A.sx + (B.sx-A.sx)*t, sy: A.sy + (B.sy-A.sy)*t};
+}
+/** 基本ずれ と 全パラメータのフォーム を足し合わせる */
+function adjOf(l, S){
+  let o = null;
+  const add = a =>{
+    if(!a) return;
+    o = o || adjZero();
+    o.dx += a.dx; o.dy += a.dy; o.rot += a.rot; o.sx += a.sx; o.sy += a.sy;
+  };
+  if(!adjIsZero(l.adj)) add(l.adj);
+  if(l.forms) for(const id in l.forms) add(formAt(l.forms[id], id, adjParamVal(id, S)));
+  return o;
+}
+function adjMat(l, S){
+  const o = adjOf(l, S);
+  if(!o) return IDENT;
+  const cx = l.left + l.width/2, cy = l.top + l.height/2;
+  return mAround(mChain(mTranslate(o.dx, o.dy), mRotate(o.rot * Math.PI/180),
+                        mScale(1 + o.sx, 1 + o.sy)), cx, cy);
+}
+
 /* ---------------- 描画 ---------------- */
 function draw(S){
   ctx.setTransform(1,0,0,1,0,0);
@@ -1147,8 +1353,13 @@ function draw(S){
     return mTranslate(S.headX*3, S.headY*1.5);
   }
 
-  // そのレイヤー自身の変形(役割ごと)
+  /* そのレイヤー自身の変形。手直し(静止した直し)を先に効かせてから、役割の動きを重ねる */
   function roleMat(l){
+    const a = adjMat(l, S);
+    return a === IDENT ? roleMatBase(l) : mul(roleMatBase(l), a);
+  }
+  // 役割ごとの、自動でつく動き
+  function roleMatBase(l){
     const role = l.role;
     const cx = l.left + l.width/2, cy = l.top + l.height/2;
     if(role === "frontHair" || role === "backHair"){
@@ -1265,7 +1476,8 @@ function draw(S){
       const rows = pose ? l.rows : Math.min(l.rows, 8);
       const cols = pose ? l.cols : Math.max(4, Math.min(l.cols, Math.round(8 * l.width / Math.max(l.height,1)) || 8));
       // 自前ボーンが無いレイヤーは、役割の変形を行列側で受ける
-      const Mm = pose ? B : mul(B, l.on === false ? IDENT : roleMat(l));
+      const Mm = l.on === false ? B
+                 : pose ? mul(B, adjMat(l, S)) : mul(B, roleMat(l));
       ctx.setTransform(1,0,0,1,0,0);
       const sxs = [], sys = [], gx = [], gy = [];
       for(let r=0; r<=rows; r++) for(let c=0; c<=cols; c++){
@@ -1371,6 +1583,136 @@ $("edUndo").onclick = ()=>{ if(boneEdit){ boneEdit.bone.pop(); } };
 $("edClear").onclick = ()=>{ if(boneEdit){ boneEdit.bone = []; } };
 $("edDone").onclick = endBoneEdit;
 
+/* ---------------- 手直しモード ----------------
+   パーツを1枚えらんで、絵の上をドラッグ / つまみで 回転・大きさ を直す。
+   「連動」を選ぶと、そのパラメータの 最小/中央/最大 それぞれの姿として覚える。 */
+let adjTarget = {layer:null, param:"", key:"def"};
+let adjDrag = null;
+let adjSaved = null;      // 手直し中だけ止めておいた自動の動き
+
+function adjSlot(create){
+  const l = adjTarget.layer;
+  if(!l) return null;
+  if(!adjTarget.param){
+    if(create && !l.adj) l.adj = adjZero();
+    return l.adj || null;
+  }
+  if(create){
+    l.forms = l.forms || {};
+    l.forms[adjTarget.param] = l.forms[adjTarget.param] || {};
+    if(!l.forms[adjTarget.param][adjTarget.key]) l.forms[adjTarget.param][adjTarget.key] = adjZero();
+  }
+  const f = l.forms && l.forms[adjTarget.param];
+  return (f && f[adjTarget.key]) || null;
+}
+/* 中身が空になったフォームは持ち歩かない */
+function adjPrune(l){
+  if(adjIsZero(l.adj)) delete l.adj;
+  if(!l.forms) return;
+  for(const id in l.forms){
+    for(const k in l.forms[id]) if(adjIsZero(l.forms[id][k])) delete l.forms[id][k];
+    if(!Object.keys(l.forms[id]).length) delete l.forms[id];
+  }
+  if(!Object.keys(l.forms).length) delete l.forms;
+}
+
+function startAdj(l){
+  if(boneEdit) endBoneEdit();
+  adjTarget = {layer:l, param:"", key:"def"};
+  /* 自動の動きが乗ったままだと直した結果が見えないので、いったん止める */
+  if(!adjSaved){
+    adjSaved = {...T};
+    ["idle","randomMotion","randomLip","mouseTrack","micLip","autoBlink"].forEach(k=> T[k] = false);
+    syncChips();
+  }
+  $("adjbar").classList.add("on");
+  ov.classList.add("adj");
+  buildAdjParamSel();
+  syncAdjBar();
+  buildLayerList();
+  $("note").textContent = `「${l.name.trim()}」を手直し中。連動を選ぶと、そのパラメータのときだけ効く直しになります。`;
+}
+function endAdj(){
+  const l = adjTarget.layer;
+  if(l) adjPrune(l);
+  adjTarget = {layer:null, param:"", key:"def"};
+  adjDrag = null;
+  if(adjSaved){ Object.assign(T, adjSaved); adjSaved = null; syncChips(); }
+  $("adjbar").classList.remove("on");
+  ov.classList.remove("adj");
+  saveRig();
+  buildLayerList();
+}
+function buildAdjParamSel(){
+  const sel = $("adjParam");
+  sel.innerHTML = "";
+  const none = document.createElement("option");
+  none.value = ""; none.textContent = "なし(いつも)";
+  sel.appendChild(none);
+  ADJ_PARAMS.forEach(id=>{
+    const d = paramDef(id); if(!d) return;
+    const o = document.createElement("option");
+    o.value = id; o.textContent = d.label;
+    sel.appendChild(o);
+  });
+  sel.value = adjTarget.param;
+  const ks = $("adjKey");
+  ks.innerHTML = "";
+  ADJ_KEYS.forEach(k=>{
+    const o = document.createElement("option");
+    o.value = k; o.textContent = ADJ_KEY_LABEL[k];
+    ks.appendChild(o);
+  });
+  ks.value = adjTarget.key;
+}
+/* えらんだ点の値まで、スライダーを動かして見せる */
+function adjPreviewParam(){
+  const id = adjTarget.param;
+  if(!id) return;
+  const v = adjKeyVals(id)[ADJ_KEYS.indexOf(adjTarget.key)];
+  P[id] = v; target[id] = null;
+  syncSlider(id);
+}
+function syncAdjBar(){
+  const l = adjTarget.layer;
+  if(!l) return;
+  $("adjName").textContent = l.name.trim();
+  $("adjKeyWrap").style.display = adjTarget.param ? "" : "none";
+  const a = adjSlot(false) || adjZero();
+  const set = (id, v, d)=>{ $(id).value = v; $(id+"V").textContent = (+v).toFixed(d).replace(/\.?0+$/,"") || "0"; };
+  set("adjRot", a.rot, 1);
+  set("adjSx", a.sx, 2);
+  set("adjSy", a.sy, 2);
+}
+$("adjParam").onchange = ()=>{
+  adjTarget.param = $("adjParam").value;
+  adjPreviewParam();
+  syncAdjBar();
+};
+$("adjKey").onchange = ()=>{
+  adjTarget.key = $("adjKey").value;
+  adjPreviewParam();
+  syncAdjBar();
+};
+[["adjRot","rot",1],["adjSx","sx",2],["adjSy","sy",2]].forEach(([id,key,d])=>{
+  $(id).oninput = ()=>{
+    const a = adjSlot(true); if(!a) return;
+    a[key] = +$(id).value;
+    $(id+"V").textContent = (+$(id).value).toFixed(d).replace(/\.?0+$/,"") || "0";
+  };
+  $(id).onchange = saveRig;
+});
+$("adjClear").onclick = ()=>{
+  const l = adjTarget.layer; if(!l) return;
+  if(!adjTarget.param) delete l.adj;
+  else if(l.forms && l.forms[adjTarget.param]) delete l.forms[adjTarget.param][adjTarget.key];
+  adjPrune(l);
+  syncAdjBar();
+  saveRig();
+};
+$("adjDone").onclick = endAdj;
+
+
 /* 表示は max-width/max-height で縮むので、実際の描画倍率から PSD 座標へ戻す */
 function viewScale(){ return cv.clientWidth ? cv.clientWidth / psdW : 1; }
 function syncOverlay(){
@@ -1378,12 +1720,32 @@ function syncOverlay(){
   ov.style.width = cv.clientWidth + "px";
   ov.style.height = cv.clientHeight + "px";
 }
+const ovPt = e =>{
+  const r = ov.getBoundingClientRect(), k = viewScale() || 1;
+  return {x:(e.clientX - r.left)/k, y:(e.clientY - r.top)/k};
+};
 ov.addEventListener("pointerdown", e=>{
+  if(adjTarget.layer){
+    const a = adjSlot(true); if(!a) return;
+    const p = ovPt(e);
+    adjDrag = {x:p.x, y:p.y, dx:a.dx, dy:a.dy};
+    ov.setPointerCapture(e.pointerId);
+    return;
+  }
   if(!boneEdit) return;
   const r = ov.getBoundingClientRect(), k = viewScale() || 1;
   if(boneEdit.bone.length >= 6) return;
   boneEdit.bone.push({x:(e.clientX - r.left)/k, y:(e.clientY - r.top)/k});
 });
+ov.addEventListener("pointermove", e=>{
+  if(!adjDrag) return;
+  const a = adjSlot(true); if(!a) return;
+  const p = ovPt(e);
+  a.dx = adjDrag.dx + (p.x - adjDrag.x);
+  a.dy = adjDrag.dy + (p.y - adjDrag.y);
+});
+ov.addEventListener("pointerup", ()=>{ if(adjDrag){ adjDrag = null; saveRig(); } });
+ov.addEventListener("pointercancel", ()=>{ adjDrag = null; });
 function drawBoneOverlay(){
   syncOverlay();
   octx.setTransform(1,0,0,1,0,0);
@@ -1393,15 +1755,25 @@ function drawBoneOverlay(){
   // 出力の枠。外側を暗くして、切り取られる範囲がひと目で分かるようにする
   if(crop.on && !exporting){
     octx.save();
-    octx.fillStyle = "rgba(10,12,16,.55)";
+    octx.fillStyle = "rgba(8,7,4,.6)";
     octx.beginPath();
     octx.rect(0, 0, ov.width, ov.height);
     octx.rect(crop.x, crop.y, crop.w, crop.h);
     octx.fill("evenodd");
-    octx.strokeStyle = "#6ea8ff";
+    octx.strokeStyle = "#E1DD60";
     octx.lineWidth = Math.max(1, 2/vk);
     octx.setLineDash([10/vk, 6/vk]);
     octx.strokeRect(crop.x, crop.y, crop.w, crop.h);
+    octx.restore();
+  }
+
+  // 手直し中のパーツの当たり枠
+  if(adjTarget.layer){
+    const l = adjTarget.layer;
+    octx.save();
+    octx.strokeStyle = "#E1DD60"; octx.lineWidth = Math.max(1, 2/vk);
+    octx.setLineDash([8/vk, 5/vk]);
+    octx.strokeRect(l.left, l.top, l.width, l.height);
     octx.restore();
   }
 
@@ -1413,7 +1785,7 @@ function drawBoneOverlay(){
   pts.forEach((p,i)=> i ? octx.lineTo(p.x,p.y) : octx.moveTo(p.x,p.y));
   octx.stroke();
   pts.forEach((p,i)=>{
-    octx.fillStyle = i ? "#fff" : "#6ea8ff";
+    octx.fillStyle = i ? "#fff" : "#E1DD60";
     octx.beginPath(); octx.arc(p.x, p.y, 7/k, 0, 7); octx.fill();
     octx.strokeStyle = "#ff7a45"; octx.lineWidth = 2/k; octx.stroke();
   });
@@ -1869,6 +2241,7 @@ $("resetBtn").onclick = ()=>{
   btn.textContent = "初期に戻す"; btn.classList.remove("on");
 
   if(boneEdit){ boneEdit = null; bulkTargets = null; $("edbar").classList.remove("on"); ov.classList.remove("edit"); }
+  if(adjTarget.layer) endAdj();
   PARAM_DEFS.filter(d=>d.id).forEach(d=>{ P[d.id] = d.def; target[d.id] = null; });
   TOGGLES.forEach(t=> T[t.id] = t.def);
   $("dur").value = 3; $("fps").value = 30; $("bi").value = 2.5;
@@ -1884,6 +2257,7 @@ $("resetBtn").onclick = ()=>{
     l.role = guessRole(l.name || "");
     l.parent = null; l.on = true; l.pick = false;
     l.bone = []; l.boneRef = null;
+    delete l.adj; delete l.forms;
     l.rows = 12; l.cols = Math.max(4, Math.round(12 * l.width / Math.max(l.height,1)));
     l.bprm = {amp:8, speed:1, phase:0, lag:0.2};
   });
