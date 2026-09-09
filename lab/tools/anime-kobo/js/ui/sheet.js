@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=154';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=155';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=154';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=155';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=154';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=154';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=154';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=154';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=154';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=155';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=155';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=155';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=155';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=155';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=154';
+         addTextLayer } from '../io/text.js?v=155';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=154';
-import { PATTERN_NAMES } from '../io/pattern.js?v=154';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=155';
+import { PATTERN_NAMES } from '../io/pattern.js?v=155';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=154';
-import { readAsDataURL, loadImage } from '../io/image.js?v=154';
+         PITCH_MAX } from '../engine/pano.js?v=155';
+import { readAsDataURL, loadImage } from '../io/image.js?v=155';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=154';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=154';
-import { newHand } from '../engine/hand.js?v=154';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=154';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=155';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=155';
+import { newHand } from '../engine/hand.js?v=155';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=155';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=154';
+  from './colorwheel.js?v=155';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=154';
+         guessBpm, firstOnset } from '../io/audio.js?v=155';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=154';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=155';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -534,7 +534,7 @@ export function buildLayerSheet(box, closeFn){
 
     spanRow(box, l, closeFn);
     warpRow(box, l, closeFn);
-    buildLook(box, l, { flip: false });
+    buildLook(box, l, { flip: false, close: closeFn });
 
     /* ---- バラで 動かす（AEの コラップス）----
        ふだん フォルダは 中身を 1まいの 紙に まとめて 出す。
@@ -599,7 +599,7 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(clipRow(l));
     spanRow(box, l, closeFn);
   warpRow(box, l, closeFn);
-    buildLook(box, l, { flip: true });
+    buildLook(box, l, { flip: true, close: closeFn });
     parentLink(box, l, closeFn);
     otherRow(box, l, closeFn);
     return;
@@ -730,7 +730,7 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(clipRow(l));
   spanRow(box, l, closeFn);
   warpRow(box, l, closeFn);
-  buildLook(box, l, { flip: true });
+  buildLook(box, l, { flip: true, close: closeFn });
 
   parentLink(box, l, closeFn);
   otherRow(box, l, closeFn);
@@ -2408,6 +2408,8 @@ function panoRow(box, l){
    フォルダは 中身を1まいにまとめてから かかるので、
    中に何まい入っていても ふちは 外側にだけ出る。 */
 export function buildLook(box, l, opts){
+  const NL = String.fromCharCode(10);
+  const closeLook = opts && opts.close;
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(heading('見た目'));
 
@@ -2427,6 +2429,49 @@ export function buildLook(box, l, opts){
     v => { l.stroke = l.stroke || { color:'#FFFEF7', width:0 }; l.stroke.color = v; }));
   box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
     v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
+
+  /* ---- ✂ マスク ----
+     クリップは「べつの レイヤーの 形」で ぬく。
+     マスクは「自分に かいた 形」で ぬく。抜き型の 絵を
+     用意しなくて いい ぶん、その場で さっと できる。 */
+  box.appendChild(heading('✂ マスク（形で 切りぬく）'));
+  const hasMask = !!(l.mask && l.mask.pts && l.mask.pts.length >= 3);
+  const mnote = document.createElement('div');
+  mnote.className = 'empty';
+  mnote.style.textAlign = 'left';
+  mnote.textContent = hasMask
+    ? ('かこんだ 形で 切りぬいて います。' + NL
+       + (isFolder(l)
+          ? 'フォルダの マスクは 画面に すわった まま です。'
+          : 'マスクは 絵に くっついて いる ので、動かしても' + NL
+            + 'まわしても ついて まわります。'))
+    : ('絵の 上を 指で ぐるっと かこむと、その 中だけ 出ます。' + NL
+       + 'かこんだ 形は ' + (isFolder(l) ? '画面に すわります。' : '絵に くっつきます。'));
+  box.appendChild(mnote);
+
+  box.appendChild(btnRow(
+    button(hasMask ? '✂ かこみ直す' : '✂ 形を かこむ', () => {
+      if(closeLook) closeLook();
+      onMask(l);
+    })
+  ));
+
+  if(hasMask){
+    box.appendChild(btnRow(
+      button(l.mask.invert ? '✅ うら返す（中を かくす）' : '⬜ うら返す（中を かくす）', () => {
+        edit('マスクを うら返す', () => { l.mask.invert = !l.mask.invert; });
+        onChange();
+      }),
+      button('🗑 マスクを けす', () => {
+        edit('マスクを けす', () => { l.mask = null; });
+        notify('マスクを けしました');
+        onChange();
+      })
+    ));
+    box.appendChild(slider('ふちを ぼかす',
+      () => (l.mask.feather || 0), v => { l.mask.feather = v; l._maskKey = null; },
+      0, 80, 1, v => v < 0.5 ? 'くっきり' : Math.round(v) + 'px'));
+  }
 
   /* ---- ✨ ひかり（グロー）と 🌑 かげ ----
      どちらも 絵の 形を ぼかして 色を ぬって 下に 敷く だけ。
@@ -2636,6 +2681,9 @@ export function setTrainer(fn){ onTrain = fn; }
 
 let onCam = () => {};
 export function setCamOpener(fn){ onCam = fn; }
+
+let onMask = () => {};
+export function setMasker(fn){ onMask = fn; }
 
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);

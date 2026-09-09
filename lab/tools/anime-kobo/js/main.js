@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=154';
+import { M } from './engine/math.js?v=155';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=154';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=155';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=154';
-import { createStage } from './ui/stage.js?v=154';
-import { createRenderer } from './render/renderer.js?v=154';
-import { createTimeline } from './ui/timeline.js?v=154';
-import { fmtTime } from './engine/anim.js?v=154';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=155';
+import { createStage } from './ui/stage.js?v=155';
+import { createRenderer } from './render/renderer.js?v=155';
+import { createTimeline } from './ui/timeline.js?v=155';
+import { fmtTime } from './engine/anim.js?v=155';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -19,23 +19,23 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setTrainer, setPathReopener, setCamOpener,
-         setWarper } from './ui/sheet.js?v=154';
+         setTrainer, setPathReopener, setCamOpener, setMasker,
+         setWarper } from './ui/sheet.js?v=155';
 
-import { showNewDoc } from './ui/newdoc.js?v=154';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=154';
-import { fitToCanvas, isBg } from './io/bg.js?v=154';
-import * as Audio from './io/audio.js?v=154';
+import { showNewDoc } from './ui/newdoc.js?v=155';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=155';
+import { fitToCanvas, isBg } from './io/bg.js?v=155';
+import * as Audio from './io/audio.js?v=155';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=154';
-import { importPsd } from './io/psd.js?v=154';
-import { splitTextChars } from './io/text.js?v=154';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=155';
+import { importPsd } from './io/psd.js?v=155';
+import { splitTextChars } from './io/text.js?v=155';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=154';
-import { pathKeys, pathLength } from './engine/path.js?v=154';
-import { paintDirty } from './engine/paint.js?v=154';
+         canUseWebCodecs } from './io/export.js?v=155';
+import { pathKeys, pathLength } from './engine/path.js?v=155';
+import { paintDirty } from './engine/paint.js?v=155';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=154';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=155';
 
 const $ = (s) => document.querySelector(s);
 
@@ -278,7 +278,7 @@ $('#clip').addEventListener('click', () => {
 function setTraceMode(on){
   if(on && S.paintMode) setPaintMode(false);
   S.traceMode = !!on;
-  if(!on){ S.tracePts = null; S.train = null; }
+  if(!on){ S.tracePts = null; S.train = null; S.maskFor = null; }
   $('#tracemode').hidden = !on;
   if(on){
     S.playing = false;
@@ -301,7 +301,54 @@ function pathForLayer(l, pts){
   });
 }
 
+/* ---- ✂ マスク ----
+   かこんだ 形で その レイヤーを 切りぬく。
+   形の もちかたが 2とおり ある。
+     ふつうの レイヤー … 絵の 中の ざひょう（動かすと ついてくる）
+     フォルダ         … 画面の ざひょう（画面に すわった まま）
+   アフターエフェクトの マスクと 同じ 考え方。 */
+setMasker((l) => {
+  if(!l) return toast('レイヤーを えらんでね');
+  S.sel = l.id;
+  S.maskFor = l.id;
+  sheet.close();
+  setTraceMode(true);
+  toast('切りぬく 形を ぐるっと かこんでね');
+});
+
+function maskFromTrace(l, pts){
+  if(isFolder(l)) return pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+  const poses = computeAll(S.proj, S.time);
+  const po = poses[l.id];
+  const a = frameAsset(l, po ? po.v.frame : 0);
+  if(!po || !a) return null;
+  const pvx = (l.pivot && l.pivot.x != null) ? l.pivot.x : 0.5;
+  const pvy = (l.pivot && l.pivot.y != null) ? l.pivot.y : 0.5;
+  const inv = M.inv(po.m);
+  return pts.map(p => {
+    const q = M.apply(inv, p.x, p.y);
+    return { x: Math.round(q.x + a.w * pvx), y: Math.round(q.y + a.h * pvy) };
+  });
+}
+
 function onTraced(){
+  /* ✂ マスクを かこんで いる とちゅう なら、みちでは なく マスク */
+  if(S.maskFor){
+    const l = S.proj.layers.find(x => x.id === S.maskFor);
+    const pts = l && S.tracePts && S.tracePts.length >= 3
+      ? maskFromTrace(l, S.tracePts) : null;
+    S.maskFor = null;
+    if(!pts){ setTraceMode(false); return toast('うまく かこめませんでした'); }
+    edit('マスクを かける', () => {
+      l.mask = { pts, invert: !!(l.mask && l.mask.invert),
+                 feather: (l.mask && l.mask.feather) || 0, on: true };
+      l._maskKey = null;
+    });
+    toast(pts.length + 'コの 点で 切りぬきました');
+    setTraceMode(false);
+    return;
+  }
+
   const train = S.train;
   const l = train ? train.chars[0] : selected();
   if(!l || !S.tracePts || S.tracePts.length < 2) return;

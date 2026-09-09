@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=154';
-import { cleanPath } from '../engine/path.js?v=154';
+import { M, clamp } from '../engine/math.js?v=155';
+import { cleanPath } from '../engine/path.js?v=155';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=154';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=154';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=154';
+         keepChildren, cornersOf } from '../engine/layer.js?v=155';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=155';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=155';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=154';
-import { createRenderer } from '../render/renderer.js?v=154';
-import { attachInput } from './input.js?v=154';
-import { newStroke, paintDirty } from '../engine/paint.js?v=154';
+         bendChain } from '../engine/puppet.js?v=155';
+import { createRenderer } from '../render/renderer.js?v=155';
+import { attachInput } from './input.js?v=155';
+import { newStroke, paintDirty } from '../engine/paint.js?v=155';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=154';
+         copyPts, setPts } from '../engine/warp.js?v=155';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=154';
-import { inCamView } from '../render/camview.js?v=154';
-import { ORBIT_MAX } from '../engine/camera.js?v=154';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=155';
+import { inCamView } from '../render/camview.js?v=155';
+import { ORBIT_MAX } from '../engine/camera.js?v=155';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -107,6 +107,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
     }
     if(S.warpMode && l) drawCage(l);
+    if(l) drawMask(l);
     if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
     /* カメラが ある あいだは、そとから 見た 図を すみに 出す。
@@ -114,6 +115,41 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
        カメラの 行を えらんで いなくても つかえる ように して ある。
        （お絵かき中・ゆがみ中 は 絵の じゃまに なる ので 出さない） */
     if(camWidget()) R.camView(S.proj, S.time, l ? l.id : null);
+  }
+
+  /* えらんで いる レイヤーの ✂ マスクの 形を 点線で 出す。
+     出して おかないと、どこを ぬいたのか あとで わからない。 */
+  function drawMask(l){
+    const m = l.mask;
+    if(!m || m.on === false || !m.pts || m.pts.length < 3) return;
+    const pose = poses[l.id];
+    if(!pose) return;
+
+    let pts;
+    if(isFolder(l)){
+      pts = m.pts;                                  // 画面の ざひょう そのまま
+    } else {
+      const a = frameAsset(l, pose.v.frame);
+      if(!a) return;
+      const pvx = (l.pivot && l.pivot.x != null) ? l.pivot.x : 0.5;
+      const pvy = (l.pivot && l.pivot.y != null) ? l.pivot.y : 0.5;
+      pts = m.pts.map(p => M.apply(pose.m, p.x - a.w * pvx, p.y - a.h * pvy));
+    }
+
+    const z = S.view.z;
+    ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.setLineDash([8 / z, 6 / z]);
+    ctx.lineWidth = 3 / z;
+    ctx.strokeStyle = 'rgba(255,254,247,.9)';
+    ctx.stroke();
+    ctx.lineWidth = 1.5 / z;
+    ctx.strokeStyle = '#5B7FD4';
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   /* ---------- ゆがみ・自由変形の かご ---------- */

@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=154';
-import { camOf } from '../engine/camera.js?v=154';
-import { S, frameAsset, frameImage } from '../state.js?v=154';
+         nearestFolder } from '../engine/layer.js?v=155';
+import { camOf } from '../engine/camera.js?v=155';
+import { S, frameAsset, frameImage } from '../state.js?v=155';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=154';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=154';
-import { paintCanvas } from '../engine/paint.js?v=154';
-import { panoCanvas } from '../engine/pano.js?v=154';
-import { homography, applyH } from '../engine/warp.js?v=154';
-import { drawCamView } from './camview.js?v=154';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=154';
+         meshSizeFor } from '../engine/puppet.js?v=155';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=155';
+import { paintCanvas } from '../engine/paint.js?v=155';
+import { panoCanvas } from '../engine/pano.js?v=155';
+import { homography, applyH } from '../engine/warp.js?v=155';
+import { drawCamView } from './camview.js?v=155';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=155';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -484,8 +484,11 @@ function flatMesh(w, h){
     else if(l.kind === 'pano') panoCanvas(l, pose.v);
 
     const asset = frameAsset(l, pose.v.frame);
-    const img = frameImage(l, pose.v.frame);
-    if(!asset || !img || !img.complete || !img.naturalWidth) return;
+    const img0 = frameImage(l, pose.v.frame);
+    if(!asset || !img0 || !img0.complete || !img0.naturalWidth) return;
+    /* ✂ マスクは 絵そのものを 先に ぬく。
+       こうすると ゆがみ・ピン・立体の あとにも ついて まわる。 */
+    const img = maskedImage(l, asset, img0);
     const v = pose.v;
     const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
     if(alpha <= 0) return;
@@ -629,6 +632,79 @@ function flatMesh(w, h){
   /** その レイヤーに 色の 調整・かげ・ひかり が 入って いるか */
   function hasFX(v){
     return !!colorFilter(v) || v.glowAmount > 0.004 || v.shadowAmount > 0.004;
+  }
+
+  /* ---------- ✂ マスク ----------
+
+     その レイヤー じしんに 形を かいて 切りぬく。
+     （クリップは べつの レイヤーの 形で ぬく。マスクは 自分の 形）
+
+     形は 絵の 中の ざひょうで もつ ので、レイヤーを 動かしても
+     まわしても 大きく しても、マスクは 絵に くっついて いく。
+     しかも 絵そのものを 先に ぬいて しまう ので、
+     ゆがみ・ピン・立体の あとにも ちゃんと ついて まわる。 */
+  let mkA = null, mkB = null;
+  function maskCanvas(which, w, h){
+    let c = which ? mkB : mkA;
+    if(!c){ c = document.createElement('canvas'); which ? (mkB = c) : (mkA = c); }
+    if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, w, h);
+    return c;
+  }
+
+  const maskOn = (l) => !!(l && l.mask && l.mask.on !== false
+                           && l.mask.pts && l.mask.pts.length >= 3);
+
+  /** かこった 形を ぬった 1まい（ぼかしも ここで） */
+  function maskShape(which, w, h, pts, feather){
+    const c = maskCanvas(which, w, h);
+    const g = c.getContext('2d');
+    if(feather > 0.2) g.filter = 'blur(' + feather + 'px)';
+    g.beginPath();
+    g.moveTo(pts[0].x, pts[0].y);
+    for(let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+    g.closePath();
+    g.fillStyle = '#000';
+    g.fill();
+    g.filter = 'none';
+    return c;
+  }
+
+  /** 絵を マスクで ぬいた 1まいを かえす（マスクが なければ そのまま） */
+  function maskedImage(l, asset, img){
+    if(!maskOn(l)) return img;
+    const w = Math.max(1, Math.round(asset.w)), h = Math.max(1, Math.round(asset.h));
+    const m = l.mask;
+    const key = w + 'x' + h + ':' + (m.invert ? 1 : 0) + ':' + (m.feather || 0)
+              + ':' + m.pts.length + ':' + Math.round(m.pts[0].x) + ',' + Math.round(m.pts[0].y)
+              + ':' + (l._maskSrc === img ? 1 : 0);
+    if(l._maskC && l._maskKey === key && l._maskSrc === img) return l._maskC;
+
+    const sh = maskShape(1, w, h, m.pts, (m.feather || 0));
+    const c = maskCanvas(0, w, h);
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0, w, h);
+    g.globalCompositeOperation = m.invert ? 'destination-out' : 'destination-in';
+    g.drawImage(sh, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+
+    /* つかい回しの 紙を そのまま かえすと、つぎの レイヤーで
+       うわ書きされて しまう。1まいだけ 自分の 紙に うつして おく。 */
+    if(!l._maskC){ l._maskC = document.createElement('canvas'); }
+    if(l._maskC.width !== w || l._maskC.height !== h){ l._maskC.width = w; l._maskC.height = h; }
+    const gk = l._maskC.getContext('2d');
+    gk.setTransform(1, 0, 0, 1, 0, 0);
+    gk.globalCompositeOperation = 'copy';
+    gk.drawImage(c, 0, 0);
+    gk.globalCompositeOperation = 'source-over';
+    l._maskKey = key;
+    l._maskSrc = img;
+    return l._maskC;
   }
 
   /** b を a の下に敷く */
@@ -870,6 +946,28 @@ function flatMesh(w, h){
 
     const k = Math.abs(tf[0]);
     const strokeW = (v.strokeW || 0) * k;
+
+    /* フォルダの ✂ マスクは 画面の ざひょう（アフターエフェクトの
+       プリコンポに かける マスクと 同じ）。中身は もう まとめて
+       ある ので、その紙を ぬくだけ。 */
+    if(maskOn(f)){
+      const gm = c.getContext('2d');
+      const sh = maskCanvas(1, c.width, c.height);
+      const gs = sh.getContext('2d');
+      gs.setTransform(...tf);
+      if((f.mask.feather || 0) > 0.2) gs.filter = 'blur(' + (f.mask.feather * k) + 'px)';
+      gs.beginPath();
+      gs.moveTo(f.mask.pts[0].x, f.mask.pts[0].y);
+      for(let i = 1; i < f.mask.pts.length; i++) gs.lineTo(f.mask.pts[i].x, f.mask.pts[i].y);
+      gs.closePath();
+      gs.fillStyle = '#000';
+      gs.fill();
+      gs.filter = 'none';
+      gm.setTransform(1, 0, 0, 1, 0, 0);
+      gm.globalCompositeOperation = f.mask.invert ? 'destination-out' : 'destination-in';
+      gm.drawImage(sh, 0, 0);
+      gm.globalCompositeOperation = 'source-over';
+    }
 
     /* 色の 調整は 中身ぜんぶに まとめて かかる */
     const cf = colorFilter(v);
