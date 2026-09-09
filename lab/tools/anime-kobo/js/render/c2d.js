@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=141';
-import { camOf } from '../engine/camera.js?v=141';
-import { S, frameAsset, frameImage } from '../state.js?v=141';
+         nearestFolder } from '../engine/layer.js?v=143';
+import { camOf } from '../engine/camera.js?v=143';
+import { S, frameAsset, frameImage } from '../state.js?v=143';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=141';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=141';
-import { paintCanvas } from '../engine/paint.js?v=141';
-import { panoCanvas } from '../engine/pano.js?v=141';
-import { homography, applyH } from '../engine/warp.js?v=141';
-import { drawCamView } from './camview.js?v=141';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=141';
+         meshSizeFor } from '../engine/puppet.js?v=143';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=143';
+import { paintCanvas } from '../engine/paint.js?v=143';
+import { panoCanvas } from '../engine/pano.js?v=143';
+import { homography, applyH } from '../engine/warp.js?v=143';
+import { drawCamView } from './camview.js?v=143';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=143';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -464,7 +464,7 @@ function flatMesh(w, h){
   }
 
   /** 1枚ぶん描く。塗り・ふちどり があるときだけ別紙を経由する */
-  function paint(g, l, pose, tf){
+  function paint(g, l, pose, tf, mul){
     /* おえかき・いろ の レイヤーは 絵の ファイルを 持たない。
        線の ならびから いまの 時こく ぶんの 紙を 作ってから 描く。 */
     if(l.kind === 'paint' || l.kind === 'solid') paintCanvas(l, curT);
@@ -475,7 +475,7 @@ function flatMesh(w, h){
     const img = frameImage(l, pose.v.frame);
     if(!asset || !img || !img.complete || !img.naturalWidth) return;
     const v = pose.v;
-    const alpha = Math.max(0, Math.min(1, v.opacity));
+    const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
     if(alpha <= 0) return;
 
     const tinted  = v.tintAmount > 0.001;
@@ -533,9 +533,9 @@ function flatMesh(w, h){
    * 塗り・ふちどり・ぼかし・すけ具合 を まとめて かける。
    * ＝ 中身ぜんぶを 1まいの絵として あつかう（プリコンポ）。
    */
-  function paintFolder(g, project, f, pose, poses, tf){
+  function paintFolder(g, project, f, pose, poses, tf, mul){
     const v = pose.v;
-    const alpha = Math.max(0, Math.min(1, v.opacity));
+    const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
     if(alpha <= 0) return;
 
     const kids = membersOf(project, f);
@@ -698,33 +698,71 @@ function flatMesh(w, h){
     drawDeformed(g, sheet, me, xy, 1, uv);
   }
 
+  /* この レイヤーは シャッターの あいだに 動いて いるか。
+     動いて いない ものまで ならすと、ただ 何回も 描き直すだけで
+     絵は 1ドットも 変わらない（＝ むだに 重く なる）。 */
+  function moves(l, subPoses){
+    const a = subPoses[0][l.id], b = subPoses[subPoses.length - 1][l.id];
+    if(!a || !b) return false;
+    const m1 = a.m, m2 = b.m;
+    if(Math.hypot(m2.tx - m1.tx, m2.ty - m1.ty) > 0.3) return true;
+    if(Math.abs(m2.a - m1.a) + Math.abs(m2.b - m1.b)
+     + Math.abs(m2.c - m1.c) + Math.abs(m2.d - m1.d) > 0.002) return true;
+    // 四すみ（立体）や コマの 切りかわりも「動いた」うち
+    if(!!a.quad !== !!b.quad) return true;
+    if(a.quad && b.quad){
+      for(let i = 0; i < 4; i++){
+        if(Math.hypot(b.quad[i].x - a.quad[i].x, b.quad[i].y - a.quad[i].y) > 0.3) return true;
+      }
+    }
+    return a.v.frame !== b.v.frame;
+  }
+
   /** 1まい ぶん（ふつうのレイヤーでも フォルダでも） */
   function paintNode(g, project, l, poses, tf, subPoses){
     const pose = poses[l.id];
     if(!pose) return;
 
-    /* うごきブラー … 少し前の 姿を うすく 重ねる。
-       重なるほど こく なるので、うごきが はやいほど 尾を ひく。 */
+    /* ---------- うごきブラー ----------
+
+       まえは「すこし前の 姿を うすく 何枚か 重ねる」だった。
+       それだと 1枚 1枚が 見えて しまって、ぶれでは なく
+       「ずれた 分身」に 見える。
+
+       ほんとうの カメラは、シャッターが 開いて いる あいだの
+       すがたを ぜんぶ 足して 1枚に する。
+       ここでも そうする ―― シャッターの あいだの 姿を
+       N回 とって、ぜんぶ 同じ 重さで ならす。
+
+       ならし方
+         i 枚めを 1/(i+1) の こさで 上に 重ねると、
+         そのつど「ここまでの 平均」に なる（走る平均）。
+         最後まで 行くと、ぜんぶを 同じ 重さで ならした 1枚。
+         こさも かたちも 平均されるので、すじが 出ない。
+
+       いまの 姿（止まった 絵）は 足さない。
+       足すと そこだけ くっきり のこって、また 分身に 見える。 */
     const mb = Math.max(l.mblur || 0, l._camMB || 0);
-    if(mb > 0.01 && subPoses && subPoses.length){
-      const n = subPoses.length + 1;
-      const a = 1 / n;
-      g.save();
-      for(let k = subPoses.length - 1; k >= 0; k--){
-        const ps = subPoses[k];
+    if(mb > 0.01 && subPoses && subPoses.length > 1 && moves(l, subPoses)){
+      const c = alloc(), gx = c.getContext('2d');
+      let n = 0;
+      for(const ps of subPoses){
         const p2 = ps[l.id];
-        if(!p2) continue;
-        // 古い姿ほど うすく（mb が 大きいほど 尾が のこる）
-        const fade = a * (0.35 + 0.65 * mb);
-        g.globalAlpha = fade;
-        if(isFolder(l)) paintFolder(g, project, l, p2, ps, tf);
-        else paint(g, l, p2, tf);
+        if(!p2 || p2.vis === false) continue;
+        n++;
+        gx.save();
+        gx.setTransform(...tf);
+        if(isFolder(l)) paintFolder(gx, project, l, p2, ps, tf, 1 / n);
+        else paint(gx, l, p2, tf, 1 / n);
+        gx.restore();
       }
-      g.globalAlpha = 1 - a * (0.35 + 0.65 * mb) * subPoses.length;
-      if(g.globalAlpha < 0.15) g.globalAlpha = 0.15;
-      if(isFolder(l)) paintFolder(g, project, l, pose, poses, tf);
-      else paint(g, l, pose, tf);
-      g.restore();
+      if(n){
+        g.save();
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.drawImage(c, 0, 0);
+        g.restore();
+      }
+      back(1);
       return;
     }
 
@@ -778,8 +816,6 @@ function flatMesh(w, h){
    * ならんだものを 奥から手前へ描く。
    * クリップは 同じ入れ物の中だけで はたらく。
    */
-  const MB_STEPS = 6;                 // 何回 重ねるか
-
   function drawNodes(g, project, nodes, poses, tf, subPoses){
     const W = canvas.width, H = canvas.height;
     const shown = (l) => l.visible && poses[l.id] && poses[l.id].vis !== false;
@@ -866,14 +902,51 @@ function flatMesh(w, h){
     let subPoses = null;
     if(blurLayers.length && !opts.noMotionBlur){
       /* シャッターが 開いている 長さ。
-         きっちり 1コマぶん だと ほんの少ししか ぶれないので、
-         つよさに 合わせて 長めに とる（見て わかる ように）。 */
+         ほんとうの カメラは 1コマの 半分ぐらい（180°）。
+         ここは 絵の 見え方 なので、つよさで 長さを かえられる ように した。 */
       const mb = Math.max(...blurLayers.map(l => Math.max(l.mblur || 0, l._camMB || 0)));
-      const shutter = (1 / (project.fps || 30)) * (0.6 + 3 * mb);
-      subPoses = [];
-      for(let k = 1; k < MB_STEPS; k++){
-        const t = Math.max(0, time - (k / MB_STEPS) * shutter);
-        subPoses.push(computeAll(project, t));
+      const shutter = (1 / (project.fps || 30)) * (0.5 + 2.5 * mb);
+
+      /* シャッターは いまの コマを まん中に して 開く。
+         うしろ だけ から 取ると、絵が いつも 半コマ おくれて
+         「引きずって いる」ように 見える。 */
+      const t0 = Math.max(0, time - shutter / 2);
+      const t1 = time + shutter / 2;
+
+      /* 何回 取るか。
+         ここが 少ないと「ずれた 分身」に 見える ―― すじの 正体は
+         コマ数不足。だから 画面で 何ドット 動いたかで きめる。
+         1.2ドットに 1枚 あれば 目には つながって 見える。 */
+      const A = computeAll(project, t0), B = computeAll(project, t1);
+      const k = Math.abs(tf[0]);
+      let move = 0;
+      for(const l of blurLayers){
+        const a = A[l.id], b = B[l.id];
+        if(!a || !b) continue;
+        // 場所の ずれ
+        let d = Math.hypot(b.m.tx - a.m.tx, b.m.ty - a.m.ty);
+        // まわった・大きさが 変わった ぶんは、絵の はしの 動きで みる
+        const asset = frameAsset(l, a.v.frame);
+        if(asset){
+          const ca = cornersOf(l, a.m, asset), cb = cornersOf(l, b.m, asset);
+          if(ca && cb) for(let i = 0; i < 4; i++){
+            d = Math.max(d, Math.hypot(cb[i].x - ca[i].x, cb[i].y - ca[i].y));
+          }
+        }
+        move = Math.max(move, d * k);
+      }
+
+      /* ほとんど 動いて いない ものは ぶらさない。
+         止まって いる 絵まで うすく なると、ただ ぼけただけに 見える。 */
+      if(move > 0.8){
+        const cap = opts.forExport ? 48 : 24;
+        const n = Math.max(4, Math.min(cap, Math.ceil(move / 1.2)));
+        subPoses = [];
+        for(let i = 0; i < n; i++){
+          // ます目の まん中で 取る（はしで 取ると 片がわに かたよる）
+          const u = (i + 0.5) / n;
+          subPoses.push(computeAll(project, t0 + (t1 - t0) * u));
+        }
       }
     }
 
