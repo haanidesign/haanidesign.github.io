@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=155';
-import { cleanPath } from '../engine/path.js?v=155';
+import { M, clamp } from '../engine/math.js?v=156';
+import { cleanPath } from '../engine/path.js?v=156';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=155';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=155';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=155';
+         keepChildren, cornersOf } from '../engine/layer.js?v=156';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=156';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=156';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=155';
-import { createRenderer } from '../render/renderer.js?v=155';
-import { attachInput } from './input.js?v=155';
-import { newStroke, paintDirty } from '../engine/paint.js?v=155';
+         bendChain } from '../engine/puppet.js?v=156';
+import { createRenderer } from '../render/renderer.js?v=156';
+import { attachInput } from './input.js?v=156';
+import { newStroke, paintDirty } from '../engine/paint.js?v=156';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=155';
+         copyPts, setPts } from '../engine/warp.js?v=156';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=155';
-import { inCamView } from '../render/camview.js?v=155';
-import { ORBIT_MAX } from '../engine/camera.js?v=155';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=156';
+import { inCamView } from '../render/camview.js?v=156';
+import { ORBIT_MAX } from '../engine/camera.js?v=156';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -108,6 +108,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     }
     if(S.warpMode && l) drawCage(l);
     if(l) drawMask(l);
+    if(isCam(l)) drawCamPath(l);
     if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
     /* カメラが ある あいだは、そとから 見た 図を すみに 出す。
@@ -115,6 +116,86 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
        カメラの 行を えらんで いなくても つかえる ように して ある。
        （お絵かき中・ゆがみ中 は 絵の じゃまに なる ので 出さない） */
     if(camWidget()) R.camView(S.proj, S.time, l ? l.id : null);
+  }
+
+  /* ---------- 🎥 カメラの みち ----------
+
+     カメラは 絵に 出ない ので、ピンを うっても
+     「どこを どう 通るのか」が まったく 見えなかった。
+     えらんで いる あいだ、通り道と ピンの 点を 出す。
+     点は つまんで 動かせる（ピンの 場所を 直に なおせる）。
+
+     出す のは よこ・たての 通り道。前後（ドリー）は
+     右上の のぞき窓の ほうで 見える。 */
+  function camPinTimes(cam){
+    const tr = cam.tracks || {};
+    const set = new Set();
+    ['x', 'y'].forEach(ch => (tr[ch] || []).forEach(k => set.add(+k.t.toFixed(3))));
+    return [...set].sort((a, b) => a - b);
+  }
+
+  function camPathPts(cam){
+    const ts = camPinTimes(cam);
+    if(ts.length < 2) return null;
+    const a = ts[0], b = ts[ts.length - 1];
+    const n = Math.max(24, Math.min(160, Math.round((b - a) * 30)));
+    const out = [];
+    for(let i = 0; i <= n; i++){
+      const t = a + (b - a) * (i / n);
+      const v = valuesAt(cam, t);
+      out.push({ x: v.x, y: v.y });
+    }
+    return out;
+  }
+
+  function drawCamPath(cam){
+    const line = camPathPts(cam);
+    if(!line) return;
+    const ctx = R.ctx, z = S.view.z;
+    ctx.save();
+    ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+
+    ctx.beginPath();
+    ctx.moveTo(line[0].x, line[0].y);
+    for(let i = 1; i < line.length; i++) ctx.lineTo(line[i].x, line[i].y);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 6 / z; ctx.strokeStyle = 'rgba(30,28,20,.35)'; ctx.stroke();
+    ctx.setLineDash([10 / z, 7 / z]);
+    ctx.lineWidth = 2.5 / z; ctx.strokeStyle = '#E1DD60'; ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ピンの 点。いまの 時こくに いちばん 近い ものは 大きく
+    const ts = camPinTimes(cam);
+    ts.forEach(t => {
+      const v = valuesAt(cam, t);
+      const now = Math.abs(t - S.time) < 0.05;
+      const r = (now ? 11 : 8) / z;
+      ctx.beginPath(); ctx.arc(v.x, v.y, r, 0, 7);
+      ctx.fillStyle = now ? '#F2A0B8' : '#E1DD60';
+      ctx.fill();
+      ctx.lineWidth = 3 / z; ctx.strokeStyle = '#FFFEF7'; ctx.stroke();
+      ctx.lineWidth = 1.6 / z; ctx.strokeStyle = '#1E1C14'; ctx.stroke();
+    });
+
+    // いま カメラが いる ところ
+    const vc = valuesAt(cam, S.time);
+    ctx.beginPath();
+    ctx.moveTo(vc.x - 16 / z, vc.y); ctx.lineTo(vc.x + 16 / z, vc.y);
+    ctx.moveTo(vc.x, vc.y - 16 / z); ctx.lineTo(vc.x, vc.y + 16 / z);
+    ctx.lineWidth = 4 / z; ctx.strokeStyle = '#FFFEF7'; ctx.stroke();
+    ctx.lineWidth = 2 / z; ctx.strokeStyle = '#1E1C14'; ctx.stroke();
+    ctx.restore();
+  }
+
+  /** カメラの みちの 点を つまんだか（キャンバスざひょう） */
+  function hitCamPin(cam, cp){
+    const r = 20 / S.view.z;
+    const ts = camPinTimes(cam);
+    for(const t of ts){
+      const v = valuesAt(cam, t);
+      if(Math.hypot(cp.x - v.x, cp.y - v.y) < r) return t;
+    }
+    return null;
   }
 
   /* えらんで いる レイヤーの ✂ マスクの 形を 点線で 出す。
@@ -136,7 +217,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       pts = m.pts.map(p => M.apply(pose.m, p.x - a.w * pvx, p.y - a.h * pvy));
     }
 
-    const z = S.view.z;
+    const ctx = R.ctx, z = S.view.z;
     ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
@@ -694,6 +775,18 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       /* のぞき窓の 中を なぞったら、カメラが まわりこむ。
          ここは 画面の すみに 出して いる 別の 図 なので、
          絵の ざひょう（cp）では なく 生の ドット（p）で 見る。 */
+      /* カメラの みちの 点を つまむ。のぞき窓より 先に 見る と
+         窓の 下に かくれた 点が つかめなく なる ので、窓の あとで。 */
+      if(isCam(l) && !onCamWidget(p)){
+        const t = hitCamPin(l, cp);
+        if(t != null){
+          beginEdit('カメラの ピンを うごかす');
+          const v0 = valuesAt(l, t);
+          drag = { kind:'campin', l, t, cp0: cp, x0: v0.x, y0: v0.y };
+          return;
+        }
+      }
+
       if(onCamWidget(p)){
         const cam = camWidget();
         beginEdit('カメラを まわす');
@@ -960,6 +1053,19 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         return;
       }
 
+      if(drag.kind === 'campin'){
+        const l = drag.l;
+        const nx = drag.x0 + (cp.x - drag.cp0.x);
+        const ny = drag.y0 + (cp.y - drag.cp0.y);
+        setPin(l, 'x', drag.t, nx, 'smooth');
+        setPin(l, 'y', drag.t, ny, 'smooth');
+        /* いま その 時こくを 見て いるなら、素の 姿も そろえて おく
+           （ピンが 1本も 無い ところで 見た目が とばない ように） */
+        if(Math.abs(drag.t - S.time) < 0.05){ l.x = nx; l.y = ny; }
+        onChange();
+        return;
+      }
+
       if(drag.kind === 'tilt'){
         const l = drag.l;
         const dpr = Math.max(1, canvas.width / Math.max(1, canvas.clientWidth || canvas.width));
@@ -1075,7 +1181,8 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
            いまの時間のピンとして残す（ピンが1つも無いうちは素の位置を変えるだけ）。 */
         const l = drag.l;
         if(l && hasPins(l)){
-          const chs = drag.kind === 'move'  ? ['x','y']
+          const chs = drag.kind === 'campin' ? []
+                    : drag.kind === 'move'  ? ['x','y']
                     : drag.kind === 'scale' ? ['scaleX','scaleY']
                     : drag.kind === 'rotate'? ['rot']
                     : (drag.kind === 'camorbit' || drag.kind === 'tilt') ? ['rx','ry'] : [];

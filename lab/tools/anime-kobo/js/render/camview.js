@@ -15,8 +15,8 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         withShake } from '../engine/camera.js?v=155';
-import { valuesAt } from '../engine/anim.js?v=155';
+         withShake } from '../engine/camera.js?v=156';
+import { valuesAt } from '../engine/anim.js?v=156';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -168,6 +168,47 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     g.lineWidth = (on ? 2 : 1.2) * r.dpr;
     g.stroke();
   }
+
+  /* ---- カメラの 通り道（前後の 動きも 見える）----
+     絵の 上に 出る 道は よこ・たてだけ。ここでは ドリー（前後）も
+     入れた 道が 見える ので、寄りながら 流す ような 動きが つかめる。 */
+  (function(){
+    const tr = cam.tracks || {};
+    const set = new Set();
+    ['x', 'y', 'z'].forEach(ch => (tr[ch] || []).forEach(k => set.add(+k.t.toFixed(3))));
+    const ts = [...set].sort((a, b) => a - b);
+    if(ts.length < 2) return;
+    const t0 = ts[0], t1 = ts[ts.length - 1];
+    const at = (t) => {
+      const w = withShake(valuesAt(cam, t), cam, t, project);
+      const zoom = w.scaleX || 1;
+      return P((w.x || 0) - cx, (w.y || 0) - cy, -CAM_F / zoom + camDolly(w));
+    };
+    const n = 40;
+    g.beginPath();
+    for(let i = 0; i <= n; i++){
+      const q = at(t0 + (t1 - t0) * (i / n));
+      i ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y);
+    }
+    g.strokeStyle = 'rgba(30,28,20,.35)';
+    g.lineWidth = 3 * r.dpr;
+    g.stroke();
+    g.setLineDash([4 * r.dpr, 3 * r.dpr]);
+    g.strokeStyle = '#E1DD60';
+    g.lineWidth = 1.6 * r.dpr;
+    g.stroke();
+    g.setLineDash([]);
+    ts.forEach(t => {
+      const q = at(t);
+      g.beginPath();
+      g.arc(q.x, q.y, (Math.abs(t - time) < 0.05 ? 3.4 : 2.4) * r.dpr, 0, Math.PI * 2);
+      g.fillStyle = Math.abs(t - time) < 0.05 ? '#F2A0B8' : '#E1DD60';
+      g.fill();
+      g.strokeStyle = '#1E1C14';
+      g.lineWidth = 1 * r.dpr;
+      g.stroke();
+    });
+  })();
 
   /* ---- カメラ本体と、見えている はんい ---- */
   const cX = (camV.x || 0) - cx, cY = (camV.y || 0) - cy;
