@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=148';
+import { M } from './math.js?v=152';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -347,14 +347,24 @@ export function quadFromM(l, v, a, m, project, camV){
  * 中身の 場所（フォルダの よこ・たて・大きさ・かたむき）は
  * すでに 紙の 中に 描かれて いる ので、ここでは かけない。
  */
-export function sheetQuad3D(l, v, project, camV){
+export function sheetQuad3D(l, v, project, camV, rect){
   const cx = project.w / 2, cy = project.h / 2;
   const zc = depthLen(v);
-  const corners = [{x:-cx,y:-cy}, {x:cx,y:-cy}, {x:cx,y:cy}, {x:-cx,y:cy}];
+  /* 紙の 大きさ。中身を かこむ しかくを もらえたら それを つかう。
+     キャンバスぜんぶ だと、たおした とき 紙の はしが
+     カメラより 手前に つき出て しまって、うつせなく なる
+     （1080x1920 を 60度 たおすと 831ドットも 手前に 出る）。 */
+  const r = rect || { x0: 0, y0: 0, x1: project.w, y1: project.h };
+  const corners = [
+    { x: r.x0 - cx, y: r.y0 - cy }, { x: r.x1 - cx, y: r.y0 - cy },
+    { x: r.x1 - cx, y: r.y1 - cy }, { x: r.x0 - cx, y: r.y1 - cy }
+  ];
+  /* まわる じくは 紙の まん中 */
+  const mx = (r.x0 + r.x1) / 2 - cx, my = (r.y0 + r.y1) / 2 - cy;
   const out = [];
   for(const c of corners){
-    const r = rot3({ x: c.x, y: c.y, z: 0 }, v.rx || 0, v.ry || 0, 0);
-    const q = project3(r.x, r.y, zc + r.z, camV, cx, cy);
+    const t = rot3({ x: c.x - mx, y: c.y - my, z: 0 }, v.rx || 0, v.ry || 0, 0);
+    const q = project3(mx + t.x, my + t.y, zc + t.z, camV, cx, cy);
     if(!q) return null;
     out.push({ x: q.x, y: q.y });
   }

@@ -3,10 +3,10 @@
    こうすると、動かす・回す・塗る・ぼかす・ピンで曲げる が
    絵とまったく同じしくみで効く。文字を変えたら描き直すだけ。 */
 
-import { S, addAsset } from '../state.js?v=148';
-import { newLayer, groupInto } from '../engine/layer.js?v=148';
-import { M } from '../engine/math.js?v=148';
-import { loadImage } from './image.js?v=148';
+import { S, addAsset } from '../state.js?v=152';
+import { newLayer, groupInto } from '../engine/layer.js?v=152';
+import { M } from '../engine/math.js?v=152';
+import { loadImage } from './image.js?v=152';
 
 export const FONTS = [
   { key:'rounded', label:'まるゴシック', css:"'M PLUS Rounded 1c', sans-serif" },

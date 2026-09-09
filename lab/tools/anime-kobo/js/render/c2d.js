@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=148';
-import { camOf } from '../engine/camera.js?v=148';
-import { S, frameAsset, frameImage } from '../state.js?v=148';
+         nearestFolder } from '../engine/layer.js?v=152';
+import { camOf } from '../engine/camera.js?v=152';
+import { S, frameAsset, frameImage } from '../state.js?v=152';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=148';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=148';
-import { paintCanvas } from '../engine/paint.js?v=148';
-import { panoCanvas } from '../engine/pano.js?v=148';
-import { homography, applyH } from '../engine/warp.js?v=148';
-import { drawCamView } from './camview.js?v=148';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=148';
+         meshSizeFor } from '../engine/puppet.js?v=152';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=152';
+import { paintCanvas } from '../engine/paint.js?v=152';
+import { panoCanvas } from '../engine/pano.js?v=152';
+import { homography, applyH } from '../engine/warp.js?v=152';
+import { drawCamView } from './camview.js?v=152';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=152';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -370,9 +370,13 @@ function flatMesh(w, h){
     return c;
   }
 
-  function outline(src, px, color){
-    const w = Math.max(2, Math.ceil(canvas.width / OUT_K));
-    const h = Math.max(2, Math.ceil(canvas.height / OUT_K));
+  function outline(src, px, color, outW, outH){
+    /* 出す 紙の 大きさ。ふつうは 画面と 同じ。
+       立体に した フォルダは 中身の 大きさの 紙に 焼く ので、
+       その 大きさを もらう。 */
+    const ow = outW || canvas.width, oh = outH || canvas.height;
+    const w = Math.max(2, Math.ceil(ow / OUT_K));
+    const h = Math.max(2, Math.ceil(oh / OUT_K));
 
     /* 何回に わけて 太らせるか。
        重ねるたびに ふちが ほんの少し 外へ にじむので、
@@ -426,16 +430,24 @@ function flatMesh(w, h){
     dg.fillRect(0, 0, w, h);
     dg.globalCompositeOperation = 'source-over';
 
-    const c = scratch(91), g = c.getContext('2d');
+    const c = (outW ? outCanvas(ow, oh) : scratch(91)), g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
     g.filter = 'none';
-    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.clearRect(0, 0, ow, oh);
     g.imageSmoothingQuality = 'high';
-    g.drawImage(done, 0, 0, canvas.width, canvas.height);
+    g.drawImage(done, 0, 0, ow, oh);
     firmEdge(c);
     return c;
+  }
+
+  /* ふちどりを 出す ための、大きさ じゆうの 紙 */
+  let outC = null;
+  function outCanvas(w, h){
+    if(!outC) outC = document.createElement('canvas');
+    if(outC.width !== w || outC.height !== h){ outC.width = w; outC.height = h; }
+    return outC;
   }
 
   /* ふちを くっきり させる。
@@ -533,7 +545,88 @@ function flatMesh(w, h){
    * 塗り・ふちどり・ぼかし・すけ具合 を まとめて かける。
    * ＝ 中身ぜんぶを 1まいの絵として あつかう（プリコンポ）。
    */
+  /* 立体に した フォルダ 1つぶん。
+
+     ふつうの フォルダは、中身を「画面と 同じ 大きさの 紙」に まとめて
+     から 出す。でも 立体に する ときは、中身に カメラを かけずに
+     まとめる ので、中で 大きく した 絵は 画面の そとへ はみ出す。
+     画面の 大きさの 紙に まとめると、その はみ出た ぶんが
+     まとめる 時点で 切れて しまい、あとで カメラを 引いても
+     もう 出て こない。
+
+     そこで、中身が おさまる 大きさの 紙を 用意して そこに まとめる。
+     どんなに 大きく しても 切れない。
+     （あまり 大きいと 重い ので、4096ドットで 頭うちに して
+       そのぶん あらく 焼く。貼る ときに ひきのばすので 見た目は 同じ） */
+  let sheetC = null;
+  function sheetCanvas(w, h){
+    if(!sheetC) sheetC = document.createElement('canvas');
+    if(sheetC.width !== w || sheetC.height !== h){ sheetC.width = w; sheetC.height = h; }
+    const g = sheetC.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, w, h);
+    return sheetC;
+  }
+
+  function paintFolder3D(g, project, f, pose, poses, tf, mul){
+    const v = pose.v;
+    const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
+    if(alpha <= 0) return;
+    const kids = membersOf(project, f);
+    if(!kids.length) return;
+
+    const r = pose.sheetRect || { x0: 0, y0: 0, x1: project.w, y1: project.h };
+    const rw = Math.max(1, r.x1 - r.x0), rh = Math.max(1, r.y1 - r.y0);
+    const k0 = Math.abs(tf[0]);
+    const CAP = 4096;
+    const k = Math.min(k0, CAP / Math.max(rw, rh));      // 焼く こまかさ
+    const bw = Math.max(1, Math.round(rw * k));
+    const bh = Math.max(1, Math.round(rh * k));
+
+    const c = sheetCanvas(bw, bh);
+    const gx = c.getContext('2d');
+    const tf2 = [k, 0, 0, k, -r.x0 * k, -r.y0 * k];
+    gx.setTransform(...tf2);
+    drawNodes(gx, project, kids, poses, tf2);
+
+    if(v.tintAmount > 0.001){
+      gx.setTransform(1, 0, 0, 1, 0, 0);
+      gx.globalCompositeOperation = 'source-atop';
+      gx.globalAlpha = Math.min(1, v.tintAmount);
+      gx.fillStyle = v.tintColor || '#F2A0B8';
+      gx.fillRect(0, 0, bw, bh);
+      gx.globalCompositeOperation = 'source-over';
+      gx.globalAlpha = 1;
+    }
+
+    // ふちどりは 絵の「下」に 敷く（うすい ときに 中まで 透けない ため）
+    const strokeW = (v.strokeW || 0) * k;
+    if(strokeW > 0.4){
+      const ol = outline(c, strokeW, v.strokeColor || '#FFFEF7', bw, bh);
+      const gu = c.getContext('2d');
+      gu.setTransform(1, 0, 0, 1, 0, 0);
+      gu.globalAlpha = 1;
+      gu.globalCompositeOperation = 'destination-over';
+      gu.drawImage(ol, 0, 0);
+      gu.globalCompositeOperation = 'source-over';
+    }
+
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = alpha;
+    if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k0) + 'px)';
+    sheet3D(g, c, project, pose.quad, tf, r, bw, bh);
+    g.filter = 'none';
+    g.restore();
+  }
+
   function paintFolder(g, project, f, pose, poses, tf, mul){
+    /* 立体に なって いる フォルダは、紙の 作り方から ちがう */
+    if(pose.quad) return paintFolder3D(g, project, f, pose, poses, tf, mul);
+
     const v = pose.v;
     const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
     if(alpha <= 0) return;
@@ -667,8 +760,7 @@ function flatMesh(w, h){
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
     if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k) + 'px)';
-    if(pose.quad) sheet3D(g, c, project, pose.quad, tf);
-    else g.drawImage(c, 0, 0);
+    g.drawImage(c, 0, 0);
     g.filter = 'none';
     g.restore();
     back(1);
@@ -678,19 +770,22 @@ function flatMesh(w, h){
      まとめた 紙は「キャンバスぜんたい」が うつって いる ので、
      キャンバスの しかく → 四すみ の ホモグラフィで はり直せば いい。
      g は へんかん なし（画面の 生の ドット）で わたす。 */
-  function sheet3D(g, sheet, project, quad, tf){
-    const W = project.w, H = project.h;
+  function sheet3D(g, sheet, project, quad, tf, rect, bw, bh){
+    /* 板に する ところ（キャンバスの ものさし）と、
+       それを 焼いた 紙の 大きさ（ドット）。 */
+    const r = rect || { x0: 0, y0: 0, x1: project.w, y1: project.h };
+    const W = r.x1 - r.x0, H = r.y1 - r.y0;
     const me = flatMesh(W, H);
     const n = me.verts.length;
     const H3 = homography(
       [{x:0,y:0}, {x:W,y:0}, {x:W,y:H}, {x:0,y:H}], quad);
 
-    const uv = new Float32Array(n * 2);   // 紙の どこを はるか（生の ドット）
-    const xy = new Float32Array(n * 2);   // どこへ はるか（生の ドット）
+    const uv = new Float32Array(n * 2);   // 紙の どこを はるか（紙の ドット）
+    const xy = new Float32Array(n * 2);   // どこへ はるか（画面の 生の ドット）
     for(let i = 0; i < n; i++){
       const u = me.verts[i].u, vv = me.verts[i].v;
-      uv[i*2]   = u  * tf[0] + tf[4];
-      uv[i*2+1] = vv * tf[3] + tf[5];
+      uv[i*2]   = u  / W * bw;
+      uv[i*2+1] = vv / H * bh;
       const q = applyH(H3, u, vv);
       xy[i*2]   = q.x * tf[0] + tf[4];
       xy[i*2+1] = q.y * tf[3] + tf[5];

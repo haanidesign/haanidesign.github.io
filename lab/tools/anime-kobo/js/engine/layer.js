@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=148';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=148';
+import { M, uid, ptInQuad } from './math.js?v=152';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=152';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=148';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=148';
-import { cageDeformPoint, cageMoved } from './warp.js?v=148';
-import { handTime } from './hand.js?v=148';
-import { WORK_KEYS } from '../state.js?v=148';
+         withShake } from './camera.js?v=152';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=152';
+import { cageDeformPoint, cageMoved } from './warp.js?v=152';
+import { handTime } from './hand.js?v=152';
+import { WORK_KEYS } from '../state.js?v=152';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -160,6 +160,7 @@ export function computeAll(project, time){
 
   const out = {};
   const solving = {};
+  const sheetOf = {};                 // 立体に する フォルダ（あとで 紙の 大きさを きめる）
 
   /* パラパラフォルダは「いま どの コマを 見せるか」を
      フォルダ 1つにつき 1回だけ 出す（毎まい 数え直すと 重い） */
@@ -249,7 +250,9 @@ export function computeAll(project, time){
     /* フォルダは 中身を 1まいの 紙に まとめて から 出す。
        カメラが まわりこんで いる（または フォルダ自身を たおして いる）
        ときは、その 紙ごと 立体に する（下の sheet）。 */
-    const sheet3D = takesCam && !p && isFolder(l)
+    /* カメラが なくても、フォルダ自身を たおして あれば 立体に する
+       （ふつうの レイヤーと 同じ。カメラは あれば いっしょに かかる）。 */
+    const sheet3D = !p && !isCam(l) && isFolder(l) && !collapsed
                     && (orbit || is3D(v)) && membersOf(project, l).length > 0;
 
     const mNoCam = m;                             // カメラを かける まえの 姿
@@ -302,8 +305,10 @@ export function computeAll(project, time){
     const mine = !p || free;
     let quad = null;
     if(sheet3D){
-      /* まとめた 紙ぜんたいを 立体に する（フォルダ） */
+      /* まとめた 紙ぜんたいを 立体に する（フォルダ）。
+         紙の 大きさは あとで 中身から きめ直す（下の しあげ）。 */
       quad = sheetQuad3D(l, v3, project, camV);
+      sheetOf[l.id] = { v: v3, camV };
     } else if((is3D(v3) || orbit) && !isCam(l) && mine && !p){
       const a = assetOf(project, l, v.frame);
       if(a) quad = quad3D(l, v3, a, project, camV);
@@ -329,6 +334,48 @@ export function computeAll(project, time){
   };
 
   project.layers.forEach(solve);
+
+  /* ---- しあげ: 立体に した フォルダの 紙を、中身に 合わせて ちぢめる ----
+
+     中身は キャンバスぜんぶの 紙に まとめて 出す ので、
+     はじめは キャンバスと 同じ 大きさの 板として うつして いた。
+     でも それだと、たおした とき 板の はしが カメラより 手前に
+     つき出て しまい、うつせなく なる（60度で 831ドットも 手前）。
+
+     中身を かこむ しかく だけを 板に すれば、その ぶん
+     つき出さない ので、ふかく たおしても だいじょうぶ。
+     まわる じくも 中身の まん中に なって、思ったとおりに 動く。
+
+     中身の 姿は もう 出て いる（カメラは かかって いない）ので、
+     ここで かこむ しかくが 出せる。 */
+  for(const id of Object.keys(sheetOf)){
+    const f = byId[id];
+    const po = out[id];
+    if(!f || !po) continue;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for(const k of membersOf(project, f)){
+      const kp = out[k.id];
+      if(!kp || kp.vis === false) continue;
+      const a = assetOf(project, k, kp.v.frame);
+      if(!a) continue;
+      const c = cornersOf(k, kp.m, a);
+      if(!c) continue;
+      for(const q of c){
+        x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
+        x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+      }
+    }
+    if(!isFinite(x0) || x1 - x0 < 1 || y1 - y0 < 1) continue;
+    /* ふちどり・ぼかしは 絵の そとへ ひろがる ので、その ぶんの
+       あきを 紙に 持たせる。ぴったりだと ふちが 出る ところが
+       無くて、ふちどりが まるごと 消えて しまう。 */
+    const sv = sheetOf[id].v;
+    const pad = (sv.strokeW || 0) + (sv.blur || 0) * 3 + 2;
+    const rect = { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
+    const q = sheetQuad3D(f, sheetOf[id].v, project, sheetOf[id].camV, rect);
+    if(q){ po.quad = q; po.sheetRect = rect; }
+  }
+
   return out;
 }
 

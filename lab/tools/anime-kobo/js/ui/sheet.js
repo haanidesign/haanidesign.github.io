@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=148';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=152';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=148';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=152';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=148';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=148';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=148';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=148';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=148';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=152';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=152';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=152';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=152';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=152';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=148';
+         addTextLayer } from '../io/text.js?v=152';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=148';
-import { PATTERN_NAMES } from '../io/pattern.js?v=148';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=152';
+import { PATTERN_NAMES } from '../io/pattern.js?v=152';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=148';
-import { readAsDataURL, loadImage } from '../io/image.js?v=148';
+         PITCH_MAX } from '../engine/pano.js?v=152';
+import { readAsDataURL, loadImage } from '../io/image.js?v=152';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=148';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=148';
-import { newHand } from '../engine/hand.js?v=148';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=148';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=152';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=152';
+import { newHand } from '../engine/hand.js?v=152';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=152';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=148';
+  from './colorwheel.js?v=152';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=148';
+         guessBpm, firstOnset } from '../io/audio.js?v=152';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=148';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=152';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -465,6 +465,7 @@ let notify = () => {};
 export function setNotifier(fn){ notify = fn; }
 
 export function buildLayerSheet(box, closeFn){
+  const NL = String.fromCharCode(10);
   const l = selected();
   if(!l){
     const p = document.createElement('div');
@@ -532,6 +533,13 @@ export function buildLayerSheet(box, closeFn){
     /* ---- バラで 動かす（AEの コラップス）----
        ふだん フォルダは 中身を 1まいの 紙に まとめて 出す。
        それを やめて、中身 1まい 1まいを カメラに 直に 見せる。 */
+    /* 立体・おくゆきは フォルダにも きく。
+       まとめた 1まいの 紙を、おくゆきの ところに 立てて うつす
+       （camera.js の sheetQuad3D）ので、
+       ふつうの レイヤーと 同じ 手ざわりで たおせる。 */
+    tiltRow(box, l);
+    depthRow(box, l);
+
     box.appendChild(heading('🎥 カメラと おくゆき'));
     const col = !!l.collapse;
     box.appendChild(btnRow(
