@@ -3,10 +3,10 @@
    こうすると、動かす・回す・塗る・ぼかす・ピンで曲げる が
    絵とまったく同じしくみで効く。文字を変えたら描き直すだけ。 */
 
-import { S, addAsset } from '../state.js?v=146';
-import { newLayer } from '../engine/layer.js?v=146';
-import { M } from '../engine/math.js?v=146';
-import { loadImage } from './image.js?v=146';
+import { S, addAsset } from '../state.js?v=147';
+import { newLayer, groupInto } from '../engine/layer.js?v=147';
+import { M } from '../engine/math.js?v=147';
+import { loadImage } from './image.js?v=147';
 
 export const FONTS = [
   { key:'rounded', label:'まるゴシック', css:"'M PLUS Rounded 1c', sans-serif" },
@@ -203,5 +203,15 @@ export async function splitTextChars(layer){
   S.proj.layers.splice(at < 0 ? 0 : at, 0, ...made);
   layer.visible = false;
   if(!/もと$/.test(layer.name)) layer.name = layer.name + '（もと）';
-  return made;
+
+  /* ばらした 字は 1つの フォルダに まとめる。
+     タイムラインが 1字 1行に なって しまうと ながすぎる ので、
+     たたんで おける ように する。
+     元の 文（見えなく した もの）も いっしょに 入れて、
+     その 文に かんする ものを 1つの ふくろに まとめる。 */
+  const folder = groupInto(S.proj, [...made.map(m => m.id), layer.id],
+                           S.time, shortName(t.str));
+  if(folder) folder.open = false;          // はじめは たたんで おく
+
+  return { chars: made, folder };
 }

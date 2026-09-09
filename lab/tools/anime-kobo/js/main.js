@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=146';
+import { M } from './engine/math.js?v=147';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=146';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=147';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=146';
-import { createStage } from './ui/stage.js?v=146';
-import { createRenderer } from './render/renderer.js?v=146';
-import { createTimeline } from './ui/timeline.js?v=146';
-import { fmtTime } from './engine/anim.js?v=146';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=147';
+import { createStage } from './ui/stage.js?v=147';
+import { createRenderer } from './render/renderer.js?v=147';
+import { createTimeline } from './ui/timeline.js?v=147';
+import { fmtTime } from './engine/anim.js?v=147';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener,
-         setWarper } from './ui/sheet.js?v=146';
+         setWarper } from './ui/sheet.js?v=147';
 
-import { showNewDoc } from './ui/newdoc.js?v=146';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=146';
-import { fitToCanvas, isBg } from './io/bg.js?v=146';
-import * as Audio from './io/audio.js?v=146';
+import { showNewDoc } from './ui/newdoc.js?v=147';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=147';
+import { fitToCanvas, isBg } from './io/bg.js?v=147';
+import * as Audio from './io/audio.js?v=147';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=146';
-import { importPsd } from './io/psd.js?v=146';
-import { splitTextChars } from './io/text.js?v=146';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=147';
+import { importPsd } from './io/psd.js?v=147';
+import { splitTextChars } from './io/text.js?v=147';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=146';
-import { pathKeys } from './engine/path.js?v=146';
-import { paintDirty } from './engine/paint.js?v=146';
+         canUseWebCodecs } from './io/export.js?v=147';
+import { pathKeys, pathLength } from './engine/path.js?v=147';
+import { paintDirty } from './engine/paint.js?v=147';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=146';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=147';
 
 const $ = (s) => document.querySelector(s);
 
@@ -315,9 +315,15 @@ function onTraced(){
     if(train){
       const chars = train.chars;
       const n = { v: 0 };
+      /* 車間は「みちの 上で 何ドット あける か」。
+         秒で きめると、ゆっくり 走らせた とき 車間まで つまって
+         団子に なって しまう。ドットで きめれば、はやさを かえても
+         ならびは 変わらない。 */
+      const len = Math.max(1, pathLength(S.tracePts));
+      const gapSec = (opt.gapPx || 0) / len * opt.dur;
       edit('一文字ずつ みちを 走る', () => {
         chars.forEach((c, i) => {
-          const start = S.time + i * (opt.gap || 0);
+          const start = S.time + i * gapSec;
           n.v += pathKeys(c, pathForLayer(c, S.tracePts), {
             start, dur: opt.dur, ease: opt.ease, count: opt.count,
             orient: opt.orient, orientOff: opt.orientOff
@@ -332,6 +338,13 @@ function onTraced(){
           c.mblur = opt.mb || 0;
           c.noMB = !(opt.mb > 0.001);
         });
+        /* まとめた フォルダにも 同じ きまりを かける。
+           フォルダに カメラの ざんぞうが かかると、
+           中の 字の せっていは 通りこされて しまう。 */
+        if(train.folder){
+          train.folder.mblur = opt.mb || 0;
+          train.folder.noMB = !(opt.mb > 0.001);
+        }
       });
       toast(chars.length + '文字が 走ります');
       S.train = null;
@@ -363,10 +376,11 @@ setTrainer(async () => {
   const l = selected();
   if(!l || l.kind !== 'text') return toast('文字レイヤーを えらんでね');
   beginEdit('一文字ずつに わける');
-  const made = await splitTextChars(l);
+  const r = await splitTextChars(l);
+  const made = r.chars || [];
   if(!made.length){ commitEdit(); return toast('2文字いじょう ないと わけられません'); }
   commitEdit();
-  S.train = { chars: made, from: l.id };
+  S.train = { chars: made, folder: r.folder || null, from: l.id };
   S.sel = made[0].id;
   toast(made.length + '文字に わけました。みちを なぞってね');
   sheet.close();

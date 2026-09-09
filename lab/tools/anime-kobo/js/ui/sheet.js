@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=146';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=147';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=146';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=147';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=146';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=146';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=146';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=146';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=146';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=147';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=147';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=147';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=147';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=147';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=146';
+         addTextLayer } from '../io/text.js?v=147';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=146';
-import { PATTERN_NAMES } from '../io/pattern.js?v=146';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=147';
+import { PATTERN_NAMES } from '../io/pattern.js?v=147';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=146';
-import { readAsDataURL, loadImage } from '../io/image.js?v=146';
+         PITCH_MAX } from '../engine/pano.js?v=147';
+import { readAsDataURL, loadImage } from '../io/image.js?v=147';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=146';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=146';
-import { newHand } from '../engine/hand.js?v=146';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=146';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=147';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=147';
+import { newHand } from '../engine/hand.js?v=147';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=147';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=146';
+  from './colorwheel.js?v=147';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=146';
+         guessBpm, firstOnset } from '../io/audio.js?v=147';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=146';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=147';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -3474,6 +3474,21 @@ export function buildPathSheet(box, closeFn, pts, apply){
   if(P.orientOff == null) P.orientOff = 0;
   if(P.only == null) P.only = true;
   if(P.mb == null) P.mb = 0;
+  /* 車間は なぞった みちの 長さで 意味が 変わる ので、
+     なぞる たびに 見つもり直す（前の みちの 値を ひきずらない） */
+  if(P.gapFor !== (pts && pts.length) + ':' + Math.round(pathLength(pts))){
+    P.gapPx = null;
+    P.gapFor = (pts && pts.length) + ':' + Math.round(pathLength(pts));
+  }
+  /* 車間は「みちの 上で 何ドット あける か」。
+     秒で きめると、ゆっくり 走らせた とき 車間も つまって
+     文字が 団子に なって しまう。
+     はじめの 値は 字の 大きさ ＝ ちょうど つながって 見える あき。 */
+  if(train && P.gapPx == null){
+    const c0 = train.chars[0];
+    const sz = (c0.text && c0.text.size) || 100;
+    P.gapPx = Math.round(sz * (c0.scaleX == null ? 1 : c0.scaleX));
+  }
 
   const len = Math.round(pathLength(pts));
   const info = document.createElement('div');
@@ -3486,8 +3501,13 @@ export function buildPathSheet(box, closeFn, pts, apply){
       + 'みちの 長さ ' + len + 'ドット／' + P.dur.toFixed(1) + '秒'
       + '（1秒に ' + Math.round(len / Math.max(0.1, P.dur)) + 'ドット）'
       + (train
-        ? (NL + '1文字ずつ ' + P.gap.toFixed(2) + '秒 おくれて 出るので、'
-             + NL + '最後の 字が 着くのは ' + (P.dur + P.gap * (train.chars.length - 1)).toFixed(1) + '秒後')
+        ? (NL + '車間 ' + Math.round(P.gapPx || 0) + 'ドット'
+             + '（' + ((P.gapPx || 0) / Math.max(1, len) * P.dur).toFixed(2) + '秒 おくれ）'
+             + NL + '最後の 字が 着くのは '
+             + (P.dur + (P.gapPx || 0) / Math.max(1, len) * P.dur * (train.chars.length - 1)).toFixed(1) + '秒後'
+             + ((P.gapPx || 0) * (train.chars.length - 1) > len
+                ? (NL + '⚠ 車間が みちより 長いです。みちを 長く するか 車間を せまく。')
+                : ''))
         : '');
   };
   showInfo();
@@ -3579,9 +3599,9 @@ export function buildPathSheet(box, closeFn, pts, apply){
   /* ---- 列車の ときだけ 出す ---- */
   if(train){
     box.appendChild(heading('🚂 列車の きまり'));
-    box.appendChild(slider('1文字ずつの おくれ', () => P.gap,
-      v => { P.gap = v; showInfo(); }, 0, 1, 0.01,
-      v => v < 0.005 ? 'いっせいに' : v.toFixed(2) + '秒'));
+    box.appendChild(slider('車間（字と 字の あき）', () => P.gapPx,
+      v => { P.gapPx = v; showInfo(); }, 0, Math.max(200, Math.round(len)), 5,
+      v => v < 2 ? 'かさねる（いっせいに）' : Math.round(v) + 'ドット'));
 
     box.appendChild(btnRow(
       button(P.only ? '✅ 走って いる あいだだけ 出す' : '⬜ 走って いる あいだだけ 出す', () => {
@@ -3595,7 +3615,10 @@ export function buildPathSheet(box, closeFn, pts, apply){
     const bn = document.createElement('div');
     bn.className = 'empty';
     bn.style.textAlign = 'left';
-    bn.textContent = 'はやく 走らせる ほど 文字は ぶれます。' + NL
+    bn.textContent = '車間は「みちの 上の あき」なので、' + NL
+      + '何秒で 通るかを かえても ならびは くずれません。' + NL
+      + NL
+      + 'はやく 走らせる ほど 文字は ぶれます。' + NL
       + 'ぶれの 長さは「はやさ × ざんぞうの 長さ」。' + NL
       + '読ませたい ときは ざんぞうを 0 に するか、' + NL
       + '「何秒で 通る」を のばして ください。' + NL
