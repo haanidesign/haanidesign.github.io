@@ -15,8 +15,8 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         withShake } from '../engine/camera.js?v=147';
-import { valuesAt } from '../engine/anim.js?v=147';
+         withShake } from '../engine/camera.js?v=148';
+import { valuesAt } from '../engine/anim.js?v=148';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -215,7 +215,12 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
 
   g.strokeStyle = '#F2A0B8';
   g.lineWidth = 1.4 * r.dpr;
-  far.forEach(p => line(g, camP, p));
+  /* ズームを うんと 下げる（引く）と、カメラは のぞき窓の ずっと
+     そとに 立つ。そこから 4本 ひくと、窓を よこぎる 大きな ✕ に
+     なって じゃま なだけ なので、そのときは ひかない。 */
+  const camIn = camP.x > r.x - r.w && camP.x < r.x + r.w * 2
+             && camP.y > r.y - r.h && camP.y < r.y + r.h * 2;
+  if(camIn) far.forEach(p => line(g, camP, p));
   g.beginPath();
   g.moveTo(far[0].x, far[0].y);
   for(let i = 1; i < 4; i++) g.lineTo(far[i].x, far[i].y);
@@ -223,10 +228,12 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
   g.stroke();
 
   // カメラ本体
-  g.fillStyle = '#1E1C14';
-  g.beginPath();
-  g.arc(camP.x, camP.y, 4 * r.dpr, 0, Math.PI * 2);
-  g.fill();
+  if(camIn){
+    g.fillStyle = '#1E1C14';
+    g.beginPath();
+    g.arc(camP.x, camP.y, 4 * r.dpr, 0, Math.PI * 2);
+    g.fill();
+  }
 
   g.restore();
 

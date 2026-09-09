@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=147';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=148';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=147';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=148';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=147';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=147';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=147';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=147';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=147';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=148';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=148';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=148';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=148';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=148';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=147';
+         addTextLayer } from '../io/text.js?v=148';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=147';
-import { PATTERN_NAMES } from '../io/pattern.js?v=147';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=148';
+import { PATTERN_NAMES } from '../io/pattern.js?v=148';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=147';
-import { readAsDataURL, loadImage } from '../io/image.js?v=147';
+         PITCH_MAX } from '../engine/pano.js?v=148';
+import { readAsDataURL, loadImage } from '../io/image.js?v=148';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=147';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=147';
-import { newHand } from '../engine/hand.js?v=147';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=147';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=148';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=148';
+import { newHand } from '../engine/hand.js?v=148';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=148';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=147';
+  from './colorwheel.js?v=148';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=147';
+         guessBpm, firstOnset } from '../io/audio.js?v=148';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=147';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=148';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2529,6 +2529,28 @@ export function buildDocSheet(box, closeFn){
   nnote.textContent = 'さいしょの画面の ならびに この名前で 出ます。'
     + NL + 'じどうで ほぞんされるので 「ほぞん」ボタンは いりません。';
   box.appendChild(nnote);
+
+  /* ---- 枠の そと ----
+     書き出す 動画は 枠の 中だけ。作って いる あいだだけの 話。 */
+  box.appendChild(heading('枠の そと'));
+  const outOn = S.outside !== false;
+  box.appendChild(btnRow(
+    button(outOn ? '✅ 枠の そとも 見せる' : '⬜ 枠の そとも 見せる', () => {
+      S.outside = !outOn;
+      notify(outOn ? '枠の 中だけ 見せます' : '枠の そとも 見せます');
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
+  const onote = document.createElement('div');
+  onote.className = 'empty';
+  onote.style.textAlign = 'left';
+  onote.textContent = '枠の そとに いる ものを、うすく 出します。' + NL
+    + '「画面の そとから 走って くる」「そとへ 出て いく」を' + NL
+    + '作る とき、そとで どこに いるかが 見えます。' + NL
+    + '書き出す 動画は いままでどおり 枠の 中だけ です。' + NL
+    + '画面を つまんで 小さく すれば、そとが 広く 見えます。';
+  box.appendChild(onote);
 
   box.appendChild(heading('動画の長さ'));
   box.appendChild(slider('長さ',

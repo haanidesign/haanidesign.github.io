@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=147';
-import { camOf } from '../engine/camera.js?v=147';
-import { S, frameAsset, frameImage } from '../state.js?v=147';
+         nearestFolder } from '../engine/layer.js?v=148';
+import { camOf } from '../engine/camera.js?v=148';
+import { S, frameAsset, frameImage } from '../state.js?v=148';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=147';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=147';
-import { paintCanvas } from '../engine/paint.js?v=147';
-import { panoCanvas } from '../engine/pano.js?v=147';
-import { homography, applyH } from '../engine/warp.js?v=147';
-import { drawCamView } from './camview.js?v=147';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=147';
+         meshSizeFor } from '../engine/puppet.js?v=148';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=148';
+import { paintCanvas } from '../engine/paint.js?v=148';
+import { panoCanvas } from '../engine/pano.js?v=148';
+import { homography, applyH } from '../engine/warp.js?v=148';
+import { drawCamView } from './camview.js?v=148';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=148';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -953,14 +953,47 @@ function flatMesh(w, h){
       }
     }
 
+    /* 枠の そとを 見せるか。
+
+       書き出す 動画は もちろん 枠の 中だけ。
+       でも 作って いる あいだは、枠の そとに 何が いるかが
+       見えないと こまる ――
+       「画面の そとから 走って くる」「そとへ 出て いく」を
+       作る とき、そとに いる あいだ 何も 見えないと
+       どこに いるのか わからない。
+
+       そこで 編集中は 枠の そとも 描いて、そのうえに
+       うすい 紙を かぶせて 枠を わかる ように する
+       （アフターエフェクトの コンポの そとと 同じ 見え方）。 */
+    const showOut = !opts.forExport && S.outside !== false;
+
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, project.w, project.h);
-    ctx.clip();
+    if(!showOut){
+      ctx.beginPath();
+      ctx.rect(0, 0, project.w, project.h);
+      ctx.clip();
+    }
 
     lent = 0;
     drawNodes(ctx, project, topNodes(project), poses, tf, subPoses);
     ctx.restore();
+
+    if(showOut){
+      /* 見えて いる ところ ぜんぶ（キャンバスざひょう）を 出して、
+         枠の そとを うすく ぬる。ぬるのは 4まいの 帯。 */
+      const x0 = (0 - view.x) / view.z, y0 = (0 - view.y) / view.z;
+      const x1 = (W - view.x) / view.z, y1 = (H - view.y) / view.z;
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,254,247,.72)';
+      const band = (a, b, c, d) => {
+        if(c > a && d > b) ctx.fillRect(a, b, c - a, d - b);
+      };
+      band(x0, y0, x1, 0);                       // 上
+      band(x0, project.h, x1, y1);               // 下
+      band(x0, 0, 0, project.h);                 // 左
+      band(project.w, 0, x1, project.h);         // 右
+      ctx.restore();
+    }
 
     if(!opts.forExport){
       ctx.strokeStyle = INK;
