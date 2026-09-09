@@ -1,37 +1,37 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=134';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=136';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=134';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=136';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=134';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=134';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=134';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=134';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=134';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=136';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=136';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=136';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=136';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=136';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=134';
+         addTextLayer } from '../io/text.js?v=136';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=134';
-import { PATTERN_NAMES } from '../io/pattern.js?v=134';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=136';
+import { PATTERN_NAMES } from '../io/pattern.js?v=136';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=134';
-import { readAsDataURL, loadImage } from '../io/image.js?v=134';
-import { isCam, camOf, resetCam, depthScale, is3D,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=134';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=134';
-import { newHand } from '../engine/hand.js?v=134';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=134';
+         PITCH_MAX } from '../engine/pano.js?v=136';
+import { readAsDataURL, loadImage } from '../io/image.js?v=136';
+import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=136';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=136';
+import { newHand } from '../engine/hand.js?v=136';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=136';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=134';
+  from './colorwheel.js?v=136';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=134';
+         guessBpm, firstOnset } from '../io/audio.js?v=136';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=134';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=136';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1001,6 +1001,21 @@ export function buildCamSheet(box, back){
     v => (v * 100).toFixed(0) + '%'));
   box.appendChild(animSlider('かたむき', cam, 'rot', -180, 180, 1,
     v => Math.round(v) + '°'));
+
+  /* ---- まわりこみ ----
+     ここを 動かすと、まっすぐな 板でも「おくが せまい」形に なる。
+     絵の すみの のぞき窓を なぞっても おなじ ことが できる。 */
+  const orb = v => v === 0 ? 'まっすぐ' : (Math.round(v) + '°');
+  box.appendChild(animSlider('よこに まわりこむ', cam, 'ry', -ORBIT_MAX, ORBIT_MAX, 1, orb));
+  box.appendChild(animSlider('たてに まわりこむ', cam, 'rx', -ORBIT_MAX, ORBIT_MAX, 1, orb));
+
+  const peek = document.createElement('div');
+  peek.className = 'empty';
+  peek.style.textAlign = 'left';
+  peek.textContent = 'この 行を えらんで いる あいだ、絵の 右上に' + NL
+    + '「そとから 見た 図」が 出ます。' + NL
+    + 'そこを 指で なぞっても、カメラが ぐるっと まわりこみます。';
+  box.appendChild(peek);
 
   /* ---- うごかす ----
      スライダーは「ピンが 1本でも あれば」自動で ピンに なる しくみ。

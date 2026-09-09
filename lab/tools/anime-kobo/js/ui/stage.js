@@ -1,22 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=134';
-import { cleanPath } from '../engine/path.js?v=134';
+import { M, clamp } from '../engine/math.js?v=136';
+import { cleanPath } from '../engine/path.js?v=136';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=134';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=134';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=134';
+         keepChildren, cornersOf } from '../engine/layer.js?v=136';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=136';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=136';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=134';
-import { createRenderer } from '../render/renderer.js?v=134';
-import { attachInput } from './input.js?v=134';
-import { newStroke, paintDirty } from '../engine/paint.js?v=134';
+         bendChain } from '../engine/puppet.js?v=136';
+import { createRenderer } from '../render/renderer.js?v=136';
+import { attachInput } from './input.js?v=136';
+import { newStroke, paintDirty } from '../engine/paint.js?v=136';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=134';
+         copyPts, setPts } from '../engine/warp.js?v=136';
 
-import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=134';
+import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=136';
+import { inCamView } from '../render/camview.js?v=136';
+import { ORBIT_MAX } from '../engine/camera.js?v=136';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -73,6 +75,9 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     if(S.warpMode && l) drawCage(l);
     if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
+    /* カメラを えらんで いる あいだだけ、そとから 見た 図を すみに 出す。
+       いつも 出すと 絵の じゃまに なる。 */
+    if(isCam(l)) R.camView(S.proj, S.time, l.id);
   }
 
   /* ---------- ゆがみ・自由変形の かご ---------- */
@@ -614,6 +619,15 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       const l = selected();
       const P = livePoses();
 
+      /* のぞき窓の 中を なぞったら、カメラが まわりこむ。
+         ここは 画面の すみに 出して いる 別の 図 なので、
+         絵の ざひょう（cp）では なく 生の ドット（p）で 見る。 */
+      if(isCam(l) && inCamView(canvas, p.x, p.y)){
+        beginEdit('カメラを まわす');
+        drag = { kind:'camorbit', l, p0:p, rx0: l.rx || 0, ry0: l.ry || 0 };
+        return;
+      }
+
       /* ゆがみ・自由変形。あみの目を つまんで 動かす。 */
       if(S.warpMode === 'lock'){
         if(!l || !l.cage){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
@@ -866,6 +880,20 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         return;
       }
 
+      if(drag.kind === 'camorbit'){
+        const l = drag.l;
+        const dpr = Math.max(1, canvas.width / Math.max(1, canvas.clientWidth || canvas.width));
+        // 100ドット なぞって だいたい 45度
+        const k = 45 / (100 * dpr);
+        const ry = drag.ry0 + (p.x - drag.p0.x) * k;
+        const rx = drag.rx0 - (p.y - drag.p0.y) * k;
+        l.ry = clamp(ry, -ORBIT_MAX, ORBIT_MAX);
+        l.rx = clamp(rx, -ORBIT_MAX, ORBIT_MAX);
+        liveKey(l, ['rx', 'ry']);
+        onChange();
+        return;
+      }
+
       if(drag.kind === 'move'){
         const l = drag.l;
         const dx = cp.x - drag.cp0.x, dy = cp.y - drag.cp0.y;
@@ -958,7 +986,8 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         if(l && hasPins(l)){
           const chs = drag.kind === 'move'  ? ['x','y']
                     : drag.kind === 'scale' ? ['scaleX','scaleY']
-                    : drag.kind === 'rotate'? ['rot'] : [];
+                    : drag.kind === 'rotate'? ['rot']
+                    : drag.kind === 'camorbit' ? ['rx','ry'] : [];
           chs.forEach(c => setPin(l, c, S.time, l[c], 'smooth'));
         }
         commitEdit();

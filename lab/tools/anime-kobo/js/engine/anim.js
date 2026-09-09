@@ -38,7 +38,8 @@ export function channelsOf(layer){
 export const CH_LABEL = {
   x:'よこ', y:'たて', scaleX:'よこ幅', scaleY:'たて幅', rot:'かたむき', opacity:'すけ具合',
   tint:'塗り', blur:'ぼかし', stroke:'ふちどり', flipX:'左右反転', flipY:'上下反転', frame:'コマ',
-  panY:'よこ回転', panP:'たて回転', panZ:'ズーム'
+  panY:'よこ回転', panP:'たて回転', panZ:'ズーム',
+  rx:'おくへ たおす', ry:'よこに まわす'
 };
 
 /** そのレイヤーにピンが1つでもあるか */
@@ -373,6 +374,11 @@ export function valuesAt(layer, time){
     flipY: !!sampleStep(tr.flipY, t, layer.flipY),
 
     frame: Math.max(0, Math.round(sampleStep(tr.frame, t, 0))),
+
+    /* 立体（3D）の かたむき。カメラなら まわりこみ に なる。
+       0 の ときは なにも 起きない ので、ぜんぶの レイヤーが 持って いい。 */
+    rx: sample(tr.rx, t, layer.rx || 0),
+    ry: sample(tr.ry, t, layer.ry || 0),
 
     /* ぐるり360の 見ている むき。ふつうの レイヤーには 出てこない */
     panY: sample(tr.panY, t, layer.panY || 0),

@@ -1,13 +1,14 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=134';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=134';
-import { isCam, camOf, camMatrix, depthLen, is3D, quad3D } from './camera.js?v=134';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=134';
-import { cageDeformPoint, cageMoved } from './warp.js?v=134';
-import { handTime } from './hand.js?v=134';
-import { WORK_KEYS } from '../state.js?v=134';
+import { M, uid, ptInQuad } from './math.js?v=136';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=136';
+import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
+         camOrbiting } from './camera.js?v=136';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=136';
+import { cageDeformPoint, cageMoved } from './warp.js?v=136';
+import { handTime } from './hand.js?v=136';
+import { WORK_KEYS } from '../state.js?v=136';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -143,6 +144,9 @@ export function computeAll(project, time){
   const cam = camOf(project);
   const camV = cam ? evalAt(cam, time) : null;
   const ccx = project.w / 2, ccy = project.h / 2;
+  /* カメラが まわりこんで いる あいだは、まっすぐな 板でも
+     「おくが せまい」形に なる ので、ぜんぶ 四すみで 描く。 */
+  const orbit = camOrbiting(camV);
 
   const out = {};
   const solving = {};
@@ -255,7 +259,7 @@ export function computeAll(project, time){
        描くときは これに 絵を はめる（ゆがみ・骨の あとに かける）。
        おやこの 子は 親ごしに 動く ので、ここでは 自分の ぶんだけ。 */
     let quad = null;
-    if(is3D(l) && !isCam(l) && !p){
+    if((is3D(v) || orbit) && !isCam(l) && !p){
       const a = assetOf(project, l, v.frame);
       if(a) quad = quad3D(l, v, a, project, camV);
     }
@@ -368,8 +372,13 @@ export function pickLayer(project, poses, assets, x, y){
   for(const l of drawOrder(project)){
     if(!l.visible || l.locked) continue;
     const p = poses[l.id]; if(!p || p.vis === false) continue;
-    const asset = assets[l.frames[p.v.frame] || l.frames[0]];
-    const q = cornersOf(l, p.m, asset);
+    /* 立体に なって いる ものは、四すみが すでに 出て いる。
+       ふつうの 四角で 見ると たおした ぶんだけ ずれて つかめない。 */
+    let q = p.quad;
+    if(!q){
+      const asset = assets[l.frames[p.v.frame] || l.frames[0]];
+      q = cornersOf(l, p.m, asset);
+    }
     if(q && ptInQuad(x, y, q)) return l;
   }
   return null;

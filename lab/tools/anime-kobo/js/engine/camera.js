@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=134';
+import { M } from './math.js?v=136';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -83,7 +83,8 @@ export function resetCam(l, project){
   l.y = project.h / 2;
   l.scaleX = 1; l.scaleY = 1;
   l.rot = 0;
-  ['x', 'y', 'scaleX', 'scaleY', 'rot'].forEach(ch => {
+  l.rx = 0; l.ry = 0;
+  ['x', 'y', 'scaleX', 'scaleY', 'rot', 'rx', 'ry'].forEach(ch => {
     if(l.tracks) delete l.tracks[ch];
   });
 }
@@ -123,6 +124,16 @@ export function is3D(l){
   return !!l && (Math.abs(l.rx || 0) > 0.01 || Math.abs(l.ry || 0) > 0.01);
 }
 
+/** カメラが まわりこんで いるか。
+    まわりこむと、まっすぐな 板でも「おくが せまい」形に なる ので、
+    ふつうの 行列では 出せない。ぜんぶ 四すみで 描く ことに なる。 */
+export function camOrbiting(cam){
+  return !!cam && (Math.abs(cam.rx || 0) > 0.01 || Math.abs(cam.ry || 0) > 0.01);
+}
+
+/** まわりこみの かぎり。真横まで 行くと 板が 線に なって 見えなく なる */
+export const ORBIT_MAX = 70;
+
 /** 3Dで まわす。z は おく が プラス */
 function rot3(p, rx, ry, rz){
   const d = Math.PI / 180;
@@ -149,6 +160,39 @@ function rot3(p, rx, ry, rz){
 }
 
 /**
+ * 3Dの 点 1つを 画面に うつす。
+ *
+ * ① カメラの ところを 原点に する
+ * ② カメラの まわりこみ を もどす（カメラを まわす＝世界を 逆に まわす）
+ * ③ おくゆきで 小さく する
+ * ④ カメラの かたむき（ロール）を かける
+ *
+ * カメラより うしろに 来た 点は うつせない ので null。
+ */
+export function project3(X, Y, Z, camV, cx, cy){
+  const camX = camV ? (camV.x || 0) - cx : 0;
+  const camY = camV ? (camV.y || 0) - cy : 0;
+  let x = X - camX, y = Y - camY, z = Z;
+
+  if(camV){
+    const rx = -(camV.rx || 0), ry = -(camV.ry || 0);
+    if(rx || ry){
+      const r = rot3({ x, y, z }, rx, ry, 0);
+      x = r.x; y = r.y; z = r.z;
+    }
+  }
+  if(CAM_F + z < CAM_F * 0.2) return null;
+
+  const zoom = camV ? ((camV.scaleX == null ? 1 : camV.scaleX) || 1) : 1;
+  const k = zoom * CAM_F / (CAM_F + z);
+  const sx = x * k, sy = y * k;
+
+  const roll = camV ? (camV.rot || 0) : 0;
+  const rc = Math.cos(roll * Math.PI / 180), rs = Math.sin(roll * Math.PI / 180);
+  return { x: cx + sx * rc - sy * rs, y: cy + sx * rs + sy * rc, k };
+}
+
+/**
  * 立体に した レイヤーの 四すみが 画面の どこに 来るか。
  *   l      … レイヤー
  *   v      … その時こくの 姿
@@ -172,22 +216,14 @@ export function quad3D(l, v, asset, project, camV){
   const zc = depthLen(l);                    // この レイヤーの おくゆき
   const ox = (v.x || 0) - cx, oy = (v.y || 0) - cy;
 
-  const camX = camV ? (camV.x || 0) - cx : 0;
-  const camY = camV ? (camV.y || 0) - cy : 0;
-  const zoom = camV ? ((camV.scaleX == null ? 1 : camV.scaleX) || 1) : 1;
-  const roll = camV ? (camV.rot || 0) : 0;
-  const rc = Math.cos(roll * Math.PI / 180), rs = Math.sin(roll * Math.PI / 180);
-
   const out = [];
   for(const c of corners){
-    const r = rot3({ x: c.x, y: c.y, z: 0 }, l.rx || 0, l.ry || 0, v.rot || 0);
-    const X = ox + r.x, Y = oy + r.y, Z = zc + r.z;
+    const r = rot3({ x: c.x, y: c.y, z: 0 }, v.rx || 0, v.ry || 0, v.rot || 0);
     /* カメラより うしろ（または 近すぎる）と、うつすと 裏返って しまう。
        その コマは 3Dを あきらめて ふつうに 描く。 */
-    if(CAM_F + Z < CAM_F * 0.2) return null;
-    const k = zoom * CAM_F / (CAM_F + Z);
-    const sx = (X - camX) * k, sy = (Y - camY) * k;
-    out.push({ x: cx + sx * rc - sy * rs, y: cy + sx * rs + sy * rc });
+    const q = project3(ox + r.x, oy + r.y, zc + r.z, camV, cx, cy);
+    if(!q) return null;
+    out.push({ x: q.x, y: q.y });
   }
   return out;
 }

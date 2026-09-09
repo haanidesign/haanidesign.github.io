@@ -3,15 +3,16 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=134';
-import { S, frameAsset, frameImage } from '../state.js?v=134';
+         nearestFolder } from '../engine/layer.js?v=136';
+import { S, frameAsset, frameImage } from '../state.js?v=136';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=134';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=134';
-import { paintCanvas } from '../engine/paint.js?v=134';
-import { panoCanvas } from '../engine/pano.js?v=134';
-import { homography, applyH } from '../engine/warp.js?v=134';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=134';
+         meshSizeFor } from '../engine/puppet.js?v=136';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=136';
+import { paintCanvas } from '../engine/paint.js?v=136';
+import { panoCanvas } from '../engine/pano.js?v=136';
+import { homography, applyH } from '../engine/warp.js?v=136';
+import { drawCamView } from './camview.js?v=136';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=136';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -928,5 +929,11 @@ function flatMesh(w, h){
     return handles;
   }
 
-  return { ctx, draw, drawSelection };
+  /** カメラの のぞき窓。えらんで いる のが カメラの ときだけ 出す */
+  function camView(project, time, selId){
+    return drawCamView(ctx, canvas, project, time, selId,
+                       (l, frame) => frameAsset(l, frame));
+  }
+
+  return { ctx, draw, drawSelection, camView };
 }
