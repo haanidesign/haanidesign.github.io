@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=145';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=146';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=145';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=146';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=145';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=145';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=145';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=145';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=145';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=146';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=146';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=146';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=146';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=146';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=145';
+         addTextLayer } from '../io/text.js?v=146';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=145';
-import { PATTERN_NAMES } from '../io/pattern.js?v=145';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=146';
+import { PATTERN_NAMES } from '../io/pattern.js?v=146';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=145';
-import { readAsDataURL, loadImage } from '../io/image.js?v=145';
+         PITCH_MAX } from '../engine/pano.js?v=146';
+import { readAsDataURL, loadImage } from '../io/image.js?v=146';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=145';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=145';
-import { newHand } from '../engine/hand.js?v=145';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=145';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=146';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=146';
+import { newHand } from '../engine/hand.js?v=146';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=146';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=145';
+  from './colorwheel.js?v=146';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=145';
+         guessBpm, firstOnset } from '../io/audio.js?v=146';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=145';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=146';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1392,6 +1392,25 @@ export function buildFinishSheet(box, back){
     () => l.mblur || 0, v => l.mblur = v, 0, 1, 0.05,
     v => v < 0.03 ? 'なし'
        : (Math.round(v * 100) + '%（' + (0.5 + 2.5 * v).toFixed(1) + 'コマ）')));
+
+  /* カメラの ざんぞうは 絵ぜんぶに かかる。
+     文字だけは くっきり させたい、が よく ある ので 逃げ道を つける。 */
+  const nb = !!l.noMB;
+  box.appendChild(btnRow(
+    button(nb ? '✅ この レイヤーには かけない' : '⬜ この レイヤーには かけない', () => {
+      edit('ざんぞうを かけない', () => { l.noMB = !nb; });
+      notify(nb ? 'ざんぞうが かかるように しました'
+                : 'この レイヤーは くっきりの ままに しました');
+      onChange();
+    })
+  ));
+  const nbn = document.createElement('div');
+  nbn.className = 'empty';
+  nbn.style.textAlign = 'left';
+  nbn.textContent = 'カメラの ざんぞうは 絵ぜんぶに かかります。' + NL
+    + 'ここを 入れると、この レイヤーだけ かからなく なります。' + NL
+    + '文字が ぶれて 読めない ときに どうぞ。';
+  box.appendChild(nbn);
 
   box.appendChild(heading('🗑 ピンの おそうじ'));
   const c = document.createElement('div');
@@ -3454,6 +3473,7 @@ export function buildPathSheet(box, closeFn, pts, apply){
   if(P.orient == null) P.orient = false;
   if(P.orientOff == null) P.orientOff = 0;
   if(P.only == null) P.only = true;
+  if(P.mb == null) P.mb = 0;
 
   const len = Math.round(pathLength(pts));
   const info = document.createElement('div');
@@ -3569,6 +3589,18 @@ export function buildPathSheet(box, closeFn, pts, apply){
         reopen();
       })
     ));
+    box.appendChild(slider('文字の ざんぞう', () => P.mb || 0, v => P.mb = v, 0, 1, 0.05,
+      v => v < 0.03 ? 'なし（くっきり）'
+         : (Math.round(v * 100) + '%（' + (0.5 + 2.5 * v).toFixed(1) + 'コマ）')));
+    const bn = document.createElement('div');
+    bn.className = 'empty';
+    bn.style.textAlign = 'left';
+    bn.textContent = 'はやく 走らせる ほど 文字は ぶれます。' + NL
+      + 'ぶれの 長さは「はやさ × ざんぞうの 長さ」。' + NL
+      + '読ませたい ときは ざんぞうを 0 に するか、' + NL
+      + '「何秒で 通る」を のばして ください。' + NL
+      + '秒を 2ばいに すると ぶれは 半分に なります。';
+    box.appendChild(bn);
     const tn = document.createElement('div');
     tn.className = 'empty';
     tn.style.textAlign = 'left';

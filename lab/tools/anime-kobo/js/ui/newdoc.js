@@ -1,6 +1,6 @@
 /* いちばん最初の画面。どの形の動画を作るかを選ぶ。 */
 
-import { SIZE_PRESETS } from '../state.js?v=145';
+import { SIZE_PRESETS } from '../state.js?v=146';
 
 const LENGTHS = [10, 15, 30, 60];
 

@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=145';
-import { camOf } from '../engine/camera.js?v=145';
-import { S, frameAsset, frameImage } from '../state.js?v=145';
+         nearestFolder } from '../engine/layer.js?v=146';
+import { camOf } from '../engine/camera.js?v=146';
+import { S, frameAsset, frameImage } from '../state.js?v=146';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=145';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=145';
-import { paintCanvas } from '../engine/paint.js?v=145';
-import { panoCanvas } from '../engine/pano.js?v=145';
-import { homography, applyH } from '../engine/warp.js?v=145';
-import { drawCamView } from './camview.js?v=145';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=145';
+         meshSizeFor } from '../engine/puppet.js?v=146';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=146';
+import { paintCanvas } from '../engine/paint.js?v=146';
+import { panoCanvas } from '../engine/pano.js?v=146';
+import { homography, applyH } from '../engine/warp.js?v=146';
+import { drawCamView } from './camview.js?v=146';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=146';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -742,7 +742,7 @@ function flatMesh(w, h){
 
        いまの 姿（止まった 絵）は 足さない。
        足すと そこだけ くっきり のこって、また 分身に 見える。 */
-    const mb = Math.max(l.mblur || 0, l._camMB || 0);
+    const mb = l.noMB ? 0 : Math.max(l.mblur || 0, l._camMB || 0);
     if(mb > 0.01 && subPoses && subPoses.length > 1 && moves(l, subPoses)){
       const c = alloc(), gx = c.getContext('2d');
       let n = 0;
@@ -897,8 +897,11 @@ function flatMesh(w, h){
     } else {
       project.layers.forEach(l => { if(l._camMB) delete l._camMB; });
     }
+    /* 「ざんぞうを かけない」を 入れた レイヤーは、
+       カメラの ざんぞうも うけない（AEの レイヤーの スイッチと 同じ）。
+       文字など、読めなく なると こまる ものに つかう。 */
     const blurLayers = project.layers.filter(
-      l => Math.max(l.mblur || 0, l._camMB || 0) > 0.01);
+      l => !l.noMB && Math.max(l.mblur || 0, l._camMB || 0) > 0.01);
     let subPoses = null;
     if(blurLayers.length && !opts.noMotionBlur){
       /* シャッターが 開いている 長さ。

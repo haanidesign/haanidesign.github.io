@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=145';
+import { M } from './engine/math.js?v=146';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=145';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=146';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=145';
-import { createStage } from './ui/stage.js?v=145';
-import { createRenderer } from './render/renderer.js?v=145';
-import { createTimeline } from './ui/timeline.js?v=145';
-import { fmtTime } from './engine/anim.js?v=145';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=146';
+import { createStage } from './ui/stage.js?v=146';
+import { createRenderer } from './render/renderer.js?v=146';
+import { createTimeline } from './ui/timeline.js?v=146';
+import { fmtTime } from './engine/anim.js?v=146';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener,
-         setWarper } from './ui/sheet.js?v=145';
+         setWarper } from './ui/sheet.js?v=146';
 
-import { showNewDoc } from './ui/newdoc.js?v=145';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=145';
-import { fitToCanvas, isBg } from './io/bg.js?v=145';
-import * as Audio from './io/audio.js?v=145';
+import { showNewDoc } from './ui/newdoc.js?v=146';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=146';
+import { fitToCanvas, isBg } from './io/bg.js?v=146';
+import * as Audio from './io/audio.js?v=146';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=145';
-import { importPsd } from './io/psd.js?v=145';
-import { splitTextChars } from './io/text.js?v=145';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=146';
+import { importPsd } from './io/psd.js?v=146';
+import { splitTextChars } from './io/text.js?v=146';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=145';
-import { pathKeys } from './engine/path.js?v=145';
-import { paintDirty } from './engine/paint.js?v=145';
+         canUseWebCodecs } from './io/export.js?v=146';
+import { pathKeys } from './engine/path.js?v=146';
+import { paintDirty } from './engine/paint.js?v=146';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=145';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=146';
 
 const $ = (s) => document.querySelector(s);
 
@@ -327,6 +327,10 @@ function onTraced(){
           if(opt.only) c.span = { from: +start.toFixed(2),
                                   to: +(start + opt.dur).toFixed(2) };
           else delete c.span;
+          /* 文字は 読めないと 意味が ない ので、
+             ざんぞうは えらんだ ぶんだけ。0 なら カメラの ぶんも うけない。 */
+          c.mblur = opt.mb || 0;
+          c.noMB = !(opt.mb > 0.001);
         });
       });
       toast(chars.length + '文字が 走ります');
