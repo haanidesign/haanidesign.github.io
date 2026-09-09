@@ -1,20 +1,22 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=129';
-import { cleanPath } from '../engine/path.js?v=129';
+import { M, clamp } from '../engine/math.js?v=130';
+import { cleanPath } from '../engine/path.js?v=130';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=129';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=129';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=129';
+         keepChildren, cornersOf } from '../engine/layer.js?v=130';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=130';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=130';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=129';
-import { createRenderer } from '../render/renderer.js?v=129';
-import { attachInput } from './input.js?v=129';
-import { newStroke, paintDirty } from '../engine/paint.js?v=129';
+         bendChain } from '../engine/puppet.js?v=130';
+import { createRenderer } from '../render/renderer.js?v=130';
+import { attachInput } from './input.js?v=130';
+import { newStroke, paintDirty } from '../engine/paint.js?v=130';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=129';
+         copyPts, setPts } from '../engine/warp.js?v=130';
+
+import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=130';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -23,6 +25,16 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   let drag = null;
   let viewStart = null;
   let pinchWarp = null;      // 2本指で かたまりを うごかしている とちゅう
+
+  /* 指の うごき（キャンバスの ドット）を、カメラを かける 前の 長さに もどす。
+     カメラで 2ばいに 寄って いる ときは、指を 100 動かすと
+     絵は 200 動いて 見える。その ぶんを 割りもどす。 */
+  function unCam(l, dx, dy){
+    const cam = camOf(S.proj);
+    if(!cam || isCam(l)) return { x: dx, y: dy };
+    const cm = camMatrix(valuesAt(cam, S.time), S.proj.w / 2, S.proj.h / 2, depthLen(l));
+    return M.dir(M.inv(cm), dx, dy);
+  }
 
   /* ---- 画面と座標 ---- */
   function resize(){
@@ -863,7 +875,11 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
           const d = M.dir(inv, dx, dy);
           l.x = drag.x0 + d.x; l.y = drag.y0 + d.y;
         } else {
-          l.x = drag.x0 + dx; l.y = drag.y0 + dy;
+          /* カメラで 寄って いる ときは、指の うごきの ぶんだけ
+             動かすと 行きすぎる（画面では k ばいに 見えて いる ため）。
+             カメラの ぶんを もどしてから 足す。 */
+          const d = unCam(l, dx, dy);
+          l.x = drag.x0 + d.x; l.y = drag.y0 + d.y;
         }
         liveKey(l, ['x','y']);
       } else if(drag.kind === 'scale'){

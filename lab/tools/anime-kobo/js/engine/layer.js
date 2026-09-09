@@ -1,14 +1,27 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=129';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=129';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=129';
-import { cageDeformPoint, cageMoved } from './warp.js?v=129';
-import { handTime } from './hand.js?v=129';
-import { WORK_KEYS } from '../state.js?v=129';
+import { M, uid, ptInQuad } from './math.js?v=130';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=130';
+import { isCam, camOf, camMatrix, depthLen } from './camera.js?v=130';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=130';
+import { cageDeformPoint, cageMoved } from './warp.js?v=130';
+import { handTime } from './hand.js?v=130';
+import { WORK_KEYS } from '../state.js?v=130';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
+/** カメラを 1つ 作る。まん中に、ズーム1で 置く。
+    絵は 持たないが、よこ・たて・ズーム・かたむきに ピンが うてる。 */
+export function newCamLayer(project){
+  const l = newLayer('カメラ', []);
+  l.kind = 'cam';
+  l.x = project.w / 2;
+  l.y = project.h / 2;
+  l.lockAspect = true;
+  l.locked = true;          // 絵の上で うっかり つかまない ように
+  return l;
+}
+
 export function newLayer(name, assetIds){
   return {
     id: uid('L'),
@@ -122,6 +135,13 @@ export function computeAll(project, time){
   const byId = {};
   project.layers.forEach(l => byId[l.id] = l);
 
+  /* カメラ。いちばん外がわに 1回だけ かける。
+     親に くっついて いる ものは 親ごしに かかる ので、
+     おくゆきは 親（フォルダ）の ぶんが つかわれる。 */
+  const cam = camOf(project);
+  const camV = cam ? evalAt(cam, time) : null;
+  const ccx = project.w / 2, ccy = project.h / 2;
+
   const out = {};
   const solving = {};
 
@@ -196,6 +216,9 @@ export function computeAll(project, time){
 
     const local = M.trs(lx, ly, lrot, v.scaleX, v.scaleY);
     let m = p ? M.mul(p.m, local) : local;
+    /* カメラは 親の いない レイヤーにだけ かける。
+       子は 親の 姿ごしに ついてくる ので、二重に かからない。 */
+    if(camV && !p && !isCam(l)) m = M.mul(camMatrix(camV, ccx, ccy, depthLen(l)), m);
 
     /* コマごとの ずれ。
        べつの ところに あった 絵を コマに した ときに、
@@ -221,6 +244,7 @@ export function computeAll(project, time){
        フォルダに かけると 中身も いっしょに 出たり 消えたり する
        （中身は フォルダの 見え方を うけつぐ ので）。 */
     let vis = l.visible !== false && inSpan(l, time) && (inFolder ? p.vis : true);
+    if(isCam(l)) vis = false;          // カメラは 見るための もの。絵は 出さない
 
     /* パラパラフォルダの 中は、いまの コマ だけを 見せる */
     if(vis && inFolder && isFlip(p.layer) && showing(p.layer) !== l.id) vis = false;

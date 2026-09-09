@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=129';
+import { M } from './engine/math.js?v=130';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=129';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=130';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=129';
-import { createStage } from './ui/stage.js?v=129';
-import { createRenderer } from './render/renderer.js?v=129';
-import { createTimeline } from './ui/timeline.js?v=129';
-import { fmtTime } from './engine/anim.js?v=129';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=130';
+import { createStage } from './ui/stage.js?v=130';
+import { createRenderer } from './render/renderer.js?v=130';
+import { createTimeline } from './ui/timeline.js?v=130';
+import { fmtTime } from './engine/anim.js?v=130';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
-         buildEnterSheet, buildTraceSheet, buildBeatSheet,
+         buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
          buildExportSheet, buildEaseSheet, buildDoneSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=129';
+         setWarper } from './ui/sheet.js?v=130';
 
-import { showNewDoc } from './ui/newdoc.js?v=129';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=129';
-import { fitToCanvas, isBg } from './io/bg.js?v=129';
-import * as Audio from './io/audio.js?v=129';
+import { showNewDoc } from './ui/newdoc.js?v=130';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=130';
+import { fitToCanvas, isBg } from './io/bg.js?v=130';
+import * as Audio from './io/audio.js?v=130';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=129';
-import { importPsd } from './io/psd.js?v=129';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=130';
+import { importPsd } from './io/psd.js?v=130';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=129';
-import { pathKeys } from './engine/path.js?v=129';
-import { paintDirty } from './engine/paint.js?v=129';
+         canUseWebCodecs } from './io/export.js?v=130';
+import { pathKeys } from './engine/path.js?v=130';
+import { paintDirty } from './engine/paint.js?v=130';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=129';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=130';
 
 const $ = (s) => document.querySelector(s);
 
@@ -636,6 +636,7 @@ $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /* うごきは 中身が 多いので、まず えらぶ画面を 出して、
    えらんだ ものだけを 別の画面で ひらく。 */
 const MOVE_PAGES = {
+  cam:    ['🎥 カメラ',        buildCamSheet],
   path:   ['👆 みちを なぞる', buildTraceSheet],
   beat:   ['🥁 リズム（BPM）', buildBeatSheet],
   flip:   ['🎞 パラパラ',      buildFlipSheet],
