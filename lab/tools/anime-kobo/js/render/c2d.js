@@ -3,17 +3,17 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=153';
-import { camOf } from '../engine/camera.js?v=153';
-import { S, frameAsset, frameImage } from '../state.js?v=153';
+         nearestFolder } from '../engine/layer.js?v=154';
+import { camOf } from '../engine/camera.js?v=154';
+import { S, frameAsset, frameImage } from '../state.js?v=154';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=153';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=153';
-import { paintCanvas } from '../engine/paint.js?v=153';
-import { panoCanvas } from '../engine/pano.js?v=153';
-import { homography, applyH } from '../engine/warp.js?v=153';
-import { drawCamView } from './camview.js?v=153';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=153';
+         meshSizeFor } from '../engine/puppet.js?v=154';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=154';
+import { paintCanvas } from '../engine/paint.js?v=154';
+import { panoCanvas } from '../engine/pano.js?v=154';
+import { homography, applyH } from '../engine/warp.js?v=154';
+import { drawCamView } from './camview.js?v=154';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=154';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -493,8 +493,9 @@ function flatMesh(w, h){
     const tinted  = v.tintAmount > 0.001;
     const strokeW = (v.strokeW || 0) * Math.abs(tf[0]);   // 画面の大きさに合わせる
     const edged   = strokeW > 0.4;
+    const fx      = hasFX(v);
 
-    if(!tinted && !edged){
+    if(!tinted && !edged && !fx){
       g.save();
       g.globalAlpha = alpha;
       place(g, l, pose, asset, img);
@@ -518,9 +519,29 @@ function flatMesh(w, h){
       gx.globalAlpha = 1;
     }
 
+    /* 色の 調整は 絵だけに かける（かげ・ひかりには かけない）。
+       ここで 別紙ごと 塗りかえて しまう。 */
+    const cf = colorFilter(v);
+    if(cf){
+      const t2 = alloc(), g2 = t2.getContext('2d');
+      g2.setTransform(1, 0, 0, 1, 0, 0);
+      g2.filter = cf.trim();
+      g2.drawImage(c, 0, 0);
+      g2.filter = 'none';
+      const gc = c.getContext('2d');
+      gc.setTransform(1, 0, 0, 1, 0, 0);
+      gc.globalCompositeOperation = 'copy';
+      gc.drawImage(t2, 0, 0);
+      gc.globalCompositeOperation = 'source-over';
+      back(1);
+    }
+
     // ふちは 絵の「下」に敷いてから、まとめて うすくする。
     // 先に本番へ別々に置くと、うすいときに ふちの色が 中まで透けてしまう。
     if(edged) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
+
+    // かげ・ひかりは いちばん 下（ふちどりの さらに 外がわ）
+    underFX(c, v, Math.abs(tf[0]));
 
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -528,6 +549,86 @@ function flatMesh(w, h){
     g.drawImage(c, 0, 0);
     g.restore();
     back(1);
+  }
+
+  /* ---------- ひかり（グロー）と かげ ----------
+
+     どちらも「絵の 形を ぼかして、色を ぬって、下に 敷く」だけ。
+       かげ  … ずらして、くらい 色で
+       ひかり… ずらさず、あかるい 色で、大きめに ぼかす
+
+     ふちどりと ちがって ふくらませ ないで ぼかしで ひろげる ので、
+     やわらかい 見た目に なる（AEの グロー・ドロップシャドウと 同じ）。 */
+  let fxA = null, fxB = null;
+  function fxCanvas(which, w, h){
+    let c = which ? fxB : fxA;
+    if(!c){ c = document.createElement('canvas'); which ? (fxB = c) : (fxA = c); }
+    if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, w, h);
+    return c;
+  }
+
+  /** 形を ぼかして 色で ぬった 1まいを 作る */
+  function fxShape(which, src, blurPx, dx, dy, color){
+    const w = src.width, h = src.height;
+    const c = fxCanvas(which, w, h);
+    const g = c.getContext('2d');
+    if(blurPx > 0.1) g.filter = 'blur(' + blurPx + 'px)';
+    g.drawImage(src, dx, dy);
+    g.filter = 'none';
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color;
+    g.fillRect(0, 0, w, h);
+    g.globalCompositeOperation = 'source-over';
+    return c;
+  }
+
+  /**
+   * かげ と ひかり を 絵の 下に 敷く。
+   *   c … 絵を 描いた 紙（ここに 直に 足す）
+   *   v … その時こくの 姿   k … 画面の 大きさ（ものさし合わせ）
+   */
+  function underFX(c, v, k){
+    const g = c.getContext('2d');
+    const put = (sheet, alpha) => {
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalAlpha = Math.max(0, Math.min(1, alpha));
+      g.globalCompositeOperation = 'destination-over';
+      g.drawImage(sheet, 0, 0);
+      g.globalCompositeOperation = 'source-over';
+      g.globalAlpha = 1;
+    };
+    /* ひかりを 先に 敷いて、その 下に かげ。
+       ＝ 出る 順は かげ → ひかり → 絵。 */
+    if(v.glowAmount > 0.004){
+      put(fxShape(0, c, (v.glowSize || 24) * k, 0, 0, v.glowColor || '#FFF2A8'),
+          v.glowAmount);
+    }
+    if(v.shadowAmount > 0.004){
+      put(fxShape(1, c, (v.shadowBlur || 0) * k,
+                  (v.shadowX || 0) * k, (v.shadowY || 0) * k,
+                  v.shadowColor || '#1E1C14'),
+          v.shadowAmount);
+    }
+  }
+
+  /** 色の 調整。canvas の filter で かける */
+  function colorFilter(v){
+    let f = '';
+    if(v.bright   != null && Math.abs(v.bright   - 1) > 0.004) f += ' brightness(' + v.bright.toFixed(3) + ')';
+    if(v.contrast != null && Math.abs(v.contrast - 1) > 0.004) f += ' contrast('   + v.contrast.toFixed(3) + ')';
+    if(v.sat      != null && Math.abs(v.sat      - 1) > 0.004) f += ' saturate('   + v.sat.toFixed(3) + ')';
+    if(v.hue) f += ' hue-rotate(' + Math.round(v.hue) + 'deg)';
+    return f;
+  }
+  /** その レイヤーに 色の 調整・かげ・ひかり が 入って いるか */
+  function hasFX(v){
+    return !!colorFilter(v) || v.glowAmount > 0.004 || v.shadowAmount > 0.004;
   }
 
   /** b を a の下に敷く */
@@ -602,6 +703,21 @@ function flatMesh(w, h){
       gx.globalAlpha = 1;
     }
 
+    /* 色の 調整（中身ぜんぶに まとめて） */
+    const cf = colorFilter(v);
+    if(cf){
+      const t2 = document.createElement('canvas');
+      t2.width = bw; t2.height = bh;
+      const g2 = t2.getContext('2d');
+      g2.filter = cf.trim();
+      g2.drawImage(c, 0, 0);
+      g2.filter = 'none';
+      gx.setTransform(1, 0, 0, 1, 0, 0);
+      gx.globalCompositeOperation = 'copy';
+      gx.drawImage(t2, 0, 0);
+      gx.globalCompositeOperation = 'source-over';
+    }
+
     // ふちどりは 絵の「下」に 敷く（うすい ときに 中まで 透けない ため）
     const strokeW = (v.strokeW || 0) * k;
     if(strokeW > 0.4){
@@ -613,6 +729,7 @@ function flatMesh(w, h){
       gu.drawImage(ol, 0, 0);
       gu.globalCompositeOperation = 'source-over';
     }
+    underFX(c, v, k);
 
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -754,7 +871,24 @@ function flatMesh(w, h){
     const k = Math.abs(tf[0]);
     const strokeW = (v.strokeW || 0) * k;
 
+    /* 色の 調整は 中身ぜんぶに まとめて かかる */
+    const cf = colorFilter(v);
+    if(cf){
+      const t2 = alloc(), g2 = t2.getContext('2d');
+      g2.setTransform(1, 0, 0, 1, 0, 0);
+      g2.filter = cf.trim();
+      g2.drawImage(c, 0, 0);
+      g2.filter = 'none';
+      const gc = c.getContext('2d');
+      gc.setTransform(1, 0, 0, 1, 0, 0);
+      gc.globalCompositeOperation = 'copy';
+      gc.drawImage(t2, 0, 0);
+      gc.globalCompositeOperation = 'source-over';
+      back(1);
+    }
+
     if(strokeW > 0.4) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
+    underFX(c, v, k);
 
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);

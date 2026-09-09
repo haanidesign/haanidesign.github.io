@@ -370,6 +370,26 @@ export function valuesAt(layer, time){
     strokeColor: st.color,
     strokeW:     sample(tr.stroke, t, st.width || 0),
 
+    /* ひかり（グロー）と かげ。
+       ふちどりと 同じで「絵を ふくらませて 色を ぬる」しくみ。
+       ちがうのは ぼかすか、ずらすか だけ。 */
+    glowColor:  (layer.glow && layer.glow.color) || '#FFF2A8',
+    glowAmount: sample(tr.glowAmt, t, (layer.glow && layer.glow.amount) || 0),
+    glowSize:   (layer.glow && layer.glow.size != null) ? layer.glow.size : 24,
+
+    shadowColor:  (layer.shadow && layer.shadow.color) || '#1E1C14',
+    shadowAmount: sample(tr.shadowAmt, t, (layer.shadow && layer.shadow.amount) || 0),
+    shadowX:    (layer.shadow && layer.shadow.x != null) ? layer.shadow.x : 14,
+    shadowY:    (layer.shadow && layer.shadow.y != null) ? layer.shadow.y : 18,
+    shadowBlur: (layer.shadow && layer.shadow.blur != null) ? layer.shadow.blur : 12,
+
+    /* 色の 調整。1 が そのまま、0 が 何も 無い。
+       ふつうは うごかさない ので、ピンは スライダーからだけ うつ。 */
+    bright:   sample(tr.bright,   t, layer.bright   == null ? 1 : layer.bright),
+    contrast: sample(tr.contrast, t, layer.contrast == null ? 1 : layer.contrast),
+    sat:      sample(tr.sat,      t, layer.sat      == null ? 1 : layer.sat),
+    hue:      sample(tr.hue,      t, layer.hue      || 0),
+
     flipX: !!sampleStep(tr.flipX, t, layer.flipX),
     flipY: !!sampleStep(tr.flipY, t, layer.flipY),
 
@@ -434,6 +454,8 @@ export function channelValue(layer, ch, time){
   const v = valuesAt(layer, time);
   if(ch === 'tint')   return v.tintAmount;
   if(ch === 'stroke') return v.strokeW;
+  if(ch === 'glowAmt')   return v.glowAmount;
+  if(ch === 'shadowAmt') return v.shadowAmount;
   return v[ch];
 }
 

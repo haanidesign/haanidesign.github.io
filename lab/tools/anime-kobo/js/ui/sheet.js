@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=153';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=154';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=153';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=154';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=153';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=153';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=153';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=153';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=153';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=154';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=154';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=154';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=154';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=154';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=153';
+         addTextLayer } from '../io/text.js?v=154';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=153';
-import { PATTERN_NAMES } from '../io/pattern.js?v=153';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=154';
+import { PATTERN_NAMES } from '../io/pattern.js?v=154';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=153';
-import { readAsDataURL, loadImage } from '../io/image.js?v=153';
+         PITCH_MAX } from '../engine/pano.js?v=154';
+import { readAsDataURL, loadImage } from '../io/image.js?v=154';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=153';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=153';
-import { newHand } from '../engine/hand.js?v=153';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=153';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=154';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=154';
+import { newHand } from '../engine/hand.js?v=154';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=154';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=153';
+  from './colorwheel.js?v=154';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=153';
+         guessBpm, firstOnset } from '../io/audio.js?v=154';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=153';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=154';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -291,6 +291,12 @@ export function animSlider(label, layer, ch, min, max, step, fmt){
     } else if(ch === 'stroke'){
       layer.stroke = layer.stroke || { color:'#FFFEF7', width:0 };
       layer.stroke.width = v;
+    } else if(ch === 'glowAmt'){
+      layer.glow = layer.glow || { color:'#FFF2A8', amount:0, size:24 };
+      layer.glow.amount = v;
+    } else if(ch === 'shadowAmt'){
+      layer.shadow = layer.shadow || { color:'#1E1C14', amount:0, x:14, y:18, blur:12 };
+      layer.shadow.amount = v;
     } else layer[ch] = v;
     if(hasPins(layer)) setPin(layer, ch, S.time, v, 'smooth');
   };
@@ -2421,6 +2427,66 @@ export function buildLook(box, l, opts){
     v => { l.stroke = l.stroke || { color:'#FFFEF7', width:0 }; l.stroke.color = v; }));
   box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
     v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
+
+  /* ---- ✨ ひかり（グロー）と 🌑 かげ ----
+     どちらも 絵の 形を ぼかして 色を ぬって 下に 敷く だけ。
+     ふちどりの やわらかい ばん。 */
+  box.appendChild(heading('✨ ひかり'));
+  box.appendChild(colorPick('ひかりの色',
+    () => (l.glow && l.glow.color) || '#FFF2A8',
+    v => { l.glow = l.glow || { color:'#FFF2A8', amount:0, size:24 }; l.glow.color = v; }));
+  box.appendChild(animSlider('ひかりの つよさ', l, 'glowAmt', 0, 1, 0.02,
+    v => v < 0.02 ? 'なし' : pct(v)));
+  box.appendChild(slider('ひかりの 大きさ',
+    () => (l.glow && l.glow.size != null) ? l.glow.size : 24,
+    v => { l.glow = l.glow || { color:'#FFF2A8', amount:0, size:24 }; l.glow.size = v; },
+    2, 120, 1, v => Math.round(v) + 'px'));
+
+  box.appendChild(heading('🌑 かげ'));
+  box.appendChild(colorPick('かげの色',
+    () => (l.shadow && l.shadow.color) || '#1E1C14',
+    v => { l.shadow = l.shadow || { color:'#1E1C14', amount:0, x:14, y:18, blur:12 }; l.shadow.color = v; }));
+  box.appendChild(animSlider('かげの こさ', l, 'shadowAmt', 0, 1, 0.02,
+    v => v < 0.02 ? 'なし' : pct(v)));
+  const shd = (key, label, min, max) => slider(label,
+    () => (l.shadow && l.shadow[key] != null) ? l.shadow[key]
+        : (key === 'x' ? 14 : key === 'y' ? 18 : 12),
+    v => { l.shadow = l.shadow || { color:'#1E1C14', amount:0, x:14, y:18, blur:12 }; l.shadow[key] = v; },
+    min, max, 1, v => Math.round(v) + 'px');
+  box.appendChild(shd('x', 'よこに ずらす', -120, 120));
+  box.appendChild(shd('y', 'たてに ずらす', -120, 120));
+  box.appendChild(shd('blur', 'かげの ぼかし', 0, 80));
+
+  /* ---- 🎨 色の 調整 ---- */
+  box.appendChild(heading('🎨 色の 調整'));
+  const adj = (ch, label, min, max, step, fmt, def) => animSlider(label, l, ch, min, max, step, fmt);
+  box.appendChild(adj('bright',   'あかるさ',   0.2, 2, 0.01, pct));
+  box.appendChild(adj('contrast', 'くっきり',   0.2, 2, 0.01, pct));
+  box.appendChild(adj('sat',      'あざやかさ', 0,   2, 0.01, pct));
+  box.appendChild(adj('hue',      '色あい',  -180, 180, 1, v => v === 0 ? 'そのまま' : Math.round(v) + '°'));
+
+  const adjRow = document.createElement('div');
+  adjRow.className = 'rowbtns';
+  adjRow.style.flexWrap = 'wrap';
+  [['もとに もどす', { bright:1, contrast:1, sat:1, hue:0 }],
+   ['ゆうがた',      { bright:1.02, contrast:1.05, sat:1.15, hue:-14 }],
+   ['よる',          { bright:0.62, contrast:1.12, sat:0.7,  hue:18 }],
+   ['セピア',        { bright:1.05, contrast:0.95, sat:0.35, hue:-24 }],
+   ['あせた 色',     { bright:1.08, contrast:0.85, sat:0.55, hue:0 }]
+  ].forEach(([label, set]) => {
+    const b = button(label, () => {
+      edit('色の 調整', () => {
+        Object.keys(set).forEach(k2 => {
+          l[k2] = set[k2];
+          if(hasPins(l)) setPin(l, k2, S.time, set[k2], 'smooth');
+        });
+      });
+      onChange();
+    });
+    b.style.flex = '0 0 30%';
+    adjRow.appendChild(b);
+  });
+  box.appendChild(field('めやす', adjRow));
 
   buildHand(box, l);
 
