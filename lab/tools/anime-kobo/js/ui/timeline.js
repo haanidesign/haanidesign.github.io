@@ -1,14 +1,14 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=131';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=134';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=131';
+         nearestFolder, setParent } from '../engine/layer.js?v=134';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=131';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=131';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=134';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=134';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -290,6 +290,14 @@ export function createTimeline(root, opts = {}){
       const ic = document.createElement('span');
       ic.className = 'folderic';
       ic.textContent = l.open === false ? '📁' : '📂';
+      head.appendChild(ic);
+    } else if(l.kind === 'cam'){
+      /* カメラ … 絵は 持たないので、しるしを 出す。
+         ここに ◆ピンを うつと カメラの うごきに なる。 */
+      const ic = document.createElement('span');
+      ic.className = 'thumb camic';
+      ic.textContent = '🎥';
+      ic.title = 'カメラ。この行に ピンを うつと カメラが 動く';
       head.appendChild(ic);
     } else if(l.kind === 'solid'){
       // いろの かみ … その色の しかくを 見本に する

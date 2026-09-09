@@ -394,6 +394,12 @@
 }
 #sheet .sheetbody{ display:block; }
 
+/* カメラの 行の しるし。絵の 見本の かわりに 🎥 を 出す */
+.thumb.camic{
+  display:flex; align-items:center; justify-content:center;
+  background:var(--ink); color:var(--main); font-size:.8rem;
+}
+
 /* 動きのプリセット。
 
    字だけ ならべても どんな 動きか わからないので、

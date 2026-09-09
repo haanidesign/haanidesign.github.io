@@ -1,37 +1,37 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=131';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=134';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=131';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=134';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=131';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=131';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=131';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=131';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=131';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=134';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=134';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=134';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=134';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=134';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=131';
+         addTextLayer } from '../io/text.js?v=134';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=131';
-import { PATTERN_NAMES } from '../io/pattern.js?v=131';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=134';
+import { PATTERN_NAMES } from '../io/pattern.js?v=134';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=131';
-import { readAsDataURL, loadImage } from '../io/image.js?v=131';
+         PITCH_MAX } from '../engine/pano.js?v=134';
+import { readAsDataURL, loadImage } from '../io/image.js?v=134';
 import { isCam, camOf, resetCam, depthScale, is3D,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=131';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=131';
-import { newHand } from '../engine/hand.js?v=131';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=131';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=134';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=134';
+import { newHand } from '../engine/hand.js?v=134';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=134';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=131';
+  from './colorwheel.js?v=134';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=131';
+         guessBpm, firstOnset } from '../io/audio.js?v=134';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=131';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=134';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -927,6 +927,22 @@ export function buildCamSheet(box, back){
   const NL = String.fromCharCode(10);
   const cam = camOf(S.proj) || S.proj.layers.find(isCam);
 
+  /* まえの ばんの カメラは いちばん 下の 行に できて いた。
+     さがしにくい ので 上へ 上げる。
+     カメラは 絵に 出ない ので、ならび順を かえても 見た目は 1ドットも 変わらない。 */
+  if(cam && S.proj.layers[0] !== cam){
+    const i = S.proj.layers.indexOf(cam);
+    if(i > 0){
+      S.proj.layers.splice(i, 1);
+      S.proj.layers.unshift(cam);
+      /* いま この シートを 組み立てて いる さいちゅう なので、
+         ここで すぐ 知らせると シートが 二重に 出る
+         （知らせる → 組み立て直し → もどってきて つづきを 足す）。
+         組み立てが 終わってから 知らせる。 */
+      setTimeout(onChange, 0);
+    }
+  }
+
   if(!cam){
     box.appendChild(heading('🎥 カメラ'));
     const e = document.createElement('div');
@@ -942,9 +958,12 @@ export function buildCamSheet(box, back){
       button('＋ カメラを つくる', () => {
         edit('カメラを つくる', () => {
           const c = newCamLayer(S.proj);
-          S.proj.layers.push(c);      // いちばん うしろ。絵には なにも 出ない
+          /* いちばん 上の 行に 出す。絵には なにも 出ない ので
+             ならび順は 見た目に ひびかない。さがしやすさが だいじ。 */
+          S.proj.layers.unshift(c);
+          S.sel = c.id;
         });
-        notify('カメラを つくりました');
+        notify('カメラを つくりました。タイムラインの 🎥 の 行です');
         onChange();
       })
     ));
@@ -983,9 +1002,52 @@ export function buildCamSheet(box, back){
   box.appendChild(animSlider('かたむき', cam, 'rot', -180, 180, 1,
     v => Math.round(v) + '°'));
 
+  /* ---- うごかす ----
+     スライダーは「ピンが 1本でも あれば」自動で ピンに なる しくみ。
+     さいしょの 1本だけは 自分で うつ ひつようが ある ので、
+     ここに ボタンを 出す（タイムラインを さがさなくて すむ）。
+     ここが 無かった ので、スライダーを 動かしても
+     うごきに ならなかった。 */
+  const camPins = () => Object.values(cam.tracks || {}).reduce((n, k) => n + k.length, 0);
+
+  const status = document.createElement('div');
+  status.className = 'empty';
+  status.style.textAlign = 'left';
+  const showStatus = () => {
+    const n = camPins();
+    status.textContent = n
+      ? ('いま ピンが ' + n + 'コ。' + NL
+         + 'この あとは 時こくを うつして スライダーを 動かすだけで、' + NL
+         + 'その 時こくに ピンが つきます。')
+      : ('まだ ピンが ありません。' + NL
+         + 'まず「◆ ここに ピンを うつ」を おしてください。' + NL
+         + 'そのあとは 時こくを うつして スライダーを 動かすだけです。');
+  };
+  showStatus();
+
+  box.appendChild(field('うごかす', btnRow(
+    button('◆ ここに ピンを うつ', () => {
+      edit('カメラの ピン', () => {
+        ['x', 'y', 'scaleX', 'rot'].forEach(ch => {
+          setPin(cam, ch, S.time, channelValue(cam, ch, S.time), 'smooth');
+        });
+      });
+      showStatus();
+      notify('いまの ところに カメラの ピンを うちました');
+      onChange();
+    }),
+    button('🎥 の 行を えらぶ', () => {
+      S.sel = cam.id;
+      notify('タイムラインの 🎥 の 行を えらびました');
+      onChange();
+    })
+  )));
+  box.appendChild(status);
+
   box.appendChild(btnRow(
     button('まん中に もどす', () => {
       edit('カメラを もどす', () => resetCam(cam, S.proj));
+      showStatus();
       notify('カメラを まん中に もどしました');
       onChange();
     })
@@ -995,8 +1057,8 @@ export function buildCamSheet(box, back){
   hint.className = 'empty';
   hint.style.textAlign = 'left';
   hint.textContent = 'カメラも レイヤーの ひとつです。' + NL
-    + 'タイムラインで えらんで ◆ピンを うつと、' + NL
-    + 'カメラの うごきに なります。' + NL
+    + 'タイムラインの 🎥 の 行に ピンが ならびます。' + NL
+    + 'そこで ピンを 左右に ずらせば、はやさを かえられます。' + NL
     + 'おくゆきは、それぞれの レイヤーの「かたち」で きめます。';
   box.appendChild(hint);
 }

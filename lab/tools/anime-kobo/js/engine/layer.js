@@ -1,13 +1,13 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=131';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=131';
-import { isCam, camOf, camMatrix, depthLen, is3D, quad3D } from './camera.js?v=131';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=131';
-import { cageDeformPoint, cageMoved } from './warp.js?v=131';
-import { handTime } from './hand.js?v=131';
-import { WORK_KEYS } from '../state.js?v=131';
+import { M, uid, ptInQuad } from './math.js?v=134';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=134';
+import { isCam, camOf, camMatrix, depthLen, is3D, quad3D } from './camera.js?v=134';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=134';
+import { cageDeformPoint, cageMoved } from './warp.js?v=134';
+import { handTime } from './hand.js?v=134';
+import { WORK_KEYS } from '../state.js?v=134';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -18,7 +18,9 @@ export function newCamLayer(project){
   l.x = project.w / 2;
   l.y = project.h / 2;
   l.lockAspect = true;
-  l.locked = true;          // 絵の上で うっかり つかまない ように
+  /* カギは かけない。絵には 出ない ので 絵の上では つかめず
+     （pickLayer が vis:false を とばす）、
+     カギの しるしが ならびに 出ると まぎらわしい だけ。 */
   return l;
 }
 

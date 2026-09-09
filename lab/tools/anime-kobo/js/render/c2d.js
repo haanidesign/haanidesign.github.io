@@ -3,15 +3,15 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=131';
-import { S, frameAsset, frameImage } from '../state.js?v=131';
+         nearestFolder } from '../engine/layer.js?v=134';
+import { S, frameAsset, frameImage } from '../state.js?v=134';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=131';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=131';
-import { paintCanvas } from '../engine/paint.js?v=131';
-import { panoCanvas } from '../engine/pano.js?v=131';
-import { homography, applyH } from '../engine/warp.js?v=131';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=131';
+         meshSizeFor } from '../engine/puppet.js?v=134';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=134';
+import { paintCanvas } from '../engine/paint.js?v=134';
+import { panoCanvas } from '../engine/pano.js?v=134';
+import { homography, applyH } from '../engine/warp.js?v=134';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=134';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
