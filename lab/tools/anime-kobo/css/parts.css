@@ -394,11 +394,35 @@
 }
 #sheet .sheetbody{ display:block; }
 
-/* 動きのプリセット */
-.presets{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:.35rem; }
+/* 動きのプリセット。
+
+   字だけ ならべても どんな 動きか わからないので、
+   小さな 図を 上に のせた ふだ に する。
+   図は presets.js が SVG で 持っていて、色は トークンを 見る。 */
+.presets{ display:grid; grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); gap:.4rem; }
 .presets button{
   min-height:42px; font-size:.68rem; padding:.2rem .3rem;
   border-radius:10px;
+}
+.presets button.preset{
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  gap:.18rem; padding:.34rem .2rem .28rem;
+  min-height:0;                       /* 中身の たかさに まかせる */
+  line-height:1.25;
+}
+.pfig{
+  display:block; width:48px; height:34px;
+  background:var(--cream); border:var(--bd2); border-radius:8px;
+  /* 図は ふだの 中に おさめる。はみ出しても 切る */
+  overflow:hidden;
+}
+.pfig svg{ display:block; }
+.pname{ display:block; font-size:.62rem; text-align:center; word-break:break-word; }
+
+/* うごきの 中の 小見出し（表示・移動・拡大縮小） */
+.subhead{
+  font-size:.66rem; font-weight:700; color:var(--gray);
+  margin:.5rem 0 .2rem; padding-left:.15rem;
 }
 
 .textin{
@@ -713,7 +737,7 @@
   /* よこから 出すときは 中身も その はばに あわせる */
   #sheet .field label{ flex:0 0 68px; font-size:.68rem; }
   #sheet .field .val{ flex:0 0 46px; font-size:.68rem; }
-  #sheet .presets{ grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); }
+  #sheet .presets{ grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); }
 }
 
 /* せまい よこ画面（スマホ）は もう少し つめる */

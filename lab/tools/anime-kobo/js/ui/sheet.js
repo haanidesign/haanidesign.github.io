@@ -1,35 +1,35 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=127';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=128';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=127';
+         splitFrames } from '../engine/layer.js?v=128';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=127';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=127';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=127';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=127';
-import { PRESET_GROUPS } from '../engine/presets.js?v=127';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=128';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=128';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=128';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=128';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=128';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=127';
+         addTextLayer } from '../io/text.js?v=128';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=127';
-import { PATTERN_NAMES } from '../io/pattern.js?v=127';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=128';
+import { PATTERN_NAMES } from '../io/pattern.js?v=128';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=127';
-import { readAsDataURL, loadImage } from '../io/image.js?v=127';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=127';
-import { newHand } from '../engine/hand.js?v=127';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=127';
+         PITCH_MAX } from '../engine/pano.js?v=128';
+import { readAsDataURL, loadImage } from '../io/image.js?v=128';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=128';
+import { newHand } from '../engine/hand.js?v=128';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=128';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=127';
+  from './colorwheel.js?v=128';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=127';
+         guessBpm, firstOnset } from '../io/audio.js?v=128';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=127';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=128';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -763,6 +763,46 @@ export function buildMotionSheet(box, open){
   });
 }
 
+
+/* うごきの ボタンを 図つきで ならべる。
+
+   字だけの ならびだと、どれが どんな 動きか さわるまで わからない。
+   小さな 図（presets.js が 持っている SVG）を 上に のせて、
+   「表示 / 移動 / 拡大・縮小」で 分けて 出す。 */
+function presetGrid(box, list, run){
+  CATS.forEach(cat => {
+    const items = list.filter(p => p.cat === cat.key);
+    if(!items.length) return;
+
+    const sub = document.createElement('div');
+    sub.className = 'subhead';
+    sub.textContent = cat.label;
+    box.appendChild(sub);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'presets';
+    items.forEach(p => {
+      const b = document.createElement('button');
+      b.className = 'preset';
+      b.title = p.name;
+
+      const fig = document.createElement('span');
+      fig.className = 'pfig';
+      fig.innerHTML = p.icon;          // 自分で 書いた 図だけ
+      b.appendChild(fig);
+
+      const t = document.createElement('span');
+      t.className = 'pname';
+      t.textContent = p.name;
+      b.appendChild(t);
+
+      b.addEventListener('click', () => run(p));
+      wrap.appendChild(b);
+    });
+    box.appendChild(wrap);
+  });
+}
+
 /* ---------- ① 出る・消える ---------- */
 export function buildEnterSheet(box, back){
   const l = selected();
@@ -775,19 +815,11 @@ export function buildEnterSheet(box, back){
 
   PRESET_GROUPS.filter(gr => gr.key !== 'loop').forEach(gr => {
     box.appendChild(heading(gr.label));
-    const wrap = document.createElement('div');
-    wrap.className = 'presets';
-    Object.keys(gr.map).forEach(name => {
-      const b = document.createElement('button');
-      b.textContent = name;
-      b.addEventListener('click', () => {
-        edit(name, () => gr.map[name](l, S.time, dur.v));
-        notify(name + ' を いれました');
-        onChange();
-      });
-      wrap.appendChild(b);
+    presetGrid(box, gr.list, (p) => {
+      edit(p.name, () => p.fn(l, S.time, dur.v));
+      notify(p.name + ' を いれました');
+      onChange();
     });
-    box.appendChild(wrap);
   });
 
   const hint = document.createElement('div');
@@ -812,19 +844,11 @@ export function buildLoopSheet(box, back){
   const gr = PRESET_GROUPS.find(g => g.key === 'loop');
   if(gr){
     box.appendChild(heading('ずっと くりかえす'));
-    const wrap = document.createElement('div');
-    wrap.className = 'presets';
-    Object.keys(gr.map).forEach(name => {
-      const b = document.createElement('button');
-      b.textContent = name;
-      b.addEventListener('click', () => {
-        edit(name, () => gr.map[name](l, S.time, dur.v));
-        notify(name + ' を いれました');
-        onChange();
-      });
-      wrap.appendChild(b);
+    presetGrid(box, gr.list, (p) => {
+      edit(p.name, () => p.fn(l, S.time, dur.v));
+      notify(p.name + ' を いれました');
+      onChange();
     });
-    box.appendChild(wrap);
   }
 
   buildSway(box, l);
