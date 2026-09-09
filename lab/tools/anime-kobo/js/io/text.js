@@ -3,9 +3,10 @@
    こうすると、動かす・回す・塗る・ぼかす・ピンで曲げる が
    絵とまったく同じしくみで効く。文字を変えたら描き直すだけ。 */
 
-import { S, addAsset } from '../state.js?v=143';
-import { newLayer } from '../engine/layer.js?v=143';
-import { loadImage } from './image.js?v=143';
+import { S, addAsset } from '../state.js?v=144';
+import { newLayer } from '../engine/layer.js?v=144';
+import { M } from '../engine/math.js?v=144';
+import { loadImage } from './image.js?v=144';
 
 export const FONTS = [
   { key:'rounded', label:'まるゴシック', css:"'M PLUS Rounded 1c', sans-serif" },
@@ -113,4 +114,94 @@ export async function addTextLayer(str, style){
 export function shortName(str){
   const s = String(str || '文字').replace(/\n/g, ' ').trim();
   return s.length > 8 ? s.slice(0, 8) + '…' : (s || '文字');
+}
+
+
+/* ================= 一文字ずつ に わける =================
+
+   「列車」ごっこの もと。
+   1まいの 文字レイヤーを、1文字 1まいの レイヤーに ばらす。
+
+   だいじな ところ
+     ばらした あと、見た目が 1ドットも 変わらない こと。
+     だから 元の 紙の 中で その 字が どこに いたかを 測って、
+     おなじ ところに 置き直す。
+
+   測り方は textToCanvas と 同じ 手順に そろえて ある
+   （行ごとの はば → よせ方 → 1字ずつの 送り）。 */
+
+/** 元の 紙の 中での、1字ずつの まん中 */
+export function charBoxes(t){
+  const lines = String(t.str || '').split(String.fromCharCode(10));
+  const meas = document.createElement('canvas').getContext('2d');
+  meas.font = fontCss(t);
+
+  let w = 1;
+  for(const ln of lines) w = Math.max(w, meas.measureText(ln || ' ').width);
+  const lh = t.size * t.lineHeight;
+  const pad = Math.ceil(t.size * 0.35 + (t.strokeWidth || 0));
+  const cw = Math.ceil(w) + pad * 2;
+  const ch = Math.ceil(lh * lines.length) + pad * 2;
+
+  const out = [];
+  lines.forEach((ln, li) => {
+    const lw = meas.measureText(ln || ' ').width;
+    let x = (t.align === 'left')  ? pad
+          : (t.align === 'right') ? cw - pad - lw
+          : (cw - lw) / 2;
+    const y = pad + lh * (li + 0.5);
+    for(const chr of [...ln]){
+      const adv = meas.measureText(chr).width;
+      // 空白は 場所を あけるだけ。レイヤーには しない
+      if(chr.trim()) out.push({ chr, x: x + adv / 2, y });
+      x += adv;
+    }
+  });
+  return { boxes: out, w: cw, h: ch };
+}
+
+/**
+ * 文字レイヤーを 1字ずつの レイヤーに ばらす。
+ * 元の レイヤーは 消さずに 見えなくして 残す
+ * （文を 直したく なったら もどせる ように）。
+ * かえりは できた レイヤーの ならび（左から 右、上から 下）。
+ */
+export async function splitTextChars(layer){
+  if(!layer || layer.kind !== 'text') return [];
+  const t = layer.text;
+  const { boxes, w, h } = charBoxes(t);
+  if(boxes.length < 2) return [];
+
+  const pvx = (layer.pivot && layer.pivot.x != null) ? layer.pivot.x : 0.5;
+  const pvy = (layer.pivot && layer.pivot.y != null) ? layer.pivot.y : 0.5;
+  /* 元レイヤーの 姿（親から 見た ところ）。
+     ピンが うって あっても、ばらすのは いまの 素の 姿 でよい。 */
+  const m = M.trs(layer.x, layer.y, layer.rot || 0,
+                  layer.scaleX == null ? 1 : layer.scaleX,
+                  layer.scaleY == null ? 1 : layer.scaleY);
+
+  const made = [];
+  for(const b of boxes){
+    const c = newLayer(b.chr, []);
+    c.kind = 'text';
+    c.text = Object.assign({}, t, { str: b.chr, align: 'center' });
+    await renderTextLayer(c);
+    c.name = b.chr;
+
+    // 元の 紙の 中の 場所 → 親から 見た 場所
+    const q = M.apply(m, b.x - w * pvx, b.y - h * pvy);
+    c.x = q.x; c.y = q.y;
+    c.rot = layer.rot || 0;
+    c.scaleX = layer.scaleX; c.scaleY = layer.scaleY;
+    c.lockAspect = layer.lockAspect;
+    c.parent = layer.parent || null;
+    c.depth = layer.depth || 0;
+    made.push(c);
+  }
+
+  const at = S.proj.layers.indexOf(layer);
+  S.proj.layers.splice(at < 0 ? 0 : at, 0, ...made);
+  layer.visible = false;
+  if(!/もと$/.test(layer.name)) layer.name = layer.name + '（もと）';
+  return made;
 }

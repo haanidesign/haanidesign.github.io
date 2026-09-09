@@ -1,38 +1,38 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=143';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=144';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=143';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=144';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=143';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=143';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=143';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=143';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=143';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=144';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=144';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=144';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=144';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=144';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=143';
+         addTextLayer } from '../io/text.js?v=144';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=143';
-import { PATTERN_NAMES } from '../io/pattern.js?v=143';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=144';
+import { PATTERN_NAMES } from '../io/pattern.js?v=144';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=143';
-import { readAsDataURL, loadImage } from '../io/image.js?v=143';
+         PITCH_MAX } from '../engine/pano.js?v=144';
+import { readAsDataURL, loadImage } from '../io/image.js?v=144';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=143';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=143';
-import { newHand } from '../engine/hand.js?v=143';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=143';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=144';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=144';
+import { newHand } from '../engine/hand.js?v=144';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=144';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=143';
+  from './colorwheel.js?v=144';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=143';
+         guessBpm, firstOnset } from '../io/audio.js?v=144';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=143';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=144';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2221,6 +2221,29 @@ export function buildTextSheet(box, closeFn){
     })
   ));
 
+  /* ---- 一文字ずつ（列車） ----
+     1まいの 文字を 1字ずつの レイヤーに ばらして、
+     なぞった みちを 順ぐりに 通らせる。 */
+  if(editing && [...String(t.str || '')].filter(c => c.trim()).length > 1){
+    box.appendChild(heading('🚂 一文字ずつ 走らせる'));
+    const tn = document.createElement('div');
+    tn.className = 'empty';
+    tn.style.textAlign = 'left';
+    tn.textContent = '文字を 1字ずつの レイヤーに ばらして、' + NL
+      + '指で なぞった みちを 列車の ように' + NL
+      + '1字ずつ おくれて 通らせます。' + NL
+      + 'ばらしても 見た目は 変わりません。' + NL
+      + 'もとの 文は 見えなく して のこす ので、' + NL
+      + 'あとから 文を 直したく なったら もどせます。';
+    box.appendChild(tn);
+    box.appendChild(btnRow(
+      button('🚂 一文字ずつ みちを なぞる', () => {
+        if(closeFn) closeFn();
+        onTrain();
+      })
+    ));
+  }
+
   if(!editing){
     const note = document.createElement('div');
     note.className = 'empty';
@@ -2466,6 +2489,9 @@ export function setPlayer(fn){ onPlay = fn; }
 
 let onTrace = () => {};
 export function setTracer(fn){ onTrace = fn; }
+
+let onTrain = () => {};
+export function setTrainer(fn){ onTrain = fn; }
 
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
@@ -3412,7 +3438,8 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
    何秒で 通るか と、進み方（つなぎ方）を きめる。 */
 export function buildPathSheet(box, closeFn, pts, apply){
   const NL = String.fromCharCode(10);
-  const l = selected();
+  const train = S.train;                 // 列車ごっこ 中なら 文字の ならび
+  const l = train ? train.chars[0] : selected();
   if(!l || !pts || pts.length < 2){
     const e = document.createElement('div');
     e.className = 'empty';
@@ -3423,15 +3450,24 @@ export function buildPathSheet(box, closeFn, pts, apply){
 
   S.proj.path = S.proj.path || { dur: 2, ease: 'linear', count: 24 };
   const P = S.proj.path;
+  if(P.gap == null) P.gap = 0.12;
+  if(P.orient == null) P.orient = false;
+  if(P.only == null) P.only = true;
 
   const len = Math.round(pathLength(pts));
   const info = document.createElement('div');
   info.className = 'empty';
   info.style.textAlign = 'left';
   const showInfo = () => {
-    info.textContent = '「' + l.name + '」が この みちを 通ります。' + NL
+    info.textContent = (train
+        ? ('🚂 ' + train.chars.length + '文字が この みちを 通ります。')
+        : ('「' + l.name + '」が この みちを 通ります。')) + NL
       + 'みちの 長さ ' + len + 'ドット／' + P.dur.toFixed(1) + '秒'
-      + '（1秒に ' + Math.round(len / Math.max(0.1, P.dur)) + 'ドット）';
+      + '（1秒に ' + Math.round(len / Math.max(0.1, P.dur)) + 'ドット）'
+      + (train
+        ? (NL + '1文字ずつ ' + P.gap.toFixed(2) + '秒 おくれて 出るので、'
+             + NL + '最後の 字が 着くのは ' + (P.dur + P.gap * (train.chars.length - 1)).toFixed(1) + '秒後')
+        : '');
   };
   showInfo();
   box.appendChild(info);
@@ -3475,6 +3511,39 @@ export function buildPathSheet(box, closeFn, pts, apply){
   box.appendChild(slider('ピンの こまかさ', () => P.count, v => P.count = v,
     4, 80, 2, v => Math.round(v) + 'コ'));
 
+  /* ---- 列車の ときだけ 出す ---- */
+  if(train){
+    box.appendChild(heading('🚂 列車の きまり'));
+    box.appendChild(slider('1文字ずつの おくれ', () => P.gap,
+      v => { P.gap = v; showInfo(); }, 0, 1, 0.01,
+      v => v < 0.005 ? 'いっせいに' : v.toFixed(2) + '秒'));
+
+    box.appendChild(btnRow(
+      button(P.orient ? '✅ みちの むきに かたむける' : '⬜ みちの むきに かたむける', () => {
+        P.orient = !P.orient;
+        if(closeFn) closeFn();
+        onChange();
+        setTimeout(() => reopenPath(), 0);
+      })
+    ));
+    box.appendChild(btnRow(
+      button(P.only ? '✅ 走って いる あいだだけ 出す' : '⬜ 走って いる あいだだけ 出す', () => {
+        P.only = !P.only;
+        if(closeFn) closeFn();
+        onChange();
+        setTimeout(() => reopenPath(), 0);
+      })
+    ));
+    const tn = document.createElement('div');
+    tn.className = 'empty';
+    tn.style.textAlign = 'left';
+    tn.textContent = 'かたむける ＝ 車両が レールを むく ように、' + NL
+      + '文字が みちの むきを 向きます。' + NL
+      + '走って いる あいだだけ 出す ＝ 出るまえ・着いたあとは' + NL
+      + '消えます。切ると、はしっこに 文字が たまります。';
+    box.appendChild(tn);
+  }
+
   const es = document.createElement('div');
   es.className = 'rowbtns';
   es.style.flexWrap = 'wrap';
@@ -3502,6 +3571,10 @@ export function buildPathSheet(box, closeFn, pts, apply){
     + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
   box.appendChild(note);
 }
+
+/* 列車の きまりを 切りかえた あと、同じ シートを 開き直す */
+let reopenPath = () => {};
+export function setPathReopener(fn){ reopenPath = fn; }
 
 
 /* ================= できあがり =================

@@ -1,14 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=143';
+import { M } from './engine/math.js?v=144';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=143';
+         beginEdit, commitEdit,
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=144';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=143';
-import { createStage } from './ui/stage.js?v=143';
-import { createRenderer } from './render/renderer.js?v=143';
-import { createTimeline } from './ui/timeline.js?v=143';
-import { fmtTime } from './engine/anim.js?v=143';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=144';
+import { createStage } from './ui/stage.js?v=144';
+import { createRenderer } from './render/renderer.js?v=144';
+import { createTimeline } from './ui/timeline.js?v=144';
+import { fmtTime } from './engine/anim.js?v=144';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -18,21 +19,23 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=143';
+         setTrainer, setPathReopener,
+         setWarper } from './ui/sheet.js?v=144';
 
-import { showNewDoc } from './ui/newdoc.js?v=143';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=143';
-import { fitToCanvas, isBg } from './io/bg.js?v=143';
-import * as Audio from './io/audio.js?v=143';
+import { showNewDoc } from './ui/newdoc.js?v=144';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=144';
+import { fitToCanvas, isBg } from './io/bg.js?v=144';
+import * as Audio from './io/audio.js?v=144';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=143';
-import { importPsd } from './io/psd.js?v=143';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=144';
+import { importPsd } from './io/psd.js?v=144';
+import { splitTextChars } from './io/text.js?v=144';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=143';
-import { pathKeys } from './engine/path.js?v=143';
-import { paintDirty } from './engine/paint.js?v=143';
+         canUseWebCodecs } from './io/export.js?v=144';
+import { pathKeys } from './engine/path.js?v=144';
+import { paintDirty } from './engine/paint.js?v=144';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=143';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=144';
 
 const $ = (s) => document.querySelector(s);
 
@@ -275,7 +278,7 @@ $('#clip').addEventListener('click', () => {
 function setTraceMode(on){
   if(on && S.paintMode) setPaintMode(false);
   S.traceMode = !!on;
-  if(!on) S.tracePts = null;
+  if(!on){ S.tracePts = null; S.train = null; }
   $('#tracemode').hidden = !on;
   if(on){
     S.playing = false;
@@ -285,30 +288,83 @@ function setTraceMode(on){
   refresh();
 }
 
+/* なぞった みち（キャンバスの ざひょう）を、
+   その レイヤーが 持っている ざひょう（親から 見た ところ）に 直す。 */
+function pathForLayer(l, pts){
+  const poses = computeAll(S.proj, S.time);
+  const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
+  if(!pm) return pts.map(p => ({ x: p.x, y: p.y }));
+  const inv = M.inv(pm);
+  return pts.map(p => {
+    const q = M.apply(inv, p.x, p.y);
+    return { x: q.x, y: q.y };
+  });
+}
+
 function onTraced(){
-  const l = selected();
+  const train = S.train;
+  const l = train ? train.chars[0] : selected();
   if(!l || !S.tracePts || S.tracePts.length < 2) return;
-  sheet.open('なぞった みち', (box) => buildPathSheet(box, () => sheet.close(), S.tracePts,
-    (opt) => {
-      /* なぞった あとは キャンバスの ざひょう。
-         レイヤーは 親から 見た 場所で 持っているので、直しておく。 */
-      const poses = computeAll(S.proj, S.time);
-      const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
-      const local = S.tracePts.map(p => {
-        if(!pm) return { x: p.x, y: p.y };
-        const q = M.apply(M.inv(pm), p.x, p.y);
-        return { x: q.x, y: q.y };
-      });
+
+  const open = () => sheet.open(train ? '🚂 なぞった みち' : 'なぞった みち',
+    (box) => buildPathSheet(box, () => sheet.close(), S.tracePts, (opt) => {
+
+    /* ---- 列車 ----
+       1字ずつ おくれて 出発する。おくれる ぶんだけ
+       うしろに ならぶ ので、つながって 走って いるように 見える。 */
+    if(train){
+      const chars = train.chars;
       const n = { v: 0 };
-      edit('なぞった みちで うごかす', () => {
-        n.v = pathKeys(l, local, {
-          start: S.time, dur: opt.dur, ease: opt.ease, count: opt.count
+      edit('一文字ずつ みちを 走る', () => {
+        chars.forEach((c, i) => {
+          const start = S.time + i * (opt.gap || 0);
+          n.v += pathKeys(c, pathForLayer(c, S.tracePts), {
+            start, dur: opt.dur, ease: opt.ease, count: opt.count,
+            orient: opt.orient
+          });
+          /* 走って いる あいだ だけ 出す。
+             きめないと、出るまえ・着いたあとに はしっこへ たまる。 */
+          if(opt.only) c.span = { from: +start.toFixed(2),
+                                  to: +(start + opt.dur).toFixed(2) };
+          else delete c.span;
         });
       });
-      toast(n.v ? Math.round(n.v / 2) + 'コの ピンで うごきます' : 'うてませんでした');
+      toast(chars.length + '文字が 走ります');
+      S.train = null;
       setTraceMode(false);
-    }));
+      return;
+    }
+
+    const n = { v: 0 };
+    edit('なぞった みちで うごかす', () => {
+      n.v = pathKeys(l, pathForLayer(l, S.tracePts), {
+        start: S.time, dur: opt.dur, ease: opt.ease, count: opt.count
+      });
+    });
+    toast(n.v ? Math.round(n.v / 2) + 'コの ピンで うごきます' : 'うてませんでした');
+    setTraceMode(false);
+  }));
+
+  setPathReopener(open);
+  open();
 }
+
+/* ---- 🚂 一文字ずつ 走らせる ----
+   えらんで いる 文字を 1字ずつの レイヤーに ばらしてから、
+   ふつうの「みちを なぞる」に 入る。 */
+setTrainer(async () => {
+  const l = selected();
+  if(!l || l.kind !== 'text') return toast('文字レイヤーを えらんでね');
+  beginEdit('一文字ずつに わける');
+  const made = await splitTextChars(l);
+  if(!made.length){ commitEdit(); return toast('2文字いじょう ないと わけられません'); }
+  commitEdit();
+  S.train = { chars: made, from: l.id };
+  S.sel = made[0].id;
+  toast(made.length + '文字に わけました。みちを なぞってね');
+  sheet.close();
+  setTraceMode(true);
+});
 setTracer(() => {
   if(!selected()) return toast('レイヤーを えらんでね');
   sheet.close();

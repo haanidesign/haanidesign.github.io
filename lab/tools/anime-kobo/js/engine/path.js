@@ -9,7 +9,7 @@
         時間の 割りふりを 変える。
         ゆっくり出る に すれば、はじめは のろのろ 進む。 */
 
-import { setPin, EASES, curveAt } from './anim.js?v=143';
+import { setPin, EASES, curveAt } from './anim.js?v=144';
 
 /** 点の ならびの 長さ（道のり） */
 export function pathLength(pts){
@@ -91,6 +91,7 @@ export function pathKeys(layer, pts, opt = {}){
      （時間で 等分 ではなく 道のりで 等分に 打つと、
        まがり角でも 形が くずれない） */
   let n = 0;
+  let last = null;                       // ひとつ前の むき（ぐるっと 回らない ため）
   for(let i = 0; i < road.length; i++){
     const s = i / (road.length - 1);         // 道のりの 進みぐあい 0〜1
     // prog(u) = s に なる u を さがす（かんたんな 二分さがし）
@@ -104,6 +105,23 @@ export function pathKeys(layer, pts, opt = {}){
     setPin(layer, 'x', t, road[i].x, 'linear');
     setPin(layer, 'y', t, road[i].y, 'linear');
     n += 2;
+
+    /* みちの むきに かたむける（列車の 車両が レールを むく のと 同じ）。
+       むきは 前後の 点を むすんだ 線から 出す。 */
+    if(opt.orient){
+      const a = road[Math.max(0, i - 1)], b = road[Math.min(road.length - 1, i + 1)];
+      let deg = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      deg += (opt.orientOff || 0);
+      /* 行ったり来たり しない ように、ひとつ前の むきに いちばん 近い
+         いいかたに そろえる（359°→1° を -1° に 読む）。 */
+      if(n > 2 && last != null){
+        while(deg - last > 180) deg -= 360;
+        while(deg - last < -180) deg += 360;
+      }
+      last = deg;
+      setPin(layer, 'rot', t, +deg.toFixed(2), 'linear');
+      n++;
+    }
   }
   return n;
 }
