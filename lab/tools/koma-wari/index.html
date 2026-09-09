@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>コマ割り表（素体入り）｜HAANI LAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470; --pink:#F2A0B8;
+  --bd:2.5px solid var(--ink); --r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'M PLUS Rounded 1c',sans-serif;font-weight:700;color:var(--ink);
+  background:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
+  -webkit-text-size-adjust:100%;
+}
+.dot{font-family:'DotGothic16',monospace}
+header{
+  position:sticky;top:0;z-index:30;background:var(--main);border-bottom:var(--bd);
+  display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.5rem .8rem;
+}
+header h1{font-size:1rem;margin:0}
+header .sub{font-size:.62rem;font-weight:400;color:#5c5843}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  background:var(--paper);color:var(--ink);border:var(--bd);border-radius:var(--r);
+  padding:.45rem .9rem;font:inherit;font-size:.78rem;box-shadow:0 3px 0 var(--ink);
+  cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s;white-space:nowrap;
+}
+.btn:hover{background:var(--main)}
+.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.btn-y{background:var(--main)}
+.btn-g{background:var(--ink);color:var(--main)}
+.btn-g:hover{background:#000}
+.btn-sm{padding:.3rem .7rem;font-size:.7rem;box-shadow:0 2.5px 0 var(--ink);border-width:2px}
+.btn.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2.5px)}
+.title{background:var(--ink);color:var(--main);border-radius:100px;padding:.15rem .8rem;font-size:.66rem;display:inline-block}
+.chip{font-size:.62rem;background:var(--cream);border:2px solid var(--ink);border-radius:100px;padding:.1rem .6rem}
+.hint{background:var(--main-soft);border:2px dashed var(--ink);border-radius:10px;padding:.45rem .6rem;font-size:.64rem;font-weight:400;color:#5c5843;line-height:1.65}
+.bar{
+  position:sticky;top:41px;z-index:20;background:var(--cream);border-bottom:var(--bd);
+  display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.5rem .8rem;
+}
+.grp{display:flex;align-items:center;gap:.35rem;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:.25rem .5rem;box-shadow:0 2.5px 0 var(--ink)}
+.grp label{font-size:.66rem}
+.grp output{font-size:.66rem;min-width:2.1em;text-align:center;background:var(--main-soft);border-radius:100px;padding:0 .35rem}
+input[type=range]{width:82px;accent-color:var(--main-deep)}
+select,input[type=text],input[type=number],textarea{
+  font:inherit;font-size:.7rem;font-weight:700;border:2px solid var(--ink);border-radius:8px;
+  background:var(--paper);padding:.15rem .35rem;color:var(--ink);
+}
+textarea{font-weight:400;width:100%;resize:vertical;line-height:1.6}
+main{padding:1rem .8rem 12rem}
+#sheet{display:grid;gap:.9rem;justify-content:center}
+.card{background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:0 3px 0 var(--ink);overflow:hidden}
+.card .cap{display:flex;align-items:center;gap:.35rem;border-bottom:2px solid var(--ink);background:var(--main-soft);padding:.2rem .4rem;font-size:.6rem}
+.card .cap .sp{flex:1}
+.card .cap .zoom{cursor:pointer;border:2px solid var(--ink);border-radius:7px;background:var(--paper);padding:0 .35rem;font-size:.66rem;line-height:1.5}
+.card .cap .zoom:hover{background:var(--main)}
+.card svg{display:block;width:100%;height:auto;background:var(--paper)}
+.pnl{cursor:pointer}
+.pnl:hover .plate{fill:rgba(225,221,96,.4)}
+.pnl.sel .plate{fill:rgba(242,160,184,.35)}
+
+/* ── 下の編集ひきだし ── */
+#drawer{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  background:var(--cream);border-top:var(--bd);box-shadow:0 -3px 0 rgba(30,28,20,.15);
+  padding:.5rem .8rem .7rem;display:none;max-height:52vh;overflow:auto;
+}
+#drawer.open{display:block}
+#drawer .row{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;margin-bottom:.45rem}
+#drawer .sp{flex:1}
+.swatch{display:flex;gap:.3rem;flex-wrap:wrap}
+.sw{border:2px solid var(--ink);border-radius:9px;background:var(--paper);box-shadow:0 2.5px 0 var(--ink);cursor:pointer;padding:1px;line-height:0}
+.sw:hover{background:var(--main-soft)}
+.sw.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2.5px)}
+.sw svg{width:44px;height:44px;display:block}
+.lbl{font-size:.62rem;background:var(--ink);color:var(--main);border-radius:100px;padding:.05rem .55rem}
+#modal{position:fixed;inset:0;z-index:50;background:rgba(30,28,20,.55);display:none;align-items:center;justify-content:center;padding:1rem}
+#modal.open{display:flex}
+#modal .box{background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:0 6px 0 var(--ink);max-width:min(96vw,920px);max-height:94vh;overflow:auto;padding:.6rem}
+#modal .row{display:flex;gap:.4rem;align-items:center;margin-bottom:.5rem;flex-wrap:wrap}
+#modal svg{width:100%;height:auto}
+@media print{
+  header,.bar,#modal,.hint,#drawer{display:none!important}
+  body{background:#fff}
+  main{padding:0}
+  #sheet{gap:6mm}
+  .card{break-inside:avoid;box-shadow:none;border-width:1.5px}
+  .card .cap{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>コマ割り表</h1>
+  <span class="chip">素体＋ミニキャラ</span>
+  <span class="sub">コマ割りのひな型に素体を入れて、そのまま組み替えれば簡易マンガになる台。</span>
+  <span style="flex:1"></span>
+  <button class="btn btn-sm" id="bSave">💾 保存</button>
+  <button class="btn btn-sm" id="bLoad">📂 読みこみ</button>
+  <button class="btn btn-sm" id="bPrint">🖨 印刷</button>
+  <button class="btn btn-sm btn-g" id="bPng">⬇ 表をPNG</button>
+  <input type="file" id="fLoad" accept="application/json" hidden>
+</header>
+
+<div class="bar">
+  <div class="grp"><label>形</label>
+    <select id="fmt"><option value="single">単ページ</option><option value="spread">見開き</option></select>
+  </div>
+  <div class="grp"><label>素体</label>
+    <select id="style">
+      <option value="mix">まぜる</option>
+      <option value="chibi">ミニキャラ</option>
+      <option value="real">頭身あり</option>
+    </select>
+  </div>
+  <div class="grp"><label>枚数</label><input type="range" id="count" min="1" max="60" value="12"><output id="oCount">12</output></div>
+  <div class="grp"><label>段</label><input type="range" id="rows" min="2" max="5" value="3"><output id="oRows">3</output></div>
+  <div class="grp"><label>コマ数</label><input type="range" id="cells" min="3" max="9" value="5"><output id="oCells">5</output></div>
+  <div class="grp"><label>傾き</label><input type="range" id="tilt" min="0" max="100" value="30"><output id="oTilt">30</output></div>
+  <div class="grp"><label>大きさ</label><input type="range" id="zoom" min="120" max="460" value="250"><output id="oZoom">250</output></div>
+  <button class="btn btn-sm on" id="bBody">🧍 素体</button>
+  <button class="btn btn-sm on" id="bBubble">💬 フキダシ</button>
+  <button class="btn btn-sm on" id="bNo">①番号</button>
+  <span style="flex:1"></span>
+  <div class="grp"><label>たね</label><input type="number" id="seed" value="7" style="width:64px"></div>
+  <button class="btn btn-sm btn-y" id="bGen">🎲 コマ割りを作りなおす</button>
+</div>
+
+<main>
+  <div class="hint" style="max-width:940px;margin:0 auto 1rem">
+    <b>使いかた</b>　①上のつまみでコマ割りを作る　②コマをクリックすると下に編集ひきだしが開く　
+    ③キャラ・顔・ポーズ・大きさを選び、セリフを打つ　④ ⤢ で大きく見て PNG 保存。<br>
+    セリフは <b>まとめて流しこみ</b>（1行＝1コマ）もできます。番号は日本のマンガと同じ <b>右上→左下</b> の順です。
+  </div>
+  <div class="row" style="max-width:940px;margin:0 auto .8rem;display:flex;gap:.5rem;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <span class="lbl">セリフをまとめて流しこむ（1行＝1コマ）</span>
+      <textarea id="script" rows="3" placeholder="おはよう&#10;……ねむい&#10;おきろー！"></textarea>
+    </div>
+    <button class="btn btn-sm btn-y" id="bFlow" style="margin-top:1.2rem">⤵ 流しこむ</button>
+  </div>
+  <div id="sheet"></div>
+</main>
+
+<div id="drawer">
+  <div class="row">
+    <span class="title" id="dTitle">コマ</span>
+    <span class="chip" id="dInfo"></span>
+    <span class="sp"></span>
+    <button class="btn btn-sm" id="dPrev">← 前のコマ</button>
+    <button class="btn btn-sm" id="dNext">次のコマ →</button>
+    <button class="btn btn-sm btn-g" id="dClose">✕ とじる</button>
+  </div>
+  <div class="row">
+    <span class="lbl">素体</span>
+    <select id="dStyle"><option value="chibi">ミニキャラ</option><option value="real">頭身あり</option><option value="none">なし（背景コマ）</option></select>
+    <span class="lbl">だれ</span>
+    <select id="dChar"></select>
+    <span class="lbl">大きさ</span>
+    <select id="dShot"></select>
+    <button class="btn btn-sm" id="dFlip">🔄 左右</button>
+    <span class="lbl">2人目</span>
+    <select id="dChar2"><option value="-1">なし</option></select>
+  </div>
+  <div class="row"><span class="lbl">顔</span><div class="swatch" id="dExpr"></div></div>
+  <div class="row"><span class="lbl">ポーズ</span><div class="swatch" id="dPose"></div></div>
+  <div class="row">
+    <span class="lbl">セリフ</span>
+    <input type="text" id="dS1" placeholder="1つめ" style="flex:1;min-width:150px">
+    <input type="text" id="dS2" placeholder="2つめ" style="flex:1;min-width:150px">
+    <span class="lbl">形</span>
+    <select id="dBub"><option value="talk">ふつう</option><option value="think">こころ</option><option value="shout">さけび</option><option value="none">なし</option></select>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="box">
+    <div class="row">
+      <span class="title" id="mTitle">ページ</span>
+      <span class="sp" style="flex:1"></span>
+      <button class="btn btn-sm" id="mPng">⬇ PNG</button>
+      <button class="btn btn-sm btn-g" id="mClose">✕ とじる</button>
+    </div>
+    <div id="mHost"></div>
+  </div>
+</div>
+<script>
+/* ══════════════════════════ 0. たね付き乱数 ══════════════════════════ */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R={r:mulberry(7)};
+const rnd=()=>R.r(), rr=(a,b)=>a+(b-a)*rnd(), ri=(a,b)=>Math.floor(rr(a,b+1)), pick=a=>a[Math.floor(rnd()*a.length)];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const N=v=>(Math.round(v*100)/100);
+
+/* ══════════════════════════ 1. 多角形 ══════════════════════════ */
+const cross=(ax,ay,bx,by)=>ax*by-ay*bx;
+function clip(poly,P,D){
+  const out=[], side=p=>cross(D[0],D[1],p[0]-P[0],p[1]-P[1]);
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length], sa=side(a), sb=side(b);
+    if(sa>=-1e-9) out.push(a);
+    if((sa>1e-9&&sb<-1e-9)||(sa<-1e-9&&sb>1e-9)){const t=sa/(sa-sb);out.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t])}
+  }
+  return out;
+}
+const split=(poly,P,D)=>[clip(poly,P,D),clip(poly,P,[-D[0],-D[1]])];
+function bbox(poly){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of poly){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}return{x:x0,y:y0,w:x1-x0,h:y1-y0,cx:(x0+x1)/2,cy:(y0+y1)/2}}
+function area(poly){let s=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];s+=a[0]*b[1]-b[0]*a[1]}return Math.abs(s)/2}
+function ccw(poly){let s=0;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];s+=(b[0]-a[0])*(b[1]+a[1])}return s>0?poly.slice().reverse():poly}
+const dPath=p=>p.map((q,i)=>(i?'L':'M')+N(q[0])+' '+N(q[1])).join(' ')+' Z';
+
+/* ══════════════════════════ 2. コマ割り ══════════════════════════ */
+const SHOTS=['face','bust','waist','full'];
+const SHOTNAME={face:'顔アップ',bust:'バストアップ',waist:'腰上',full:'全身'};
+
+function makePanels(W,H,opt){
+  const M=opt.margin, tilt=opt.tilt;
+  const frame=ccw([[M,M],[W-M,M],[W-M,H-M],[M,H-M]]);
+  const nRow=Math.max(1,opt.rows+ri(-1,1));
+  let ws=[];for(let i=0;i<nRow;i++)ws.push(rr(.8,1.35));
+  const sum=ws.reduce((a,b)=>a+b,0);
+  let acc=0, cur=frame, rowsArr=[];
+  for(let i=0;i<nRow-1;i++){
+    acc+=ws[i]/sum;
+    const y=M+(H-2*M)*acc, ang=(rnd()<.35?rr(-1,1)*tilt*.10:0), D=[Math.cos(ang),Math.sin(ang)];
+    const [up,dn]=split(cur,[W/2,y],[-D[0],-D[1]]);
+    rowsArr.push(up); cur=dn;
+  }
+  rowsArr.push(cur);
+
+  const total=Math.max(nRow,opt.cells+ri(-1,1));
+  const per=rowsArr.map(()=>1);
+  let left=total-nRow;
+  while(left>0){per[ri(0,per.length-1)]++;left--}
+
+  const panels=[];
+  rowsArr.forEach((row,rI)=>{
+    const bb=bbox(row); let parts=[row], k=per[rI];
+    if(k>1){
+      let w2=[];for(let i=0;i<k;i++)w2.push(rr(.75,1.4));
+      const s2=w2.reduce((a,b)=>a+b,0);
+      let a2=0, c2=row, res=[];
+      for(let i=0;i<k-1;i++){
+        a2+=w2[i]/s2;
+        const x=bb.x+bb.w*a2, ang=(rnd()<.45?rr(-1,1)*tilt*.16:0), D=[Math.sin(ang),-Math.cos(ang)];
+        const [a,b]=split(c2,[x,bb.cy],D);
+        res.push(a); c2=b;
+      }
+      res.push(c2); parts=res;
+    }
+    parts.forEach(p=>{if(area(p)>320)panels.push({poly:ccw(p),row:rI})});
+  });
+  panels.sort((a,b)=>a.row-b.row||bbox(b.poly).cx-bbox(a.poly).cx);
+  panels.forEach(p=>{p.bb=bbox(p.poly); fillPanel(p,W,H)});
+  return panels;
+}
+
+function fillPanel(p,W,H){
+  const bb=p.bb, ratio=bb.h/bb.w, big=(bb.w*bb.h)/(W*H);
+  let shot;
+  if(big>.30)        shot=rnd()<.55?'full':'waist';
+  else if(ratio>1.45)shot=rnd()<.7?'full':'waist';
+  else if(big<.075)  shot=rnd()<.6?'face':'bust';
+  else if(ratio<.55) shot=rnd()<.6?'face':'bust';
+  else               shot=pick(['bust','bust','waist','face']);
+  const st=OPT.style==='mix'?(rnd()<.72?'chibi':'real'):OPT.style;
+  p.style=rnd()<.08?'none':st;
+  p.shot=shot;
+  p.chr=ri(0,CHARS.length-1);
+  p.chr2=(big>.18&&rnd()<.28)?((p.chr+1+ri(0,CHARS.length-2))%CHARS.length):-1;
+  p.expr=ri(0,EXPR.length-1);
+  p.pose=ri(0,POSE.length-1);
+  p.flip=rnd()<.5;
+  p.bub=rnd()<.14?'none':pick(['talk','talk','talk','think','shout']);
+  p.s1=''; p.s2='';
+}
+
+/* ══════════════════════════ 3. キャラ（ミニキャラ素体） ══════════════════════════
+   基準空間：頭のてっぺん y=0、足もと y=1、体の中心 x=0
+   ─────────────────────────────────────────────── */
+const CHARS=[
+  {name:'A・アホ毛',    hair:'ahoge'},
+  {name:'B・おだんご',  hair:'odango'},
+  {name:'C・ぱっつん',  hair:'bang'},
+  {name:'D・つるり',    hair:'none'},
+  {name:'E・はねっ毛',  hair:'spike'}
+];
+const HEAD={cx:0,cy:.325,rx:.300,ry:.288};
+
+/* ── 目 ── */
+function eye(kind,s,x,y,ink){
+  const X=x*s;
+  switch(kind){
+    case 'round':  return `<ellipse cx="${N(X)}" cy="${N(y)}" rx=".072" ry=".090" fill="${ink}"/><ellipse cx="${N(X+.022*s)}" cy="${N(y-.030)}" rx=".026" ry=".030" fill="#fff"/>`;
+    case 'big':    return `<ellipse cx="${N(X)}" cy="${N(y)}" rx=".090" ry=".110" fill="#fff" stroke="${ink}" stroke-width=".022"/><ellipse cx="${N(X)}" cy="${N(y+.008)}" rx=".055" ry=".070" fill="${ink}"/><circle cx="${N(X+.024*s)}" cy="${N(y-.034)}" r=".024" fill="#fff"/>`;
+    case 'happy':  return `<path d="M${N(X-.072)} ${N(y+.020)} Q${N(X)} ${N(y-.070)} ${N(X+.072)} ${N(y+.020)}" fill="none" stroke="${ink}" stroke-width=".030" stroke-linecap="round"/>`;
+    case 'gt':     return `<path d="M${N(X-.060*s)} ${N(y-.055)} L${N(X+.055*s)} ${N(y)} L${N(X-.060*s)} ${N(y+.055)}" fill="none" stroke="${ink}" stroke-width=".030" stroke-linecap="round" stroke-linejoin="round"/>`;
+    case 'jito':   return `<path d="M${N(X-.080)} ${N(y-.030)} H${N(X+.080)}" stroke="${ink}" stroke-width=".034" stroke-linecap="round"/><ellipse cx="${N(X)}" cy="${N(y+.030)}" rx=".046" ry=".046" fill="${ink}"/>`;
+    case 'flatline':return`<path d="M${N(X-.075)} ${N(y)} H${N(X+.075)}" stroke="${ink}" stroke-width=".034" stroke-linecap="round"/>`;
+    case 'star':   return `<ellipse cx="${N(X)}" cy="${N(y)}" rx=".085" ry=".100" fill="${ink}"/><path d="M${N(X)} ${N(y-.080)} L${N(X+.026)} ${N(y-.020)} L${N(X+.082)} ${N(y)} L${N(X+.026)} ${N(y+.022)} L${N(X)} ${N(y+.080)} L${N(X-.026)} ${N(y+.022)} L${N(X-.082)} ${N(y)} L${N(X-.026)} ${N(y-.020)} Z" fill="#fff"/>`;
+    case 'cry':    return `<ellipse cx="${N(X)}" cy="${N(y)}" rx=".082" ry=".100" fill="${ink}"/><ellipse cx="${N(X)}" cy="${N(y-.020)}" rx=".040" ry=".046" fill="#fff"/><path d="M${N(X)} ${N(y+.10)} q${N(-.02*s)} .10 .01 .17" stroke="#7FB6E0" stroke-width=".030" fill="none" stroke-linecap="round"/>`;
+    case 'angry':  return `<path d="M${N(X-.085*s)} ${N(y-.055)} L${N(X+.070*s)} ${N(y-.005)}" stroke="${ink}" stroke-width=".036" stroke-linecap="round"/><ellipse cx="${N(X+.005*s)}" cy="${N(y+.035)}" rx=".050" ry=".052" fill="${ink}"/>`;
+    case 'dead':   return `<path d="M${N(X-.055)} ${N(y-.055)} L${N(X+.055)} ${N(y+.055)} M${N(X+.055)} ${N(y-.055)} L${N(X-.055)} ${N(y+.055)}" stroke="${ink}" stroke-width=".032" stroke-linecap="round"/>`;
+    case 'heart':  return `<path d="M${N(X)} ${N(y+.075)} C${N(X-.11)} ${N(y-.010)} ${N(X-.048)} ${N(y-.095)} ${N(X)} ${N(y-.030)} C${N(X+.048)} ${N(y-.095)} ${N(X+.11)} ${N(y-.010)} ${N(X)} ${N(y+.075)} Z" fill="#E4586A"/>`;
+    case 'wide':   return `<ellipse cx="${N(X)}" cy="${N(y)}" rx=".095" ry=".115" fill="#fff" stroke="${ink}" stroke-width=".024"/><circle cx="${N(X)}" cy="${N(y)}" r=".030" fill="${ink}"/>`;
+    case 'wink':   return s>0?eye('happy',1,x,y,ink):eye('round',-1,x,y,ink);
+    default:       return eye('round',s,x,y,ink);
+  }
+}
+/* ── 口 ── */
+function mouth(kind,y,ink){
+  switch(kind){
+    case 'smile': return `<path d="M-.055 ${N(y)} Q0 ${N(y+.060)} .055 ${N(y)}" fill="none" stroke="${ink}" stroke-width=".026" stroke-linecap="round"/>`;
+    case 'open':  return `<ellipse cx="0" cy="${N(y+.020)}" rx=".060" ry=".070" fill="${ink}"/><ellipse cx="0" cy="${N(y+.045)}" rx=".030" ry=".026" fill="#E4586A"/>`;
+    case 'yell':  return `<path d="M-.085 ${N(y-.020)} Q0 ${N(y+.150)} .085 ${N(y-.020)} Q0 ${N(y+.030)} -.085 ${N(y-.020)} Z" fill="${ink}"/>`;
+    case 'tri':   return `<path d="M-.045 ${N(y+.040)} L0 ${N(y-.020)} L.045 ${N(y+.040)} Z" fill="none" stroke="${ink}" stroke-width=".024" stroke-linejoin="round"/>`;
+    case 'flat':  return `<path d="M-.048 ${N(y+.010)} H.048" stroke="${ink}" stroke-width=".026" stroke-linecap="round"/>`;
+    case 'wave':  return `<path d="M-.070 ${N(y+.010)} q.035 -.045 .070 0 q.035 .045 .070 0" fill="none" stroke="${ink}" stroke-width=".024" stroke-linecap="round"/>`;
+    case 'fang':  return `<path d="M-.065 ${N(y-.010)} Q0 ${N(y+.075)} .065 ${N(y-.010)} Z" fill="${ink}"/><path d="M-.020 ${N(y+.008)} L-.002 ${N(y+.048)} L.018 ${N(y+.008)} Z" fill="#fff"/>`;
+    case 'sad':   return `<path d="M-.055 ${N(y+.045)} Q0 ${N(y-.020)} .055 ${N(y+.045)}" fill="none" stroke="${ink}" stroke-width=".026" stroke-linecap="round"/>`;
+    case 'kiss':  return `<ellipse cx="0" cy="${N(y+.015)}" rx=".030" ry=".038" fill="none" stroke="${ink}" stroke-width=".024"/>`;
+    default:      return '';
+  }
+}
+/* ── まゆ ── */
+function brow(kind,y,ink){
+  if(kind==='none')return '';
+  const one=(s)=>{
+    const x=.155*s;
+    switch(kind){
+      case 'up':   return `<path d="M${N(x-.070*s)} ${N(y+.020)} L${N(x+.060*s)} ${N(y-.020)}" stroke="${ink}" stroke-width=".030" stroke-linecap="round"/>`;
+      case 'down': return `<path d="M${N(x-.070*s)} ${N(y-.020)} L${N(x+.060*s)} ${N(y+.030)}" stroke="${ink}" stroke-width=".030" stroke-linecap="round"/>`;
+      case 'flat': return `<path d="M${N(x-.065*s)} ${N(y)} H${N(x+.060*s)}" stroke="${ink}" stroke-width=".028" stroke-linecap="round"/>`;
+      case 'sad':  return `<path d="M${N(x-.070*s)} ${N(y+.030)} Q${N(x)} ${N(y-.020)} ${N(x+.060*s)} ${N(y+.005)}" fill="none" stroke="${ink}" stroke-width=".028" stroke-linecap="round"/>`;
+    }
+    return '';
+  };
+  return one(-1)+one(1);
+}
+/* ── まわりの記号 ── */
+function fxMark(kind,ink){
+  switch(kind){
+    case 'sweat':  return `<path d="M.335 -.02 q-.060 .085 -.014 .128 q.052 .042 .082 -.022 q.022 -.050 -.068 -.106 Z" fill="#8FC7E8" stroke="${ink}" stroke-width=".016"/>`;
+    case 'anger':  return `<g stroke="#E4586A" stroke-width=".032" fill="none" stroke-linecap="round"><path d="M.29 -.31 l.095 .085 M.385 -.31 l-.095 .085 M.338 -.335 v.135"/></g>`;
+    case 'heart':  return `<path d="M.345 -.20 c-.055 -.075 -.140 -.020 -.098 .052 l.098 .112 .098 -.112 c.042 -.072 -.043 -.127 -.098 -.052 Z" fill="#E4586A"/>`;
+    case 'spark':  return `<g fill="#E1DD60" stroke="${ink}" stroke-width=".014"><path d="M.345 -.28 l.032 .080 .084 .030 -.084 .030 -.032 .080 -.032 -.080 -.084 -.030 .084 -.030 Z"/><path d="M-.345 -.16 l.024 .056 .060 .022 -.060 .022 -.024 .056 -.024 -.056 -.060 -.022 .060 -.022 Z"/></g>`;
+    case 'note':   return `<g fill="${ink}"><ellipse cx=".330" cy="-.155" rx=".042" ry=".032" transform="rotate(-20 .33 -.155)"/><path d="M.367 -.162 V-.30 L.445 -.275 V-.25 L.380 -.272 V-.16 Z"/></g>`;
+    case 'quest':  return `<text x=".30" y="-.17" font-family="M PLUS Rounded 1c,sans-serif" font-size=".26" font-weight="800" fill="${ink}">?</text>`;
+    case 'excl':   return `<text x=".31" y="-.17" font-family="M PLUS Rounded 1c,sans-serif" font-size=".28" font-weight="800" fill="#E4586A">!</text>`;
+    case 'lines':  return `<g stroke="${ink}" stroke-width=".018" opacity=".65"><path d="M.30 -.30 v.11 M.365 -.33 v.14 M.43 -.30 v.11"/></g>`;
+    default: return '';
+  }
+}
+/* ── 表情の組み合わせ ── */
+const EXPR=[
+  {n:'ふつう',   e:'round', m:'smile', b:'flat', f:''},
+  {n:'にっこり', e:'happy', m:'smile', b:'up',   f:''},
+  {n:'キラキラ', e:'star',  m:'open',  b:'up',   f:'spark'},
+  {n:'びっくり', e:'wide',  m:'open',  b:'up',   f:'excl'},
+  {n:'あせり',   e:'gt',    m:'wave',  b:'sad',  f:'sweat'},
+  {n:'おこり',   e:'angry', m:'yell',  b:'down', f:'anger'},
+  {n:'ジト目',   e:'jito',  m:'flat',  b:'flat', f:'lines'},
+  {n:'なき',     e:'cry',   m:'sad',   b:'sad',  f:''},
+  {n:'てれ',     e:'happy', m:'wave',  b:'sad',  f:'heart'},
+  {n:'すき',     e:'heart', m:'fang',  b:'up',   f:'heart'},
+  {n:'しんだ目', e:'dead',  m:'flat',  b:'none', f:''},
+  {n:'ドヤ',     e:'jito',  m:'fang',  b:'up',   f:'spark'},
+  {n:'ねむい',   e:'flatline',m:'wave',b:'sad',  f:'note'},
+  {n:'はてな',   e:'big',   m:'tri',   b:'up',   f:'quest'},
+  {n:'さけぶ',   e:'gt',    m:'yell',  b:'down', f:'excl'},
+  {n:'ウインク', e:'wink',  m:'smile', b:'up',   f:'spark'},
+  {n:'うるうる', e:'big',   m:'sad',   b:'sad',  f:''},
+  {n:'キス',     e:'happy', m:'kiss',  b:'up',   f:'heart'}
+];
+/* ── ポーズ（ミニキャラ／頭身あり 共通の腕の目標点） ── */
+const POSE=[
+  {n:'立ち',    a:[[-.30,.70,-.30,.86],[.30,.70,.30,.86]], lean:0},
+  {n:'手をふる',a:[[-.34,.66,-.40,.44],[.30,.72,.30,.88]], lean:-.01},
+  {n:'ばんざい',a:[[-.36,.58,-.42,.34],[.36,.58,.42,.34]], lean:0},
+  {n:'指さし',  a:[[-.38,.62,-.52,.52],[.28,.74,.28,.88]], lean:.01},
+  {n:'ほおづえ',a:[[-.30,.66,-.20,.46],[.28,.74,.26,.86]], lean:.02},
+  {n:'うでぐみ',a:[[-.34,.66,.10,.70],[.34,.66,-.10,.74]], lean:0},
+  {n:'はしる',  a:[[-.36,.60,-.28,.46],[.34,.76,.44,.90]], lean:.05},
+  {n:'ばんそう',a:[[-.28,.72,-.10,.80],[.28,.72,.10,.80]], lean:.02},
+  {n:'かんがえ',a:[[-.30,.70,-.30,.86],[.26,.66,.12,.50]], lean:.01},
+  {n:'おじぎ',  a:[[-.26,.74,-.20,.88],[.26,.74,.20,.88]], lean:.10},
+  {n:'ガッツ',  a:[[-.34,.62,-.26,.44],[.34,.62,.26,.44]], lean:0},
+  {n:'うしろ',  a:[[-.30,.70,-.32,.86],[.30,.70,.32,.86]], lean:0, back:true}
+];
+
+/* ── ミニキャラを描く ── */
+function drawChibi(chr,expr,pose,ink){
+  const C=CHARS[chr]||CHARS[0], E=EXPR[expr%EXPR.length], P=POSE[pose%POSE.length];
+  const hy=HEAD.cy, lean=P.lean||0;
+  let g='';
+  // うで（体のうしろ）
+  g+=`<g fill="none" stroke="${ink}" stroke-width=".062" stroke-linecap="round" stroke-linejoin="round">`;
+  for(const a of P.a) g+=`<path d="M${N(a[0]*.55)} .66 L${N(a[0])} ${N(a[1])} L${N(a[2])} ${N(a[3])}"/>`;
+  g+=`</g>`;
+  // からだ
+  g+=`<path d="M-.175 .60 C-.255 .76 -.235 1.00 -.100 1.005 L.100 1.005 C.235 1.00 .255 .76 .175 .60 Z" fill="#fff" stroke="${ink}" stroke-width=".040" stroke-linejoin="round"/>`;
+  // あたま
+  g+=`<g transform="translate(${N(lean*1.6)} 0)">`;
+  g+=`<ellipse cx="0" cy="${N(hy)}" rx="${HEAD.rx}" ry="${HEAD.ry}" fill="#fff" stroke="${ink}" stroke-width=".040"/>`;
+  // かみ
+  if(C.hair==='ahoge')  g+=`<path d="M.02 ${N(hy-HEAD.ry)} q.03 -.12 .12 -.10 q-.07 .03 -.05 .11" fill="none" stroke="${ink}" stroke-width=".030" stroke-linecap="round"/>`;
+  if(C.hair==='odango') g+=`<circle cx="-.30" cy="${N(hy-.20)}" r=".075" fill="#fff" stroke="${ink}" stroke-width=".032"/><circle cx=".30" cy="${N(hy-.20)}" r=".075" fill="#fff" stroke="${ink}" stroke-width=".032"/>`;
+  if(C.hair==='bang')   g+=`<path d="M-.285 ${N(hy-.115)} q.10 -.135 .285 -.140 q.185 .005 .285 .140 q-.115 -.048 -.285 -.048 q-.17 0 -.285 .048 Z" fill="${ink}" opacity=".82"/>`;
+  if(C.hair==='spike')  g+=`<path d="M-.24 ${N(hy-.20)} l.07 -.10 .05 .075 .07 -.11 .06 .10 .07 -.085 .05 .10" fill="none" stroke="${ink}" stroke-width=".030" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // かお
+  if(P.back){
+    g+=`<path d="M-.14 ${N(hy+.02)} q.14 .10 .28 0" fill="none" stroke="${ink}" stroke-width=".026" opacity=".45"/>`;
+  }else{
+    g+=`<g transform="translate(0 ${N(hy)})">`;
+    g+=brow(E.b,-.150,ink);
+    g+=eye(E.e,-1,-.150,-.010,ink)+eye(E.e,1,.150,-.010,ink);
+    g+=mouth(E.m,.130,ink);
+    if(E.f) g+=fxMark(E.f,ink);
+    g+=`</g>`;
+  }
+  g+=`</g>`;
+  return g;
+}
+
+/* ── 頭身ありの素体（ポーズは POSE と同じ並び） ── */
+const RB={sh:.19, shX:.085, hipY:.515, hipX:.058};
+const REALARM=[
+  [[-.115,.33,-.100,.47],[ .115,.33, .100,.47]],   // 立ち
+  [[-.145,.28,-.165,.12],[ .115,.33, .105,.47]],   // 手をふる
+  [[-.150,.26,-.190,.06],[ .150,.26, .190,.06]],   // ばんざい
+  [[-.155,.28,-.245,.20],[ .110,.34, .100,.48]],   // 指さし
+  [[-.140,.30,-.055,.13],[ .115,.34, .105,.47]],   // ほおづえ
+  [[-.145,.30, .055,.335],[.145,.30,-.055,.345]],  // うでぐみ
+  [[-.170,.27,-.110,.15],[ .145,.36, .190,.50]],   // はしる
+  [[-.120,.33,-.040,.40],[ .120,.33, .040,.40]],   // ばんそう
+  [[-.115,.33,-.100,.47],[ .130,.30, .030,.15]],   // かんがえ
+  [[-.110,.34,-.090,.47],[ .110,.34, .090,.47]],   // おじぎ
+  [[-.150,.28,-.100,.14],[ .150,.28, .100,.14]],   // ガッツ
+  [[-.115,.33,-.100,.47],[ .115,.33, .100,.47]]    // うしろ
+];
+const REALLEG=[
+  [[-.062,.75,-.062,1.0],[.062,.75,.062,1.0]],
+  [[-.070,.75,-.080,1.0],[.062,.75,.068,1.0]],
+  [[-.070,.75,-.075,1.0],[.070,.75,.075,1.0]],
+  [[-.060,.75,-.070,1.0],[.070,.75,.090,1.0]],
+  [[-.062,.75,-.062,1.0],[.062,.75,.062,1.0]],
+  [[-.065,.75,-.075,1.0],[.065,.75,.075,1.0]],
+  [[-.140,.70,-.200,.86],[.100,.76,.160,.99]],     // はしる
+  [[-.062,.75,-.062,1.0],[.062,.75,.062,1.0]],
+  [[-.062,.75,-.062,1.0],[.062,.75,.062,1.0]],
+  [[-.062,.75,-.062,1.0],[.062,.75,.062,1.0]],
+  [[-.068,.75,-.072,1.0],[.068,.75,.072,1.0]],
+  [[-.062,.75,-.062,1.0],[.062,.75,.062,1.0]]
+];
+function drawReal(chr,expr,pose,ink){
+  const k=pose%POSE.length, P=POSE[k], E=EXPR[expr%EXPR.length], C=CHARS[chr]||CHARS[0];
+  const lean=(P.lean||0)*.5, sw=.048, L=v=>N(v);
+  let g=`<g fill="none" stroke="${ink}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`;
+  REALARM[k].forEach((a,i)=>{
+    const sx=(i?RB.shX:-RB.shX)+lean;
+    g+=`<path d="M${L(sx)} ${L(RB.sh)} L${L(a[0])} ${L(a[1])} L${L(a[2])} ${L(a[3])}"/>`;
+  });
+  REALLEG[k].forEach((l,i)=>{
+    const hx=(i?RB.hipX:-RB.hipX);
+    g+=`<path d="M${L(hx)} ${L(RB.hipY)} L${L(l[0])} ${L(l[1])} L${L(l[2])} ${L(l[3])}"/>`;
+  });
+  g+=`</g>`;
+  g+=`<path d="M${L(-RB.shX+lean)} ${L(RB.sh)} L${L(RB.shX+lean)} ${L(RB.sh)} L${L(RB.hipX)} ${L(RB.hipY)} L${L(-RB.hipX)} ${L(RB.hipY)} Z" fill="#fff" stroke="${ink}" stroke-width="${sw*.75}" stroke-linejoin="round"/>`;
+  g+=`<path d="M${L(lean)} .150 L${L(lean)} ${L(RB.sh)}" stroke="${ink}" stroke-width="${sw*.8}" stroke-linecap="round"/>`;
+  g+=`<g transform="translate(${L(lean*1.3)} .078) scale(.205)">`;
+  g+=`<ellipse rx=".30" ry=".355" fill="#fff" stroke="${ink}" stroke-width=".052"/>`;
+  if(C.hair==='ahoge')  g+=`<path d="M.02 -.355 q.03 -.13 .13 -.11 q-.075 .03 -.055 .12" fill="none" stroke="${ink}" stroke-width=".038" stroke-linecap="round"/>`;
+  if(C.hair==='odango') g+=`<circle cx="-.30" cy="-.20" r=".075" fill="#fff" stroke="${ink}" stroke-width=".040"/><circle cx=".30" cy="-.20" r=".075" fill="#fff" stroke="${ink}" stroke-width=".040"/>`;
+  if(C.hair==='bang')   g+=`<path d="M-.29 -.16 q.10 -.19 .29 -.195 q.19 .005 .29 .195 q-.12 -.06 -.29 -.06 q-.17 0 -.29 .06 Z" fill="${ink}"/>`;
+  if(C.hair==='spike')  g+=`<path d="M-.24 -.26 l.07 -.11 .05 .08 .07 -.12 .06 .105 .07 -.09 .05 .105" fill="none" stroke="${ink}" stroke-width=".038" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(P.back) g+=`<path d="M-.14 .03 q.14 .10 .28 0" fill="none" stroke="${ink}" stroke-width=".030" opacity=".45"/>`;
+  else g+=brow(E.b,-.155,ink)+eye(E.e,-1,-.150,-.015,ink)+eye(E.e,1,.150,-.015,ink)+mouth(E.m,.140,ink);
+  g+=`</g>`;
+  return g;
+}
+
+/* ── コマに素体をはめこむ ── */
+const CROP={chibi:{face:[.03,.66],bust:[0,.82],waist:[0,.94],full:[-.05,1.08]},
+            real :{face:[0,.21], bust:[0,.40],waist:[0,.62],full:[-.03,1.05]}};
+function figureSVG(p,clipId,ink){
+  if(p.style==='none') return '';
+  const kind=p.style==='real'?'real':'chibi';
+  const [y0,y1]=CROP[kind][p.shot]||CROP[kind].full;
+  const ch=y1-y0, cw=ch*(kind==='chibi'?.78:.58);
+  const bb=p.bb, two=p.chr2>=0;
+  const wNeed=cw*(two?1.7:1);
+  // コマからはみ出さないように収める（下がわを少しあける）
+  const s=Math.min(bb.w*.90/wNeed, bb.h*.92/ch);
+  const top=bb.y+(bb.h-ch*s)*(p.shot==='full'||p.shot==='waist'?.86:.50);
+  const ty=top-y0*s;
+  const draw=kind==='real'?drawReal:drawChibi;
+  // 線の太さは拡大率に関係なく一定（コマが大きくても線が太らない）
+  const fixLine=t=>t.replace(/stroke-width="([\d.]+)"/g,(m,w)=>`stroke-width="${N(Math.min(3.2,Math.max(.9,parseFloat(w)*46)))}"`);
+  const one=(chr,expr,pose,dx,flip,sc)=>
+    `<g class="fig" transform="translate(${N(bb.cx+dx)} ${N(ty)}) scale(${N(s*sc*(flip?-1:1))} ${N(s*sc)})">${fixLine(draw(chr,expr,pose,ink))}</g>`;
+  let g=`<g clip-path="url(#${clipId})">`;
+  if(two){
+    g+=one(p.chr2,(p.expr+3)%EXPR.length,(p.pose+4)%POSE.length, cw*s*.44, !p.flip, .90);
+    g+=one(p.chr, p.expr, p.pose, -cw*s*.40, p.flip, 1);
+  }else{
+    g+=one(p.chr, p.expr, p.pose, (p.shot==='full'?0:cw*s*.10*(p.flip?-1:1)), p.flip, 1);
+  }
+  g+=`</g>`;
+  return g;
+}
+
+/* ══════════════════════════ 4. フキダシ ══════════════════════════ */
+function vText(x,yTop,str,size,ink){
+  const chars=[...String(str)];
+  return `<text font-family="M PLUS Rounded 1c,sans-serif" font-weight="700" font-size="${N(size)}" fill="${ink}" text-anchor="middle">`+
+    chars.map((c,i)=>`<tspan x="${N(x)}" y="${N(yTop+size*(i+.85)*1.02)}">${esc(c)}</tspan>`).join('')+`</text>`;
+}
+function bubble(x,y,txt,kind,maxH,ink){
+  const size=Math.max(7,Math.min(11,maxH/6));
+  const chars=[...String(txt)];
+  const perCol=Math.max(2,Math.floor(maxH/(size*1.05)));
+  const cols=Math.max(1,Math.ceil(chars.length/perCol));
+  const rows=Math.min(perCol,chars.length);
+  const tw=cols*size*1.18, th=rows*size*1.05;
+  const rx=Math.max(tw*.78+8, 16), ry=Math.max(th*.72+7, 14);
+  let g='';
+  if(kind==='think'){
+    g+=`<g fill="#FFFEF7" stroke="${ink}" stroke-width="1.5">`;
+    for(let i=0;i<9;i++){
+      const a=i/9*Math.PI*2;
+      g+=`<circle cx="${N(x+Math.cos(a)*rx*.78)}" cy="${N(y+Math.sin(a)*ry*.78)}" r="${N(Math.min(rx,ry)*.42)}"/>`;
+    }
+    g+=`<ellipse cx="${N(x)}" cy="${N(y)}" rx="${N(rx*.9)}" ry="${N(ry*.9)}" stroke="none"/></g>`;
+    g+=`<circle cx="${N(x-rx*.7)}" cy="${N(y+ry+6)}" r="3.4" fill="#FFFEF7" stroke="${ink}" stroke-width="1.3"/>`;
+  }else if(kind==='shout'){
+    let pts=[];
+    for(let i=0;i<20;i++){
+      const a=i/20*Math.PI*2, k=(i%2?.66:1.06);
+      pts.push(`${N(x+Math.cos(a)*rx*k*1.12)} ${N(y+Math.sin(a)*ry*k*1.12)}`);
+    }
+    g+=`<polygon points="${pts.join(' ')}" fill="#FFFEF7" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round"/>`;
+  }else{
+    g+=`<ellipse cx="${N(x)}" cy="${N(y)}" rx="${N(rx)}" ry="${N(ry)}" fill="#FFFEF7" stroke="${ink}" stroke-width="1.7"/>`;
+    g+=`<path d="M${N(x-rx*.30)} ${N(y+ry*.80)} L${N(x-rx*.18)} ${N(y+ry+9)} L${N(x+rx*.10)} ${N(y+ry*.86)} Z" fill="#FFFEF7" stroke="${ink}" stroke-width="1.7" stroke-linejoin="round"/>`;
+  }
+  if(chars.length){
+    for(let c=0;c<cols;c++){
+      const seg=chars.slice(c*perCol,(c+1)*perCol);
+      const cx=x+tw/2-size*.59-c*size*1.18;             // 右の列から
+      g+=vText(cx, y-Math.min(perCol,seg.length)*size*1.05/2, seg.join(''), size, ink);
+    }
+  }else{
+    for(let i=0;i<3;i++) g+=`<path d="M${N(x-rx*.30)} ${N(y-ry*.34+i*ry*.34)} H${N(x+rx*.30)}" stroke="${ink}" stroke-width="1.2" opacity=".26"/>`;
+  }
+  return g;
+}
+function bubblesSVG(p,ink){
+  if(p.bub==='none') return '';
+  const bb=p.bb; let g='';
+  const items=[{t:p.s1, x:bb.x+bb.w*.74, y:bb.y+bb.h*.24}];
+  if(p.s2) items.push({t:p.s2, x:bb.x+bb.w*.26, y:bb.y+bb.h*.62});
+  for(const it of items) g+=bubble(it.x,it.y,it.t,p.bub,bb.h*.55,ink);
+  return g;
+}
+</script>
+<script>
+/* ══════════════════════════ 5. ページを SVG に ══════════════════════════ */
+const PAGE={w:364,h:515};
+const RED='#E4586A', INK='#1E1C14';
+const OPT={body:true,bubble:true,no:true,style:'mix'};
+let PAGES=[], SEL=null;
+
+function pageSVG(pg,idx,big){
+  const {W,H,panels}=pg, id='p'+idx+(big?'b':'s');
+  let defs='<style>.fig *{vector-effect:non-scaling-stroke}</style>', body='';
+  panels.forEach((p,i)=>{defs+=`<clipPath id="${id}c${i}"><path d="${dPath(p.poly)}"/></clipPath>`});
+  body+=`<rect width="${W}" height="${H}" fill="#FFFEF7"/>`;
+  body+=`<rect x="14" y="14" width="${W-28}" height="${H-28}" fill="none" stroke="#9EC8E0" stroke-width="1" stroke-dasharray="4 4"/>`;
+  panels.forEach((p,i)=>{
+    const cid=id+'c'+i, sel=(SEL&&SEL.pg===idx&&SEL.i===i)?' sel':'';
+    body+=`<g class="pnl${sel}" data-pg="${idx}" data-i="${i}">`;
+    body+=`<path class="plate" d="${dPath(p.poly)}" fill="rgba(228,88,106,.06)"/>`;
+    if(OPT.body)   body+=figureSVG(p,cid,INK);
+    if(OPT.bubble) body+=`<g clip-path="url(#${cid})">${bubblesSVG(p,INK)}</g>`;
+    body+=`<path d="${dPath(p.poly)}" fill="none" stroke="${RED}" stroke-width="${big?3:2.2}" stroke-linejoin="round"/>`;
+    if(OPT.no){
+      const nx=p.bb.x+p.bb.w-11, ny=p.bb.y+12;
+      body+=`<circle cx="${N(nx)}" cy="${N(ny)}" r="8" fill="#E1DD60" stroke="${INK}" stroke-width="1.6"/>`;
+      body+=`<text x="${N(nx)}" y="${N(ny+3.6)}" text-anchor="middle" font-family="DotGothic16,monospace" font-size="10" fill="${INK}">${p.n}</text>`;
+    }
+    body+=`</g>`;
+  });
+  body+=`<rect x="0.9" y="0.9" width="${W-1.8}" height="${H-1.8}" fill="none" stroke="${INK}" stroke-width="1.8"/>`;
+  if(pg.cols===2) body+=`<path d="M${W/2} 0 V${H}" stroke="${INK}" stroke-width="1.8"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${body}</svg>`;
+}
+
+/* ══════════════════════════ 6. 組み立て ══════════════════════════ */
+const $=s=>document.querySelector(s);
+const sheet=$('#sheet');
+
+function build(){
+  R.r=mulberry(parseInt($('#seed').value)||1);
+  OPT.style=$('#style').value;
+  const n=+$('#count').value, spread=$('#fmt').value==='spread';
+  const opt={rows:+$('#rows').value, cells:+$('#cells').value, tilt:+$('#tilt').value, margin:16};
+  PAGES=[]; SEL=null; closeDrawer();
+  for(let i=0;i<n;i++){
+    if(spread){
+      const W=PAGE.w*2, H=PAGE.h;
+      const Lp=makePanels(PAGE.w,H,opt), Rp=makePanels(PAGE.w,H,opt);
+      Rp.forEach(p=>{p.poly=p.poly.map(q=>[q[0]+PAGE.w,q[1]]); p.bb=bbox(p.poly)});
+      const all=Rp.concat(Lp);
+      all.forEach((p,k)=>p.n=k+1);
+      PAGES.push({W,H,panels:all,cols:2});
+    }else{
+      const ps=makePanels(PAGE.w,PAGE.h,opt);
+      ps.forEach((p,k)=>p.n=k+1);
+      PAGES.push({W:PAGE.w,H:PAGE.h,panels:ps,cols:1});
+    }
+  }
+  render();
+}
+
+function render(){
+  const spread=PAGES[0]&&PAGES[0].cols===2;
+  const w=+$('#zoom').value*(spread?2:1);
+  sheet.style.gridTemplateColumns=`repeat(auto-fill, minmax(${w}px, ${w}px))`;
+  sheet.innerHTML=PAGES.map((pg,i)=>`
+    <div class="card">
+      <div class="cap">
+        <span class="dot">${String(i+1).padStart(2,'0')}</span>
+        <span>コマ ${pg.panels.length}</span>
+        <span class="sp"></span>
+        <span class="zoom" data-zoom="${i}">⤢</span>
+      </div>
+      ${pageSVG(pg,i,false)}
+    </div>`).join('');
+  if($('#modal').classList.contains('open')) $('#mHost').innerHTML=pageSVG(PAGES[mIdx],mIdx,true);
+}
+
+/* ══════════════════════════ 7. 編集ひきだし ══════════════════════════ */
+function selPanel(){ return SEL?PAGES[SEL.pg].panels[SEL.i]:null }
+
+function miniSVG(inner,vb){ return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>` }
+
+function buildSwatches(){
+  $('#dExpr').innerHTML=EXPR.map((e,i)=>
+    `<button class="sw" data-expr="${i}" title="${e.n}">${miniSVG(
+      `<g transform="translate(0 -0.08) scale(1.45)">
+         <ellipse cx="0" cy="0" rx=".30" ry=".288" fill="#fff" stroke="${INK}" stroke-width=".040"/>
+         ${brow(e.b,-.150,INK)}${eye(e.e,-1,-.150,-.010,INK)}${eye(e.e,1,.150,-.010,INK)}${mouth(e.m,.130,INK)}${e.f?fxMark(e.f,INK):''}
+       </g>`,'-0.55 -0.55 1.1 1.1')}</button>`).join('');
+  $('#dPose').innerHTML=POSE.map((p,i)=>
+    `<button class="sw" data-pose="${i}" title="${p.n}">${miniSVG(
+      `<g transform="translate(0 -0.52) scale(0.95)">${drawChibi(0,0,i,INK)}</g>`,'-0.58 -0.58 1.16 1.16')}</button>`).join('');
+  $('#dChar').innerHTML=CHARS.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');
+  $('#dChar2').innerHTML='<option value="-1">なし</option>'+CHARS.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');
+  $('#dShot').innerHTML=SHOTS.map(s=>`<option value="${s}">${SHOTNAME[s]}</option>`).join('');
+}
+function openDrawer(pg,i){
+  SEL={pg,i};
+  const p=selPanel();
+  $('#drawer').classList.add('open');
+  $('#dTitle').textContent=`${pg+1}枚目 の ${p.n}コマめ`;
+  $('#dInfo').textContent=`${Math.round(p.bb.w)}×${Math.round(p.bb.h)}`;
+  $('#dStyle').value=p.style; $('#dChar').value=p.chr; $('#dChar2').value=p.chr2;
+  $('#dShot').value=p.shot;  $('#dBub').value=p.bub;
+  $('#dS1').value=p.s1;      $('#dS2').value=p.s2;
+  [...$('#dExpr').children].forEach(b=>b.classList.toggle('on',+b.dataset.expr===p.expr));
+  [...$('#dPose').children].forEach(b=>b.classList.toggle('on',+b.dataset.pose===p.pose));
+  render();
+}
+function closeDrawer(){ $('#drawer').classList.remove('open'); SEL=null }
+function step(d){
+  if(!SEL) return;
+  let {pg,i}=SEL;
+  i+=d;
+  while(i<0){ pg--; if(pg<0){pg=PAGES.length-1} i=PAGES[pg].panels.length+i }
+  while(i>=PAGES[pg].panels.length){ i-=PAGES[pg].panels.length; pg=(pg+1)%PAGES.length }
+  openDrawer(pg,i);
+}
+function touch(fn){ const p=selPanel(); if(!p)return; fn(p); render(); }
+
+sheet.addEventListener('click',e=>{
+  const z=e.target.closest('[data-zoom]');
+  if(z){ openModal(+z.dataset.zoom); return }
+  const g=e.target.closest('.pnl');
+  if(!g) return;
+  openDrawer(+g.dataset.pg,+g.dataset.i);
+});
+$('#dClose').onclick=()=>{ closeDrawer(); render() };
+$('#dPrev').onclick=()=>step(-1);
+$('#dNext').onclick=()=>step(1);
+$('#dStyle').onchange=e=>touch(p=>p.style=e.target.value);
+$('#dChar').onchange=e=>touch(p=>p.chr=+e.target.value);
+$('#dChar2').onchange=e=>touch(p=>p.chr2=+e.target.value);
+$('#dShot').onchange=e=>touch(p=>p.shot=e.target.value);
+$('#dBub').onchange=e=>touch(p=>p.bub=e.target.value);
+$('#dFlip').onclick=()=>touch(p=>p.flip=!p.flip);
+$('#dS1').oninput=e=>touch(p=>p.s1=e.target.value);
+$('#dS2').oninput=e=>touch(p=>p.s2=e.target.value);
+$('#dExpr').addEventListener('click',e=>{
+  const b=e.target.closest('[data-expr]'); if(!b)return;
+  touch(p=>p.expr=+b.dataset.expr);
+  [...$('#dExpr').children].forEach(x=>x.classList.toggle('on',x===b));
+});
+$('#dPose').addEventListener('click',e=>{
+  const b=e.target.closest('[data-pose]'); if(!b)return;
+  touch(p=>p.pose=+b.dataset.pose);
+  [...$('#dPose').children].forEach(x=>x.classList.toggle('on',x===b));
+});
+
+/* セリフの流しこみ（1行＝1コマ） */
+$('#bFlow').onclick=()=>{
+  const lines=$('#script').value.split('\n');
+  let k=0;
+  for(const pg of PAGES) for(const p of pg.panels){
+    if(k>=lines.length) break;
+    const t=lines[k++].trim();
+    p.s1=t;
+    if(t==='') p.bub='none';
+    else if(p.bub==='none') p.bub='talk';
+  }
+  render();
+};
+
+/* ══════════════════════════ 8. 拡大 ══════════════════════════ */
+let mIdx=0;
+function openModal(i){
+  mIdx=i;
+  $('#mTitle').textContent=`${i+1}枚目 ／ コマ ${PAGES[i].panels.length}`;
+  $('#mHost').innerHTML=pageSVG(PAGES[i],i,true);
+  $('#modal').classList.add('open');
+}
+$('#mClose').onclick=()=>$('#modal').classList.remove('open');
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal') $('#modal').classList.remove('open') });
+$('#mHost').addEventListener('click',e=>{
+  const g=e.target.closest('.pnl'); if(!g) return;
+  openDrawer(+g.dataset.pg,+g.dataset.i);
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('#modal').classList.remove('open'); } });
+
+/* ══════════════════════════ 9. 書き出し・保存 ══════════════════════════ */
+function svgToPng(svgText,w,h,name){
+  const url=URL.createObjectURL(new Blob([svgText],{type:'image/svg+xml;charset=utf-8'}));
+  const img=new Image();
+  img.onload=()=>{
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const g=c.getContext('2d'); g.fillStyle='#FFFEF7'; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);
+    c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)});
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url);alert('PNGにできませんでした')};
+  img.src=url;
+}
+$('#mPng').onclick=()=>{const pg=PAGES[mIdx];svgToPng(pageSVG(pg,mIdx,true),pg.W*2,pg.H*2,`komawari_p${mIdx+1}.png`)};
+$('#bPng').onclick=()=>{
+  const cols=PAGES[0].cols===2?4:8, gap=18, pw=PAGES[0].W, ph=PAGES[0].H;
+  const rows=Math.ceil(PAGES.length/cols);
+  const W=Math.min(cols,PAGES.length)*pw+gap*(Math.min(cols,PAGES.length)+1), H=rows*ph+gap*(rows+1);
+  let inner='';
+  PAGES.forEach((pg,i)=>{
+    const x=gap+(i%cols)*(pw+gap), y=gap+Math.floor(i/cols)*(ph+gap);
+    const one=pageSVG(pg,i,false).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    inner+=`<g transform="translate(${x} ${y})">${one}</g>`;
+  });
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#FBFAEC"/>${inner}</svg>`;
+  const sc=Math.min(2,6000/W);
+  svgToPng(svg,Math.round(W*sc),Math.round(H*sc),'komawari_sheet.png');
+};
+$('#bPrint').onclick=()=>window.print();
+
+$('#bSave').onclick=()=>{
+  const data={v:1,opt:OPT,ui:{fmt:$('#fmt').value,zoom:$('#zoom').value},pages:PAGES};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));
+  a.download='komawari.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+$('#bLoad').onclick=()=>$('#fLoad').click();
+$('#fLoad').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      PAGES=d.pages;
+      PAGES.forEach(pg=>pg.panels.forEach(p=>p.bb=bbox(p.poly)));
+      Object.assign(OPT,d.opt||{});
+      if(d.ui){$('#fmt').value=d.ui.fmt;$('#zoom').value=d.ui.zoom}
+      $('#style').value=OPT.style;
+      ['body','bubble','no'].forEach((k,i)=>$(['#bBody','#bBubble','#bNo'][i]).classList.toggle('on',OPT[k]));
+      SEL=null; closeDrawer(); render();
+    }catch(err){ alert('読みこめませんでした') }
+  };
+  rd.readAsText(f);
+  e.target.value='';
+};
+
+/* ══════════════════════════ 10. 操作盤 ══════════════════════════ */
+[['count','oCount'],['rows','oRows'],['cells','oCells'],['tilt','oTilt'],['zoom','oZoom']].forEach(([a,b])=>{
+  const el=$('#'+a), out=$('#'+b);
+  el.addEventListener('input',()=>{ out.value=el.value; if(a==='zoom') render(); else build() });
+});
+$('#fmt').onchange=build;
+$('#style').onchange=build;
+$('#seed').oninput=build;
+$('#bGen').onclick=()=>{ $('#seed').value=Math.floor(Math.random()*99999); build() };
+function tog(id,key){ $(id).onclick=()=>{ OPT[key]=!OPT[key]; $(id).classList.toggle('on',OPT[key]); render() } }
+tog('#bBody','body'); tog('#bBubble','bubble'); tog('#bNo','no');
+
+buildSwatches();
+build();
+</script>
+</body>
+</html>
