@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=128';
+import { M } from './engine/math.js?v=129';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=128';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=129';
 import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=128';
-import { createStage } from './ui/stage.js?v=128';
-import { createRenderer } from './render/renderer.js?v=128';
-import { createTimeline } from './ui/timeline.js?v=128';
-import { fmtTime } from './engine/anim.js?v=128';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=129';
+import { createStage } from './ui/stage.js?v=129';
+import { createRenderer } from './render/renderer.js?v=129';
+import { createTimeline } from './ui/timeline.js?v=129';
+import { fmtTime } from './engine/anim.js?v=129';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
-         buildEnterSheet, buildLoopSheet, buildTraceSheet, buildBeatSheet,
+         buildEnterSheet, buildTraceSheet, buildBeatSheet,
          buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
          buildExportSheet, buildEaseSheet, buildDoneSheet,
@@ -18,21 +18,21 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setWarper } from './ui/sheet.js?v=128';
+         setWarper } from './ui/sheet.js?v=129';
 
-import { showNewDoc } from './ui/newdoc.js?v=128';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=128';
-import { fitToCanvas, isBg } from './io/bg.js?v=128';
-import * as Audio from './io/audio.js?v=128';
+import { showNewDoc } from './ui/newdoc.js?v=129';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=129';
+import { fitToCanvas, isBg } from './io/bg.js?v=129';
+import * as Audio from './io/audio.js?v=129';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=128';
-import { importPsd } from './io/psd.js?v=128';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=129';
+import { importPsd } from './io/psd.js?v=129';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=128';
-import { pathKeys } from './engine/path.js?v=128';
-import { paintDirty } from './engine/paint.js?v=128';
+         canUseWebCodecs } from './io/export.js?v=129';
+import { pathKeys } from './engine/path.js?v=129';
+import { paintDirty } from './engine/paint.js?v=129';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=128';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=129';
 
 const $ = (s) => document.querySelector(s);
 
@@ -636,13 +636,31 @@ $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
 /* うごきは 中身が 多いので、まず えらぶ画面を 出して、
    えらんだ ものだけを 別の画面で ひらく。 */
 const MOVE_PAGES = {
-  form:   ['✨ 出る・消える',  buildEnterSheet],
-  loop:   ['🔁 ずっと うごく', buildLoopSheet],
   path:   ['👆 みちを なぞる', buildTraceSheet],
   beat:   ['🥁 リズム（BPM）', buildBeatSheet],
   flip:   ['🎞 パラパラ',      buildFlipSheet],
   finish: ['💨 しあげ',        buildFinishSheet]
 };
+
+/* イン・ループ・アウトは 1つの画面の タブに する。
+   べつべつの 画面に すると、えらぶ画面の 行が ふえる うえに、
+   「出る」を つけてから「消える」を つけるのに いちいち もどる ことに なる。 */
+const ANIM_TABS = [
+  ['in',   'イン'],
+  ['loop', 'ループ'],
+  ['out',  'アウト']
+];
+
+function openAnim(startKey){
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+  sheet.openPages('うごき（' + l.name + '）',
+    ANIM_TABS.map(([key, label]) => ({
+      key, label,
+      build: (box) => buildEnterSheet(box, () => openMove(), key)
+    })),
+    startKey || 'in');
+}
 
 function openMove(key){
   const l = selected();
@@ -652,6 +670,9 @@ function openMove(key){
     return sheet.open('うごき（' + l.name + '）',
       (box) => buildMotionSheet(box, (k) => openMove(k)));
   }
+  if(key === 'anim' || key === 'form') return openAnim('in');
+  if(key === 'loop') return openAnim('loop');
+
   const page = MOVE_PAGES[key];
   if(!page) return openMove();
   sheet.open(page[0] + '（' + l.name + '）',

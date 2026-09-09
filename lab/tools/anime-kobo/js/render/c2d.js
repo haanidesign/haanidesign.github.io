@@ -3,14 +3,14 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=128';
-import { S, frameAsset, frameImage } from '../state.js?v=128';
+         nearestFolder } from '../engine/layer.js?v=129';
+import { S, frameAsset, frameImage } from '../state.js?v=129';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=128';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=128';
-import { paintCanvas } from '../engine/paint.js?v=128';
-import { panoCanvas } from '../engine/pano.js?v=128';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=128';
+         meshSizeFor } from '../engine/puppet.js?v=129';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=129';
+import { paintCanvas } from '../engine/paint.js?v=129';
+import { panoCanvas } from '../engine/pano.js?v=129';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=129';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

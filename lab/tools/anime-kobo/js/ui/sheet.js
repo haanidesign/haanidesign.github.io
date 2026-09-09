@@ -1,35 +1,35 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=128';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=129';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames } from '../engine/layer.js?v=128';
+         splitFrames } from '../engine/layer.js?v=129';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=128';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=128';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=128';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=128';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=128';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=129';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=129';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=129';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=129';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=129';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=128';
+         addTextLayer } from '../io/text.js?v=129';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=128';
-import { PATTERN_NAMES } from '../io/pattern.js?v=128';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=129';
+import { PATTERN_NAMES } from '../io/pattern.js?v=129';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=128';
-import { readAsDataURL, loadImage } from '../io/image.js?v=128';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=128';
-import { newHand } from '../engine/hand.js?v=128';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=128';
+         PITCH_MAX } from '../engine/pano.js?v=129';
+import { readAsDataURL, loadImage } from '../io/image.js?v=129';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=129';
+import { newHand } from '../engine/hand.js?v=129';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=129';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=128';
+  from './colorwheel.js?v=129';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=128';
+         guessBpm, firstOnset } from '../io/audio.js?v=129';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=128';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=129';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -735,8 +735,7 @@ export function buildMotionSheet(box, open){
   box.appendChild(head);
 
   const MENU = [
-    ['form',   '✨ 出る・消える',  'ふわっと出る、下からあがる、消える など'],
-    ['loop',   '🔁 ずっと うごく', '呼吸・ふわふわ・かみのゆれ'],
+    ['anim',   '✨ うごきを つける', 'イン・ループ・アウト。出る／ゆれる／消える'],
     ['path',   '👆 みちを なぞる', 'なぞった みちを 何秒で 通るか'],
     ['beat',   '🥁 リズム（BPM）', '拍に あわせて ピンを うつ'],
     ['flip',   '🎞 パラパラ',      '☑ でえらんだ 絵を コマにして 順ぐりに 出す'],
@@ -804,54 +803,44 @@ function presetGrid(box, list, run){
 }
 
 /* ---------- ① 出る・消える ---------- */
-export function buildEnterSheet(box, back){
+export function buildEnterSheet(box, back, which){
   const l = selected();
   if(!l) return;
   backRow(box, back);
 
-  const dur = { v: 0.6 };
-  box.appendChild(slider('かかる時間', () => dur.v, v => dur.v = v, 0.2, 3, 0.1,
+  const gr = PRESET_GROUPS.find(g => g.key === (which || 'in'));
+  if(!gr) return;
+  const isLoop = gr.key === 'loop';
+
+  /* 時間の めやすは タブごとに ちがう。
+     出る・消える は ぱっと（0.6秒）、ループは ゆっくり（2秒）が ふつう。 */
+  const dur = { v: isLoop ? 2 : 0.6 };
+  box.appendChild(slider(isLoop ? 'ひとまわりの 時間' : 'かかる時間',
+    () => dur.v, v => dur.v = v,
+    isLoop ? 0.4 : 0.2, isLoop ? 6 : 3, 0.1,
     v => v.toFixed(1) + '秒'));
 
-  PRESET_GROUPS.filter(gr => gr.key !== 'loop').forEach(gr => {
-    box.appendChild(heading(gr.label));
-    presetGrid(box, gr.list, (p) => {
-      edit(p.name, () => p.fn(l, S.time, dur.v));
-      notify(p.name + ' を いれました');
-      onChange();
-    });
+  presetGrid(box, gr.list, (p) => {
+    edit(p.name, () => p.fn(l, S.time, dur.v));
+    notify(p.name + ' を いれました');
+    onChange();
   });
 
   const hint = document.createElement('div');
   hint.className = 'empty';
   hint.style.textAlign = 'left';
-  hint.textContent = 'いまの時間から はじまります。'
-    + String.fromCharCode(10)
-    + 'いまの見た目が「おわりの姿」になります。';
+  hint.textContent = isLoop
+    ? ('いまの時間から くりかえします。' + String.fromCharCode(10) + 'ピンの バーで「🔁ループ」に すると ずっと つづきます。')
+    : ('いまの時間から はじまります。' + String.fromCharCode(10) + 'いまの見た目が「おわりの姿」になります。');
   box.appendChild(hint);
+
+  /* かみのゆれ は「ずっと つづく うごき」なので ループの タブに 置く */
+  if(isLoop) buildSway(box, l);
 }
 
-/* ---------- ② ずっと うごく ---------- */
+/* ずっと うごく だけを ひらく 入口（むかしの 呼び出し方に そろえる用） */
 export function buildLoopSheet(box, back){
-  const l = selected();
-  if(!l) return;
-  backRow(box, back);
-
-  const dur = { v: 2 };
-  box.appendChild(slider('ひとまわりの 時間', () => dur.v, v => dur.v = v, 0.4, 6, 0.1,
-    v => v.toFixed(1) + '秒'));
-
-  const gr = PRESET_GROUPS.find(g => g.key === 'loop');
-  if(gr){
-    box.appendChild(heading('ずっと くりかえす'));
-    presetGrid(box, gr.list, (p) => {
-      edit(p.name, () => p.fn(l, S.time, dur.v));
-      notify(p.name + ' を いれました');
-      onChange();
-    });
-  }
-
-  buildSway(box, l);
+  return buildEnterSheet(box, back, 'loop');
 }
 
 /* ---------- ③ みちを なぞる ---------- */
