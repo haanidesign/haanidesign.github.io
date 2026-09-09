@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=137';
-import { cleanPath } from '../engine/path.js?v=137';
+import { M, clamp } from '../engine/math.js?v=139';
+import { cleanPath } from '../engine/path.js?v=139';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=137';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=137';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=137';
+         keepChildren, cornersOf } from '../engine/layer.js?v=139';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=139';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=139';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=137';
-import { createRenderer } from '../render/renderer.js?v=137';
-import { attachInput } from './input.js?v=137';
-import { newStroke, paintDirty } from '../engine/paint.js?v=137';
+         bendChain } from '../engine/puppet.js?v=139';
+import { createRenderer } from '../render/renderer.js?v=139';
+import { attachInput } from './input.js?v=139';
+import { newStroke, paintDirty } from '../engine/paint.js?v=139';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=137';
+         copyPts, setPts } from '../engine/warp.js?v=139';
 
-import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=137';
-import { inCamView } from '../render/camview.js?v=137';
-import { ORBIT_MAX } from '../engine/camera.js?v=137';
+import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=139';
+import { inCamView } from '../render/camview.js?v=139';
+import { ORBIT_MAX } from '../engine/camera.js?v=139';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -27,6 +27,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   let drag = null;
   let viewStart = null;
   let pinchWarp = null;      // 2本指で かたまりを うごかしている とちゅう
+  let pinchCam = null;       // のぞき窓を つまんで 引き／アップ している とちゅう
 
   /* 指の うごき（キャンバスの ドット）を、カメラを かける 前の 長さに もどす。
      カメラで 2ばいに 寄って いる ときは、指を 100 動かすと
@@ -60,6 +61,35 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     y: (p.y - S.view.y) / S.view.z
   });
 
+  /* のぞき窓（右上の カメラの 小さい 図）を いま さわれるか。
+     お絵かき中・ゆがみ中 などは 出して いない ので さわれない。 */
+  function camWidget(){
+    if(S.paintMode || S.warpMode || S.traceMode || S.pinMode) return null;
+    return camOf(S.proj);
+  }
+  /* のぞき窓の 上か（p は 画面の 生の ドット） */
+  function onCamWidget(p){
+    return !!camWidget() && inCamView(canvas, p.x, p.y);
+  }
+  /** カメラの ズームの かぎり（せっていの スライダーと そろえる） */
+  const CAM_Z_MIN = 0.2, CAM_Z_MAX = 4;
+
+  /* ホイールで 引き・アップ。
+     1こま ずつ もどす に なると「1回 まわしただけ」を もどすのに
+     何回も おす ことに なる ので、まわし終わってから 1つに まとめる。 */
+  let camWheelT = null;
+  function camZoomTo(cam, z){
+    if(camWheelT) clearTimeout(camWheelT);
+    else beginEdit('カメラの 引き・アップ');
+    cam.scaleX = z; cam.scaleY = z;
+    liveKey(cam, ['scaleX', 'scaleY']);
+    camWheelT = setTimeout(() => {
+      camWheelT = null;
+      commitEdit();
+    }, 400);
+    onChange();
+  }
+
   /* ---- 描画 ---- */
   function draw(){
     poses = R.draw(S.proj, S.imgs, S.time, S.view);
@@ -79,9 +109,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
        ここを なぞると カメラが まわりこむ ので、
        カメラの 行を えらんで いなくても つかえる ように して ある。
        （お絵かき中・ゆがみ中 は 絵の じゃまに なる ので 出さない） */
-    if(camOf(S.proj) && !S.paintMode && !S.warpMode && !S.traceMode && !S.pinMode){
-      R.camView(S.proj, S.time, l ? l.id : null);
-    }
+    if(camWidget()) R.camView(S.proj, S.time, l ? l.id : null);
   }
 
   /* ---------- ゆがみ・自由変形の かご ---------- */
@@ -626,9 +654,8 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       /* のぞき窓の 中を なぞったら、カメラが まわりこむ。
          ここは 画面の すみに 出して いる 別の 図 なので、
          絵の ざひょう（cp）では なく 生の ドット（p）で 見る。 */
-      const cam = camOf(S.proj);
-      if(cam && !S.paintMode && !S.warpMode && !S.traceMode && !S.pinMode
-         && inCamView(canvas, p.x, p.y)){
+      if(onCamWidget(p)){
+        const cam = camWidget();
         beginEdit('カメラを まわす');
         drag = { kind:'camorbit', l: cam, p0:p, rx0: cam.rx || 0, ry0: cam.ry || 0 };
         return;
@@ -1002,6 +1029,17 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     },
 
     onPinchStart(g){
+      /* のぞき窓を 2本指で つまんだら、画面では なく カメラの ズーム。
+         ひろげる＝アップ（寄る）、すぼめる＝引き（下がる）。
+         奥ゆきの ある 絵なら、手前の ものほど はやく 近づいて くる。 */
+      if(onCamWidget({ x: g.cx, y: g.cy })){
+        const cam = camWidget();
+        beginEdit('カメラの 引き・アップ');
+        pinchCam = { cam, z0: (cam.scaleX == null ? 1 : cam.scaleX) || 1, d: g.d };
+        viewStart = null;                 // 画面じたいは 動かさない
+        return;
+      }
+
       viewStart = { ...S.view, cx: g.cx, cy: g.cy, d: g.d };
 
       /* ゆがみ中 で、筆で なぞった かたまりが あれば、
@@ -1079,6 +1117,16 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         return;
       }
 
+      if(pinchCam){
+        const k = clamp(now.d / Math.max(1, pinchCam.d), 0.15, 12);
+        const z = clamp(pinchCam.z0 * k, CAM_Z_MIN, CAM_Z_MAX);
+        pinchCam.cam.scaleX = z;
+        pinchCam.cam.scaleY = z;
+        liveKey(pinchCam.cam, ['scaleX', 'scaleY']);
+        onChange();
+        return;
+      }
+
       if(!viewStart) return;
       const k = clamp(now.d / Math.max(1, start.d), 0.15, 12);
       const z = clamp(viewStart.z * k, 0.05, 12);
@@ -1093,6 +1141,16 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
 
     onPinchEnd(){
       viewStart = null;
+      if(pinchCam){
+        const cam = pinchCam.cam;
+        pinchCam = null;
+        // すでに ピンが うって あれば、いまの 時こくに 残す
+        if(hasPins(cam)) ['scaleX', 'scaleY'].forEach(
+          c => setPin(cam, c, S.time, cam[c], 'smooth'));
+        commitEdit();
+        onChange();
+        return;
+      }
       // 2本指で かたまりを うごかして いたら、ここで しまう
       if(pinchWarp){
         const l = pinchWarp.l;
@@ -1106,6 +1164,15 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     },
 
     onWheel(p, dy){
+      /* のぞき窓の 上では、画面では なく カメラの 引き・アップ。
+         マウスの ホイールでも 同じ ことが できる ように。 */
+      if(onCamWidget(p)){
+        const cam = camWidget();
+        const z0 = (cam.scaleX == null ? 1 : cam.scaleX) || 1;
+        camZoomTo(cam, clamp(z0 * (dy > 0 ? 0.92 : 1.087), CAM_Z_MIN, CAM_Z_MAX));
+        return;
+      }
+
       const before = toCanvas(p);
       S.view.z = clamp(S.view.z * (dy > 0 ? 0.9 : 1.11), 0.05, 12);
       const after = toCanvas(p);

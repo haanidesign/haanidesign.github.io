@@ -14,8 +14,8 @@
 
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
-import { CAM_F, depthLen, camOf } from '../engine/camera.js?v=137';
-import { valuesAt } from '../engine/anim.js?v=137';
+import { CAM_F, depthLen, camOf } from '../engine/camera.js?v=139';
+import { valuesAt } from '../engine/anim.js?v=139';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -193,12 +193,20 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
 
   g.restore();
 
-  // 見出し
+  // 見出しと、いまの 引き・アップ
   g.fillStyle = 'rgba(30,28,20,.62)';
   g.font = (9 * r.dpr) + 'px system-ui, sans-serif';
   g.textAlign = 'left';
   g.textBaseline = 'top';
-  g.fillText('なぞると カメラが まわる', r.x + 7 * r.dpr, r.y + 5 * r.dpr);
+  g.fillText('なぞる＝まわる', r.x + 7 * r.dpr, r.y + 5 * r.dpr);
+  g.fillText('つまむ＝引き・アップ', r.x + 7 * r.dpr, r.y + 16 * r.dpr);
+
+  const zpc = Math.round(((camV.scaleX == null ? 1 : camV.scaleX) || 1) * 100);
+  g.textAlign = 'right';
+  g.textBaseline = 'bottom';
+  g.font = '700 ' + (11 * r.dpr) + 'px system-ui, sans-serif';
+  g.fillStyle = zpc === 100 ? 'rgba(30,28,20,.55)' : '#1E1C14';
+  g.fillText(zpc + '%', r.x + r.w - 7 * r.dpr, r.y + r.h - 5 * r.dpr);
 
   g.restore();
   return r;

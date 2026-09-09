@@ -3,16 +3,16 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=137';
-import { S, frameAsset, frameImage } from '../state.js?v=137';
+         nearestFolder } from '../engine/layer.js?v=139';
+import { S, frameAsset, frameImage } from '../state.js?v=139';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=137';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=137';
-import { paintCanvas } from '../engine/paint.js?v=137';
-import { panoCanvas } from '../engine/pano.js?v=137';
-import { homography, applyH } from '../engine/warp.js?v=137';
-import { drawCamView } from './camview.js?v=137';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=137';
+         meshSizeFor } from '../engine/puppet.js?v=139';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=139';
+import { paintCanvas } from '../engine/paint.js?v=139';
+import { panoCanvas } from '../engine/pano.js?v=139';
+import { homography, applyH } from '../engine/warp.js?v=139';
+import { drawCamView } from './camview.js?v=139';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=139';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
