@@ -1,14 +1,14 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=136';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=136';
+import { M, uid, ptInQuad } from './math.js?v=137';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=137';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
-         camOrbiting } from './camera.js?v=136';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=136';
-import { cageDeformPoint, cageMoved } from './warp.js?v=136';
-import { handTime } from './hand.js?v=136';
-import { WORK_KEYS } from '../state.js?v=136';
+         camOrbiting, sheetQuad3D } from './camera.js?v=137';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=137';
+import { cageDeformPoint, cageMoved } from './warp.js?v=137';
+import { handTime } from './hand.js?v=137';
+import { WORK_KEYS } from '../state.js?v=137';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -222,9 +222,18 @@ export function computeAll(project, time){
 
     const local = M.trs(lx, ly, lrot, v.scaleX, v.scaleY);
     let m = p ? M.mul(p.m, local) : local;
+
+    /* フォルダは 中身を 1まいの 紙に まとめて から 出す。
+       カメラが まわりこんで いる（または フォルダ自身を たおして いる）
+       ときは、その 紙ごと 立体に する（下の sheet）。
+       そのときは 中身に カメラを かけない ―― かけると
+       紙の 中でも 外でも 二重に かかって しまう。 */
+    const sheet3D = !p && !isCam(l) && isFolder(l) && !!camV
+                    && (orbit || is3D(v)) && membersOf(project, l).length > 0;
+
     /* カメラは 親の いない レイヤーにだけ かける。
        子は 親の 姿ごしに ついてくる ので、二重に かからない。 */
-    if(camV && !p && !isCam(l)) m = M.mul(camMatrix(camV, ccx, ccy, depthLen(l)), m);
+    if(camV && !p && !isCam(l) && !sheet3D) m = M.mul(camMatrix(camV, ccx, ccy, depthLen(l)), m);
 
     /* コマごとの ずれ。
        べつの ところに あった 絵を コマに した ときに、
@@ -259,7 +268,10 @@ export function computeAll(project, time){
        描くときは これに 絵を はめる（ゆがみ・骨の あとに かける）。
        おやこの 子は 親ごしに 動く ので、ここでは 自分の ぶんだけ。 */
     let quad = null;
-    if((is3D(v) || orbit) && !isCam(l) && !p){
+    if(sheet3D){
+      /* まとめた 紙ぜんたいを 立体に する（フォルダ） */
+      quad = sheetQuad3D(l, v, project, camV);
+    } else if((is3D(v) || orbit) && !isCam(l) && !p){
       const a = assetOf(project, l, v.frame);
       if(a) quad = quad3D(l, v, a, project, camV);
     }

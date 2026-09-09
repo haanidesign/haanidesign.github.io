@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=136';
-import { cleanPath } from '../engine/path.js?v=136';
+import { M, clamp } from '../engine/math.js?v=137';
+import { cleanPath } from '../engine/path.js?v=137';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=136';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=136';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=136';
+         keepChildren, cornersOf } from '../engine/layer.js?v=137';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=137';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=137';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=136';
-import { createRenderer } from '../render/renderer.js?v=136';
-import { attachInput } from './input.js?v=136';
-import { newStroke, paintDirty } from '../engine/paint.js?v=136';
+         bendChain } from '../engine/puppet.js?v=137';
+import { createRenderer } from '../render/renderer.js?v=137';
+import { attachInput } from './input.js?v=137';
+import { newStroke, paintDirty } from '../engine/paint.js?v=137';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=136';
+         copyPts, setPts } from '../engine/warp.js?v=137';
 
-import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=136';
-import { inCamView } from '../render/camview.js?v=136';
-import { ORBIT_MAX } from '../engine/camera.js?v=136';
+import { camOf, camMatrix, depthLen, isCam } from '../engine/camera.js?v=137';
+import { inCamView } from '../render/camview.js?v=137';
+import { ORBIT_MAX } from '../engine/camera.js?v=137';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -75,9 +75,13 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     if(S.warpMode && l) drawCage(l);
     if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
-    /* カメラを えらんで いる あいだだけ、そとから 見た 図を すみに 出す。
-       いつも 出すと 絵の じゃまに なる。 */
-    if(isCam(l)) R.camView(S.proj, S.time, l.id);
+    /* カメラが ある あいだは、そとから 見た 図を すみに 出す。
+       ここを なぞると カメラが まわりこむ ので、
+       カメラの 行を えらんで いなくても つかえる ように して ある。
+       （お絵かき中・ゆがみ中 は 絵の じゃまに なる ので 出さない） */
+    if(camOf(S.proj) && !S.paintMode && !S.warpMode && !S.traceMode && !S.pinMode){
+      R.camView(S.proj, S.time, l ? l.id : null);
+    }
   }
 
   /* ---------- ゆがみ・自由変形の かご ---------- */
@@ -622,9 +626,11 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       /* のぞき窓の 中を なぞったら、カメラが まわりこむ。
          ここは 画面の すみに 出して いる 別の 図 なので、
          絵の ざひょう（cp）では なく 生の ドット（p）で 見る。 */
-      if(isCam(l) && inCamView(canvas, p.x, p.y)){
+      const cam = camOf(S.proj);
+      if(cam && !S.paintMode && !S.warpMode && !S.traceMode && !S.pinMode
+         && inCamView(canvas, p.x, p.y)){
         beginEdit('カメラを まわす');
-        drag = { kind:'camorbit', l, p0:p, rx0: l.rx || 0, ry0: l.ry || 0 };
+        drag = { kind:'camorbit', l: cam, p0:p, rx0: cam.rx || 0, ry0: cam.ry || 0 };
         return;
       }
 

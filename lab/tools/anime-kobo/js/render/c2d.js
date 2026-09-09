@@ -3,16 +3,16 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=136';
-import { S, frameAsset, frameImage } from '../state.js?v=136';
+         nearestFolder } from '../engine/layer.js?v=137';
+import { S, frameAsset, frameImage } from '../state.js?v=137';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=136';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=136';
-import { paintCanvas } from '../engine/paint.js?v=136';
-import { panoCanvas } from '../engine/pano.js?v=136';
-import { homography, applyH } from '../engine/warp.js?v=136';
-import { drawCamView } from './camview.js?v=136';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=136';
+         meshSizeFor } from '../engine/puppet.js?v=137';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=137';
+import { paintCanvas } from '../engine/paint.js?v=137';
+import { panoCanvas } from '../engine/pano.js?v=137';
+import { homography, applyH } from '../engine/warp.js?v=137';
+import { drawCamView } from './camview.js?v=137';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=137';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -666,10 +666,35 @@ function flatMesh(w, h){
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
     if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k) + 'px)';
-    g.drawImage(c, 0, 0);
+    if(pose.quad) sheet3D(g, c, project, pose.quad, tf);
+    else g.drawImage(c, 0, 0);
     g.filter = 'none';
     g.restore();
     back(1);
+  }
+
+  /* まとめた 紙を、立体の 四すみに はめて 出す。
+     まとめた 紙は「キャンバスぜんたい」が うつって いる ので、
+     キャンバスの しかく → 四すみ の ホモグラフィで はり直せば いい。
+     g は へんかん なし（画面の 生の ドット）で わたす。 */
+  function sheet3D(g, sheet, project, quad, tf){
+    const W = project.w, H = project.h;
+    const me = flatMesh(W, H);
+    const n = me.verts.length;
+    const H3 = homography(
+      [{x:0,y:0}, {x:W,y:0}, {x:W,y:H}, {x:0,y:H}], quad);
+
+    const uv = new Float32Array(n * 2);   // 紙の どこを はるか（生の ドット）
+    const xy = new Float32Array(n * 2);   // どこへ はるか（生の ドット）
+    for(let i = 0; i < n; i++){
+      const u = me.verts[i].u, vv = me.verts[i].v;
+      uv[i*2]   = u  * tf[0] + tf[4];
+      uv[i*2+1] = vv * tf[3] + tf[5];
+      const q = applyH(H3, u, vv);
+      xy[i*2]   = q.x * tf[0] + tf[4];
+      xy[i*2+1] = q.y * tf[3] + tf[5];
+    }
+    drawDeformed(g, sheet, me, xy, 1, uv);
   }
 
   /** 1まい ぶん（ふつうのレイヤーでも フォルダでも） */
@@ -877,7 +902,8 @@ function flatMesh(w, h){
     const pose = poses[layer.id]; if(!pose) return null;
     let q;
     if(isFolder(layer)){
-      q = folderQuad(project, layer, poses);
+      // 立体に なって いる フォルダは、その 四すみが そのまま わく
+      q = pose.quad || folderQuad(project, layer, poses);
     } else {
       const asset = frameAsset(layer, pose.v.frame); if(!asset) return null;
       q = cornersOf(layer, pose.m, asset);

@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=136';
+import { M } from './math.js?v=137';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -222,6 +222,30 @@ export function quad3D(l, v, asset, project, camV){
     /* カメラより うしろ（または 近すぎる）と、うつすと 裏返って しまう。
        その コマは 3Dを あきらめて ふつうに 描く。 */
     const q = project3(ox + r.x, oy + r.y, zc + r.z, camV, cx, cy);
+    if(!q) return null;
+    out.push({ x: q.x, y: q.y });
+  }
+  return out;
+}
+
+/**
+ * まとめた 紙（フォルダ）の 四すみ。
+ *
+ * フォルダは 中身を キャンバスと 同じ 大きさの 紙 1まいに まとめて から
+ * 出す。だから その 紙を、フォルダの おくゆきの ところに 立てて、
+ * カメラから うつせば いい。
+ *
+ * 中身の 場所（フォルダの よこ・たて・大きさ・かたむき）は
+ * すでに 紙の 中に 描かれて いる ので、ここでは かけない。
+ */
+export function sheetQuad3D(l, v, project, camV){
+  const cx = project.w / 2, cy = project.h / 2;
+  const zc = depthLen(l);
+  const corners = [{x:-cx,y:-cy}, {x:cx,y:-cy}, {x:cx,y:cy}, {x:-cx,y:cy}];
+  const out = [];
+  for(const c of corners){
+    const r = rot3({ x: c.x, y: c.y, z: 0 }, v.rx || 0, v.ry || 0, 0);
+    const q = project3(r.x, r.y, zc + r.z, camV, cx, cy);
     if(!q) return null;
     out.push({ x: q.x, y: q.y });
   }
