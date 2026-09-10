@@ -3,19 +3,19 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=176';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=176';
-import { valuesAt } from '../engine/anim.js?v=176';
-import { S, frameAsset, frameImage } from '../state.js?v=176';
+         nearestFolder } from '../engine/layer.js?v=177';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=177';
+import { valuesAt } from '../engine/anim.js?v=177';
+import { S, frameAsset, frameImage } from '../state.js?v=177';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=176';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=176';
-import { paintCanvas } from '../engine/paint.js?v=176';
-import { panoCanvas } from '../engine/pano.js?v=176';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=176';
-import { homography, applyH } from '../engine/warp.js?v=176';
-import { drawCamView } from './camview.js?v=176';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=176';
+         meshSizeFor } from '../engine/puppet.js?v=177';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=177';
+import { paintCanvas } from '../engine/paint.js?v=177';
+import { panoCanvas } from '../engine/pano.js?v=177';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=177';
+import { homography, applyH } from '../engine/warp.js?v=177';
+import { drawCamView } from './camview.js?v=177';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=177';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -1578,17 +1578,29 @@ function flatMesh(w, h){
 
   /** 選んでいるレイヤーの枠とハンドル */
   /** フォルダは絵を持たないので、中身ぜんぶを囲む四角を枠にする */
+  /* フォルダの わく（えらんだ ときに 出る 四角）。
+     中身ぜんぶを かこむ 大きさに する。
+
+     フォルダの 中に フォルダが ある ときは、その 中まで 見る。
+     見ないと 中の 絵が わくに 入らず、
+     中が フォルダだけの ときは わくが まったく 出なく なる
+     （つまみが 出ない ので かたむけも 大きさも かえられない）。 */
   function folderQuad(project, folder, poses){
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for(const k of membersOf(project, folder)){
-      const p = poses[k.id]; if(!p) continue;
-      const a = frameAsset(k, p.v.frame); if(!a) continue;
-      const c = cornersOf(k, p.m, a); if(!c) continue;
-      for(const pt of c){
-        x0 = Math.min(x0, pt.x); y0 = Math.min(y0, pt.y);
-        x1 = Math.max(x1, pt.x); y1 = Math.max(y1, pt.y);
+    const eat = (f, depth) => {
+      if(depth > 16) return;                       // ぐるぐる よけ
+      for(const k of membersOf(project, f)){
+        if(isFolder(k)){ eat(k, depth + 1); continue; }
+        const p = poses[k.id]; if(!p) continue;
+        const a = frameAsset(k, p.v.frame); if(!a) continue;
+        const c = cornersOf(k, p.m, a); if(!c) continue;
+        for(const pt of c){
+          x0 = Math.min(x0, pt.x); y0 = Math.min(y0, pt.y);
+          x1 = Math.max(x1, pt.x); y1 = Math.max(y1, pt.y);
+        }
       }
-    }
+    };
+    eat(folder, 0);
     if(!isFinite(x0)) return null;
     return [{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
   }

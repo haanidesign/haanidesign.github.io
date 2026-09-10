@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=176';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=176';
+import { M, uid, ptInQuad } from './math.js?v=177';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=177';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=176';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=176';
-import { cageDeformPoint, cageMoved } from './warp.js?v=176';
-import { handTime } from './hand.js?v=176';
-import { WORK_KEYS } from '../state.js?v=176';
+         withShake } from './camera.js?v=177';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=177';
+import { cageDeformPoint, cageMoved } from './warp.js?v=177';
+import { handTime } from './hand.js?v=177';
+import { WORK_KEYS } from '../state.js?v=177';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -364,18 +364,26 @@ export function computeAll(project, time){
     const po = out[id];
     if(!f || !po) continue;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for(const k of membersOf(project, f)){
-      const kp = out[k.id];
-      if(!kp || kp.vis === false) continue;
-      const a = assetOf(project, k, kp.v.frame);
-      if(!a) continue;
-      const c = cornersOf(k, kp.m, a);
-      if(!c) continue;
-      for(const q of c){
-        x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
-        x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+    /* フォルダの 中の フォルダも 中まで 見る。
+       見ないと、その 中の 絵が 板から はみ出て 切れて しまう
+       （中が フォルダだけ だと 板じたいが できない）。 */
+    const eat = (g, depth) => {
+      if(depth > 16) return;
+      for(const k of membersOf(project, g)){
+        if(isFolder(k)){ eat(k, depth + 1); continue; }
+        const kp = out[k.id];
+        if(!kp || kp.vis === false) continue;
+        const a = assetOf(project, k, kp.v.frame);
+        if(!a) continue;
+        const c = cornersOf(k, kp.m, a);
+        if(!c) continue;
+        for(const q of c){
+          x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
+          x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+        }
       }
-    }
+    };
+    eat(f, 0);
     if(!isFinite(x0) || x1 - x0 < 1 || y1 - y0 < 1) continue;
     /* ふちどり・ぼかしは 絵の そとへ ひろがる ので、その ぶんの
        あきを 紙に 持たせる。ぴったりだと ふちが 出る ところが
