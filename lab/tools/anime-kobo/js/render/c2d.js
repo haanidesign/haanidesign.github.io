@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=162';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=162';
-import { valuesAt } from '../engine/anim.js?v=162';
-import { S, frameAsset, frameImage } from '../state.js?v=162';
+         nearestFolder } from '../engine/layer.js?v=163';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=163';
+import { valuesAt } from '../engine/anim.js?v=163';
+import { S, frameAsset, frameImage } from '../state.js?v=163';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=162';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=162';
-import { paintCanvas } from '../engine/paint.js?v=162';
-import { panoCanvas } from '../engine/pano.js?v=162';
-import { homography, applyH } from '../engine/warp.js?v=162';
-import { drawCamView } from './camview.js?v=162';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=162';
+         meshSizeFor } from '../engine/puppet.js?v=163';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=163';
+import { paintCanvas } from '../engine/paint.js?v=163';
+import { panoCanvas } from '../engine/pano.js?v=163';
+import { homography, applyH } from '../engine/warp.js?v=163';
+import { drawCamView } from './camview.js?v=163';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=163';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -1263,7 +1263,10 @@ function flatMesh(w, h){
       ctx.fillStyle = project.bg;
       ctx.fillRect(0, 0, project.w, project.h);
     }
-    if(!opts.forExport){
+    /* 紙の 方眼（うすい 点）。編集中の 目やす だけ で、
+       書き出す 動画には 入らない。
+       絵を じっくり 見たい ときは 切れる ように して ある。 */
+    if(!opts.forExport && S.paperDots !== false){
       const p = dots();
       if(p){ ctx.save(); ctx.fillStyle = p; ctx.fillRect(0, 0, project.w, project.h); ctx.restore(); }
     }
