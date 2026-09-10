@@ -1779,8 +1779,21 @@ function hit(p){
   }
   return -1;
 }
+/* 指が二本以上 触れたら 描くのを やめる（つまむ・めくる を 通す） */
+let inkBlocked=false;
+cv.addEventListener("touchstart",(e)=>{
+  if(e.touches.length>=2){
+    inkBlocked=true;
+    if(drawing){ drawing=null; redraw(); }        // 描きかけの 線は 捨てる
+  }
+},{passive:true});
+const inkFree=(e)=>{ if(!e.touches.length) inkBlocked=false; };
+cv.addEventListener("touchend",inkFree,{passive:true});
+cv.addEventListener("touchcancel",inkFree,{passive:true});
+
 cv.addEventListener("pointerdown",(e)=>{
   if(tool==="move"||!canEdit) return;
+  if(e.pointerType==="touch"&&inkBlocked) return;
   cv.setPointerCapture(e.pointerId); e.preventDefault();
   const p=pos(e);
   if(tool==="erase"){ const i=hit(p); if(i>=0){ cur.ink.splice(i,1); redraw(); touch(); } return; }
@@ -1788,6 +1801,7 @@ cv.addEventListener("pointerdown",(e)=>{
 });
 cv.addEventListener("pointermove",(e)=>{
   if(tool==="move"||!canEdit) return;
+  if(e.pointerType==="touch"&&inkBlocked){ if(drawing){ drawing=null; redraw(); } return; }
   const p=pos(e);
   if(tool==="erase"){ if(e.buttons){ const i=hit(p); if(i>=0){ cur.ink.splice(i,1); redraw(); touch(); } } return; }
   if(!drawing) return;
@@ -2093,7 +2107,7 @@ const leaf=makeSpring(v=>{
     going=false; marks=null;
     const n=most; most=0;
     if(slipped||Date.now()-t0>=420) return;
-    if(tool!=="move"||pinching) return;
+    if(pinching) return;                            // 手書き中でも 指の タップは めくる
     if(n===2) $("#prev").click();                   // 二本指 → 戻る
     else if(n>=3) $("#next").click();               // 三本指 → 進む
   });
