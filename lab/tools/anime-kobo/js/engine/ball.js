@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=195';
-import { setPin } from '../engine/anim.js?v=195';
-import { S } from '../state.js?v=195';
+import { drawDeformed } from './puppet.js?v=196';
+import { setPin } from '../engine/anim.js?v=196';
+import { S } from '../state.js?v=196';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);
@@ -32,31 +32,31 @@ export function ballDefaults(){
 
 /* ---------- 貼る 絵の 大きさ ----------
 
-   絵を 小さく すると、玉 1しゅうに 何回も 入る ように なる。
-   1しゅうを またいだ ところで 絵の はしと はしを つかむ ことに なる ので、
-   はじめから よこ・たてに ならべた 紙を 作って おく
-   （ぐるり360の つなぎ目よけ と 同じ 考え方）。 */
-const TILE_MAX = 4096;
+   1.0 で「玉 1しゅうに ちょうど 1まい」。
+   小さく すると、玉の まん前に 1まいだけ 小さく のる（シールと 同じ）。
+   のこりは 何も 貼らない ので 玉の 地の 色（すけて うしろ）に なる。
 
-function tiled(l, img, nx, ny, tag){
-  if(nx <= 1.0001 && ny <= 1.0001) return img;      // ならべなくて よい
-  const cx = Math.min(6, Math.ceil(nx));
-  const cy = Math.min(6, Math.ceil(ny));
-  const w = Math.min(TILE_MAX, img.naturalWidth * cx);
-  const h = Math.min(TILE_MAX, img.naturalHeight * cy);
-  const key = tag + '|' + cx + 'x' + cy + '|' + w + 'x' + h;
-  if(l._blTile && l._blTileKey === key) return l._blTile;
+   やり方
+     「1しゅうぶんの 紙」を 作って、その まん中に 絵を 1まい 置く。
+     あみは その 紙を ぐるり1しゅうに 貼るだけ なので、
+     絵の ある ところ だけに 絵が のる。
+     （前は 何まいも ならべて いた ので、もようの ように くりかえした） */
+const SPREAD_MAX = 4096;
+
+function spread(l, img, art, tag){
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const sw = Math.min(SPREAD_MAX, Math.round(iw / art));
+  const sh = Math.min(SPREAD_MAX, Math.round(ih / art));
+  const key = tag + '|' + sw + 'x' + sh;
+  if(l._blSp && l._blSpKey === key) return { src: l._blSp, sw, sh, uOff: 0, vOff: 0 };
 
   const c = document.createElement('canvas');
-  c.width = w; c.height = h;
+  c.width = sw; c.height = sh;
   const g = c.getContext('2d');
-  const tw = w / cx, th = h / cy;
-  for(let y = 0; y < cy; y++) for(let x = 0; x < cx; x++){
-    g.drawImage(img, x * tw, y * th, tw, th);
-  }
-  c.complete = true; c.naturalWidth = w; c.naturalHeight = h;
-  l._blTile = c; l._blTileKey = key;
-  return c;
+  g.drawImage(img, Math.round((sw - iw) / 2), Math.round((sh - ih) / 2), iw, ih);
+  c.complete = true; c.naturalWidth = sw; c.naturalHeight = sh;
+  l._blSp = c; l._blSpKey = key;
+  return { src: c, sw, sh, uOff: 0, vOff: 0 };
 }
 
 /* ---------- あみ ----------
@@ -106,7 +106,6 @@ export function ballCanvas(l, v, img, tag){
   /* 貼る 絵の 大きさ。1 で「玉 1しゅうに ちょうど 1まい」。
      小さく すると 何回も くりかえし、大きく すると 絵の 一部だけ 出る。 */
   const art = Math.max(0.15, Math.min(6, b.art == null ? 1 : b.art));
-  const rep = 1 / art;                       // 1しゅうに 何まい 入るか
 
   const key = [tag || '', w, h, cols, rows, size.toFixed(3), art.toFixed(3),
                yaw.toFixed(2), pitch.toFixed(2), shade.toFixed(2)].join('|');
@@ -126,10 +125,19 @@ export function ballCanvas(l, v, img, tag){
   }
   const xy = l._blXY, uv = l._blUV, zz = l._blZ;
 
-  /* くりかえす ときは ならべた 紙に さしかえる。
-     はる ところ（uv）は「ならべた 紙の 中の どこか」で 出す。 */
-  const src = tiled(l, img, rep, rep, (tag || '') + '|' + w + 'x' + h);
-  const sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
+  /* 1しゅうぶんの 紙。
+       art が 1 より 小さい … もとの 絵より 大きい 紙を 作って まん中に 置く
+       art が 1 いじょう   … もとの 絵の まん中の ぶんだけ つかう（大うつし） */
+  let src, sw, sh, uOff = 0, vOff = 0;
+  if(art < 0.999){
+    const sp = spread(l, img, art, (tag || '') + '|' + art.toFixed(3));
+    src = sp.src; sw = sp.sw; sh = sp.sh;
+  } else {
+    src = img;
+    sw = img.naturalWidth / art; sh = img.naturalHeight / art;
+    uOff = (img.naturalWidth  - sw) / 2;
+    vOff = (img.naturalHeight - sh) / 2;
+  }
 
   const R  = Math.min(w, h) / 2 * size;
   const cx = w / 2, cy = h / 2;
@@ -158,11 +166,8 @@ export function ballCanvas(l, v, img, tag){
       const i = r * (cols + 1) + c;
       xy[i*2]   = cx + x1 * R;
       xy[i*2+1] = cy - y2 * R;                // 画面は 下むきが プラス
-      /* rep が 1 より 大きい ＝ 1しゅうに 何まいも 入る。
-         ならべた 紙は ceil(rep) まい ぶん あるので、
-         その 中の どこを つかむかで 出す。 */
-      uv[i*2]   = tu * rep * (sw / Math.min(6, Math.max(1, Math.ceil(rep))));
-      uv[i*2+1] = tv * rep * (sh / Math.min(6, Math.max(1, Math.ceil(rep))));
+      uv[i*2]   = uOff + tu * sw;
+      uv[i*2+1] = vOff + tv * sh;
       zz[i] = z2;                             // プラスが こちらむき
     }
   }
