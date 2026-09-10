@@ -868,3 +868,12 @@
 .menutext b{ font-size:.9rem; }
 .menutext i{ font-style:normal; font-size:.64rem; color:#3d3a2c; }
 .menuarrow{ font-size:1.1rem; flex:0 0 auto; }
+
+/* おとの 行の 波形。行いっぱいに ひろげる */
+.track .wave{
+  position:absolute;
+  left:0; top:50%;
+  transform:translateY(-50%);
+  pointer-events:none;
+  opacity:.85;
+}

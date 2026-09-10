@@ -1,39 +1,39 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=157';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=158';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=157';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=158';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=157';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=157';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=157';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=157';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=157';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=158';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=158';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=158';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=158';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=158';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=157';
+         addTextLayer } from '../io/text.js?v=158';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=157';
-import { PATTERN_NAMES } from '../io/pattern.js?v=157';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=158';
+import { PATTERN_NAMES } from '../io/pattern.js?v=158';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=157';
-import { readAsDataURL, loadImage } from '../io/image.js?v=157';
+         PITCH_MAX } from '../engine/pano.js?v=158';
+import { readAsDataURL, loadImage } from '../io/image.js?v=158';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=157';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=157';
-import { newHand } from '../engine/hand.js?v=157';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=157';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=158';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=158';
+import { newHand } from '../engine/hand.js?v=158';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=158';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=157';
+  from './colorwheel.js?v=158';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=157';
+         guessBpm, firstOnset } from '../io/audio.js?v=158';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=157';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=158';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -474,6 +474,18 @@ export function setNotifier(fn){ notify = fn; }
 export function buildLayerSheet(box, closeFn){
   const NL = String.fromCharCode(10);
   const l = selected();
+  /* 🔊 の 行は 絵では ない ので、おとの せっていを そのまま 出す */
+  if(l && l.kind === 'audio'){
+    const h = document.createElement('div');
+    h.className = 'empty';
+    h.style.textAlign = 'left';
+    h.textContent = 'この 行は おとです。絵には 出ません。' + NL
+      + 'タイムラインの この 行に 波形が 出て いる ので、' + NL
+      + 'どこで しゃべって いるかが 見えます。';
+    box.appendChild(h);
+    audioRows(box, closeFn);
+    return;
+  }
   if(!l){
     const p = document.createElement('div');
     p.className = 'empty';
@@ -2139,6 +2151,7 @@ export function buildFaceSheet(box){
           frames: l.frames.map((_, i) => i),
           closedFrame: l.talk.closed,
           rate: l.voice.rate, sense: l.voice.sense,
+          shift: (S.proj.audio && S.proj.audio.offset) || 0,
           start: 0, end: S.proj.duration
         });
         if(!r.keys.length) return notify('声が 見つかりませんでした（ひろいやすさを 下げてみてね）');
@@ -2686,6 +2699,9 @@ export function setCamOpener(fn){ onCam = fn; }
 let onMask = () => {};
 export function setMasker(fn){ onMask = fn; }
 
+let onAudioSync = () => {};
+export function setAudioSync(fn){ onAudioSync = fn; }
+
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
 
@@ -2732,7 +2748,13 @@ export function buildDocSheet(box, closeFn){
     v => { S.proj.duration = v; if(S.time > v) S.time = v; },
     3, 120, 1, v => v < 60 ? Math.round(v) + '秒' : (v / 60).toFixed(1) + '分'));
 
-  /* ---------- おと ---------- */
+  audioRows(box, closeFn);
+}
+
+/* ================= おと =================
+   「どうがの せってい」と、タイムラインの 🔊 の 行、どちらからも 出す。 */
+export function audioRows(box, closeFn){
+  const NL = String.fromCharCode(10);
   box.appendChild(heading('おと'));
   if(!hasAudio()){
     const e = document.createElement('div');
@@ -2757,6 +2779,11 @@ export function buildDocSheet(box, closeFn){
       () => S.proj.audio.volume == null ? 1 : S.proj.audio.volume,
       v => S.proj.audio.volume = v, 0, 1.5, 0.05,
       v => Math.round(v * 100) + '%'));
+    box.appendChild(slider('はじまりを ずらす',
+      () => S.proj.audio.offset || 0,
+      v => { S.proj.audio.offset = v; onChange(); },
+      0, Math.max(1, S.proj.duration), 0.05,
+      v => v < 0.01 ? '0秒（あたま から）' : v.toFixed(2) + '秒'));
   }
 
   const apick = document.createElement('input');
@@ -2766,6 +2793,7 @@ export function buildDocSheet(box, closeFn){
   apick.addEventListener('change', async (e) => {
     await onAudioFile(e.target.files);
     e.target.value = '';
+    onAudioSync();
     onChange();
   });
   box.appendChild(apick);
@@ -2776,6 +2804,7 @@ export function buildDocSheet(box, closeFn){
       if(!hasAudio()) return notify('まだ 音は ありません');
       clearAudio();
       S.proj.audio = null;
+      onAudioSync();
       notify('音を けしました');
       onChange();
     })
@@ -2797,6 +2826,9 @@ export function buildDocSheet(box, closeFn){
       if(isRecording()){
         recBtn.textContent = '…よみこみ中';
         await stopRec('じぶんの こえ');
+        S.proj.audio = S.proj.audio || { volume: 1, offset: 0 };
+        S.proj.audio.name = AUD.name;
+        onAudioSync();
         notify('録れました。こえの 高さも かえられます');
         onChange();
         if(closeFn) closeFn();

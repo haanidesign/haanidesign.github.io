@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=157';
+import { M } from './engine/math.js?v=158';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=157';
-import { groupInto, ungroup, isFolder, membersOf,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=157';
-import { createStage } from './ui/stage.js?v=157';
-import { createRenderer } from './render/renderer.js?v=157';
-import { createTimeline } from './ui/timeline.js?v=157';
-import { fmtTime } from './engine/anim.js?v=157';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=158';
+import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=158';
+import { createStage } from './ui/stage.js?v=158';
+import { createRenderer } from './render/renderer.js?v=158';
+import { createTimeline } from './ui/timeline.js?v=158';
+import { fmtTime } from './engine/anim.js?v=158';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -19,23 +19,23 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setTrainer, setPathReopener, setCamOpener, setMasker,
-         setWarper } from './ui/sheet.js?v=157';
+         setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
+         setWarper } from './ui/sheet.js?v=158';
 
-import { showNewDoc } from './ui/newdoc.js?v=157';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=157';
-import { fitToCanvas, isBg } from './io/bg.js?v=157';
-import * as Audio from './io/audio.js?v=157';
+import { showNewDoc } from './ui/newdoc.js?v=158';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=158';
+import { fitToCanvas, isBg } from './io/bg.js?v=158';
+import * as Audio from './io/audio.js?v=158';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=157';
-import { importPsd } from './io/psd.js?v=157';
-import { splitTextChars } from './io/text.js?v=157';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=158';
+import { importPsd } from './io/psd.js?v=158';
+import { splitTextChars } from './io/text.js?v=158';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=157';
-import { pathKeys, pathLength } from './engine/path.js?v=157';
-import { paintDirty } from './engine/paint.js?v=157';
+         canUseWebCodecs } from './io/export.js?v=158';
+import { pathKeys, pathLength } from './engine/path.js?v=158';
+import { paintDirty } from './engine/paint.js?v=158';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=157';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=158';
 
 const $ = (s) => document.querySelector(s);
 
@@ -112,7 +112,7 @@ let lastStageW = 0, lastStageH = 0;
       S.time = 0;
       if(Audio.hasAudio()){                        // くり返すときは 音も 頭から
         const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
-        Audio.play(0, v);
+        Audio.play(0, v, (S.proj.audio && S.proj.audio.offset) || 0);
       }
     }
     $('#tnow').textContent = S.time.toFixed(1);
@@ -715,7 +715,7 @@ PIN_KINDS.forEach(([id, kind]) => {
 function startSound(){
   if(!Audio.hasAudio()) return;
   const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
-  Audio.play(S.time, v);
+  Audio.play(S.time, v, (S.proj.audio && S.proj.audio.offset) || 0);
 }
 function stopSound(){ Audio.stop(); }
 
@@ -888,6 +888,27 @@ $('#home').addEventListener('click', async () => {
 $('#setting').addEventListener('click', openDocSheet);
 
 /* 音を えらんだとき */
+/* 音を 読んだら「おとの 行」を そろえる。
+   音は 1つしか 持たない ので 行も 1つ。いちばん 下に 置く
+   （絵には 出ないので ならび順は 見た目に ひびかない）。 */
+function syncAudioLayer(){
+  const has = Audio.hasAudio();
+  const rows = S.proj.layers.filter(l => l.kind === 'audio');
+  if(has && !rows.length){
+    const a = newAudioLayer(Audio.A.name || 'おと');
+    S.proj.layers.push(a);
+  } else if(!has && rows.length){
+    S.proj.layers = S.proj.layers.filter(l => l.kind !== 'audio');
+    if(rows.some(r => r.id === S.sel)) S.sel = null;
+  } else if(has && rows.length){
+    rows[0].name = Audio.A.name || 'おと';
+    rows.slice(1).forEach(r => {
+      S.proj.layers = S.proj.layers.filter(l => l !== r);
+    });
+  }
+}
+setAudioSync(syncAudioLayer);
+
 setAudioPicker(async (files) => {
   const f = files && files[0];
   if(!f) return 0;
@@ -902,6 +923,7 @@ setAudioPicker(async (files) => {
     } else {
       toast('音を よみこみました');
     }
+    syncAudioLayer();
     return 1;
   }catch(err){
     toast(err.message || '音を よみこめませんでした');
@@ -1217,6 +1239,7 @@ async function openDoc(id){
     S.docId = rec.id;
     if(rec.audio && rec.audio.bytes){
       try{ await Audio.loadAudio(rec.audio.bytes, rec.audio.name); }catch(_){}
+      syncAudioLayer();
     } else {
       Audio.clearAudio();
     }

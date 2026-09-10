@@ -154,7 +154,10 @@ export function voiceMouthKeys(opt = {}){
   const keys = [];
   let prev = null;
 
-  const put = (t, v) => {
+  /* おとの はじまりを ずらして いる ぶん、口も うしろへ ずらす */
+  const shift = opt.shift || 0;
+  const put = (t0, v) => {
+    const t = t0 + shift;
     if(t < 0 || t > end) return;
     if(prev !== null && prev === v) return;    // 同じコマが つづくなら 置かなくてよい
     keys.push({ t: +t.toFixed(3), v });
@@ -179,20 +182,36 @@ export function voiceMouthKeys(opt = {}){
 let node = null, startedAt = 0, startedFrom = 0, gain = null;
 
 /** いまの時刻から 鳴らす */
-export function play(from, volume){
+/**
+ * from … さくひんの 時こく。
+ * off  … おとの はじまりを どれだけ うしろへ ずらすか（秒）。
+ *        さくひんの 時こく off の ところで、おとの あたまが 鳴る。
+ */
+export function play(from, volume, off){
   stop();
   if(!A.buf) return;
   const c = audioCtx();
   if(c.state === 'suspended') c.resume();
+  const shift = off || 0;
+  const t = (from || 0) - shift;                 // おとの 中の どこか
+  if(t > A.buf.duration) return;                 // もう 鳴り終わって いる
+
   node = c.createBufferSource();
   node.buffer = A.buf;
   gain = c.createGain();
   gain.gain.value = volume == null ? 1 : volume;
   node.connect(gain).connect(c.destination);
-  const at = Math.max(0, Math.min(A.buf.duration, from || 0));
-  node.start(0, at);
-  startedAt = c.currentTime;
-  startedFrom = at;
+
+  if(t < 0){
+    // まだ はじまって いない。その ぶん 待ってから 鳴らす
+    node.start(c.currentTime + (-t), 0);
+    startedAt = c.currentTime + t;               // 時こくの ものさしは そろえて おく
+    startedFrom = 0;
+  } else {
+    node.start(0, t);
+    startedAt = c.currentTime;
+    startedFrom = t;
+  }
 }
 
 export function stop(){

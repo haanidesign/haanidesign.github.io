@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=157';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=157';
+import { M, uid, ptInQuad } from './math.js?v=158';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=158';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=157';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=157';
-import { cageDeformPoint, cageMoved } from './warp.js?v=157';
-import { handTime } from './hand.js?v=157';
-import { WORK_KEYS } from '../state.js?v=157';
+         withShake } from './camera.js?v=158';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=158';
+import { cageDeformPoint, cageMoved } from './warp.js?v=158';
+import { handTime } from './hand.js?v=158';
+import { WORK_KEYS } from '../state.js?v=158';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -34,6 +34,17 @@ export function newCamLayer(project){
      カギの しるしが ならびに 出ると まぎらわしい だけ。 */
   return l;
 }
+
+/** 音の 行。絵は 出さない。タイムラインに 波形を 出す ための もの。
+    音そのものは 1つしか 持たない ので、この 行も 1つだけ。 */
+export function newAudioLayer(name){
+  const l = newLayer(name || 'おと', []);
+  l.kind = 'audio';
+  l.locked = true;        // 絵の上では さわれない
+  return l;
+}
+
+export const isAudioLayer = (l) => !!l && l.kind === 'audio';
 
 export function newLayer(name, assetIds){
   return {
@@ -282,7 +293,7 @@ export function computeAll(project, time){
        フォルダに かけると 中身も いっしょに 出たり 消えたり する
        （中身は フォルダの 見え方を うけつぐ ので）。 */
     let vis = l.visible !== false && inSpan(l, time) && (inFolder ? p.vis : true);
-    if(isCam(l)) vis = false;          // カメラは 見るための もの。絵は 出さない
+    if(isCam(l) || l.kind === 'audio') vis = false;   // カメラ・音は 絵に 出ない
 
     /* パラパラフォルダの 中は、いまの コマ だけを 見せる */
     if(vis && inFolder && isFlip(p.layer) && showing(p.layer) !== l.id) vis = false;

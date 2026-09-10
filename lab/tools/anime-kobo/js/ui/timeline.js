@@ -1,15 +1,16 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=157';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=158';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=157';
+         nearestFolder, setParent } from '../engine/layer.js?v=158';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=157';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=157';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=157';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=158';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=158';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=158';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=158';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -292,6 +293,13 @@ export function createTimeline(root, opts = {}){
       ic.className = 'folderic';
       ic.textContent = l.open === false ? '📁' : '📂';
       head.appendChild(ic);
+    } else if(l.kind === 'audio'){
+      /* おと … 絵は 持たない。しるしだけ 出す */
+      const ic = document.createElement('span');
+      ic.className = 'thumb camic';
+      ic.textContent = '🔊';
+      ic.title = 'おと。この行に 波形が 出ます';
+      head.appendChild(ic);
     } else if(l.kind === 'cam'){
       /* カメラ … 絵は 持たないので、しるしを 出す。
          ここに ◆ピンを うつと カメラの うごきに なる。 */
@@ -373,6 +381,42 @@ export function createTimeline(root, opts = {}){
     /* --- 右：トラック --- */
     const track = document.createElement('div');
     track.className = 'track';
+
+    /* おとの 行は 波形を 出す。
+       どこで しゃべって いるかが 目で 分かる ように。
+       おおきさの 地図（env）は 音を 読んだ ときに もう できて いる。 */
+    if(l.kind === 'audio' && hasAudio()){
+      const cvw = Math.max(8, Math.round(trackWidth()));
+      const cvh = 34;
+      const wv = document.createElement('canvas');
+      wv.className = 'wave';
+      wv.width = cvw; wv.height = cvh;
+      wv.style.width = '100%';
+      wv.style.height = cvh + 'px';
+      const g = wv.getContext('2d');
+      const env = AUD.env, slot = AUD.slot || 0.02;
+      const off = (S.proj.audio && S.proj.audio.offset) || 0;
+      const peak = Math.max(1e-6, AUD.peak || 1);
+
+      // しゃべって いる ところ を うすい 帯で
+      g.fillStyle = 'rgba(122,196,160,.30)';
+      speechSpans().forEach(sp => {
+        const x0 = t2x(sp.from + off), x1 = t2x(sp.to + off);
+        g.fillRect(x0, 0, Math.max(1, x1 - x0), cvh);
+      });
+
+      // 波形
+      g.fillStyle = '#1E1C14';
+      for(let x = 0; x < cvw; x++){
+        const t = x2t(x) - off;
+        if(t < 0 || t > AUD.buf.duration) continue;
+        const i = Math.floor(t / slot);
+        const a = Math.min(1, (env[i] || 0) / peak);
+        const h = Math.max(1, a * (cvh - 4));
+        g.fillRect(x, (cvh - h) / 2, 1, h);
+      }
+      track.appendChild(wv);
+    }
 
     // くりかえしの帯
     if(l.loop){
