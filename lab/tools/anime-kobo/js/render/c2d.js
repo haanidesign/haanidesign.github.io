@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=168';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=168';
-import { valuesAt } from '../engine/anim.js?v=168';
-import { S, frameAsset, frameImage } from '../state.js?v=168';
+         nearestFolder } from '../engine/layer.js?v=169';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=169';
+import { valuesAt } from '../engine/anim.js?v=169';
+import { S, frameAsset, frameImage } from '../state.js?v=169';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=168';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=168';
-import { paintCanvas } from '../engine/paint.js?v=168';
-import { panoCanvas } from '../engine/pano.js?v=168';
-import { homography, applyH } from '../engine/warp.js?v=168';
-import { drawCamView } from './camview.js?v=168';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=168';
+         meshSizeFor } from '../engine/puppet.js?v=169';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=169';
+import { paintCanvas } from '../engine/paint.js?v=169';
+import { panoCanvas } from '../engine/pano.js?v=169';
+import { homography, applyH } from '../engine/warp.js?v=169';
+import { drawCamView } from './camview.js?v=169';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=169';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -563,10 +563,11 @@ function flatMesh(w, h){
 
      ふちどりと ちがって ふくらませ ないで ぼかしで ひろげる ので、
      やわらかい 見た目に なる（AEの グロー・ドロップシャドウと 同じ）。 */
-  let fxA = null, fxB = null;
+  let fxA = null, fxB = null, fxC = null;
   function fxCanvas(which, w, h){
-    let c = which ? fxB : fxA;
-    if(!c){ c = document.createElement('canvas'); which ? (fxB = c) : (fxA = c); }
+    let c = which === 2 ? fxC : which ? fxB : fxA;
+    if(!c){ c = document.createElement('canvas');
+            which === 2 ? (fxC = c) : which ? (fxB = c) : (fxA = c); }
     if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
     const g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -574,6 +575,27 @@ function flatMesh(w, h){
     g.globalCompositeOperation = 'source-over';
     g.filter = 'none';
     g.clearRect(0, 0, w, h);
+    return c;
+  }
+
+  /* かげ・ひかりの もとに する 形を「しっかり」させる。
+
+     立体・手がき風・ゆがみ を かけた 絵は、あみの 三角の つぎ目で
+     こさが ほんの少し うすく なる（1〜2ぐらい）。
+     絵の ままなら 目に つかない が、その 形を そのまま 使って
+     かげを 作ると、かげは ベタ色 なので うすい すじが
+     はっきり 出て しまう（かげの 中に ます目が 見えた のが これ）。
+
+     同じ 形を 3回 かさねて ぬると
+       1回め 0.75 → 2回め 0.94 → 3回め 0.98
+     と、うすい ところだけ 1 に 近づく（もともと 1 の ところは そのまま）。
+     ＝ つぎ目が 消えて、影らしい ベタの 形に なる。 */
+  function fxSolid(src){
+    const c = fxCanvas(2, src.width, src.height);
+    const g = c.getContext('2d');
+    g.drawImage(src, 0, 0);
+    g.drawImage(src, 0, 0);
+    g.drawImage(src, 0, 0);
     return c;
   }
 
@@ -607,14 +629,19 @@ function flatMesh(w, h){
       g.globalCompositeOperation = 'source-over';
       g.globalAlpha = 1;
     };
+    if(!(v.glowAmount > 0.004) && !(v.shadowAmount > 0.004)) return;
+
+    /* あみの つぎ目を うめた 形から 作る */
+    const base = fxSolid(c);
+
     /* ひかりを 先に 敷いて、その 下に かげ。
        ＝ 出る 順は かげ → ひかり → 絵。 */
     if(v.glowAmount > 0.004){
-      put(fxShape(0, c, (v.glowSize || 24) * k, 0, 0, v.glowColor || '#FFF2A8'),
+      put(fxShape(0, base, (v.glowSize || 24) * k, 0, 0, v.glowColor || '#FFF2A8'),
           v.glowAmount);
     }
     if(v.shadowAmount > 0.004){
-      put(fxShape(1, c, (v.shadowBlur || 0) * k,
+      put(fxShape(1, base, (v.shadowBlur || 0) * k,
                   (v.shadowX || 0) * k, (v.shadowY || 0) * k,
                   v.shadowColor || '#1E1C14'),
           v.shadowAmount);
