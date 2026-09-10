@@ -7,15 +7,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>アニメ工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=185">
+<link rel="manifest" href="manifest.webmanifest?v=188">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=185">
-<link rel="stylesheet" href="css/layout.css?v=185">
-<link rel="stylesheet" href="css/parts.css?v=185">
+<link rel="stylesheet" href="css/tokens.css?v=188">
+<link rel="stylesheet" href="css/layout.css?v=188">
+<link rel="stylesheet" href="css/parts.css?v=188">
 </head>
 <body>
 
@@ -26,8 +26,8 @@
     <button class="size dot" id="docSize" title="動画の長さと はいけい">—</button>
     <button class="ver dot" id="ver" title="この版のばんごう。おすと さいしんに します">v?</button>
     <span class="spacer"></span>
-    <button id="undo" class="btn-sm" title="もどす" aria-label="もどす" disabled>↶</button>
-    <button id="redo" class="btn-sm" title="やりなおし" aria-label="やりなおし" disabled>↷</button>
+    <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
+    <button id="redo" class="btn-sm" title="やりなおし（3本指で たたく）" aria-label="やりなおし" disabled>↷</button>
     <button id="fit" class="btn-sm" title="画面にあわせる" aria-label="画面にあわせる">⤢</button>
     <button id="export" class="btn-sm btn-g" title="MP4で書き出す">▶ 書き出す</button>
   </div>
@@ -156,8 +156,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=185"></script>
-<script src="lib/mp4-muxer.js?v=185"></script>
-<script type="module" src="js/main.js?v=185"></script>
+<script src="lib/ag-psd.js?v=188"></script>
+<script src="lib/mp4-muxer.js?v=188"></script>
+<script type="module" src="js/main.js?v=188"></script>
 </body>
 </html>

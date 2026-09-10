@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=185';
+import { M } from './engine/math.js?v=188';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=185';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=188';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=185';
-import { createStage } from './ui/stage.js?v=185';
-import { createRenderer } from './render/renderer.js?v=185';
-import { createTimeline } from './ui/timeline.js?v=185';
-import { fmtTime } from './engine/anim.js?v=185';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=188';
+import { createStage } from './ui/stage.js?v=188';
+import { createRenderer } from './render/renderer.js?v=188';
+import { createTimeline } from './ui/timeline.js?v=188';
+import { fmtTime } from './engine/anim.js?v=188';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=185';
+         setWarper } from './ui/sheet.js?v=188';
 
-import { showNewDoc } from './ui/newdoc.js?v=185';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=185';
-import { fitToCanvas, isBg } from './io/bg.js?v=185';
-import * as Audio from './io/audio.js?v=185';
+import { showNewDoc } from './ui/newdoc.js?v=188';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=188';
+import { fitToCanvas, isBg } from './io/bg.js?v=188';
+import * as Audio from './io/audio.js?v=188';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=185';
-import { importPsd } from './io/psd.js?v=185';
-import { splitTextChars } from './io/text.js?v=185';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=188';
+import { importPsd } from './io/psd.js?v=188';
+import { splitTextChars } from './io/text.js?v=188';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=185';
-import { pathKeys, pathLength } from './engine/path.js?v=185';
-import { paintDirty } from './engine/paint.js?v=185';
+         canUseWebCodecs } from './io/export.js?v=188';
+import { pathKeys, pathLength } from './engine/path.js?v=188';
+import { paintDirty } from './engine/paint.js?v=188';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=185';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=188';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1025,6 +1025,65 @@ $('#fold').addEventListener('click', () => {
 $('#bg').addEventListener('click', () => {
   sheet.open('はいけい', (box) => buildBgSheet(box, () => sheet.close()));
 });
+
+/* ================= 2本指タップで もどす =================
+   せってい の 画面を ひらいた まま、数字を いじって
+   「あ、しっぱいした」と なった ときに、その場で もどせる ように する。
+   ボタン（↶）は 画面の 上に あって、せってい を とじないと 押せない。
+
+   ・2本指で ちょんと たたく … もどす
+   ・3本指で ちょんと たたく … やりなおし
+
+   つまむ（ピンチ）と 見分ける ため、指が うごいたら やめる。
+   Procreate と 同じ 手ざわり。
+
+   聞く のは「捕まえる 段（capture）」。絵の 上の しくみが
+   とちゅうで 止めて しまうと、うごいた ことに 気づけず、
+   つまんだ だけ なのに もどって しまう。 */
+(() => {
+  const MOVE = 16;      // これいじょう うごいたら「たたいた」では ない
+  const TIME = 400;     // これいじょう ながく さわって いたら ちがう
+  let n = 0;            // いちどに 何本 のった か
+  let t0 = 0;
+  let moved = false;
+  const start = new Map();
+
+  const reset = () => { n = 0; moved = false; start.clear(); };
+
+  document.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 1){ reset(); t0 = Date.now(); }
+    n = Math.max(n, e.touches.length);
+    for(const t of e.touches){
+      if(!start.has(t.identifier)) start.set(t.identifier, { x: t.clientX, y: t.clientY });
+    }
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchmove', (e) => {
+    for(const t of e.touches){
+      const s = start.get(t.identifier);
+      if(!s) continue;
+      if(Math.hypot(t.clientX - s.x, t.clientY - s.y) > MOVE) moved = true;
+    }
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchend', (e) => {
+    if(e.touches.length > 0) return;             // まだ 指が のこって いる
+    const quick = Date.now() - t0 < TIME;
+    const many = n;
+    const slid = moved;          // reset() で 消える ので 先に とっておく
+    reset();
+    if(!quick || slid || many < 2 || many > 3) return;
+    if(exporting) return;
+
+    /* つまみを なぞって いる とちゅう なら、そこまでを ひと区切りに する */
+    commitEdit();
+    const l = many === 2 ? undo() : redo();
+    toast(l ? (many === 2 ? 'もどした: ' : 'やりなおし: ') + l
+            : (many === 2 ? 'これいじょう もどせません' : 'やりなおす ものが ありません'));
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchcancel', reset, { passive: true, capture: true });
+})();
 
 window.addEventListener('keydown', (e) => {
   if(/input|select|textarea/i.test(e.target.tagName)) return;
