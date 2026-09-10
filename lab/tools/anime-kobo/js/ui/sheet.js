@@ -1,38 +1,39 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=156';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=157';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=156';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=157';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=156';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=156';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=156';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=156';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=156';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=157';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=157';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=157';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=157';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=157';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=156';
+         addTextLayer } from '../io/text.js?v=157';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=156';
-import { PATTERN_NAMES } from '../io/pattern.js?v=156';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=157';
+import { PATTERN_NAMES } from '../io/pattern.js?v=157';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=156';
-import { readAsDataURL, loadImage } from '../io/image.js?v=156';
+         PITCH_MAX } from '../engine/pano.js?v=157';
+import { readAsDataURL, loadImage } from '../io/image.js?v=157';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=156';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=156';
-import { newHand } from '../engine/hand.js?v=156';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=156';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=157';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=157';
+import { newHand } from '../engine/hand.js?v=157';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=157';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=156';
+  from './colorwheel.js?v=157';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
-         guessBpm, firstOnset } from '../io/audio.js?v=156';
+         startRec, stopRec, cancelRec, isRecording, setPitch,
+         guessBpm, firstOnset } from '../io/audio.js?v=157';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=156';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=157';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2779,6 +2780,100 @@ export function buildDocSheet(box, closeFn){
       onChange();
     })
   ));
+
+  /* ---------- 🎙 その場で 録音 ---------- */
+  box.appendChild(heading('🎙 じぶんの こえで しゃべらせる'));
+  const rn = document.createElement('div');
+  rn.className = 'empty';
+  rn.style.textAlign = 'left';
+  rn.textContent = 'マイクで 録って、こえの 高さを かえて、' + NL
+    + 'その まま キャラに しゃべらせられます。' + NL
+    + '録ったあと「かお」で 口パクを 作ると、' + NL
+    + '声に あわせて 口が 動きます。';
+  box.appendChild(rn);
+
+  const recBtn = button(isRecording() ? '■ とめる' : '🎙 録音する', async () => {
+    try{
+      if(isRecording()){
+        recBtn.textContent = '…よみこみ中';
+        await stopRec('じぶんの こえ');
+        notify('録れました。こえの 高さも かえられます');
+        onChange();
+        if(closeFn) closeFn();
+      } else {
+        await startRec();
+        recBtn.textContent = '■ とめる';
+        recBtn.classList.add('on');
+        notify('録音中… もう一度 おすと とまります');
+      }
+    }catch(err){
+      cancelRec();
+      recBtn.textContent = '🎙 録音する';
+      recBtn.classList.remove('on');
+      notify(err.message || '録音できませんでした');
+    }
+  });
+  box.appendChild(btnRow(recBtn));
+
+  /* ---------- こえの 高さ ---------- */
+  if(hasAudio()){
+    box.appendChild(heading('こえの 高さ'));
+    const ph = document.createElement('div');
+    ph.className = 'empty';
+    ph.style.textAlign = 'left';
+    const showPh = () => {
+      const n = AUD.semi || 0;
+      ph.textContent = (n === 0 ? 'もとの こえの まま。'
+                       : (n > 0 ? '+' : '') + n + '半音 ' + (n > 0 ? '高く' : 'ひくく') + ' して います。')
+        + NL + (AUD.keepLen === false
+            ? 'はやさごと かえて います（テープの 早回し）。長さも かわります。'
+            : '長さは そのまま なので、口パクの タイミングは ずれません。');
+    };
+    showPh();
+    box.appendChild(ph);
+
+    const applyPitch = (n, keep) => {
+      onBusy(true, 'こえを かえて います…');
+      setTimeout(() => {
+        try{ setPitch(n, keep); showPh(); onChange(); }
+        catch(err){ notify('うまく いきませんでした'); }
+        onBusy(false);
+      }, 30);
+    };
+
+    box.appendChild(slider('高さ（半音）',
+      () => AUD.semi || 0,
+      v => applyPitch(Math.round(v), AUD.keepLen !== false),
+      -12, 12, 1,
+      v => v === 0 ? 'そのまま' : ((v > 0 ? '+' : '') + Math.round(v))));
+
+    const prow = document.createElement('div');
+    prow.className = 'rowbtns';
+    prow.style.flexWrap = 'wrap';
+    [['もとの こえ', 0], ['ちょい高め', 3], ['子ども', 7], ['ちょい低め', -3], ['おじさん', -7]]
+      .forEach(([lb, n]) => {
+        const b = button(lb, () => applyPitch(n, AUD.keepLen !== false));
+        b.style.flex = '0 0 30%';
+        b.classList.toggle('on', (AUD.semi || 0) === n);
+        prow.appendChild(b);
+      });
+    box.appendChild(field('めやす', prow));
+
+    box.appendChild(btnRow(
+      button(AUD.keepLen === false ? '✅ はやさごと かえる' : '⬜ はやさごと かえる', () => {
+        applyPitch(AUD.semi || 0, AUD.keepLen === false);
+        if(closeFn) closeFn();
+      })
+    ));
+    const kn = document.createElement('div');
+    kn.className = 'empty';
+    kn.style.textAlign = 'left';
+    kn.textContent = 'はやさごと ＝ テープの 早回し。いちばん きれいに' + NL
+      + 'かわるけれど、長さも かわります。' + NL
+      + '切って あると、長さは そのまま で 高さだけ かわります' + NL
+      + '（つぶに 切って 貼り直す やり方）。';
+    box.appendChild(kn);
+  }
 
 }
 

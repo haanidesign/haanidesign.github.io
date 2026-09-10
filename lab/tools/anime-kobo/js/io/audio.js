@@ -28,7 +28,11 @@ export const A = {
   buf: null,       // AudioBuffer（解析・再生用）
   env: null,       // Float32Array  おおきさの地図
   slot: KEY_SLOT,
-  peak: 0
+  peak: 0,
+  raw: null,       // 高さを かえる まえの 音（いつも ここから 作り直す）
+  rawBytes: null,
+  semi: 0,         // いまの 高さ（半音）
+  keepLen: true    // 長さを そのままに するか
 };
 
 export const hasAudio = () => !!A.buf;
@@ -53,11 +57,14 @@ export async function loadAudio(fileOrBytes, name){
   A.env = envelope(buf, KEY_SLOT);
   A.slot = KEY_SLOT;
   A.peak = A.env.length ? Math.max(...A.env) : 0;
+  /* あたらしい 音を 読んだら、高さは まっさらに もどす */
+  A.raw = buf; A.rawBytes = bytes; A.semi = 0; A.keepLen = true;
   return A;
 }
 
 export function clearAudio(){
   A.name = null; A.bytes = null; A.buf = null; A.env = null; A.peak = 0;
+  A.raw = null; A.rawBytes = null; A.semi = 0; A.keepLen = true;
 }
 
 /** 区間ごとの 音の大きさ（RMS）。ぜんチャンネルを まぜて見る */
@@ -253,4 +260,215 @@ export function firstOnset(){
   const th = A.peak * 0.15;
   for(let i = 0; i < A.env.length; i++) if(A.env[i] >= th) return +(i * A.slot).toFixed(3);
   return 0;
+}
+
+
+/* ================= 🎙 その場で 録音する =================
+
+   マイクの 音を そのまま 読みこむ。
+   ファイルから 読んだ ときと まったく 同じ 入れもの（A）に 入る ので、
+   このあとの 口パク・波形・書き出しは ぜんぶ そのまま つかえる。
+
+   ・https（または localhost）で ないと マイクは つかえない
+   ・はじめに 1回、ブラウザが「マイクを つかって いい?」と きく */
+
+let rec = null, recChunks = null, recStream = null;
+
+export const isRecording = () => !!rec;
+
+export async function startRec(){
+  if(rec) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    throw new Error('この端末では 録音できません');
+  }
+  if(typeof MediaRecorder === 'undefined'){
+    throw new Error('この ブラウザでは 録音できません（Chrome を ためしてね）');
+  }
+  recStream = await navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+  });
+  recChunks = [];
+  /* 入れものは ブラウザに まかせる。読み直すのは decodeAudioData なので
+     webm でも mp4 でも かまわない。 */
+  rec = new MediaRecorder(recStream);
+  rec.ondataavailable = (e) => { if(e.data && e.data.size) recChunks.push(e.data); };
+  rec.start();
+}
+
+/** とめて、そのまま 読みこむ。かえりは A */
+export async function stopRec(name){
+  if(!rec) return null;
+  const done = new Promise(res => { rec.onstop = res; });
+  rec.stop();
+  await done;
+  const blob = new Blob(recChunks, { type: rec.mimeType || 'audio/webm' });
+  recChunks = null;
+  rec = null;
+  if(recStream){ recStream.getTracks().forEach(t => t.stop()); recStream = null; }
+  if(!blob.size) throw new Error('音が とれませんでした');
+  const bytes = await blob.arrayBuffer();
+  await loadAudio(bytes, name || 'ろくおん');
+  return A;
+}
+
+export function cancelRec(){
+  if(rec){ try{ rec.stop(); }catch(_){} }
+  rec = null; recChunks = null;
+  if(recStream){ recStream.getTracks().forEach(t => t.stop()); recStream = null; }
+}
+
+
+/* ================= こえの 高さを かえる =================
+
+   2とおり ある。
+     ① はやさごと … テープの 早回し。ただ 読む はやさを かえるだけ。
+        きれいだけれど 長さも かわる（口パクの タイミングも ずれる）。
+     ② 長さは そのまま … 短い つぶ（グレイン）に 切って、
+        かさねながら 貼り直して 長さを 変えてから、
+        その ぶんだけ 早く 読む。
+        高さだけ かわって 長さは かわらない ので、
+        口パクや 字幕の タイミングを そのまま つかえる。
+
+   もとの 音は とっておいて、いつも そこから 作り直す。
+   だから 何回 いじっても 音が やせない し、0 に もどせば もとどおり。 */
+
+/** つぶを かさねて 長さを のばす／ちぢめる（alpha ばい）
+
+   ただ ならべて 貼るだけ だと、つぶの つぎ目で 波の 山と 谷が
+   ぶつかって 打ち消し合い、高さが 変わらない（実測: +3半音を
+   かけても 200Hz の まま だった）。
+
+   なので 貼る まえに「いま 書いてある しっぽと いちばん よく 合う
+   ところ」を すこし ずらして さがす（WSOLA）。
+   こうすると 波が つながって、ねらった 高さに なる。 */
+function stretch(x, alpha, N){
+  if(Math.abs(alpha - 1) < 1e-4) return x;
+  const Ho = Math.max(1, Math.round(N / 4));     // 書く きざみ（ずっと 同じ）
+  const Hi = Ho / alpha;                         // 読む きざみ
+  const SEEK = Math.max(8, Math.round(N / 2));   // どれだけ ずらして さがすか
+  const CORR = Math.max(16, Math.round(N / 4));  // どれだけ の 長さで 合わせるか
+
+  const w = new Float32Array(N);
+  for(let i = 0; i < N; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+
+  const outLen = Math.ceil(x.length / Math.max(1e-6, Hi)) * Ho + N + SEEK + 8;
+  const out = new Float32Array(outLen);
+  const win = new Float32Array(outLen);
+
+  let q = 0, last = 0;
+  for(let k = 0; ; k++){
+    const p0 = Math.round(k * Hi);
+    if(p0 + N + SEEK >= x.length) break;
+
+    let d = 0;
+    if(k > 0){
+      let best = -Infinity;
+      for(let dd = -SEEK; dd <= SEEK; dd += 4){
+        const pp = p0 + dd;
+        if(pp < 0) continue;
+        let acc = 0;
+        for(let i = 0; i < CORR; i += 2) acc += out[q + i] * x[pp + i];
+        if(acc > best){ best = acc; d = dd; }
+      }
+    }
+    const p = Math.max(0, p0 + d);
+    for(let i = 0; i < N; i++){
+      out[q + i] += x[p + i] * w[i];
+      win[q + i] += w[i];
+    }
+    q += Ho;
+    last = q + N;
+  }
+  for(let i = 0; i < last; i++) if(win[i] > 1e-6) out[i] /= win[i];
+  return out.subarray(0, Math.max(1, last));
+}
+
+/** ratio ばいの はやさで 読み直す（線でつなぐ） */
+function resample(x, ratio, outLen){
+  const n = outLen != null ? outLen : Math.max(1, Math.round(x.length / ratio));
+  const out = new Float32Array(n);
+  for(let i = 0; i < n; i++){
+    const t = i * ratio;
+    const j = Math.floor(t);
+    const f = t - j;
+    const a = x[j] || 0, b = x[j + 1] || 0;
+    out[i] = a + (b - a) * f;
+  }
+  return out;
+}
+
+/**
+ * 高さを かえた AudioBuffer を 作る。
+ *   semi     … 半音。プラスで 高く、マイナスで ひくく
+ *   keepLen  … true なら 長さを かえない
+ */
+export function pitchBuffer(src, semi, keepLen){
+  const ratio = Math.pow(2, semi / 12);
+  if(Math.abs(semi) < 0.01) return src;
+  const N = 2048;
+  const chans = [];
+  let outLen = 0;
+  for(let ch = 0; ch < src.numberOfChannels; ch++){
+    const x = src.getChannelData(ch);
+    let y;
+    if(keepLen){
+      // ①のばして ②その ぶん 早く 読む ＝ 長さは そのまま、高さだけ かわる
+      y = resample(stretch(x, ratio, N), ratio, x.length);
+    } else {
+      y = resample(x, ratio);            // テープの 早回し
+    }
+    chans.push(y);
+    outLen = Math.max(outLen, y.length);
+  }
+  const out = audioCtx().createBuffer(src.numberOfChannels, outLen, src.sampleRate);
+  chans.forEach((y, i) => out.copyToChannel(y, i));
+  return out;
+}
+
+/** AudioBuffer を wav の バイトに する（ほぞん用） */
+export function bufToWav(buf){
+  const n = buf.length, ch = buf.numberOfChannels, sr = buf.sampleRate;
+  const data = new DataView(new ArrayBuffer(44 + n * ch * 2));
+  const str = (o, t) => { for(let i = 0; i < t.length; i++) data.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); data.setUint32(4, 36 + n * ch * 2, true); str(8, 'WAVE');
+  str(12, 'fmt '); data.setUint32(16, 16, true);
+  data.setUint16(20, 1, true); data.setUint16(22, ch, true);
+  data.setUint32(24, sr, true); data.setUint32(28, sr * ch * 2, true);
+  data.setUint16(32, ch * 2, true); data.setUint16(34, 16, true);
+  str(36, 'data'); data.setUint32(40, n * ch * 2, true);
+
+  const cd = [];
+  for(let c = 0; c < ch; c++) cd.push(buf.getChannelData(c));
+  let o = 44;
+  for(let i = 0; i < n; i++){
+    for(let c = 0; c < ch; c++){
+      let v = cd[c][i];
+      v = v < -1 ? -1 : v > 1 ? 1 : v;
+      data.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7FFF, true);
+      o += 2;
+    }
+  }
+  return data.buffer;
+}
+
+/**
+ * いまの 音の 高さを かえる（もとの 音からは いつも 作り直す）。
+ * semi が 0 なら もとどおりに もどす。
+ */
+export function setPitch(semi, keepLen){
+  if(!A.buf) return null;
+  if(!A.raw){ A.raw = A.buf; A.rawBytes = A.bytes; }   // もとの 音を とっておく
+  A.semi = semi; A.keepLen = !!keepLen;
+
+  if(Math.abs(semi) < 0.01){
+    A.buf = A.raw;
+    A.bytes = A.rawBytes;
+  } else {
+    A.buf = pitchBuffer(A.raw, semi, keepLen);
+    A.bytes = bufToWav(A.buf);
+  }
+  A.env = envelope(A.buf, KEY_SLOT);
+  A.slot = KEY_SLOT;
+  A.peak = A.env.length ? Math.max(...A.env) : 0;
+  return A;
 }

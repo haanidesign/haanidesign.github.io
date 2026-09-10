@@ -1,8 +1,8 @@
 /* JPEG / PNG の読み込み。
    PNG を複数枚まとめて選んだときは、名前順に並べて1レイヤーのコマ列にする。 */
 
-import { S, addAsset, edit } from '../state.js?v=156';
-import { newLayer } from '../engine/layer.js?v=156';
+import { S, addAsset, edit } from '../state.js?v=157';
+import { newLayer } from '../engine/layer.js?v=157';
 
 /** File を dataURL にする */
 export function readAsDataURL(file){
