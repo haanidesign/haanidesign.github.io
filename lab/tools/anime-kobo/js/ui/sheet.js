@@ -1,42 +1,42 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=198';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=201';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=198';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=201';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=198';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=201';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=198';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=198';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=198';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=198';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=201';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=201';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=201';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=201';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=198';
+         addTextLayer } from '../io/text.js?v=201';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=198';
-import { PATTERN_NAMES } from '../io/pattern.js?v=198';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=201';
+import { PATTERN_NAMES } from '../io/pattern.js?v=201';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=198';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=198';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=198';
-import { readAsDataURL, loadImage } from '../io/image.js?v=198';
+         PITCH_MAX } from '../engine/pano.js?v=201';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=201';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=201';
+import { readAsDataURL, loadImage } from '../io/image.js?v=201';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=198';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=198';
-import { newHand } from '../engine/hand.js?v=198';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=198';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=201';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=201';
+import { newHand } from '../engine/hand.js?v=201';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=201';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=198';
+  from './colorwheel.js?v=201';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=198';
+         guessBpm, firstOnset } from '../io/audio.js?v=201';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=198';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=201';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -295,28 +295,112 @@ export function field(label, node, valueNode){
    ・よこに 8ドット 動いたら「これは いじる 気だ」と きめて 効かせる
 
    さらに touch-action:pan-y で、たての めくりは ブラウザに まかせる。 */
+/* ---------- つまみの「きりの いい 数字」----------
+
+   0 に ぴたりと 合わせるのが むずかしい、という ところから。
+
+     ふだん … 0・いちばん 小さい・いちばん 大きい の 3つ だけ
+              吸いつく（7ドット ぶん）。ここが 手で 合わせにくい ところ。
+              とちゅうの 数字は じゃま しない（47 が 50 に ならない）。
+     長おし … 0.4秒 おしたままに してから 動かすと、
+              きりの いい 数字だけを 通る（間の 数字に ならない）。
+
+   きりの いい 数字は はばから 出す。
+   0〜1 なら 0.1 きざみ、0〜100 なら 10 きざみ、
+   -180〜180 なら 45 きざみ、という ぐあい。 */
+function niceStep(span){
+  const raw = span / 8;
+  const base = Math.pow(10, Math.floor(Math.log10(raw)));
+  /* いちばん 近い ものを えらぶ。「はじめに こえた もの」に すると
+     0〜100 が 20きざみ に なって しまう（10 の ほうが しっくり くる）。 */
+  let best = base, bd = Infinity;
+  for(const m of [1, 2, 2.5, 5, 10]){
+    const v = base * m, d = Math.abs(v - raw);
+    if(d < bd){ bd = d; best = v; }
+  }
+  return best;
+}
+
+function stopsFor(min, max){
+  const span = max - min;
+  if(!(span > 0)) return [];
+  const st = niceStep(span);
+  const out = [];
+  const first = Math.ceil(min / st) * st;
+  for(let v = first; v <= max + 1e-9; v += st) out.push(+v.toFixed(6));
+  if(min < 0 && max > 0 && !out.some(v => Math.abs(v) < 1e-9)) out.push(0);
+  if(!out.some(v => Math.abs(v - min) < 1e-9)) out.push(min);
+  if(!out.some(v => Math.abs(v - max) < 1e-9)) out.push(max);
+  /* 90°/180° は よく つかう ので、角度の はばの ときは 足しておく */
+  if(span >= 180){
+    for(const q of [-180, -90, 90, 180])
+      if(q >= min && q <= max && !out.some(v => Math.abs(v - q) < 1e-9)) out.push(q);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/* 長おしの 知らせは はじめの 1回だけ（毎回 出ると うるさい） */
+let coarseTold = false;
+
 function guardSlide(i, apply){
   let x0 = 0, y0 = 0, v0 = null, armed = false;
+  let coarse = false, holdT = null;
+
+  const PULL_PX = 7;          // ふだんの 吸いつき（ドット）
+
+  const snap = () => {
+    const min = +i.min, max = +i.max, step = +i.step || 0.001;
+    /* ふだんは はしと 0 だけ。長おし中は きりの いい 数字ぜんぶ。 */
+    const stops = coarse ? stopsFor(min, max)
+      : [min, max].concat(min < 0 && max > 0 ? [0] : []);
+    if(!stops.length) return;
+    const w = i.getBoundingClientRect().width || 200;
+    const per = (max - min) / Math.max(1, w);         // 1ドット ぶんの 数
+    const tol = coarse ? Infinity : PULL_PX * per;
+    const val = +i.value;
+    let best = null, bd = Infinity;
+    for(const st of stops){
+      const d = Math.abs(val - st);
+      if(d < bd){ bd = d; best = st; }
+    }
+    if(best === null || bd > tol) return;
+    const q = Math.round(best / step) * step;
+    const fixed = +q.toFixed(6);
+    if(+i.value !== fixed) i.value = fixed;
+  };
 
   i.addEventListener('pointerdown', (e) => {
     x0 = e.clientX; y0 = e.clientY; v0 = i.value;
+    coarse = false;
+    clearTimeout(holdT);
+    /* 長おし＝ きりの いい 数字だけ を 通る モード */
+    holdT = setTimeout(() => {
+      coarse = true;
+      i.classList.add('coarse');
+      if(!coarseTold){ coarseTold = true; notify('きりの いい 数字だけに なります'); }
+    }, 400);
     // マウスは まちがえようが ないので すぐ 効かせる
     armed = e.pointerType === 'mouse';
     if(armed) apply();
   });
 
   i.addEventListener('pointermove', (e) => {
-    if(armed || v0 === null) return;
     const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+    if(!coarse && (dx > 10 || dy > 10)) clearTimeout(holdT);   // 動いたら 長おしでは ない
+    if(armed || v0 === null) return;
     if(dx >= 8 && dx > dy){ armed = true; apply(); }
   });
 
   i.addEventListener('input', () => {
-    if(armed) return apply();
+    if(armed){ snap(); return apply(); }
     i.value = v0;                 // まだ その気が ないので もどす
   });
 
-  const end = () => { armed = false; v0 = null; };
+  const end = () => {
+    armed = false; v0 = null; coarse = false;
+    clearTimeout(holdT);
+    i.classList.remove('coarse');
+  };
   ['pointerup', 'pointercancel', 'blur'].forEach(ev => i.addEventListener(ev, end));
 }
 

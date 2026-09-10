@@ -938,3 +938,13 @@
   }
   #sheet .dockclose button{ min-height:34px; padding:0 .7rem; }
 }
+
+/* 長おし中の つまみ ＝ きりの いい 数字だけを 通る。
+   見て 分かる ように、レールを 目もり入りに する。 */
+input[type=range].coarse{
+  background-image:repeating-linear-gradient(90deg,
+    var(--ink) 0 2px, transparent 2px 12.5%);
+  background-repeat:no-repeat;
+  background-size:100% 6px;
+  background-position:center;
+}
