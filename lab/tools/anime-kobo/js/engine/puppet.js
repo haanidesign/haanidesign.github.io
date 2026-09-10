@@ -420,16 +420,46 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
   g.globalCompositeOperation = add ? 'lighter' : 'source-over';
 
   const t = mesh.tris, v = mesh.verts;
-  for(let i = 0; i < t.length; i += 3){
-    const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
-    /* 絵の どこを はるか。uv が あれば そちらを つかう */
-    const u0 = uv ? uv[i0 * 2] : v[i0].u, w0 = uv ? uv[i0 * 2 + 1] : v[i0].v;
-    const u1 = uv ? uv[i1 * 2] : v[i1].u, w1 = uv ? uv[i1 * 2 + 1] : v[i1].v;
-    const u2 = uv ? uv[i2 * 2] : v[i2].u, w2 = uv ? uv[i2 * 2 + 1] : v[i2].v;
-    drawTri(g, img,
-      xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
-      u0 * k, w0 * k, u1 * k, w1 * k, u2 * k, w2 * k,
-      ex);
+  const paint = (gg, exp) => {
+    for(let i = 0; i < t.length; i += 3){
+      const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
+      /* 絵の どこを はるか。uv が あれば そちらを つかう */
+      const u0 = uv ? uv[i0 * 2] : v[i0].u, w0 = uv ? uv[i0 * 2 + 1] : v[i0].v;
+      const u1 = uv ? uv[i1 * 2] : v[i1].u, w1 = uv ? uv[i1 * 2 + 1] : v[i1].v;
+      const u2 = uv ? uv[i2 * 2] : v[i2].u, w2 = uv ? uv[i2 * 2 + 1] : v[i2].v;
+      drawTri(gg, img,
+        xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
+        u0 * k, w0 * k, u1 * k, w1 * k, u2 * k, w2 * k,
+        exp);
+    }
+  };
+  paint(g, ex);
+
+  /* ---------- 足し算の とき、かどに 出る 白い 点を 消す ----------
+
+     足し算は つぎ目には ぴったり きく が、三角が 6まい 集まる かど では
+     ほんの少し 足しすぎに なる。すけて いない ところでは
+     すけ具合が 1 で 止まる のに 色だけ 足され つづける ので、
+     そこだけ 明るい 点に なる（実測: 75 → 111）。
+
+     なおし方
+       すけ具合は 足し算の ほうが 正しい（つぎ目が 出ない）。
+       色は ふつうの ぬり方の ほうが 正しい（足しすぎない）。
+       なので もう一度 ふつうに ぬって、
+       「すけ具合は そのまま・色だけ 差しかえる」（source-atop）。 */
+  if(add){
+    const sc2 = sheet2(cv0.width, cv0.height);
+    const g2 = sc2.getContext('2d');
+    g2.setTransform(1, 0, 0, 1, 0, 0);
+    g2.clearRect(0, 0, sc2.width, sc2.height);
+    g2.setTransform(m0.a, m0.b, m0.c, m0.d, m0.e, m0.f);
+    g2.globalCompositeOperation = 'source-over';
+    paint(g2, Math.min(6, Math.max(0.5, 0.6 * up / scale)));
+
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-atop';
+    g.drawImage(sc2, 0, 0);
+    g.globalCompositeOperation = 'lighter';
   }
 
   ctx.save();
@@ -452,6 +482,18 @@ function sheet(w, h){
   c.width = w; c.height = h;
   _sheets.unshift(c);
   if(_sheets.length > 2) _sheets.length = 2;    // 持ちすぎない
+  return c;
+}
+
+/* 足し算の ときに もう1まい いる（色を 差しかえる ため）。
+   sheet() と 同じ ものを 返して しまうと 上書きに なる ので 分ける。 */
+const _sheets2 = [];
+function sheet2(w, h){
+  for(const c of _sheets2) if(c.width === w && c.height === h) return c;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  _sheets2.unshift(c);
+  if(_sheets2.length > 2) _sheets2.length = 2;
   return c;
 }
 
