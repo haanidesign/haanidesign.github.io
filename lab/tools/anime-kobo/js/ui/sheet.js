@@ -1,41 +1,42 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=180';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=184';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=180';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=184';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=180';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=184';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=180';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=180';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=180';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=180';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=184';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=184';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=184';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=184';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=180';
+         addTextLayer } from '../io/text.js?v=184';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=180';
-import { PATTERN_NAMES } from '../io/pattern.js?v=180';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=184';
+import { PATTERN_NAMES } from '../io/pattern.js?v=184';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=180';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=180';
-import { readAsDataURL, loadImage } from '../io/image.js?v=180';
+         PITCH_MAX } from '../engine/pano.js?v=184';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=184';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=184';
+import { readAsDataURL, loadImage } from '../io/image.js?v=184';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=180';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=180';
-import { newHand } from '../engine/hand.js?v=180';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=180';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=184';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=184';
+import { newHand } from '../engine/hand.js?v=184';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=184';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=180';
+  from './colorwheel.js?v=184';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=180';
+         guessBpm, firstOnset } from '../io/audio.js?v=184';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=180';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=184';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2587,6 +2588,14 @@ function ballRow(box, l){
 
   /* はって いない ときも つまみは 作る ので、入れ物が 無い ことが ある */
   const B = () => (l.ball = l.ball || Object.assign(ballDefaults(), { on: false }));
+  /* 大きさ。1.0 で「絵の みじかい ほうに ぴったり」。
+     1.0 より 上に すると わくから はみ出て、画面ぜんたいが 玉に なる。 */
+  box.appendChild(slider('玉の 大きさ', () => B().size == null ? 1 : B().size,
+    v => { B().size = v; l._blKey = null; }, 0.2, 1.8, 0.05,
+    v => v < 0.45 ? 'ちいさめ（' + Math.round(v * 100) + '%）'
+       : v > 1.25 ? 'ぜんめん（' + Math.round(v * 100) + '%）'
+       : Math.round(v * 100) + '%'));
+
   box.appendChild(slider('まるみの かげ', () => B().shade == null ? 0.35 : B().shade,
     v => { B().shade = v; l._blKey = null; }, 0, 0.8, 0.01,
     v => v < 0.02 ? 'なし' : Math.round(v * 100) + '%'));
@@ -3207,8 +3216,117 @@ export function audioRows(box, closeFn){
 
 /* ================= はいけい =================
    はいけいのことだけ。動画の長さや 音は 「どうがの せってい」に ある。 */
+/* かべ 6面。1面ずつ 絵を えらぶ */
+function roomFaces(box, room){
+  ROOM_FACES.forEach(fc => {
+    const has = room.faces && room.faces[fc.key];
+    const pick = document.createElement('input');
+    pick.type = 'file';
+    pick.accept = 'image/*';
+    pick.hidden = true;
+    pick.addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if(!f) return;
+      try{
+        onBusy(true, fc.name + ' を よみこんでいます…');
+        const src = await readAsDataURL(f);
+        const im = await loadImage(src);
+        beginEdit(fc.name + ' を はる');
+        const id = addAsset(fc.name, src, im.naturalWidth, im.naturalHeight, im);
+        room.faces = room.faces || {};
+        room.faces[fc.key] = id;
+        room._rmKey = null;
+        commitEdit();
+        notify(fc.name + ' に はりました');
+        onChange();
+      }catch(err){
+        notify('よみこめませんでした');
+      }finally{
+        onBusy(false);
+      }
+    });
+    box.appendChild(pick);
+
+    const row = document.createElement('div');
+    row.className = 'rowbtns';
+    const b = button((has ? '✅ ' : '⬜ ') + fc.name, () => pick.click());
+    b.style.flex = '1';
+    row.appendChild(b);
+    if(has){
+      const x = button('はずす', () => {
+        edit(fc.name + ' を はずす', () => {
+          delete room.faces[fc.key];
+          room._rmKey = null;
+        });
+        onChange();
+      });
+      x.style.flex = '0 0 5rem';
+      row.appendChild(x);
+    }
+    box.appendChild(row);
+  });
+}
+
 export function buildBgSheet(box, closeFn){
   const NL = String.fromCharCode(10);
+
+  /* ---------- 🏠 部屋 ----------
+     6まいの 絵を はこの 内がわに はって、その まん中から 見まわす。
+     天じょう・かべを レイヤーで 1まいずつ たおして 作ると
+     つなぎ目が 合わないので、はこ 1つ として まとめて 出す。 */
+  box.appendChild(heading('🏠 部屋（はこの 中）'));
+  const room = S.proj.layers.find(isRoom);
+  const rn = document.createElement('div');
+  rn.className = 'empty';
+  rn.style.textAlign = 'left';
+  rn.textContent = room
+    ? ('いま「' + room.name + '」が 入っています。' + NL
+       + 'かべの 絵を えらぶと、その 面に はられます。' + NL
+       + 'むきや ひろさは、下の つまみで かえられます。')
+    : ('おく・ひだり・みぎ・天じょう・ゆか・うしろ の 6まいを' + NL
+       + 'はこの 内がわに はって、まん中から 見まわします。' + NL
+       + '入れたい 面だけで だいじょうぶ（入れない 面は 出ません）。' + NL
+       + 'カメラの「まわりこみ」で 首を ふり、「よせ」で おくへ 進みます。');
+  box.appendChild(rn);
+
+  if(!room){
+    box.appendChild(btnRow(
+      button('🏠 部屋を つくる', () => {
+        beginEdit('部屋を つくる');
+        addRoomLayer('部屋');
+        commitEdit();
+        notify('部屋を つくりました。かべの 絵を えらんでね');
+        onChange();
+      })
+    ));
+  } else {
+    roomFaces(box, room);
+    const deg = v => Math.round(v) + '°';
+    box.appendChild(animSlider('よこ回転', room, 'roomY', -720, 720, 1, deg));
+    box.appendChild(animSlider('たて回転', room, 'roomP', -85, 85, 1, deg));
+    box.appendChild(animSlider('ズーム',   room, 'roomZ', 25, 130, 1, deg));
+    box.appendChild(slider('はこの よこ幅', () => room.rw || S.proj.w,
+      v => { room.rw = Math.round(v); room._rmKey = null; },
+      200, 4000, 20, v => Math.round(v) + 'px'));
+    box.appendChild(slider('はこの たかさ', () => room.rh || S.proj.h,
+      v => { room.rh = Math.round(v); room._rmKey = null; },
+      200, 4000, 20, v => Math.round(v) + 'px'));
+    box.appendChild(slider('はこの おくゆき', () => room.rd || S.proj.w,
+      v => { room.rd = Math.round(v); room._rmKey = null; },
+      200, 6000, 20, v => Math.round(v) + 'px'));
+    box.appendChild(slider('あみの こまかさ', () => room.mesh1 || 10,
+      v => { room.mesh1 = Math.round(v); room._rmKey = null; },
+      4, 24, 1, v => Math.round(v) + 'こま'));
+
+    const rnote = document.createElement('div');
+    rnote.className = 'empty';
+    rnote.style.textAlign = 'left';
+    rnote.textContent = 'はこを 大きく するほど、かべが 遠くなります。' + NL
+      + 'おくゆきを ながく すると、ろうか みたいに なります。' + NL
+      + 'カメラを 足すと、まわりこみ で 首ふり・よせ で 前進 に なります。';
+    box.appendChild(rnote);
+  }
 
   /* ---------- ぐるり360 ----------
      「ぐるり 360°」で かいた 絵を いれると、

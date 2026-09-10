@@ -40,6 +40,7 @@ export const CH_LABEL = {
   tint:'塗り', blur:'ぼかし', stroke:'ふちどり', flipX:'左右反転', flipY:'上下反転', frame:'コマ',
   panY:'よこ回転', panP:'たて回転', panZ:'ズーム',
   ballY:'玉を まわす', ballP:'玉を たおす',
+  roomY:'よこ回転', roomP:'たて回転', roomZ:'ズーム',
   rx:'おくへ たおす', ry:'よこに まわす'
 };
 
@@ -420,6 +421,10 @@ export function valuesAt(layer, time){
     dof: layer.dof || 0,
 
     /* ぐるり360の 見ている むき。ふつうの レイヤーには 出てこない */
+    roomY: sample(tr.roomY, t, layer.roomY || 0),
+    roomP: sample(tr.roomP, t, layer.roomP || 0),
+    roomZ: sample(tr.roomZ, t, layer.roomZ == null ? 75 : layer.roomZ),
+
     ballY: sample(tr.ballY, t, layer.ballY || 0),
     ballP: sample(tr.ballP, t, layer.ballP || 0),
 

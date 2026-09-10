@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=180';
-import { setPin } from '../engine/anim.js?v=180';
-import { S } from '../state.js?v=180';
+import { drawDeformed } from './puppet.js?v=184';
+import { setPin } from '../engine/anim.js?v=184';
+import { S } from '../state.js?v=184';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);
@@ -27,7 +27,7 @@ export const BALL_CHANNELS = ['ballY', 'ballP'];
    24こま＝3.4ms、32こま＝6ms、40こま＝8.8ms、60こま＝19ms。
    30コマ/秒に よゆうで 間に合う ところを はじめに する。 */
 export function ballDefaults(){
-  return { on: true, cols: 32, rows: 16, shade: 0.35 };
+  return { on: true, cols: 32, rows: 16, shade: 0.35, size: 1 };
 }
 
 /* ---------- あみ ----------
@@ -71,8 +71,11 @@ export function ballCanvas(l, v, img, tag){
   const pitch = Math.max(-89, Math.min(89,
                   v && v.ballP != null ? v.ballP : (l.ballP || 0)));
   const shade = b.shade == null ? 0.35 : b.shade;
+  /* 玉の 大きさ。1 で 絵の みじかい ほうに ぴったり。
+     1より 大きく すると 絵の わくから はみ出て「ぜんめん」に なる。 */
+  const size = Math.max(0.15, Math.min(2, b.size == null ? 1 : b.size));
 
-  const key = [tag || '', w, h, cols, rows,
+  const key = [tag || '', w, h, cols, rows, size.toFixed(3),
                yaw.toFixed(2), pitch.toFixed(2), shade.toFixed(2)].join('|');
   if(l._blKey === key) return l._blC;
   l._blKey = key;
@@ -90,7 +93,7 @@ export function ballCanvas(l, v, img, tag){
   }
   const xy = l._blXY, uv = l._blUV, zz = l._blZ;
 
-  const R  = Math.min(w, h) / 2;
+  const R  = Math.min(w, h) / 2 * size;
   const cx = w / 2, cy = h / 2;
   const a = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
   const ca = Math.cos(a), sa = Math.sin(a);
