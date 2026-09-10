@@ -13,17 +13,33 @@
 const EPS = 1e-8;
 
 /* ---------- メッシュを張る ---------- */
-/** 透明なところを避けて、絵の上に格子のあみを張る */
+/**
+ * 透明なところを避けて、絵の上に格子のあみを張る。
+ *
+ * img は 1まいでも、コマの ならび（配列）でも いい。
+ * ならびを わたす と、ぜんぶの コマを かさねた 形に あみを 張る。
+ *
+ * これが だいじ ―― コマが 何まいか ある もの（口パクなど）で
+ * 1まいめ だけから 張ると、そのコマに 絵の 無い ところには
+ * あみが 無い。あとで 口を あけた コマに 切りかわっても、
+ * あみの 外に なって 出て こない。
+ * ＝「ボーンを 入れたら 口パクが 止まった」の 正体。
+ */
 export function buildMesh(img, cols, rows){
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
+  const list = Array.isArray(img) ? img.filter(Boolean) : [img];
+  const first = list[0];
+  const w = first.naturalWidth || first.width;
+  const h = first.naturalHeight || first.height;
 
   const SW = Math.min(w, 220);
   const SH = Math.max(1, Math.round(h * SW / w));
   const cv = document.createElement('canvas');
   cv.width = SW; cv.height = SH;
   const g = cv.getContext('2d', { willReadFrequently: true });
-  g.drawImage(img._src || img, 0, 0, SW, SH);
+  /* ぜんぶの コマを かさねて「どこかに 絵が ある ところ」を 出す */
+  for(const im of list){
+    try{ g.drawImage(im._src || im, 0, 0, SW, SH); }catch(_){}
+  }
   const data = g.getImageData(0, 0, SW, SH).data;
 
   const opaque = (u, v) => {

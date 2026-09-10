@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=172';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=172';
-import { valuesAt } from '../engine/anim.js?v=172';
-import { S, frameAsset, frameImage } from '../state.js?v=172';
+         nearestFolder } from '../engine/layer.js?v=173';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=173';
+import { valuesAt } from '../engine/anim.js?v=173';
+import { S, frameAsset, frameImage } from '../state.js?v=173';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=172';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=172';
-import { paintCanvas } from '../engine/paint.js?v=172';
-import { panoCanvas } from '../engine/pano.js?v=172';
-import { homography, applyH } from '../engine/warp.js?v=172';
-import { drawCamView } from './camview.js?v=172';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=172';
+         meshSizeFor } from '../engine/puppet.js?v=173';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=173';
+import { paintCanvas } from '../engine/paint.js?v=173';
+import { panoCanvas } from '../engine/pano.js?v=173';
+import { homography, applyH } from '../engine/warp.js?v=173';
+import { drawCamView } from './camview.js?v=173';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=173';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -209,9 +209,12 @@ function flatMesh(w, h){
     };
 
     // もどす・やりなおしの後はあみが消えているので、必要なら張り直す
-    if(!l.mesh && v.pins && v.pins.length && img.complete && img.naturalWidth){
+    if(v.pins && v.pins.length && img.complete && img.naturalWidth
+       && (!l.mesh || l._meshN !== (l.frames ? l.frames.length : 0))){
       const size = meshSizeFor(img);
-      l.mesh = buildMesh(img, size.cols, size.rows);
+      l.mesh = buildMesh(allFrameImages(l) || img, size.cols, size.rows);
+      l._meshN = l.frames ? l.frames.length : 0;
+      l.mesh.dirty = true;
     }
 
     const px = hand ? boilPx(hand, Math.min(asset.w, asset.h)) : 0;
@@ -238,9 +241,12 @@ function flatMesh(w, h){
     if(warped && boned){
       toImageOrigin();
 
-      if(!l.mesh && img.complete && img.naturalWidth){
+      if(img.complete && img.naturalWidth
+         && (!l.mesh || l._meshN !== (l.frames ? l.frames.length : 0))){
         const size = meshSizeFor(img);
-        l.mesh = buildMesh(img, size.cols, size.rows);
+        l.mesh = buildMesh(allFrameImages(l) || img, size.cols, size.rows);
+        l._meshN = l.frames ? l.frames.length : 0;
+        l.mesh.dirty = true;
       }
       if(l.mesh){
         const n = l.mesh.verts.length;
@@ -671,6 +677,19 @@ function flatMesh(w, h){
   /** その レイヤーに 色の 調整・かげ・ひかり が 入って いるか */
   function hasFX(v){
     return !!colorFilter(v) || v.glowAmount > 0.004 || v.shadowAmount > 0.004;
+  }
+
+  /* その レイヤーの コマ ぜんぶの 絵。
+     骨（ピン）の あみは これ ぜんぶを かさねた 形に 張る
+     ―― でないと、口を あけた コマが あみの 外に なって 出ない。 */
+  function allFrameImages(l){
+    const out = [];
+    const n = (l.frames && l.frames.length) || 0;
+    for(let i = 0; i < n; i++){
+      const im = frameImage(l, i);
+      if(im && im.complete !== false) out.push(im);
+    }
+    return out.length ? out : null;
   }
 
   /* ---------- ✂ マスク ----------
