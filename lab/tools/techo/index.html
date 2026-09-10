@@ -1931,10 +1931,10 @@ function turnBy(d){
   if(i<0) return;
   if(d<0){
     if(i<=0){ setStatus("いちばん はじめの 頁です"); return; }
-    goPrev();
+    setStatus("◀ 前の頁"); goPrev();
   }else{
     if(i>=l.length-1){ setStatus("いちばん おわりの 頁です"); return; }
-    goNext();
+    setStatus("次の頁 ▶"); goNext();
   }
 }
 $("#prev").onclick=()=>goPrev();
@@ -2097,36 +2097,38 @@ const leaf=makeSpring(v=>{
 })();
 
 /* 二本指でトンと触れば前の頁（バック）、三本指なら次の頁（進む） */
-/* つまむ操作が touch を横取りして pointer が消えるので、touch でひろう */
+/* 手書き中は 紙の うえの canvas が 指を 取り、touchcancel も とぶので、
+   紙の うえで 始まった 指は document で 最後まで 見張る */
 (function multiTap(){
-  const st=$("#stage");
-  let most=0, t0=0, slipped=false, marks=null, going=false;
-  const near=(a,b)=>Math.hypot(a.clientX-b.x,a.clientY-b.y);
-  st.addEventListener("touchstart",(e)=>{
-    if(!going){ going=true; most=0; t0=Date.now(); slipped=false; }
+  let most=0, t0=0, slipped=false, marks=[], armed=false;
+  const moved=(t,m)=>Math.hypot(t.clientX-m.x,t.clientY-m.y);
+  document.addEventListener("touchstart",(e)=>{
+    if(!armed){
+      const st=e.target&&e.target.closest&&e.target.closest("#stage");
+      if(!st) return;                                // 紙のところ だけ
+      armed=true; most=0; t0=Date.now(); slipped=false;
+    }
     most=Math.max(most,e.touches.length);
     marks=[...e.touches].map(t=>({id:t.identifier,x:t.clientX,y:t.clientY}));
   },{passive:true});
-  st.addEventListener("touchmove",(e)=>{
-    if(!marks||slipped) return;
+  document.addEventListener("touchmove",(e)=>{
+    if(!armed||slipped) return;
     for(const t of e.touches){
       const m=marks.find(m=>m.id===t.identifier);
-      if(m&&near(t,m)>24){ slipped=true; break; }   // 動いたらタップではない
+      if(m&&moved(t,m)>28){ slipped=true; break; }   // 動いたら タップでは ない
     }
   },{passive:true});
-  st.addEventListener("touchend",(e)=>{
-    if(e.touches.length) return;                    // 全部 離れてから 決める
-    going=false; marks=null;
-    const n=most; most=0;
-    if(slipped||Date.now()-t0>=520) return;
-    if(pinching) return;                            // 手書き中でも 指の タップは めくる
-    if(n===2) turnBy(-1);                           // 二本指 → 戻る
-    else if(n>=3) turnBy(1);                        // 三本指 → 進む
-  });
-  st.addEventListener("touchcancel",(e)=>{
-    slipped=true;
-    if(!e.touches.length){ going=false; marks=null; most=0; }
-  });
+  const settle=(e)=>{
+    if(!armed||e.touches.length) return;             // 全部 離れてから 決める
+    armed=false; marks=[];
+    const n=most, quick=Date.now()-t0<560;
+    most=0;
+    if(slipped||!quick) return;
+    if(n===2) turnBy(-1);                            // 二本指 → 戻る
+    else if(n>=3) turnBy(1);                         // 三本指 → 進む
+  };
+  document.addEventListener("touchend",settle,{passive:true});
+  document.addEventListener("touchcancel",settle,{passive:true});
 })();
 
 /* トラックパッドの横スワイプでもめくる */
