@@ -321,7 +321,15 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
  *   あみを ゆがめて から 骨で 曲げる ときは、
  *   「もとの 絵の 場所」を べつに わたす ひつようが ある。
  */
-export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
+/**
+ * あみの 目に そって 絵を 貼り直す。
+ *   opaque … 貼る 中みが すけて いない ことが 分かって いる とき true。
+ *            その ときだけ 三角を ほんの少し ふくらませて、
+ *            まるめ の すきまを 消す（足し算は 上で 止まる ので、
+ *            かさなっても こく ならない）。
+ *            すけて いる 中みで ふくらませると 足しすぎに なる ので だめ。
+ */
+export function drawDeformed(ctx, img, mesh, xy, srcK, uv, opaque){
   const k = srcK || 1;
 
   /* ふくらませる 量は「画面の ドットで いくつぶん」で きめる。
@@ -344,7 +352,10 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
     const cw = cv0.clientWidth;                     // 書き出し用の 紙は 0
     if(cw > 0) up = Math.max(1, Math.min(3, (cw * (devicePixelRatio || 1)) / cv0.width));
   }catch(_){ up = 1; }
-  const ex = Math.min(6, Math.max(0.5, 0.6 * up / scale));
+  /* つなぎ方は 中みで 変える（下の コメント）。
+     ・すけて いない … 少し ふくらませて 上から ぬる
+     ・すけて いる   … ふくらませず 足し算 */
+  const ex = opaque ? Math.min(6, Math.max(0.5, 0.6 * up / scale)) : 0;
 
   /* ---------- かさなっても 濃く ならない ように ----------
      三角を ふくらませて 重ねると すきまは 消えるが、
@@ -363,18 +374,24 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
   const m0 = ctx.getTransform();
   g.setTransform(m0.a, m0.b, m0.c, m0.d, m0.e, m0.f);
 
-  /* かさなった ところを 2回 ぬらない。
+  /* ---------- 三角の つぎ目を 出さない ----------
 
-     三角は すきまが 出ない ように 少し ふくらませて ある。
-     ふつうに 上から ぬる（source-over）と、その かさなりで
-     色が 2回 のる。中みが すけて いる 絵（かげ・うすい ふち）だと
-     そこだけ こく なって、三角の へりが 線に なって 見える
-     ―― 魚眼で 画面ぜんたいを 貼り直した ときに これが 出た。
+     三角の へりは なめらかに 出す ため、ふちの ドットが
+     「半分だけ」ぬられる（アンチエイリアス）。
+     となり合う 三角は その 半分ずつを 分け合って いる。
 
-     「まだ 何も 無い ところにだけ ぬる」に すると、
-     さきに ぬった 三角が かさなりを とる ので 2回に ならず、
-     すきまは あとの 三角が うめる。どちらも 立つ。 */
-  g.globalCompositeOperation = 'destination-over';
+     ■ すけて いない 中み（レンズの 紙など）
+       少し ふくらませて 上から ぬる。かさなっても 同じ 中みを
+       ぬり直すだけ なので 何も 起きない。すきまも 消える。
+
+     ■ すけて いる 中み（ふつうの レイヤー・フォルダの 紙）
+       上から かさねると 0.5 の 上に 0.5 で 0.75 に なって しまい、
+       つぎ目だけ こさが ちがって 線に なる（かげで よく 見えた）。
+       「下にだけ ぬる」に しても 順が 変わるだけで 同じ。
+       足し算なら 0.5 ＋ 0.5 ＝ 1.0 で ぴたりと 合う。
+       色も こさを かけた まま 足される ので 正しく つながる。
+       そのかわり ふくらませない（かさなると 足しすぎる）。 */
+  g.globalCompositeOperation = opaque ? 'source-over' : 'lighter';
 
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){

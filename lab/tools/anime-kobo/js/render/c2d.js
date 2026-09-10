@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=164';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=164';
-import { valuesAt } from '../engine/anim.js?v=164';
-import { S, frameAsset, frameImage } from '../state.js?v=164';
+         nearestFolder } from '../engine/layer.js?v=167';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=167';
+import { valuesAt } from '../engine/anim.js?v=167';
+import { S, frameAsset, frameImage } from '../state.js?v=167';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=164';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=164';
-import { paintCanvas } from '../engine/paint.js?v=164';
-import { panoCanvas } from '../engine/pano.js?v=164';
-import { homography, applyH } from '../engine/warp.js?v=164';
-import { drawCamView } from './camview.js?v=164';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=164';
+         meshSizeFor } from '../engine/puppet.js?v=167';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=167';
+import { paintCanvas } from '../engine/paint.js?v=167';
+import { panoCanvas } from '../engine/pano.js?v=167';
+import { homography, applyH } from '../engine/warp.js?v=167';
+import { drawCamView } from './camview.js?v=167';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=167';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -766,7 +766,9 @@ function flatMesh(w, h){
       uv[i*2]   = (cx + dx * s) * tf[0] + tf[4];
       uv[i*2+1] = (cy + dy * s) * tf[3] + tf[5];
     }
-    drawDeformed(g, sheet, me, xy, 1, uv);
+    /* レンズの 紙は 下じきごと 焼いて ある＝すけて いない ので、
+       ほんの少し ふくらませて まるめの すきまを 消して よい。 */
+    drawDeformed(g, sheet, me, xy, 1, uv, true);
   }
 
   /** b を a の下に敷く */
