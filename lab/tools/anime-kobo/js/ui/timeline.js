@@ -1,16 +1,16 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=177';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=178';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=177';
+         nearestFolder, setParent } from '../engine/layer.js?v=178';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=177';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=177';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=177';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=177';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=178';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=178';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=178';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=178';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -211,7 +211,18 @@ export function createTimeline(root, opts = {}){
     /* --- 左：レイヤー --- */
     const head = document.createElement('div');
     head.className = 'thead';
-    if(depth) head.style.paddingLeft = (depth * 14) + 'px';
+    /* 入れ子の 下げ幅は「ちぢむ すきま」で 出す。
+       前は 左の あきで 下げて いた ので、フォルダが 深く なるほど
+       行の はばを 食って、右はしの 👁（見せる・かくす）が
+       おし出されて 見えなく なって いた。
+       すきまなら、せまく なった ぶんは すきまが ちぢんで、
+       👁 は かならず のこる。 */
+    if(depth){
+      const pad = document.createElement('span');
+      pad.className = 'tind';
+      pad.style.flex = '0 6 ' + (Math.min(depth, 6) * 12) + 'px';
+      head.appendChild(pad);
+    }
 
     const grip = document.createElement('span');
     grip.className = 'grip';
@@ -277,10 +288,16 @@ export function createTimeline(root, opts = {}){
     head.appendChild(pick);
 
     if(folder){
+      /* たたむ ボタンと フォルダの 絵を ひとつに した。
+         前は ▾ と 📂 が ならんで いて、その ぶん 行が 足りなく なり、
+         右はしの 👁 が おし出されて 見えなく なって いた。
+         ひらいて いれば 📂、たたんで いれば 📁 なので、
+         2つ ならべなくても どちらか 分かる。 */
       const tw = document.createElement('button');
       tw.className = 'twist';
-      tw.textContent = l.open === false ? '▸' : '▾';
+      tw.textContent = l.open === false ? '📁' : '📂';
       tw.title = l.open === false ? 'ひらく' : 'たたむ';
+      tw.setAttribute('aria-label', tw.title);
       tw.addEventListener('pointerdown', e => e.stopPropagation());
       tw.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -288,11 +305,6 @@ export function createTimeline(root, opts = {}){
         onChange();
       });
       head.appendChild(tw);
-
-      const ic = document.createElement('span');
-      ic.className = 'folderic';
-      ic.textContent = l.open === false ? '📁' : '📂';
-      head.appendChild(ic);
     } else if(l.kind === 'audio'){
       /* おと … 絵は 持たない。しるしだけ 出す */
       const ic = document.createElement('span');

@@ -87,7 +87,7 @@
 #ruler .rhead{
   /* レイヤー行の名前欄と おなじ幅にする。
      ずれると 目もりの数字も 再生バーの位置も 合わなくなる。 */
-  flex:0 0 134px; min-width:0;
+  flex:0 0 var(--thead-w); min-width:0;
   display:flex; gap:.25rem; align-items:center;
 }
 #ruler .rhead button{
@@ -122,9 +122,14 @@
 }
 .trow.dragging{ opacity:.55; }
 
+/* 名前欄の はば。フォルダの行は
+   ⠿ ＋ ☐ ＋ ▾ ＋ 📂 ＋ なまえ ＋ 👁 が ならぶ ので、
+   せまいと 右はしの 👁 が おし出されて 見えなく なる。
+   実測（中の ぶひんの はばの 足し算）で 146 いる ので 150 に した。
+   目もりの ほうも おなじ 数字を つかう（ずれると 再生バーが 合わない）。 */
 .thead{
-  flex:0 0 134px; min-width:0;   /* 中身で押し広げられないように */
-  display:flex; align-items:center; gap:.25rem;
+  flex:0 0 var(--thead-w); min-width:0;   /* 中身で押し広げられないように */
+  display:flex; align-items:center; gap:.2rem;
   background:var(--paper);
   border:2px solid var(--ink); border-radius:10px;
   box-shadow:0 2.5px 0 var(--ink);
@@ -139,6 +144,7 @@
 .thead.haschild{ border-left-width:6px; }
 
 .thead .grip{
+  flex:0 0 auto;             /* つまむ ところは ちぢめない */
   font-size:1.05rem; color:var(--gray); touch-action:none;
   padding:.4rem .15rem;      /* つまむところを広くする */
   align-self:stretch; display:flex; align-items:center;
@@ -149,10 +155,15 @@
   background:var(--cream);
   object-fit:contain;
 }
+/* なまえは すこしは のこす。ぜんぶ 0 に なると
+   どの フォルダか 見分けが つかなく なる。
+   足りない ぶんは 入れ子の すきま（.tind）が ちぢんで ゆずる。 */
 .thead .nm{
-  flex:1; min-width:0; font-size:.66rem;
+  flex:1 1 auto; min-width:2.2rem; font-size:.66rem;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
+/* 入れ子ぶんの すきま。せまい ときは ここが 先に ちぢむ */
+.thead .tind{ min-width:0; }   /* 足りない ときは ここが 先に ちぢむ */
 .thead .eye{
   flex:0 0 auto; min-height:34px; min-width:32px;
   padding:0; font-size:.8rem; border-radius:8px;
@@ -783,14 +794,18 @@
   /* ピンのバーが 出ていない ときは さいせいバーを 横いっぱいに */
   #list:has(#pinbar[hidden]) #playbar{ grid-column:1 / -1; }
 
-  /* ② ひくくする */
+  /* ② ひくくする。
+     ここは 名前を かくす ぶん せまく できる が、
+     ⠿ ＋ ☐ ＋ 📂 ＋ 👁 は のこる ので それが 入る はば。
+     目もりの ほうも おなじ 数字に なる（var を つかう）。 */
+  :root{ --thead-w:112px; }
   .trow{ min-height:30px; }
-  .thead{ flex:0 0 104px; padding:.1rem .25rem; gap:.2rem; }
+  .thead{ padding:.1rem .25rem; gap:.2rem; }
   .thead .thumb{ width:20px; height:20px; flex:0 0 20px; }
   .thead .nm{ display:none; }
   .thead .eye,.thead .pick,.thead .twist{ min-height:24px; min-width:24px; }
   #ruler{ height:22px; padding:.1rem .3rem 0; }
-  #ruler .rhead{ flex:0 0 104px; }
+
   #ruler .rhead button{ min-height:20px; font-size:.58rem; }
   #playbar,#pinbar{ padding:.15rem .3rem; gap:.25rem; }
   #playbar button,#pinbar button{ min-height:28px; font-size:.64rem; }
@@ -807,7 +822,7 @@
 .thead .eye,.thead .pick,.thead .twist{ min-height:28px; }
 .thead .thumb{ width:26px; height:26px; flex:0 0 26px; }
 .thead .grip{ padding:.25rem .1rem; }
-.thead .nm{ min-width:0; font-size:.62rem; }
+.thead .nm{ min-width:2.2rem; font-size:.62rem; }
 }
 
 

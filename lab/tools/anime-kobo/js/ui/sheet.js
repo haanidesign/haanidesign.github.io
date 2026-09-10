@@ -1,41 +1,41 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=177';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=178';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=177';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=178';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=177';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=178';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=177';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=177';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=177';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=177';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=178';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=178';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=178';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=178';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=177';
+         addTextLayer } from '../io/text.js?v=178';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=177';
-import { PATTERN_NAMES } from '../io/pattern.js?v=177';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=178';
+import { PATTERN_NAMES } from '../io/pattern.js?v=178';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=177';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=177';
-import { readAsDataURL, loadImage } from '../io/image.js?v=177';
+         PITCH_MAX } from '../engine/pano.js?v=178';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=178';
+import { readAsDataURL, loadImage } from '../io/image.js?v=178';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=177';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=177';
-import { newHand } from '../engine/hand.js?v=177';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=177';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=178';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=178';
+import { newHand } from '../engine/hand.js?v=178';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=178';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=177';
+  from './colorwheel.js?v=178';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=177';
+         guessBpm, firstOnset } from '../io/audio.js?v=178';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=177';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=178';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
