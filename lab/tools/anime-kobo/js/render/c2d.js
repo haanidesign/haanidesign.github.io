@@ -3,20 +3,20 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=191';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=191';
-import { valuesAt } from '../engine/anim.js?v=191';
-import { S, frameAsset, frameImage } from '../state.js?v=191';
+         nearestFolder } from '../engine/layer.js?v=195';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=195';
+import { valuesAt } from '../engine/anim.js?v=195';
+import { S, frameAsset, frameImage } from '../state.js?v=195';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=191';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=191';
-import { paintCanvas } from '../engine/paint.js?v=191';
-import { panoCanvas } from '../engine/pano.js?v=191';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=191';
-import { roomCanvas } from '../engine/room.js?v=191';
-import { homography, applyH } from '../engine/warp.js?v=191';
-import { drawCamView } from './camview.js?v=191';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=191';
+         meshSizeFor } from '../engine/puppet.js?v=195';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=195';
+import { paintCanvas } from '../engine/paint.js?v=195';
+import { panoCanvas } from '../engine/pano.js?v=195';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=195';
+import { roomCanvas } from '../engine/room.js?v=195';
+import { homography, applyH } from '../engine/warp.js?v=195';
+import { drawCamView } from './camview.js?v=195';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=195';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -27,12 +27,12 @@ export function createC2D(canvas){
   // クリッピング・エフェクト用の作業キャンバス（使い回す）
   const tmp = [];
 
-  function scratch(i){
+  function scratch(i, dst){
     if(!tmp[i]) tmp[i] = document.createElement('canvas');
     const c = tmp[i];
-    if(c.width !== canvas.width || c.height !== canvas.height){
-      c.width = canvas.width; c.height = canvas.height;
-    }
+    const w = (dst && dst.width)  || canvas.width;
+    const h = (dst && dst.height) || canvas.height;
+    if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
     return c;
   }
 
@@ -40,8 +40,15 @@ export function createC2D(canvas){
      入れ子になると 何枚も要るので、貸し出し式にする。
      90番と91番は ふちどり専用（描いたらすぐ使うので 取り合いにならない）。 */
   let lent = 0;
-  function alloc(){
-    const c = scratch(lent++);
+  /* 別紙の 大きさは「これから 描く さき」に あわせる。
+
+     フォルダを 立体に する ときは、中身を いったん
+     画面より 大きい 紙（sheetCanvas）に まとめる。
+     その とちゅうで つかう 別紙まで 画面の 大きさの ままだと、
+     画面の たてはば より 下に ある 中身が そこで 切れる。
+     ＝ ズームするほど 下が 消えて いく（実測: 579 で ぴたりと 切れて いた）。 */
+  function alloc(dst){
+    const c = scratch(lent++, dst);
     const g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
@@ -532,7 +539,7 @@ function flatMesh(w, h){
 
     /* 別紙にこの1枚だけを描く。塗りは「絵のある所だけ」染めたいので
        source-atop で色をかぶせる。 */
-    const c = alloc(), gx = c.getContext('2d');
+    const c = alloc(g.canvas), gx = c.getContext('2d');
     gx.setTransform(...tf);
     place(gx, l, pose, asset, img);
 
@@ -550,7 +557,7 @@ function flatMesh(w, h){
        ここで 別紙ごと 塗りかえて しまう。 */
     const cf = colorFilter(v);
     if(cf){
-      const t2 = alloc(), g2 = t2.getContext('2d');
+      const t2 = alloc(c), g2 = t2.getContext('2d');
       g2.setTransform(1, 0, 0, 1, 0, 0);
       g2.filter = cf.trim();
       g2.drawImage(c, 0, 0);
@@ -919,8 +926,15 @@ function flatMesh(w, h){
     const r = pose.sheetRect || { x0: 0, y0: 0, x1: project.w, y1: project.h };
     const rw = Math.max(1, r.x1 - r.x0), rh = Math.max(1, r.y1 - r.y0);
     const k0 = Math.abs(tf[0]);
-    const CAP = 4096;
-    const k = Math.min(k0, CAP / Math.max(rw, rh));      // 焼く こまかさ
+    /* 焼く こまかさ。ズームすると いくらでも 大きく なって しまう ので
+       上げどまりを 2つ おく。
+         ・長い ほうが 4096ドット まで
+         ・ぜんぶで 400万ドット まで（＝2000x2000 くらい）
+       ここを 外すと ズーム5ばいで 1400万ドットに なり、
+       1コマ 165ms かかった（実測）。400万に すると 60ms。
+       貼る ときに ひきのばすので、見た目の あらさは ほとんど 出ない。 */
+    const CAP = 4096, BUDGET = 4e6;
+    const k = Math.min(k0, CAP / Math.max(rw, rh), Math.sqrt(BUDGET / (rw * rh)));
     const bw = Math.max(1, Math.round(rw * k));
     const bh = Math.max(1, Math.round(rh * k));
 
@@ -976,7 +990,7 @@ function flatMesh(w, h){
 
        貼って から かければ、あみを 通るのは 絵だけ。
        絵は すけて いない ので つぎ目は 出ない。 */
-    const out = alloc(), go = out.getContext('2d');
+    const out = alloc(g.canvas), go = out.getContext('2d');
     go.setTransform(1, 0, 0, 1, 0, 0);
     sheet3D(go, c, project, pose.quad, tf, r, bw, bh);
     underFX(out, v, k0);
@@ -1068,7 +1082,7 @@ function flatMesh(w, h){
       return;
     }
 
-    const c = alloc(), gx = c.getContext('2d');
+    const c = alloc(g.canvas), gx = c.getContext('2d');
     gx.setTransform(...tf);
 
     /* フォルダの 手がき風。
@@ -1088,7 +1102,7 @@ function flatMesh(w, h){
       }
       const px = boilPx(fhand, Math.min(project.w, project.h));
       const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
-      const tmpC = alloc(), tg = tmpC.getContext('2d');
+      const tmpC = alloc(c), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
       drawNodes(tg, project, kids, poses, tf0);
 
@@ -1213,7 +1227,7 @@ function flatMesh(w, h){
     /* 色の 調整は 中身ぜんぶに まとめて かかる */
     const cf = colorFilter(v);
     if(cf){
-      const t2 = alloc(), g2 = t2.getContext('2d');
+      const t2 = alloc(c), g2 = t2.getContext('2d');
       g2.setTransform(1, 0, 0, 1, 0, 0);
       g2.filter = cf.trim();
       g2.drawImage(c, 0, 0);
@@ -1329,7 +1343,7 @@ function flatMesh(w, h){
        足すと そこだけ くっきり のこって、また 分身に 見える。 */
     const mb = l.noMB ? 0 : Math.max(l.mblur || 0, l._camMB || 0);
     if(mb > 0.01 && subPoses && subPoses.length > 1 && moves(l, subPoses)){
-      const c = alloc(), gx = c.getContext('2d');
+      const c = alloc(g.canvas), gx = c.getContext('2d');
       let n = 0;
       for(const ps of subPoses){
         const p2 = ps[l.id];
@@ -1420,7 +1434,7 @@ function flatMesh(w, h){
          ② 上の絵たちを別の紙に描く
          ③ ②を①の形で抜く（destination-in）
          ④ ①→③ の順に 本番へ重ねる */
-      const cBase = alloc(), cClip = alloc();
+      const cBase = alloc(g.canvas), cClip = alloc(g.canvas);
       const gB = cBase.getContext('2d'), gC = cClip.getContext('2d');
       gB.setTransform(...tf);
       gC.setTransform(...tf);
