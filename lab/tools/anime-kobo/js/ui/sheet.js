@@ -1,39 +1,40 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=161';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=162';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=161';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=162';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=161';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=161';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=161';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=161';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=161';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=162';
+import { swayKeys, swayPose, newSway, RIGID,
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=162';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=162';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=162';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=162';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=161';
+         addTextLayer } from '../io/text.js?v=162';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=161';
-import { PATTERN_NAMES } from '../io/pattern.js?v=161';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=162';
+import { PATTERN_NAMES } from '../io/pattern.js?v=162';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=161';
-import { readAsDataURL, loadImage } from '../io/image.js?v=161';
+         PITCH_MAX } from '../engine/pano.js?v=162';
+import { readAsDataURL, loadImage } from '../io/image.js?v=162';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=161';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=161';
-import { newHand } from '../engine/hand.js?v=161';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=161';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=162';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=162';
+import { newHand } from '../engine/hand.js?v=162';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=162';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=161';
+  from './colorwheel.js?v=162';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=161';
+         guessBpm, firstOnset } from '../io/audio.js?v=162';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=161';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=162';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1131,6 +1132,23 @@ export function buildCamSheet(box, back){
     + 'ぐにゃっと 動く「めまい」の 画に なります。';
   box.appendChild(dn);
 
+  /* ---- 魚眼 ---- */
+  box.appendChild(heading('魚眼（ひろがる レンズ）'));
+  box.appendChild(animSlider('レンズの ゆがみ', cam, 'fish', -1, 1, 0.05,
+    v => Math.abs(v) < 0.03 ? 'ふつうの レンズ'
+       : v > 0 ? 'ひろがる ' + Math.round(v * 100) + '%'
+               : 'すぼまる ' + Math.round(-v * 100) + '%'));
+  const fn3 = document.createElement('div');
+  fn3.className = 'empty';
+  fn3.style.textAlign = 'left';
+  fn3.textContent = 'まん中が ふくらんで、はしが すぼまります。' + NL
+    + 'ドアの のぞき穴から 見た かんじ。' + NL
+    + 'マイナスに すると 逆に そります。' + NL
+    + 'できあがった 絵ぜんたいに かかる ので、' + NL
+    + '手前の ものも おくの ものも いっしょに ゆがみます。' + NL
+    + 'ピンが うてる ので、寄る ときだけ ぐいっと ひろげる、も できます。';
+  box.appendChild(fn3);
+
   /* ---- 注視点 ---- */
   box.appendChild(heading('注視点（まわる じく）'));
   const aim = !!cam.aim;
@@ -1936,6 +1954,87 @@ function buildSway(box, l){
   });
   box.appendChild(heading('めやす'));
   box.appendChild(kaze);
+
+  /* ---- あと引き（止まった あとの ゆれ）----
+     しゅっと 来て ピタッと 止まる ときに いる もの。
+     風の ゆれ（ずっと 同じ はば）とは べつ。 */
+  box.appendChild(heading('💨 止まった ときに ゆらす'));
+  const an = document.createElement('div');
+  an.className = 'empty';
+  an.style.textAlign = 'left';
+  an.textContent = 'しゅっと 入って きて 止まる ―― そのとき 髪は' + NL
+    + 'すぐ 止まらず、いきおいで 先へ 流れて から' + NL
+    + 'ゆれながら もどって きます。' + NL
+    + '「うごき」の ピンを 見て、止まる ところを さがして' + NL
+    + 'そこに 入れます。';
+  box.appendChild(an);
+
+  l.after = Object.assign({ amp: 14, period: 0.45, decay: 0.5 }, l.after || {});
+  const af = l.after;
+  box.appendChild(slider('ゆれの はば', () => af.amp, v => af.amp = v, 2, 40, 1,
+    v => Math.round(v) + '°'));
+  box.appendChild(slider('ゆれの はやさ', () => af.period, v => af.period = v, 0.15, 1.2, 0.05,
+    v => v.toFixed(2) + '秒で 1おうふく'));
+  box.appendChild(slider('おさまるまで', () => af.decay, v => af.decay = v, 0.15, 2, 0.05,
+    v => afterLen({ decay: v }).toFixed(1) + '秒で 止まる'));
+
+  /* 止まる ところは、自分の うごき か、親（フォルダ）の うごきから さがす。
+     カットインは たいてい フォルダごと 動かす ので。 */
+  const motionOwner = () => {
+    const own = stopTimes(l, valuesAt);
+    if(own.length) return { l, stops: own };
+    let p = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
+    let guard = 0;
+    while(p && guard++ < 8){
+      const st = stopTimes(p, valuesAt);
+      if(st.length) return { l: p, stops: st };
+      p = p.parent ? S.proj.layers.find(x => x.id === p.parent) : null;
+    }
+    return null;
+  };
+
+  const putAfter = (stops, from) => {
+    const dur = afterLen(af);
+    edit('あと引き', () => {
+      stops.forEach(st => {
+        /* いきおいが 強い ほど 大きく ゆれる。250ドット/秒 で ちょうど 1ばい */
+        const k = Math.max(0.35, Math.min(2.2, st.speed / 250));
+        const opt = { amp: af.amp * k, period: af.period, decay: af.decay,
+                      dir: -st.dir, delay: sw.delay, start: st.t };
+        if(boned){
+          afterKeys(l.pins, opt).forEach(kf => {
+            kf.pins.forEach((v, i) => {
+              const pin = l.pins[i];
+              if(pin.type === 'fix') return;
+              setPin(l, pinChX(pin.id), kf.t, v.dx, 'smooth');
+              setPin(l, pinChY(pin.id), kf.t, v.dy, 'smooth');
+            });
+          });
+        } else {
+          const base = valuesAt(l, st.t).rot;
+          const steps = Math.max(8, Math.round(dur / af.period * 10));
+          for(let i = 0; i <= steps; i++){
+            const local = i / steps * dur;
+            const t = +(st.t + local).toFixed(3);
+            setPin(l, 'rot', t, base + afterAngle(local, opt), 'smooth');
+          }
+        }
+      });
+    });
+    notify(stops.length + 'か所（' + from + 'の うごき）に あと引きを 入れました');
+    onChange();
+  };
+
+  box.appendChild(btnRow(
+    button('💨 止まる ところを さがして 入れる', () => {
+      const m = motionOwner();
+      if(!m) return notify('うごきの ピンが 見つかりません（先に 動かしてね）');
+      putAfter(m.stops, m.l === l ? 'じぶん' : '「' + m.l.name + '」');
+    }),
+    button('◆ いまの ところに 入れる', () => {
+      putAfter([{ t: S.time, speed: 250, dir: 1 }], 'いまの 時こく');
+    })
+  ));
 
   function put(label){
     const start = S.time;

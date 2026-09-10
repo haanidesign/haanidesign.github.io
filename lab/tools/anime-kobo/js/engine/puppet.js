@@ -653,3 +653,114 @@ export function deformPoint(pins, stiff, u, v){
   }
   return { x, y, rot: rot * 180 / Math.PI };
 }
+
+
+/* ================= あと引き（止まった あとの ゆれ） =================
+
+   しゅっと 入って きて ピタッと 止まる。
+   そのとき 髪や しっぽは すぐには 止まらず、
+   いきおいの ぶん 先へ 行って、行きすぎて、
+   ゆれながら もどって くる。
+
+   ずっと 同じ はばで ゆれる「かみのゆれ」とは べつもの。
+     かみのゆれ … いつまでも 同じ ゆれ（風）
+     あと引き   … 止まった しゅんかんに 大きく、だんだん 小さく なって 止まる
+
+   ゆれ方は バネと 同じ 式。
+     角度 = はば × e^(-t/おさまり) × sin(2πt/しゅうき)
+   はじめの 向きは「動いて きた 向きの 逆」―― 右から 来て 止まったら
+   髪は いったん 右へ 流れて から もどる。 */
+
+/** あと引きの 角度（度）。t は 止まった ときからの 秒数 */
+export function afterAngle(t, opt){
+  const amp = opt.amp ?? 14;                 // はじめの はば（度）
+  const period = Math.max(0.05, opt.period ?? 0.45);
+  const decay = Math.max(0.05, opt.decay ?? 0.5);   // どれくらいで おさまるか
+  const dir = opt.dir == null ? 1 : opt.dir;
+  if(t < 0) return 0;
+  return dir * amp * Math.exp(-t / decay) * Math.sin(2 * Math.PI * t / period);
+}
+
+/** おさまるまでの 長さ（もう 見えない ぐらいに なる まで） */
+export function afterLen(opt){
+  const decay = Math.max(0.05, opt.decay ?? 0.5);
+  return Math.min(6, decay * 3.2);
+}
+
+/**
+ * 骨（パペットピン）に あと引きを 入れる。
+ * swayKeys と 同じ かたちで かえす（[{t, pins:[{dx,dy}...]}]）。
+ * ちがいは はばが だんだん 小さく なる ところと、
+ * さきの 節ほど おくれて ついてくる ところ。
+ */
+export function afterKeys(pins, opt){
+  const start = opt.start ?? 0;
+  const period = Math.max(0.05, opt.period ?? 0.45);
+  const delayN = (opt.delay ?? 0.25) * Math.PI * 2;   // 節ごとの おくれ
+  const dur = afterLen(opt);
+  const per = Math.max(6, Math.round(opt.samplesPerCycle ?? 10));
+
+  const base = [];
+  for(let i = 0; i < pins.length - 1; i++){
+    const a = pins[i], b = pins[i + 1];
+    base.push({ ang: Math.atan2(b.v - a.v, b.u - a.u),
+                len: Math.hypot(b.u - a.u, b.v - a.v) });
+  }
+  if(!base.length) return [];
+
+  const steps = Math.max(per, Math.round(dur / period * per));
+  const out = [];
+  for(let s = 0; s <= steps; s++){
+    const local = s / steps * dur;
+    const t = +(start + local).toFixed(3);
+
+    const pos = [{ x: pins[0].u, y: pins[0].v }];
+    let acc = 0;
+    for(let i = 0; i < base.length; i++){
+      /* 節が 先に なる ほど おくれる ＝ むちの ように しなる。
+         おくれた ぶん、まだ ゆれ が 弱まって いない 時こくを 見る。 */
+      const lag = (delayN / (2 * Math.PI)) * period * i;
+      const deg = afterAngle(local - lag, opt);
+      acc += deg * Math.PI / 180;
+      const a = base[i].ang + acc;
+      const p0 = pos[pos.length - 1];
+      pos.push({ x: p0.x + Math.cos(a) * base[i].len,
+                 y: p0.y + Math.sin(a) * base[i].len });
+    }
+    out.push({ t, pins: pos.map((p, i) => ({ dx: p.x - pins[i].u, dy: p.y - pins[i].v })) });
+  }
+  return out;
+}
+
+/**
+ * その レイヤー（か 親）が「しゅっと 来て 止まる」ところを さがす。
+ * かえりは [{ t, speed, dir }]。
+ *   t     … 止まった 時こく
+ *   speed … 止まる 直前の はやさ（1秒に 何ドット）
+ *   dir   … 右へ 動いて 止まったら +1、左なら -1
+ */
+export function stopTimes(layer, valuesAt, opt = {}){
+  const tr = layer.tracks || {};
+  const ts = new Set();
+  ['x', 'y'].forEach(ch => (tr[ch] || []).forEach(k => ts.add(+k.t.toFixed(3))));
+  const list = [...ts].sort((a, b) => a - b);
+  if(list.length < 2) return [];
+
+  const dt = 1 / 30;
+  const speedAt = (t) => {
+    const a = valuesAt(layer, Math.max(0, t - dt));
+    const b = valuesAt(layer, t);
+    return { v: Math.hypot(b.x - a.x, b.y - a.y) / dt, dx: b.x - a.x };
+  };
+
+  const least = opt.least ?? 150;        // これいじょう はやければ「しゅっと」
+  const out = [];
+  for(const t of list){
+    const before = speedAt(t - 0.02);
+    const after  = speedAt(t + 0.08);
+    if(before.v >= least && after.v < before.v * 0.35){
+      out.push({ t, speed: before.v, dir: before.dx >= 0 ? 1 : -1 });
+    }
+  }
+  return out;
+}

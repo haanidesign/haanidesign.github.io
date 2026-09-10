@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=161';
+import { M } from './math.js?v=162';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -42,7 +42,7 @@ export const DEPTH_MAX = 20;
 /* カメラだけが 持つ うごかせる ところ。
    x/y（よこ・たてに ふる）・scaleX（画角ズーム）・rot（かたむき）は
    ふつうの レイヤーと 同じ しくみを つかう ので ここには 入れない。 */
-export const CAM_CHANNELS = ['z', 'tx', 'ty', 'td', 'fd'];
+export const CAM_CHANNELS = ['z', 'tx', 'ty', 'td', 'fd', 'fish'];
 
 /** ドリー（前後に 動く）の かぎり。めもり。 */
 export const DOLLY_MIN = -14, DOLLY_MAX = 3.4;
@@ -403,4 +403,28 @@ export function withShake(vals, cam, time, project){
     y: (vals.y || 0) + wob(t, 2.4) * px,
     rot: (vals.rot || 0) + wob(t, 5.1) * 1.6 * amt
   };
+}
+
+
+/* ================= 魚眼（ひろがるレンズ） =================
+
+   ここまでの カメラは、絵を まっすぐな 板として うつして いる。
+   ほんものの 広角レンズは まん中が ふくらんで、はしが すぼまる。
+
+   1まいずつ ゆがめても だめ ―― レンズは できあがった 絵ぜんたいに
+   かかる もの なので、ぜんぶ 描き終わって から 1回だけ かける。
+
+   ゆがめ方（まん中からの きょり r を 0〜1 に して）
+     もとの きょり = r × (1 + k r²) ÷ (1 + k)
+   わり算で そろえて いる ので、いちばん はしは 動かない。
+   k > 0 … まん中が ふくらむ（魚眼）
+   k < 0 … まん中が すぼまる（引きのばし） */
+
+/** -1〜1 の つまみ → ゆがみの つよさ */
+export const fishK = (v) => (v || 0) * 0.85;
+
+/** 画面の 点 → もとの 絵の どこを 見るか（0〜1 の きょりで） */
+export function fishMap(r, k){
+  if(!k) return r;
+  return r * (1 + k * r * r) / (1 + k);
 }

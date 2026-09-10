@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=161';
+import { M } from './engine/math.js?v=162';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=161';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=162';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=161';
-import { createStage } from './ui/stage.js?v=161';
-import { createRenderer } from './render/renderer.js?v=161';
-import { createTimeline } from './ui/timeline.js?v=161';
-import { fmtTime } from './engine/anim.js?v=161';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=162';
+import { createStage } from './ui/stage.js?v=162';
+import { createRenderer } from './render/renderer.js?v=162';
+import { createTimeline } from './ui/timeline.js?v=162';
+import { fmtTime } from './engine/anim.js?v=162';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=161';
+         setWarper } from './ui/sheet.js?v=162';
 
-import { showNewDoc } from './ui/newdoc.js?v=161';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=161';
-import { fitToCanvas, isBg } from './io/bg.js?v=161';
-import * as Audio from './io/audio.js?v=161';
+import { showNewDoc } from './ui/newdoc.js?v=162';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=162';
+import { fitToCanvas, isBg } from './io/bg.js?v=162';
+import * as Audio from './io/audio.js?v=162';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=161';
-import { importPsd } from './io/psd.js?v=161';
-import { splitTextChars } from './io/text.js?v=161';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=162';
+import { importPsd } from './io/psd.js?v=162';
+import { splitTextChars } from './io/text.js?v=162';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=161';
-import { pathKeys, pathLength } from './engine/path.js?v=161';
-import { paintDirty } from './engine/paint.js?v=161';
+         canUseWebCodecs } from './io/export.js?v=162';
+import { pathKeys, pathLength } from './engine/path.js?v=162';
+import { paintDirty } from './engine/paint.js?v=162';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=161';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=162';
 
 const $ = (s) => document.querySelector(s);
 

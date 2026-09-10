@@ -411,6 +411,7 @@ export function valuesAt(layer, time){
     ty: sample(tr.ty, t, layer.ty == null ? 0 : layer.ty),
     td: sample(tr.td, t, layer.td || 0),
     fd: sample(tr.fd, t, layer.fd || 0),
+    fish: sample(tr.fish, t, layer.fish || 0),
     aim: !!layer.aim,
     dof: layer.dof || 0,
 

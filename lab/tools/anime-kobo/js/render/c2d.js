@@ -3,17 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=161';
-import { camOf } from '../engine/camera.js?v=161';
-import { S, frameAsset, frameImage } from '../state.js?v=161';
+         nearestFolder } from '../engine/layer.js?v=162';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=162';
+import { valuesAt } from '../engine/anim.js?v=162';
+import { S, frameAsset, frameImage } from '../state.js?v=162';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=161';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=161';
-import { paintCanvas } from '../engine/paint.js?v=161';
-import { panoCanvas } from '../engine/pano.js?v=161';
-import { homography, applyH } from '../engine/warp.js?v=161';
-import { drawCamView } from './camview.js?v=161';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=161';
+         meshSizeFor } from '../engine/puppet.js?v=162';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=162';
+import { paintCanvas } from '../engine/paint.js?v=162';
+import { panoCanvas } from '../engine/pano.js?v=162';
+import { homography, applyH } from '../engine/warp.js?v=162';
+import { drawCamView } from './camview.js?v=162';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=162';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -707,6 +708,67 @@ function flatMesh(w, h){
     return l._maskC;
   }
 
+  /* ---------- 魚眼の 紙と 貼り直し ---------- */
+  let lensCanvas = null;
+  function lensSheet(){
+    if(!lensCanvas) lensCanvas = document.createElement('canvas');
+    if(lensCanvas.width !== canvas.width || lensCanvas.height !== canvas.height){
+      lensCanvas.width = canvas.width; lensCanvas.height = canvas.height;
+    }
+    const g = lensCanvas.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.filter = 'none';
+    g.clearRect(0, 0, lensCanvas.width, lensCanvas.height);
+    return g;
+  }
+
+  /* できあがった 1まいを、まん中が ふくらむ ように 貼り直す。
+     画面に ます目を かぶせて、その 点だけ 計算して 三角ずつ 貼る
+     （ぐるり360と 同じ 道具。1ドットずつ だと 重すぎる）。 */
+  const _lensMesh = {};
+  function lensMesh(w, h){
+    const cols = 28, rows = Math.max(8, Math.round(28 * h / w));
+    const key = cols + 'x' + rows + ':' + w + 'x' + h;
+    if(_lensMesh.key === key) return _lensMesh.m;
+    const verts = [], tris = [];
+    for(let r = 0; r <= rows; r++) for(let c = 0; c <= cols; c++){
+      verts.push({ u: c / cols * w, v: r / rows * h });
+    }
+    const id = (c, r) => r * (cols + 1) + c;
+    for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
+      tris.push(id(c, r), id(c+1, r), id(c, r+1));
+      tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+    }
+    const m = { verts, tris };
+    _lensMesh.key = key; _lensMesh.m = m;
+    return m;
+  }
+
+  function drawLens(g, sheet, project, tf, k){
+    const W = project.w, H = project.h;
+    const me = lensMesh(W, H);
+    const n = me.verts.length;
+    const cx = W / 2, cy = H / 2;
+    const half = Math.hypot(cx, cy);              // すみまでの きょり ＝ 1
+    const uv = new Float32Array(n * 2);
+    const xy = new Float32Array(n * 2);
+    for(let i = 0; i < n; i++){
+      const x = me.verts[i].u, y = me.verts[i].v;
+      // 貼る さき（画面）
+      xy[i*2]   = x * tf[0] + tf[4];
+      xy[i*2+1] = y * tf[3] + tf[5];
+      // どこを 見るか（もとの 絵）
+      const dx = x - cx, dy = y - cy;
+      const r = Math.hypot(dx, dy) / half;
+      const s = r > 1e-6 ? fishMap(r, k) / r : 1;
+      uv[i*2]   = (cx + dx * s) * tf[0] + tf[4];
+      uv[i*2+1] = (cy + dy * s) * tf[3] + tf[5];
+    }
+    drawDeformed(g, sheet, me, xy, 1, uv);
+  }
+
   /** b を a の下に敷く */
   function under(a, b){
     const g = a.getContext('2d');
@@ -1294,15 +1356,35 @@ function flatMesh(w, h){
        （アフターエフェクトの コンポの そとと 同じ 見え方）。 */
     const showOut = !opts.forExport && S.outside !== false;
 
+    /* ---- 魚眼（レンズ）----
+       レンズは できあがった 絵ぜんたいに かかる ので、
+       いったん べつの 紙に ぜんぶ 描いてから、
+       まん中が ふくらむ ように 貼り直す。 */
+    const camF = camOf(project, time);
+    const fishV = camF ? (valuesAt(camF, time).fish || 0) : 0;
+    const kFish = fishK(fishV);
+    const target = Math.abs(kFish) > 0.004 ? lensSheet() : ctx;
+
     ctx.save();
+    if(target !== ctx){
+      const gl = target;
+      gl.save();
+      gl.setTransform(...tf);
+    }
     if(!showOut){
-      ctx.beginPath();
-      ctx.rect(0, 0, project.w, project.h);
-      ctx.clip();
+      target.beginPath();
+      target.rect(0, 0, project.w, project.h);
+      target.clip();
     }
 
     lent = 0;
-    drawNodes(ctx, project, topNodes(project), poses, tf, subPoses);
+    drawNodes(target, project, topNodes(project), poses, tf, subPoses);
+    if(target !== ctx){
+      target.restore();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      drawLens(ctx, lensCanvas, project, tf, kFish);
+      ctx.setTransform(...tf);
+    }
     ctx.restore();
 
     if(showOut){
