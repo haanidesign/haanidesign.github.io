@@ -1220,6 +1220,12 @@ function startNew(resume){
   showNewDoc($('#newdoc'), (w, h, seconds) => {
     S.proj = newProject(w, h, seconds);
     S.docId = newId();                  // あたらしい さくひんの ばんごう
+    /* 音は さくひんごと。まえの こえを 持ちこさない。
+       音は プロジェクトの 外（Audio.A）に 持って いる ので、
+       ここで 消さないと まえの こえが そのまま 鳴り、
+       🔊 の 行も 出て、ほぞんにも 入って しまう。 */
+    Audio.stop();
+    Audio.clearAudio();
     S.ready = true;
     stage.resize();
     stage.fit();
