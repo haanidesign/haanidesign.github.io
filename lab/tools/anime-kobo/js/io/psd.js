@@ -55,11 +55,28 @@ export const BLEND_PSD = {
   difference: 'difference'
 };
 
-/* ag-psd の children は PSD ファイルの記録順＝奥から手前。（ミニSpineで実測済み） */
-function flatten(node, out, groupName){
+/* ag-psd の children は PSD ファイルの記録順＝奥から手前。（ミニSpineで実測済み）
+
+   グループは 入れ子の まま とっておく。
+   前は 名前だけを 持って いた ので、
+     ・グループの 中の グループが つぶれる
+     ・おなじ 名前の グループが ひとつに まざる
+   の 2つが おきて いた。いまは 1つずつに 番号を ふって、
+   その 番号の つながり（path）で 親子を 組み立てる。 */
+function flatten(node, out, groups, path){
   for(const ch of (node.children || [])){
     if(ch.hidden) continue;
-    if(ch.children) flatten(ch, out, ch.name || groupName);
+    if(ch.children){
+      const gid = 'g' + groups.length;
+      groups.push({
+        gid,
+        name: ch.name || 'フォルダ',
+        parent: path.length ? path[path.length - 1] : null,
+        opacity: ch.opacity === undefined ? 1 : ch.opacity,
+        blend: PSD_BLEND[String(ch.blendMode || 'normal').toLowerCase()] || 'normal'
+      });
+      flatten(ch, out, groups, path.concat(gid));
+    }
     else if(ch.canvas) out.push({
       name: ch.name || 'レイヤー',
       canvas: ch.canvas,
@@ -67,7 +84,7 @@ function flatten(node, out, groupName){
       top: ch.top || 0,
       opacity: ch.opacity === undefined ? 1 : ch.opacity,
       blend: PSD_BLEND[String(ch.blendMode || 'normal').toLowerCase()] || 'normal',
-      group: groupName || null
+      group: path.length ? path[path.length - 1] : null
     });
   }
 }
@@ -114,7 +131,8 @@ export async function importPsd(file, opts = {}){
   if(!psd || !psd.width) throw new Error('PSDとして読めませんでした');
 
   const flat = [];
-  flatten(psd, flat, null);
+  const groups = [];
+  flatten(psd, flat, groups, []);
   if(!flat.length) throw new Error('表示されているレイヤーが見つかりませんでした');
 
   const layers = flat.map(trim).filter(Boolean);
@@ -154,21 +172,35 @@ export async function importPsd(file, opts = {}){
       made.push({ lay, group: l.group || null });
     }
 
-    /* PSD のグループは そのままフォルダにする。
-       グループ名ごとに1つ作り、中身を入れる。
-       この時点では フォルダの回転じくは まん中に置きたいので、
-       中身の位置から出しておく（setParent が 見た目を保つ）。 */
-    const names = [...new Set(made.map(m => m.group).filter(Boolean))];
-    for(const gname of names){
-      const kids = made.filter(m => m.group === gname).map(m => m.lay);
-      if(kids.length < 1) continue;
-      const f = newFolder(gname);
+    /* PSD の グループを そのまま フォルダに する。
+       入れ子も その まま。深い ところから 作って、
+       できた フォルダを 外がわの フォルダに 入れて いく。
+
+       フォルダを 置く 場所は「中身の いちばん 手前」。
+       じくは 中身の まん中（setParent が 見た目を 保つ）。 */
+    const folders = {};                       // gid → フォルダレイヤー
+    const kidsOf = {};                        // gid → [レイヤー]
+    made.forEach(m => {
+      if(!m.group) return;
+      (kidsOf[m.group] = kidsOf[m.group] || []).push(m.lay);
+    });
+
+    // 深いものから。groups は 外→中の 順に できて いるので さかさに たどる
+    for(let i = groups.length - 1; i >= 0; i--){
+      const gr = groups[i];
+      const kids = kidsOf[gr.gid] || [];
+      if(!kids.length) continue;              // 空っぽの グループは 作らない
+      const f = newFolder(gr.name);
+      f.opacity = Math.max(0, Math.min(1, gr.opacity));
+      f.blend = gr.blend || 'normal';
       f.x = kids.reduce((a, k) => a + k.x, 0) / kids.length;
       f.y = kids.reduce((a, k) => a + k.y, 0) / kids.length;
-      // 中身のいちばん手前の位置に フォルダを置く
       const at = Math.min(...kids.map(k => S.proj.layers.indexOf(k)));
       S.proj.layers.splice(at, 0, f);
       kids.forEach(k => setParent(S.proj, k, f.id, 0));
+      folders[gr.gid] = f;
+      // できた フォルダは、外がわの フォルダの 中身に なる
+      if(gr.parent) (kidsOf[gr.parent] = kidsOf[gr.parent] || []).push(f);
     }
 
     S.sel = S.proj.layers[0] ? S.proj.layers[0].id : null;

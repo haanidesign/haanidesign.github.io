@@ -1111,27 +1111,6 @@ async function runExport(kind){
     pct.textContent = v + '%';
   };
 
-  /* PSD は 1まいの 絵。コマを 送らないので、進み具合は 出さずに 一気に。 */
-  if(kind === 'psd'){
-    try{
-      title.textContent = 'PSDを つくっています';
-      const { exportPsd } = await import('./io/psdout.js?v=176');
-      const blob = await exportPsd(S.proj);
-      const name = (S.proj.name || 'anime') + '.psd';
-      box.classList.remove('on');
-      sheet.open('できあがり', (b) => buildDoneSheet(b, () => sheet.close(),
-        { name, mb: (blob.size / 1048576).toFixed(1), canShare: canShareFile(blob, name) },
-        (how) => saveVideo(blob, name, how)));
-    }catch(err){
-      toast(err.message || 'PSDを つくれませんでした');
-    }finally{
-      exporting = false;
-      box.classList.remove('on');
-      refresh();
-    }
-    return;
-  }
-
   try{
     const g = S.proj.gif || {};
     const r = kind === 'gif'

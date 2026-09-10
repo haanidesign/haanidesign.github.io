@@ -3564,23 +3564,6 @@ export function buildExportSheet(box, closeFn, run){
     button('めやすを 見なおす', () => { guess(); })
   ));
 
-  /* ---- PSD ----
-     つづきを クリスタや フォトショップで 描く ための 出し方。
-     いまの コマだけを、レイヤーの まま 出す。 */
-  box.appendChild(heading('🖼 PSD（レイヤーのまま）'));
-  const pz = document.createElement('div');
-  pz.className = 'empty';
-  pz.style.textAlign = 'left';
-  pz.textContent = 'いま 見えている コマを、レイヤーを ばらしたまま 出します。' + NL
-    + 'フォルダは フォルダの まま、かさね方（乗算 など）と すけ具合も' + NL
-    + 'そのまま 引きつぎます。クリスタ・フォトショップで 開けます。' + NL
-    + '※ フォルダで ない「親つけ」は PSD に しくみが 無いので、' + NL
-    + '　 うごきを 焼きこんで 見た目だけ 合わせます。';
-  box.appendChild(pz);
-  box.appendChild(btnRow(
-    button('🖼 PSDで 書き出す', () => { if(closeFn) closeFn(); run('psd'); })
-  ));
-
   const w = document.createElement('div');
   w.className = 'empty';
   w.style.textAlign = 'left';
