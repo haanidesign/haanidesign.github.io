@@ -7,9 +7,9 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=158';
-import { A as AUD } from './audio.js?v=158';
-import { encodeGif } from './gif.js?v=158';
+import { createRenderer } from '../render/renderer.js?v=159';
+import { A as AUD, audioEnabled } from './audio.js?v=159';
+import { encodeGif } from './gif.js?v=159';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -58,7 +58,8 @@ export async function exportVideo(project, opts = {}){
 
   if(cfg && typeof Mp4Muxer !== 'undefined'){
     // 音を いっしょに 詰められるか 先に みておく（箱を作る前に 決めないといけない）
-    const acfg = await pickAudioCodec(AUD.buf);
+    /* 🔊 の 行の 目を 切って いたら、書き出しにも 入れない */
+    const acfg = audioEnabled(project) ? await pickAudioCodec(AUD.buf) : null;
     return await encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
                                        total, cfg, acfg, onProgress, shouldStop });
   }
@@ -83,7 +84,10 @@ async function pickAudioCodec(buf){
 }
 
 /** 音を 詰める。動画の長さで 切る */
-async function encodeAudio(muxer, cfg, buf, duration){
+/* off … おとの はじまりを どれだけ うしろへ ずらすか（秒）。
+   その ぶん、あたまに 音の ない ところを 足してから 詰める。
+   ここを やらないと、画面の 音と 書き出した 音が ずれる。 */
+async function encodeAudio(muxer, cfg, buf, duration, off){
   let failed = null;
   const enc = new AudioEncoder({
     output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
@@ -92,15 +96,22 @@ async function encodeAudio(muxer, cfg, buf, duration){
   enc.configure(cfg);
 
   const rate = cfg.sampleRate, ch = cfg.numberOfChannels;
-  const total = Math.min(buf.length, Math.floor(duration * rate));
+  const lead = Math.max(0, Math.round((off || 0) * rate));      // あたまの 無音
+  const total = Math.min(lead + buf.length, Math.floor(duration * rate));
   const block = 4096;
   const chans = [];
   for(let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
 
   for(let i = 0; i < total; i += block){
     const n = Math.min(block, total - i);
-    const data = new Float32Array(n * ch);
-    for(let c = 0; c < ch; c++) data.set(chans[c].subarray(i, i + n), c * n);
+    const data = new Float32Array(n * ch);          // ぜんぶ 0 ＝ 無音
+    for(let c = 0; c < ch; c++){
+      const src = chans[c];
+      for(let j = 0; j < n; j++){
+        const k = i + j - lead;                     // 音の 中の どこか
+        if(k >= 0 && k < src.length) data[c * n + j] = src[k];
+      }
+    }
     const ad = new AudioData({
       format: 'f32-planar',
       sampleRate: rate,
@@ -165,7 +176,10 @@ async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
   encoder.close();
   if(failed) throw failed;
 
-  if(acfg && AUD.buf) await encodeAudio(muxer, acfg, AUD.buf, total / fps);
+  if(acfg && AUD.buf){
+    const off = (project.audio && project.audio.offset) || 0;
+    await encodeAudio(muxer, acfg, AUD.buf, total / fps, off);
+  }
 
   muxer.finalize();
   onProgress(1);

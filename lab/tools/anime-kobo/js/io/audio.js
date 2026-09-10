@@ -37,6 +37,15 @@ export const A = {
 
 export const hasAudio = () => !!A.buf;
 
+/** 音を 鳴らして いいか。
+    🔊 の 行の 目を 切って いたら 鳴らさない（書き出しにも 入れない）。 */
+export function audioEnabled(project){
+  if(!A.buf) return false;
+  const row = project && project.layers
+    ? project.layers.find(l => l.kind === 'audio') : null;
+  return !row || row.visible !== false;
+}
+
 /** ファイル（または ArrayBuffer）から 読みこむ */
 export async function loadAudio(fileOrBytes, name){
   const bytes = fileOrBytes instanceof ArrayBuffer

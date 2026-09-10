@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=158';
+import { M } from './engine/math.js?v=159';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=158';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=159';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=158';
-import { createStage } from './ui/stage.js?v=158';
-import { createRenderer } from './render/renderer.js?v=158';
-import { createTimeline } from './ui/timeline.js?v=158';
-import { fmtTime } from './engine/anim.js?v=158';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=159';
+import { createStage } from './ui/stage.js?v=159';
+import { createRenderer } from './render/renderer.js?v=159';
+import { createTimeline } from './ui/timeline.js?v=159';
+import { fmtTime } from './engine/anim.js?v=159';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=158';
+         setWarper } from './ui/sheet.js?v=159';
 
-import { showNewDoc } from './ui/newdoc.js?v=158';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=158';
-import { fitToCanvas, isBg } from './io/bg.js?v=158';
-import * as Audio from './io/audio.js?v=158';
+import { showNewDoc } from './ui/newdoc.js?v=159';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=159';
+import { fitToCanvas, isBg } from './io/bg.js?v=159';
+import * as Audio from './io/audio.js?v=159';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=158';
-import { importPsd } from './io/psd.js?v=158';
-import { splitTextChars } from './io/text.js?v=158';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=159';
+import { importPsd } from './io/psd.js?v=159';
+import { splitTextChars } from './io/text.js?v=159';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=158';
-import { pathKeys, pathLength } from './engine/path.js?v=158';
-import { paintDirty } from './engine/paint.js?v=158';
+         canUseWebCodecs } from './io/export.js?v=159';
+import { pathKeys, pathLength } from './engine/path.js?v=159';
+import { paintDirty } from './engine/paint.js?v=159';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=158';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=159';
 
 const $ = (s) => document.querySelector(s);
 
@@ -112,7 +112,7 @@ let lastStageW = 0, lastStageH = 0;
       S.time = 0;
       if(Audio.hasAudio()){                        // くり返すときは 音も 頭から
         const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
-        Audio.play(0, v, (S.proj.audio && S.proj.audio.offset) || 0);
+        if(Audio.audioEnabled(S.proj)) Audio.play(0, v, (S.proj.audio && S.proj.audio.offset) || 0);
       }
     }
     $('#tnow').textContent = S.time.toFixed(1);
@@ -715,6 +715,7 @@ PIN_KINDS.forEach(([id, kind]) => {
 function startSound(){
   if(!Audio.hasAudio()) return;
   const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
+  if(!Audio.audioEnabled(S.proj)) return;
   Audio.play(S.time, v, (S.proj.audio && S.proj.audio.offset) || 0);
 }
 function stopSound(){ Audio.stop(); }
