@@ -939,7 +939,7 @@ function fit(){
   const desk=$(".desk");
   const avail=Math.max(200, desk.clientWidth - (window.innerWidth<600?12:32));
   fitK=Math.max(.25, Math.min(1, avail/PW));
-  const k=Math.max(.3, Math.min(2.2, fitK*userZoom));
+  const k=Math.max(.15, Math.min(2.2, fitK*userZoom));
   document.documentElement.style.setProperty("--k",k);
   const paperH=Math.max(PH,$("#paper").offsetHeight);
   const st=$("#stage");
@@ -954,13 +954,37 @@ function fit(){
   return k;
 }
 function setZoom(z){
-  const lo=.35/Math.max(fitK,.01), hi=2.2/Math.max(fitK,.01);
+  const lo=.15/Math.max(fitK,.01), hi=2.2/Math.max(fitK,.01);
   userZoom=Math.min(hi,Math.max(lo,z));
   try{ localStorage.setItem("techo:zoom",String(userZoom)); }catch(e){}
   fit(); sizeCanvas();
 }
 const stepZoom=(d)=>setZoom(userZoom*(d>0?1.25:1/1.25));
 function toggleZoom(){ setZoom(Math.abs(fitK*userZoom-1)<.02 ? 1 : 1/fitK); }
+
+/* 紙まるごと（たてよこ とも）画面に おさまる 倍率 */
+function screenK(){
+  const desk=$(".desk");
+  const pad=window.innerWidth<600?12:32;
+  const availW=Math.max(200, desk.clientWidth-pad);
+  const vpH=(window.visualViewport&&visualViewport.height)||window.innerHeight;
+  const bar=$(".bar");
+  const barH=bar?bar.offsetHeight+24:0;
+  const dv=$("#dividers");
+  const dvH=dv?dv.offsetHeight+8:0;
+  const bottom=window.innerWidth<900?128:56;
+  const availH=Math.max(140, vpH-barH-dvH-bottom);
+  const paperH=Math.max(PH,$("#paper").offsetHeight);
+  return Math.max(.15, Math.min(2.2, Math.min(availW/PW, availH/paperH)));
+}
+function zoomToScreen(){
+  setZoom(screenK()/Math.max(fitK,.01));
+  const st=$("#stage"), bar=$(".bar");
+  if(st){
+    const y=st.getBoundingClientRect().top+window.scrollY-((bar?bar.offsetHeight:0)+20);
+    window.scrollTo({top:Math.max(0,y),behavior:"smooth"});
+  }
+}
 
 /* ================= バネ ================= */
 /* 減衰比 z と応答 response（秒）の2値だけで決める。途中で目標を変えても速度を引き継ぐ */
@@ -2046,32 +2070,37 @@ const leaf=makeSpring(v=>{
   st.addEventListener("touchcancel",()=>{ if(active) finish(); });
 })();
 
-/* 二本指でトンと触れば前の頁、三本指なら次の頁 */
+/* 二本指でトンと触れば前の頁（バック）、三本指なら次の頁（進む） */
+/* つまむ操作が touch を横取りして pointer が消えるので、touch でひろう */
 (function multiTap(){
   const st=$("#stage");
-  const live=new Map();
-  let most=0, t0=0, slipped=false;
-  st.addEventListener("pointerdown",(e)=>{
-    if(e.pointerType==="mouse") return;
-    if(live.size===0){ most=0; t0=Date.now(); slipped=false; }
-    live.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    most=Math.max(most,live.size);
+  let most=0, t0=0, slipped=false, marks=null, going=false;
+  const near=(a,b)=>Math.hypot(a.clientX-b.x,a.clientY-b.y);
+  st.addEventListener("touchstart",(e)=>{
+    if(!going){ going=true; most=0; t0=Date.now(); slipped=false; }
+    most=Math.max(most,e.touches.length);
+    marks=[...e.touches].map(t=>({id:t.identifier,x:t.clientX,y:t.clientY}));
   },{passive:true});
-  st.addEventListener("pointermove",(e)=>{
-    const p=live.get(e.pointerId); if(!p) return;
-    if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>14) slipped=true;   // 動いたらタップではない
+  st.addEventListener("touchmove",(e)=>{
+    if(!marks||slipped) return;
+    for(const t of e.touches){
+      const m=marks.find(m=>m.id===t.identifier);
+      if(m&&near(t,m)>16){ slipped=true; break; }   // 動いたらタップではない
+    }
   },{passive:true});
-  const up=(e)=>{
-    if(!live.has(e.pointerId)) return;
-    live.delete(e.pointerId);
-    if(live.size) return;                       // 全部離れてから決める
-    const quick=Date.now()-t0<420;
-    if(!quick||slipped||tool!=="move") return;
-    if(most===2) $("#prev").click();            // 二本指 → 戻る
-    else if(most>=3) $("#next").click();        // 三本指 → 進む
-  };
-  st.addEventListener("pointerup",up);
-  st.addEventListener("pointercancel",(e)=>{ live.delete(e.pointerId); slipped=true; });
+  st.addEventListener("touchend",(e)=>{
+    if(e.touches.length) return;                    // 全部 離れてから 決める
+    going=false; marks=null;
+    const n=most; most=0;
+    if(slipped||Date.now()-t0>=420) return;
+    if(tool!=="move"||pinching) return;
+    if(n===2) $("#prev").click();                   // 二本指 → 戻る
+    else if(n>=3) $("#next").click();               // 三本指 → 進む
+  });
+  st.addEventListener("touchcancel",(e)=>{
+    slipped=true;
+    if(!e.touches.length){ going=false; marks=null; most=0; }
+  });
 })();
 
 /* トラックパッドの横スワイプでもめくる */
@@ -2147,7 +2176,7 @@ document.addEventListener("pointerdown",(e)=>{
 /* 大きさ */
 $("#zoomIn").onclick=()=>stepZoom(1);
 $("#zoomOut").onclick=()=>stepZoom(-1);
-$("#zoomFit").onclick=()=>setZoom(1);                        // 紙まるごと画面に
+$("#zoomFit").onclick=()=>zoomToScreen();                    // 紙まるごと画面に（たても よこも）
 $("#zoomFit").ondblclick=()=>setZoom(1/Math.max(fitK,.01));  // 二度押しで原寸
 
 /* 新規・削除 */
