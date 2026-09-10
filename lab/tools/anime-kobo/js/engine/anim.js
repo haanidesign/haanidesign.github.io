@@ -39,6 +39,7 @@ export const CH_LABEL = {
   x:'よこ', y:'たて', scaleX:'よこ幅', scaleY:'たて幅', rot:'かたむき', opacity:'すけ具合',
   tint:'塗り', blur:'ぼかし', stroke:'ふちどり', flipX:'左右反転', flipY:'上下反転', frame:'コマ',
   panY:'よこ回転', panP:'たて回転', panZ:'ズーム',
+  ballY:'玉を まわす', ballP:'玉を たおす',
   rx:'おくへ たおす', ry:'よこに まわす'
 };
 
@@ -419,6 +420,9 @@ export function valuesAt(layer, time){
     dof: layer.dof || 0,
 
     /* ぐるり360の 見ている むき。ふつうの レイヤーには 出てこない */
+    ballY: sample(tr.ballY, t, layer.ballY || 0),
+    ballP: sample(tr.ballP, t, layer.ballP || 0),
+
     panY: sample(tr.panY, t, layer.panY || 0),
     panP: sample(tr.panP, t, layer.panP || 0),
     panZ: sample(tr.panZ, t, layer.panZ == null ? 75 : layer.panZ),

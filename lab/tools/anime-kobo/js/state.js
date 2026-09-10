@@ -84,7 +84,9 @@ export const WORK_KEYS = new Set([
   '_cuv', '_puv',                       // フォルダを まとめた 別紙の はりどころ
   '_pnSrc', '_pnKey', '_pnW', '_pnH',   // ぐるり360の もとの 絵（よこ2まい）
   '_pnMesh', '_pnXY', '_pnUV',          // ぐるり360の あみ
-  '_q3xy', '_q3flat'                    // 立体（3D）で 四すみに はめた あと
+  '_q3xy', '_q3flat',                   // 立体（3D）で 四すみに はめた あと
+  '_blC', '_blKey', '_blMesh',          // 🔮 球に はった あとの 紙と あみ
+  '_blXY', '_blUV', '_blZ'
 ]);
 
 /** 作業だけの ものを のぞいた 写しを 作る（ほぞん・もどす で つかう） */

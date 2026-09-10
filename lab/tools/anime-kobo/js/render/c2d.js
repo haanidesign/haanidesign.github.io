@@ -12,6 +12,7 @@ import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMesh
 import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=176';
 import { paintCanvas } from '../engine/paint.js?v=176';
 import { panoCanvas } from '../engine/pano.js?v=176';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=176';
 import { homography, applyH } from '../engine/warp.js?v=176';
 import { drawCamView } from './camview.js?v=176';
 import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=176';
@@ -491,8 +492,11 @@ function flatMesh(w, h){
     else if(l.kind === 'pano') panoCanvas(l, pose.v);
 
     const asset = frameAsset(l, pose.v.frame);
-    const img0 = frameImage(l, pose.v.frame);
+    let   img0 = frameImage(l, pose.v.frame);
     if(!asset || !img0 || !img0.complete || !img0.naturalWidth) return;
+    /* 🔮 球に はって いる ときは、まるめた 1まいに 入れかえる。
+       大きさは もとの 絵の まま なので、場所も 大きさも そのまま きく。 */
+    if(ballOn(l)) img0 = ballCanvas(l, pose.v, img0, asset.id || asset.name);
     /* ✂ マスクは 絵そのものを 先に ぬく。
        こうすると ゆがみ・ピン・立体の あとにも ついて まわる。 */
     const img = maskedImage(l, asset, img0);

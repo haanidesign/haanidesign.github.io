@@ -21,6 +21,7 @@ import { addBgLayer, paintBg, fitToCanvas, isBg,
 import { PATTERN_NAMES } from '../io/pattern.js?v=176';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
          PITCH_MAX } from '../engine/pano.js?v=176';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=176';
 import { readAsDataURL, loadImage } from '../io/image.js?v=176';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
@@ -773,6 +774,7 @@ export function buildLayerSheet(box, closeFn){
   }
 
   panoRow(box, l);
+  ballRow(box, l);
   tiltRow(box, l);
   depthRow(box, l);
   box.appendChild(clipRow(l));
@@ -2510,6 +2512,93 @@ export function clearDraftText(){ draftText = null; }
    正距円筒（ぐるり1しゅうの 絵）を、その場に 立って 見まわす ように 出す。
    よこ回転・たて回転・ズーム は ふつうの チャンネルなので、
    タイミングピンが うてる＝そのまま 動画に なる。 */
+/* ---------- 🔮 球に はる ----------
+   絵の よこを ぐるり1しゅう、たてを 上から下 に して 玉に まく。
+   ふつうの レイヤーの まま なので、場所・大きさ・親つけ・
+   カメラは その まま きく。 */
+function ballRow(box, l){
+  /* box は 中で いれかえる ので let あつかいに する */
+  if(isPano(l) || isFolder(l)) return;
+  if(!l.frames || !l.frames.length) return;
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🔮 球に はる'));
+
+  const help = document.createElement('div');
+  help.className = 'empty';
+  help.style.textAlign = 'left';
+  help.textContent = '絵を まるい 玉に まきます。' + NL
+    + 'よこが ぐるり1しゅう、たてが 上から下 です。' + NL
+    + '世界地図を まくと 地球ぎ に なります。';
+  box.appendChild(help);
+
+  box.appendChild(field('球に はる', (() => {
+    const b = document.createElement('button');
+    const show = () => {
+      b.textContent = ballOn(l) ? '🔮 はって いる' : '□ はって いない';
+      b.classList.toggle('on', ballOn(l));
+    };
+    show();
+    b.style.flex = '1';
+    b.addEventListener('click', () => {
+      edit(ballOn(l) ? '球を やめる' : '球に はる', () => {
+        if(ballOn(l)) l.ball.on = false;
+        else l.ball = Object.assign(ballDefaults(), l.ball || {}, { on: true });
+        l._blKey = null;
+      });
+      show();
+      detail.hidden = !ballOn(l);
+      onChange();
+    });
+    return b;
+  })()));
+
+  /* 中みの つまみは 出しっぱなしに して、はって いない ときだけ かくす。
+     シートを 開きなおさずに すむ ので、さわり心地が とぎれない。 */
+  const detail = document.createElement('div');
+  detail.hidden = !ballOn(l);
+  box.appendChild(detail);
+  const box0 = box;
+  box = detail;
+
+  const deg = v => Math.round(v) + '°';
+  box.appendChild(animSlider('玉を まわす', l, 'ballY', -720, 720, 1, deg));
+  box.appendChild(animSlider('玉を たおす', l, 'ballP', -89, 89, 1, deg));
+
+  /* はって いない ときも つまみは 作る ので、入れ物が 無い ことが ある */
+  const B = () => (l.ball = l.ball || Object.assign(ballDefaults(), { on: false }));
+  box.appendChild(slider('まるみの かげ', () => B().shade == null ? 0.35 : B().shade,
+    v => { B().shade = v; l._blKey = null; }, 0, 0.8, 0.01,
+    v => v < 0.02 ? 'なし' : Math.round(v * 100) + '%'));
+  box.appendChild(slider('あみの こまかさ', () => B().cols || 32,
+    v => { B().cols = Math.round(v); B().rows = Math.round(v / 2); l._blKey = null; },
+    16, 72, 4, v => Math.round(v) + 'こま'));
+
+  box.appendChild(field('うごきを つける', btnRow(
+    button('🔄 ぐるっと1しゅう', () => {
+      edit('玉を まわす', () => ballSpinKeys(l, S.proj.duration, 1, false));
+      notify('さいしょから おわりまでで 1しゅう します');
+      onChange();
+    }),
+    button('↩ ぎゃくまわり', () => {
+      edit('玉を まわす', () => ballSpinKeys(l, S.proj.duration, 1, true));
+      notify('ぎゃく に まわります');
+      onChange();
+    })
+  )));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = '玉は 絵の 中に ぴったり 入る 円に なります。' + NL
+    + 'つなぎ目を きれいに するには、絵の 左はしと 右はしを' + NL
+    + 'つながる ように 描いて ください。' + NL
+    + 'あみを こまかく するほど なめらかですが 重くなります。' + NL
+    + '（1コマ 作るのに 24こま＝3ms、40こま＝9ms、60こま＝19ms）';
+  box.appendChild(note);
+  box = box0;
+}
+
+
 function panoRow(box, l){
   if(!isPano(l)) return;
   const NL = String.fromCharCode(10);
