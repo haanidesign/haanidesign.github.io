@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=196';
-import { setPin } from '../engine/anim.js?v=196';
-import { S } from '../state.js?v=196';
+import { drawDeformed } from './puppet.js?v=198';
+import { setPin } from '../engine/anim.js?v=198';
+import { S } from '../state.js?v=198';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);
@@ -149,26 +149,61 @@ export function ballCanvas(l, v, img, tag){
     const tv = r / rows;                      // 0 が 北（絵の 上）
     const lat = (0.5 - tv) * Math.PI;         // +90°〜 -90°
     const cl = Math.cos(lat), sl = Math.sin(lat);
+
+    /* この よこ線が「玉の ふち」を またぐ ところ の 経度。
+
+       ふちは 目から 見て まっすぐ よこの 大きな 円。
+       むこうがわ に 回った かどを ここへ 動かすと、
+       ふちが ほんとうの 丸に なる（かくばらない・すきまも 出ない）。
+       うつす 絵の 位置も その 経度に あわせるので、のびない。
+
+         z2 = sin(lat)sin(p) + cos(p)cos(lat)cos(lon + a) = 0
+         → cos(lon + a) = -sin(lat)sin(p) / (cos(p)cos(lat)) */
+    let lonA = null, lonB = null;
+    const den = cp * cl;
+    if(Math.abs(den) > 1e-6){
+      const arg = -sl * sp / den;
+      if(arg >= -1 && arg <= 1){
+        const t = Math.acos(arg);
+        lonA = t - a; lonB = -t - a;
+      }
+    }
+    /* -π〜π に そろえる（近い ほうを えらぶ ため） */
+    const wrap = (v) => {
+      while(v >  Math.PI) v -= Math.PI * 2;
+      while(v < -Math.PI) v += Math.PI * 2;
+      return v;
+    };
+    if(lonA !== null){ lonA = wrap(lonA); lonB = wrap(lonB); }
+
     for(let c = 0; c <= cols; c++){
       const tu = c / cols;
-      const lon = (tu - 0.5) * Math.PI * 2;
+      let lon = (tu - 0.5) * Math.PI * 2;
+      let tuUse = tu;
+
       // 玉の おもての 1点（まわす まえ）
-      let x = cl * Math.sin(lon);
-      let y = sl;
-      let z = cl * Math.cos(lon);
-      // よこに まわす（Y じくまわり）
-      const x1 =  x * ca + z * sa;
-      const z1 = -x * sa + z * ca;
-      // たてに たおす（X じくまわり）
-      const y2 = y * cp - z1 * sp;
-      const z2 = y * sp + z1 * cp;
+      const pt = (lo) => {
+        const x = cl * Math.sin(lo), y = sl, z = cl * Math.cos(lo);
+        const x1 =  x * ca + z * sa;
+        const z1 = -x * sa + z * ca;
+        return { x: x1, y: y * cp - z1 * sp, z: y * sp + z1 * cp };
+      };
+      let q = pt(lon);
+
+      if(q.z <= 0 && lonA !== null){
+        /* むこうがわ。近い ほうの「ふち」へ 動かす */
+        const dA = Math.abs(wrap(lon - lonA)), dB = Math.abs(wrap(lon - lonB));
+        const lo = dA < dB ? lonA : lonB;
+        q = pt(lo);
+        tuUse = tu + wrap(lo - lon) / (Math.PI * 2);
+      }
 
       const i = r * (cols + 1) + c;
-      xy[i*2]   = cx + x1 * R;
-      xy[i*2+1] = cy - y2 * R;                // 画面は 下むきが プラス
-      uv[i*2]   = uOff + tu * sw;
+      xy[i*2]   = cx + q.x * R;
+      xy[i*2+1] = cy - q.y * R;               // 画面は 下むきが プラス
+      uv[i*2]   = uOff + tuUse * sw;
       uv[i*2+1] = vOff + tv * sh;
-      zz[i] = z2;                             // プラスが こちらむき
+      zz[i] = q.z;                            // プラスが こちらむき
     }
   }
 
@@ -188,6 +223,8 @@ export function ballCanvas(l, v, img, tag){
   };
   for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
     const A = id(c, r), B = id(c+1, r), C = id(c, r+1), D = id(c+1, r+1);
+    /* ぜんぶ むこうがわ の ます目だけ 落とす。
+       ふちを またぐ ます目は のこす（かどは ふちへ 逃がして ある）。 */
     if(zz[A] <= 0 && zz[B] <= 0 && zz[C] <= 0 && zz[D] <= 0) continue;
     if(facing(A, B, C)) tris.push(A, B, C);
     if(facing(B, D, C)) tris.push(B, D, C);
