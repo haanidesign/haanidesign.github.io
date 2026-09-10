@@ -2096,39 +2096,82 @@ const leaf=makeSpring(v=>{
   st.addEventListener("touchcancel",()=>{ if(active) finish(); });
 })();
 
-/* 二本指でトンと触れば前の頁（バック）、三本指なら次の頁（進む） */
-/* 手書き中は 紙の うえの canvas が 指を 取り、touchcancel も とぶので、
-   紙の うえで 始まった 指は document で 最後まで 見張る */
+/* 二本指でトンと触れば前の頁（バック）、三本指なら次の頁（進む）
+   手書き中は 紙の うえの canvas が 指を 取り、touchcancel も とぶ。
+   端末に よって touch が 来ない ことも ある ので、
+   touch と pointer の どちらでも ひろい、二重に めくらない ように する */
 (function multiTap(){
-  let most=0, t0=0, slipped=false, marks=[], armed=false;
-  const moved=(t,m)=>Math.hypot(t.clientX-m.x,t.clientY-m.y);
-  document.addEventListener("touchstart",(e)=>{
-    if(!armed){
-      const st=e.target&&e.target.closest&&e.target.closest("#stage");
-      if(!st) return;                                // 紙のところ だけ
-      armed=true; most=0; t0=Date.now(); slipped=false;
-    }
-    most=Math.max(most,e.touches.length);
-    marks=[...e.touches].map(t=>({id:t.identifier,x:t.clientX,y:t.clientY}));
-  },{passive:true});
-  document.addEventListener("touchmove",(e)=>{
-    if(!armed||slipped) return;
-    for(const t of e.touches){
-      const m=marks.find(m=>m.id===t.identifier);
-      if(m&&moved(t,m)>28){ slipped=true; break; }   // 動いたら タップでは ない
-    }
-  },{passive:true});
-  const settle=(e)=>{
-    if(!armed||e.touches.length) return;             // 全部 離れてから 決める
-    armed=false; marks=[];
-    const n=most, quick=Date.now()-t0<560;
-    most=0;
-    if(slipped||!quick) return;
+  let lock=0;
+  function fire(n){
+    const now=Date.now();
+    if(now<lock) return;                             // touch と pointer の 二重うち よけ
+    lock=now+600;
     if(n===2) turnBy(-1);                            // 二本指 → 戻る
     else if(n>=3) turnBy(1);                         // 三本指 → 進む
-  };
-  document.addEventListener("touchend",settle,{passive:true});
-  document.addEventListener("touchcancel",settle,{passive:true});
+  }
+  const onStage=(el)=>!!(el&&el.closest&&el.closest("#stage"));
+
+  /* ① touch でひろう */
+  (function(){
+    let most=0,t0=0,slipped=false,marks=[],armed=false;
+    document.addEventListener("touchstart",(e)=>{
+      if(!armed){
+        if(!onStage(e.target)) return;
+        armed=true; most=0; t0=Date.now(); slipped=false;
+      }
+      most=Math.max(most,e.touches.length);
+      if(most>=2) setStatus("指 "+most+" 本");
+      marks=[...e.touches].map(t=>({id:t.identifier,x:t.clientX,y:t.clientY}));
+    },{passive:true});
+    document.addEventListener("touchmove",(e)=>{
+      if(!armed||slipped) return;
+      for(const t of e.touches){
+        const m=marks.find(m=>m.id===t.identifier);
+        if(m&&Math.hypot(t.clientX-m.x,t.clientY-m.y)>28){ slipped=true; break; }
+      }
+    },{passive:true});
+    const settle=(e)=>{
+      if(!armed||e.touches.length) return;
+      armed=false; marks=[];
+      const n=most; most=0;
+      if(slipped||Date.now()-t0>=560) return;
+      fire(n);
+    };
+    document.addEventListener("touchend",settle,{passive:true});
+    document.addEventListener("touchcancel",settle,{passive:true});
+  })();
+
+  /* ② pointer でも ひろう（touch が 来ない 端末むけ） */
+  (function(){
+    const live=new Map();
+    let most=0,t0=0,slipped=false,armed=false;
+    document.addEventListener("pointerdown",(e)=>{
+      if(e.pointerType==="mouse") return;
+      if(!armed){
+        if(!onStage(e.target)) return;
+        armed=true; most=0; t0=Date.now(); slipped=false; live.clear();
+      }
+      live.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      most=Math.max(most,live.size);
+      if(most>=2) setStatus("指 "+most+" 本");
+    },{passive:true});
+    document.addEventListener("pointermove",(e)=>{
+      const p=live.get(e.pointerId);
+      if(!p||slipped) return;
+      if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>28) slipped=true;
+    },{passive:true});
+    const settle=(e)=>{
+      if(!armed||!live.has(e.pointerId)) return;
+      live.delete(e.pointerId);
+      if(live.size) return;
+      armed=false;
+      const n=most; most=0;
+      if(slipped||Date.now()-t0>=560) return;
+      fire(n);
+    };
+    document.addEventListener("pointerup",settle,{passive:true});
+    document.addEventListener("pointercancel",settle,{passive:true});
+  })();
 })();
 
 /* トラックパッドの横スワイプでもめくる */
