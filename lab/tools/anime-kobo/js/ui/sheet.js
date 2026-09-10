@@ -1,39 +1,39 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=159';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=160';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=159';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=160';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=159';
-import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=159';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=159';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=159';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=159';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=160';
+import { swayKeys, swayPose, newSway, RIGID } from '../engine/puppet.js?v=160';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=160';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=160';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=160';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=159';
+         addTextLayer } from '../io/text.js?v=160';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=159';
-import { PATTERN_NAMES } from '../io/pattern.js?v=159';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=160';
+import { PATTERN_NAMES } from '../io/pattern.js?v=160';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=159';
-import { readAsDataURL, loadImage } from '../io/image.js?v=159';
+         PITCH_MAX } from '../engine/pano.js?v=160';
+import { readAsDataURL, loadImage } from '../io/image.js?v=160';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=159';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=159';
-import { newHand } from '../engine/hand.js?v=159';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=159';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=160';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=160';
+import { newHand } from '../engine/hand.js?v=160';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=160';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=159';
-import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans,
+  from './colorwheel.js?v=160';
+import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=159';
+         guessBpm, firstOnset } from '../io/audio.js?v=160';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=159';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=160';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2137,11 +2137,29 @@ export function buildFaceSheet(box){
     box.appendChild(e);
   } else {
     l.voice = l.voice || { sense: 0.12, rate: 10 };
+    const lv = levels();
     box.appendChild(sub('声が 出ている所だけ 口を動かします。'
       + NL + '大きい声ほど 口を 大きくあけます（コマが3まい以上のとき）。'));
+
+    /* いまの 録音の「しずけさ」と「声」の ひらきを 見せる。
+       ここが せまい（10デシベル いか）と、どんな つまみでも
+       うまく いかない ―― まわりが うるさすぎる、が 見て 分かる。 */
+    const gapDb = Math.round(lv.loud - lv.floor);
+    box.appendChild(sub('この 録音は、しずけさと 声の ひらきが '
+      + gapDb + 'デシベル。'
+      + NL + (gapDb >= 18 ? 'たっぷり あるので うまく いきます。'
+            : gapDb >= 10 ? 'まあまあ です。'
+            : 'せまい です（まわりの 音が 大きい）。' + NL
+              + 'マイクを 近づけて 録り直すと よく なります。')));
+
     box.appendChild(slider('ひろいやすさ', () => l.voice.sense, v => l.voice.sense = v,
       0.03, 0.4, 0.01,
-      v => v < 0.08 ? 'ちいさい声も' : v > 0.25 ? '大きい声だけ' : 'ふつう'));
+      v => {
+        const t = v <= 0.4 ? v / 0.4 : 1;
+        const g = Math.round(3 + t * 15);
+        return (v < 0.1 ? 'ささやきも' : v > 0.28 ? '大きい声だけ' : 'ふつう')
+             + '（しずけさ +' + g + 'dB）';
+      }));
     box.appendChild(slider('口のはやさ', () => l.voice.rate, v => l.voice.rate = v, 4, 16, 1,
       v => Math.round(v) + '/秒'));
     box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));

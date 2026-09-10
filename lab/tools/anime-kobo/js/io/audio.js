@@ -101,24 +101,84 @@ export function envelope(buf, slot){
  * ・いちばん大きい所を 1 として しきい値を決める（録音の音量に左右されない）
  * ・ちょっとの すきま は つないで、口が バタつくのを ふせぐ
  */
+/* ---------- 声の 大きさの ものさし ----------
+
+   まえは「いちばん 大きい ところ（peak）の 何わり」で
+   しゃべって いるかを きめて いた。これが うまく いかない。
+
+   声には ふつう 20〜30デシベルの ひらきが ある。
+   ひと声 大きい ところが あると peak が そこに 引っぱられ、
+   ふつうの 声は その 1わり ぐらいに なって しまう。
+   ＝ 大きい 声だけ 口が 動いて、小さい 声は だんまり。
+   「ひろいやすさ」を 下げると 今度は 部屋の ノイズまで ひろう。
+
+   耳は かけ算（デシベル）で 聞いて いる ので、
+   ものさしも そちらに そろえる。
+     ・その 録音の「いちばん 静かな ところ」＝ 部屋の しずけさ を さがす
+     ・そこから 何デシベル 上を 声と みなすか、で きめる
+   こうすると、小さい 声の 録音でも 大きい 声の 録音でも
+   同じ つまみで うまく いく。 */
+
+const dB = (x) => 20 * Math.log10(Math.max(1e-7, x));
+
+/** ならびの p ばんめ（0〜1）の 大きさ */
+function pct(arr, p){
+  const a = Array.from(arr).sort((x, y) => x - y);
+  if(!a.length) return 0;
+  const i = Math.max(0, Math.min(a.length - 1, Math.round((a.length - 1) * p)));
+  return a[i];
+}
+
+/** その 録音の しずけさ と、よく 出て いる 声の 大きさ（デシベル） */
+export function levels(){
+  if(!A.env || !A.env.length) return { floor: -60, loud: -12 };
+  if(A._lv && A._lvFor === A.env) return A._lv;
+  const env = A.env;
+  /* しずけさ … 下から 15%。まるごと 無音の ところが 無くても
+     いちばん 静かな あたりを ひろえる。 */
+  const floor = dB(pct(env, 0.15));
+  /* 声 … 上から 1わり（いちばん 大きい ひと声には 引っぱられない） */
+  const loud = dB(pct(env, 0.90));
+  const lv = { floor, loud: Math.max(loud, floor + 6) };
+  A._lv = lv; A._lvFor = A.env;
+  return lv;
+}
+
+/**
+ * しゃべって いる ところ。
+ * sense … 0（小さい 声も ひろう）〜1（大きい 声だけ）。
+ *         しずけさから 何デシベル 上を 声と みなすか に なおす。
+ */
 export function speechSpans(opt = {}){
   if(!A.env) return [];
   const env = A.env, slot = A.slot;
-  const peak = A.peak || 1;
-  const th = peak * (opt.sense == null ? 0.12 : opt.sense);
-  const bridge = Math.max(0, opt.bridge == null ? 0.12 : opt.bridge);   // つなぐ すきま（秒）
-  const least  = Math.max(0, opt.least == null ? 0.06 : opt.least);     // これより短い声は 無視
+  const { floor, loud } = levels();
+
+  /* つまみ 0〜1 を 3〜18デシベル に。
+     まえの つまみ（0.03〜0.4）で よんでも おかしく ならない ように
+     0.4 いかは そのまま 0〜1 に のばして 読む。 */
+  const raw = opt.sense == null ? 0.12 : opt.sense;
+  const s = raw <= 0.4 ? raw / 0.4 : Math.min(1, raw);
+  let gap = 3 + s * 15;
+  /* 声と しずけさの ひらきが 小さい 録音（うるさい 部屋）では、
+     ひらきの 半分より 上には しない ―― 何も ひろえなく なる ので。 */
+  gap = Math.min(gap, Math.max(3, (loud - floor) * 0.6));
+
+  const openTh  = floor + gap;
+  const closeTh = openTh - 3;                 // いちど 開いたら 少し ねばる
+  const bridge = Math.max(0, opt.bridge == null ? 0.12 : opt.bridge);
+  const least  = Math.max(0, opt.least == null ? 0.06 : opt.least);
 
   const spans = [];
   let from = -1;
   for(let i = 0; i < env.length; i++){
-    const on = env[i] >= th;
+    const d = dB(env[i]);
+    const on = from < 0 ? (d >= openTh) : (d >= closeTh);
     if(on && from < 0) from = i;
     if(!on && from >= 0){ spans.push([from, i]); from = -1; }
   }
   if(from >= 0) spans.push([from, env.length]);
 
-  // すきまを つなぐ
   const joined = [];
   for(const sp of spans){
     const last = joined[joined.length - 1];
@@ -131,12 +191,20 @@ export function speechSpans(opt = {}){
     .map(sp => ({ from: sp[0] * slot, to: sp[1] * slot }));
 }
 
-/** その時刻の 声の大きさ（0〜1）。いちばん大きい所を 1 にそろえる */
+/**
+ * その 時こくの 声の 大きさ（0〜1）。
+ * ここも デシベルで はかる ので、小さい 声でも ちゃんと
+ * 口が あく（まえは いちばん 大きい ところ わり だった ので、
+ * 小さい 声は ずっと 0 に 近く、口が ほとんど 動かなかった）。
+ */
 export function loudnessAt(t){
-  if(!A.env || !A.peak) return 0;
+  if(!A.env) return 0;
   const i = Math.floor(t / A.slot);
   if(i < 0 || i >= A.env.length) return 0;
-  return Math.min(1, A.env[i] / A.peak);
+  const { floor, loud } = levels();
+  const lo = floor + 3, hi = Math.max(lo + 6, loud);
+  const v = (dB(A.env[i]) - lo) / (hi - lo);
+  return Math.max(0, Math.min(1, v));
 }
 
 /**
@@ -175,10 +243,23 @@ export function voiceMouthKeys(opt = {}){
 
   put(start, closed);
   for(const sp of spans){
+    /* しゃべって いる あいだは、どんなに 小さい 声でも
+       口は 動いて いて ほしい。だから この ひとくぎりの 中で
+       いちばん 小さい ところを 0、いちばん 大きい ところを 1 と して
+       ふり直す（ささやきは ささやきなりに パクパクする）。 */
+    let lo = 1, hi = 0;
     for(let t = sp.from; t < sp.to; t += step){
       const lv = loudnessAt(t);
-      // 0〜1 を コマに ふりわける。小さい声＝小さい口
-      let i = Math.round(lv * (opens.length - 1) * 1.25);
+      if(lv < lo) lo = lv;
+      if(lv > hi) hi = lv;
+    }
+    const span = Math.max(0.06, hi - lo);
+
+    for(let t = sp.from; t < sp.to; t += step){
+      const lv = (loudnessAt(t) - lo) / span;
+      /* コマに ふりわける。いちばん 下の あいた口 より 下には しない
+         ＝ 声が 出て いる あいだは かならず 口が あく。 */
+      let i = Math.round(lv * (opens.length - 1) + 0.15);
       i = Math.max(0, Math.min(opens.length - 1, i));
       put(start + t, opens[i]);
     }

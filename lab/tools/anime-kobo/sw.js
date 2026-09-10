@@ -11,7 +11,7 @@
      この 道具は しょっちゅう 直すので、新しいのを 先に する。
      そのかわり 電波が 無い ときも 前に 見た ぶんは ひらける。 */
 
-const VER = 'v159';
+const VER = 'v160';
 const BOX = 'anime-kobo-' + VER;
 
 self.addEventListener('install', (e) => {
