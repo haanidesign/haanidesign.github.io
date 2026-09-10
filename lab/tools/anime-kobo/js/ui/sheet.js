@@ -1,42 +1,42 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=188';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=189';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=188';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=189';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=188';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=189';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=188';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=188';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=188';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=188';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=189';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=189';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=189';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=189';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=188';
+         addTextLayer } from '../io/text.js?v=189';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=188';
-import { PATTERN_NAMES } from '../io/pattern.js?v=188';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=189';
+import { PATTERN_NAMES } from '../io/pattern.js?v=189';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=188';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=188';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=188';
-import { readAsDataURL, loadImage } from '../io/image.js?v=188';
+         PITCH_MAX } from '../engine/pano.js?v=189';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=189';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=189';
+import { readAsDataURL, loadImage } from '../io/image.js?v=189';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=188';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=188';
-import { newHand } from '../engine/hand.js?v=188';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=188';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=189';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=189';
+import { newHand } from '../engine/hand.js?v=189';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=189';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=188';
+  from './colorwheel.js?v=189';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=188';
+         guessBpm, firstOnset } from '../io/audio.js?v=189';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=188';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=189';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -53,6 +53,23 @@ document.addEventListener('pointerup', () => {
   if(document.querySelector('.wheelbox:not([hidden])')) return;
   holding = false;
 }, true);
+
+/* よこ画面の タブレットでは、せってい を 右に つけっぱなしに する。
+   絵・タイムライン・せってい を 同時に さわれる ように する ため。
+   （下から せり上がる 幕だと、時間を ずらす たびに 出し入れに なる） */
+const DOCK_Q = '(min-width:900px) and (orientation:landscape)';
+export const canDock = () => window.matchMedia(DOCK_Q).matches;
+let dockHook = null;
+/** 横づけに なった／やめた ときに 絵の 大きさを 直す ための 呼び出し口 */
+export function setDockHook(fn){ dockHook = fn; }
+
+function setDock(on){
+  const want = !!on && canDock();
+  const now = document.body.classList.contains('docked');
+  if(want === now) return;
+  document.body.classList.toggle('docked', want);
+  if(dockHook) dockHook(want);
+}
 
 export function createSheet(sheetEl, backEl){
   let builder = null;
@@ -99,6 +116,7 @@ export function createSheet(sheetEl, backEl){
     render(title);
     sheetEl.classList.add('on');
     backEl.classList.add('on');
+    setDock(true);
     liftStage(true);
   }
 
@@ -111,10 +129,12 @@ export function createSheet(sheetEl, backEl){
     render(title);
     sheetEl.classList.add('on');
     backEl.classList.add('on');
+    setDock(true);
     liftStage(true);
   }
   function close(){
     holdSheet(false);
+    setDock(false);
     liftStage(false);
     sheetEl.classList.remove('on');
     backEl.classList.remove('on');
@@ -136,6 +156,19 @@ export function createSheet(sheetEl, backEl){
     const h = document.createElement('div');
     h.className = 'handle';
     sheetEl.appendChild(h);
+
+    /* 横づけの ときは うしろの 幕が 無い ので、とじる ボタンを 出す */
+    if(canDock()){
+      const bar = document.createElement('div');
+      bar.className = 'dockclose';
+      const x = document.createElement('button');
+      x.className = 'btn-sm';
+      x.textContent = '✕ とじる';
+      x.title = 'せっていを とじる';
+      x.addEventListener('click', () => close());
+      bar.appendChild(x);
+      sheetEl.appendChild(bar);
+    }
 
     if(pages){
       const tabs = document.createElement('div');

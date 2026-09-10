@@ -892,3 +892,49 @@
   pointer-events:none;
   opacity:.85;
 }
+
+
+/* ================= よこ画面の タブレット：せってい を 横に つける =================
+
+   なぜ
+     せっていは 下から せり上がる 幕なので、絵と タイムラインを
+     かくして しまう。「時間を ずらす → 幕を 出す → 数字を いじる →
+     幕を しまう → ピンを うつ」を 何回も くりかえす ことに なる。
+     画面が よこに ひろい ときは、右に つけっぱなしに して
+     絵・タイムライン・せってい を 同時に さわれる ように する。
+
+   しくみ
+     #sheet を 右の はしらに して、その ぶん #app を せまく する
+     （#app は position:fixed なので right を ずらすだけ）。
+     うしろの 黒い 幕は じゃまに なる ので 出さない。 */
+@media (min-width:900px) and (orientation:landscape){
+  :root{ --dock-w:340px; }
+
+  #sheet{
+    left:auto; right:0; top:0; bottom:0;
+    width:var(--dock-w);
+    max-height:none;
+    border:none; border-left:var(--bd);
+    border-radius:0;
+    padding:calc(.5rem + var(--safe-t)) .7rem calc(1rem + var(--safe-b));
+    transform:translateX(102%);
+  }
+  #sheet.on{ transform:translateX(0); }
+
+  /* うしろを くらくしない（絵を 見ながら いじる ため）。
+     とじるのは せっていの ✕ ボタン。 */
+  #sheetBack{ display:none; }
+
+  /* せっていを 出して いる あいだは、絵の ほうを せまく する */
+  body.docked #app{ right:var(--dock-w); }
+
+  /* 上の つまみ（幕を つかむ ところ）は 横づけ では いらない */
+  #sheet .handle{ display:none; }
+
+  #sheet .dockclose{
+    position:sticky; top:0; z-index:3;
+    display:flex; justify-content:flex-end;
+    background:var(--paper); padding-bottom:.3rem;
+  }
+  #sheet .dockclose button{ min-height:34px; padding:0 .7rem; }
+}

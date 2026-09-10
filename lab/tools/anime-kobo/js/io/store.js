@@ -12,7 +12,7 @@
 
 const DB = 'anime-kobo';
 const STORE = 'doc';      // むかしの ひとつだけの ほぞん（読みこむだけ）
-import { plain } from '../state.js?v=188';
+import { plain } from '../state.js?v=189';
 
 const DOCS = 'docs';      // いまの ほぞん。さくひんごとに 1件
 const KEY = 'last';

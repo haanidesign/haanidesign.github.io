@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=188';
+import { M } from './engine/math.js?v=189';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=188';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=189';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=188';
-import { createStage } from './ui/stage.js?v=188';
-import { createRenderer } from './render/renderer.js?v=188';
-import { createTimeline } from './ui/timeline.js?v=188';
-import { fmtTime } from './engine/anim.js?v=188';
-import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=189';
+import { createStage } from './ui/stage.js?v=189';
+import { createRenderer } from './render/renderer.js?v=189';
+import { createTimeline } from './ui/timeline.js?v=189';
+import { fmtTime } from './engine/anim.js?v=189';
+import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=188';
+         setWarper } from './ui/sheet.js?v=189';
 
-import { showNewDoc } from './ui/newdoc.js?v=188';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=188';
-import { fitToCanvas, isBg } from './io/bg.js?v=188';
-import * as Audio from './io/audio.js?v=188';
+import { showNewDoc } from './ui/newdoc.js?v=189';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=189';
+import { fitToCanvas, isBg } from './io/bg.js?v=189';
+import * as Audio from './io/audio.js?v=189';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=188';
-import { importPsd } from './io/psd.js?v=188';
-import { splitTextChars } from './io/text.js?v=188';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=189';
+import { importPsd } from './io/psd.js?v=189';
+import { splitTextChars } from './io/text.js?v=189';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=188';
-import { pathKeys, pathLength } from './engine/path.js?v=188';
-import { paintDirty } from './engine/paint.js?v=188';
+         canUseWebCodecs } from './io/export.js?v=189';
+import { pathKeys, pathLength } from './engine/path.js?v=189';
+import { paintDirty } from './engine/paint.js?v=189';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=188';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=189';
 
 const $ = (s) => document.querySelector(s);
 
@@ -75,6 +75,16 @@ function refresh(){
 }
 onChange(refresh);
 onRestore(() => refresh());
+
+/* せっていを 右に つけた／はずした ぶん、絵の 場所を ずらす。
+   ずらさないと、見えて いた ところが 幕の 下に 入って しまう。
+   ズームは そのまま に する（つけるたび に 大きさが 変わると 目が つかれる）。 */
+setDockHook((on) => {
+  const w = parseFloat(getComputedStyle(document.documentElement)
+              .getPropertyValue('--dock-w')) || 340;
+  S.view.x += (on ? -w / 2 : w / 2);
+  setTimeout(() => { stage.resize(); refresh(); }, 0);
+});
 
 /* ---- じどう保存 ----
    ブラウザで もどってしまっても 作りかけが 残るように、
