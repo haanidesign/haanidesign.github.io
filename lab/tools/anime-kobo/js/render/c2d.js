@@ -3,20 +3,20 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=189';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=189';
-import { valuesAt } from '../engine/anim.js?v=189';
-import { S, frameAsset, frameImage } from '../state.js?v=189';
+         nearestFolder } from '../engine/layer.js?v=190';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=190';
+import { valuesAt } from '../engine/anim.js?v=190';
+import { S, frameAsset, frameImage } from '../state.js?v=190';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=189';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=189';
-import { paintCanvas } from '../engine/paint.js?v=189';
-import { panoCanvas } from '../engine/pano.js?v=189';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=189';
-import { roomCanvas } from '../engine/room.js?v=189';
-import { homography, applyH } from '../engine/warp.js?v=189';
-import { drawCamView } from './camview.js?v=189';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=189';
+         meshSizeFor } from '../engine/puppet.js?v=190';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=190';
+import { paintCanvas } from '../engine/paint.js?v=190';
+import { panoCanvas } from '../engine/pano.js?v=190';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=190';
+import { roomCanvas } from '../engine/room.js?v=190';
+import { homography, applyH } from '../engine/warp.js?v=190';
+import { drawCamView } from './camview.js?v=190';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=190';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -341,7 +341,16 @@ function flatMesh(w, h){
         l._q3flat[i*2] = me.verts[i].u; l._q3flat[i*2+1] = me.verts[i].v;
       }
       l._q3xy = mapXY(l._q3flat, n, H3, l._q3xy);
-      drawDeformed(g, img, me, l._q3xy);
+      /* この あみは「きっちり となり合う」＝ かさならない ので 足し算で つなぐ。
+         ふくらませて 上から ぬる やり方だと、すけた ところ
+         （トーンの 点・筆の ガサガサした ふち・うすい 色）で
+         つぎ目が くっきり 出る。
+         実測（すけ具合25%の 紙を あみで うつす）：
+           ふくらませる … ずれ −20〜+69（はっきり 見える 三角の すじ）
+           足し算       … ずれ −0.9〜+0.1（見えない）
+         あみの 形は 毎コマ 同じ なので、ちらつきの 心配も ない
+         （ちらつくのは ゆがみ・ピン・手がき風 のような 動く あみ）。 */
+      drawDeformed(g, img, me, l._q3xy, 1, null, 'add');
 
     } else {
       g.drawImage(img, -asset.w * l.pivot.x, -asset.h * l.pivot.y, asset.w, asset.h);
@@ -834,8 +843,8 @@ function flatMesh(w, h){
     }
     /* レンズの 紙は 下じきごと 焼いて ある＝すけて いない ので、
        ほんの少し ふくらませて まるめの すきまを 消して よい。 */
-    /* フォルダの 紙は「きっちり となり合う あみ」＝ 足し算で つなげる。
-       中みが すけて いても（かげ・ひかり・うすい ふち）つぎ目が 出ない。
+    /* レンズの あみも「きっちり となり合う」＝ 足し算で つなげる。
+       すける ところ（かげ・ひかり）でも つぎ目が 出ない。
        あみは 毎コマ 同じ 形なので、ちらつきの 心配も ない。 */
     drawDeformed(g, sheet, me, xy, 1, uv, 'add');
   }
@@ -1265,7 +1274,13 @@ function flatMesh(w, h){
       xy[i*2]   = q.x * tf[0] + tf[4];
       xy[i*2+1] = q.y * tf[3] + tf[5];
     }
-    drawDeformed(g, sheet, me, xy, 1, uv);
+    /* まとめた 紙は「中みが すけて いる」ことが ある
+       （中の レイヤーの かげ・ひかり・うすい 色）。
+       ふくらませて 上から ぬる やり方だと、その すけた ところで
+       三角の つぎ目が くっきり 出る（実測 ずれ +69）。
+       この あみは きっちり となり合って いて かさならない ので、
+       足し算で つなげば ぴったり 合う（実測 ずれ −0.9〜+0.1）。 */
+    drawDeformed(g, sheet, me, xy, 1, uv, 'add');
   }
 
   /* この レイヤーは シャッターの あいだに 動いて いるか。

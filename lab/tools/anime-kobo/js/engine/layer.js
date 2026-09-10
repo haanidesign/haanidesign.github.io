@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=189';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=189';
+import { M, uid, ptInQuad } from './math.js?v=190';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=190';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=189';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=189';
-import { cageDeformPoint, cageMoved } from './warp.js?v=189';
-import { handTime } from './hand.js?v=189';
-import { WORK_KEYS } from '../state.js?v=189';
+         withShake } from './camera.js?v=190';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=190';
+import { cageDeformPoint, cageMoved } from './warp.js?v=190';
+import { handTime } from './hand.js?v=190';
+import { WORK_KEYS } from '../state.js?v=190';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -367,6 +367,19 @@ export function computeAll(project, time){
     /* フォルダの 中の フォルダも 中まで 見る。
        見ないと、その 中の 絵が 板から はみ出て 切れて しまう
        （中が フォルダだけ だと 板じたいが できない）。 */
+    /* 中みの かげ・ひかり・ふちどりは 絵の そとへ ひろがる。
+       その ぶんも 板に 入れて おかないと、たおした とたん
+       かげが まるごと 切れて 消える（実測: たおすと かげの
+       こさ 62 → 0 に なって いた）。 */
+    const kidPad = (k, kv) => {
+      let p = (kv.strokeW || 0) + (kv.blur || 0) * 3;
+      if(kv.shadowAmount > 0.001){
+        p = Math.max(p, Math.abs(kv.shadowX || 0) + Math.abs(kv.shadowY || 0)
+                      + (kv.shadowBlur || 0) + (kv.shadowSoft || 0) * 2);
+      }
+      if(kv.glowAmount > 0.001) p = Math.max(p, (kv.glowSize || 0) * 2);
+      return p;
+    };
     const eat = (g, depth) => {
       if(depth > 16) return;
       for(const k of membersOf(project, g)){
@@ -377,9 +390,10 @@ export function computeAll(project, time){
         if(!a) continue;
         const c = cornersOf(k, kp.m, a);
         if(!c) continue;
+        const kp2 = kidPad(k, kp.v);
         for(const q of c){
-          x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
-          x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+          x0 = Math.min(x0, q.x - kp2); y0 = Math.min(y0, q.y - kp2);
+          x1 = Math.max(x1, q.x + kp2); y1 = Math.max(y1, q.y + kp2);
         }
       }
     };
