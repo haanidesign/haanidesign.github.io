@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=174';
+import { M } from './engine/math.js?v=176';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=174';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=176';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=174';
-import { createStage } from './ui/stage.js?v=174';
-import { createRenderer } from './render/renderer.js?v=174';
-import { createTimeline } from './ui/timeline.js?v=174';
-import { fmtTime } from './engine/anim.js?v=174';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=176';
+import { createStage } from './ui/stage.js?v=176';
+import { createRenderer } from './render/renderer.js?v=176';
+import { createTimeline } from './ui/timeline.js?v=176';
+import { fmtTime } from './engine/anim.js?v=176';
 import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,22 @@ import { createSheet, buildLayerSheet, buildMotionSheet, buildTextSheet,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=174';
+         setWarper } from './ui/sheet.js?v=176';
 
-import { showNewDoc } from './ui/newdoc.js?v=174';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=174';
-import { fitToCanvas, isBg } from './io/bg.js?v=174';
-import * as Audio from './io/audio.js?v=174';
+import { showNewDoc } from './ui/newdoc.js?v=176';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=176';
+import { fitToCanvas, isBg } from './io/bg.js?v=176';
+import * as Audio from './io/audio.js?v=176';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=174';
-import { importPsd } from './io/psd.js?v=174';
-import { splitTextChars } from './io/text.js?v=174';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=176';
+import { importPsd } from './io/psd.js?v=176';
+import { splitTextChars } from './io/text.js?v=176';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=174';
-import { pathKeys, pathLength } from './engine/path.js?v=174';
-import { paintDirty } from './engine/paint.js?v=174';
+         canUseWebCodecs } from './io/export.js?v=176';
+import { pathKeys, pathLength } from './engine/path.js?v=176';
+import { paintDirty } from './engine/paint.js?v=176';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=174';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=176';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1110,6 +1110,27 @@ async function runExport(kind){
     fill.style.width = v + '%';
     pct.textContent = v + '%';
   };
+
+  /* PSD は 1まいの 絵。コマを 送らないので、進み具合は 出さずに 一気に。 */
+  if(kind === 'psd'){
+    try{
+      title.textContent = 'PSDを つくっています';
+      const { exportPsd } = await import('./io/psdout.js?v=176');
+      const blob = await exportPsd(S.proj);
+      const name = (S.proj.name || 'anime') + '.psd';
+      box.classList.remove('on');
+      sheet.open('できあがり', (b) => buildDoneSheet(b, () => sheet.close(),
+        { name, mb: (blob.size / 1048576).toFixed(1), canShare: canShareFile(blob, name) },
+        (how) => saveVideo(blob, name, how)));
+    }catch(err){
+      toast(err.message || 'PSDを つくれませんでした');
+    }finally{
+      exporting = false;
+      box.classList.remove('on');
+      refresh();
+    }
+    return;
+  }
 
   try{
     const g = S.proj.gif || {};

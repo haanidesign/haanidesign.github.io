@@ -345,8 +345,16 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
  *            かさなっても こく ならない）。
  *            すけて いる 中みで ふくらませると 足しすぎに なる ので だめ。
  */
-export function drawDeformed(ctx, img, mesh, xy, srcK, uv, opaque){
+export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
   const k = srcK || 1;
+  /* mode:
+       なし  … ふつう。少し ふくらませて 上から ぬる。
+               あみが 動く もの（手がき風・ゆがみ・ピン）でも ちらつかない。
+       'add' … きっちり となり合う あみ 専用（フォルダの 紙・レンズ）。
+               ふくらませずに 足し算で つなぐ。
+               すけた 中みでも つぎ目が 出ない かわりに、
+               三角が かさなる あみで つかうと 足しすぎに なる。 */
+  const add = mode === 'add';
 
   /* ふくらませる 量は「画面の ドットで いくつぶん」で きめる。
      絵の中の ドットで きめると、ズームや レイヤーの 大きさで
@@ -371,7 +379,7 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, opaque){
   /* つなぎ方は 中みで 変える（下の コメント）。
      ・すけて いない … 少し ふくらませて 上から ぬる
      ・すけて いる   … ふくらませず 足し算 */
-  const ex = Math.min(6, Math.max(0.5, 0.6 * up / scale));
+  const ex = add ? 0 : Math.min(6, Math.max(0.5, 0.6 * up / scale));
 
   /* ---------- かさなっても 濃く ならない ように ----------
      三角を ふくらませて 重ねると すきまは 消えるが、
@@ -409,7 +417,7 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, opaque){
      すけた 中みの つぎ目は、あみを かける まえの 紙に
        すけた もの（かげ）を 入れない ことで 消す
        ―― c2d の paintFolder3D で かげは 貼った あとに かける。 */
-  g.globalCompositeOperation = 'source-over';
+  g.globalCompositeOperation = add ? 'lighter' : 'source-over';
 
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){

@@ -2,9 +2,9 @@
    位置・重なり順・不透明度をPSDのまま引き継ぐので、並べ直す作業が要らない。
    ミニSpine で実測済みの ag-psd をそのまま使う。 */
 
-import { S, addAsset, edit } from '../state.js?v=174';
-import { newLayer, newFolder, setParent } from '../engine/layer.js?v=174';
-import { contentBox, loadImage } from './image.js?v=174';
+import { S, addAsset, edit } from '../state.js?v=176';
+import { newLayer, newFolder, setParent } from '../engine/layer.js?v=176';
+import { contentBox, loadImage } from './image.js?v=176';
 
 /** 透明な余白を切り落として left/top を詰め直す */
 function trim(l){
@@ -25,6 +25,36 @@ function trim(l){
   return l;
 }
 
+/* PSD の かさね方 → この道具の 名前。両むきに 使う。 */
+export const PSD_BLEND = {
+  'normal': 'normal',
+  'multiply': 'multiply',
+  'screen': 'screen',
+  'overlay': 'overlay',
+  'darken': 'darken',
+  'lighten': 'lighten',
+  'linear dodge': 'add',
+  'soft light': 'softlight',
+  'hard light': 'hardlight',
+  'color dodge': 'colordodge',
+  'color burn': 'colorburn',
+  'difference': 'difference'
+};
+export const BLEND_PSD = {
+  normal: 'normal',
+  multiply: 'multiply',
+  screen: 'screen',
+  overlay: 'overlay',
+  darken: 'darken',
+  lighten: 'lighten',
+  add: 'linear dodge',
+  softlight: 'soft light',
+  hardlight: 'hard light',
+  colordodge: 'color dodge',
+  colorburn: 'color burn',
+  difference: 'difference'
+};
+
 /* ag-psd の children は PSD ファイルの記録順＝奥から手前。（ミニSpineで実測済み） */
 function flatten(node, out, groupName){
   for(const ch of (node.children || [])){
@@ -36,6 +66,7 @@ function flatten(node, out, groupName){
       left: ch.left || 0,
       top: ch.top || 0,
       opacity: ch.opacity === undefined ? 1 : ch.opacity,
+      blend: PSD_BLEND[String(ch.blendMode || 'normal').toLowerCase()] || 'normal',
       group: groupName || null
     });
   }
@@ -110,6 +141,7 @@ export async function importPsd(file, opts = {}){
       const id = addAsset(l.name, src, l.width, l.height, img);
       const lay = newLayer(l.name, [id]);
       lay.opacity = Math.max(0, Math.min(1, l.opacity));
+      lay.blend = l.blend || 'normal';
       // 縮小したぶんは拡大しなおして、見た目の大きさを元どおりにする
       lay.scaleX = k / shrunk;
       lay.scaleY = k / shrunk;

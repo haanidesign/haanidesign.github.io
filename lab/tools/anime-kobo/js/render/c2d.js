@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=174';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=174';
-import { valuesAt } from '../engine/anim.js?v=174';
-import { S, frameAsset, frameImage } from '../state.js?v=174';
+         nearestFolder } from '../engine/layer.js?v=176';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=176';
+import { valuesAt } from '../engine/anim.js?v=176';
+import { S, frameAsset, frameImage } from '../state.js?v=176';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=174';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=174';
-import { paintCanvas } from '../engine/paint.js?v=174';
-import { panoCanvas } from '../engine/pano.js?v=174';
-import { homography, applyH } from '../engine/warp.js?v=174';
-import { drawCamView } from './camview.js?v=174';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=174';
+         meshSizeFor } from '../engine/puppet.js?v=176';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=176';
+import { paintCanvas } from '../engine/paint.js?v=176';
+import { panoCanvas } from '../engine/pano.js?v=176';
+import { homography, applyH } from '../engine/warp.js?v=176';
+import { drawCamView } from './camview.js?v=176';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=176';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -508,6 +508,7 @@ function flatMesh(w, h){
     if(!tinted && !edged && !fx){
       g.save();
       g.globalAlpha = alpha;
+      g.globalCompositeOperation = blendOf(v);
       place(g, l, pose, asset, img);
       g.restore();
       return;
@@ -556,6 +557,7 @@ function flatMesh(w, h){
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
+    g.globalCompositeOperation = blendOf(v);
     g.drawImage(c, 0, 0);
     g.restore();
     back(1);
@@ -825,8 +827,30 @@ function flatMesh(w, h){
     }
     /* レンズの 紙は 下じきごと 焼いて ある＝すけて いない ので、
        ほんの少し ふくらませて まるめの すきまを 消して よい。 */
-    drawDeformed(g, sheet, me, xy, 1, uv);
+    /* フォルダの 紙は「きっちり となり合う あみ」＝ 足し算で つなげる。
+       中みが すけて いても（かげ・ひかり・うすい ふち）つぎ目が 出ない。
+       あみは 毎コマ 同じ 形なので、ちらつきの 心配も ない。 */
+    drawDeformed(g, sheet, me, xy, 1, uv, 'add');
   }
+
+  /* ---------- かさね方（乗算 など）----------
+     フォトショップの レイヤーの かさね方と 同じ。
+     canvas が そのまま 持って いる ので、名前を 合わせるだけ。 */
+  const BLEND = {
+    normal: 'source-over',
+    multiply: 'multiply',
+    screen: 'screen',
+    overlay: 'overlay',
+    darken: 'darken',
+    lighten: 'lighten',
+    add: 'lighter',
+    softlight: 'soft-light',
+    hardlight: 'hard-light',
+    colordodge: 'color-dodge',
+    colorburn: 'color-burn',
+    difference: 'difference'
+  };
+  const blendOf = (v) => BLEND[(v && v.blend) || 'normal'] || 'source-over';
 
   /** b を a の下に敷く */
   function under(a, b){
@@ -944,6 +968,7 @@ function flatMesh(w, h){
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
+    g.globalCompositeOperation = blendOf(v);
     if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k0) + 'px)';
     g.drawImage(out, 0, 0);
     g.filter = 'none';
@@ -961,6 +986,30 @@ function flatMesh(w, h){
 
     const kids = membersOf(project, f);
     if(!kids.length) return;
+
+    /* ---- そのまま 通す（フォトショップの「通過」）----
+       フォルダ じたいに 何も かかって いない ときは、
+       中身を 別紙に まとめずに そのまま 出す。
+       こう すると 中の「乗算」が、フォルダの 下に ある 絵にも とどく。
+       まとめて しまうと、まざる 相手が 空っぽの 別紙に なって しまう。
+       別紙を 1まい 使わない ぶん、はやくも なる。 */
+    if(alpha > 0.999
+       && !(v.tintAmount > 0.001)
+       && !((v.strokeW || 0) * Math.abs(tf[0]) > 0.4)
+       && !(v.blur > 0.01)
+       && !hasFX(v)
+       && !colorFilter(v)
+       && !maskOn(f)
+       && !(f.blend && f.blend !== 'normal')
+       && !(handOn(f) && f.hand)
+       && !(f.cage && !cageFlat(f.cage))
+       && !(v.pins && v.pins.length && f.mesh)){
+      g.save();
+      g.setTransform(...tf);
+      drawNodes(g, project, kids, poses, tf);
+      g.restore();
+      return;
+    }
 
     const c = alloc(), gx = c.getContext('2d');
     gx.setTransform(...tf);
@@ -1126,6 +1175,7 @@ function flatMesh(w, h){
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
+    g.globalCompositeOperation = blendOf(v);
     if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k) + 'px)';
     g.drawImage(c, 0, 0);
     g.filter = 'none';

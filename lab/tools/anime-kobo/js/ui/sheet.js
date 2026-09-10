@@ -1,40 +1,40 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=174';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=176';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=174';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=176';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=174';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=176';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=174';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=174';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=174';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=174';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=176';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=176';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=176';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=176';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=174';
+         addTextLayer } from '../io/text.js?v=176';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=174';
-import { PATTERN_NAMES } from '../io/pattern.js?v=174';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=176';
+import { PATTERN_NAMES } from '../io/pattern.js?v=176';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=174';
-import { readAsDataURL, loadImage } from '../io/image.js?v=174';
+         PITCH_MAX } from '../engine/pano.js?v=176';
+import { readAsDataURL, loadImage } from '../io/image.js?v=176';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=174';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=174';
-import { newHand } from '../engine/hand.js?v=174';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=174';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=176';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=176';
+import { newHand } from '../engine/hand.js?v=176';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=176';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=174';
+  from './colorwheel.js?v=176';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=174';
+         guessBpm, firstOnset } from '../io/audio.js?v=176';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=174';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=176';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -525,6 +525,40 @@ export function buildLayerSheet(box, closeFn){
 
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
+
+  /* ---- かさね方（フォトショップの 乗算 など）----
+     下に ある 絵と どう まぜるか。「乗算」は かけ算 ＝ かげ用。
+     PSD の レイヤーモードと 同じ 名前なので、
+     読みこみ・書き出しで そのまま 行き来できる。 */
+  box.appendChild(field('かさね方', (() => {
+    const sel = document.createElement('select');
+    const opts = [
+      ['normal', 'ふつう'],
+      ['multiply', '乗算（かげ）'],
+      ['screen', 'スクリーン（ひかり）'],
+      ['overlay', 'オーバーレイ'],
+      ['add', '加算（あかるく）'],
+      ['darken', '比較（暗）'],
+      ['lighten', '比較（明）'],
+      ['softlight', 'ソフトライト'],
+      ['hardlight', 'ハードライト'],
+      ['colordodge', '覆い焼き'],
+      ['colorburn', '焼きこみ'],
+      ['difference', '差の絶対値']
+    ];
+    for(const [v, t] of opts){
+      const o = document.createElement('option');
+      o.value = v; o.textContent = t;
+      sel.appendChild(o);
+    }
+    sel.value = l.blend || 'normal';
+    sel.style.flex = '1';
+    sel.addEventListener('change', () => {
+      edit('かさね方をかえる', () => { l.blend = sel.value; });
+      onChange();
+    });
+    return sel;
+  })()));
 
   /* フォルダは 絵を持たないので、まとめて動かすところだけ出す */
   if(isFolder(l)){
@@ -3528,6 +3562,23 @@ export function buildExportSheet(box, closeFn, run){
   box.appendChild(btnRow(
     button('🫧 すけるGIFで 書き出す', () => { if(closeFn) closeFn(); run('gif'); }),
     button('めやすを 見なおす', () => { guess(); })
+  ));
+
+  /* ---- PSD ----
+     つづきを クリスタや フォトショップで 描く ための 出し方。
+     いまの コマだけを、レイヤーの まま 出す。 */
+  box.appendChild(heading('🖼 PSD（レイヤーのまま）'));
+  const pz = document.createElement('div');
+  pz.className = 'empty';
+  pz.style.textAlign = 'left';
+  pz.textContent = 'いま 見えている コマを、レイヤーを ばらしたまま 出します。' + NL
+    + 'フォルダは フォルダの まま、かさね方（乗算 など）と すけ具合も' + NL
+    + 'そのまま 引きつぎます。クリスタ・フォトショップで 開けます。' + NL
+    + '※ フォルダで ない「親つけ」は PSD に しくみが 無いので、' + NL
+    + '　 うごきを 焼きこんで 見た目だけ 合わせます。';
+  box.appendChild(pz);
+  box.appendChild(btnRow(
+    button('🖼 PSDで 書き出す', () => { if(closeFn) closeFn(); run('psd'); })
   ));
 
   const w = document.createElement('div');

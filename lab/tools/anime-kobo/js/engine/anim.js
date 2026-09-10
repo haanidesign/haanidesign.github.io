@@ -367,6 +367,8 @@ export function valuesAt(layer, time){
     tintAmount: sample(tr.tint, t, tint.amount),
     blur:       sample(tr.blur, t, layer.blur || 0),
 
+    blend: layer.blend || 'normal',
+
     strokeColor: st.color,
     strokeW:     sample(tr.stroke, t, st.width || 0),
 
