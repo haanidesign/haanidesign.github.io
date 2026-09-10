@@ -3,20 +3,20 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=184';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=184';
-import { valuesAt } from '../engine/anim.js?v=184';
-import { S, frameAsset, frameImage } from '../state.js?v=184';
+         nearestFolder } from '../engine/layer.js?v=185';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=185';
+import { valuesAt } from '../engine/anim.js?v=185';
+import { S, frameAsset, frameImage } from '../state.js?v=185';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=184';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=184';
-import { paintCanvas } from '../engine/paint.js?v=184';
-import { panoCanvas } from '../engine/pano.js?v=184';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=184';
-import { roomCanvas } from '../engine/room.js?v=184';
-import { homography, applyH } from '../engine/warp.js?v=184';
-import { drawCamView } from './camview.js?v=184';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=184';
+         meshSizeFor } from '../engine/puppet.js?v=185';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=185';
+import { paintCanvas } from '../engine/paint.js?v=185';
+import { panoCanvas } from '../engine/pano.js?v=185';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=185';
+import { roomCanvas } from '../engine/room.js?v=185';
+import { homography, applyH } from '../engine/warp.js?v=185';
+import { drawCamView } from './camview.js?v=185';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=185';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

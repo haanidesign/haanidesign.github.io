@@ -1,42 +1,42 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=184';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=185';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=184';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=185';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=184';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=185';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=184';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=184';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=184';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=184';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=185';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=185';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=185';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=185';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=184';
+         addTextLayer } from '../io/text.js?v=185';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=184';
-import { PATTERN_NAMES } from '../io/pattern.js?v=184';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=185';
+import { PATTERN_NAMES } from '../io/pattern.js?v=185';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=184';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=184';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=184';
-import { readAsDataURL, loadImage } from '../io/image.js?v=184';
+         PITCH_MAX } from '../engine/pano.js?v=185';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=185';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=185';
+import { readAsDataURL, loadImage } from '../io/image.js?v=185';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=184';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=184';
-import { newHand } from '../engine/hand.js?v=184';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=184';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=185';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=185';
+import { newHand } from '../engine/hand.js?v=185';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=185';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=184';
+  from './colorwheel.js?v=185';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=184';
+         guessBpm, firstOnset } from '../io/audio.js?v=185';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=184';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=185';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2596,6 +2596,18 @@ function ballRow(box, l){
        : v > 1.25 ? 'ぜんめん（' + Math.round(v * 100) + '%）'
        : Math.round(v * 100) + '%'));
 
+  /* 貼る 絵の 大きさ。1.0 で 玉 1しゅうに ちょうど 1まい。
+     小さく すると もようの ように くりかえし、
+     大きく すると 絵の 一部だけが 大うつしに なる。 */
+  box.appendChild(slider('貼る 絵の 大きさ', () => B().art == null ? 1 : B().art,
+    v => { B().art = v; l._blKey = null; }, 0.2, 4, 0.05,
+    v => {
+      const n = 1 / v;
+      return Math.abs(v - 1) < 0.03 ? 'ちょうど 1しゅう'
+        : v < 1 ? 'こまかく（' + n.toFixed(1) + 'まい ならぶ）'
+        : '大きく（' + Math.round(v * 100) + '%）';
+    }));
+
   box.appendChild(slider('まるみの かげ', () => B().shade == null ? 0.35 : B().shade,
     v => { B().shade = v; l._blKey = null; }, 0, 0.8, 0.01,
     v => v < 0.02 ? 'なし' : Math.round(v * 100) + '%'));
@@ -2622,6 +2634,8 @@ function ballRow(box, l){
   note.textContent = (isFolder(l)
       ? '玉は 中身が おさまる しかくの 中に ぴったり 入る 円に なります。'
       : '玉は 絵の 中に ぴったり 入る 円に なります。') + NL
+    + '「貼る 絵の 大きさ」を 小さく すると もようの ように' + NL
+    + 'くりかえし、大きく すると 一部だけ 大うつしに なります。' + NL
     + 'つなぎ目を きれいに するには、絵の 左はしと 右はしを' + NL
     + 'つながる ように 描いて ください。' + NL
     + 'あみを こまかく するほど なめらかですが 重くなります。' + NL

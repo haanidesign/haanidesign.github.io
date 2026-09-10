@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=184';
-import { setPin } from '../engine/anim.js?v=184';
-import { S } from '../state.js?v=184';
+import { drawDeformed } from './puppet.js?v=185';
+import { setPin } from '../engine/anim.js?v=185';
+import { S } from '../state.js?v=185';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);
@@ -27,7 +27,36 @@ export const BALL_CHANNELS = ['ballY', 'ballP'];
    24こま＝3.4ms、32こま＝6ms、40こま＝8.8ms、60こま＝19ms。
    30コマ/秒に よゆうで 間に合う ところを はじめに する。 */
 export function ballDefaults(){
-  return { on: true, cols: 32, rows: 16, shade: 0.35, size: 1 };
+  return { on: true, cols: 32, rows: 16, shade: 0.35, size: 1, art: 1 };
+}
+
+/* ---------- 貼る 絵の 大きさ ----------
+
+   絵を 小さく すると、玉 1しゅうに 何回も 入る ように なる。
+   1しゅうを またいだ ところで 絵の はしと はしを つかむ ことに なる ので、
+   はじめから よこ・たてに ならべた 紙を 作って おく
+   （ぐるり360の つなぎ目よけ と 同じ 考え方）。 */
+const TILE_MAX = 4096;
+
+function tiled(l, img, nx, ny, tag){
+  if(nx <= 1.0001 && ny <= 1.0001) return img;      // ならべなくて よい
+  const cx = Math.min(6, Math.ceil(nx));
+  const cy = Math.min(6, Math.ceil(ny));
+  const w = Math.min(TILE_MAX, img.naturalWidth * cx);
+  const h = Math.min(TILE_MAX, img.naturalHeight * cy);
+  const key = tag + '|' + cx + 'x' + cy + '|' + w + 'x' + h;
+  if(l._blTile && l._blTileKey === key) return l._blTile;
+
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const tw = w / cx, th = h / cy;
+  for(let y = 0; y < cy; y++) for(let x = 0; x < cx; x++){
+    g.drawImage(img, x * tw, y * th, tw, th);
+  }
+  c.complete = true; c.naturalWidth = w; c.naturalHeight = h;
+  l._blTile = c; l._blTileKey = key;
+  return c;
 }
 
 /* ---------- あみ ----------
@@ -74,8 +103,12 @@ export function ballCanvas(l, v, img, tag){
   /* 玉の 大きさ。1 で 絵の みじかい ほうに ぴったり。
      1より 大きく すると 絵の わくから はみ出て「ぜんめん」に なる。 */
   const size = Math.max(0.15, Math.min(2, b.size == null ? 1 : b.size));
+  /* 貼る 絵の 大きさ。1 で「玉 1しゅうに ちょうど 1まい」。
+     小さく すると 何回も くりかえし、大きく すると 絵の 一部だけ 出る。 */
+  const art = Math.max(0.15, Math.min(6, b.art == null ? 1 : b.art));
+  const rep = 1 / art;                       // 1しゅうに 何まい 入るか
 
-  const key = [tag || '', w, h, cols, rows, size.toFixed(3),
+  const key = [tag || '', w, h, cols, rows, size.toFixed(3), art.toFixed(3),
                yaw.toFixed(2), pitch.toFixed(2), shade.toFixed(2)].join('|');
   if(l._blKey === key) return l._blC;
   l._blKey = key;
@@ -92,6 +125,11 @@ export function ballCanvas(l, v, img, tag){
     l._blZ  = new Float32Array(n);
   }
   const xy = l._blXY, uv = l._blUV, zz = l._blZ;
+
+  /* くりかえす ときは ならべた 紙に さしかえる。
+     はる ところ（uv）は「ならべた 紙の 中の どこか」で 出す。 */
+  const src = tiled(l, img, rep, rep, (tag || '') + '|' + w + 'x' + h);
+  const sw = src.naturalWidth || src.width, sh = src.naturalHeight || src.height;
 
   const R  = Math.min(w, h) / 2 * size;
   const cx = w / 2, cy = h / 2;
@@ -120,8 +158,11 @@ export function ballCanvas(l, v, img, tag){
       const i = r * (cols + 1) + c;
       xy[i*2]   = cx + x1 * R;
       xy[i*2+1] = cy - y2 * R;                // 画面は 下むきが プラス
-      uv[i*2]   = tu * w;
-      uv[i*2+1] = tv * h;
+      /* rep が 1 より 大きい ＝ 1しゅうに 何まいも 入る。
+         ならべた 紙は ceil(rep) まい ぶん あるので、
+         その 中の どこを つかむかで 出す。 */
+      uv[i*2]   = tu * rep * (sw / Math.min(6, Math.max(1, Math.ceil(rep))));
+      uv[i*2+1] = tv * rep * (sh / Math.min(6, Math.max(1, Math.ceil(rep))));
       zz[i] = z2;                             // プラスが こちらむき
     }
   }
@@ -150,7 +191,7 @@ export function ballCanvas(l, v, img, tag){
   const g = l._blC.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, w, h);
-  if(tris.length) drawDeformed(g, img, m, xy, 1, uv);
+  if(tris.length) drawDeformed(g, src, m, xy, 1, uv);
 
   /* まるみを 出す かげ。
      ひだり上から 光が あたって いる ように、右下へ 向けて 暗く する。
