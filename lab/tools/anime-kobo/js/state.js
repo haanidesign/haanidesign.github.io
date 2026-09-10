@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=201';
+import { uid } from './engine/math.js?v=204';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -88,7 +88,7 @@ export const WORK_KEYS = new Set([
   '_rmXY', '_rmUV', '_rmOK',
   '_q3xy', '_q3flat',                   // 立体（3D）で 四すみに はめた あと
   '_blC', '_blKey', '_blMesh',          // 🔮 球に はった あとの 紙と あみ
-  '_blXY', '_blUV', '_blZ', '_blSp', '_blSpKey'
+  '_blXY', '_blUV', '_blZ', '_blSp', '_blSpKey', '_blMip', '_blMipKey'
 ]);
 
 /** 作業だけの ものを のぞいた 写しを 作る（ほぞん・もどす で つかう） */
@@ -174,6 +174,20 @@ export function addAsset(name, src, w, h, img){
   S.imgs[id] = img;
   return id;
 }
+
+/* ---------- 画質 ----------
+   玉や 部屋は 三角を たくさん 貼る ので、つまみを 動かして いる あいだ
+   だけ あらく すると 手ざわりが 軽く なる。
+     fine  … いつも きれい
+     auto  … さわって いる あいだ だけ あらく（はじめは これ）
+     light … いつも あらく（古い 端末むけ）
+   S.dragging は つまみを つまんで いる あいだ true。 */
+export const isDraft = () => {
+  const q = (S.proj && S.proj.quality) || 'auto';
+  if(q === 'light') return true;
+  if(q === 'fine') return false;
+  return !!(S.dragging || S.playing);
+};
 
 export const selected = () => S.proj.layers.find(l => l.id === S.sel) || null;
 

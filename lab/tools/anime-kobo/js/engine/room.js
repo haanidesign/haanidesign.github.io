@@ -17,10 +17,10 @@
      カメラの うしろに 回った かどは うつせない ので、
      その 三角は 出さない（見えない ところ なので 問題ない）。 */
 
-import { S } from '../state.js?v=201';
-import { drawDeformed } from './puppet.js?v=201';
-import { newLayer, valuesAt } from './layer.js?v=201';
-import { camOf, camDolly } from './camera.js?v=201';
+import { S, isDraft } from '../state.js?v=204';
+import { drawDeformed } from './puppet.js?v=204';
+import { newLayer, valuesAt } from './layer.js?v=204';
+import { camOf, camDolly } from './camera.js?v=204';
 
 export const isRoom = (l) => !!l && l.kind === 'room';
 
@@ -105,7 +105,7 @@ export function roomCanvas(l, v, project){
   const pz = Math.max(-lim, Math.min(lim, cv ? camDolly(cv) * 0.35 : 0));
 
   const ids = FACES.map(f => (l.faces && l.faces[f.key]) || '-').join(',');
-  const key = [ids, w, h, W, H, D, yaw.toFixed(2), pitch.toFixed(2),
+  const key = [ids, w, h, W, H, D, N, yaw.toFixed(2), pitch.toFixed(2),
                fov.toFixed(2), pz.toFixed(1)].join('|');
   if(l._rmKey === key) return l._rmC;
   l._rmKey = key;
@@ -125,7 +125,8 @@ export function roomCanvas(l, v, project){
   const cp = Math.cos(p), sp = Math.sin(p);
   const NEAR = 1;
 
-  const N = Math.max(4, Math.min(24, l.mesh1 || 10));
+  const draft = isDraft();
+  const N = draft ? 5 : Math.max(4, Math.min(24, l.mesh1 || 10));
   if(!l._rmMesh || l._rmMesh.cols !== N) l._rmMesh = grid(N);
   const m = l._rmMesh;
   const n = m.verts.length;

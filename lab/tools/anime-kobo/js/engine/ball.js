@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=201';
-import { setPin } from '../engine/anim.js?v=201';
-import { S } from '../state.js?v=201';
+import { drawDeformed } from './puppet.js?v=204';
+import { setPin } from '../engine/anim.js?v=204';
+import { S, isDraft } from '../state.js?v=204';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);
@@ -76,12 +76,48 @@ function ballMesh(cols, rows){
  *   tag … その 絵の 見わけ（コマが かわったら 作りなおす ため）
  * 見た目が 変わって いなければ 作りなおさない。
  */
+/* ふちの はみ出し。さいごに 丸く 切りぬく ので 見えない */
+const RIM_OVER = 1.03;
+
+/* ---------- 小さくした 写し（ミップ）----------
+
+   玉の ふち近くでは、絵が よこに ぎゅっと つぶれる。
+   もとの 絵から そのまま 拾うと、細い 線（ハッチングや 雨の すじ）が
+   ぬけたり 出たり して ちらつく（実測: となりとの 差が 最大 87）。
+
+   写真の 世界と 同じで、つぶれる ところは
+   「はじめから 小さくした 絵」から 拾えば なめらかに なる。
+   半分・4分の1 の 2まいを 作って おき、
+   ます目 1つ ずつ どれから 拾うかを 決める。 */
+function mipsOf(l, img, tag){
+  const key = tag + '|' + img.naturalWidth + 'x' + img.naturalHeight;
+  if(l._blMip && l._blMipKey === key) return l._blMip;
+  const out = [img];
+  let prev = img, w = img.naturalWidth, h = img.naturalHeight;
+  for(let i = 0; i < 2 && w > 16 && h > 16; i++){
+    w = Math.max(8, Math.round(w / 2));
+    h = Math.max(8, Math.round(h / 2));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(prev, 0, 0, w, h);
+    c.complete = true; c.naturalWidth = w; c.naturalHeight = h;
+    out.push(c);
+    prev = c;
+  }
+  l._blMip = out; l._blMipKey = key;
+  return out;
+}
+
 export function ballCanvas(l, v, img, tag){
   if(!img || !img.naturalWidth) return img;
 
   const b = l.ball || (l.ball = ballDefaults());
-  const cols = Math.max(8, Math.min(96, b.cols || 32));
-  const rows = Math.max(6, Math.min(48, b.rows || 16));
+  /* さわって いる あいだは あらく する（画質の せってい） */
+  const draft = isDraft();
+  const cols = draft ? 14 : Math.max(8, Math.min(96, b.cols || 32));
+  const rows = draft ?  7 : Math.max(6, Math.min(48, b.rows || 16));
 
   /* 出す 紙は もとの 絵と おなじ 大きさ。
      こう すると レイヤーの 場所・大きさの あつかいが
@@ -107,7 +143,7 @@ export function ballCanvas(l, v, img, tag){
      小さく すると 何回も くりかえし、大きく すると 絵の 一部だけ 出る。 */
   const art = Math.max(0.15, Math.min(6, b.art == null ? 1 : b.art));
 
-  const key = [tag || '', w, h, cols, rows, size.toFixed(3), art.toFixed(3),
+  const key = [tag || '', w, h, cols, rows, draft ? 'd' : 'f', size.toFixed(3), art.toFixed(3),
                yaw.toFixed(2), pitch.toFixed(2), shade.toFixed(2)].join('|');
   if(l._blKey === key) return l._blC;
   l._blKey = key;
@@ -191,10 +227,14 @@ export function ballCanvas(l, v, img, tag){
       let q = pt(lon);
 
       if(q.z <= 0 && lonA !== null){
-        /* むこうがわ。近い ほうの「ふち」へ 動かす */
+        /* むこうがわ。近い ほうの「ふち」へ 動かす。
+           ぴったり ふちに 置くと、そこの 三角が ぺらぺらに なって
+           となりとの あいだに 細い すきまが 出る（ふちに 白い すじ）。
+           すこし 外へ はみ出させて おいて、さいごに 丸く 切りぬく。 */
         const dA = Math.abs(wrap(lon - lonA)), dB = Math.abs(wrap(lon - lonB));
         const lo = dA < dB ? lonA : lonB;
         q = pt(lo);
+        q.x *= RIM_OVER; q.y *= RIM_OVER;
         tuUse = tu + wrap(lo - lon) / (Math.PI * 2);
       }
 
@@ -221,19 +261,50 @@ export function ballCanvas(l, v, img, tag){
        A→B→C が この まわり方に なる（実測で 合わせた）。 */
     return cr > 0;
   };
+  /* ます目 1つの もとの 絵での ひろさ（つぶれぐあいを 出す ため） */
+  const cellSrc = (sw / cols) * (sh / rows);
+  const area = (a0, b0, c0) => Math.abs(
+    (xy[b0*2] - xy[a0*2]) * (xy[c0*2+1] - xy[a0*2+1]) -
+    (xy[b0*2+1] - xy[a0*2+1]) * (xy[c0*2] - xy[a0*2])) / 2;
+
+  const lv = [tris, [], []];
   for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
     const A = id(c, r), B = id(c+1, r), C = id(c, r+1), D = id(c+1, r+1);
     /* ぜんぶ むこうがわ の ます目だけ 落とす。
        ふちを またぐ ます目は のこす（かどは ふちへ 逃がして ある）。 */
     if(zz[A] <= 0 && zz[B] <= 0 && zz[C] <= 0 && zz[D] <= 0) continue;
-    if(facing(A, B, C)) tris.push(A, B, C);
-    if(facing(B, D, C)) tris.push(B, D, C);
+
+    /* どれくらい つぶれて いるか。もとの ひろさ ÷ 画面の ひろさ の 平方根。
+       2ばい つぶれて いたら 半分の 絵、4ばいなら 4分の1 の 絵 から 拾う。 */
+    const dst = area(A, B, C) + area(B, D, C);
+    const comp = dst > 0.01 ? Math.sqrt(cellSrc / dst) : 99;
+    const lvl = comp < 1.7 ? 0 : (comp < 3.4 ? 1 : 2);
+    const t = lv[lvl];
+    if(facing(A, B, C)) t.push(A, B, C);
+    if(facing(B, D, C)) t.push(B, D, C);
   }
 
   const g = l._blC.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, w, h);
-  if(tris.length) drawDeformed(g, src, m, xy, 1, uv);
+  if(lv[0].length || lv[1].length || lv[2].length){
+    /* 玉の 形（まん丸）で 切りぬく。はみ出させた ふちが ここで 落ちて、
+       ふちが つるりと 丸く なる。 */
+    /* あらい ときは 小さくした 写しを 作らない（そのぶん 軽い） */
+    const mip = (!draft && (lv[1].length || lv[2].length))
+      ? mipsOf(l, src, (tag || '') + '|' + sw) : [src];
+    g.save();
+    g.beginPath();
+    g.arc(cx, cy, R, 0, Math.PI * 2);
+    g.clip();
+    for(let i = 0; i < 3; i++){
+      if(!lv[i].length) continue;
+      const im = mip[Math.min(i, mip.length - 1)];
+      const k = (im.naturalWidth || im.width) / (src.naturalWidth || src.width);
+      drawDeformed(g, im, { verts: m.verts, tris: lv[i] }, xy, k, uv);
+    }
+    g.restore();
+  }
 
   /* まるみを 出す かげ。
      ひだり上から 光が あたって いる ように、右下へ 向けて 暗く する。
