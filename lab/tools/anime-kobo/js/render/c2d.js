@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=173';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=173';
-import { valuesAt } from '../engine/anim.js?v=173';
-import { S, frameAsset, frameImage } from '../state.js?v=173';
+         nearestFolder } from '../engine/layer.js?v=174';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=174';
+import { valuesAt } from '../engine/anim.js?v=174';
+import { S, frameAsset, frameImage } from '../state.js?v=174';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=173';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=173';
-import { paintCanvas } from '../engine/paint.js?v=173';
-import { panoCanvas } from '../engine/pano.js?v=173';
-import { homography, applyH } from '../engine/warp.js?v=173';
-import { drawCamView } from './camview.js?v=173';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=173';
+         meshSizeFor } from '../engine/puppet.js?v=174';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=174';
+import { paintCanvas } from '../engine/paint.js?v=174';
+import { panoCanvas } from '../engine/pano.js?v=174';
+import { homography, applyH } from '../engine/warp.js?v=174';
+import { drawCamView } from './camview.js?v=174';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=174';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -1341,7 +1341,22 @@ function flatMesh(w, h){
        絵を じっくり 見たい ときは 切れる ように して ある。 */
     if(!opts.forExport && S.paperDots !== false){
       const p = dots();
-      if(p){ ctx.save(); ctx.fillStyle = p; ctx.fillRect(0, 0, project.w, project.h); ctx.restore(); }
+      if(p){
+        /* 方眼は「画面の ドット」で 出す。
+           絵と いっしょに 大きく したり 小さく したり すると、
+           点の ならびと 画面の ドットが けんかして
+           ななめの ます目（モアレ）に 見える ―― それを
+           あみの つぎ目と 見まちがえる。
+           画面の ものさしで 出せば、どこまで 寄っても 点は 点の まま。 */
+        const x0 = tf[4], y0 = tf[5];
+        const x1 = project.w * tf[0] + tf[4], y1 = project.h * tf[3] + tf[5];
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = p;
+        ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1),
+                     Math.abs(x1 - x0), Math.abs(y1 - y0));
+        ctx.restore();
+      }
     }
 
     const poses = computeAll(project, time);
@@ -1456,7 +1471,13 @@ function flatMesh(w, h){
       }
       if(!opts.forExport && S.paperDots !== false){
         const pt = dots();
-        if(pt){ gl.save(); gl.fillStyle = pt; gl.fillRect(0, 0, project.w, project.h); gl.restore(); }
+        if(pt){
+          gl.save();
+          gl.setTransform(1, 0, 0, 1, 0, 0);
+          gl.fillStyle = pt;
+          gl.fillRect(0, 0, canvas.width, canvas.height);
+          gl.restore();
+        }
       }
     }
     if(!showOut){

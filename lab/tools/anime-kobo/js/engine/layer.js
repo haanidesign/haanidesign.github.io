@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=173';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=173';
+import { M, uid, ptInQuad } from './math.js?v=174';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=174';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=173';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=173';
-import { cageDeformPoint, cageMoved } from './warp.js?v=173';
-import { handTime } from './hand.js?v=173';
-import { WORK_KEYS } from '../state.js?v=173';
+         withShake } from './camera.js?v=174';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=174';
+import { cageDeformPoint, cageMoved } from './warp.js?v=174';
+import { handTime } from './hand.js?v=174';
+import { WORK_KEYS } from '../state.js?v=174';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
