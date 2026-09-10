@@ -1927,8 +1927,15 @@ function goPrev(){ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); retu
 function goNext(){ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); return (i>=0&&i<l.length-1) ? openPage(l[i+1].id,"next") : Promise.resolve(); }
 /* 端の頁では ◀▶ の ボタンが disabled になるので、指の めくりは 直に よぶ */
 function turnBy(d){
-  const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id);
-  if(i<0) return;
+  const l=ordered();
+  if(!l.length){ setStatus("めくる 頁が ありません"); return; }
+  const i=l.findIndex(p=>cur&&p.id===cur.id);
+  if(i<0){                                   // まだ 綴じて いない 頁（新しい 頁など）
+    const p=d<0?l[0]:l[l.length-1];
+    setStatus(d<0?"◀ 前の頁":"次の頁 ▶");
+    openPage(p.id,d<0?"prev":"next");
+    return;
+  }
   if(d<0){
     if(i<=0){ setStatus("いちばん はじめの 頁です"); return; }
     setStatus("◀ 前の頁"); goPrev();
@@ -2127,14 +2134,17 @@ const leaf=makeSpring(v=>{
       if(!armed||slipped) return;
       for(const t of e.touches){
         const m=marks.find(m=>m.id===t.identifier);
-        if(m&&Math.hypot(t.clientX-m.x,t.clientY-m.y)>28){ slipped=true; break; }
+        if(m&&Math.hypot(t.clientX-m.x,t.clientY-m.y)>40){ slipped=true; break; }
       }
     },{passive:true});
     const settle=(e)=>{
       if(!armed||e.touches.length) return;
       armed=false; marks=[];
       const n=most; most=0;
-      if(slipped||Date.now()-t0>=560) return;
+      if(n>=2){
+        if(slipped){ setStatus("指 "+n+" 本（動いた）"); return; }
+        if(Date.now()-t0>=900){ setStatus("指 "+n+" 本（長い）"); return; }
+      }else if(slipped||Date.now()-t0>=900) return;
       fire(n);
     };
     document.addEventListener("touchend",settle,{passive:true});
@@ -2158,7 +2168,7 @@ const leaf=makeSpring(v=>{
     document.addEventListener("pointermove",(e)=>{
       const p=live.get(e.pointerId);
       if(!p||slipped) return;
-      if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>28) slipped=true;
+      if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>40) slipped=true;
     },{passive:true});
     const settle=(e)=>{
       if(!armed||!live.has(e.pointerId)) return;
@@ -2166,7 +2176,10 @@ const leaf=makeSpring(v=>{
       if(live.size) return;
       armed=false;
       const n=most; most=0;
-      if(slipped||Date.now()-t0>=560) return;
+      if(n>=2){
+        if(slipped){ setStatus("指 "+n+" 本（動いた）"); return; }
+        if(Date.now()-t0>=900){ setStatus("指 "+n+" 本（長い）"); return; }
+      }else if(slipped||Date.now()-t0>=900) return;
       fire(n);
     };
     document.addEventListener("pointerup",settle,{passive:true});
