@@ -2146,9 +2146,9 @@ const leaf=makeSpring(v=>{
   function fire(n){
     const now=Date.now();
     if(now<lock) return;                             // touch と pointer の 二重うち よけ
-    lock=now+600;
-    if(n===2) turnBy(-1);                            // 二本指 → 戻る
-    else if(n>=3) turnBy(1);                         // 三本指 → 進む
+    lock=now+320;
+    if(n===2) undoInk();                             // 二本指 → 書いたのを 戻す
+    else if(n>=3) redoInk();                         // 三本指 → やり直す
   }
   const onStage=(el)=>!!(el&&el.closest&&el.closest("#stage"));
 
