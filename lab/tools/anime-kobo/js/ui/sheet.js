@@ -1,42 +1,42 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=204';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=205';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=204';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=205';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=204';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=205';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=204';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=204';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=204';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=204';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=205';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=205';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=205';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=205';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=204';
+         addTextLayer } from '../io/text.js?v=205';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=204';
-import { PATTERN_NAMES } from '../io/pattern.js?v=204';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=205';
+import { PATTERN_NAMES } from '../io/pattern.js?v=205';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=204';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=204';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=204';
-import { readAsDataURL, loadImage } from '../io/image.js?v=204';
+         PITCH_MAX } from '../engine/pano.js?v=205';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=205';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=205';
+import { readAsDataURL, loadImage } from '../io/image.js?v=205';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=204';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=204';
-import { newHand } from '../engine/hand.js?v=204';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=204';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=205';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=205';
+import { newHand } from '../engine/hand.js?v=205';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=205';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=204';
+  from './colorwheel.js?v=205';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=204';
+         guessBpm, firstOnset } from '../io/audio.js?v=205';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=204';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=205';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1054,9 +1054,31 @@ function depthRow(box, l){
   note.className = 'empty';
   note.style.textAlign = 'left';
   note.textContent = 'カメラを 動かした とき、' + NL
-    + '手前の ものは 大きく、おくの ものは すこしだけ ずれます。' + NL
-    + 'フォルダに 入れた ものは、フォルダの おくゆきに なります。';
+    + '手前の ものは 大きく、おくの ものは すこしだけ ずれます。';
   box.appendChild(note);
+
+  /* ---- フォルダの 中の 1まいは、そのままでは おくゆきが きかない ----
+     フォルダは 中身を 1まいの 紙に まとめて から カメラに 見せる ので、
+     中身 1つ1つの おくゆきは 出番が ない（フォルダの おくゆきに なる）。
+     「バラで 動かす」に すると 中身が 1まいずつ カメラに 出るので きく。
+     ここで すぐ 切りかえられる ように して おく。 */
+  const host = nearestFolder(S.proj, l);
+  if(host && !host.collapse){
+    const w = document.createElement('div');
+    w.className = 'empty';
+    w.style.textAlign = 'left';
+    w.textContent = 'いまは フォルダ「' + (host.name || 'フォルダ') + '」の'
+      + ' おくゆきに なります。' + NL
+      + '中身を 1まいずつ 置きたい ときは、下を おしてね。';
+    box.appendChild(w);
+    box.appendChild(btnRow(
+      button('📂 「' + (host.name || 'フォルダ') + '」の 中身を バラで 動かす', () => {
+        edit('バラで 動かす', () => { host.collapse = true; });
+        notify('中身が それぞれの おくゆきで 動くように なりました');
+        onChange();
+      })
+    ));
+  }
 
   const show = () => (depthScale(l) * 100).toFixed(0) + '%の 大きさ';
   const sizeNote = document.createElement('div');
@@ -1506,6 +1528,18 @@ export function buildCamSheet(box, back){
       box.appendChild(animSlider(name, x, 'depth', DEPTH_MIN, DEPTH_MAX, 0.5,
         v => (v === 0 ? 'ふつう' : (v < 0 ? 'てまえ ' + (-v) : 'おく ' + v))
              + '（' + Math.round(depthScale({ depth: v }) * 100) + '%）'));
+
+      /* まとめた ままの フォルダは 1つ ぶんしか 出せない。
+         中身も 1まいずつ 置きたい 人が 多い ので、ここで 切りかえられる。 */
+      if(isFolder(x) && !x.collapse && membersOf(S.proj, x).length){
+        const b = button('　└ 中身を バラで 置く（' + membersOf(S.proj, x).length + 'まい）', () => {
+          edit('バラで 動かす', () => { x.collapse = true; });
+          notify('中身が それぞれの おくゆきで 動くように なりました');
+          onChange();
+        });
+        b.style.fontSize = '.7rem';
+        box.appendChild(btnRow(b));
+      }
     });
   }
 
