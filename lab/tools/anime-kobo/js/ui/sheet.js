@@ -1,41 +1,41 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=179';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=180';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=179';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=180';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=179';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=180';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=179';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=179';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=179';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=179';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=180';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=180';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=180';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=180';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=179';
+         addTextLayer } from '../io/text.js?v=180';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=179';
-import { PATTERN_NAMES } from '../io/pattern.js?v=179';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=180';
+import { PATTERN_NAMES } from '../io/pattern.js?v=180';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=179';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=179';
-import { readAsDataURL, loadImage } from '../io/image.js?v=179';
+         PITCH_MAX } from '../engine/pano.js?v=180';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=180';
+import { readAsDataURL, loadImage } from '../io/image.js?v=180';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=179';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=179';
-import { newHand } from '../engine/hand.js?v=179';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=179';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=180';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=180';
+import { newHand } from '../engine/hand.js?v=180';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=180';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=179';
+  from './colorwheel.js?v=180';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=179';
+         guessBpm, firstOnset } from '../io/audio.js?v=180';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=179';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=180';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -600,6 +600,7 @@ export function buildLayerSheet(box, closeFn){
 
     spanRow(box, l, closeFn);
     warpRow(box, l, closeFn);
+    ballRow(box, l);
     buildLook(box, l, { flip: false, close: closeFn });
 
     /* ---- バラで 動かす（AEの コラップス）----
@@ -2535,15 +2536,18 @@ export function clearDraftText(){ draftText = null; }
    カメラは その まま きく。 */
 function ballRow(box, l){
   /* box は 中で いれかえる ので let あつかいに する */
-  if(isPano(l) || isFolder(l)) return;
-  if(!l.frames || !l.frames.length) return;
+  if(isPano(l)) return;
+  /* フォルダは 中身を 1まいに まとめて から まく（中身が 材料）。
+     ふつうの レイヤーは その 絵が 材料。 */
+  if(!isFolder(l) && !(l.frames && l.frames.length)) return;
   const NL = String.fromCharCode(10);
   box.appendChild(heading('🔮 球に はる'));
 
   const help = document.createElement('div');
   help.className = 'empty';
   help.style.textAlign = 'left';
-  help.textContent = '絵を まるい 玉に まきます。' + NL
+  help.textContent = (isFolder(l) ? '中身を 1まいに まとめて から 玉に まきます。'
+                                  : '絵を まるい 玉に まきます。') + NL
     + 'よこが ぐるり1しゅう、たてが 上から下 です。' + NL
     + '世界地図を まくと 地球ぎ に なります。';
   box.appendChild(help);
@@ -2606,7 +2610,9 @@ function ballRow(box, l){
   const note = document.createElement('div');
   note.className = 'empty';
   note.style.textAlign = 'left';
-  note.textContent = '玉は 絵の 中に ぴったり 入る 円に なります。' + NL
+  note.textContent = (isFolder(l)
+      ? '玉は 中身が おさまる しかくの 中に ぴったり 入る 円に なります。'
+      : '玉は 絵の 中に ぴったり 入る 円に なります。') + NL
     + 'つなぎ目を きれいに するには、絵の 左はしと 右はしを' + NL
     + 'つながる ように 描いて ください。' + NL
     + 'あみを こまかく するほど なめらかですが 重くなります。' + NL

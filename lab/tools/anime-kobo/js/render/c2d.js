@@ -3,19 +3,19 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=179';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=179';
-import { valuesAt } from '../engine/anim.js?v=179';
-import { S, frameAsset, frameImage } from '../state.js?v=179';
+         nearestFolder } from '../engine/layer.js?v=180';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=180';
+import { valuesAt } from '../engine/anim.js?v=180';
+import { S, frameAsset, frameImage } from '../state.js?v=180';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=179';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=179';
-import { paintCanvas } from '../engine/paint.js?v=179';
-import { panoCanvas } from '../engine/pano.js?v=179';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=179';
-import { homography, applyH } from '../engine/warp.js?v=179';
-import { drawCamView } from './camview.js?v=179';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=179';
+         meshSizeFor } from '../engine/puppet.js?v=180';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=180';
+import { paintCanvas } from '../engine/paint.js?v=180';
+import { panoCanvas } from '../engine/pano.js?v=180';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=180';
+import { homography, applyH } from '../engine/warp.js?v=180';
+import { drawCamView } from './camview.js?v=180';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=180';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -980,9 +980,49 @@ function flatMesh(w, h){
     back(1);
   }
 
+  /* まとめた 紙（画面ぜんたい）の うち、中身の ある しかくを
+     切り出して 玉に まき、また 同じ ところに 戻す。 */
+  function ballFolder(c, f, project, poses, tf, v, pad){
+    const q = folderQuad(project, f, poses);
+    if(!q) return;
+    const k = Math.abs(tf[0]);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for(const p of q){
+      x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
+      x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
+    }
+    /* 画面の ドットに 直す */
+    /* ふちどりは しかくの 外に ひろがる ので、その ぶんも 切り出す。
+       切らないと ふちが 玉に のらずに 消える。 */
+    const ex = Math.max(0, pad || 0);
+    const sx = Math.floor(x0 * tf[0] + tf[4] - ex);
+    const sy = Math.floor(y0 * tf[3] + tf[5] - ex);
+    const w  = Math.max(2, Math.round((x1 - x0) * k + ex * 2));
+    const h  = Math.max(2, Math.round((y1 - y0) * k + ex * 2));
+    if(w < 2 || h < 2 || w > 4096 || h > 4096) return;
+
+    const cut = document.createElement('canvas');
+    cut.width = w; cut.height = h;
+    cut.getContext('2d').drawImage(c, sx, sy, w, h, 0, 0, w, h);
+    /* ballCanvas は 絵として あつかう ので、絵の ふりを させる */
+    cut.complete = true; cut.naturalWidth = w; cut.naturalHeight = h;
+
+    /* 中身は 毎コマ かわる ので、しまって おいた ものは つかわない */
+    const out = ballCanvas(f, v, cut, f.id + ':' + curT.toFixed(3));
+
+    const gc = c.getContext('2d');
+    gc.save();
+    gc.setTransform(1, 0, 0, 1, 0, 0);
+    gc.clearRect(sx, sy, w, h);
+    gc.drawImage(out, sx, sy);
+    gc.restore();
+  }
+
   function paintFolder(g, project, f, pose, poses, tf, mul){
-    /* 立体に なって いる フォルダは、紙の 作り方から ちがう */
-    if(pose.quad) return paintFolder3D(g, project, f, pose, poses, tf, mul);
+    /* 立体に なって いる フォルダは、紙の 作り方から ちがう。
+       ただし 🔮 球に して いる ときは、板では なく 玉に する
+       （玉じたいが 立体なので、板に 貼る 必要が ない）。 */
+    if(pose.quad && !ballOn(f)) return paintFolder3D(g, project, f, pose, poses, tf, mul);
 
     const v = pose.v;
     const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
@@ -998,6 +1038,7 @@ function flatMesh(w, h){
        まとめて しまうと、まざる 相手が 空っぽの 別紙に なって しまう。
        別紙を 1まい 使わない ぶん、はやくも なる。 */
     if(alpha > 0.999
+       && !ballOn(f)                 /* 玉は 1まいに まとめて から まく */
        && !(v.tintAmount > 0.001)
        && !((v.strokeW || 0) * Math.abs(tf[0]) > 0.4)
        && !(v.blur > 0.01)
@@ -1174,6 +1215,16 @@ function flatMesh(w, h){
     }
 
     if(strokeW > 0.4) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
+
+    /* 🔮 フォルダを 球に はる。
+       中身は もう 1まいに まとまって いる ので、
+       中身の ある ところ だけ 切り出して 玉に まき、
+       おなじ ところへ 戻す。
+       かげ・ひかり（underFX）は 玉に した あとに かける。
+       先に かけると、まわりに ひろがった かげまで 玉に まきこんで
+       しまい、玉の 外に 出るべき かげが 消える。 */
+    if(ballOn(f)) ballFolder(c, f, project, poses, tf, pose.v, strokeW);
+
     underFX(c, v, k);
 
     g.save();
