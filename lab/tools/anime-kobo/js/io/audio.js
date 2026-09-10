@@ -241,27 +241,39 @@ export function voiceMouthKeys(opt = {}){
     prev = v;
   };
 
+  /* コマの はしご。いちばん 下は「とじた口」。
+     ここが かんじん ―― しゃべって いる あいだ ずっと 口を
+     あけっぱなしに すると、パクパクに ならない。
+     ほんとうの 口は 音と 音の あいだで いちど とじる。
+     だから とじた口も はしごに 入れて、声の 山と 谷で
+     あけたり とじたり する。
+     （口が 2コマ しか ない ときは、これが 無いと
+       ひとくぎりに つき 1回 あくだけ に なって しまう） */
+  const ladder = [closed, ...opens];
+
   put(start, closed);
   for(const sp of spans){
-    /* しゃべって いる あいだは、どんなに 小さい 声でも
-       口は 動いて いて ほしい。だから この ひとくぎりの 中で
-       いちばん 小さい ところを 0、いちばん 大きい ところを 1 と して
-       ふり直す（ささやきは ささやきなりに パクパクする）。 */
-    let lo = 1, hi = 0;
-    for(let t = sp.from; t < sp.to; t += step){
-      const lv = loudnessAt(t);
-      if(lv < lo) lo = lv;
-      if(lv > hi) hi = lv;
-    }
-    const span = Math.max(0.06, hi - lo);
+    /* ひとくぎりの 中で ふり直す。
+       ささやきは ささやきなりに、山と 谷が つく。
+       いちばん 大きい／小さい ひと粒に 引っぱられない ように、
+       上下 1わりは 切りすてて ものさしに する。 */
+    const vals = [];
+    for(let t = sp.from; t < sp.to; t += step) vals.push(loudnessAt(t));
+    if(!vals.length) continue;
+    const sorted = vals.slice().sort((a, b) => a - b);
+    const at = (p) => sorted[Math.max(0, Math.min(sorted.length - 1,
+                        Math.round((sorted.length - 1) * p)))];
+    const lo = at(0.10), hi = at(0.90);
+    const wide = Math.max(0.05, hi - lo);
 
-    for(let t = sp.from; t < sp.to; t += step){
-      const lv = (loudnessAt(t) - lo) / span;
-      /* コマに ふりわける。いちばん 下の あいた口 より 下には しない
-         ＝ 声が 出て いる あいだは かならず 口が あく。 */
-      let i = Math.round(lv * (opens.length - 1) + 0.15);
-      i = Math.max(0, Math.min(opens.length - 1, i));
-      put(start + t, opens[i]);
+    let k = 0;
+    for(let t = sp.from; t < sp.to; t += step, k++){
+      const lv = Math.max(0, Math.min(1, (vals[k] - lo) / wide));
+      /* すこし あけぎみに する（+0.15）。
+         こうすると 弱い 音でも 口が あき、谷では ちゃんと とじる。 */
+      let i = Math.round(lv * (ladder.length - 1) + 0.15);
+      i = Math.max(0, Math.min(ladder.length - 1, i));
+      put(start + t, ladder[i]);
     }
     put(start + sp.to, closed);      // 声が切れたら 口をとじる
   }
