@@ -382,6 +382,7 @@ export function valuesAt(layer, time){
     shadowX:    (layer.shadow && layer.shadow.x != null) ? layer.shadow.x : 14,
     shadowY:    (layer.shadow && layer.shadow.y != null) ? layer.shadow.y : 18,
     shadowBlur: (layer.shadow && layer.shadow.blur != null) ? layer.shadow.blur : 12,
+    shadowSoft: (layer.shadow && layer.shadow.soft != null) ? layer.shadow.soft : 6,
 
     /* 色の 調整。1 が そのまま、0 が 何も 無い。
        ふつうは うごかさない ので、ピンは スライダーからだけ うつ。 */

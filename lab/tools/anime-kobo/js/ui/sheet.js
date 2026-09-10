@@ -1,40 +1,40 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=169';
+import { S, onChange, beginEdit, commitEdit, edit, selected } from '../state.js?v=172';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer } from '../engine/layer.js?v=169';
+         splitFrames, newCamLayer } from '../engine/layer.js?v=172';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=169';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=172';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=169';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=169';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=169';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=169';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=172';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=172';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=172';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=172';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=169';
+         addTextLayer } from '../io/text.js?v=172';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=169';
-import { PATTERN_NAMES } from '../io/pattern.js?v=169';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=172';
+import { PATTERN_NAMES } from '../io/pattern.js?v=172';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=169';
-import { readAsDataURL, loadImage } from '../io/image.js?v=169';
+         PITCH_MAX } from '../engine/pano.js?v=172';
+import { readAsDataURL, loadImage } from '../io/image.js?v=172';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=169';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=169';
-import { newHand } from '../engine/hand.js?v=169';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=169';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=172';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=172';
+import { newHand } from '../engine/hand.js?v=172';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=172';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=169';
+  from './colorwheel.js?v=172';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=169';
+         guessBpm, firstOnset } from '../io/audio.js?v=172';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=169';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=172';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2632,6 +2632,19 @@ export function buildLook(box, l, opts){
   box.appendChild(shd('x', 'よこに ずらす', -120, 120));
   box.appendChild(shd('y', 'たてに ずらす', -120, 120));
   box.appendChild(shd('blur', 'かげの ぼかし', 0, 80));
+  box.appendChild(slider('かげを なめらかに',
+    () => (l.shadow && l.shadow.soft != null) ? l.shadow.soft : 6,
+    v => { l.shadow = l.shadow || { color:'#1E1C14', amount:0, x:14, y:18, blur:12 };
+           l.shadow.soft = v; },
+    0, 30, 1, v => v < 0.5 ? '絵の まま' : Math.round(v) + 'px'));
+  const sfn = document.createElement('div');
+  sfn.className = 'empty';
+  sfn.style.textAlign = 'left';
+  sfn.textContent = 'かげは 絵の 形を そのまま つかう ので、' + NL
+    + '筆の ガサガサした ふちが そのまま 出ます。' + NL
+    + 'ここを 上げると、かげに する 形だけ なだらかに して' + NL
+    + 'すっきりした かげに なります（絵は そのまま）。';
+  box.appendChild(sfn);
 
   /* ---- 🎨 色の 調整 ---- */
   box.appendChild(heading('🎨 色の 調整'));

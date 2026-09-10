@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=169';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=169';
-import { valuesAt } from '../engine/anim.js?v=169';
-import { S, frameAsset, frameImage } from '../state.js?v=169';
+         nearestFolder } from '../engine/layer.js?v=172';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=172';
+import { valuesAt } from '../engine/anim.js?v=172';
+import { S, frameAsset, frameImage } from '../state.js?v=172';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=169';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=169';
-import { paintCanvas } from '../engine/paint.js?v=169';
-import { panoCanvas } from '../engine/pano.js?v=169';
-import { homography, applyH } from '../engine/warp.js?v=169';
-import { drawCamView } from './camview.js?v=169';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=169';
+         meshSizeFor } from '../engine/puppet.js?v=172';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=172';
+import { paintCanvas } from '../engine/paint.js?v=172';
+import { panoCanvas } from '../engine/pano.js?v=172';
+import { homography, applyH } from '../engine/warp.js?v=172';
+import { drawCamView } from './camview.js?v=172';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=172';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -586,16 +586,24 @@ function flatMesh(w, h){
      かげを 作ると、かげは ベタ色 なので うすい すじが
      はっきり 出て しまう（かげの 中に ます目が 見えた のが これ）。
 
-     同じ 形を 3回 かさねて ぬると
-       1回め 0.75 → 2回め 0.94 → 3回め 0.98
-     と、うすい ところだけ 1 に 近づく（もともと 1 の ところは そのまま）。
-     ＝ つぎ目が 消えて、影らしい ベタの 形に なる。 */
-  function fxSolid(src){
+     ① まず ほんの少し ぼかす。
+        あみの つぎ目は 1〜2ドットの 細い すじ なので これで 消える。
+        筆の ガサガサした ふちも ここで なだらかに なる。
+     ② そのあと「自分の 上に」かさねて いく。
+        自分を 足す ので、のこりの すけ ぶんが 毎回 2じょうに 小さく なる。
+          0.5 → 0.75 → 0.94 → 0.996
+        中みだけ ベタに なり、ふちは ①の おかげで なだらかな まま。
+
+     ①を せずに かさねると、筆の ガサガサが そのまま かたく なって、
+     かげの ふちが ギザギザに 見える（v169 が これ）。 */
+  function fxSolid(src, k, soften){
     const c = fxCanvas(2, src.width, src.height);
     const g = c.getContext('2d');
+    const soft = Math.max(1.2, (soften == null ? 6 : soften) * (k || 1));
+    g.filter = 'blur(' + soft.toFixed(2) + 'px)';
     g.drawImage(src, 0, 0);
-    g.drawImage(src, 0, 0);
-    g.drawImage(src, 0, 0);
+    g.filter = 'none';
+    for(let i = 0; i < 3; i++) g.drawImage(c, 0, 0);
     return c;
   }
 
@@ -632,7 +640,10 @@ function flatMesh(w, h){
     if(!(v.glowAmount > 0.004) && !(v.shadowAmount > 0.004)) return;
 
     /* あみの つぎ目を うめた 形から 作る */
-    const base = fxSolid(c);
+    /* かげの もとの 形を どれだけ なめらかに するか。
+       筆の ガサガサが 強い 絵ほど 大きく する。 */
+    const soften = v.shadowSoft == null ? 6 : v.shadowSoft;
+    const base = fxSolid(c, k, soften);
 
     /* ひかりを 先に 敷いて、その 下に かげ。
        ＝ 出る 順は かげ → ひかり → 絵。 */
