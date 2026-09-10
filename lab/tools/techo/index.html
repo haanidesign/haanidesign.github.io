@@ -557,6 +557,9 @@ a{color:var(--blue)}
       <button class="tool editonly" id="tPen" aria-pressed="false">🖊<span class="wide"> 手書き</span></button>
       <button class="tool editonly" id="tErase" aria-pressed="false">◌<span class="wide"> 消す</span></button>
       <span class="sep-v editonly"></span>
+      <button class="tool editonly" id="undoBtn" aria-label="書いたのを 戻す（二本指で トン）">↩</button>
+      <button class="tool editonly" id="redoBtn" aria-label="やり直す（三本指で トン）">↪</button>
+      <span class="sep-v editonly"></span>
       <div class="pens editonly" id="swatches"></div>
       <div class="sizes editonly" id="sizes"></div>
       <span class="sep-v"></span>
@@ -1796,21 +1799,48 @@ cv.addEventListener("pointerdown",(e)=>{
   if(e.pointerType==="touch"&&inkBlocked) return;
   cv.setPointerCapture(e.pointerId); e.preventDefault();
   const p=pos(e);
-  if(tool==="erase"){ const i=hit(p); if(i>=0){ cur.ink.splice(i,1); redraw(); touch(); } return; }
+  if(tool==="erase"){ erasing=false; const i=hit(p); if(i>=0){ if(!erasing){ inkMark(); erasing=true; } cur.ink.splice(i,1); redraw(); touch(); } return; }
   drawing={c:color,w:size,pts:[p]}; redraw();
 });
 cv.addEventListener("pointermove",(e)=>{
   if(tool==="move"||!canEdit) return;
   if(e.pointerType==="touch"&&inkBlocked){ if(drawing){ drawing=null; redraw(); } return; }
   const p=pos(e);
-  if(tool==="erase"){ if(e.buttons){ const i=hit(p); if(i>=0){ cur.ink.splice(i,1); redraw(); touch(); } } return; }
+  if(tool==="erase"){ if(e.buttons){ const i=hit(p); if(i>=0){ if(!erasing){ inkMark(); erasing=true; } cur.ink.splice(i,1); redraw(); touch(); } } return; }
   if(!drawing) return;
   const last=drawing.pts[drawing.pts.length-1];
   if(Math.abs(last[0]-p[0])+Math.abs(last[1]-p[1])<1.6) return;
   drawing.pts.push(p); redraw();
 });
-function endStroke(){ if(drawing){ cur.ink.push(drawing); drawing=null; redraw(); touch(); } }
-cv.addEventListener("pointerup",endStroke);
+
+/* ================= とりけし（手書きを 戻す・やり直す） ================= */
+let inkPast=[], inkFuture=[], inkOwner=null, erasing=false;
+const inkNow=()=>JSON.stringify((cur&&cur.ink)||[]);
+function inkMark(){                     // 変える 直前に よぶ
+  if(!cur) return;
+  if(inkOwner!==cur.id){ inkOwner=cur.id; inkPast=[]; inkFuture=[]; }
+  inkPast.push(inkNow());
+  if(inkPast.length>80) inkPast.shift();
+  inkFuture.length=0;
+}
+function inkPut(json){ cur.ink=JSON.parse(json); drawing=null; redraw(); touch(); }
+function undoInk(){
+  if(!cur||!canEdit){ setStatus("戻せません"); return; }
+  if(inkOwner!==cur.id||!inkPast.length){ setStatus("もう 戻せません"); return; }
+  inkFuture.push(inkNow());
+  inkPut(inkPast.pop());
+  setStatus("ひとつ 戻した（あと "+inkPast.length+"）");
+}
+function redoInk(){
+  if(!cur||!canEdit){ setStatus("やり直せません"); return; }
+  if(inkOwner!==cur.id||!inkFuture.length){ setStatus("やり直す ものが ありません"); return; }
+  inkPast.push(inkNow());
+  inkPut(inkFuture.pop());
+  setStatus("ひとつ やり直した");
+}
+
+function endStroke(){ if(drawing){ inkMark(); cur.ink.push(drawing); drawing=null; redraw(); touch(); } }
+cv.addEventListener("pointerup",(e)=>{ erasing=false; endStroke(e); });
 cv.addEventListener("pointercancel",endStroke);
 cv.addEventListener("pointerleave",()=>{ if(drawing) endStroke(); });
 
@@ -1944,12 +1974,16 @@ function turnBy(d){
     setStatus("次の頁 ▶"); goNext();
   }
 }
+$("#undoBtn").onclick=()=>undoInk();
+$("#redoBtn").onclick=()=>redoInk();
 $("#prev").onclick=()=>goPrev();
 $("#next").onclick=()=>goNext();
 document.addEventListener("keydown",(e)=>{
   if(e.target.isContentEditable||e.target.tagName==="INPUT") return;
   if(e.key==="ArrowLeft") $("#prev").click();
   if(e.key==="ArrowRight") $("#next").click();
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){ e.preventDefault(); e.shiftKey?redoInk():undoInk(); }
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){ e.preventDefault(); redoInk(); }
 });
 
 /* 指に貼りつく頁めくり：1:1で追い、離した速度で行き先を決め、端はゴムで粘る */
