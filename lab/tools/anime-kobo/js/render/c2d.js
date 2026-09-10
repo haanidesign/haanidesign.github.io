@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=167';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=167';
-import { valuesAt } from '../engine/anim.js?v=167';
-import { S, frameAsset, frameImage } from '../state.js?v=167';
+         nearestFolder } from '../engine/layer.js?v=168';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=168';
+import { valuesAt } from '../engine/anim.js?v=168';
+import { S, frameAsset, frameImage } from '../state.js?v=168';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=167';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=167';
-import { paintCanvas } from '../engine/paint.js?v=167';
-import { panoCanvas } from '../engine/pano.js?v=167';
-import { homography, applyH } from '../engine/warp.js?v=167';
-import { drawCamView } from './camview.js?v=167';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=167';
+         meshSizeFor } from '../engine/puppet.js?v=168';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=168';
+import { paintCanvas } from '../engine/paint.js?v=168';
+import { panoCanvas } from '../engine/pano.js?v=168';
+import { homography, applyH } from '../engine/warp.js?v=168';
+import { drawCamView } from './camview.js?v=168';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=168';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -768,7 +768,7 @@ function flatMesh(w, h){
     }
     /* レンズの 紙は 下じきごと 焼いて ある＝すけて いない ので、
        ほんの少し ふくらませて まるめの すきまを 消して よい。 */
-    drawDeformed(g, sheet, me, xy, 1, uv, true);
+    drawDeformed(g, sheet, me, xy, 1, uv);
   }
 
   /** b を a の下に敷く */
@@ -869,15 +869,29 @@ function flatMesh(w, h){
       gu.drawImage(ol, 0, 0);
       gu.globalCompositeOperation = 'source-over';
     }
-    underFX(c, v, k);
+
+    /* かげ・ひかりは「立体に 貼った あと」に かける。
+
+       さきに かけて しまうと、すけた かげが あみの 目を 通る ことに なる。
+       三角の つぎ目では ふちの ドットが 半分ずつに なる ので、
+       すけた ところだけ こさが ちがって 三角の 線が 見えて しまう
+       （かげの 中に ます目が 出て いたのが これ）。
+
+       貼って から かければ、あみを 通るのは 絵だけ。
+       絵は すけて いない ので つぎ目は 出ない。 */
+    const out = alloc(), go = out.getContext('2d');
+    go.setTransform(1, 0, 0, 1, 0, 0);
+    sheet3D(go, c, project, pose.quad, tf, r, bw, bh);
+    underFX(out, v, k0);
 
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = alpha;
     if(v.blur > 0.01) g.filter = 'blur(' + (v.blur * k0) + 'px)';
-    sheet3D(g, c, project, pose.quad, tf, r, bw, bh);
+    g.drawImage(out, 0, 0);
     g.filter = 'none';
     g.restore();
+    back(1);
   }
 
   function paintFolder(g, project, f, pose, poses, tf, mul){
