@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#E1DD60">
+<title>キャラクター工房｜動作と表情</title>
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470;
+  --pink:#F2A0B8;
+  --bd:2.5px solid var(--ink); --r:12px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--ink); font-family:'M PLUS Rounded 1c',sans-serif; font-weight:700;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
+  -webkit-text-size-adjust:100%;
+}
+.dot{font-family:'DotGothic16',monospace}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  background:var(--paper);color:var(--ink);
+  border:var(--bd);border-radius:var(--r);
+  padding:.6rem 1.1rem;font:inherit;font-size:.82rem;
+  box-shadow:0 3px 0 var(--ink);
+  cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--main)}
+.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.btn.on{background:var(--main);transform:translateY(2px);box-shadow:0 0 0 var(--ink)}
+.btn:disabled{opacity:.4;cursor:default;transform:none;box-shadow:0 3px 0 var(--ink);background:var(--paper)}
+.btn-sm{padding:.35rem .75rem;font-size:.72rem;box-shadow:0 2.5px 0 var(--ink)}
+.btn-sm.on{box-shadow:0 0 0 var(--ink)}
+.btn-g{background:var(--ink);color:var(--main)}
+.btn-g:hover{background:#3a362a}
+.title{
+  display:inline-block;background:var(--ink);color:var(--main);
+  border-radius:100px;padding:.22rem .8rem;font-size:.74rem;letter-spacing:.05em;
+}
+
+#wrap{max-width:1180px;margin:0 auto;padding:1.2rem 1rem 3rem}
+
+#head{display:flex;align-items:flex-end;gap:.8rem;flex-wrap:wrap;margin-bottom:.9rem}
+#head .crumb{font-size:.7rem;color:var(--gray);width:100%;margin-bottom:.15rem}
+#head .crumb a{color:var(--gray);text-decoration:none;border-bottom:2px dotted var(--gray)}
+#head h1{margin:0;font-size:1.6rem;font-weight:800;letter-spacing:.02em}
+#head .sp{flex:1}
+
+.row{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+#chars{margin-bottom:.7rem}
+#views{margin-bottom:.6rem}
+
+#main{display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start}
+@media(max-width:820px){#main{grid-template-columns:1fr}}
+
+#stage{
+  position:relative;background:var(--paper);border:var(--bd);border-radius:var(--r);
+  box-shadow:0 4px 0 var(--ink);overflow:hidden;aspect-ratio:1/1.08;
+}
+#stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#stage canvas:active{cursor:grabbing}
+#note{margin:.5rem .1rem 0;font-size:.68rem;color:var(--gray);font-weight:500}
+#load{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--paper);font-size:.8rem;color:var(--gray);z-index:3;
+}
+#load.hide{display:none}
+
+#panel{
+  background:var(--paper);border:var(--bd);border-radius:var(--r);
+  box-shadow:0 4px 0 var(--ink);padding:.9rem;
+  display:flex;flex-direction:column;gap:.9rem;
+}
+.sec{display:flex;flex-direction:column;gap:.5rem}
+.sec > .row{gap:.35rem}
+.hint{font-size:.68rem;color:var(--gray);font-weight:500;line-height:1.5;margin:0}
+
+.sld{display:flex;flex-direction:column;gap:.2rem}
+.sld .lab{display:flex;justify-content:space-between;font-size:.72rem}
+.sld .lab .v{color:var(--main-deep)}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:8px;margin:.25rem 0;
+  background:var(--main-soft);border:2px solid var(--ink);border-radius:100px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--main);border:2.5px solid var(--ink);cursor:pointer;
+}
+input[type=range]::-moz-range-thumb{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--main);border:2.5px solid var(--ink);cursor:pointer;
+}
+.chk{display:flex;align-items:center;gap:.45rem;font-size:.74rem;cursor:pointer;user-select:none}
+.chk input{
+  -webkit-appearance:none;appearance:none;width:16px;height:16px;margin:0;
+  border:2.5px solid var(--ink);border-radius:4px;background:var(--paper);cursor:pointer;
+}
+.chk input:checked{background:var(--main)}
+.chk input:checked::after{content:"";display:block;width:100%;height:100%;
+  background:var(--ink);clip-path:polygon(16% 52%,40% 74%,86% 22%,86% 40%,40% 92%,16% 68%)}
+details summary{font-size:.72rem;cursor:pointer;color:var(--main-deep);list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"▸ ";}
+details[open] summary::before{content:"▾ ";}
+details > div{padding-top:.5rem;display:flex;flex-direction:column;gap:.5rem}
+</style>
+</head>
+<body>
+
+<div id="wrap">
+
+  <div id="head">
+    <div class="crumb"><a href="../../index.html">HAANI LAB</a> ・ キャラクター工房 ・ 動作と表情</div>
+    <h1>動かして、確かめる</h1>
+    <div class="sp"></div>
+  </div>
+
+  <div class="row" id="chars"></div>
+
+  <div id="main">
+    <div>
+      <div class="row" id="views"></div>
+      <div id="stage">
+        <canvas id="cv"></canvas>
+        <div id="load">モデルを 組み立てています…</div>
+      </div>
+      <p id="note">ドラッグで回転、スクロールで拡大。動きを止めて、好きな角度から確認できます。</p>
+    </div>
+
+    <div id="panel">
+
+      <div class="sec">
+        <span class="title">◆動作</span>
+        <div class="row" id="acts"></div>
+        <div class="row">
+          <button class="btn btn-sm" id="btnPlay">一時停止</button>
+          <button class="btn btn-sm" id="btnStep">1コマ進む</button>
+        </div>
+        <div class="sld">
+          <div class="lab"><span>再生位置</span><span class="v dot" id="vTime">0.00 / 0.00 秒</span></div>
+          <input type="range" id="sTime" min="0" max="1000" value="0">
+        </div>
+        <div class="sld">
+          <div class="lab"><span>再生速度</span><span class="v dot" id="vSpeed">1.00 倍</span></div>
+          <input type="range" id="sSpeed" min="10" max="200" value="100">
+        </div>
+      </div>
+
+      <div class="sec">
+        <span class="title">◆髪と顔の向き</span>
+        <label class="chk"><input type="checkbox" id="cHair" checked>髪を自然に揺らす</label>
+        <div class="row" id="looks"></div>
+        <p class="hint">向きを変えると髪と体が少し遅れてついてきます。チェックを外すと髪の遅れを止めて比べられます。</p>
+      </div>
+
+      <div class="sec">
+        <span class="title">◆表情</span>
+        <div class="row" id="faces"></div>
+        <div class="row" id="mouths"></div>
+        <label class="chk"><input type="checkbox" id="cBlink" checked>自動で瞬き</label>
+        <label class="chk"><input type="checkbox" id="cTalk">会話の口の動き</label>
+        <details>
+          <summary>目と口を手で決める</summary>
+          <div>
+            <div class="sld">
+              <div class="lab"><span>左目を閉じる</span><span class="v dot" id="vEyeL">0%</span></div>
+              <input type="range" id="sEyeL" min="0" max="100" value="0">
+            </div>
+            <div class="sld">
+              <div class="lab"><span>右目を閉じる</span><span class="v dot" id="vEyeR">0%</span></div>
+              <input type="range" id="sEyeR" min="0" max="100" value="0">
+            </div>
+            <div class="sld">
+              <div class="lab"><span>口を開く</span><span class="v dot" id="vMouth">0%</span></div>
+              <input type="range" id="sMouth" min="0" max="100" value="0">
+            </div>
+          </div>
+        </details>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   キャラクター工房 ─ 動作と表情
+   モデルは外部ファイルを読まず、この場で組み立てている。
+   骨（Object3D）の入れ子＋原始形状＋顔だけキャンバス絵。
+   ============================================================ */
+
+const $ = s => document.querySelector(s);
+
+/* ---------- キャラ定義 ---------- */
+const CHARS = {
+  ai: {
+    name:'あいちゃん',
+    skin:'#F7DFD2', hair:'#2B2130', hairSub:'#B0729E', cloth:'#3A3040', clothSub:'#8E6FA8',
+    accent:'#C74F72', height:1.0, headR:.30, bodyW:.19, bodyH:.30, legLen:.42, armLen:.34,
+    faceStyle:'girl', eye:'#B24A78',
+    horns:true, wings:true, tail:true, skirt:true, hat:false, cat:false,
+    hairStyle:'long', clip:{walk:1.15, run:.72, idle:3.2}
+  },
+  kiyo: {
+    name:'きよさん',
+    skin:'#E86B5C', hair:'#7A3A2E', hairSub:'#E86B5C', cloth:'#3C2A22', clothSub:'#E8A08C',
+    accent:'#2A1C16', height:.92, headR:.33, bodyW:.24, bodyH:.26, legLen:.30, armLen:.30,
+    faceStyle:'grumpy', eye:'#2A1C16',
+    horns:false, wings:false, tail:false, skirt:false, hat:true, coat:true, cat:'ears',
+    hairStyle:'hood', clip:{walk:2.33, run:1.10, idle:3.6}
+  },
+  pat: {
+    name:'ぱっちむ',
+    skin:'#4A3A46', hair:'#3B2E38', hairSub:'#6B5566', cloth:'#4A3A46', clothSub:'#C79BB8',
+    accent:'#E1DD60', height:.62, headR:.34, bodyW:.34, bodyH:.26, legLen:.13, armLen:.16,
+    faceStyle:'button', eye:'#E1DD60',
+    horns:false, wings:true, tail:true, skirt:false, hat:false, cat:'ears', plush:true,
+    hairStyle:'none', clip:{walk:1.20, run:.80, idle:3.0}
+  }
+};
+
+const ACTS  = [['idle','待機'],['walk','歩く'],['run','走る']];
+const VIEWS = [
+  ['front','正面',   0,        .04, 1.00],
+  ['left','左側面', -Math.PI/2,.04, 1.00],
+  ['back','後ろ',    Math.PI,  .04, 1.00],
+  ['right','右側面', Math.PI/2,.04, 1.00],
+  ['tilt','斜め',   -Math.PI/5,.14, 1.00],
+  ['face','顔を拡大',0,        .00, .54]
+];
+const FACES  = [['normal','普通の表情'],['smile','にっこり'],['close','目と口を閉じる']];
+const MOUTHS = [['closed','閉じる'],['a','あ'],['i','い'],['u','う・お']];
+
+/* ---------- 状態 ---------- */
+const S = {
+  char:'ai', act:'walk', playing:true, time:0, speed:1,
+  hairSway:true, look:0, lookGoal:0,
+  face:'normal', mouth:'closed', blink:true, talk:false,
+  eyeL:0, eyeR:0, mouthManual:0, manualEye:false, manualMouth:false,
+  view:'front'
+};
+
+/* ---------- 3D 土台 ---------- */
+const cv = $('#cv');
+const renderer = new THREE.WebGLRenderer({canvas:cv, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, .05, 40);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xC9C6A8, 1.05));
+const dir = new THREE.DirectionalLight(0xffffff, .85);
+dir.position.set(2.2, 3.4, 2.6); scene.add(dir);
+const dir2 = new THREE.DirectionalLight(0xffffff, .3);
+dir2.position.set(-2, 1, -2.4); scene.add(dir2);
+
+/* 影は ぼかさず 真下に ベタで置く */
+const shadow = new THREE.Mesh(
+  new THREE.CircleGeometry(.34, 40),
+  new THREE.MeshBasicMaterial({color:0x1E1C14, transparent:true, opacity:.15})
+);
+shadow.rotation.x = -Math.PI/2; shadow.position.y = .002; scene.add(shadow);
+
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(1.6, 48),
+  new THREE.MeshBasicMaterial({color:0xF2F0BE})
+);
+floor.rotation.x = -Math.PI/2; scene.add(floor);
+
+const inkMat = new THREE.MeshBasicMaterial({color:0x1E1C14, side:THREE.BackSide});
+
+/* ---------- 組み立ての小道具 ---------- */
+function bone(parent, x, y, z){
+  const o = new THREE.Object3D();
+  o.position.set(x, y, z);
+  o.userData.rest = {x:0, y:0, z:0};
+  parent.add(o);
+  return o;
+}
+function skin(bone, geo, color, o = {}){
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color}));
+  m.position.set(o.x||0, o.y||0, o.z||0);
+  m.rotation.set(o.rx||0, o.ry||0, o.rz||0);
+  m.scale.set(o.sx||1, o.sy||1, o.sz||1);
+  const line = new THREE.Mesh(geo, inkMat);
+  line.scale.setScalar(1 + (o.line || .06));
+  m.add(line);
+  bone.add(m);
+  return m;
+}
+const SPH = (r, s = 16) => new THREE.SphereGeometry(r, s, Math.max(10, s - 4));
+const CAP = (r, l) => new THREE.CapsuleGeometry(r, l, 4, 12);
+const BOX = (w, h, d, r = 0) => new THREE.BoxGeometry(w, h, d);
+const CONE = (r, h) => new THREE.ConeGeometry(r, h, 12);
+/* 顔の前を あけた 髪のかたまり（後ろ〜横だけの 球） */
+const BACKSPH = (r) => new THREE.SphereGeometry(r, 22, 14, Math.PI*.76, Math.PI*1.48, 0, Math.PI*.88);
+/* こうもりの羽（外に向かって 3つの 山） */
+function wingGeo(w, h, t){
+  const sp = new THREE.Shape();
+  sp.moveTo(0, 0);
+  sp.quadraticCurveTo(w*.35,  h*.55, w*1.00, h*.42);
+  sp.quadraticCurveTo(w*.72,  h*.10, w*.92, -h*.16);
+  sp.quadraticCurveTo(w*.60, -h*.10, w*.66, -h*.46);
+  sp.quadraticCurveTo(w*.38, -h*.20, w*.34, -h*.58);
+  sp.quadraticCurveTo(w*.16, -h*.26, 0, -h*.30);
+  sp.closePath();
+  return new THREE.ExtrudeGeometry(sp, {depth:t, bevelEnabled:false});
+}
+
+/* ---------- 顔（キャンバス絵） ---------- */
+const faceCv = document.createElement('canvas');
+faceCv.width = faceCv.height = 256;
+const fx = faceCv.getContext('2d');
+const faceTex = new THREE.CanvasTexture(faceCv);
+faceTex.colorSpace = THREE.SRGBColorSpace;
+
+function drawFace(ch, f){
+  const c = fx, W = 256;
+  c.clearRect(0, 0, W, W);
+  c.lineCap = c.lineJoin = 'round';
+
+  const button = ch.faceStyle === 'button';
+  const grumpy = ch.faceStyle === 'grumpy';
+  const eyeY = button ? 118 : 122;
+  const eyes = [[86, eyeY, f.eyeL], [170, eyeY, f.eyeR]];
+
+  for (const [x, y, close] of eyes){
+    const open = 1 - close;
+    if (button){
+      // ボタンの目：閉じても つぶれず、糸だけ残る
+      c.fillStyle = x < 128 ? '#E7C24A' : '#9B6FB0';
+      c.strokeStyle = '#1E1C14'; c.lineWidth = 5;
+      c.beginPath(); c.ellipse(x, y, 24, 24 * (.35 + .65 * open), 0, 0, 7); c.fill(); c.stroke();
+      c.lineWidth = 4; c.strokeStyle = '#1E1C14';
+      c.beginPath();
+      c.moveTo(x - 8, y - 8 * open); c.lineTo(x + 8, y + 8 * open);
+      c.moveTo(x + 8, y - 8 * open); c.lineTo(x - 8, y + 8 * open);
+      c.stroke();
+      continue;
+    }
+    c.strokeStyle = '#1E1C14';
+    if (open < .12 || f.smile > .6){
+      // 閉じ目・笑い目は 弧で描く
+      c.lineWidth = 7;
+      c.beginPath();
+      if (f.smile > .6) c.arc(x, y + 6, 17, Math.PI * 1.12, Math.PI * 1.88);
+      else { c.moveTo(x - 17, y); c.quadraticCurveTo(x, y + 6, x + 17, y); }
+      c.stroke();
+    } else {
+      const h = 26 * open;
+      c.fillStyle = '#FFFEF7'; c.lineWidth = 5;
+      c.beginPath(); c.ellipse(x, y, 20, h, 0, 0, 7); c.fill(); c.stroke();
+      c.fillStyle = ch.eye;
+      c.beginPath(); c.ellipse(x + f.eyeX * 7, y + f.eyeY * 5, 11, Math.min(13, h), 0, 0, 7); c.fill();
+      c.fillStyle = '#1E1C14';
+      c.beginPath(); c.ellipse(x + f.eyeX * 7, y + f.eyeY * 5, 5.5, Math.min(7, h), 0, 0, 7); c.fill();
+      c.fillStyle = '#FFFEF7';
+      c.beginPath(); c.ellipse(x - 5 + f.eyeX * 7, y - 6, 4, Math.min(4.5, h), 0, 0, 7); c.fill();
+    }
+    // まゆ
+    c.lineWidth = 6; c.strokeStyle = grumpy ? '#3A251C' : ch.hair;
+    const tilt = grumpy ? 9 : (f.smile > .5 ? -3 : 2);
+    const s = x < 128 ? 1 : -1;
+    c.beginPath();
+    c.moveTo(x - 18, y - 36 + tilt * s * (x < 128 ? 1 : 1) * 0 + (grumpy ? (x < 128 ? -6 : 6) : 0));
+    c.quadraticCurveTo(x, y - 44 + (grumpy ? 8 : 0), x + 18, y - 36 + (grumpy ? (x < 128 ? 6 : -6) : 0));
+    c.stroke();
+  }
+
+  // 口
+  const mo = f.mouthOpen, sh = f.mouth;
+  c.strokeStyle = '#1E1C14'; c.fillStyle = '#8E3B52'; c.lineWidth = 5;
+  const my = button ? 172 : 178;
+  c.beginPath();
+  if (mo < .06 || sh === 'closed'){
+    if (f.smile > .5){ c.moveTo(115, my - 3); c.quadraticCurveTo(128, my + 10, 141, my - 3); }
+    else if (grumpy){ c.moveTo(112, my + 4); c.quadraticCurveTo(128, my - 6, 144, my + 4); }
+    else { c.moveTo(117, my); c.quadraticCurveTo(128, my + 6, 139, my); }
+    c.stroke();
+  } else if (sh === 'i'){
+    c.ellipse(128, my, 22, 5 + 7 * mo, 0, 0, 7); c.fill(); c.stroke();
+  } else if (sh === 'u'){
+    c.ellipse(128, my, 10 + 3 * mo, 10 + 9 * mo, 0, 0, 7); c.fill(); c.stroke();
+  } else {
+    c.ellipse(128, my, 14 + 4 * mo, 8 + 16 * mo, 0, 0, 7); c.fill(); c.stroke();
+  }
+
+  // ほお
+  c.fillStyle = 'rgba(242,160,184,.55)';
+  for (const x of [54, 202]){ c.beginPath(); c.ellipse(x, my - 18, 17, 10, 0, 0, 7); c.fill(); }
+  if (button){
+    c.strokeStyle = '#1E1C14'; c.lineWidth = 4;
+    c.beginPath(); c.moveTo(196, 96); c.lineTo(216, 116); c.moveTo(216, 96); c.lineTo(196, 116); c.stroke();
+  }
+  faceTex.needsUpdate = true;
+}
+
+/* ---------- モデル組み立て ---------- */
+let rig = null;
+
+function build(key){
+  if (rig) { scene.remove(rig.root); }
+  const ch = CHARS[key];
+  const root = new THREE.Object3D();
+  scene.add(root);
+
+  const hipY = ch.legLen + (ch.plush ? .04 : .08);
+  const hips  = bone(root, 0, hipY, 0);
+  const spine = bone(hips, 0, ch.bodyH * .45, 0);
+  const chest = bone(spine, 0, ch.bodyH * .5, 0);
+  const neck  = bone(chest, 0, ch.bodyH * .38, 0);
+  const head  = bone(neck, 0, ch.headR * .78, 0);
+
+  // 胴
+  skin(hips,  SPH(ch.bodyW), ch.cloth, {sy:.9, y:ch.bodyH*.1});
+  skin(chest, SPH(ch.bodyW*(ch.plush?1.02:.94)), ch.cloth, {sy:ch.plush?1.05:1.0, y:0});
+  if (ch.skirt) skin(hips, CONE(ch.bodyW*1.5, ch.bodyH*.7), ch.clothSub, {y:-ch.bodyH*.1});
+  if (ch.coat)  skin(chest, CONE(ch.bodyW*1.45, ch.bodyH*1.5), ch.cloth, {y:-ch.bodyH*.45});
+
+  // 頭
+  skin(head, SPH(ch.headR, 20), ch.skin, {sy:ch.plush?.92:1, sz:.94});
+  const faceMat = new THREE.MeshBasicMaterial({map:faceTex, transparent:true});
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(ch.headR*1.72, ch.headR*1.72), faceMat);
+  face.position.set(0, ch.headR*.02, ch.headR*.90);
+  head.add(face);
+
+  // 髪・耳・角・帽子
+  if (ch.hairStyle === 'long'){
+    skin(head, BACKSPH(ch.headR*1.02), ch.hair, {y:ch.headR*.02, z:ch.headR*.05, sx:.99, sz:1.02, line:.04});
+    // 前髪
+    skin(head, SPH(ch.headR*.52, 14), ch.hair,
+      {y:ch.headR*.46, z:ch.headR*.52, sx:1.75, sy:.90, sz:.95, line:.05});
+    // 横髪（毛先だけ 色を 変える）
+    for (const sd of [-1, 1]){
+      skin(head, CAP(ch.headR*.24, ch.headR*.50), ch.hair,
+        {x:sd*ch.headR*.82, y:ch.headR*.02, z:ch.headR*.18, rz:sd*.10, line:.05});
+      skin(head, SPH(ch.headR*.24, 12), ch.hairSub,
+        {x:sd*ch.headR*.84, y:-ch.headR*.38, z:ch.headR*.18, line:.05});
+    }
+  }
+  if (ch.hairStyle === 'hood'){
+    skin(head, BACKSPH(ch.headR*1.07), ch.hairSub, {y:0, z:ch.headR*.05, line:.04});
+    skin(head, SPH(ch.headR*.50, 14), ch.hairSub,
+      {y:ch.headR*.50, z:ch.headR*.54, sx:1.7, sy:.85, sz:.9, line:.05});
+  }
+  if (ch.cat === 'ears'){
+    for (const s of [-1, 1]){
+      skin(head, CONE(ch.headR*.30, ch.headR*.52), ch.hair,
+        {x:s*ch.headR*.56, y:ch.headR*.80, rz:s*.30});
+      skin(head, CONE(ch.headR*.17, ch.headR*.30), ch.clothSub,
+        {x:s*ch.headR*.56, y:ch.headR*.80, z:ch.headR*.10, rz:s*.30, line:.02});
+    }
+  }
+  if (ch.horns){
+    for (const s of [-1, 1])
+      skin(head, CONE(ch.headR*.16, ch.headR*.50), ch.accent,
+        {x:s*ch.headR*.48, y:ch.headR*.92, rz:s*.42});
+  }
+  if (ch.hat){
+    skin(head, new THREE.CylinderGeometry(ch.headR*1.35, ch.headR*1.35, .02, 22), ch.accent, {y:ch.headR*.86});
+    skin(head, new THREE.CylinderGeometry(ch.headR*.78, ch.headR*.86, ch.headR*.62, 22), ch.accent, {y:ch.headR*1.14});
+  }
+
+  // 腕
+  const arms = [];
+  for (const s of [-1, 1]){
+    const sh = bone(chest, s*(ch.bodyW*.95), ch.bodyH*.20, 0);
+    const up = bone(sh, 0, 0, 0);
+    const lo = bone(up, 0, -ch.armLen*.5, 0);
+    skin(up, CAP(ch.bodyW*.24, ch.armLen*.42), ch.cloth, {y:-ch.armLen*.25});
+    skin(lo, CAP(ch.bodyW*.22, ch.armLen*.38), ch.plush?ch.cloth:ch.skin, {y:-ch.armLen*.24});
+    skin(lo, SPH(ch.bodyW*.27), ch.plush?ch.clothSub:ch.skin, {y:-ch.armLen*.52, sz:.8});
+    up.userData.rest = {x:0, y:0, z:s*(ch.plush?.85:.16)};
+    arms.push({s, up, lo});
+  }
+
+  // 脚
+  const legs = [];
+  for (const s of [-1, 1]){
+    const up = bone(hips, s*(ch.bodyW*.45), -ch.bodyH*.18, 0);
+    const lo = bone(up, 0, -ch.legLen*.5, 0);
+    skin(up, CAP(ch.bodyW*.26, ch.legLen*.40), ch.plush?ch.skin:ch.clothSub, {y:-ch.legLen*.25});
+    skin(lo, CAP(ch.bodyW*.24, ch.legLen*.36), ch.plush?ch.skin:ch.cloth, {y:-ch.legLen*.24});
+    const foot = skin(lo, SPH(ch.bodyW*.30), ch.plush?ch.skin:ch.accent,
+      {y:-ch.legLen*.52, z:ch.bodyW*.10, sy:.7, sz:1.3});
+    if (ch.plush){
+      const pad = new THREE.Mesh(new THREE.CircleGeometry(ch.bodyW*.16, 14),
+        new THREE.MeshBasicMaterial({color:ch.clothSub}));
+      pad.position.set(0, 0, ch.bodyW*.30); pad.scale.set(1, .78, 1); foot.add(pad);
+    }
+    up.userData.rest = {x:0, y:0, z:s*(ch.plush?.42:.03)};
+    legs.push({s, up, lo});
+  }
+
+  // 揺れもの（髪・尾・羽・コートの裾）
+  const dangles = [];
+  const addDangle = (parent, cfg) => {
+    let p = parent, chain = [];
+    for (let i = 0; i < cfg.n; i++){
+      const b = bone(p, 0, i === 0 ? cfg.y0 : -cfg.len, cfg.z0 && i === 0 ? cfg.z0 : 0);
+      if (i === 0) b.position.x = cfg.x0 || 0;
+      skin(b, cfg.geo(i), cfg.color, {y:-cfg.len*.5, line:.05});
+      chain.push({b, v:0, a:0, rest:{...b.userData.rest}});
+      p = b;
+    }
+    dangles.push({chain, k:cfg.k || 60, d:cfg.d || 7, axis:cfg.axis || 'x', gain:cfg.gain || 1});
+  };
+
+  if (ch.hairStyle === 'long'){
+    for (const s of [-1, 1])
+      addDangle(head, {
+        n:3, len:ch.headR*.52, x0:s*ch.headR*.62, y0:ch.headR*.10, z0:-ch.headR*.18,
+        geo:i => CAP(ch.headR*(.26 - i*.05), ch.headR*.36), color:ch.hair, k:70, d:8, gain:1
+      });
+  }
+  if (ch.hairStyle === 'hood'){
+    addDangle(head, {
+      n:2, len:ch.headR*.40, y0:-ch.headR*.30, z0:-ch.headR*.62,
+      geo:i => SPH(ch.headR*(.34 - i*.08)), color:ch.hairSub, k:80, d:9
+    });
+  }
+  if (ch.tail){
+    addDangle(hips, {
+      n:4, len:ch.bodyW*(ch.plush?.55:.62), y0:-ch.bodyH*.05, z0:-ch.bodyW*.95,
+      geo:i => ch.plush ? CAP(ch.bodyW*(.14 - i*.02), ch.bodyW*.34)
+                        : CAP(ch.bodyW*(.10 - i*.015), ch.bodyW*.40),
+      color:ch.plush ? ch.hair : ch.accent, k:55, d:6, gain:1.2
+    });
+    const tip = dangles[dangles.length-1].chain[3].b;
+    if (!ch.plush) skin(tip, CONE(ch.bodyW*.20, ch.bodyW*.34), ch.accent,
+      {y:-ch.bodyW*.72, rx:Math.PI});
+  }
+  if (ch.coat){
+    for (const s of [-1, 1])
+      addDangle(chest, {
+        n:2, len:ch.bodyH*.55, x0:s*ch.bodyW*.80, y0:-ch.bodyH*.25, z0:ch.bodyW*.25,
+        geo:i => BOX(ch.bodyW*.55, ch.bodyH*.55, ch.bodyW*.22), color:ch.cloth, k:50, d:6
+      });
+  }
+
+  // 羽
+  const wings = [];
+  if (ch.wings){
+    for (const s of [-1, 1]){
+      const w = bone(chest, s*ch.bodyW*.85, ch.bodyH*.20, -ch.bodyW*.55);
+      const sc = ch.plush ? 1.5 : 1.9;
+      skin(w, wingGeo(ch.bodyW*sc, ch.bodyW*sc*1.05, .02), ch.plush?ch.hairSub:ch.hair,
+        {sx:s, y:ch.bodyW*.15, z:-.01, rz:s*.16, line:.03});
+      w.userData.rest = {x:0, y:s*.35, z:0};
+      wings.push({s, w});
+    }
+  }
+
+  // ボタン・首輪などの飾り
+  if (ch.plush){
+    skin(chest, BOX(ch.bodyW*.10, ch.bodyW*.9, ch.bodyW*.05), ch.clothSub,
+      {z:ch.bodyW*.98, rz:.4, line:.02});
+  }
+  if (!ch.plush && !ch.hat){
+    skin(neck, new THREE.TorusGeometry(ch.headR*.42, ch.headR*.07, 8, 18), ch.accent,
+      {rx:Math.PI/2, y:-ch.headR*.08, line:.04});
+  }
+
+  root.scale.setScalar(1);
+  shadow.scale.setScalar(ch.plush ? 1.15 : 1);
+
+  rig = {ch, root, hips, spine, chest, neck, head, arms, legs, dangles, wings, hipY};
+  applyPose(0);
+  return rig;
+}
+
+/* ---------- ポーズ ---------- */
+const T = (b, x, y, z) => {
+  const r = b.userData.rest;
+  b.rotation.set(r.x + x, r.y + y, r.z + z);
+};
+
+function clipLen(){ return CHARS[S.char].clip[S.act]; }
+
+function applyPose(t){
+  if (!rig) return;
+  const {ch, hips, spine, chest, neck, arms, legs, wings} = rig;
+  const L = clipLen();
+  const p = (t / L) * Math.PI * 2;
+  const plush = !!ch.plush;
+
+  let bob = 0, lean = 0;
+
+  if (S.act === 'idle'){
+    const b = Math.sin(p);
+    bob = b * .012;
+    T(hips,  0, Math.sin(p*.5)*.05, 0);
+    T(spine, Math.sin(p)*.03, 0, Math.sin(p*.5)*.02);
+    T(chest, -Math.sin(p)*.02, Math.sin(p*.5)*.04, 0);
+    for (const {s, up, lo} of arms){ T(up, Math.sin(p+s)*.05, 0, 0); T(lo, .12 + Math.sin(p)*.04, 0, 0); }
+    for (const {up, lo} of legs){ T(up, 0, 0, 0); T(lo, 0, 0, 0); }
+  } else {
+    const big = S.act === 'run';
+    const A  = big ? (plush ? .55 : .95) : (plush ? .32 : .55);
+    const Ka = big ? (plush ? .45 : .85) : (plush ? .26 : .45);
+    bob = (big ? .055 : .026) * Math.abs(Math.cos(p)) - (big ? .02 : .008);
+    lean = big ? .22 : .06;
+
+    T(hips,  lean*.4, 0, Math.sin(p)*.04);
+    T(spine, lean*.3, Math.sin(p)*.10, 0);
+    T(chest, lean*.3, -Math.sin(p)*.14, 0);
+    T(neck, -lean*.7, 0, 0);
+
+    for (const {s, up, lo} of arms){
+      const ph = p + (s < 0 ? Math.PI : 0);
+      T(up, -Math.sin(ph)*Ka - (big ? .5 : 0), 0, 0);
+      T(lo, (big ? 1.15 : .25) + Math.max(0, Math.sin(ph))*.35, 0, 0);
+    }
+    for (const {s, up, lo} of legs){
+      const ph = p + (s < 0 ? 0 : Math.PI);
+      const sw = Math.sin(ph);
+      T(up, sw*A - lean*.4, 0, 0);
+      T(lo, -Math.max(0, -sw) * (big ? 1.5 : .8) - .05, 0, 0);
+    }
+  }
+
+  rig.root.position.y = bob;
+  shadow.scale.setScalar((ch.plush ? 1.15 : 1) * (1 - bob * 1.6));
+  shadow.material.opacity = .15 * (1 - bob * 2.2);
+
+  // 顔の向き（体は少し遅れてついてくる）
+  T(rig.head, S.act === 'idle' ? 0 : -lean*.2, S.look, 0);
+  chest.rotation.y += S.look * .22;
+  hips.rotation.y  += S.look * .10;
+
+  if (wings.length){
+    const f = S.act === 'idle' ? Math.sin(t*2.0) : Math.sin(p*2);
+    for (const {s, w} of wings) T(w, 0, 0, s * f * (S.act === 'run' ? .30 : .16));
+  }
+}
+
+/* ---------- 揺れもの ---------- */
+function stepDangles(dt){
+  if (!rig) return;
+  for (const d of rig.dangles){
+    let drive = 0;
+    if (S.hairSway){
+      drive = (rig.root.position.y - (rig._prevY ?? 0)) * -26 * d.gain;
+    }
+    for (let i = 0; i < d.chain.length; i++){
+      const n = d.chain[i];
+      if (!S.hairSway){
+        n.a += (0 - n.a) * Math.min(1, dt*14); n.v = 0;
+      } else {
+        const target = drive * (1 - i*.18) + (d.axis === 'x' ? S.lookDelta * -.5 : 0);
+        n.v += (target - n.a) * d.k * dt - n.v * d.d * dt;
+        n.a += n.v * dt;
+        n.a = Math.max(-.6, Math.min(.6, n.a));
+      }
+      const r = n.rest;
+      if (d.axis === 'x') n.b.rotation.set(r.x + n.a, r.y, r.z + n.a * .3);
+      else                n.b.rotation.set(r.x, r.y + n.a, r.z);
+      drive *= .55;
+    }
+  }
+  rig._prevY = rig.root.position.y;
+}
+
+/* ---------- 表情の毎フレーム計算 ---------- */
+let blinkT = 1.4, blinkV = 0, talkT = 0, talkShape = 'a';
+function stepFace(dt){
+  const ch = CHARS[S.char];
+
+  // 瞬き
+  if (S.blink){
+    blinkT -= dt;
+    if (blinkT < 0){ blinkT = 1.6 + Math.random()*3.2; blinkV = 1; }
+    blinkV = Math.max(0, blinkV - dt*7.5);
+  } else blinkV = 0;
+  const auto = blinkV > .5 ? 1 : blinkV*2;
+
+  let eL = Math.max(S.eyeL, auto), eR = Math.max(S.eyeR, auto);
+  let smile = S.face === 'smile' ? 1 : 0;
+  if (S.face === 'close'){ eL = eR = 1; }
+
+  // 会話の口
+  let mouth = S.mouth, open = S.mouthManual;
+  if (S.talk){
+    talkT -= dt;
+    if (talkT < 0){
+      talkT = .09 + Math.random()*.11;
+      talkShape = ['a','i','u','a','closed'][Math.floor(Math.random()*5)];
+    }
+    mouth = talkShape;
+    open = talkShape === 'closed' ? 0 : .5 + Math.random()*.5;
+  } else if (S.face === 'close'){
+    mouth = 'closed'; open = 0;
+  } else if (mouth !== 'closed' && open < .05){
+    open = 1;
+  }
+
+  drawFace(ch, {
+    eyeL:eL, eyeR:eR, smile, mouth, mouthOpen:open,
+    eyeX:S.look * -.9, eyeY:0
+  });
+}
+
+/* ---------- カメラ ---------- */
+const cam = {yaw:0, pitch:.04, dist:1, yawG:0, pitchG:.04, distG:1};
+function frameCamera(){
+  const ch = CHARS[S.char];
+  const h = ch.legLen + ch.bodyH*1.5 + ch.headR*2;
+  const facing = S.view === 'face';
+  const ty = facing ? (rig ? rig.hipY + ch.bodyH*.88 + ch.headR*.78 : h*.85) : h*.48;
+  const base = h * 3.15;
+  const d = base * cam.dist;
+  cam.ty = ty;
+  camera.position.set(
+    Math.sin(cam.yaw) * Math.cos(cam.pitch) * d,
+    ty + Math.sin(cam.pitch) * d,
+    Math.cos(cam.yaw) * Math.cos(cam.pitch) * d
+  );
+  camera.lookAt(0, ty, 0);
+}
+function setView(k){
+  S.view = k;
+  const v = VIEWS.find(v => v[0] === k);
+  cam.yawG = v[2]; cam.pitchG = v[3]; cam.distG = v[4];
+  paintRow('#views', VIEWS.map(v => [v[0], v[1]]), S.view);
+}
+
+/* ドラッグ回転・ホイール拡大 */
+let drag = null;
+cv.addEventListener('pointerdown', e => {
+  drag = {x:e.clientX, y:e.clientY}; cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  cam.yawG   -= (e.clientX - drag.x) * .008;
+  cam.pitchG  = Math.max(-.5, Math.min(.9, cam.pitchG + (e.clientY - drag.y) * .005));
+  cam.yaw = cam.yawG; cam.pitch = cam.pitchG;
+  drag = {x:e.clientX, y:e.clientY};
+  paintRow('#views', VIEWS.map(v => [v[0], v[1]]), null);
+});
+addEventListener('pointerup', () => drag = null);
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.distG = Math.max(.22, Math.min(2.2, cam.distG * (1 + Math.sign(e.deltaY)*.10)));
+}, {passive:false});
+
+/* ---------- 画面まわり ---------- */
+function resize(){
+  const r = cv.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / r.height;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+function paintRow(sel, items, active){
+  const el = $(sel);
+  if (!el.dataset.built){
+    el.innerHTML = items.map(([k, l]) =>
+      `<button class="btn btn-sm" data-k="${k}">${l}</button>`).join('');
+    el.dataset.built = '1';
+  }
+  el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === active));
+}
+
+/* ---------- UI 配線 ---------- */
+paintRow('#chars', Object.entries(CHARS).map(([k, c]) => [k, c.name]), S.char);
+paintRow('#views', VIEWS.map(v => [v[0], v[1]]), S.view);
+paintRow('#acts',  ACTS,   S.act);
+paintRow('#looks', [['l','顔を左へ'],['c','顔を正面へ'],['r','顔を右へ']], 'c');
+paintRow('#faces', FACES,  S.face);
+paintRow('#mouths', MOUTHS, S.mouth);
+
+$('#chars').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.char = b.dataset.k; S.time = 0;
+  paintRow('#chars', Object.entries(CHARS).map(([k, c]) => [k, c.name]), S.char);
+  $('#load').classList.remove('hide');
+  requestAnimationFrame(() => { build(S.char); frameCamera(); $('#load').classList.add('hide'); });
+};
+$('#views').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.k); };
+$('#acts').onclick  = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.act = b.dataset.k; S.time = 0; paintRow('#acts', ACTS, S.act);
+};
+$('#looks').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.lookGoal = b.dataset.k === 'l' ? .55 : b.dataset.k === 'r' ? -.55 : 0;
+  paintRow('#looks', [['l','顔を左へ'],['c','顔を正面へ'],['r','顔を右へ']], b.dataset.k);
+};
+$('#faces').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.face = b.dataset.k; paintRow('#faces', FACES, S.face);
+  if (S.face === 'close'){ S.mouth = 'closed'; paintRow('#mouths', MOUTHS, S.mouth); }
+};
+$('#mouths').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  S.mouth = b.dataset.k; S.mouthManual = b.dataset.k === 'closed' ? 0 : 1;
+  $('#sMouth').value = S.mouthManual*100; $('#vMouth').textContent = Math.round(S.mouthManual*100)+'%';
+  if (S.face === 'close') { S.face = 'normal'; paintRow('#faces', FACES, S.face); }
+  paintRow('#mouths', MOUTHS, S.mouth);
+};
+
+$('#btnPlay').onclick = () => {
+  S.playing = !S.playing;
+  $('#btnPlay').textContent = S.playing ? '一時停止' : '再生';
+};
+$('#btnStep').onclick = () => {
+  S.playing = false; $('#btnPlay').textContent = '再生';
+  S.time = (S.time + 1/30) % clipLen();
+};
+$('#sTime').oninput = e => {
+  S.playing = false; $('#btnPlay').textContent = '再生';
+  S.time = (e.target.value/1000) * clipLen();
+};
+$('#sSpeed').oninput = e => {
+  S.speed = e.target.value/100;
+  $('#vSpeed').textContent = S.speed.toFixed(2) + ' 倍';
+};
+$('#cHair').onchange  = e => S.hairSway = e.target.checked;
+$('#cBlink').onchange = e => S.blink = e.target.checked;
+$('#cTalk').onchange  = e => S.talk = e.target.checked;
+const bindSld = (id, out, set) => {
+  $(id).oninput = e => { const v = e.target.value/100; set(v); $(out).textContent = Math.round(v*100)+'%'; };
+};
+bindSld('#sEyeL', '#vEyeL', v => S.eyeL = v);
+bindSld('#sEyeR', '#vEyeR', v => S.eyeR = v);
+bindSld('#sMouth','#vMouth',v => {
+  S.mouthManual = v;
+  if (v > 0 && S.mouth === 'closed'){ S.mouth = 'a'; paintRow('#mouths', MOUTHS, S.mouth); }
+});
+
+/* ---------- まわす ---------- */
+build(S.char);
+resize(); frameCamera();
+$('#load').classList.add('hide');
+
+let last = performance.now();
+function tick(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+
+  if (S.playing) S.time = (S.time + dt*S.speed) % clipLen();
+  const L = clipLen();
+  $('#sTime').value = (S.time/L)*1000;
+  $('#vTime').textContent = S.time.toFixed(2) + ' / ' + L.toFixed(2) + ' 秒';
+
+  const prevLook = S.look;
+  S.look += (S.lookGoal - S.look) * Math.min(1, dt*7);
+  S.lookDelta = (S.look - prevLook) / Math.max(dt, .001) * .12;
+
+  applyPose(S.time);
+  stepDangles(dt);
+  stepFace(dt);
+
+  cam.yaw   += (cam.yawG - cam.yaw)     * Math.min(1, dt*8);
+  cam.pitch += (cam.pitchG - cam.pitch) * Math.min(1, dt*8);
+  cam.dist  += (cam.distG - cam.dist)   * Math.min(1, dt*8);
+  frameCamera();
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+new ResizeObserver(resize).observe(cv.parentElement);
+</script>
+</body>
+</html>

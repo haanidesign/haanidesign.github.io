@@ -188,6 +188,17 @@ const TOOLS = [
     thumb: "thumbs/koma-wari.svg",
     url: "tools/koma-wari/index.html",
     status: "live"
+  },
+  {
+    no: 18,
+    slug: "chara-kobo",
+    title: "キャラクター工房",
+    desc: "キャラの動きと表情を確かめる台。3Dのモデルは外から読まず、ページの中で組み立てている。",
+    tags: ["3D", "モデル", "モーション", "表情", "リップシンク"],
+    cat: "anime",
+    thumb: "thumbs/chara-kobo.svg",
+    url: "tools/chara-kobo/index.html",
+    status: "live"
   }
 ];
 
