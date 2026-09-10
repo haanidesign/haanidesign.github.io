@@ -1925,6 +1925,18 @@ $("#scrim").onclick=closeMenu;
 /* 頁送り */
 function goPrev(){ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); return i>0 ? openPage(l[i-1].id,"prev") : Promise.resolve(); }
 function goNext(){ const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id); return (i>=0&&i<l.length-1) ? openPage(l[i+1].id,"next") : Promise.resolve(); }
+/* 端の頁では ◀▶ の ボタンが disabled になるので、指の めくりは 直に よぶ */
+function turnBy(d){
+  const l=ordered(), i=l.findIndex(p=>cur&&p.id===cur.id);
+  if(i<0) return;
+  if(d<0){
+    if(i<=0){ setStatus("いちばん はじめの 頁です"); return; }
+    goPrev();
+  }else{
+    if(i>=l.length-1){ setStatus("いちばん おわりの 頁です"); return; }
+    goNext();
+  }
+}
 $("#prev").onclick=()=>goPrev();
 $("#next").onclick=()=>goNext();
 document.addEventListener("keydown",(e)=>{
@@ -2099,17 +2111,17 @@ const leaf=makeSpring(v=>{
     if(!marks||slipped) return;
     for(const t of e.touches){
       const m=marks.find(m=>m.id===t.identifier);
-      if(m&&near(t,m)>16){ slipped=true; break; }   // 動いたらタップではない
+      if(m&&near(t,m)>24){ slipped=true; break; }   // 動いたらタップではない
     }
   },{passive:true});
   st.addEventListener("touchend",(e)=>{
     if(e.touches.length) return;                    // 全部 離れてから 決める
     going=false; marks=null;
     const n=most; most=0;
-    if(slipped||Date.now()-t0>=420) return;
+    if(slipped||Date.now()-t0>=520) return;
     if(pinching) return;                            // 手書き中でも 指の タップは めくる
-    if(n===2) $("#prev").click();                   // 二本指 → 戻る
-    else if(n>=3) $("#next").click();               // 三本指 → 進む
+    if(n===2) turnBy(-1);                           // 二本指 → 戻る
+    else if(n>=3) turnBy(1);                        // 三本指 → 進む
   });
   st.addEventListener("touchcancel",(e)=>{
     slipped=true;
