@@ -3,18 +3,18 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=163';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=163';
-import { valuesAt } from '../engine/anim.js?v=163';
-import { S, frameAsset, frameImage } from '../state.js?v=163';
+         nearestFolder } from '../engine/layer.js?v=164';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=164';
+import { valuesAt } from '../engine/anim.js?v=164';
+import { S, frameAsset, frameImage } from '../state.js?v=164';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=163';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=163';
-import { paintCanvas } from '../engine/paint.js?v=163';
-import { panoCanvas } from '../engine/pano.js?v=163';
-import { homography, applyH } from '../engine/warp.js?v=163';
-import { drawCamView } from './camview.js?v=163';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=163';
+         meshSizeFor } from '../engine/puppet.js?v=164';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=164';
+import { paintCanvas } from '../engine/paint.js?v=164';
+import { panoCanvas } from '../engine/pano.js?v=164';
+import { homography, applyH } from '../engine/warp.js?v=164';
+import { drawCamView } from './camview.js?v=164';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=164';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -1373,6 +1373,18 @@ function flatMesh(w, h){
       const gl = target;
       gl.save();
       gl.setTransform(...tf);
+      /* レンズを かける 紙にも 下じきを ぬる。
+         ここが すけた ままだと、貼り直す ときに
+         すけた ところが 三角の へりで 2回 のって すじに なる。
+         （ほんものの レンズも はいけいごと ゆがむ ので、こちらが 正しい） */
+      if(!opts.noBg){
+        gl.fillStyle = project.bg;
+        gl.fillRect(0, 0, project.w, project.h);
+      }
+      if(!opts.forExport && S.paperDots !== false){
+        const pt = dots();
+        if(pt){ gl.save(); gl.fillStyle = pt; gl.fillRect(0, 0, project.w, project.h); gl.restore(); }
+      }
     }
     if(!showOut){
       target.beginPath();

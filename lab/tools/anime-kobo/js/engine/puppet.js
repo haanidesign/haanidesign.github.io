@@ -363,6 +363,19 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv){
   const m0 = ctx.getTransform();
   g.setTransform(m0.a, m0.b, m0.c, m0.d, m0.e, m0.f);
 
+  /* かさなった ところを 2回 ぬらない。
+
+     三角は すきまが 出ない ように 少し ふくらませて ある。
+     ふつうに 上から ぬる（source-over）と、その かさなりで
+     色が 2回 のる。中みが すけて いる 絵（かげ・うすい ふち）だと
+     そこだけ こく なって、三角の へりが 線に なって 見える
+     ―― 魚眼で 画面ぜんたいを 貼り直した ときに これが 出た。
+
+     「まだ 何も 無い ところにだけ ぬる」に すると、
+     さきに ぬった 三角が かさなりを とる ので 2回に ならず、
+     すきまは あとの 三角が うめる。どちらも 立つ。 */
+  g.globalCompositeOperation = 'destination-over';
+
   const t = mesh.tris, v = mesh.verts;
   for(let i = 0; i < t.length; i += 3){
     const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
