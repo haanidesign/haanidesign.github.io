@@ -84,6 +84,9 @@ function flatten(node, out, groups, path){
       top: ch.top || 0,
       opacity: ch.opacity === undefined ? 1 : ch.opacity,
       blend: PSD_BLEND[String(ch.blendMode || 'normal').toLowerCase()] || 'normal',
+      /* クリッピングマスク。PSD では「すぐ下の レイヤーで ぬく」。
+         この道具の clip:true / clipTo:null が ちょうど 同じ 意味。 */
+      clip: !!ch.clipping,
       group: path.length ? path[path.length - 1] : null
     });
   }
@@ -160,6 +163,7 @@ export async function importPsd(file, opts = {}){
       const lay = newLayer(l.name, [id]);
       lay.opacity = Math.max(0, Math.min(1, l.opacity));
       lay.blend = l.blend || 'normal';
+      if(l.clip){ lay.clip = true; lay.clipTo = null; }
       // 縮小したぶんは拡大しなおして、見た目の大きさを元どおりにする
       lay.scaleX = k / shrunk;
       lay.scaleY = k / shrunk;
