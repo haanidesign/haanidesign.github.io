@@ -847,6 +847,14 @@ $('#docSize').addEventListener('click', openDocSheet);
 
 /* 版のばんごうを おすと、ブラウザに のこっている 古いものを 捨てて
    さいしんを 取りに行く（スマホは 古いままに なりやすい）。 */
+/* 版の ばんごうは、いま 読みこんだ ファイルの アドレスから 出す。
+   手で 書くと 直しわすれて、直って いるのに
+   古い ばんごうが 出た ままに なる（じっさい なった）。 */
+(() => {
+  const m = /[?&]v=(\d+)/.exec(import.meta.url);
+  $('#ver').textContent = 'v' + (m ? m[1] : '?');
+})();
+
 $('#ver').addEventListener('click', async () => {
   if(S.ready){
     busy(true, 'ほぞん しています…');
@@ -1037,8 +1045,24 @@ window.addEventListener('keydown', (e) => {
    絵の 下が バーに かくれる ことも なくなる。
    電波が 無い ときも、前に 見た ぶんは ひらける。 */
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.addEventListener('load', async () => {
+    try{
+      const reg = await navigator.serviceWorker.register('sw.js');
+      reg.update();                      // 新しいのが 出て ないか 見に行く
+    }catch(_){}
+  });
+
+  /* 新しい しくみが 入れかわったら、1回だけ 読み直す。
+     こうしないと、直した ばかりの ときに
+     ふるい ページの まま つかい つづける ことに なる。 */
+  /* はじめて 入れた ときは 読み直さない（べつに 古くない ので）。
+     すでに しくみが 動いて いた ときだけ ＝ 入れかわった ときだけ。 */
+  const had = !!navigator.serviceWorker.controller;
+  let swapped = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(!had || swapped) return;
+    swapped = true;
+    location.reload();
   });
 }
 

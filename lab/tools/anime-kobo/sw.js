@@ -37,7 +37,15 @@ self.addEventListener('fetch', (e) => {
 
   e.respondWith((async () => {
     try{
-      const res = await fetch(req);
+      /* ページ本体（index.html）だけは ブラウザの ためこみを 通さずに 取る。
+         ふつうに fetch すると、ブラウザが 自分の ためこみ（10分）から
+         古い index.html を 出して しまい、中に 書いて ある
+         「?v=177」が いつまでも 古い ばんごうの ままに なる。
+         中の ファイルは アドレスに ばんごうが ついて いる ので
+         ためこんで いても まちがえない（ので さわらない）。 */
+      const fresh = req.mode === 'navigate' || url.pathname.endsWith('/')
+                 || url.pathname.endsWith('.html') || url.pathname.endsWith('sw.js');
+      const res = await fetch(req, fresh ? { cache: 'reload' } : undefined);
       if(res && res.ok){
         const box = await caches.open(BOX);
         box.put(req, res.clone());
