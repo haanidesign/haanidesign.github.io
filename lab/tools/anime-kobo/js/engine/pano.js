@@ -13,10 +13,10 @@
    よこ回転・たて回転・ズーム は ふつうの チャンネルなので、
    タイミングピンで うごかせるし、そのまま 動画に 書き出せる。 */
 
-import { S, addAsset } from '../state.js?v=252';
-import { drawDeformed } from './puppet.js?v=252';
-import { newLayer } from './layer.js?v=252';
-import { setPin } from './anim.js?v=252';
+import { S, addAsset } from '../state.js?v=253';
+import { drawDeformed } from './puppet.js?v=253';
+import { newLayer } from './layer.js?v=253';
+import { setPin } from './anim.js?v=253';
 
 export const isPano = (l) => !!l && l.kind === 'pano';
 

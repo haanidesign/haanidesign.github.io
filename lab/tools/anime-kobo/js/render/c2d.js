@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=252';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=252';
-import { valuesAt } from '../engine/anim.js?v=252';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=252';
+         nearestFolder } from '../engine/layer.js?v=253';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=253';
+import { valuesAt } from '../engine/anim.js?v=253';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=253';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=252';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=252';
-import { paintCanvas } from '../engine/paint.js?v=252';
-import { panoCanvas } from '../engine/pano.js?v=252';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=252';
-import { roomCanvas } from '../engine/room.js?v=252';
-import { talkCanvas } from '../engine/talk.js?v=252';
-import { homography, applyH } from '../engine/warp.js?v=252';
-import { drawCamView } from './camview.js?v=252';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=252';
+         meshSizeFor } from '../engine/puppet.js?v=253';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=253';
+import { paintCanvas } from '../engine/paint.js?v=253';
+import { panoCanvas } from '../engine/pano.js?v=253';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=253';
+import { roomCanvas } from '../engine/room.js?v=253';
+import { talkCanvas } from '../engine/talk.js?v=253';
+import { homography, applyH } from '../engine/warp.js?v=253';
+import { drawCamView } from './camview.js?v=253';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=253';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
