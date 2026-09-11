@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=247';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=248';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=247';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=248';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=247';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=248';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=247';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=247';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=247';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=247';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=248';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=248';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=248';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=248';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=247';
+         addTextLayer } from '../io/text.js?v=248';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=247';
-import { PATTERN_NAMES } from '../io/pattern.js?v=247';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=248';
+import { PATTERN_NAMES } from '../io/pattern.js?v=248';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=247';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=247';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=247';
+         PITCH_MAX } from '../engine/pano.js?v=248';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=248';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=248';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=247';
-import { readAsDataURL, loadImage } from '../io/image.js?v=247';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=248';
+import { readAsDataURL, loadImage } from '../io/image.js?v=248';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=247';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=247';
-import { newHand } from '../engine/hand.js?v=247';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=247';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=248';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=248';
+import { newHand } from '../engine/hand.js?v=248';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=248';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=247';
+  from './colorwheel.js?v=248';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=247';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=248';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=247';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=248';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -3552,10 +3552,10 @@ export function buildDocSheet(box, closeFn){
   box.appendChild(heading('書き出しの きれいさ'));
   {
     const b = document.createElement('button');
-    const on = () => S.proj.sharpExport !== false;
+    const on = () => S.proj.sharpExport === true;
     const show = () => {
-      b.textContent = on() ? '✅ 2ばいで 描いて 縮める（すじが 消える）'
-                           : '⬜ そのままの 大きさで 描く（はやい）';
+      b.textContent = on() ? '✅ 2ばいで 描いて 縮める'
+                           : '⬜ そのままの 大きさで 描く（ふつう）';
       b.classList.toggle('on', on());
     };
     show();
@@ -3563,19 +3563,21 @@ export function buildDocSheet(box, closeFn){
     b.addEventListener('click', () => {
       edit('書き出しの きれいさ', () => { S.proj.sharpExport = !on(); });
       show();
-      notify(on() ? 'ゆがみの すじが 出なく なります（書き出しは おそく なります）'
-                  : 'はやく なります');
+      notify(on() ? 'なめらかな 絵むけ。トーンの 絵では かえって 汚く なります'
+                  : 'ふつうに もどしました');
       onChange();
     });
     box.appendChild(btnRow(b));
     const n = document.createElement('div');
     n.className = 'empty';
     n.style.textAlign = 'left';
-    n.textContent = '魚眼・まわりこみ・たおす を つかうと、絵が' + NL
-      + '三角の ます目で 貼り直され、その つぎ目が 明るい' + NL
-      + 'すじに 見える ことが あります（夜の 色で とくに）。' + NL
-      + '2ばいで 描いて 縮めると 消えます。' + NL
-      + 'そのぶん 書き出しに 時間が かかります（4ばいの 紙）。';
+    n.textContent = '⚠ アミ点（トーン）の 絵では 入れないで ください。' + NL
+      + '2ばいで 描くと 点が くっきり 出て しまい、縮める とき' + NL
+      + '画面の ドットと けんかして かえって 汚く なります' + NL
+      + '（じっさい そう なりました）。' + NL
+      + NL
+      + 'なめらかな 絵に 魚眼を つよく かける ような ときだけ。' + NL
+      + '書き出しに 時間が かかります（4ばいの 紙）。';
     box.appendChild(n);
   }
 
@@ -3653,6 +3655,66 @@ export function buildDocSheet(box, closeFn){
     box.appendChild(btnRow(
       button('📂 ファイルから 読みこむ', () => fi.click())
     ));
+  }
+
+  /* ---------- アミ点（トーン）の 絵 ----------
+     カメラで ななめから 見たり 魚眼を かけたり すると、
+     アミ点が 画面の ドットと けんかして もようや すじに なる。
+     ならして おいた 写しから 拾えば おちつく。
+     レイヤーの「かたち」にも あるが、トーンの 原画は たいてい
+     ぜんぶ そうなので、ここで まとめて 入れられる ように する。 */
+  box.appendChild(heading('🕸 アミ点（トーン）の 絵'));
+  {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = 'アミ点で ぬった 原画は、カメラで ななめに したり' + NL
+      + '魚眼を かけたり すると、点が 画面の ドットと けんかして' + NL
+      + 'もようや すじに なります（夜の 色で とくに 目立ちます）。' + NL
+      + 'ここを 入れると、ならして おいた 絵から 拾うので おちつきます。' + NL
+      + 'そのぶん ほんの少し やわらかく なります。';
+    box.appendChild(n);
+
+    const tgts = S.proj.layers.filter(
+      x => !isCam(x) && !isFolder(x) && (x.frames || []).length);
+    if(!tgts.length){
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'まだ 絵が ありません';
+      box.appendChild(e);
+    } else {
+      const rows = [];
+      box.appendChild(btnRow(
+        button('ぜんぶ 入れる', () => {
+          edit('トーンよけ', () => tgts.forEach(x => { x.tone = true; }));
+          rows.forEach(f => f());
+          notify('ぜんぶの 絵に 入れました');
+          onChange();
+        }),
+        button('ぜんぶ 切る', () => {
+          edit('トーンよけ', () => tgts.forEach(x => { x.tone = false; }));
+          rows.forEach(f => f());
+          notify('ぜんぶ 切りました');
+          onChange();
+        })
+      ));
+      tgts.forEach(x => {
+        const b = document.createElement('button');
+        const show = () => {
+          b.textContent = (x.tone ? '✅ ' : '⬜ ') + (x.name || 'レイヤー');
+          b.classList.toggle('on', !!x.tone);
+        };
+        show(); rows.push(show);
+        b.style.flex = '1';
+        b.style.textAlign = 'left';
+        b.addEventListener('click', () => {
+          edit('トーンよけ', () => { x.tone = !x.tone; });
+          show();
+          onChange();
+        });
+        box.appendChild(btnRow(b));
+      });
+    }
   }
 
   box.appendChild(heading('📌 カメラに 合わせない もの'));

@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=247';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=247';
-import { isTalk, blipTimes } from '../engine/talk.js?v=247';
-import { encodeGif } from './gif.js?v=247';
+import { createRenderer } from '../render/renderer.js?v=248';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=248';
+import { isTalk, blipTimes } from '../engine/talk.js?v=248';
+import { encodeGif } from './gif.js?v=248';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -65,7 +65,13 @@ export async function exportVideo(project, opts = {}){
 
      絵を 作って いる あいだ は しない（重い）。書き出す ときだけ。
      大きすぎる 動画（かた側 2160ごえ）は 紙が 作れない ことが あるので しない。 */
-  const ss = (project.sharpExport === false || width > 2160 || height > 2160) ? 1 : 2;
+  /* はじめは 切って ある。
+     ユーザーの アミ点の 絵で ためして もらったら、入れた ほうが
+     きたなく なった。2ばいで 描くと アミ点が くっきり 出て しまい、
+     半分に 縮める ときに 画面の ドットと けんかして もように なる
+     （こまかい 点の 絵では ぎゃく効果）。
+     なめらかな 絵で 魚眼を つよく かける ような ときに どうぞ。 */
+  const ss = (project.sharpExport === true && width <= 2160 && height <= 2160) ? 2 : 1;
   let R, paint;
   if(ss > 1){
     const big = document.createElement('canvas');

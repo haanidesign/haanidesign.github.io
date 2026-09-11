@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=247';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=247';
-import { valuesAt } from '../engine/anim.js?v=247';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=247';
+         nearestFolder } from '../engine/layer.js?v=248';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=248';
+import { valuesAt } from '../engine/anim.js?v=248';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=248';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=247';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=247';
-import { paintCanvas } from '../engine/paint.js?v=247';
-import { panoCanvas } from '../engine/pano.js?v=247';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=247';
-import { roomCanvas } from '../engine/room.js?v=247';
-import { talkCanvas } from '../engine/talk.js?v=247';
-import { homography, applyH } from '../engine/warp.js?v=247';
-import { drawCamView } from './camview.js?v=247';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=247';
+         meshSizeFor } from '../engine/puppet.js?v=248';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=248';
+import { paintCanvas } from '../engine/paint.js?v=248';
+import { panoCanvas } from '../engine/pano.js?v=248';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=248';
+import { roomCanvas } from '../engine/room.js?v=248';
+import { talkCanvas } from '../engine/talk.js?v=248';
+import { homography, applyH } from '../engine/warp.js?v=248';
+import { drawCamView } from './camview.js?v=248';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=248';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -195,7 +195,14 @@ function flatMesh(w, h){
       tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
     }
   }
-  const m = { verts, tris };
+  /* cols/rows も 持たせる。
+     ここを 持たせて いなかった ので、よび出しがわの
+       cellSrc = (asset.w / me.cols) * (asset.h / me.rows)
+     が NaN に なり、写し(mip)の えらび方が まるごと 死んで いた。
+     ＝ ななめから 見た とき、いつも もとの くっきりした 絵から 拾って
+     いた。アミ点が 画面の ドットと けんかして もようや すじに なる
+     いちばんの もと。「トーンの ちらつきを おさえる」も 効いて いなかった。 */
+  const m = { verts, tris, cols, rows };
   _flatMesh.key = key; _flatMesh.m = m;
   return m;
 }
@@ -402,7 +409,14 @@ function flatMesh(w, h){
         /* comp が 1.25ばい で 写し1、2.5ばい で 写し2。
            その あいだは 小数で あらわす（1.8 なら 写し1 と 写し2 を 8:2）。 */
         let lf = Math.log2(comp / 1.25) + 1;
-        if(l.tone && lf < 1) lf = 1;
+        /* 「トーンの ちらつきを おさえる」は、えらんだ 写しより
+           もう 1つ 下（半分）から 拾う。
+           まえは「1より 下なら 1に する」だった ので、
+           すでに 1を こえて いる ふつうの 場面では 何も して いなかった
+           （ユーザーの 作品は 1.2 だった ＝ 押しても 変わらない）。
+           アミ点は 画面の ドットと けんかする ので、
+           はっきり ぼかせないと 意味が ない。 */
+        if(l.tone) lf = Math.max(1, lf + 1);
         lf = Math.max(0, Math.min(2, lf));
         if(lf > 0) anyMip = true;
         const lo = Math.min(1, Math.floor(lf));
