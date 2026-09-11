@@ -948,3 +948,18 @@ input[type=range].coarse{
   background-size:100% 6px;
   background-position:center;
 }
+
+/* 💬 セリフの バー。行の 上に 出して、つまんで よこに ずらせる。 */
+.talkbar{
+  position:absolute; top:2px; height:18px; z-index:6;
+  display:flex; align-items:center;
+  padding:0 .35rem;
+  font-size:.6rem; line-height:1; white-space:nowrap; overflow:hidden;
+  color:var(--ink);
+  background:var(--main-soft);
+  border:2px solid var(--ink); border-radius:7px;
+  box-shadow:0 2px 0 var(--ink);
+  cursor:grab; touch-action:none;
+}
+.talkbar.on{ background:var(--main); }
+.talkbar:active{ cursor:grabbing; transform:translateY(1px); box-shadow:0 1px 0 var(--ink); }

@@ -1,16 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=217';
+import { isTalk, talkStart, talkEnd } from '../engine/talk.js?v=219';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=219';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=217';
+         nearestFolder, setParent } from '../engine/layer.js?v=219';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=217';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=217';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=217';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=217';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=219';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=219';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=219';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=219';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -199,6 +200,42 @@ export function createTimeline(root, opts = {}){
         ruler.appendChild(lb);
       }
     }
+  }
+
+  /* セリフの バーを よこに 引っぱって、しゃべり はじめを ずらす。
+
+     指の 行き先は window で 聞く。つまみから 指が はみ出しても
+     ついてくる し、とちゅうで つかみが 外れても 取りこぼさない。 */
+  function attachTalkDrag(el, l){
+    const perPx = () => Math.max(0.001, S.proj.duration) / Math.max(1, contentWidth());
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const x0 = e.clientX;
+      const from0 = talkStart(l);
+      const to0 = (l.span && l.span.to != null) ? l.span.to : null;
+      let moved = false;
+      beginEdit('セリフの タイミング');
+
+      const move = (ev) => {
+        const dx = ev.clientX - x0;
+        if(!moved && Math.abs(dx) < 3) return;
+        moved = true;
+        const from = Math.max(0, Math.min(S.proj.duration, from0 + dx * perPx()));
+        l.span = { from, to: to0 == null ? null : Math.max(from, to0 + (from - from0)) };
+        l._tkKey = null;
+        onChange();
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        commitEdit();
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
   }
 
   function buildRow(l, depth){
@@ -488,6 +525,26 @@ export function createTimeline(root, opts = {}){
        行の 上に 帯が あって、りょうはしの つまみ ⟨ ⟩ を 引っぱると
        「この レイヤーは ここから ここまで しか 出さない」に なる。
        フォルダに かければ 中身ごと 出たり 消えたり する。 */
+    /* ---- 💬 セリフの バー ----
+       いつ 出て、いつ 言いおわるかを 行の 上に 出す。
+       つまんで よこに 引っぱると、しゃべり はじめが ずれる。
+       （タイミングを あわせる のが いちばん やりたい ことなので、
+         「長さを 調節」を 出さなくても さわれる ように して おく） */
+    if(isTalk(l)){
+      const a = talkStart(l), b = talkEnd(l);
+      const bar = document.createElement('div');
+      bar.className = 'talkbar' + (l.id === S.sel ? ' on' : '');
+      bar.style.left = t2x(a) + 'px';
+      bar.style.width = Math.max(10, t2x(b) - t2x(a)) + 'px';
+      const say = (l.talk && l.talk.text) ? String(l.talk.text)
+        .split(String.fromCharCode(10)).join(' ') : '';
+      bar.textContent = say.slice(0, 18);
+      bar.title = a.toFixed(2) + '秒 〜 ' + b.toFixed(2) + '秒'
+        + String.fromCharCode(10) + 'つまんで よこに 引っぱると ずらせます';
+      attachTalkDrag(bar, l);
+      track.appendChild(bar);
+    }
+
     if(S.spanEdit === l.id){
       const sp = l.span || { from: 0, to: S.proj.duration };
       const has = !!l.span;
