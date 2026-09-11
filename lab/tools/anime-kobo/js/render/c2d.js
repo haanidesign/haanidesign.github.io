@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=248';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=248';
-import { valuesAt } from '../engine/anim.js?v=248';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=248';
+         nearestFolder } from '../engine/layer.js?v=249';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=249';
+import { valuesAt } from '../engine/anim.js?v=249';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=249';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=248';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=248';
-import { paintCanvas } from '../engine/paint.js?v=248';
-import { panoCanvas } from '../engine/pano.js?v=248';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=248';
-import { roomCanvas } from '../engine/room.js?v=248';
-import { talkCanvas } from '../engine/talk.js?v=248';
-import { homography, applyH } from '../engine/warp.js?v=248';
-import { drawCamView } from './camview.js?v=248';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=248';
+         meshSizeFor } from '../engine/puppet.js?v=249';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=249';
+import { paintCanvas } from '../engine/paint.js?v=249';
+import { panoCanvas } from '../engine/pano.js?v=249';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=249';
+import { roomCanvas } from '../engine/room.js?v=249';
+import { talkCanvas } from '../engine/talk.js?v=249';
+import { homography, applyH } from '../engine/warp.js?v=249';
+import { drawCamView } from './camview.js?v=249';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=249';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -963,7 +963,23 @@ function flatMesh(w, h){
     return m;
   }
 
-  function drawLens(g, sheet, project, tf, k){
+  function drawLens(g, sheet, project, tf, k, opaque){
+    /* ---------- つなぎ方 ----------
+       足し算（'add'）は すける 中みの つぎ目に よく きく が、
+       三角の ふちが ちょうど ドットの さかい目に 来た とき、
+       どちらの 三角も その 列を 取りこぼして 2ドットの すきまに なる。
+       うしろの 白い 紙が すじに なって 見える。
+
+       実測（ユーザーの 書き出した 動画、1080角、魚眼0.45）:
+         あみの 列 27本の うち、x=540 と x=810 の 2本 だけ
+         明るさが +36.5 / +40.3。ほかは ぜんぶ ±1 いない。
+         この 2本は 1080/28 が ちょうど 整数に なる ところ。
+
+       レンズを かける 紙は 下じきを ぬって あって すけて いない ので、
+       少し ふくらませて 上から ぬる ほうを つかえば、
+       同じ 中みを ぬり直す だけ で すきまが 出ない。
+       すける まま 書き出す とき（GIF）だけ 足し算に もどす。 */
+    const mode = opaque ? undefined : 'add';
     const W = project.w, H = project.h;
     const me = lensMesh(W, H);
     const n = me.verts.length;
@@ -1018,7 +1034,7 @@ function flatMesh(w, h){
        写しの 使いわけも かならず 1回に まとめて ぬる
        （べつべつに ぬると 境目が すじに なる）。 */
     if(!lv[1].length && !lv[2].length){
-      drawDeformed(g, sheet, me, xy, 1, uv, 'add');
+      drawDeformed(g, sheet, me, xy, 1, uv, mode);
       return;
     }
     const mip = lensMips(sheet);
@@ -1028,7 +1044,7 @@ function flatMesh(w, h){
       const im = mip[Math.min(i, mip.length - 1)];
       parts.push({ img: im, tris: lv[i], k: im.width / sheet.width });
     }
-    drawDeformed(g, parts, me, xy, 1, uv, 'add');
+    drawDeformed(g, parts, me, xy, 1, uv, mode);
   }
 
   /* レンズ用の 小さくした 写し。毎コマ 作り直す（中みが 毎コマ ちがう） */
@@ -1872,7 +1888,7 @@ function flatMesh(w, h){
     if(target !== ctx){
       target.restore();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      drawLens(ctx, lensCanvas, project, tf, kFish);
+      drawLens(ctx, lensCanvas, project, tf, kFish, !opts.noBg);
       ctx.setTransform(...tf);
       if(pinnedTop.length) drawNodes(ctx, project, pinnedTop, poses, tf, subPoses);
     }

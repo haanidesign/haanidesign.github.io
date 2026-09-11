@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=248';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=248';
-import { isTalk, blipTimes } from '../engine/talk.js?v=248';
-import { encodeGif } from './gif.js?v=248';
+import { createRenderer } from '../render/renderer.js?v=249';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=249';
+import { isTalk, blipTimes } from '../engine/talk.js?v=249';
+import { encodeGif } from './gif.js?v=249';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
