@@ -345,8 +345,25 @@ function drawTri(ctx, img, x0, y0, x1, y1, x2, y2, u0, v0, u1, v1, u2, v2, ex){
  *            かさなっても こく ならない）。
  *            すけて いる 中みで ふくらませると 足しすぎに なる ので だめ。
  */
+/**
+ * あみに 絵を はる。
+ *
+ * img は 1まいでも、部品の ならびでも よい。
+ *   [{ img, k, tris }, ...]
+ * ならびを わたすと、どれも「同じ 1まいの 別紙」に つづけて ぬってから
+ * いちどだけ 本番へ うつす。
+ *
+ * なぜ わざわざ ひとまとめに するか
+ *   つぶれ ぐあいで 絵を 使いわける とき（ミップ）、
+ *   別べつに よぶと、その たびに 別紙が 1まいずつ できて
+ *   本番へ 2回 3回と かさねる ことに なる。
+ *   すると 使いわけの 境目 ―― つまり あみの すじ ―― が
+ *   うっすら 線に なって 出る（カメラを 動かすと それが 流れて ちらつく）。
+ *   同じ 別紙に ぬれば、境目の 三角どうしも きちんと つながる。
+ */
 export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
-  const k = srcK || 1;
+  const parts = Array.isArray(img) ? img
+              : [{ img, k: srcK || 1, tris: mesh.tris }];
   /* mode:
        なし  … ふつう。少し ふくらませて 上から ぬる。
                あみが 動く もの（手がき風・ゆがみ・ピン）でも ちらつかない。
@@ -419,18 +436,24 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
        ―― c2d の paintFolder3D で かげは 貼った あとに かける。 */
   g.globalCompositeOperation = add ? 'lighter' : 'source-over';
 
-  const t = mesh.tris, v = mesh.verts;
+  const v = mesh.verts;
   const paint = (gg, exp) => {
-    for(let i = 0; i < t.length; i += 3){
-      const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
-      /* 絵の どこを はるか。uv が あれば そちらを つかう */
-      const u0 = uv ? uv[i0 * 2] : v[i0].u, w0 = uv ? uv[i0 * 2 + 1] : v[i0].v;
-      const u1 = uv ? uv[i1 * 2] : v[i1].u, w1 = uv ? uv[i1 * 2 + 1] : v[i1].v;
-      const u2 = uv ? uv[i2 * 2] : v[i2].u, w2 = uv ? uv[i2 * 2 + 1] : v[i2].v;
-      drawTri(gg, img,
-        xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
-        u0 * k, w0 * k, u1 * k, w1 * k, u2 * k, w2 * k,
-        exp);
+    for(const part of parts){
+      const t = part.tris || mesh.tris;
+      const k = part.k || 1;
+      const im = part.img;
+      if(!im || !t || !t.length) continue;
+      for(let i = 0; i < t.length; i += 3){
+        const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
+        /* 絵の どこを はるか。uv が あれば そちらを つかう */
+        const u0 = uv ? uv[i0 * 2] : v[i0].u, w0 = uv ? uv[i0 * 2 + 1] : v[i0].v;
+        const u1 = uv ? uv[i1 * 2] : v[i1].u, w1 = uv ? uv[i1 * 2 + 1] : v[i1].v;
+        const u2 = uv ? uv[i2 * 2] : v[i2].u, w2 = uv ? uv[i2 * 2 + 1] : v[i2].v;
+        drawTri(gg, im,
+          xy[i0 * 2], xy[i0 * 2 + 1], xy[i1 * 2], xy[i1 * 2 + 1], xy[i2 * 2], xy[i2 * 2 + 1],
+          u0 * k, w0 * k, u1 * k, w1 * k, u2 * k, w2 * k,
+          exp);
+      }
     }
   };
   paint(g, ex);

@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=221';
-import { setPin } from '../engine/anim.js?v=221';
-import { S, isDraft } from '../state.js?v=221';
+import { drawDeformed } from './puppet.js?v=224';
+import { setPin } from '../engine/anim.js?v=224';
+import { S, isDraft } from '../state.js?v=224';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);
@@ -297,12 +297,16 @@ export function ballCanvas(l, v, img, tag){
     g.beginPath();
     g.arc(cx, cy, R, 0, Math.PI * 2);
     g.clip();
+    /* 使いわけは するが、ぬるのは 1回に まとめる
+       （べつべつに ぬると 境目が すじに なって 出る）。 */
+    const parts = [];
     for(let i = 0; i < 3; i++){
       if(!lv[i].length) continue;
       const im = mip[Math.min(i, mip.length - 1)];
-      const k = (im.naturalWidth || im.width) / (src.naturalWidth || src.width);
-      drawDeformed(g, im, { verts: m.verts, tris: lv[i] }, xy, k, uv);
+      parts.push({ img: im, tris: lv[i],
+        k: (im.naturalWidth || im.width) / (src.naturalWidth || src.width) });
     }
+    drawDeformed(g, parts, m, xy, 1, uv);
     g.restore();
   }
 

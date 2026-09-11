@@ -13,10 +13,53 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=221';
-import { newLayer } from './layer.js?v=221';
+import { S } from '../state.js?v=224';
+import { newLayer } from './layer.js?v=224';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
+
+/* セリフ どうしの すきま。
+   ・大きく あけると その あいだ 帯が 消えて、1コマ 白く 光る
+   ・ぴったり 同じに すると 1コマ 帯が 2まい かさなって 暗く 光る
+   どちらも ちらつきに 見える ので、
+   「前の おわり ＝ その 時こく まで 出す」
+   「つぎの はじまり ＝ ほんの わずか あと」に して、
+   どの コマにも かならず 1まいだけ 出る ように する。 */
+const EPS = 0.0005;
+
+/**
+ * 時間が かさなって いる ほかの セリフ枠を さがす。
+ * かさなると 帯が 2まい 重なって、そこだけ 暗く ちらつく。
+ */
+export function overlapping(project, l){
+  const a0 = talkStart(l), a1 = talkOut(l);
+  return (project.layers || []).filter(x => {
+    if(x === l || !isTalk(x) || x.visible === false) return false;
+    const b0 = talkStart(x), b1 = talkOut(x);
+    return a0 < b1 - 1e-6 && b0 < a1 - 1e-6;
+  });
+}
+
+/** かさなりを なおす。うしろの ものを ずらして すき間を あける */
+export function fixOverlaps(project){
+  const ts = (project.layers || []).filter(isTalk)
+    .sort((a, b) => talkStart(a) - talkStart(b));
+  let moved = 0, prevOut = -1;
+  for(const l of ts){
+    const from = talkStart(l);
+    if(prevOut >= 0 && from < prevOut + EPS){
+      l.span = { from: prevOut + EPS, to: null };
+      l._tkKey = null;
+      moved++;
+    }
+    /* 自分の おわりは「よいんの おわり」ちょうど */
+    const out = talkOut(l);
+    if(l.span) l.span.to = out;
+    else l.span = { from: talkStart(l), to: out };
+    prevOut = out;
+  }
+  return moved;
+}
 
 export function talkDefaults(project){
   const P = project || S.proj;
@@ -209,10 +252,15 @@ export function addNextTalk(l){
   /* いまの セリフは「言いおわる まで」、つぎは その あとから。
      こう して おくと、2つが かさなって 2まい 出る ことが ない。 */
   /* 読みおわる 間（よいん）を おいてから 次に する。
-     出おわった とたん 切りかわると 読めない。 */
+     出おわった とたん 切りかわると 読めない。
+
+     ここで 1コマ ぶん すき間を あける のが だいじ。
+     ぴったり くっつけると、その 時こくに 当たった 1コマ だけ
+     2まいの 帯が かさなって 出て、そこだけ 暗く 光る
+     （実測: 帯の 明るさ 75 → 43 の 1コマ ちらつき）。 */
   const out = talkOut(l);
   l.span = { from: talkStart(l), to: out };
-  nx.span = { from: out, to: null };
+  nx.span = { from: out + EPS, to: null };
   const at = S.proj.layers.indexOf(l);
   S.proj.layers.splice(Math.max(0, at), 0, nx);
   S.sel = nx.id;

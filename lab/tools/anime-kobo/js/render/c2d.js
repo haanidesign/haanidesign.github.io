@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=221';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=221';
-import { valuesAt } from '../engine/anim.js?v=221';
-import { S, frameAsset, frameImage } from '../state.js?v=221';
+         nearestFolder } from '../engine/layer.js?v=224';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=224';
+import { valuesAt } from '../engine/anim.js?v=224';
+import { S, frameAsset, frameImage } from '../state.js?v=224';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=221';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=221';
-import { paintCanvas } from '../engine/paint.js?v=221';
-import { panoCanvas } from '../engine/pano.js?v=221';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=221';
-import { roomCanvas } from '../engine/room.js?v=221';
-import { talkCanvas } from '../engine/talk.js?v=221';
-import { homography, applyH } from '../engine/warp.js?v=221';
-import { drawCamView } from './camview.js?v=221';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=221';
+         meshSizeFor } from '../engine/puppet.js?v=224';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=224';
+import { paintCanvas } from '../engine/paint.js?v=224';
+import { panoCanvas } from '../engine/pano.js?v=224';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=224';
+import { roomCanvas } from '../engine/room.js?v=224';
+import { talkCanvas } from '../engine/talk.js?v=224';
+import { homography, applyH } from '../engine/warp.js?v=224';
+import { drawCamView } from './camview.js?v=224';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=224';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -380,13 +380,17 @@ function flatMesh(w, h){
       if(!lv[1].length && !lv[2].length){
         drawDeformed(g, img, me, l._q3xy, 1, null, 'add');
       } else {
+        /* 使いわけは するが、ぬるのは 1回に まとめる。
+           べつべつに ぬると 使いわけの 境目が すじに なって 出る。 */
         const mip = mipsOf(l, img, (asset.id || asset.name || '') + ':' + pose.v.frame);
+        const parts = [];
         for(let i = 0; i < 3; i++){
           if(!lv[i].length) continue;
           const im = mip[Math.min(i, mip.length - 1)];
-          const k = (im.naturalWidth || im.width) / (img.naturalWidth || img.width);
-          drawDeformed(g, im, { verts: me.verts, tris: lv[i] }, l._q3xy, k, null, 'add');
+          parts.push({ img: im, tris: lv[i],
+            k: (im.naturalWidth || im.width) / (img.naturalWidth || img.width) });
         }
+        drawDeformed(g, parts, me, l._q3xy, 1, null, 'add');
       }
 
     } else {
