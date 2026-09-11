@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=208';
-import { S, newProject, onChange, onRestore, undo, redo, edit,
+import { M } from './engine/math.js?v=209';
+import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=208';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=209';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=208';
-import { createStage } from './ui/stage.js?v=208';
-import { createRenderer } from './render/renderer.js?v=208';
-import { createTimeline } from './ui/timeline.js?v=208';
-import { fmtTime } from './engine/anim.js?v=208';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=209';
+import { createStage } from './ui/stage.js?v=209';
+import { createRenderer } from './render/renderer.js?v=209';
+import { createTimeline } from './ui/timeline.js?v=209';
+import { fmtTime } from './engine/anim.js?v=209';
 import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,23 +20,23 @@ import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextS
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=208';
+         setWarper } from './ui/sheet.js?v=209';
 
-import { showNewDoc } from './ui/newdoc.js?v=208';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=208';
-import { fitToCanvas, isBg } from './io/bg.js?v=208';
-import * as Audio from './io/audio.js?v=208';
-import { isTalk, blipTimes } from './engine/talk.js?v=208';
+import { showNewDoc } from './ui/newdoc.js?v=209';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=209';
+import { fitToCanvas, isBg } from './io/bg.js?v=209';
+import * as Audio from './io/audio.js?v=209';
+import { isTalk, blipTimes } from './engine/talk.js?v=209';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=208';
-import { importPsd } from './io/psd.js?v=208';
-import { splitTextChars } from './io/text.js?v=208';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=209';
+import { importPsd } from './io/psd.js?v=209';
+import { splitTextChars } from './io/text.js?v=209';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=208';
-import { pathKeys, pathLength } from './engine/path.js?v=208';
-import { paintDirty } from './engine/paint.js?v=208';
+         canUseWebCodecs } from './io/export.js?v=209';
+import { pathKeys, pathLength } from './engine/path.js?v=209';
+import { paintDirty } from './engine/paint.js?v=209';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=208';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=209';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1343,6 +1343,7 @@ function startNew(resume){
   showNewDoc($('#newdoc'), (w, h, seconds) => {
     S.proj = newProject(w, h, seconds);
     S.docId = newId();                  // あたらしい さくひんの ばんごう
+    resetUndo();                        // 前の さくひんへ もどらない ように
     /* 音は さくひんごと。まえの こえを 持ちこさない。
        音は プロジェクトの 外（Audio.A）に 持って いる ので、
        ここで 消さないと まえの こえが そのまま 鳴り、
@@ -1367,6 +1368,7 @@ async function openDoc(id){
     if(!rec || !rec.proj) throw new Error('ひらけませんでした');
     S.proj = rec.proj;
     S.docId = rec.id;
+    resetUndo();                        // 前の さくひんへ もどらない ように
     if(rec.audio && rec.audio.bytes){
       try{ await Audio.loadAudio(rec.audio.bytes, rec.audio.name); }catch(_){}
       syncAudioLayer();

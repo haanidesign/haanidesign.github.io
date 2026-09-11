@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=208';
+import { uid } from './engine/math.js?v=209';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -114,7 +114,10 @@ export function commitEdit(){
   const after = snap();
   if(after === p.before) return;
   UNDO.stack.length = UNDO.idx + 1;
-  UNDO.stack.push({ label: p.label, before: p.before, after });
+  /* どの さくひんの ぶんか を おぼえて おく（念のための おさえ）。
+     切りかえの ときに 捨てて いる が、万一 のこって いても
+     よその さくひんへ もどって しまわない ように する。 */
+  UNDO.stack.push({ label: p.label, before: p.before, after, doc: S.docId });
   if(UNDO.stack.length > UNDO.limit) UNDO.stack.shift();
   UNDO.idx = UNDO.stack.length - 1;
   onChange();
@@ -141,6 +144,7 @@ function restore(json){
 export function undo(){
   if(UNDO.idx < 0) return null;
   const e = UNDO.stack[UNDO.idx--];
+  if(e.doc && S.docId && e.doc !== S.docId){ resetUndo(); return null; }
   restore(e.before);
   onChange();
   return e.label;
@@ -149,9 +153,23 @@ export function undo(){
 export function redo(){
   if(UNDO.idx >= UNDO.stack.length - 1) return null;
   const e = UNDO.stack[++UNDO.idx];
+  if(e.doc && S.docId && e.doc !== S.docId){ resetUndo(); return null; }
   restore(e.after);
   onChange();
   return e.label;
+}
+
+/* さくひんを 切りかえたら、もどす 履歴は 捨てる。
+
+   のこして おくと、2本指で もどしつづけた とき
+   「前に ひらいて いた べつの さくひん」の 姿まで もどって しまう。
+   しかも その まま じどう保存が かかる ので、
+   いまの さくひんが 前の さくひんの 中みに 入れかわって しまう。
+   （じっさいに 起きた） */
+export function resetUndo(){
+  UNDO.stack.length = 0;
+  UNDO.idx = -1;
+  UNDO.pending = null;
 }
 
 export const canUndo = () => UNDO.idx >= 0;
