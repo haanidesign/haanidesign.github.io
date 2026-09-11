@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=233';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=234';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=233';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=234';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=233';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=234';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=233';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=233';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=233';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=233';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=234';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=234';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=234';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=234';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=233';
+         addTextLayer } from '../io/text.js?v=234';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=233';
-import { PATTERN_NAMES } from '../io/pattern.js?v=233';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=234';
+import { PATTERN_NAMES } from '../io/pattern.js?v=234';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=233';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=233';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=233';
+         PITCH_MAX } from '../engine/pano.js?v=234';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=234';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=234';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=233';
-import { readAsDataURL, loadImage } from '../io/image.js?v=233';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=234';
+import { readAsDataURL, loadImage } from '../io/image.js?v=234';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=233';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=233';
-import { newHand } from '../engine/hand.js?v=233';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=233';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=234';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=234';
+import { newHand } from '../engine/hand.js?v=234';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=234';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=233';
+  from './colorwheel.js?v=234';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=233';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=234';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=233';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=234';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -672,6 +672,40 @@ export function buildLayerSheet(box, closeFn){
     return b;
   })()));
 
+  /* ---- カメラに 合わせない（画面に はりつけ）----
+     まえは「おくゆき（カメラ用）」の 中に しまって いて、
+     しかも カメラが 無い ときは まるごと 出て いなかった ので
+     見つけられない と 言われた。
+     なまえ・カギ の すぐ 下、いつも 出す ところに 移した。
+     フォルダでも 同じ ように 出る。 */
+  box.appendChild(field('カメラ', (() => {
+    const b = document.createElement('button');
+    const show = () => {
+      b.textContent = l.noCam ? '📌 画面に はりつけ（合わせない）'
+                              : '🎥 カメラに 合わせる';
+      b.classList.toggle('on', !!l.noCam);
+    };
+    show();
+    b.style.flex = '1';
+    b.addEventListener('click', () => {
+      edit('カメラとの つながり', () => { l.noCam = !l.noCam; });
+      show();
+      notify(l.noCam ? 'カメラが ゆれても そのままに なります'
+                     : 'カメラに 合わせて 動きます');
+      onChange();
+    });
+    return b;
+  })()));
+  {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = 'はりつけに すると、カメラの ふれ・よせ・まわりこみを'
+      + String.fromCharCode(10)
+      + 'ぜんぶ うけません。セリフ枠・ロゴ・字まく むけ。';
+    box.appendChild(n);
+  }
+
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
 
@@ -1058,26 +1092,6 @@ function depthRow(box, l){
 
   box.appendChild(heading('おくゆき（カメラ用）'));
 
-  /* ---- カメラに 合わせない ----
-     セリフ枠・ロゴ・字まく は、カメラが ゆれても いっしょに
-     ゆれて ほしく ない。画面に はりつけて おける ように する。 */
-  box.appendChild(btnRow(
-    button(l.noCam ? '📌 画面に はりつけ（カメラに 合わせない）'
-                   : '🎥 カメラに 合わせる', () => {
-      edit('カメラとの つながり', () => { l.noCam = !l.noCam; });
-      notify(l.noCam ? 'カメラが ゆれても そのままに なります'
-                     : 'カメラに 合わせて 動きます');
-      onChange();
-      if(closeFn) closeFn();
-    })
-  ));
-  const ncn = document.createElement('div');
-  ncn.className = 'empty';
-  ncn.style.textAlign = 'left';
-  ncn.textContent = 'はりつけに すると、カメラの ふれ・よせ・まわりこみを' + NL
-    + 'ぜんぶ うけません（いつも 同じ ところに 出ます）。' + NL
-    + 'セリフ枠・ロゴ・字まく むけ。';
-  box.appendChild(ncn);
 
   box.appendChild(btnRow(
     button('🎥 カメラの 画面へ', () => { onCam(); })
