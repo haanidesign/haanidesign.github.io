@@ -15,9 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         camMatrix, withShake } from '../engine/camera.js?v=234';
-import { valuesAt } from '../engine/anim.js?v=234';
-import { M } from '../engine/math.js?v=234';
+         camMatrix, withShake } from '../engine/camera.js?v=235';
+import { valuesAt } from '../engine/anim.js?v=235';
+import { M } from '../engine/math.js?v=235';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -125,40 +125,67 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
   /* ---- レイヤーを 板として 出す。おくの ものから 描く ---- */
   /* バラで 動かす フォルダ（コラップス）は、中身を そのまま 板に する。
      1まいの 紙 では なく、それぞれの おくゆきに 立って いる ため。 */
-  const loose = {};
-  project.layers.forEach(l => {
-    if(l.kind === 'folder' && l.collapse) loose[l.id] = true;
-  });
-  const items = project.layers
-    .filter(l => l.kind !== 'cam' && l.visible !== false
-                 && (!l.parent || loose[l.parent]))
-    .filter(l => !(l.kind === 'folder' && l.collapse))
-    .map(l => { const v = valuesAt(l, time); return { l, v, z: depthLen(v) }; })
-    .sort((a, b) => b.z - a.z);
+  /* ---- レイヤーを 板として 出す。おくの ものから 描く ----
+
+     まえは 親の いない レイヤーだけ を 見て いた。
+     だから フォルダに 入れた 絵は ぜんぶ「キャンバス大の 紙 1まい」に
+     なって しまい、手を 手前に 出して も のぞき窓は 何も 変わらず、
+     どの 板が どれか も わからなかった。
+     いまは 中みを 1まい ずつ たどって、そのままの 大きさ・場所で 立てる。
+
+     おくゆきは、まとめて 1まいの 紙に する フォルダが あれば
+     その フォルダの おくゆきに そろえる（じっさい そう うつる ため）。
+     「バラで 動かす」フォルダなら 中みは 自分の おくゆきの まま。 */
+  const byId = {};
+  project.layers.forEach(l => { byId[l.id] = l; });
+  const off = (val, c) => (val == null ? 0 : val - c);
+  const items = [];
+  for(const l of project.layers){
+    if(l.kind === 'cam' || l.kind === 'folder' || l.visible === false) continue;
+    /* 画面に はりつけた もの（セリフ枠・ロゴ）は 立体の 中に 無い ので 出さない */
+    if(l.noCam) continue;
+    const chain = [];
+    let cur = l, guard = 0, skip = false;
+    while(cur.parent && byId[cur.parent] && guard++ < 64){
+      cur = byId[cur.parent];
+      if(cur.visible === false || cur.noCam){ skip = true; break; }
+      chain.push(cur);
+    }
+    if(skip) continue;
+    const v = valuesAt(l, time);
+    let z = depthLen(v), ox = 0, oy = 0, sx = 1, sy = 1;
+    let rx = v.rx || 0, ry = v.ry || 0;
+    for(const f of chain){
+      const fv = valuesAt(f, time);
+      sx *= (fv.scaleX == null ? 1 : fv.scaleX);
+      sy *= (fv.scaleY == null ? 1 : fv.scaleY);
+      ox += off(fv.x, cx); oy += off(fv.y, cy);
+      rx += fv.rx || 0; ry += fv.ry || 0;
+      if(!f.collapse) z = depthLen(fv);
+    }
+    items.push({ l, v, z, ox, oy, sx, sy, rx, ry,
+                 ids: chain.map(f => f.id) });   // フォルダを えらんだ ときも 光らせる
+  }
+  items.sort((a, b) => b.z - a.z);
 
   for(const it of items){
-    /* フォルダは 中身を キャンバスと 同じ 大きさの 紙 1まいに まとめて
-       出す ので、ここでも キャンバスぜんたいの 紙 として 立てる。
-       （絵を 持たない ので、そのままだと 何も 出なかった） */
-    const folder = it.l.kind === 'folder' && !it.l.collapse;
-    const a = folder ? { w: project.w, h: project.h } : assetOf(it.l, it.v.frame);
+    const a = assetOf(it.l, it.v.frame);
     if(!a) continue;
-    const w = a.w * (folder ? 1 : (it.v.scaleX || 1));
-    const h = a.h * (folder ? 1 : (it.v.scaleY || 1));
-    const pvx = folder ? 0.5 : ((it.l.pivot && it.l.pivot.x != null) ? it.l.pivot.x : 0.5);
-    const pvy = folder ? 0.5 : ((it.l.pivot && it.l.pivot.y != null) ? it.l.pivot.y : 0.5);
+    const w = a.w * (it.v.scaleX == null ? 1 : it.v.scaleX) * it.sx;
+    const h = a.h * (it.v.scaleY == null ? 1 : it.v.scaleY) * it.sy;
+    const pvx = (it.l.pivot && it.l.pivot.x != null) ? it.l.pivot.x : 0.5;
+    const pvy = (it.l.pivot && it.l.pivot.y != null) ? it.l.pivot.y : 0.5;
     const x0 = -w * pvx, x1 = w * (1 - pvx);
     const y0 = -h * pvy, y1 = h * (1 - pvy);
-    const ox2 = folder ? 0 : (it.v.x || 0) - cx;
-    const oy2 = folder ? 0 : (it.v.y || 0) - cy;
+    const ox2 = off(it.v.x, cx) * it.sx + it.ox;
+    const oy2 = off(it.v.y, cy) * it.sy + it.oy;
 
     const pts = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([px, py]) => {
-      const q = rot3({ x: px, y: py, z: 0 }, it.v.rx || 0, it.v.ry || 0,
-                     folder ? 0 : (it.v.rot || 0));
+      const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.v.rot || 0);
       return P(ox2 + q.x, oy2 + q.y, it.z + q.z);
     });
 
-    const on = it.l.id === selId;
+    const on = it.l.id === selId || it.ids.indexOf(selId) >= 0;
     g.beginPath();
     g.moveTo(pts[0].x, pts[0].y);
     for(let i = 1; i < 4; i++) g.lineTo(pts[i].x, pts[i].y);
@@ -298,7 +325,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
   }
 
   /* えらんで いる 板の おくゆき の はんい（点線） */
-  const selIt = items.find(it => it.l.id === selId);
+  const selIt = items.find(it => it.l.id === selId || it.ids.indexOf(selId) >= 0);
   if(selIt && Math.abs(selIt.z) > 1 && Math.abs(selIt.z - deep) > 1){
     g.strokeStyle = 'rgba(242,160,184,.8)';
     g.setLineDash([4 * r.dpr, 3 * r.dpr]);
