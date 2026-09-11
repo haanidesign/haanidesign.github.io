@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=232';
-import { newLayer } from './layer.js?v=232';
+import { S } from '../state.js?v=233';
+import { newLayer, newFolder } from './layer.js?v=233';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -234,6 +234,42 @@ export function talkCanvas(l, time, project){
   return l._tkC;
 }
 
+/* ---------- セリフは 1つの フォルダに まとめる ----------
+   セリフ枠は 何十 まいにも なる。そのまま 出すと レイヤーの ならびが
+   セリフ だらけに なって、絵の レイヤーが 見つからなく なる。
+   なので 足す たびに「セリフ」フォルダの 中に 入れる。
+   フォルダは たためる ので、ふだんは 1行に おさまる。
+
+   フォルダ ごと はりつけ（noCam）に して ある ので、
+   カメラが ゆれても セリフは 画面に とまった まま。 */
+function talkFolder(near){
+  /* もとに する セリフが すでに フォルダの 中なら、そこに そろえる */
+  if(near && near.parent){
+    const p = S.proj.layers.find(x => x.id === near.parent);
+    if(p && p.kind === 'folder') return p;
+  }
+  const has = S.proj.layers.find(x => x.kind === 'folder' && x.talkBox);
+  if(has) return has;
+  /* まだ 無い。作って、そとに 出て いる セリフを まとめて 入れる */
+  const f = newFolder('セリフ');
+  f.talkBox = true;
+  f.noCam = true;
+  const loose = S.proj.layers.filter(x => x.kind === 'talk' && !x.parent);
+  const at = loose.length ? S.proj.layers.indexOf(loose[0]) : 0;
+  S.proj.layers.splice(at, 0, f);
+  loose.forEach(x => { x.parent = f.id; });
+  return f;
+}
+
+/** フォルダの いちばん うしろ（＝ならびの 下）に 入れる */
+function putInFolder(f, l){
+  l.parent = f.id;
+  const mem = S.proj.layers.filter(x => x.parent === f.id && x !== l);
+  const at = mem.length ? S.proj.layers.indexOf(mem[mem.length - 1]) + 1
+                        : S.proj.layers.indexOf(f) + 1;
+  S.proj.layers.splice(at, 0, l);
+}
+
 /**
  * つぎの セリフを 足す。
  * いまの セリフの すぐ あとから はじまる ように して、
@@ -245,7 +281,7 @@ export function addNextTalk(l){
   nx.kind = 'talk';
   nx.talk = Object.assign({}, t, { text: '' });
   nx.noCam = true;
-  nx.parent = l.parent || null;      // 同じ フォルダの 中に 入れる
+  // 「セリフ」フォルダの 中に そろえて 入れる（下で putInFolder）
   nx.pw = l.pw; nx.ph = l.ph;
   nx.x = l.x; nx.y = l.y;
   nx.scaleX = l.scaleX; nx.scaleY = l.scaleY; nx.rot = l.rot;
@@ -261,8 +297,7 @@ export function addNextTalk(l){
   const out = talkOut(l);
   l.span = { from: talkStart(l), to: out };
   nx.span = { from: out + EPS, to: null };
-  const at = S.proj.layers.indexOf(l);
-  S.proj.layers.splice(Math.max(0, at), 0, nx);
+  putInFolder(talkFolder(l), nx);
   S.sel = nx.id;
   return nx;
 }
@@ -277,22 +312,16 @@ export function addTalkLayer(name){
   l.noCam = true;
   l.pw = S.proj.w; l.ph = S.proj.h;
   l.x = S.proj.w / 2; l.y = S.proj.h / 2;
-  /* すでに セリフ枠を えらんで いる なら、その となりに 入れる。
-     フォルダの 中の セリフを えらんで いた ときは 同じ フォルダへ。
-     （まえは かならず いちばん 手前に 出して いた ので、
-       セリフを まとめた フォルダが あっても そこから 外れて いた） */
+  /* セリフは ならびが すぐ 長く なる ので、いつも
+     「セリフ」フォルダの 中に 入れる（無ければ 作る）。 */
   const cur = S.proj.layers.find(x => x.id === S.sel);
-  if(cur && cur.kind === 'talk'){
-    l.parent = cur.parent || null;
-    l.x = cur.x; l.y = cur.y;
-    l.scaleX = cur.scaleX; l.scaleY = cur.scaleY; l.rot = cur.rot;
-    S.proj.layers.splice(Math.max(0, S.proj.layers.indexOf(cur)), 0, l);
-  } else if(cur && cur.kind === 'folder'){
-    l.parent = cur.id;
-    S.proj.layers.splice(S.proj.layers.indexOf(cur) + 1, 0, l);
-  } else {
-    S.proj.layers.unshift(l);
+  const near = (cur && cur.kind === 'talk') ? cur : null;
+  if(near){
+    l.x = near.x; l.y = near.y;
+    l.scaleX = near.scaleX; l.scaleY = near.scaleY; l.rot = near.rot;
+    l.talk = Object.assign({}, near.talk || l.talk, { text: '' });
   }
+  putInFolder(talkFolder(near), l);
   S.sel = l.id;
   return l;
 }

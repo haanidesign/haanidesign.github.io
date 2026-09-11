@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=232';
+import { M } from './engine/math.js?v=233';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=232';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=233';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=232';
-import { createStage } from './ui/stage.js?v=232';
-import { createRenderer } from './render/renderer.js?v=232';
-import { createTimeline } from './ui/timeline.js?v=232';
-import { fmtTime } from './engine/anim.js?v=232';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=233';
+import { createStage } from './ui/stage.js?v=233';
+import { createRenderer } from './render/renderer.js?v=233';
+import { createTimeline } from './ui/timeline.js?v=233';
+import { fmtTime } from './engine/anim.js?v=233';
 import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,23 +20,23 @@ import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextS
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=232';
+         setWarper } from './ui/sheet.js?v=233';
 
-import { showNewDoc } from './ui/newdoc.js?v=232';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=232';
-import { fitToCanvas, isBg } from './io/bg.js?v=232';
-import * as Audio from './io/audio.js?v=232';
-import { isTalk, blipTimes } from './engine/talk.js?v=232';
+import { showNewDoc } from './ui/newdoc.js?v=233';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=233';
+import { fitToCanvas, isBg } from './io/bg.js?v=233';
+import * as Audio from './io/audio.js?v=233';
+import { isTalk, blipTimes } from './engine/talk.js?v=233';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=232';
-import { importPsd } from './io/psd.js?v=232';
-import { splitTextChars } from './io/text.js?v=232';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=233';
+import { importPsd } from './io/psd.js?v=233';
+import { splitTextChars } from './io/text.js?v=233';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=232';
-import { pathKeys, pathLength } from './engine/path.js?v=232';
-import { paintDirty } from './engine/paint.js?v=232';
+         canUseWebCodecs } from './io/export.js?v=233';
+import { pathKeys, pathLength } from './engine/path.js?v=233';
+import { paintDirty } from './engine/paint.js?v=233';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=232';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=233';
 
 const $ = (s) => document.querySelector(s);
 
