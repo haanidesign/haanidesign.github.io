@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=250';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=251';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=250';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=251';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=250';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=251';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=250';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=250';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=250';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=250';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=251';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=251';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=251';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=251';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=250';
+         addTextLayer } from '../io/text.js?v=251';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=250';
-import { PATTERN_NAMES } from '../io/pattern.js?v=250';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=251';
+import { PATTERN_NAMES } from '../io/pattern.js?v=251';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=250';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=250';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=250';
+         PITCH_MAX } from '../engine/pano.js?v=251';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=251';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=251';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=250';
-import { readAsDataURL, loadImage } from '../io/image.js?v=250';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=251';
+import { readAsDataURL, loadImage } from '../io/image.js?v=251';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=250';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=250';
-import { newHand } from '../engine/hand.js?v=250';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=250';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=251';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=251';
+import { newHand } from '../engine/hand.js?v=251';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=251';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=250';
+  from './colorwheel.js?v=251';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=250';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=251';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=250';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=251';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -193,6 +193,7 @@ export function createSheet(sheetEl, backEl){
       body.className = 'sheetbody';
       sheetEl.appendChild(body);
       pages[page].build(body);
+      foldNotes(body);
       if(samePage) restoreScroll(sheetEl, body, keep, keepBody);
       return;
     }
@@ -203,6 +204,7 @@ export function createSheet(sheetEl, backEl){
       sheetEl.appendChild(t);
     }
     builder(sheetEl);
+    foldNotes(sheetEl);
     restoreScroll(sheetEl, null, keep, 0);
   }
 
@@ -282,6 +284,58 @@ export function createSheet(sheetEl, backEl){
 
 /* ---------- 部品 ---------- */
 
+
+/* ---------- ながい せつめいを ぜんぶ たたむ ----------
+   せつめいを あちこちに 直に 書いて きた ので、
+   画面が 文字だらけに なって ボタンが うもれて いた。
+   1つ1つ 書きなおすと 見のがす ので、
+   組み立てた あとに まとめて たたむ。
+
+   1行目 だけ 出して、のこりは ❓ を おした ときに 出す。
+   みじかい もの（1行・44字みまん）は そのまま。 */
+function foldNotes(host){
+  host.querySelectorAll('.empty').forEach(el => {
+    if(el.dataset.fold) return;
+    if(el.querySelector('button')) return;
+    const txt = el.textContent || '';
+    const lines = txt.split(String.fromCharCode(10)).map(x => x.trim()).filter(x => x !== '');
+    if(lines.length < 2 && txt.length < 44) return;
+    el.dataset.fold = '1';
+
+    const head = lines[0];
+    const rest = lines.slice(1).join(String.fromCharCode(10));
+    el.textContent = '';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:6px';
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;text-align:left';
+    t.textContent = head;
+    row.appendChild(t);
+
+    if(rest){
+      const b = document.createElement('button');
+      b.textContent = '❓';
+      b.title = 'くわしく';
+      b.style.cssText = 'flex:0 0 auto;padding:1px 9px;border-radius:999px;font-size:.85rem;line-height:1.6';
+      const d = document.createElement('div');
+      d.style.cssText = 'text-align:left;margin-top:4px;white-space:pre-wrap';
+      d.hidden = true;
+      d.textContent = rest;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        d.hidden = !d.hidden;
+        b.classList.toggle('on', !d.hidden);
+      });
+      row.appendChild(b);
+      el.appendChild(row);
+      el.appendChild(d);
+    } else {
+      el.appendChild(row);
+    }
+  });
+}
+
 /* ---------- ながい せつめいは たたむ ----------
    ぜんぶ 出しっぱなしだと、せっていが 文字だらけに なって
    ボタンが どこに あるか 分からなく なる。
@@ -292,6 +346,7 @@ export function hint(oneLine, detail){
   row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0 6px';
   const t = document.createElement('div');
   t.className = 'empty';
+  t.dataset.fold = '1';
   t.style.cssText = 'text-align:left;flex:1;margin:0';
   t.textContent = oneLine;
   row.appendChild(t);
@@ -301,7 +356,8 @@ export function hint(oneLine, detail){
     b.style.cssText = 'flex:0 0 auto;padding:2px 10px;border-radius:999px;font-size:.85rem';
     const d = document.createElement('div');
     d.className = 'empty';
-    d.style.textAlign = 'left';
+    d.dataset.fold = '1';
+    d.style.cssText = 'text-align:left;white-space:pre-wrap';
     d.hidden = true;
     d.textContent = detail;
     b.addEventListener('click', () => {
