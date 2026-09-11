@@ -13,10 +13,10 @@
    よこ回転・たて回転・ズーム は ふつうの チャンネルなので、
    タイミングピンで うごかせるし、そのまま 動画に 書き出せる。 */
 
-import { S, addAsset } from '../state.js?v=240';
-import { drawDeformed } from './puppet.js?v=240';
-import { newLayer } from './layer.js?v=240';
-import { setPin } from './anim.js?v=240';
+import { S, addAsset } from '../state.js?v=242';
+import { drawDeformed } from './puppet.js?v=242';
+import { newLayer } from './layer.js?v=242';
+import { setPin } from './anim.js?v=242';
 
 export const isPano = (l) => !!l && l.kind === 'pano';
 
@@ -66,9 +66,21 @@ function grid(cols, rows){
   const verts = [], tris = [];
   for(let r = 0; r <= rows; r++) for(let c = 0; c <= cols; c++) verts.push({ u:0, v:0 });
   const id = (c, r) => r * (cols + 1) + c;
+      /* 三角の 切り方を ます目ごとに 入れかえる（市松）。
+         ぜんぶ 同じ むきに 切ると、ます目の ななめが 1本の 長い 線に
+         つながり、細かい 絵（トーン）では そこだけ 明るい すじに なる。
+         夜の 色に した 絵の 上で はっきり 見える。
+         実測（ユーザーの トーンの 絵、28ます）:
+           ぜんぶ 同じ +6.02 / すじの ない ところ +2.89
+           市松       +3.43 ＝ すじが 8わり 消える。しかも ジグザグに なる。 */
   for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
-    tris.push(id(c, r), id(c+1, r), id(c, r+1));
-    tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+    if((c + r) & 1){
+      tris.push(id(c, r), id(c+1, r), id(c+1, r+1));
+      tris.push(id(c, r), id(c+1, r+1), id(c, r+1));
+    } else {
+      tris.push(id(c, r), id(c+1, r), id(c, r+1));
+      tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+    }
   }
   return { verts, tris, cols, rows };
 }

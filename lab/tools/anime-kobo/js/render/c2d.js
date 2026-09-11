@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=240';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=240';
-import { valuesAt } from '../engine/anim.js?v=240';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=240';
+         nearestFolder } from '../engine/layer.js?v=242';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=242';
+import { valuesAt } from '../engine/anim.js?v=242';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=242';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=240';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=240';
-import { paintCanvas } from '../engine/paint.js?v=240';
-import { panoCanvas } from '../engine/pano.js?v=240';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=240';
-import { roomCanvas } from '../engine/room.js?v=240';
-import { talkCanvas } from '../engine/talk.js?v=240';
-import { homography, applyH } from '../engine/warp.js?v=240';
-import { drawCamView } from './camview.js?v=240';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=240';
+         meshSizeFor } from '../engine/puppet.js?v=242';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=242';
+import { paintCanvas } from '../engine/paint.js?v=242';
+import { panoCanvas } from '../engine/pano.js?v=242';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=242';
+import { roomCanvas } from '../engine/room.js?v=242';
+import { talkCanvas } from '../engine/talk.js?v=242';
+import { homography, applyH } from '../engine/warp.js?v=242';
+import { drawCamView } from './camview.js?v=242';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=242';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -172,9 +172,21 @@ function flatMesh(w, h){
     verts.push({ u: c / cols * w, v: r / rows * h });
   }
   const id = (c, r) => r * (cols + 1) + c;
+      /* 三角の 切り方を ます目ごとに 入れかえる（市松）。
+         ぜんぶ 同じ むきに 切ると、ます目の ななめが 1本の 長い 線に
+         つながり、細かい 絵（トーン）では そこだけ 明るい すじに なる。
+         夜の 色に した 絵の 上で はっきり 見える。
+         実測（ユーザーの トーンの 絵、28ます）:
+           ぜんぶ 同じ +6.02 / すじの ない ところ +2.89
+           市松       +3.43 ＝ すじが 8わり 消える。しかも ジグザグに なる。 */
   for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
-    tris.push(id(c, r), id(c+1, r), id(c, r+1));
-    tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+    if((c + r) & 1){
+      tris.push(id(c, r), id(c+1, r), id(c+1, r+1));
+      tris.push(id(c, r), id(c+1, r+1), id(c, r+1));
+    } else {
+      tris.push(id(c, r), id(c+1, r), id(c, r+1));
+      tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+    }
   }
   const m = { verts, tris };
   _flatMesh.key = key; _flatMesh.m = m;
@@ -913,9 +925,17 @@ function flatMesh(w, h){
       verts.push({ u: c / cols * w, v: r / rows * h });
     }
     const id = (c, r) => r * (cols + 1) + c;
+    /* 切り方を ます目ごとに 入れかえる（市松）。
+       ぜんぶ 同じ むきだと、ななめが 1本の 長い すじに つながって
+       細かい 絵の 上で 明るい 線に なる（flatMesh の 注を 見て）。 */
     for(let r = 0; r < rows; r++) for(let c = 0; c < cols; c++){
-      tris.push(id(c, r), id(c+1, r), id(c, r+1));
-      tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+      if((c + r) & 1){
+        tris.push(id(c, r), id(c+1, r), id(c+1, r+1));
+        tris.push(id(c, r), id(c+1, r+1), id(c, r+1));
+      } else {
+        tris.push(id(c, r), id(c+1, r), id(c, r+1));
+        tris.push(id(c+1, r), id(c+1, r+1), id(c, r+1));
+      }
     }
     const m = { verts, tris };
     _lensMesh.key = key; _lensMesh.m = m;
@@ -1454,6 +1474,35 @@ function flatMesh(w, h){
        三角の つぎ目が くっきり 出る（実測 ずれ +69）。
        この あみは きっちり となり合って いて かさならない ので、
        足し算で つなげば ぴったり 合う（実測 ずれ −0.9〜+0.1）。 */
+    /* ---- つぎ目を そもそも 作らない みち ----
+       四すみが 平行四辺形（＝ カメラが まわりこんで いない）なら、
+       ゆがみは ただの 拡大・縮小・かたむき なので、
+       三角に 切らずに 1回で はれる。
+
+       三角に 切ると、その つぎ目に ほんの わずかな すけが 残る。
+       足し算で つないでも 0 には ならない。
+       いつもは 見えない が、夜の 色に した 絵の 上では
+       うしろの 白い 紙が すじに なって 見える
+       （実測: ユーザーの スクショで かたむき ちょうど -1 の 線
+         ＝ 10x10 の ます目の ななめが 1本に つながった もの）。
+       1回で はれば、その つぎ目 じたいが 無い。 */
+    const scr = (u, v) => {
+      const q = applyH(H3, u, v);
+      return { x: q.x * tf[0] + tf[4], y: q.y * tf[3] + tf[5] };
+    };
+    const s0 = scr(0, 0), s1 = scr(W, 0), s2 = scr(W, H), s3 = scr(0, H);
+    const sx0 = s0.x, sy0 = s0.y;
+    const flat = Math.abs((sx0 + s2.x) - (s1.x + s3.x)) < 0.4
+              && Math.abs((sy0 + s2.y) - (s1.y + s3.y)) < 0.4;
+    if(flat){
+      g.save();
+      g.setTransform((s1.x - sx0) / W, (s1.y - sy0) / W,
+                     (s3.x - sx0) / H, (s3.y - sy0) / H, sx0, sy0);
+      g.drawImage(sheet, 0, 0, bw, bh, 0, 0, W, H);
+      g.restore();
+      return;
+    }
+
     drawDeformed(g, sheet, me, xy, 1, uv, 'add');
   }
 

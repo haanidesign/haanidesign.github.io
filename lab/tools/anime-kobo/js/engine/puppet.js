@@ -69,7 +69,10 @@ export function buildMesh(img, cols, rows){
     for(let gx = 0; gx < cols; gx++){
       if(!cellHasInk(gx, gy)) continue;
       const a = vi(gx, gy), b = vi(gx + 1, gy), c = vi(gx + 1, gy + 1), d = vi(gx, gy + 1);
-      tris.push(a, b, c, a, c, d);
+      /* 切り方を ます目ごとに 入れかえる（市松）。
+         ぜんぶ 同じ むきだと ななめが 1本の 長い すじに つながる。 */
+      if((gx + gy) & 1) tris.push(a, b, d, b, c, d);
+      else              tris.push(a, b, c, a, c, d);
     }
   }
   if(!tris.length){
