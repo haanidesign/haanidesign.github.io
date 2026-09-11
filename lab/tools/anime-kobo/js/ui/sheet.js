@@ -1,44 +1,44 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=207';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=208';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=207';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=208';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=207';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=208';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=207';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=207';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=207';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=207';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=208';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=208';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=208';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=208';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=207';
+         addTextLayer } from '../io/text.js?v=208';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=207';
-import { PATTERN_NAMES } from '../io/pattern.js?v=207';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=208';
+import { PATTERN_NAMES } from '../io/pattern.js?v=208';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=207';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=207';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=207';
+         PITCH_MAX } from '../engine/pano.js?v=208';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=208';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=208';
 import { isTalk, addTalkLayer, talkDefaults, talkMouthKeys,
-         talkEnd, talkStart } from '../engine/talk.js?v=207';
-import { readAsDataURL, loadImage } from '../io/image.js?v=207';
+         talkEnd, talkStart } from '../engine/talk.js?v=208';
+import { readAsDataURL, loadImage } from '../io/image.js?v=208';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=207';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=207';
-import { newHand } from '../engine/hand.js?v=207';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=207';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=208';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=208';
+import { newHand } from '../engine/hand.js?v=208';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=208';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=207';
+  from './colorwheel.js?v=208';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=207';
+         guessBpm, firstOnset } from '../io/audio.js?v=208';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=207';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=208';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -635,6 +635,10 @@ export function buildLayerSheet(box, closeFn){
     return;
   }
 
+  /* 💬 セリフ枠は「文を 書く」のが 目あて なので いちばん 上に 出す。
+     なまえや すけ具合の 下に あると 見つからない。 */
+  talkRow(box, l, closeFn);
+
   const nameIn = document.createElement('input');
   nameIn.value = l.name;
   nameIn.addEventListener('change', () => {
@@ -913,7 +917,6 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(h);
   }
 
-  talkRow(box, l, closeFn);
   panoRow(box, l);
   ballRow(box, l);
   tiltRow(box, l);
@@ -2550,9 +2553,9 @@ export function buildTextSheet(box, closeFn){
       beginEdit('セリフ枠を つくる');
       addTalkLayer('セリフ');
       commitEdit();
-      notify('セリフ枠を 出しました。せっていで 文を 書いてね');
       onChange();
-      if(closeFn) closeFn();
+      /* すぐ 文を 書ける ように、その まま せっていを ひらく */
+      openLayer();
     })
   ));
 
@@ -2721,7 +2724,14 @@ function talkRow(box, l, closeFn){
   const t = l.talk || (l.talk = talkDefaults(S.proj));
   const dirty = () => { l._tkKey = null; };
 
-  box.appendChild(heading('💬 セリフ'));
+  box.appendChild(heading('💬 セリフ（ここに 書く）'));
+
+  const lead = document.createElement('div');
+  lead.className = 'empty';
+  lead.style.textAlign = 'left';
+  lead.textContent = '下の わくに 書いた 文が、画面の 帯に 1文字ずつ 出ます。' + NL
+    + '書いたら わくの 外を さわると 入ります。';
+  box.appendChild(lead);
 
   const who = document.createElement('input');
   who.value = t.who || '';
@@ -2734,8 +2744,11 @@ function talkRow(box, l, closeFn){
 
   const ta = document.createElement('textarea');
   ta.value = t.text || '';
-  ta.rows = 4;
-  ta.style.cssText = 'flex:1;min-width:0;font-size:.8rem;line-height:1.5';
+  ta.rows = 5;
+  ta.placeholder = 'ここに セリフを 書く';
+  ta.style.cssText = 'flex:1;min-width:0;font-size:.85rem;line-height:1.6;padding:.4rem';
+  /* 打つ たびに 画面へ うつす（「入った か 分からない」を なくす） */
+  ta.addEventListener('input', () => { t.text = ta.value; dirty(); onChange(); });
   ta.addEventListener('change', () => {
     edit('セリフをかえる', () => { t.text = ta.value; dirty(); });
     onChange();
@@ -3292,6 +3305,10 @@ export function setTrainer(fn){ onTrain = fn; }
 
 let onCam = () => {};
 export function setCamOpener(fn){ onCam = fn; }
+
+/* えらんで いる レイヤーの せっていを ひらく（作った 直後に つかう） */
+let openLayer = () => {};
+export function setLayerOpener(fn){ openLayer = fn; }
 
 let onMask = () => {};
 export function setMasker(fn){ onMask = fn; }

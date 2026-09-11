@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=207';
+import { M } from './engine/math.js?v=208';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=207';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=208';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=207';
-import { createStage } from './ui/stage.js?v=207';
-import { createRenderer } from './render/renderer.js?v=207';
-import { createTimeline } from './ui/timeline.js?v=207';
-import { fmtTime } from './engine/anim.js?v=207';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=208';
+import { createStage } from './ui/stage.js?v=208';
+import { createRenderer } from './render/renderer.js?v=208';
+import { createTimeline } from './ui/timeline.js?v=208';
+import { fmtTime } from './engine/anim.js?v=208';
 import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -19,24 +19,24 @@ import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextS
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
-         setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=207';
+         setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
+         setWarper } from './ui/sheet.js?v=208';
 
-import { showNewDoc } from './ui/newdoc.js?v=207';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=207';
-import { fitToCanvas, isBg } from './io/bg.js?v=207';
-import * as Audio from './io/audio.js?v=207';
-import { isTalk, blipTimes } from './engine/talk.js?v=207';
+import { showNewDoc } from './ui/newdoc.js?v=208';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=208';
+import { fitToCanvas, isBg } from './io/bg.js?v=208';
+import * as Audio from './io/audio.js?v=208';
+import { isTalk, blipTimes } from './engine/talk.js?v=208';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=207';
-import { importPsd } from './io/psd.js?v=207';
-import { splitTextChars } from './io/text.js?v=207';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=208';
+import { importPsd } from './io/psd.js?v=208';
+import { splitTextChars } from './io/text.js?v=208';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=207';
-import { pathKeys, pathLength } from './engine/path.js?v=207';
-import { paintDirty } from './engine/paint.js?v=207';
+         canUseWebCodecs } from './io/export.js?v=208';
+import { pathKeys, pathLength } from './engine/path.js?v=208';
+import { paintDirty } from './engine/paint.js?v=208';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=207';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=208';
 
 const $ = (s) => document.querySelector(s);
 
@@ -861,6 +861,7 @@ function openCamSheet(){
 }
 $('#cam').addEventListener('click', openCamSheet);
 setCamOpener(openCamSheet);
+setLayerOpener(() => openSheet('form'));
 
 /* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
    ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
