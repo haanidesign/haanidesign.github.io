@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=230';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=230';
-import { valuesAt } from '../engine/anim.js?v=230';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=230';
+         nearestFolder } from '../engine/layer.js?v=231';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=231';
+import { valuesAt } from '../engine/anim.js?v=231';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=231';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=230';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=230';
-import { paintCanvas } from '../engine/paint.js?v=230';
-import { panoCanvas } from '../engine/pano.js?v=230';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=230';
-import { roomCanvas } from '../engine/room.js?v=230';
-import { talkCanvas } from '../engine/talk.js?v=230';
-import { homography, applyH } from '../engine/warp.js?v=230';
-import { drawCamView } from './camview.js?v=230';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=230';
+         meshSizeFor } from '../engine/puppet.js?v=231';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=231';
+import { paintCanvas } from '../engine/paint.js?v=231';
+import { panoCanvas } from '../engine/pano.js?v=231';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=231';
+import { roomCanvas } from '../engine/room.js?v=231';
+import { talkCanvas } from '../engine/talk.js?v=231';
+import { homography, applyH } from '../engine/warp.js?v=231';
+import { drawCamView } from './camview.js?v=231';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=231';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -358,25 +358,40 @@ function flatMesh(w, h){
       const triArea = (a0, b0, c0) => Math.abs(
         (l._q3xy[b0*2] - l._q3xy[a0*2]) * (l._q3xy[c0*2+1] - l._q3xy[a0*2+1]) -
         (l._q3xy[b0*2+1] - l._q3xy[a0*2+1]) * (l._q3xy[c0*2] - l._q3xy[a0*2])) / 2;
-      const lv = [[], [], []];
+      /* ---------- 写しの えらび方 ----------
+         ます目ごとに「どれだけ つぶれて いるか」を 見て、
+         つぶれて いる ところは 小さくした 写しから 拾う。
+
+         むかしは 0/1/2 の どれか 1つに 決めて いた。
+         すると となり合う 三角で 写しが 入れかわる ところに
+         くっきりが 変わる さかい目が でき、それが あみの 形の まま
+         「顔を 横切る たて線・よこ線」として 見えて いた。
+         しかも 手ブレで 毎コマ さかい目が となりの ます目へ とぶ ので
+         その線が チカチカ した。
+         実測: くっきり ぐあい lv0=14.0 / lv1=22.9 / lv2=7.4（段さが 大きい）。
+
+         なおし方: 1つに 決めず、上下 2つの 写しを こさで まぜる。
+         つぶれ ぐあいが 少しずつ 変われば 見た目も 少しずつ 変わる ので
+         さかい目 そのものが なくなる。 */
+      const buckets = new Map();     // key = 下の写し*16 + まぜ具合(0..8)
       const T = me.tris;
+      let anyMip = false;
       for(let i = 0; i < T.length; i += 3){
         const a0 = T[i], b0 = T[i+1], c0 = T[i+2];
         const area = triArea(a0, b0, c0);
-        /* つぶれ ぐあいに あわせて 写しを えらぶ。
-           1.25ばい つぶれて いたら もう 半分の 写しに する。
-           ここを 1.7 に して いた ころは、ちょっと つぶれた だけの
-           ところが もとの 絵の まま で、トーン（点）が 画面の ドットと
-           けんかして「もよう」が 出て いた（モアレ）。
-           実測: もとの 絵 27.6 → 半分の 写し 10.7（すじの 見えかた）。 */
         const comp = area > 0.01 ? Math.sqrt((cellSrc / 2) / area) : 99;
-        /* トーンよけ を 入れて いる ときは、つぶれて いなくても
-           かならず 1つ 下の 写し（半分）から 拾う。
-           アミ点は 画面の ドットと けんかする ので、
-           はじめから ならして おいた 絵の ほうが おちつく。 */
-        const base = comp < 1.25 ? 0 : (comp < 2.5 ? 1 : 2);
-        const lvl = l.tone ? Math.max(1, base) : base;
-        lv[lvl].push(a0, b0, c0);
+        /* comp が 1.25ばい で 写し1、2.5ばい で 写し2。
+           その あいだは 小数で あらわす（1.8 なら 写し1 と 写し2 を 8:2）。 */
+        let lf = Math.log2(comp / 1.25) + 1;
+        if(l.tone && lf < 1) lf = 1;
+        lf = Math.max(0, Math.min(2, lf));
+        if(lf > 0) anyMip = true;
+        const lo = Math.min(1, Math.floor(lf));
+        const f = Math.round((lf - lo) * 8);     // 0..8
+        const key = lo * 16 + f;
+        let arr = buckets.get(key);
+        if(!arr){ arr = []; buckets.set(key, arr); }
+        arr.push(a0, b0, c0);
       }
 
       /* この あみは「きっちり となり合う」＝ かさならない ので 足し算で つなぐ。
@@ -386,20 +401,26 @@ function flatMesh(w, h){
          実測（すけ具合25%の 紙を あみで うつす）：
            ふくらませる … ずれ −20〜+69（はっきり 見える 三角の すじ）
            足し算       … ずれ −0.9〜+0.1（見えない）
-         あみの 形は 毎コマ 同じ なので、ちらつきの 心配も ない
-         （ちらつくのは ゆがみ・ピン・手がき風 のような 動く あみ）。 */
-      if(!lv[1].length && !lv[2].length){
+         まぜ具合で 2まい かさねる ときも、足し算なので
+         こさの 合計が 1 に なって 正しく まざる。 */
+      if(!anyMip){
         drawDeformed(g, img, me, l._q3xy, 1, null, 'add');
       } else {
         /* 使いわけは するが、ぬるのは 1回に まとめる。
            べつべつに ぬると 使いわけの 境目が すじに なって 出る。 */
         const mip = mipsOf(l, img, (asset.id || asset.name || '') + ':' + pose.v.frame);
+        const baseW = img.naturalWidth || img.width;
         const parts = [];
-        for(let i = 0; i < 3; i++){
-          if(!lv[i].length) continue;
-          const im = mip[Math.min(i, mip.length - 1)];
-          parts.push({ img: im, tris: lv[i],
-            k: (im.naturalWidth || im.width) / (img.naturalWidth || img.width) });
+        const push = (lvl, tris, alpha, ao) => {
+          if(alpha < 0.02) return;
+          const im = mip[Math.min(lvl, mip.length - 1)];
+          parts.push({ img: im, tris, a: alpha, ao,
+            k: (im.naturalWidth || im.width) / baseW });
+        };
+        for(const [key, tris] of buckets){
+          const lo = key >> 4, f = (key & 15) / 8;
+          push(lo, tris, 1 - f, 1);
+          push(lo + 1, tris, f, f);
         }
         drawDeformed(g, parts, me, l._q3xy, 1, null, 'add');
       }

@@ -437,12 +437,20 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
   g.globalCompositeOperation = add ? 'lighter' : 'source-over';
 
   const v = mesh.verts;
-  const paint = (gg, exp) => {
+  const paint = (gg, exp, over) => {
     for(const part of parts){
       const t = part.tris || mesh.tris;
       const k = part.k || 1;
       const im = part.img;
       if(!im || !t || !t.length) continue;
+      /* 写しを まぜる ための こさ。
+         2つの 写しの あいだを なめらかに つなぐ ときに つかう。 */
+      /* 足し算の ときは そのままの こさ で 足す（合計が 1 に なる）。
+         ふつうに 上から ぬる ほうの まわ（色の ぬり直し）は、
+         下の 1まい目を こさ1 で ぬって から 2まい目を まぜ具合で
+         かぶせる。こうしないと 2回 うすめられて 暗く なる。 */
+      gg.globalAlpha = over ? ((part.ao == null) ? ((part.a == null) ? 1 : part.a) : part.ao)
+                            : ((part.a == null) ? 1 : part.a);
       for(let i = 0; i < t.length; i += 3){
         const i0 = t[i], i1 = t[i + 1], i2 = t[i + 2];
         /* 絵の どこを はるか。uv が あれば そちらを つかう */
@@ -455,6 +463,7 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
           exp);
       }
     }
+    gg.globalAlpha = 1;
   };
   paint(g, ex);
 
@@ -477,7 +486,7 @@ export function drawDeformed(ctx, img, mesh, xy, srcK, uv, mode){
     g2.clearRect(0, 0, sc2.width, sc2.height);
     g2.setTransform(m0.a, m0.b, m0.c, m0.d, m0.e, m0.f);
     g2.globalCompositeOperation = 'source-over';
-    paint(g2, Math.min(6, Math.max(0.5, 0.6 * up / scale)));
+    paint(g2, Math.min(6, Math.max(0.5, 0.6 * up / scale)), true);
 
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = 'source-atop';
