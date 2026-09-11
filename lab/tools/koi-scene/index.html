@@ -60,7 +60,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 #play img{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;
   pointer-events:none;-webkit-user-drag:none}
 #play.on{display:block}
-#bgImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+#bgImg,#bgVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
   object-position:var(--bpx,50%) var(--bpy,50%);
   transform:scale(var(--bz,1));transform-origin:var(--bpx,50%) var(--bpy,50%)}
 .chWrap{position:absolute;bottom:0;left:0;height:88%;
@@ -348,6 +348,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
   <!-- ============ さいせい ============ -->
   <div id="play" class="on">
     <img id="bgImg" alt="">
+    <video id="bgVid" playsinline loop muted style="display:none"></video>
     <div id="chA" class="chWrap"><img class="base" alt=""><img class="sub bl" alt=""><img class="sub mo" alt=""></div>
     <div id="chB2" class="chWrap"><img class="base" alt=""><img class="sub bl" alt=""><img class="sub mo" alt=""></div>
     <div id="veil"></div>
@@ -410,7 +411,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
       <div class="thumbs" id="chList"></div>
       <div id="chEdit"></div>
       <div class="row" style="margin-top:8px">
-        <button class="btn" id="addBg">＋ はいけい</button>
+        <button class="btn" id="addBg">＋ はいけい／動画</button>
         <button class="btn" id="addCh">＋ キャラ</button>
       </div>
       <p class="hint">画像はこの端末の中だけに保存されます。サムネ右上の「×」で削除。<br>PSDを入れると レイヤーを えらぶ画面が出ます。「めとじ」「くちあけ」を作れば まばたきと 口パクに つかわれます。</p>
@@ -443,6 +444,9 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
       <input type="range" id="winY" min="0" max="35" step="1">
       <label class="f">BGMの音りょう <span id="bgmV"></span></label>
       <input type="range" id="bgmR" min="0" max="100" step="5">
+      <label class="f">動画の音りょう <span id="vvV"></span></label>
+      <input type="range" id="vvR" min="0" max="100" step="5">
+      <p class="hint">「＋ はいけい／動画」から MP4などを 入れると、動画の上に セリフ枠が のります。</p>
       <p class="hint">曲はセリフごとに変えられます（セリフの中の「BGM」）。
         スマホでは画面をさわってから鳴りはじめます。</p>
       <label class="f">ぽぽぽの高さ（きほん） <span id="pitV"></span></label>
@@ -513,7 +517,7 @@ input[type=range]{width:100%;accent-color:var(--danger);touch-action:pan-y}
   </div>
 </div>
 
-<input type="file" id="fileBg" accept="image/*" multiple>
+<input type="file" id="fileBg" accept="image/*,video/*" multiple>
 <input type="file" id="fileCh" accept="image/*,.psd" multiple>
 <input type="file" id="fileFace" accept="image/*,.psd">
 <input type="file" id="fileJson" accept=".json,application/json">
@@ -549,7 +553,7 @@ var BGMS=[
 function findBgm(id){for(var i=0;i<BGMS.length;i++)if(BGMS[i].id===id)return BGMS[i];return null}
 
 /* ---------- 状態 ---------- */
-var S={bgs:[],chs:[],scenes:[],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60,lock:0}};
+var S={bgs:[],chs:[],scenes:[],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60,vv:70,lock:0}};
 
 /* ---------- 「ぽ」の音 ---------- */
 var AC=null,recDest=null;
@@ -606,7 +610,8 @@ function load(){
          snd:(S.cfg&&S.cfg.snd!=null)?S.cfg.snd:1,pitch:(S.cfg&&S.cfg.pitch)||3,
          edge:(S.cfg&&S.cfg.edge)||0,edgeW:(S.cfg&&S.cfg.edgeW)||3,winY:(S.cfg&&S.cfg.winY)||0,
          two:(S.cfg&&S.cfg.two)||0,ratio:(S.cfg&&S.cfg.ratio)||'v',
-         fs:(S.cfg&&S.cfg.fs)||1,bgmV:(S.cfg&&S.cfg.bgmV!=null)?S.cfg.bgmV:60};
+         fs:(S.cfg&&S.cfg.fs)||1,bgmV:(S.cfg&&S.cfg.bgmV!=null)?S.cfg.bgmV:60,
+         vv:(S.cfg&&S.cfg.vv!=null)?S.cfg.vv:70};
   S.scenes.forEach(fixScene);
   if(!S.scenes.length){
     S.scenes=[mkScene('ひなた','ねえ、ちょっとだけ……時間ある？\nどうしても、伝えたいことがあって。'),
@@ -816,9 +821,54 @@ function importOne(f,done){
   };
   r.readAsDataURL(f);
 }
+function isVid(f){ return /^video\//.test(f.type||'') || /\.(mp4|webm|mov|m4v|ogv)$/i.test(f.name||'') }
+/* 動画から 1コマ もらって みほんの絵に する */
+function vidPoster(url){
+  return new Promise(function(ok,ng){
+    var v=document.createElement('video');
+    v.preload='auto'; v.muted=true; v.playsInline=true; v.src=url;
+    var done=false;
+    v.onerror=function(){ if(!done){done=true;ng(new Error('動画を ひらけませんでした'))} };
+    v.onloadeddata=function(){
+      try{ v.currentTime=Math.min(0.1,(v.duration||1)/2) }catch(e){ grab() }
+    };
+    v.onseeked=grab;
+    function grab(){
+      if(done)return; done=true;
+      try{
+        var w=v.videoWidth||640,h=v.videoHeight||360;
+        var sc=Math.min(1,1280/Math.max(w,h));
+        var c=document.createElement('canvas');
+        c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc));
+        c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+        var src=c.toDataURL('image/webp',.8);
+        if(src.indexOf('data:image/webp')!==0)src=c.toDataURL('image/png');
+        ok({src:src,dur:v.duration||0,w:w,h:h});
+      }catch(e){ ng(e) }
+    }
+    setTimeout(function(){ if(!done){done=true;ng(new Error('動画の よみこみに 時間が かかりすぎました'))} },20000);
+  });
+}
 function importFiles(files,kind,done){
   var left=files.length; if(!left)return;
   Array.prototype.forEach.call(files,function(f){
+    if(kind==='bg'&&isVid(f)){
+      toast('動画を よみこんでいます…');
+      var id=uid(),url=URL.createObjectURL(f);
+      vidPoster(url).then(function(r){
+        vidURLs[id]=url;
+        S.bgs.push({id:id,name:(f.name||'動画').replace(/\.[^.]+$/,'').slice(0,8),
+                    src:r.src,vid:1,dur:r.dur});
+        return vidPut(id,f);
+      }).then(function(){
+        if(--left===0){save();done()}
+      }).catch(function(e){
+        try{URL.revokeObjectURL(url)}catch(e2){}
+        alert('動画を 入れられませんでした：'+(e&&e.message||e));
+        if(--left===0){save();done()}
+      });
+      return;
+    }
     if(isPsd(f)){
       toast('PSDを ひらいています…');
       var nm=f.name.replace(/\.[^.]+$/,'').slice(0,8);
@@ -900,7 +950,7 @@ function render(){
   $('#emptyNote').style.display=S.scenes.length?'none':'flex';
   var sc=S.scenes[idx]; if(!sc)return;
   var bg=findBg(effBg(idx));
-  $('#bgImg').src=bg?bg.src:PRESETS[0].src;
+  setBgView(bg);
   setCh('a',findCh(effCh(idx,'ch'))); setCh('b',ch2Of(idx));
   dimUI();
   placeCh();
@@ -962,6 +1012,8 @@ function styleUI0(){
   $('#fsV').textContent=Math.round(S.cfg.fs*100)+'%';
   $('#bgmV').textContent=(S.cfg.bgmV||0)+'%';
   $('#bgmR').value=S.cfg.bgmV;
+  $('#vvV').textContent=(S.cfg.vv==null?70:S.cfg.vv)+'%';
+  $('#vvR').value=(S.cfg.vv==null?70:S.cfg.vv);
   $('#fsR').value=Math.round(S.cfg.fs*100);
   $('#edgeV').textContent=S.cfg.edge?S.cfg.edgeW+'px':'（ふちなし）';
   $('#winV').textContent=S.cfg.winY?('上に'+S.cfg.winY+'%'):'いちばん下';
@@ -985,10 +1037,31 @@ function bgPosOf(i){
   return r;
 }
 function placeBg(){
-  var q=bgPosOf(idx),el=$('#bgImg'); if(!el)return;
-  el.style.setProperty('--bpx',(q.x*100)+'%');
-  el.style.setProperty('--bpy',(q.y*100)+'%');
-  el.style.setProperty('--bz',q.z);
+  var q=bgPosOf(idx);
+  ['#bgImg','#bgVid'].forEach(function(sel){
+    var el=$(sel); if(!el)return;
+    el.style.setProperty('--bpx',(q.x*100)+'%');
+    el.style.setProperty('--bpy',(q.y*100)+'%');
+    el.style.setProperty('--bz',q.z);
+  });
+}
+/* はいけいが 絵か 動画かで 出しわける */
+function setBgView(bg){
+  var im=$('#bgImg'),vd=$('#bgVid'); if(!im||!vd)return;
+  var u=(bg&&bg.vid)?vidURL(bg.id):'';
+  if(bg&&bg.vid&&!u)vidLoad(bg.id).then(function(x){ if(x)setBgView(findBg(effBg(idx))) });
+  if(u){
+    im.style.display='none'; vd.style.display='block';
+    if(vd.dataset.id!==bg.id){ vd.dataset.id=bg.id; vd.src=u; }
+    var vv=(S.cfg.vv==null?70:S.cfg.vv);
+    vd.muted=!(vv>0); vd.volume=Math.min(1,vv/100);
+    var pr=vd.play();
+    if(pr&&pr.catch)pr.catch(function(){ vd.muted=true; var p2=vd.play(); if(p2&&p2.catch)p2.catch(function(){}) });
+  }else{
+    vd.style.display='none'; vd.dataset.id=''; try{vd.pause()}catch(e){}
+    im.style.display='block';
+    im.src=bg?bg.src:PRESETS[0].src;
+  }
 }
 function posOf(i,t){
   var kx=(t==='b')?'x2':'x', ky=(t==='b')?'y2':'y', ks=(t==='b')?'s2':'s';
@@ -1334,18 +1407,48 @@ $('#btnAuto').onclick=function(){setAuto(!auto)};
 
 /* ---------- さくひんの ほぞん（IndexedDB） ----------
    絵をそのまま持つので localStorage では足りない。アニメ工房と同じ作り。 */
-var DB='koi-scene',DOCS='docs',MAXDOC=8;
+var DB='koi-scene',DOCS='docs',VIDS='vids',MAXDOC=8;
 function dbOpen(){
   return new Promise(function(ok,ng){
     if(!self.indexedDB)return ng(new Error('この端末ではほぞんできません'));
-    var r=indexedDB.open(DB,1);
+    var r=indexedDB.open(DB,2);
     r.onupgradeneeded=function(){
       var db=r.result;
       if(!db.objectStoreNames.contains(DOCS))db.createObjectStore(DOCS,{keyPath:'id'});
+      if(!db.objectStoreNames.contains(VIDS))db.createObjectStore(VIDS,{keyPath:'id'});
     };
     r.onsuccess=function(){ok(r.result)};
     r.onerror=function(){ng(r.error)};
   });
+}
+/* 動画は でかいので localStorage には 入れない。別の たなに しまう */
+function vidRun(mode,fn){
+  return dbOpen().then(function(db){
+    return new Promise(function(ok,ng){
+      var tx=db.transaction(VIDS,mode),req=fn(tx.objectStore(VIDS));
+      tx.oncomplete=function(){db.close();ok(req?req.result:undefined)};
+      tx.onerror=function(){db.close();ng(tx.error)};
+    });
+  });
+}
+function vidPut(id,blob){ return vidRun('readwrite',function(st){return st.put({id:id,blob:blob})}) }
+function vidDel(id){ return vidRun('readwrite',function(st){return st.delete(id)}).catch(function(){}) }
+function vidGet(id){ return vidRun('readonly',function(st){return st.get(id)}).then(function(r){return r&&r.blob||null}) }
+var vidURLs={};
+function vidURL(id){ return vidURLs[id]||'' }
+function vidLoad(id){
+  if(vidURLs[id])return Promise.resolve(vidURLs[id]);
+  return vidGet(id).then(function(b){
+    if(!b)return '';
+    vidURLs[id]=URL.createObjectURL(b);
+    return vidURLs[id];
+  }).catch(function(){return ''});
+}
+/* 起動したとき・さくひんを ひらいたとき、動画を たなから 出しておく */
+function vidPrepAll(){
+  var ids=S.bgs.filter(function(b){return b.vid}).map(function(b){return b.id});
+  if(!ids.length)return Promise.resolve();
+  return Promise.all(ids.map(vidLoad)).then(function(){ if(typeof render==='function')render() });
 }
 function dbRun(mode,fn){
   return dbOpen().then(function(db){
@@ -1471,9 +1574,11 @@ function applyState(j,name){
   var c=j.cfg||{};
   S.cfg={spd:c.spd!=null?c.spd:35, ppc:c.ppc||90, snd:c.snd!=null?c.snd:1,
          pitch:c.pitch||3, edge:c.edge||0, edgeW:c.edgeW||3, winY:c.winY||0,
-         two:c.two||0, ratio:c.ratio||'v', fs:c.fs||1, bgmV:c.bgmV!=null?c.bgmV:60};
+         two:c.two||0, ratio:c.ratio||'v', fs:c.fs||1, bgmV:c.bgmV!=null?c.bgmV:60,
+         vv:c.vv!=null?c.vv:70};
   idx=0; hist=[]; lastSnap=null; save(); undoUI();
   cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();lockUI();markUI();drawAll();
+  vidPrepAll();
   if(name!=null)$('#docName').value=name;
   toEdit();
 }
@@ -1506,6 +1611,8 @@ $('#home').onclick=function(){
 };
 $('#jsonOut').onclick=function(){
   var name=($('#docName').value||'').trim()||'むだい';
+  if(S.bgs.some(function(b){return b.vid}))
+    toast('動画は JSONに 入りません。この端末の 中だけに のこります');
   var b=new Blob([JSON.stringify({name:name,data:S})],{type:'application/json'});
   var u=URL.createObjectURL(b),a=document.createElement('a');
   a.href=u;a.download=name+'.koi.json';document.body.appendChild(a);a.click();
@@ -1623,6 +1730,11 @@ $('#edgeW').oninput=function(e){S.cfg.edgeW=+e.target.value;styleUI()};
 $('#edgeW').onchange=save;
 $('#bgmR').oninput=function(e){S.cfg.bgmV=+e.target.value;styleUI0();bgmVol()};
 $('#bgmR').onchange=save;
+$('#vvR').oninput=function(e){
+  S.cfg.vv=+e.target.value; styleUI0();
+  var vd=$('#bgVid'); if(vd){ vd.muted=!(S.cfg.vv>0); vd.volume=Math.min(1,S.cfg.vv/100) }
+};
+$('#vvR').onchange=save;
 $('#fsR').oninput=function(e){S.cfg.fs=(+e.target.value)/100;styleUI0()};
 $('#fsR').onchange=save;
 $('#winY').oninput=function(e){S.cfg.winY=+e.target.value;styleUI()};
@@ -1665,7 +1777,7 @@ function thumbs(box,list,cur,onPick,onDel,noneLabel,sameLabel){
     var d=document.createElement('div');
     d.className='th'+(a.id===cur?' sel':'');
     d.innerHTML='<img src="'+a.src+'"><div class="cap">'+esc(a.name)+'</div>'+
-      (a.id.indexOf('p_')===0?'<div class="mk">見本</div>':'');
+      (a.id.indexOf('p_')===0?'<div class="mk">見本</div>':(a.vid?'<div class="mk">動画</div>':''));
     d.onclick=function(){ if(!box.dataset.moved)onPick(a.id) };
     if(onDel&&a.id.indexOf('p_')!==0){
       var x=document.createElement('div'); x.className='x'; x.textContent='×';
@@ -1677,6 +1789,7 @@ function thumbs(box,list,cur,onPick,onDel,noneLabel,sameLabel){
 }
 function drawAssets(){
   thumbs($('#bgList'),allBgs(),'',function(){},function(id){
+    var g=findBg(id); if(g&&g.vid){ vidDel(id); if(vidURLs[id]){try{URL.revokeObjectURL(vidURLs[id])}catch(e){} delete vidURLs[id]} }
     S.bgs=S.bgs.filter(function(b){return b.id!==id});
     S.scenes.forEach(function(s){if(s.bg===id)s.bg=''});save();drawAll();},'');
   thumbs($('#chList'),S.chs,faceId,function(id){
@@ -1925,7 +2038,7 @@ $('#ppc').oninput=function(e){S.cfg.ppc=+e.target.value;cfgUI();save()};
 $('#clearAll').onclick=function(){
   if(!confirm('セリフも画像もぜんぶ消えます。いい？'))return;
   localStorage.removeItem(KEY); localStorage.removeItem(MK);
-  S={bgs:[],chs:[],scenes:[mkScene('','')],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60,lock:0}};
+  S={bgs:[],chs:[],scenes:[mkScene('','')],cfg:{spd:35,ppc:90,snd:1,pitch:3,edge:0,edgeW:3,winY:0,two:0,ratio:'v',fs:1,bgmV:60,vv:70,lock:0}};
   idx=0;save();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();markUI();drawAll();render();
 };
 
@@ -1945,9 +2058,11 @@ function rr(x,y,w,h,r){
   CX.arcTo(x,y+h,x,y,r);CX.arcTo(x,y,x+w,y,r);CX.closePath();
 }
 function cover(im,x,y,w,h,px,py,z){
-  if(!im||!im.width)return;
+  if(!im)return;
+  var iw=im.videoWidth||im.width, ih=im.videoHeight||im.height;
+  if(!iw||!ih)return;
   px=(px==null)?.5:px; py=(py==null)?.5:py; z=z||1;
-  var s=Math.max(w/im.width,h/im.height)*z,dw=im.width*s,dh=im.height*s;
+  var s=Math.max(w/iw,h/ih)*z,dw=iw*s,dh=ih*s;
   CX.save();CX.beginPath();CX.rect(x,y,w,h);CX.clip();
   CX.drawImage(im,x+(w-dw)*px,y+(h-dh)*py,dw,dh);CX.restore();
 }
@@ -2088,6 +2203,45 @@ function pickMime(){
   return '';
 }
 
+/* 書き出しで つかう 動画は、どの時こくから どこまで 出るか を 先に 出しておく */
+function buildVidUse(tl){
+  var acc=0,out={};
+  tl.forEach(function(s){
+    var b=findBg(s.bg),d=s.fade+s.type+s.hold;
+    if(b&&b.vid){
+      if(!out[b.id])out[b.id]={id:b.id,start:acc,end:acc+d,dur:b.dur||0};
+      else out[b.id].end=acc+d;
+    }
+    acc+=d;
+  });
+  return out;
+}
+function mkVidEl(url){
+  return new Promise(function(ok){
+    var v=document.createElement('video');
+    v.preload='auto'; v.muted=true; v.playsInline=true; v.src=url;
+    var done=false;
+    function fin(){ if(!done){done=true;ok(v)} }
+    v.onloadeddata=fin; v.onerror=function(){ if(!done){done=true;ok(null)} };
+    setTimeout(fin,15000);
+  });
+}
+/* その時こくの 1コマを 出す。ループぶんは あまりで 出す */
+function seekVid(el,use,tMs){
+  if(!el)return Promise.resolve();
+  var dur=use.dur||el.duration||0;
+  var t=(tMs-use.start)/1000;
+  if(dur>0.05)t=t-Math.floor(t/dur)*dur;
+  t=Math.max(0,Math.min(dur>0?dur-0.03:0,t));
+  if(Math.abs(el.currentTime-t)<0.012)return Promise.resolve();
+  return new Promise(function(ok){
+    var done=false;
+    function fin(){ if(done)return; done=true; el.onseeked=null; ok() }
+    el.onseeked=fin;
+    try{ el.currentTime=t }catch(e){ fin() }
+    setTimeout(fin,2000);
+  });
+}
 function buildTimeline(){
   var tl=[],prevBg=null;
   S.scenes.forEach(function(sc,i){
@@ -2198,6 +2352,30 @@ function renderFrame(tl,tMs,im,sch){
         s.fx,s.fx?((t-s.fade)/fdur):-1);
 }
 
+/* 動画の 音を 書き出しに まぜる */
+function vidAudio(oc,tl,master){
+  var use=buildVidUse(tl),ids=Object.keys(use);
+  var vol=(S.cfg.vv==null?70:S.cfg.vv)/100;
+  if(!ids.length||vol<=0)return Promise.resolve();
+  return Promise.all(ids.map(function(id){
+    return vidGet(id).then(function(b){ return b?b.arrayBuffer():null })
+      .then(function(buf){ return buf?oc.decodeAudioData(buf):null })
+      .then(function(ab){ return ab?{id:id,buf:ab}:null })
+      .catch(function(){ return null });
+  })).then(function(list){
+    list.forEach(function(x){
+      if(!x||!x.buf.duration)return;
+      var u=use[x.id],g=oc.createGain();
+      g.gain.value=vol; g.connect(master);
+      var t0=u.start/1000,t1=u.end/1000;
+      for(var t=t0;t<t1;t+=x.buf.duration){
+        var src=oc.createBufferSource(); src.buffer=x.buf; src.connect(g);
+        src.start(t);
+        if(t+x.buf.duration>t1)src.stop(t1);
+      }
+    });
+  });
+}
 /* ===== 音を まとめて 作る ===== */
 function renderAudio(tl,totalMs){
   var sr=44100, len=Math.ceil((totalMs+400)/1000*sr);
@@ -2227,12 +2405,13 @@ function renderAudio(tl,totalMs){
   segs.forEach(function(x){ var m=BGMS.filter(function(b){return b.id===x.id})[0];
     if(m)need[x.id]=m.src; });
   var ids=Object.keys(need);
-  return Promise.all(ids.map(function(id){
+  var vidJob=vidAudio(oc,tl,master).catch(function(){});
+  return vidJob.then(function(){ return Promise.all(ids.map(function(id){
     return fetch(need[id]).then(function(r){return r.arrayBuffer()})
       .then(function(buf){return oc.decodeAudioData(buf)})
       .then(function(ab){return {id:id,buf:ab}})
       .catch(function(){return null});
-  })).then(function(list){
+  })) }).then(function(list){
     var map={}; list.forEach(function(x){if(x)map[x.id]=x.buf});
     var vol=(S.cfg.bgmV==null?60:S.cfg.bgmV)/100;
     segs.forEach(function(seg){
@@ -2309,22 +2488,33 @@ function exportWebCodecs(tl,ui){
                              error:function(e){failed=e} });
       enc.configure(cfg);
       var usPer=1e6/fps, i=0;
+      var vuse=ui.vuse||{}, vids=ui.vids||{};
+      var hasVid=Object.keys(vids).length>0;
+      function seekAll(tMs){
+        var ids=Object.keys(vids);
+        return Promise.all(ids.map(function(id){ return seekVid(vids[id],vuse[id],tMs) }));
+      }
+      function encodeAt(n){
+        renderFrame(tl,n*1000/fps,im,sch);
+        var f=new VideoFrame(CV,{timestamp:Math.round(n*usPer),duration:Math.round(usPer)});
+        enc.encode(f,{keyFrame:n%(fps*2)===0});
+        f.close();
+      }
       function step(){
         if(!exporting)throw new Error('やめました');
         if(failed)throw failed;
-        var end=Math.min(frames,i+6);
-        for(;i<end;i++){
-          renderFrame(tl,i*1000/fps,im,sch);
-          var f=new VideoFrame(CV,{timestamp:Math.round(i*usPer),duration:Math.round(usPer)});
-          enc.encode(f,{keyFrame:i%(fps*2)===0});
-          f.close();
-        }
-        ui.progress(i/frames);
-        if(i<frames){
-          if(enc.encodeQueueSize>8)return new Promise(function(r){setTimeout(r,8)}).then(step);
-          return new Promise(function(r){setTimeout(r,0)}).then(step);
-        }
-        return enc.flush().then(function(){ enc.close(); if(failed)throw failed; });
+        var end=Math.min(frames,i+(hasVid?1:6));
+        var pre=hasVid?seekAll(i*1000/fps):Promise.resolve();
+        return pre.then(function(){
+          if(!exporting)throw new Error('やめました');
+          for(;i<end;i++)encodeAt(i);
+          ui.progress(i/frames);
+          if(i<frames){
+            var w=(enc.encodeQueueSize>8)?8:0;
+            return new Promise(function(r){setTimeout(r,w)}).then(step);
+          }
+          return enc.flush().then(function(){ enc.close(); if(failed)throw failed; });
+        });
       }
       return step();
     })
@@ -2405,9 +2595,10 @@ $('#btnExport').onclick=function(){
   CV.style.display='block';$('#expVid').style.display='none';$('#expVid').removeAttribute('src');
   $('#expDl').style.display='none';
 
-  var srcs={};
+  var srcs={},bgvid={};
   S.scenes.forEach(function(sc,i){
     var b=findBg(effBg(i)),c=findCh(effCh(i,'ch'));
+    if(b&&b.vid)bgvid[i]=b.id;
     var c2=ch2Of(i);
     srcs['b'+i]=b?b.src:'';srcs['c'+i]=c?c.src:'';
     srcs['cb'+i]=(c&&c.blink)||'';srcs['cm'+i]=(c&&c.mouth)||'';
@@ -2417,16 +2608,32 @@ $('#btnExport').onclick=function(){
   var keys=Object.keys(srcs);
   var ready=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
 
+  var vuse=buildVidUse(tl),vids={};
   ready.then(function(){
     return Promise.all(keys.map(function(k){return loadIm(srcs[k])}));
   }).then(function(ims){
     var im={};keys.forEach(function(k,n){im[k]=ims[n]});
+    var vids0=Object.keys(vuse);
+    if(!vids0.length)return go(im);
+    msg.textContent='動画を したくちゅう…';
+    return Promise.all(vids0.map(function(id){
+      return vidLoad(id).then(function(u){ return u?mkVidEl(u):null })
+        .then(function(el){ if(el){vids[id]=el; if(!vuse[id].dur)vuse[id].dur=el.duration||0} });
+    })).then(function(){
+      /* 動画の コマを つかう。読めなかったものは みほんの絵の ままで */
+      Object.keys(bgvid).forEach(function(i){
+        var el=vids[bgvid[i]]; if(el)im['b'+i]=el;
+      });
+      return go(im);
+    });
+  });
+  function go(im){
 
     if(canWebCodecs()){
       exporting=true;
       msg.textContent='したくちゅう…';
       return exportWebCodecs(tl,{
-        im:im,
+        im:im, vids:vids, vuse:vuse,
         msg:function(m){msg.textContent=m},
         progress:function(v){
           bar.style.width=Math.round(v*100)+'%';
@@ -2447,6 +2654,10 @@ $('#btnExport').onclick=function(){
 
     function exportOld(im){
 
+    Object.keys(vids).forEach(function(id){
+      var el=vids[id];
+      try{ el.loop=true; el.muted=true; el.currentTime=0; var p=el.play(); if(p&&p.catch)p.catch(function(){}) }catch(e){}
+    });
     var stream=CV.captureStream(30);
     var wantBgm=(S.cfg.bgmV||0)>0&&buildTimeline().some(function(x){return !!effBgm(x.i)});
     if(S.cfg.snd||wantBgm){
@@ -2569,7 +2780,7 @@ $('#btnExport').onclick=function(){
       if(t>=s.fade+s.type+s.hold){done+=s.fade+s.type+s.hold;k++;t0=performance.now()}
     },33);
     }
-  });
+  }
 };
 
 /* 画面を閉じる・タブを裏に回す・もどるボタン。そのときも しまう */
@@ -2664,6 +2875,7 @@ function foldInit(){
 
 /* ---------- 起動 ---------- */
 load();cfgUI();sndUI();pitchUI();twoUIAll();ratioUI();styleUI0();lockUI();markUI();foldInit();
+vidPrepAll();
 lastSnap=snapNow();undoUI();drawAll();render();
 app.classList.add('athome');drawDocs();
 if(curDoc)dbRun('readonly',function(st){return st.get(curDoc)}).then(function(d){
