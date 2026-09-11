@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=225';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=225';
-import { valuesAt } from '../engine/anim.js?v=225';
-import { S, frameAsset, frameImage } from '../state.js?v=225';
+         nearestFolder } from '../engine/layer.js?v=229';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=229';
+import { valuesAt } from '../engine/anim.js?v=229';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=229';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=225';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=225';
-import { paintCanvas } from '../engine/paint.js?v=225';
-import { panoCanvas } from '../engine/pano.js?v=225';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=225';
-import { roomCanvas } from '../engine/room.js?v=225';
-import { talkCanvas } from '../engine/talk.js?v=225';
-import { homography, applyH } from '../engine/warp.js?v=225';
-import { drawCamView } from './camview.js?v=225';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=225';
+         meshSizeFor } from '../engine/puppet.js?v=229';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=229';
+import { paintCanvas } from '../engine/paint.js?v=229';
+import { panoCanvas } from '../engine/pano.js?v=229';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=229';
+import { roomCanvas } from '../engine/room.js?v=229';
+import { talkCanvas } from '../engine/talk.js?v=229';
+import { homography, applyH } from '../engine/warp.js?v=229';
+import { drawCamView } from './camview.js?v=229';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=229';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -877,12 +877,10 @@ function flatMesh(w, h){
     return g;
   }
 
-  /* できあがった 1まいを、まん中が ふくらむ ように 貼り直す。
-     画面に ます目を かぶせて、その 点だけ 計算して 三角ずつ 貼る
-     （ぐるり360と 同じ 道具。1ドットずつ だと 重すぎる）。 */
-  const _lensMesh = {};
-  function lensMesh(w, h){
-    const cols = 28, rows = Math.max(8, Math.round(28 * h / w));
+  const _lensMesh = { key: '', m: null };
+  function lensMesh(w, h, cols){
+    cols = cols || 28;
+    const rows = Math.max(8, Math.round(cols * h / w));
     const key = cols + 'x' + rows + ':' + w + 'x' + h;
     if(_lensMesh.key === key) return _lensMesh.m;
     const verts = [], tris = [];
@@ -919,12 +917,78 @@ function flatMesh(w, h){
       uv[i*2]   = (cx + dx * s) * tf[0] + tf[4];
       uv[i*2+1] = (cy + dy * s) * tf[3] + tf[5];
     }
-    /* レンズの 紙は 下じきごと 焼いて ある＝すけて いない ので、
-       ほんの少し ふくらませて まるめの すきまを 消して よい。 */
+    /* ---------- レンズの「もよう」よけ ----------
+
+       魚眼は はしへ 行くほど 絵を ぎゅっと つぶす。
+       そこを もとの 紙から そのまま 拾うと、アミ点（トーン）や
+       こまかい しま が 画面の ドットと けんかして、
+       太い すじ や 格子の ような もように なる（モアレ）。
+       カメラが 動くと それが 流れる ＝ ちらつき。
+
+       実測（アミ点の 絵・1080角）
+         魚眼 なし … すじ  8.3
+         魚眼 0.35 … すじ 38.9
+         魚眼 0.7  … すじ 55.4
+       ＝ ちらつきの もとは レンズの ところ だった。
+
+       つぶれて いる ます目は、はじめから 半分・4分の1に した
+       写しから 拾う。写真の 世界の ミップマップ と 同じ。 */
+    const lv = [[], [], []];
+    const T = me.tris;
+    const area2 = (a0, b0, c0, arr) => Math.abs(
+      (arr[b0*2] - arr[a0*2]) * (arr[c0*2+1] - arr[a0*2+1]) -
+      (arr[b0*2+1] - arr[a0*2+1]) * (arr[c0*2] - arr[a0*2]));
+    for(let i = 0; i < T.length; i += 3){
+      const a0 = T[i], b0 = T[i+1], c0 = T[i+2];
+      const dst = area2(a0, b0, c0, xy);
+      const srcA = area2(a0, b0, c0, uv);
+      const comp = dst > 0.01 ? Math.sqrt(srcA / dst) : 99;
+      lv[comp < 1.25 ? 0 : (comp < 2.5 ? 1 : 2)].push(a0, b0, c0);
+    }
+
     /* レンズの あみも「きっちり となり合う」＝ 足し算で つなげる。
        すける ところ（かげ・ひかり）でも つぎ目が 出ない。
-       あみは 毎コマ 同じ 形なので、ちらつきの 心配も ない。 */
-    drawDeformed(g, sheet, me, xy, 1, uv, 'add');
+       あみは 毎コマ 同じ 形なので、ちらつきの 心配も ない。
+       写しの 使いわけも かならず 1回に まとめて ぬる
+       （べつべつに ぬると 境目が すじに なる）。 */
+    if(!lv[1].length && !lv[2].length){
+      drawDeformed(g, sheet, me, xy, 1, uv, 'add');
+      return;
+    }
+    const mip = lensMips(sheet);
+    const parts = [];
+    for(let i = 0; i < 3; i++){
+      if(!lv[i].length) continue;
+      const im = mip[Math.min(i, mip.length - 1)];
+      parts.push({ img: im, tris: lv[i], k: im.width / sheet.width });
+    }
+    drawDeformed(g, parts, me, xy, 1, uv, 'add');
+  }
+
+  /* レンズ用の 小さくした 写し。毎コマ 作り直す（中みが 毎コマ ちがう） */
+  let lensMipA = null, lensMipB = null;
+  function lensMips(sheet){
+    const w1 = Math.max(8, Math.round(sheet.width / 2));
+    const h1 = Math.max(8, Math.round(sheet.height / 2));
+    if(!lensMipA) lensMipA = document.createElement('canvas');
+    if(lensMipA.width !== w1 || lensMipA.height !== h1){ lensMipA.width = w1; lensMipA.height = h1; }
+    const g1 = lensMipA.getContext('2d');
+    g1.setTransform(1, 0, 0, 1, 0, 0);
+    g1.globalCompositeOperation = 'copy';
+    g1.imageSmoothingQuality = 'high';
+    g1.drawImage(sheet, 0, 0, w1, h1);
+    g1.globalCompositeOperation = 'source-over';
+
+    const w2 = Math.max(4, Math.round(w1 / 2)), h2 = Math.max(4, Math.round(h1 / 2));
+    if(!lensMipB) lensMipB = document.createElement('canvas');
+    if(lensMipB.width !== w2 || lensMipB.height !== h2){ lensMipB.width = w2; lensMipB.height = h2; }
+    const g2 = lensMipB.getContext('2d');
+    g2.setTransform(1, 0, 0, 1, 0, 0);
+    g2.globalCompositeOperation = 'copy';
+    g2.imageSmoothingQuality = 'high';
+    g2.drawImage(lensMipA, 0, 0, w2, h2);
+    g2.globalCompositeOperation = 'source-over';
+    return [sheet, lensMipA, lensMipB];
   }
 
   /* ---------- かさね方（乗算 など）----------
