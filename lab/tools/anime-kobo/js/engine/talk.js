@@ -13,15 +13,17 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=211';
-import { newLayer } from './layer.js?v=211';
+import { S } from '../state.js?v=213';
+import { newLayer } from './layer.js?v=213';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
 export function talkDefaults(project){
   const P = project || S.proj;
   return {
-    text: 'ここに セリフを 書きます。' + String.fromCharCode(10) + '1文字ずつ 出ます。',
+    /* はじめは 空。見本の 文が 入って いると、
+       かならず いちど 消してから でないと 書けない。 */
+    text: '',
     who: '',
     cps: 20,                 // 1秒に 何文字
     box: true,

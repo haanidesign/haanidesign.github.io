@@ -1,16 +1,16 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=211';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=213';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=211';
+         nearestFolder, setParent } from '../engine/layer.js?v=213';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=211';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=211';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=211';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=211';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=213';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=213';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=213';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=213';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -312,6 +312,13 @@ export function createTimeline(root, opts = {}){
       ic.textContent = '🔊';
       ic.title = 'おと。この行に 波形が 出ます';
       head.appendChild(ic);
+    } else if(l.kind === 'talk'){
+      /* セリフ枠 … 絵は 持たない。しるしだけ 出す */
+      const ic = document.createElement('span');
+      ic.className = 'thumb camic';
+      ic.textContent = '💬';
+      ic.title = 'セリフ枠。えらんで 左の「かたち」で 文を 直せます';
+      head.appendChild(ic);
     } else if(l.kind === 'cam'){
       /* カメラ … 絵は 持たないので、しるしを 出す。
          ここに ◆ピンを うつと カメラの うごきに なる。 */
@@ -353,8 +360,11 @@ export function createTimeline(root, opts = {}){
     nm.className = 'nm';
     const oya = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
     const inFolder = oya && isFolder(oya);
+    /* セリフ枠は 中の 文を すこし 出す（どの セリフか 分かる ように） */
+    const say = (l.kind === 'talk' && l.talk && l.talk.text)
+      ? '「' + String(l.talk.text).split(String.fromCharCode(10)).join(' ').slice(0, 6) + '」' : '';
     nm.textContent = (l.locked ? '🔒 ' : '') + (l.clip ? '✂ ' : '')
-      + (oya && !inFolder ? '⤷ ' : '') + l.name
+      + (oya && !inFolder ? '⤷ ' : '') + (say || l.name)
       + (folder ? '（' + membersOf(S.proj, l).length + '）' : '');
     const tips = [];
     if(l.clip){
