@@ -593,3 +593,73 @@ export function setPitch(semi, keepLen){
   A.peak = A.env.length ? Math.max(...A.env) : 0;
   return A;
 }
+
+
+/* ================= 💬 セリフの「ぽ」 =================
+
+   文字が 出る たびに 短く 鳴らす 音。
+   その場で 作る（音の ファイルは いらない）。
+
+   ・画面で 見て いる ときは、その 時こくに なったら 鳴らす
+   ・書き出す ときは、こえの 音に まぜてから 動画に 入れる
+     （動画には 音の みちが 1本 しか 無いので、先に まぜる） */
+
+const BLIP_SEC = 0.055;
+
+/** 1つぶんの 波を 書きこむ */
+function writeBlip(ch, at, sr, gain){
+  const n = Math.round(BLIP_SEC * sr);
+  const i0 = Math.round(at * sr);
+  for(let i = 0; i < n; i++){
+    const j = i0 + i;
+    if(j < 0 || j >= ch.length) continue;
+    const t = i / sr;
+    const env = Math.exp(-t * 46);                 // ぽっ と 消える
+    const w = Math.sin(2 * Math.PI * 880 * t) * 0.7
+            + Math.sin(2 * Math.PI * 1320 * t) * 0.3;
+    ch[j] += w * env * gain;
+  }
+}
+
+/** いま 鳴らす（画面で 見て いる とき用） */
+export function playBlip(volume){
+  try{
+    const c = audioCtx();
+    if(c.state === 'suspended') c.resume();
+    const sr = c.sampleRate;
+    const buf = c.createBuffer(1, Math.round(BLIP_SEC * sr), sr);
+    writeBlip(buf.getChannelData(0), 0, sr, volume == null ? 0.25 : volume);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(c.destination);
+    src.start();
+  }catch(_){}
+}
+
+/**
+ * こえの 音に「ぽ」を まぜた もの を 作って かえす（書き出し用）。
+ *   base  … もとの 音（無ければ null）
+ *   times … 鳴らす 時こくの ならび（秒）
+ *   dur   … 動画の 長さ（秒）
+ *   off   … 音を ずらして ある ぶん（秒）
+ */
+export function withBlips(base, times, dur, off, volume){
+  if(!times || !times.length) return base;
+  const c = audioCtx();
+  const sr = base ? base.sampleRate : c.sampleRate;
+  const chN = base ? Math.min(2, base.numberOfChannels) : 1;
+  const len = Math.max(
+    base ? base.length : 0,
+    Math.round((dur + BLIP_SEC + 0.2) * sr));
+  const out = c.createBuffer(chN, len, sr);
+  for(let ch = 0; ch < chN; ch++){
+    const d = out.getChannelData(ch);
+    if(base){
+      const b = base.getChannelData(Math.min(ch, base.numberOfChannels - 1));
+      d.set(b.subarray(0, Math.min(b.length, len)));
+    }
+    /* 音を ずらして ある ときは「ぽ」も 同じだけ ずらす */
+    for(const t of times) writeBlip(d, t + (off || 0), sr, volume == null ? 0.25 : volume);
+  }
+  return out;
+}

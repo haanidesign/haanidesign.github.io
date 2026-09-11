@@ -3,20 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=205';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=205';
-import { valuesAt } from '../engine/anim.js?v=205';
-import { S, frameAsset, frameImage } from '../state.js?v=205';
+         nearestFolder } from '../engine/layer.js?v=207';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=207';
+import { valuesAt } from '../engine/anim.js?v=207';
+import { S, frameAsset, frameImage } from '../state.js?v=207';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=205';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=205';
-import { paintCanvas } from '../engine/paint.js?v=205';
-import { panoCanvas } from '../engine/pano.js?v=205';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=205';
-import { roomCanvas } from '../engine/room.js?v=205';
-import { homography, applyH } from '../engine/warp.js?v=205';
-import { drawCamView } from './camview.js?v=205';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=205';
+         meshSizeFor } from '../engine/puppet.js?v=207';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=207';
+import { paintCanvas } from '../engine/paint.js?v=207';
+import { panoCanvas } from '../engine/pano.js?v=207';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=207';
+import { roomCanvas } from '../engine/room.js?v=207';
+import { talkCanvas } from '../engine/talk.js?v=207';
+import { homography, applyH } from '../engine/warp.js?v=207';
+import { drawCamView } from './camview.js?v=207';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=207';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -509,6 +510,8 @@ function flatMesh(w, h){
     else if(l.kind === 'pano') panoCanvas(l, pose.v);
     /* 🏠 部屋は「いま どこから どっちを 見て いるか」で 毎回 描き直す */
     else if(l.kind === 'room') roomCanvas(l, pose.v);
+    /* 💬 セリフ枠は「いま 何文字め か」で 毎回 描き直す */
+    else if(l.kind === 'talk') talkCanvas(l, curT);
 
     const asset = frameAsset(l, pose.v.frame);
     let   img0 = frameImage(l, pose.v.frame);

@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=205';
+import { M } from './engine/math.js?v=207';
 import { S, newProject, onChange, onRestore, undo, redo, edit,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=205';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=207';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=205';
-import { createStage } from './ui/stage.js?v=205';
-import { createRenderer } from './render/renderer.js?v=205';
-import { createTimeline } from './ui/timeline.js?v=205';
-import { fmtTime } from './engine/anim.js?v=205';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=207';
+import { createStage } from './ui/stage.js?v=207';
+import { createRenderer } from './render/renderer.js?v=207';
+import { createTimeline } from './ui/timeline.js?v=207';
+import { fmtTime } from './engine/anim.js?v=207';
 import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,22 +20,23 @@ import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextS
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=205';
+         setWarper } from './ui/sheet.js?v=207';
 
-import { showNewDoc } from './ui/newdoc.js?v=205';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=205';
-import { fitToCanvas, isBg } from './io/bg.js?v=205';
-import * as Audio from './io/audio.js?v=205';
+import { showNewDoc } from './ui/newdoc.js?v=207';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=207';
+import { fitToCanvas, isBg } from './io/bg.js?v=207';
+import * as Audio from './io/audio.js?v=207';
+import { isTalk, blipTimes } from './engine/talk.js?v=207';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=205';
-import { importPsd } from './io/psd.js?v=205';
-import { splitTextChars } from './io/text.js?v=205';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=207';
+import { importPsd } from './io/psd.js?v=207';
+import { splitTextChars } from './io/text.js?v=207';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=205';
-import { pathKeys, pathLength } from './engine/path.js?v=205';
-import { paintDirty } from './engine/paint.js?v=205';
+         canUseWebCodecs } from './io/export.js?v=207';
+import { pathKeys, pathLength } from './engine/path.js?v=207';
+import { paintDirty } from './engine/paint.js?v=207';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=205';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=207';
 
 const $ = (s) => document.querySelector(s);
 
@@ -108,6 +109,24 @@ document.addEventListener('visibilitychange', () => {
 
 let lastT = performance.now();
 let lastStageW = 0, lastStageH = 0;
+
+/* 💬 セリフの「ぽ」。さいせい中に、その コマで 出た 文字の ぶんだけ 鳴らす。
+   1コマに 何個も 重なる ことが ある ので、多くても 2つ までに して おく
+   （それ いじょう 重ねても うるさく なるだけ）。 */
+let blipSeen = -1;
+function blipBetween(a, b){
+  if(b - a > 0.5){ blipSeen = b; return; }       // 時間を とばした ときは 鳴らさない
+  let n = 0;
+  for(const l of S.proj.layers){
+    if(!isTalk(l) || l.visible === false) continue;
+    for(const t of blipTimes(l)){
+      if(t > a && t <= b && t > blipSeen){ n++; if(n > 2) break; }
+    }
+    if(n > 2) break;
+  }
+  blipSeen = b;
+  for(let i = 0; i < Math.min(2, n); i++) Audio.playBlip(0.22);
+}
 (function loop(){
   const now = performance.now();
   const dt = Math.min(0.1, (now - lastT) / 1000);
@@ -117,9 +136,13 @@ let lastStageW = 0, lastStageH = 0;
     /* 音が 鳴っているときは 音の時計に 合わせる。
        絵のほうが 重くて遅れても、口の形が 声から ずれない。 */
     const at = Audio.currentTime();
+    const was = S.time;
     S.time = (at == null) ? S.time + dt : at;
+    /* 💬 この コマの あいだに 出た 文字の ぶんだけ「ぽ」と 鳴らす */
+    if(S.time > was) blipBetween(was, S.time);
     if(S.time >= S.proj.duration){
       S.time = 0;
+      blipSeen = -1;
       if(Audio.hasAudio()){                        // くり返すときは 音も 頭から
         const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
         if(Audio.audioEnabled(S.proj)) Audio.play(0, v, (S.proj.audio && S.proj.audio.offset) || 0);

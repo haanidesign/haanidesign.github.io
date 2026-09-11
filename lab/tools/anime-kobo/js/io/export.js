@@ -7,9 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=205';
-import { A as AUD, audioEnabled } from './audio.js?v=205';
-import { encodeGif } from './gif.js?v=205';
+import { createRenderer } from '../render/renderer.js?v=207';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=207';
+import { isTalk, blipTimes } from '../engine/talk.js?v=207';
+import { encodeGif } from './gif.js?v=207';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -59,12 +60,30 @@ export async function exportVideo(project, opts = {}){
   if(cfg && typeof Mp4Muxer !== 'undefined'){
     // 音を いっしょに 詰められるか 先に みておく（箱を作る前に 決めないといけない）
     /* 🔊 の 行の 目を 切って いたら、書き出しにも 入れない */
-    const acfg = audioEnabled(project) ? await pickAudioCodec(AUD.buf) : null;
+    /* 💬 セリフの「ぽ」を こえに まぜて おく。
+       動画には 音の みちが 1本 しか 無いので、先に 1つに する。 */
+    const abuf = talkAudio(project, total / fps);
+    const acfg = abuf ? await pickAudioCodec(abuf) : null;
     return await encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
-                                       total, cfg, acfg, onProgress, shouldStop });
+                                       total, cfg, acfg, abuf, onProgress, shouldStop });
   }
   return await recordWithMediaRecorder({ cv, R, project, view, fps, duration,
                                          onProgress, shouldStop });
+}
+
+/* こえ と 「ぽ」を 1つの 音に する。
+   どちらも 無ければ null（絵だけ 書き出す）。 */
+function talkAudio(project, dur){
+  const voice = audioEnabled(project) ? AUD.buf : null;
+  const times = [];
+  (project.layers || []).forEach(l => {
+    if(!isTalk(l) || l.visible === false) return;
+    blipTimes(l).forEach(t => { if(t >= 0 && t <= dur) times.push(t); });
+  });
+  if(!times.length) return voice;
+  const off = (project.audio && project.audio.offset) || 0;
+  /* こえは もともと off だけ ずれて いる。まぜる ときに そろえる。 */
+  return withBlips(voice, times, dur, voice ? -off : 0);
 }
 
 /** 音を AAC で 詰められるか。だめなら null（絵だけ 書き出す） */
@@ -132,7 +151,7 @@ async function encodeAudio(muxer, cfg, buf, duration, off){
 
 /* ---------- 本命：WebCodecs ---------- */
 async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
-                                     total, cfg, acfg, onProgress, shouldStop }){
+                                     total, cfg, acfg, abuf, onProgress, shouldStop }){
   const muxer = new Mp4Muxer.Muxer({
     target: new Mp4Muxer.ArrayBufferTarget(),
     video: { codec: 'avc', width, height, frameRate: fps },
@@ -176,9 +195,10 @@ async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
   encoder.close();
   if(failed) throw failed;
 
-  if(acfg && AUD.buf){
-    const off = (project.audio && project.audio.offset) || 0;
-    await encodeAudio(muxer, acfg, AUD.buf, total / fps, off);
+  if(acfg && abuf){
+    /* 「ぽ」は もう まぜて ある ので、ここでの ずらしは 0 */
+    const off = (abuf === AUD.buf) ? ((project.audio && project.audio.offset) || 0) : 0;
+    await encodeAudio(muxer, acfg, abuf, total / fps, off);
   }
 
   muxer.finalize();

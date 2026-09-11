@@ -1,42 +1,44 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=205';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=207';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=205';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=207';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=205';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=207';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=205';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=205';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=205';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=205';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=207';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=207';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=207';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=207';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=205';
+         addTextLayer } from '../io/text.js?v=207';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=205';
-import { PATTERN_NAMES } from '../io/pattern.js?v=205';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=207';
+import { PATTERN_NAMES } from '../io/pattern.js?v=207';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=205';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=205';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=205';
-import { readAsDataURL, loadImage } from '../io/image.js?v=205';
+         PITCH_MAX } from '../engine/pano.js?v=207';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=207';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=207';
+import { isTalk, addTalkLayer, talkDefaults, talkMouthKeys,
+         talkEnd, talkStart } from '../engine/talk.js?v=207';
+import { readAsDataURL, loadImage } from '../io/image.js?v=207';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=205';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=205';
-import { newHand } from '../engine/hand.js?v=205';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=205';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=207';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=207';
+import { newHand } from '../engine/hand.js?v=207';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=207';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=205';
+  from './colorwheel.js?v=207';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=205';
+         guessBpm, firstOnset } from '../io/audio.js?v=207';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=205';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=207';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -911,6 +913,7 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(h);
   }
 
+  talkRow(box, l, closeFn);
   panoRow(box, l);
   ballRow(box, l);
   tiltRow(box, l);
@@ -2530,6 +2533,29 @@ export function buildFaceSheet(box){
    （おしただけで 勝手に 文字が 出てしまうのを やめた） */
 export function buildTextSheet(box, closeFn){
   const NL = String.fromCharCode(10);
+
+  /* ---- 💬 セリフ枠 ----
+     恋愛ゲームの あの 帯。文字レイヤーと ちがって
+     1文字ずつ 出す ので、べつの しくみに して ある。 */
+  box.appendChild(heading('💬 セリフ枠（1文字ずつ 出る）'));
+  const tnote = document.createElement('div');
+  tnote.className = 'empty';
+  tnote.style.textAlign = 'left';
+  tnote.textContent = '下に 帯を 出して、名前と セリフを 1文字ずつ 出します。' + NL
+    + '「ぽぽぽ」と 鳴らしたり、その あいだ キャラの 口を' + NL
+    + '動かしたり できます（作った あと せっていで）。';
+  box.appendChild(tnote);
+  box.appendChild(btnRow(
+    button('💬 セリフ枠を つくる', () => {
+      beginEdit('セリフ枠を つくる');
+      addTalkLayer('セリフ');
+      commitEdit();
+      notify('セリフ枠を 出しました。せっていで 文を 書いてね');
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
+
   const cur = selected();
   const editing = !!(cur && cur.kind === 'text');
   const l = editing ? cur : null;
@@ -2688,6 +2714,127 @@ export function clearDraftText(){ draftText = null; }
    絵の よこを ぐるり1しゅう、たてを 上から下 に して 玉に まく。
    ふつうの レイヤーの まま なので、場所・大きさ・親つけ・
    カメラは その まま きく。 */
+/* ---------- 💬 セリフ枠 ---------- */
+function talkRow(box, l, closeFn){
+  if(!isTalk(l)) return;
+  const NL = String.fromCharCode(10);
+  const t = l.talk || (l.talk = talkDefaults(S.proj));
+  const dirty = () => { l._tkKey = null; };
+
+  box.appendChild(heading('💬 セリフ'));
+
+  const who = document.createElement('input');
+  who.value = t.who || '';
+  who.placeholder = '（なまえ なし）';
+  who.addEventListener('change', () => {
+    edit('なまえをかえる', () => { t.who = who.value; dirty(); });
+    onChange();
+  });
+  box.appendChild(field('だれが', who));
+
+  const ta = document.createElement('textarea');
+  ta.value = t.text || '';
+  ta.rows = 4;
+  ta.style.cssText = 'flex:1;min-width:0;font-size:.8rem;line-height:1.5';
+  ta.addEventListener('change', () => {
+    edit('セリフをかえる', () => { t.text = ta.value; dirty(); });
+    onChange();
+  });
+  box.appendChild(field('セリフ', ta));
+
+  box.appendChild(slider('出る はやさ', () => t.cps || 20,
+    v => { t.cps = v; dirty(); }, 4, 60, 1,
+    v => Math.round(v) + '文字/秒'));
+
+  const tn = document.createElement('div');
+  tn.className = 'empty';
+  tn.style.textAlign = 'left';
+  const dur = () => (talkEnd(l) - talkStart(l)).toFixed(1);
+  tn.textContent = 'はじまりは この レイヤーの「出す ところ」の あたま。' + NL
+    + 'ぜんぶ 出おわるまで およそ ' + dur() + '秒。';
+  box.appendChild(tn);
+
+  box.appendChild(slider('文字の 大きさ', () => t.size,
+    v => { t.size = Math.round(v); dirty(); }, 16, Math.round(S.proj.h / 10), 1,
+    v => Math.round(v) + 'px'));
+  box.appendChild(slider('帯の たかさ', () => t.hRatio,
+    v => { t.hRatio = v; dirty(); }, 0.12, 0.6, 0.01,
+    v => Math.round(v * 100) + '%'));
+  box.appendChild(colorPick('帯の 色', () => t.bg || '#1E1C14',
+    v => { t.bg = v; dirty(); }));
+  box.appendChild(colorPick('文字の 色', () => t.fg || '#FFFEF7',
+    v => { t.fg = v; dirty(); }));
+  box.appendChild(slider('帯の すけ具合', () => t.bgAlpha == null ? 0.82 : t.bgAlpha,
+    v => { t.bgAlpha = v; dirty(); }, 0, 1, 0.01,
+    v => Math.round(v * 100) + '%'));
+  box.appendChild(btnRow(
+    button(t.box ? '✅ 帯を 出す' : '⬜ 帯を 出す', () => {
+      edit('帯', () => { t.box = !t.box; dirty(); });
+      onChange(); if(closeFn) closeFn();
+    })
+  ));
+
+  /* ---- ぽぽぽ ---- */
+  box.appendChild(heading('🔈 ぽぽぽ'));
+  box.appendChild(btnRow(
+    button(t.blip ? '✅ 文字が 出る たびに 鳴らす' : '⬜ 文字が 出る たびに 鳴らす', () => {
+      edit('ぽぽぽ', () => { t.blip = !t.blip; });
+      onChange(); if(closeFn) closeFn();
+    })
+  ));
+  box.appendChild(slider('何文字ごとに', () => t.blipEvery || 2,
+    v => { t.blipEvery = Math.round(v); }, 1, 6, 1,
+    v => Math.round(v) + '文字ごと'));
+  const bn = document.createElement('div');
+  bn.className = 'empty';
+  bn.style.textAlign = 'left';
+  bn.textContent = 'さいせい中に 鳴ります。書き出す 動画にも 入ります' + NL
+    + '（こえが あれば こえに まぜます）。';
+  box.appendChild(bn);
+
+  /* ---- 口パク ---- */
+  box.appendChild(heading('👄 口パク'));
+  const cands = S.proj.layers.filter(x => x.frames && x.frames.length >= 2);
+  if(!cands.length){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = '口の コマ（とじ・あけ）を 2まい いじょう 持った' + NL
+      + 'レイヤーが いります。「まとめる」で パラパラに してね。';
+    box.appendChild(e);
+  } else {
+    const sel = document.createElement('select');
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = '（えらぶ）';
+    sel.appendChild(none);
+    cands.forEach(x => {
+      const o = document.createElement('option');
+      o.value = x.id; o.textContent = x.name + '（' + x.frames.length + 'コマ）';
+      if(t.mouth === x.id) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => { t.mouth = sel.value || null; });
+    box.appendChild(field('だれの 口', sel));
+    box.appendChild(btnRow(
+      button('👄 セリフに 合わせて 口を 動かす', () => {
+        const target = S.proj.layers.find(x => x.id === t.mouth);
+        if(!target) return notify('口の レイヤーを えらんでね');
+        const r = { n: 0 };
+        edit('口パクを つける', () => { r.n = talkMouthKeys(l, target, setPin); });
+        notify(r.n ? r.n + 'か所に ピンを うちました' : 'つけられませんでした');
+        onChange();
+      })
+    ));
+    const mn = document.createElement('div');
+    mn.className = 'empty';
+    mn.style.textAlign = 'left';
+    mn.textContent = '「ぽ」と 同じ ところで 口が 開きます。' + NL
+      + 'さいごは かならず 口を とじます。' + NL
+      + 'やり直す ときは、その レイヤーの コマの ピンを 消してね。';
+    box.appendChild(mn);
+  }
+}
+
 function ballRow(box, l){
   /* box は 中で いれかえる ので let あつかいに する */
   if(isPano(l)) return;
@@ -3244,11 +3391,62 @@ export function buildDocSheet(box, closeFn){
     + 'じゃまな ときは ここで 消せます。';
   box.appendChild(dnote);
 
+  /* ---- 動画の長さ ----
+     3〜120秒を つまみ 1本に すると、1秒が 1ドットも 無くて
+     ショート（10秒いか）を 作る ときに まったく 合わせられない。
+     ボタンで 1秒ずつ・0.5秒ずつ 動かせる ように して、
+     つまみは よく つかう 3〜60秒 に しぼる。 */
   box.appendChild(heading('動画の長さ'));
-  box.appendChild(slider('長さ',
-    () => S.proj.duration,
-    v => { S.proj.duration = v; if(S.time > v) S.time = v; },
-    3, 120, 1, v => v < 60 ? Math.round(v) + '秒' : (v / 60).toFixed(1) + '分'));
+
+  const durVal = document.createElement('div');
+  durVal.className = 'empty';
+  durVal.style.textAlign = 'left';
+  const setDur = (v) => {
+    const n = Math.max(1, Math.min(300, Math.round(v * 2) / 2));
+    edit('長さをかえる', () => {
+      S.proj.duration = n;
+      if(S.time > n) S.time = n;
+    });
+    showDur();
+    onChange();
+  };
+  function showDur(){
+    const d = S.proj.duration;
+    durVal.textContent = 'いまの 長さ … ' + (Number.isInteger(d) ? d : d.toFixed(1)) + '秒'
+      + (d >= 60 ? '（' + (d / 60).toFixed(1) + '分）' : '');
+  }
+  showDur();
+  box.appendChild(durVal);
+
+  box.appendChild(btnRow(
+    button('− 1秒',   () => setDur(S.proj.duration - 1)),
+    button('− 0.5秒', () => setDur(S.proj.duration - 0.5)),
+    button('+ 0.5秒', () => setDur(S.proj.duration + 0.5)),
+    button('+ 1秒',   () => setDur(S.proj.duration + 1))
+  ));
+
+  const durRow = document.createElement('div');
+  durRow.className = 'rowbtns';
+  durRow.style.flexWrap = 'wrap';
+  [3, 5, 6, 8, 10, 15, 20, 30, 60].forEach(sec => {
+    const b = button(sec + '秒', () => setDur(sec));
+    b.style.flex = '0 0 30%';
+    b.classList.toggle('on', Math.abs(S.proj.duration - sec) < 0.01);
+    durRow.appendChild(b);
+  });
+  box.appendChild(field('よく つかう', durRow));
+
+  box.appendChild(slider('つまみで',
+    () => Math.min(60, S.proj.duration),
+    v => { S.proj.duration = v; if(S.time > v) S.time = v; showDur(); },
+    1, 60, 0.5, v => (Number.isInteger(v) ? v : v.toFixed(1)) + '秒'));
+
+  const dlong = document.createElement('div');
+  dlong.className = 'empty';
+  dlong.style.textAlign = 'left';
+  dlong.textContent = 'つまみは 60秒まで。それより 長く したい ときは' + NL
+    + '「＋1秒」を おしてね（300秒まで）。';
+  box.appendChild(dlong);
 
   audioRows(box, closeFn);
 }
