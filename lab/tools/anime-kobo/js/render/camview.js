@@ -15,9 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         camMatrix, withShake } from '../engine/camera.js?v=237';
-import { valuesAt } from '../engine/anim.js?v=237';
-import { M } from '../engine/math.js?v=237';
+         camMatrix, withShake } from '../engine/camera.js?v=238';
+import { valuesAt } from '../engine/anim.js?v=238';
+import { M } from '../engine/math.js?v=238';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -167,6 +167,48 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
                  ids: chain.map(f => f.id) });   // フォルダを えらんだ ときも 光らせる
   }
   items.sort((a, b) => b.z - a.z);
+  const shown = {};       // おなじ おくゆきの わくは 1回だけ
+  const cX = (camV.x || 0) - cx, cY = (camV.y || 0) - cy;
+  /* カメラは おくゆき -CAM_F の ところに 立って いる と 考えると、
+     0 の ところで ちょうど キャンバスぜんぶが 見える。
+     ドリー（前後）は その 立ち位置を そのまま 動かす。 */
+  const cZ = -CAM_F / (camV.scaleX || 1) + camDolly(camV);
+  const camP = P(cX, cY, cZ);
+
+  /* 見えている はんい は おくゆきで 広さが かわる。
+     0 の ところ だけ 出して いた ころは、おくに 立てた 板を
+     「入って いる」と 思って 書き出したら 切れて いた
+     ―― これが「プレビューと 画角が ちがう」の 正体。
+     えらんで いる 板の おくゆき でも 1つ 出す。 */
+  const corners = [[0,0],[project.w,0],[project.w,project.h],[0,project.h]];
+  const sectionAt = (d) => {
+    const inv = M.inv(camMatrix(camV, cx, cy, d));
+    return corners.map(([sx, sy]) => {
+      const c0 = M.apply(inv, sx, sy);          // キャンバスの ものさし
+      const px = c0.x - cx, py = c0.y - cy;
+      /* まわりこんで いる ときは、見て いる ほうも まわる */
+      const q = rot3({ x: px - cX, y: py - cY, z: d - cZ }, camV.rx || 0, camV.ry || 0, 0);
+      return P(cX + q.x, cY + q.y, cZ + q.z);
+    });
+  };
+  const quad = (pts) => {
+    g.beginPath();
+    g.moveTo(pts[0].x, pts[0].y);
+    for(let i = 1; i < 4; i++) g.lineTo(pts[i].x, pts[i].y);
+    g.closePath();
+    g.stroke();
+  };
+  const far = sectionAt(0);
+
+  /* その 板が ほんとうに 写るか。camMatrix で 画面の ものさしに うつして、
+     四すみが 画面の 中に あるかを 見る。ここは 書き出しと 同じ しきだから、
+     「入って いる ように 見えたのに 切れて いた」が 起きない。 */
+  const onScreen = (z, px, py) => {
+    const m = camMatrix(camV, cx, cy, z);
+    const q = M.apply(m, cx + px, cy + py);
+    return q.x >= 0 && q.x <= project.w && q.y >= 0 && q.y <= project.h;
+  };
+
 
   for(const it of items){
     const a = assetOf(it.l, it.v.frame);
@@ -185,16 +227,40 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
       return P(ox2 + q.x, oy2 + q.y, it.z + q.z);
     });
 
+    /* この 板の おくゆき の ところにも 写る はんいの わくを 出す。
+       わくを 0 の ところ だけ に して いた ころは、
+       おくに ある 板ほど 横に ずれて 見えて、
+       中に 入って いるのか 外なのか まったく わからなかった。 */
+    if(Math.abs(it.z) > 1 && !shown[Math.round(it.z)]){
+      shown[Math.round(it.z)] = 1;
+      g.strokeStyle = 'rgba(242,160,184,.4)';
+      g.lineWidth = 1 * r.dpr;
+      quad(sectionAt(it.z));
+    }
+
+    /* 四すみが ぜんぶ 画面の 中 なら まるごと 写る。
+       1つも 入って いなければ まったく 写らない。 */
+    let inN = 0;
+    for(const [px, py] of [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]){
+      const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.v.rot || 0);
+      if(onScreen(it.z, ox2 + q.x, oy2 + q.y)) inN++;
+    }
+    const out = inN === 0;
+
     const on = it.l.id === selId || it.ids.indexOf(selId) >= 0;
     g.beginPath();
     g.moveTo(pts[0].x, pts[0].y);
     for(let i = 1; i < 4; i++) g.lineTo(pts[i].x, pts[i].y);
     g.closePath();
-    g.fillStyle = on ? 'rgba(226,221,96,.55)' : 'rgba(122,196,160,.28)';
+    g.fillStyle = on ? 'rgba(226,221,96,.55)'
+                     : (out ? 'rgba(138,132,112,.14)' : 'rgba(122,196,160,.28)');
     g.fill();
-    g.strokeStyle = on ? '#1E1C14' : 'rgba(30,28,20,.45)';
+    g.strokeStyle = on ? '#1E1C14'
+                       : (out ? 'rgba(30,28,20,.2)' : 'rgba(30,28,20,.45)');
     g.lineWidth = (on ? 2 : 1.2) * r.dpr;
+    if(out) g.setLineDash([3 * r.dpr, 3 * r.dpr]);
     g.stroke();
+    g.setLineDash([]);
   }
 
   /* ---- カメラの 通り道（前後の 動きも 見える）----
@@ -239,12 +305,6 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
   })();
 
   /* ---- カメラ本体と、見えている はんい ---- */
-  const cX = (camV.x || 0) - cx, cY = (camV.y || 0) - cy;
-  /* カメラは おくゆき -CAM_F の ところに 立って いる と 考えると、
-     0 の ところで ちょうど キャンバスぜんぶが 見える。
-     ドリー（前後）は その 立ち位置を そのまま 動かす。 */
-  const cZ = -CAM_F / (camV.scaleX || 1) + camDolly(camV);
-  const camP = P(cX, cY, cZ);
 
   /* ピントの めん（ぼかしを 入れて いる ときだけ） */
   if(camV.dof > 0.001){
@@ -282,30 +342,6 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
 
      絵を うつす とき（camMatrix）の ぎゃくを とれば、
      画面の 四すみが キャンバスの どこに あたるかが そのまま 出る。 */
-  /* 見えている はんい は おくゆきで 広さが かわる。
-     0 の ところ だけ 出して いた ころは、おくに 立てた 板を
-     「入って いる」と 思って 書き出したら 切れて いた
-     ―― これが「プレビューと 画角が ちがう」の 正体。
-     えらんで いる 板の おくゆき でも 1つ 出す。 */
-  const corners = [[0,0],[project.w,0],[project.w,project.h],[0,project.h]];
-  const sectionAt = (d) => {
-    const inv = M.inv(camMatrix(camV, cx, cy, d));
-    return corners.map(([sx, sy]) => {
-      const c0 = M.apply(inv, sx, sy);          // キャンバスの ものさし
-      const px = c0.x - cx, py = c0.y - cy;
-      /* まわりこんで いる ときは、見て いる ほうも まわる */
-      const q = rot3({ x: px - cX, y: py - cY, z: d - cZ }, camV.rx || 0, camV.ry || 0, 0);
-      return P(cX + q.x, cY + q.y, cZ + q.z);
-    });
-  };
-  const quad = (pts) => {
-    g.beginPath();
-    g.moveTo(pts[0].x, pts[0].y);
-    for(let i = 1; i < 4; i++) g.lineTo(pts[i].x, pts[i].y);
-    g.closePath();
-    g.stroke();
-  };
-  const far = sectionAt(0);
 
   g.strokeStyle = '#F2A0B8';
   g.lineWidth = 1.4 * r.dpr;
