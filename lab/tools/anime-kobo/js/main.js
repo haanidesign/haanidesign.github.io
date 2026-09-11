@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=243';
+import { M } from './engine/math.js?v=244';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=243';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=244';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=243';
-import { createStage } from './ui/stage.js?v=243';
-import { createRenderer } from './render/renderer.js?v=243';
-import { createTimeline } from './ui/timeline.js?v=243';
-import { fmtTime } from './engine/anim.js?v=243';
-import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=244';
+import { createStage } from './ui/stage.js?v=244';
+import { createRenderer } from './render/renderer.js?v=244';
+import { createTimeline } from './ui/timeline.js?v=244';
+import { fmtTime } from './engine/anim.js?v=244';
+import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
@@ -20,23 +20,23 @@ import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextS
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=243';
+         setWarper } from './ui/sheet.js?v=244';
 
-import { showNewDoc } from './ui/newdoc.js?v=243';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=243';
-import { fitToCanvas, isBg } from './io/bg.js?v=243';
-import * as Audio from './io/audio.js?v=243';
-import { isTalk, blipTimes } from './engine/talk.js?v=243';
+import { showNewDoc } from './ui/newdoc.js?v=244';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=244';
+import { fitToCanvas, isBg } from './io/bg.js?v=244';
+import * as Audio from './io/audio.js?v=244';
+import { isTalk, blipTimes } from './engine/talk.js?v=244';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=243';
-import { importPsd } from './io/psd.js?v=243';
-import { splitTextChars } from './io/text.js?v=243';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=244';
+import { importPsd } from './io/psd.js?v=244';
+import { splitTextChars } from './io/text.js?v=244';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=243';
-import { pathKeys, pathLength } from './engine/path.js?v=243';
-import { paintDirty } from './engine/paint.js?v=243';
+         canUseWebCodecs } from './io/export.js?v=244';
+import { pathKeys, pathLength } from './engine/path.js?v=244';
+import { paintDirty } from './engine/paint.js?v=244';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=243';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=244';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1395,6 +1395,39 @@ async function openDoc(id){
     busy(false);
   }
 }
+
+/* ファイルから 読みこんだ 作品を ひらく。
+   もとの さくひんは そのまま のこして、あたらしい 1つ として 入れる。 */
+async function openFromFile(pj){
+  busy(true, 'ファイルを ひらいています…');
+  try{
+    S.proj = pj;
+    S.docId = newId();                  // べつの さくひん として 入れる
+    resetUndo();
+    Audio.stop();
+    Audio.clearAudio();
+    S.imgs = {};
+    for(const a of Object.values(pj.assets || {})){
+      try{ if(a.src) S.imgs[a.id] = await loadImage(a.src); }catch(_){}
+    }
+    S.sel = null;
+    S.time = 0;
+    S.ready = true;
+    $('#newdoc').style.display = 'none';
+    sheet.close();
+    stage.resize();
+    stage.fit();
+    refresh();
+    guardBack();
+    saver.now();
+    toast('「' + (pj.name || 'むだい') + '」を ひらきました');
+  }catch(err){
+    toast(err.message || 'ひらけませんでした');
+  }finally{
+    busy(false);
+  }
+}
+setFileOpener(openFromFile);
 
 async function boot(){
   let docs = [];

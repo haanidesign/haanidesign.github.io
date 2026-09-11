@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=243';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=244';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=243';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=244';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=243';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=244';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=243';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=243';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=243';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=243';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=244';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=244';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=244';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=244';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=243';
+         addTextLayer } from '../io/text.js?v=244';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=243';
-import { PATTERN_NAMES } from '../io/pattern.js?v=243';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=244';
+import { PATTERN_NAMES } from '../io/pattern.js?v=244';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=243';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=243';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=243';
+         PITCH_MAX } from '../engine/pano.js?v=244';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=244';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=244';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=243';
-import { readAsDataURL, loadImage } from '../io/image.js?v=243';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=244';
+import { readAsDataURL, loadImage } from '../io/image.js?v=244';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=243';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=243';
-import { newHand } from '../engine/hand.js?v=243';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=243';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=244';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=244';
+import { newHand } from '../engine/hand.js?v=244';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=244';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=243';
+  from './colorwheel.js?v=244';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=243';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=244';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=243';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=244';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -3483,6 +3483,10 @@ export function setCamOpener(fn){ onCam = fn; }
 let openLayer = () => {};
 export function setLayerOpener(fn){ openLayer = fn; }
 
+/* ファイルから 読みこんだ 作品を 開く。main.js が 入れる */
+let onOpenFile = () => {};
+export function setFileOpener(fn){ onOpenFile = fn; }
+
 let onMask = () => {};
 export function setMasker(fn){ onMask = fn; }
 
@@ -3546,6 +3550,75 @@ export function buildDocSheet(box, closeFn){
      さがす とき まず ⚙せってい を 見る と 言われた。
      ここにも ぜんぶ ならべて、1つの 画面で 切りかえられる ように する。
      さわって いる ものは どこも 同じ（l.noCam）。 */
+  /* ---------- 作品を ファイルに 出す・読みこむ ----------
+     いままで 作品は この 機かいの 中（ブラウザの ひきだし）だけに あった。
+     ほかの 機かいに うつす ことも、だれかに 見せる ことも、
+     こわれた ときに もどす ことも できなかった。 */
+  box.appendChild(heading('作品の もちはこび'));
+  {
+    const note = document.createElement('div');
+    note.className = 'empty';
+    note.style.textAlign = 'left';
+    note.textContent = '作品を 1つの ファイルに して とっておけます。' + NL
+      + 'べつの 機かいに うつす とき・とっておく ときに どうぞ。' + NL
+      + NL
+      + '「かるい」ほうは 絵を 入れません。' + NL
+      + 'どう くみ立てて あるかだけ の ファイルなので、' + NL
+      + 'ようすが おかしい ときに 見せる のに ちょうど いい。';
+    box.appendChild(note);
+
+    const put = (obj, tail) => {
+      const name = (S.proj.name || 'むだい').replace(/[\/:*?"<>|]/g, '_');
+      const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name + tail;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 8000);
+    };
+
+    box.appendChild(btnRow(
+      button('💾 まるごと 出す', () => {
+        put({ kind: 'anime-kobo', ver: 1, proj: plain(S.proj) }, '.anime-kobo.json');
+        notify('ファイルに しました');
+      }),
+      button('🪶 かるく 出す（絵ぬき）', () => {
+        const p2 = plain(S.proj);
+        /* 絵の 中みは 重い ので おとす。大きさと なまえ だけ のこす。 */
+        if(p2.assets) for(const k in p2.assets){
+          if(p2.assets[k]) p2.assets[k].src = '';
+        }
+        put({ kind: 'anime-kobo', ver: 1, light: true, proj: p2 }, '.karui.json');
+        notify('くみ立てだけの ファイルに しました');
+      })
+    ));
+
+    const fi = document.createElement('input');
+    fi.type = 'file';
+    fi.accept = '.json,application/json';
+    fi.style.display = 'none';
+    fi.addEventListener('change', async () => {
+      const f = fi.files && fi.files[0];
+      fi.value = '';
+      if(!f) return;
+      try{
+        const o = JSON.parse(await f.text());
+        const pj = (o && o.proj) ? o.proj : o;
+        if(!pj || !Array.isArray(pj.layers)) throw new Error('中みが ちがいます');
+        if(o && o.light) return notify('これは「かるい」ファイル です。絵が 入って いません');
+        onOpenFile(pj);
+      }catch(err){
+        notify('読めませんでした（' + (err && err.message || '') + '）');
+      }
+    });
+    box.appendChild(fi);
+    box.appendChild(btnRow(
+      button('📂 ファイルから 読みこむ', () => fi.click())
+    ));
+  }
+
   box.appendChild(heading('📌 カメラに 合わせない もの'));
   {
     const pn = document.createElement('div');
