@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=253';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=254';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=253';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=254';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=253';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=254';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=253';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=253';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=253';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=253';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=254';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=254';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=254';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=254';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=253';
+         addTextLayer } from '../io/text.js?v=254';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=253';
-import { PATTERN_NAMES } from '../io/pattern.js?v=253';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=254';
+import { PATTERN_NAMES } from '../io/pattern.js?v=254';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=253';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=253';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=253';
+         PITCH_MAX } from '../engine/pano.js?v=254';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=254';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=254';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=253';
-import { readAsDataURL, loadImage } from '../io/image.js?v=253';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=254';
+import { readAsDataURL, loadImage } from '../io/image.js?v=254';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=253';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=253';
-import { newHand } from '../engine/hand.js?v=253';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=253';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=254';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=254';
+import { newHand } from '../engine/hand.js?v=254';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=254';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=253';
+  from './colorwheel.js?v=254';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=253';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=254';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=253';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=254';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -346,36 +346,17 @@ function foldNotes(host){
     q.textContent = '?';
     q.title = 'くわしく';
     q.setAttribute('aria-label', 'くわしく');
-    /* さわって いる あいだ だけ 出す。はなすと しまう。
-       おして → 読んで → もう一度 おして しまう、の 2手が いらない。
-       ゆびを ずらして ボタンの そとで はなしても とじる ように、
-       ポインタを つかまえて おく（setPointerCapture）。
-       マウスの ときは のせて いる あいだ、
-       キーボードの ときは えらんで いる あいだ 出す。 */
-    const openIt = () => { d.hidden = false; q.classList.add('on'); };
-    const shutIt = () => { d.hidden = true;  q.classList.remove('on'); };
-    q.addEventListener('pointerdown', (e) => {
+    /* おす たびに 出す・しまう を 入れかえる。
+       （さわって いる あいだ だけ 出す やり方も ためしたが、
+         読んで いる とちゅうで 指を うごかすと 消えて しまう ので
+         こちらに もどした） */
+    q.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      try{ q.setPointerCapture(e.pointerId); }catch(_){}
-      openIt();
-      /* つかまえ そこねた ときの ほけん。
-         ゆびを ずらして そとで はなしても かならず とじる。 */
-      const off = () => {
-        shutIt();
-        window.removeEventListener('pointerup', off, true);
-        window.removeEventListener('pointercancel', off, true);
-      };
-      window.addEventListener('pointerup', off, true);
-      window.addEventListener('pointercancel', off, true);
+      d.hidden = !d.hidden;
+      q.classList.toggle('on', !d.hidden);
+      q.title = d.hidden ? 'くわしく' : 'とじる';
     });
-    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(
-      ev => q.addEventListener(ev, shutIt));
-    q.addEventListener('mouseenter', openIt);
-    q.addEventListener('mouseleave', shutIt);
-    q.addEventListener('focus', openIt);
-    q.addEventListener('blur', shutIt);
-    q.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
 
     /* すぐ 上の 見出しに つける。見出しが 無い（または もう
        ？が ついて いる）ときだけ、文の うしろに 小さく 置く。 */
