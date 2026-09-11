@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=229';
-import { newLayer } from './layer.js?v=229';
+import { S } from '../state.js?v=230';
+import { newLayer } from './layer.js?v=230';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 

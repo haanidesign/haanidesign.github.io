@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=229';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=229';
-import { valuesAt } from '../engine/anim.js?v=229';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=229';
+         nearestFolder } from '../engine/layer.js?v=230';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=230';
+import { valuesAt } from '../engine/anim.js?v=230';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=230';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=229';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=229';
-import { paintCanvas } from '../engine/paint.js?v=229';
-import { panoCanvas } from '../engine/pano.js?v=229';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=229';
-import { roomCanvas } from '../engine/room.js?v=229';
-import { talkCanvas } from '../engine/talk.js?v=229';
-import { homography, applyH } from '../engine/warp.js?v=229';
-import { drawCamView } from './camview.js?v=229';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=229';
+         meshSizeFor } from '../engine/puppet.js?v=230';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=230';
+import { paintCanvas } from '../engine/paint.js?v=230';
+import { panoCanvas } from '../engine/pano.js?v=230';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=230';
+import { roomCanvas } from '../engine/room.js?v=230';
+import { talkCanvas } from '../engine/talk.js?v=230';
+import { homography, applyH } from '../engine/warp.js?v=230';
+import { drawCamView } from './camview.js?v=230';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=230';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -369,9 +369,13 @@ function flatMesh(w, h){
            ところが もとの 絵の まま で、トーン（点）が 画面の ドットと
            けんかして「もよう」が 出て いた（モアレ）。
            実測: もとの 絵 27.6 → 半分の 写し 10.7（すじの 見えかた）。 */
-        let comp = area > 0.01 ? Math.sqrt((cellSrc / 2) / area) : 99;
-        if(l.tone) comp *= 1.7;          // トーンよけ を 入れて いる ときは 強めに
-        const lvl = comp < 1.25 ? 0 : (comp < 2.5 ? 1 : 2);
+        const comp = area > 0.01 ? Math.sqrt((cellSrc / 2) / area) : 99;
+        /* トーンよけ を 入れて いる ときは、つぶれて いなくても
+           かならず 1つ 下の 写し（半分）から 拾う。
+           アミ点は 画面の ドットと けんかする ので、
+           はじめから ならして おいた 絵の ほうが おちつく。 */
+        const base = comp < 1.25 ? 0 : (comp < 2.5 ? 1 : 2);
+        const lvl = l.tone ? Math.max(1, base) : base;
         lv[lvl].push(a0, b0, c0);
       }
 

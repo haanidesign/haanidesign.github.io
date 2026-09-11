@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=229';
+import { M } from './math.js?v=230';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 
@@ -397,10 +397,24 @@ export function withShake(vals, cam, time, project){
   const spd = cam.shakeSpd == null ? 1 : cam.shakeSpd;
   const t = time * spd;
   const px = Math.min(project.w, project.h) * 0.035 * amt;
+
+  /* ---------- ゆれは ドット 1つ きざみ ----------
+
+     手ブレは 毎コマ ずらす もの。ずらす 量が ドットの
+     とちゅう（0.3ドット など）に なると、絵を 拾い直す ところが
+     毎コマ 少しずつ ずれる。
+     アミ点（トーン）の ような こまかい くりかえし もようだと、
+     その わずかな ずれで もようの 出かたが 毎コマ 変わって
+     画面じゅうが ちらちら する。
+
+     ゆれの 量を ドット 1つ きざみに まるめると、
+     もようと ドットの 関係が 変わらない ので ちらつかない。
+     ゆれは もともと でたらめな 動き なので、
+     まるめても 見た目は 変わらない。 */
   return {
     ...vals,
-    x: (vals.x || 0) + wob(t, 0.0) * px,
-    y: (vals.y || 0) + wob(t, 2.4) * px,
+    x: (vals.x || 0) + Math.round(wob(t, 0.0) * px),
+    y: (vals.y || 0) + Math.round(wob(t, 2.4) * px),
     rot: (vals.rot || 0) + wob(t, 5.1) * 1.6 * amt
   };
 }
