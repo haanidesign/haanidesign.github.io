@@ -1,44 +1,44 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=209';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=210';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=209';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=210';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=209';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=210';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=209';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=209';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=209';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=209';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=210';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=210';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=210';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=210';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=209';
+         addTextLayer } from '../io/text.js?v=210';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=209';
-import { PATTERN_NAMES } from '../io/pattern.js?v=209';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=210';
+import { PATTERN_NAMES } from '../io/pattern.js?v=210';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=209';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=209';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=209';
+         PITCH_MAX } from '../engine/pano.js?v=210';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=210';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=210';
 import { isTalk, addTalkLayer, talkDefaults, talkMouthKeys,
-         talkEnd, talkStart } from '../engine/talk.js?v=209';
-import { readAsDataURL, loadImage } from '../io/image.js?v=209';
+         talkEnd, talkStart } from '../engine/talk.js?v=210';
+import { readAsDataURL, loadImage } from '../io/image.js?v=210';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=209';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=209';
-import { newHand } from '../engine/hand.js?v=209';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=209';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=210';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=210';
+import { newHand } from '../engine/hand.js?v=210';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=210';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=209';
+  from './colorwheel.js?v=210';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=209';
+         guessBpm, firstOnset } from '../io/audio.js?v=210';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=209';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=210';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -53,6 +53,10 @@ export const holdSheet = (on) => { holding = !!on; };
 document.addEventListener('pointerup', () => {
   if(!holding) return;
   if(document.querySelector('.wheelbox:not([hidden])')) return;
+  /* 字を 打って いる あいだも そのまま。
+     作り直すと 打って いる わくが 消えて、字が 入らなく なる。 */
+  const a = document.activeElement;
+  if(a && /^(input|textarea)$/i.test(a.tagName) && a.closest('#sheet')) return;
   holding = false;
 }, true);
 
@@ -2736,10 +2740,13 @@ function talkRow(box, l, closeFn){
   const who = document.createElement('input');
   who.value = t.who || '';
   who.placeholder = '（なまえ なし）';
-  who.addEventListener('change', () => {
+  who.addEventListener('focus', () => holdSheet(true));
+  who.addEventListener('blur', () => {
+    holdSheet(false);
     edit('なまえをかえる', () => { t.who = who.value; dirty(); });
     onChange();
   });
+  who.addEventListener('input', () => { t.who = who.value; dirty(); onChange(); });
   box.appendChild(field('だれが', who));
 
   const ta = document.createElement('textarea');
@@ -2747,12 +2754,17 @@ function talkRow(box, l, closeFn){
   ta.rows = 5;
   ta.placeholder = 'ここに セリフを 書く';
   ta.style.cssText = 'flex:1;min-width:0;font-size:.85rem;line-height:1.6;padding:.4rem';
-  /* 打つ たびに 画面へ うつす（「入った か 分からない」を なくす） */
-  ta.addEventListener('input', () => { t.text = ta.value; dirty(); onChange(); });
-  ta.addEventListener('change', () => {
+  /* 打って いる あいだは せっていを 作り直さない。
+     作り直すと この わく じたいが 作りなおされて、
+     字を 打つ ところが 飛んだり 1文字ずつ 消えたり する。 */
+  ta.addEventListener('focus', () => holdSheet(true));
+  ta.addEventListener('blur', () => {
+    holdSheet(false);
     edit('セリフをかえる', () => { t.text = ta.value; dirty(); });
     onChange();
   });
+  /* 打つ たびに 画面へ うつす（作り直しは 上で 止めて ある） */
+  ta.addEventListener('input', () => { t.text = ta.value; dirty(); onChange(); });
   box.appendChild(field('セリフ', ta));
 
   box.appendChild(slider('出る はやさ', () => t.cps || 20,

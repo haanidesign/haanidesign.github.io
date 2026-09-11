@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=209';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=209';
+import { M, uid, ptInQuad } from './math.js?v=210';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=210';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=209';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=209';
-import { cageDeformPoint, cageMoved } from './warp.js?v=209';
-import { handTime } from './hand.js?v=209';
-import { WORK_KEYS } from '../state.js?v=209';
+         withShake } from './camera.js?v=210';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=210';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=210';
+import { handTime } from './hand.js?v=210';
+import { WORK_KEYS } from '../state.js?v=210';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -496,32 +496,95 @@ export function setParent(project, layer, newParentId, time, onKey){
   return true;
 }
 
+/* ---------- 絵の ある ところだけ つかむ ----------
+
+   四角（わく）だけで 見て いると、すけて いる ところでも
+   つかんだ ことに なる。セリフ枠の ように 画面ぜんたいを おおう
+   レイヤーが 1まい ある だけで、その 下の 絵が ぜんぶ つかめなく なる。
+   （「上の レイヤーが 反応して しまう」の 正体）
+
+   そこで、わくの 中に 入って いたら
+   「その 点に ほんとうに 絵が あるか（すけて いないか）」を たしかめる。
+   1×1 の 小さな 紙に その まわり すこしを うつして、
+   すけ具合を 見るだけ なので 軽い。 */
+let hitC = null;
+function alphaAt(img, u, v, w, h){
+  if(!img || !(img.naturalWidth || img.width)) return 255;   // 分からない ときは つかめる
+  if(u < 0 || v < 0 || u > w || v > h) return 0;
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const sx = u / w * iw, sy = v / h * ih;
+  /* まわり すこしを ならして 見る（細い 線でも つかめる ように） */
+  const r = Math.max(2, Math.round(Math.min(iw, ih) / 120));
+  if(!hitC){
+    hitC = document.createElement('canvas');
+    hitC.width = 1; hitC.height = 1;
+  }
+  const g = hitC.getContext('2d', { willReadFrequently: true });
+  g.clearRect(0, 0, 1, 1);
+  try{
+    g.drawImage(img, Math.max(0, sx - r), Math.max(0, sy - r),
+                Math.min(iw, r * 2), Math.min(ih, r * 2), 0, 0, 1, 1);
+    return g.getImageData(0, 0, 1, 1).data[3];
+  }catch(_){ return 255; }        // よその 絵など、読めない ときは つかめる
+}
+
+/** わくの 中の 点を「絵の 中の どこか」に 直す */
+function toImagePt(layer, pose, asset, x, y){
+  const w = asset.w, h = asset.h;
+  if(pose.quad){
+    /* 立体。四すみ → 絵の しかく へ もどす */
+    const H = homography(pose.quad,
+      [{x:0,y:0}, {x:w,y:0}, {x:w,y:h}, {x:0,y:h}]);
+    const p = applyH(H, x, y);
+    return { u: p.x, v: p.y, w, h };
+  }
+  const inv = M.inv(pose.m);
+  const p = M.apply(inv, x, y);
+  return { u: p.x + w * layer.pivot.x, v: p.y + h * layer.pivot.y, w, h };
+}
+
+/** その点に 絵が あるか（すけて いない か） */
+function inkAt(layer, pose, asset, imgs, x, y){
+  if(!imgs) return true;                       // 絵を もらって いない ときは 見ない
+  const img = imgs[(layer.frames || [])[pose.v.frame] || (layer.frames || [])[0]]
+            || layer._tkC || layer._rmC || layer._pc || layer._blC;
+  if(!img) return true;
+  const q = toImagePt(layer, pose, asset, x, y);
+  return alphaAt(img, q.u, q.v, q.w, q.h) > 8;
+}
+
 /** そのレイヤーが (x,y) を含んでいるか */
-export function hitsLayer(layer, pose, assets, x, y){
+export function hitsLayer(layer, pose, assets, x, y, imgs){
   if(!layer || !pose || pose.vis === false || !layer.visible) return false;
   if(layer.locked) return false;        // カギが かかっていたら つかめない
   if(isFolder(layer)) return false;
-  const asset = assets[layer.frames[pose.v.frame] || layer.frames[0]];
-  const q = cornersOf(layer, pose.m, asset);
-  return !!(q && ptInQuad(x, y, q));
+  const asset = assets[layer.frames[pose.v.frame] || layer.frames[0]]
+             || (layer.pw ? { w: layer.pw, h: layer.ph } : null);
+  if(!asset) return false;
+  const q = pose.quad || cornersOf(layer, pose.m, asset);
+  if(!(q && ptInQuad(x, y, q))) return false;
+  return inkAt(layer, pose, asset, imgs, x, y);
 }
 
 /** キャンバス座標 (x,y) にあるレイヤーを、手前から探す */
-export function pickLayer(project, poses, assets, x, y){
+export function pickLayer(project, poses, assets, x, y, imgs){
   // layers[0] が一番手前なので、そのまま前から見る
+  let box = null;                       // 絵は 無いが わくには 入って いた もの
   for(const l of drawOrder(project)){
     if(!l.visible || l.locked) continue;
     const p = poses[l.id]; if(!p || p.vis === false) continue;
+    const asset = assets[(l.frames || [])[p.v.frame] || (l.frames || [])[0]]
+               || (l.pw ? { w: l.pw, h: l.ph } : null);
     /* 立体に なって いる ものは、四すみが すでに 出て いる。
        ふつうの 四角で 見ると たおした ぶんだけ ずれて つかめない。 */
-    let q = p.quad;
-    if(!q){
-      const asset = assets[l.frames[p.v.frame] || l.frames[0]];
-      q = cornersOf(l, p.m, asset);
-    }
-    if(q && ptInQuad(x, y, q)) return l;
+    const q = p.quad || (asset ? cornersOf(l, p.m, asset) : null);
+    if(!(q && ptInQuad(x, y, q))) continue;
+    if(asset && inkAt(l, p, asset, imgs, x, y)) return l;   // 絵が ある ＝ これ
+    if(!box) box = l;                                       // すけて いた。おぼえて おく
   }
-  return null;
+  /* どれにも 絵が 無かった ときは、いちばん 手前の わくを かえす
+     （まっさらな 紙や、まだ 読みこみ中の 絵を つかめなく しない ため） */
+  return box;
 }
 
 /** そのレイヤーの子孫かどうか（親子付けの輪を防ぐ） */

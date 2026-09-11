@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=209';
-import { cleanPath } from '../engine/path.js?v=209';
+import { M, clamp } from '../engine/math.js?v=210';
+import { cleanPath } from '../engine/path.js?v=210';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=209';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=209';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=209';
+         keepChildren, cornersOf } from '../engine/layer.js?v=210';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=210';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=210';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=209';
-import { createRenderer } from '../render/renderer.js?v=209';
-import { attachInput } from './input.js?v=209';
-import { newStroke, paintDirty } from '../engine/paint.js?v=209';
+         bendChain } from '../engine/puppet.js?v=210';
+import { createRenderer } from '../render/renderer.js?v=210';
+import { attachInput } from './input.js?v=210';
+import { newStroke, paintDirty } from '../engine/paint.js?v=210';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=209';
+         copyPts, setPts } from '../engine/warp.js?v=210';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=209';
-import { inCamView } from '../render/camview.js?v=209';
-import { ORBIT_MAX } from '../engine/camera.js?v=209';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=210';
+import { inCamView } from '../render/camview.js?v=210';
+import { ORBIT_MAX } from '../engine/camera.js?v=210';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -538,14 +538,14 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
      そうしないと、重なった手前のレイヤーに毎回さらわれて狙ったものを動かせない。 */
   function pickPreferSelected(cp, P){
     const cur = selected();
-    if(hitsLayer(cur, P[cur && cur.id], S.proj.assets, cp.x, cp.y)) return cur;
+    if(hitsLayer(cur, P[cur && cur.id], S.proj.assets, cp.x, cp.y, S.imgs)) return cur;
 
     // フォルダは 絵を持たないので、中身のどれかに さわったら フォルダのままにする。
     // そうしないと フォルダを つかんで動かせない。
     if(isFolder(cur) && membersOf(S.proj, cur)
-        .some(k => hitsLayer(k, P[k.id], S.proj.assets, cp.x, cp.y))) return cur;
+        .some(k => hitsLayer(k, P[k.id], S.proj.assets, cp.x, cp.y, S.imgs))) return cur;
 
-    return pickLayer(S.proj, P, S.proj.assets, cp.x, cp.y);
+    return pickLayer(S.proj, P, S.proj.assets, cp.x, cp.y, S.imgs);
   }
 
   /* ================= パペットピン ================= */
