@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=231';
-import { newLayer } from './layer.js?v=231';
+import { S } from '../state.js?v=232';
+import { newLayer } from './layer.js?v=232';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -277,7 +277,22 @@ export function addTalkLayer(name){
   l.noCam = true;
   l.pw = S.proj.w; l.ph = S.proj.h;
   l.x = S.proj.w / 2; l.y = S.proj.h / 2;
-  S.proj.layers.unshift(l);
+  /* すでに セリフ枠を えらんで いる なら、その となりに 入れる。
+     フォルダの 中の セリフを えらんで いた ときは 同じ フォルダへ。
+     （まえは かならず いちばん 手前に 出して いた ので、
+       セリフを まとめた フォルダが あっても そこから 外れて いた） */
+  const cur = S.proj.layers.find(x => x.id === S.sel);
+  if(cur && cur.kind === 'talk'){
+    l.parent = cur.parent || null;
+    l.x = cur.x; l.y = cur.y;
+    l.scaleX = cur.scaleX; l.scaleY = cur.scaleY; l.rot = cur.rot;
+    S.proj.layers.splice(Math.max(0, S.proj.layers.indexOf(cur)), 0, l);
+  } else if(cur && cur.kind === 'folder'){
+    l.parent = cur.id;
+    S.proj.layers.splice(S.proj.layers.indexOf(cur) + 1, 0, l);
+  } else {
+    S.proj.layers.unshift(l);
+  }
   S.sel = l.id;
   return l;
 }

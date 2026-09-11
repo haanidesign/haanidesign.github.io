@@ -13,9 +13,9 @@
    画面での 三角の むき（右まわりか 左まわりか）で より分ける ので、
    玉の ふちが きれいに 出る。 */
 
-import { drawDeformed } from './puppet.js?v=231';
-import { setPin } from '../engine/anim.js?v=231';
-import { S, isDraft } from '../state.js?v=231';
+import { drawDeformed } from './puppet.js?v=232';
+import { setPin } from '../engine/anim.js?v=232';
+import { S, isDraft } from '../state.js?v=232';
 
 /** 球に はって いるか */
 export const ballOn = (l) => !!(l && l.ball && l.ball.on);

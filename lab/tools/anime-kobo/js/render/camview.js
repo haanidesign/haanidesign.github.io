@@ -15,9 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         camMatrix, withShake } from '../engine/camera.js?v=231';
-import { valuesAt } from '../engine/anim.js?v=231';
-import { M } from '../engine/math.js?v=231';
+         camMatrix, withShake } from '../engine/camera.js?v=232';
+import { valuesAt } from '../engine/anim.js?v=232';
+import { M } from '../engine/math.js?v=232';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -255,15 +255,30 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
 
      絵を うつす とき（camMatrix）の ぎゃくを とれば、
      画面の 四すみが キャンバスの どこに あたるかが そのまま 出る。 */
-  const zoom = camV.scaleX || 1;
-  const inv = M.inv(camMatrix(camV, cx, cy, 0));
-  const far = [[0,0],[project.w,0],[project.w,project.h],[0,project.h]].map(([sx, sy]) => {
-    const c0 = M.apply(inv, sx, sy);          // キャンバスの ものさし
-    const px = c0.x - cx, py = c0.y - cy;
-    /* まわりこんで いる ときは、見て いる ほうも まわる */
-    const q = rot3({ x: px - cX, y: py - cY, z: -cZ }, camV.rx || 0, camV.ry || 0, 0);
-    return P(cX + q.x, cY + q.y, cZ + q.z);
-  });
+  /* 見えている はんい は おくゆきで 広さが かわる。
+     0 の ところ だけ 出して いた ころは、おくに 立てた 板を
+     「入って いる」と 思って 書き出したら 切れて いた
+     ―― これが「プレビューと 画角が ちがう」の 正体。
+     えらんで いる 板の おくゆき でも 1つ 出す。 */
+  const corners = [[0,0],[project.w,0],[project.w,project.h],[0,project.h]];
+  const sectionAt = (d) => {
+    const inv = M.inv(camMatrix(camV, cx, cy, d));
+    return corners.map(([sx, sy]) => {
+      const c0 = M.apply(inv, sx, sy);          // キャンバスの ものさし
+      const px = c0.x - cx, py = c0.y - cy;
+      /* まわりこんで いる ときは、見て いる ほうも まわる */
+      const q = rot3({ x: px - cX, y: py - cY, z: d - cZ }, camV.rx || 0, camV.ry || 0, 0);
+      return P(cX + q.x, cY + q.y, cZ + q.z);
+    });
+  };
+  const quad = (pts) => {
+    g.beginPath();
+    g.moveTo(pts[0].x, pts[0].y);
+    for(let i = 1; i < 4; i++) g.lineTo(pts[i].x, pts[i].y);
+    g.closePath();
+    g.stroke();
+  };
+  const far = sectionAt(0);
 
   g.strokeStyle = '#F2A0B8';
   g.lineWidth = 1.4 * r.dpr;
@@ -272,12 +287,29 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
      なって じゃま なだけ なので、そのときは ひかない。 */
   const camIn = camP.x > r.x - r.w && camP.x < r.x + r.w * 2
              && camP.y > r.y - r.h && camP.y < r.y + r.h * 2;
-  if(camIn) far.forEach(p => line(g, camP, p));
-  g.beginPath();
-  g.moveTo(far[0].x, far[0].y);
-  for(let i = 1; i < 4; i++) g.lineTo(far[i].x, far[i].y);
-  g.closePath();
-  g.stroke();
+
+  /* いちばん おくの 板まで 線を のばす。そこまでが 写る はんい。 */
+  const deep = items.length ? Math.max(0, items[0].z) : 0;
+  if(deep > 1){
+    const dq = sectionAt(deep);
+    g.strokeStyle = 'rgba(242,160,184,.45)';
+    quad(dq);
+    if(camIn) dq.forEach(p => line(g, camP, p));
+  }
+
+  /* えらんで いる 板の おくゆき の はんい（点線） */
+  const selIt = items.find(it => it.l.id === selId);
+  if(selIt && Math.abs(selIt.z) > 1 && Math.abs(selIt.z - deep) > 1){
+    g.strokeStyle = 'rgba(242,160,184,.8)';
+    g.setLineDash([4 * r.dpr, 3 * r.dpr]);
+    quad(sectionAt(selIt.z));
+    g.setLineDash([]);
+  }
+
+  g.strokeStyle = '#F2A0B8';
+  g.lineWidth = 1.4 * r.dpr;
+  if(camIn && deep <= 1) far.forEach(p => line(g, camP, p));
+  quad(far);
 
   // カメラ本体
   if(camIn){
