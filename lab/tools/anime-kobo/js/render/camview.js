@@ -15,9 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         camMatrix, withShake } from '../engine/camera.js?v=242';
-import { valuesAt } from '../engine/anim.js?v=242';
-import { M } from '../engine/math.js?v=242';
+         camMatrix, withShake } from '../engine/camera.js?v=243';
+import { valuesAt } from '../engine/anim.js?v=243';
+import { M } from '../engine/math.js?v=243';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -163,18 +163,33 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
        ＝「板の 位置が ちがう」の 正体。
        ひくのは いちばん さいご、1回だけ。 */
     let z = depthLen(v), wx = 0, wy = 0, sx = 1, sy = 1;
-    let rx = v.rx || 0, ry = v.ry || 0, zSet = false;
+    let rx = 0, ry = 0, sheeted = false;
     for(let i = chain.length - 1; i >= 0; i--){    // そとがわ から 中へ
       const f = chain[i];
       const fv = valuesAt(f, time);
       wx += sx * (fv.x || 0); wy += sy * (fv.y || 0);
       sx *= (fv.scaleX == null ? 1 : fv.scaleX);
       sy *= (fv.scaleY == null ? 1 : fv.scaleY);
-      rx += fv.rx || 0; ry += fv.ry || 0;
-      /* まとめて 1まいの 紙に する フォルダが あれば、
-         その いちばん そとがわの おくゆきに そろう。 */
-      if(!f.collapse && !zSet){ z = depthLen(fv); zSet = true; }
+      /* まとめて 1まいの 紙に する フォルダに 入って いたら、
+         中みは その 紙の うえに たいらに 焼かれて から、
+         紙ごと たおされる（layer.js: 自分の 立体は 親の いない ものだけ）。
+         だから たおれ ぐあいは その フォルダの ものが ぜんぶ。
+         おくゆきも 同じ。
+
+         まえは フォルダの たおれ と 中みの たおれ を 足して いた。
+         45°の フォルダに 45°の 絵で 90° ＝ 板が まっ平らに 寝て、
+         「カメラに 向いて いる はずなのに のぞき窓では 水平」に なって いた。 */
+      if(!f.collapse && !sheeted){
+        z = depthLen(fv);
+        rx = fv.rx || 0; ry = fv.ry || 0;
+        sheeted = true;
+      } else if(!sheeted){
+        rx += fv.rx || 0; ry += fv.ry || 0;
+      }
     }
+    /* 紙に 焼かれて いない（＝「バラで 動かす」だけ を 通って きた）なら、
+       自分の たおれも きく。 */
+    if(!sheeted){ rx += v.rx || 0; ry += v.ry || 0; }
     wx += sx * (v.x || 0); wy += sy * (v.y || 0);
     const ox = wx - cx, oy = wy - cy;
     items.push({ l, v, z, ox, oy, sx, sy, rx, ry,
