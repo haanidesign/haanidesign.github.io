@@ -607,28 +607,29 @@ export function setPitch(semi, keepLen){
 const BLIP_SEC = 0.055;
 
 /** 1つぶんの 波を 書きこむ */
-function writeBlip(ch, at, sr, gain){
+function writeBlip(ch, at, sr, gain, hz){
   const n = Math.round(BLIP_SEC * sr);
   const i0 = Math.round(at * sr);
+  const f = hz || 880;
   for(let i = 0; i < n; i++){
     const j = i0 + i;
     if(j < 0 || j >= ch.length) continue;
     const t = i / sr;
     const env = Math.exp(-t * 46);                 // ぽっ と 消える
-    const w = Math.sin(2 * Math.PI * 880 * t) * 0.7
-            + Math.sin(2 * Math.PI * 1320 * t) * 0.3;
+    const w = Math.sin(2 * Math.PI * f * t) * 0.7
+            + Math.sin(2 * Math.PI * f * 1.5 * t) * 0.3;
     ch[j] += w * env * gain;
   }
 }
 
 /** いま 鳴らす（画面で 見て いる とき用） */
-export function playBlip(volume){
+export function playBlip(volume, hz){
   try{
     const c = audioCtx();
     if(c.state === 'suspended') c.resume();
     const sr = c.sampleRate;
     const buf = c.createBuffer(1, Math.round(BLIP_SEC * sr), sr);
-    writeBlip(buf.getChannelData(0), 0, sr, volume == null ? 0.25 : volume);
+    writeBlip(buf.getChannelData(0), 0, sr, volume == null ? 0.25 : volume, hz);
     const src = c.createBufferSource();
     src.buffer = buf;
     src.connect(c.destination);
@@ -639,7 +640,7 @@ export function playBlip(volume){
 /**
  * こえの 音に「ぽ」を まぜた もの を 作って かえす（書き出し用）。
  *   base  … もとの 音（無ければ null）
- *   times … 鳴らす 時こくの ならび（秒）
+ *   times … 鳴らす もの の ならび（{ t: 秒, hz: 高さ }）
  *   dur   … 動画の 長さ（秒）
  *   off   … 音を ずらして ある ぶん（秒）
  */
@@ -659,7 +660,11 @@ export function withBlips(base, times, dur, off, volume){
       d.set(b.subarray(0, Math.min(b.length, len)));
     }
     /* 音を ずらして ある ときは「ぽ」も 同じだけ ずらす */
-    for(const t of times) writeBlip(d, t + (off || 0), sr, volume == null ? 0.25 : volume);
+    for(const b of times){
+      const t = (typeof b === 'number') ? b : b.t;
+      const hz = (typeof b === 'number') ? 880 : b.hz;
+      writeBlip(d, t + (off || 0), sr, volume == null ? 0.25 : volume, hz);
+    }
   }
   return out;
 }

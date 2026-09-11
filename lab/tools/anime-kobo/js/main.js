@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=216';
+import { M } from './engine/math.js?v=217';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=216';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=217';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=216';
-import { createStage } from './ui/stage.js?v=216';
-import { createRenderer } from './render/renderer.js?v=216';
-import { createTimeline } from './ui/timeline.js?v=216';
-import { fmtTime } from './engine/anim.js?v=216';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=217';
+import { createStage } from './ui/stage.js?v=217';
+import { createRenderer } from './render/renderer.js?v=217';
+import { createTimeline } from './ui/timeline.js?v=217';
+import { fmtTime } from './engine/anim.js?v=217';
 import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,23 +20,23 @@ import { createSheet, setDockHook, buildLayerSheet, buildMotionSheet, buildTextS
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=216';
+         setWarper } from './ui/sheet.js?v=217';
 
-import { showNewDoc } from './ui/newdoc.js?v=216';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=216';
-import { fitToCanvas, isBg } from './io/bg.js?v=216';
-import * as Audio from './io/audio.js?v=216';
-import { isTalk, blipTimes } from './engine/talk.js?v=216';
+import { showNewDoc } from './ui/newdoc.js?v=217';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=217';
+import { fitToCanvas, isBg } from './io/bg.js?v=217';
+import * as Audio from './io/audio.js?v=217';
+import { isTalk, blipTimes } from './engine/talk.js?v=217';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=216';
-import { importPsd } from './io/psd.js?v=216';
-import { splitTextChars } from './io/text.js?v=216';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=217';
+import { importPsd } from './io/psd.js?v=217';
+import { splitTextChars } from './io/text.js?v=217';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=216';
-import { pathKeys, pathLength } from './engine/path.js?v=216';
-import { paintDirty } from './engine/paint.js?v=216';
+         canUseWebCodecs } from './io/export.js?v=217';
+import { pathKeys, pathLength } from './engine/path.js?v=217';
+import { paintDirty } from './engine/paint.js?v=217';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=216';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=217';
 
 const $ = (s) => document.querySelector(s);
 
@@ -116,16 +116,16 @@ let lastStageW = 0, lastStageH = 0;
 let blipSeen = -1;
 function blipBetween(a, b){
   if(b - a > 0.5){ blipSeen = b; return; }       // 時間を とばした ときは 鳴らさない
-  let n = 0;
+  const hits = [];
   for(const l of S.proj.layers){
     if(!isTalk(l) || l.visible === false) continue;
-    for(const t of blipTimes(l)){
-      if(t > a && t <= b && t > blipSeen){ n++; if(n > 2) break; }
+    for(const q of blipTimes(l)){
+      if(q.t > a && q.t <= b && q.t > blipSeen){ hits.push(q); if(hits.length > 2) break; }
     }
-    if(n > 2) break;
+    if(hits.length > 2) break;
   }
   blipSeen = b;
-  for(let i = 0; i < Math.min(2, n); i++) Audio.playBlip(0.22);
+  for(let i = 0; i < Math.min(2, hits.length); i++) Audio.playBlip(0.22, hits[i].hz);
 }
 (function loop(){
   const now = performance.now();

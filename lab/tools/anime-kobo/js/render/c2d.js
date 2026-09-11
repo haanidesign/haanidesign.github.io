@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=216';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=216';
-import { valuesAt } from '../engine/anim.js?v=216';
-import { S, frameAsset, frameImage } from '../state.js?v=216';
+         nearestFolder } from '../engine/layer.js?v=217';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=217';
+import { valuesAt } from '../engine/anim.js?v=217';
+import { S, frameAsset, frameImage } from '../state.js?v=217';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=216';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=216';
-import { paintCanvas } from '../engine/paint.js?v=216';
-import { panoCanvas } from '../engine/pano.js?v=216';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=216';
-import { roomCanvas } from '../engine/room.js?v=216';
-import { talkCanvas } from '../engine/talk.js?v=216';
-import { homography, applyH } from '../engine/warp.js?v=216';
-import { drawCamView } from './camview.js?v=216';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=216';
+         meshSizeFor } from '../engine/puppet.js?v=217';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=217';
+import { paintCanvas } from '../engine/paint.js?v=217';
+import { panoCanvas } from '../engine/pano.js?v=217';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=217';
+import { roomCanvas } from '../engine/room.js?v=217';
+import { talkCanvas } from '../engine/talk.js?v=217';
+import { homography, applyH } from '../engine/warp.js?v=217';
+import { drawCamView } from './camview.js?v=217';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=217';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

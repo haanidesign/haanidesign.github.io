@@ -1,44 +1,44 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=216';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=217';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=216';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=217';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=216';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=217';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=216';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=216';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=216';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=216';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=217';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=217';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=217';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=217';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=216';
+         addTextLayer } from '../io/text.js?v=217';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=216';
-import { PATTERN_NAMES } from '../io/pattern.js?v=216';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=217';
+import { PATTERN_NAMES } from '../io/pattern.js?v=217';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=216';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=216';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=216';
-import { isTalk, addTalkLayer, talkDefaults, talkMouthKeys,
-         talkEnd, talkStart } from '../engine/talk.js?v=216';
-import { readAsDataURL, loadImage } from '../io/image.js?v=216';
+         PITCH_MAX } from '../engine/pano.js?v=217';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=217';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=217';
+import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
+         talkEnd, talkStart } from '../engine/talk.js?v=217';
+import { readAsDataURL, loadImage } from '../io/image.js?v=217';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=216';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=216';
-import { newHand } from '../engine/hand.js?v=216';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=216';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=217';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=217';
+import { newHand } from '../engine/hand.js?v=217';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=217';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=216';
+  from './colorwheel.js?v=217';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=216';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=217';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=216';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=217';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2836,12 +2836,41 @@ function talkRow(box, l, closeFn){
   box.appendChild(slider('何文字ごとに', () => t.blipEvery || 2,
     v => { t.blipEvery = Math.round(v); }, 1, 6, 1,
     v => Math.round(v) + '文字ごと'));
+  /* 音の 高さ。低いと おじさん、高いと 子ども っぽく なる。 */
+  box.appendChild(slider('音の 高さ', () => t.blipHz || 880,
+    v => { t.blipHz = Math.round(v); }, 240, 1800, 20,
+    v => Math.round(v) + 'Hz'
+       + (v < 450 ? '（ひくい）' : v > 1200 ? '（たかい）' : '')));
+  box.appendChild(btnRow(
+    button('🔈 ためしに 鳴らす', () => playBlip(0.3, t.blipHz || 880))
+  ));
   const bn = document.createElement('div');
   bn.className = 'empty';
   bn.style.textAlign = 'left';
   bn.textContent = 'さいせい中に 鳴ります。書き出す 動画にも 入ります' + NL
     + '（こえが あれば こえに まぜます）。';
   box.appendChild(bn);
+
+  /* ---- つぎの セリフ ---- */
+  box.appendChild(heading('➡ つぎの セリフ'));
+  box.appendChild(btnRow(
+    button('➡ つぎの セリフを 足す', () => {
+      beginEdit('つぎの セリフ');
+      addNextTalk(l);
+      commitEdit();
+      onChange();
+      openLayer();          // そのまま 文を 書ける ように
+    })
+  ));
+  const nn = document.createElement('div');
+  nn.className = 'empty';
+  nn.style.textAlign = 'left';
+  nn.textContent = 'いまの セリフが 言いおわった あとから はじまる' + NL
+    + 'セリフ枠を もう1つ つくります（見た目は そのまま 引きつぎ）。' + NL
+    + 'いまの セリフは その ところで おわる ように なるので、' + NL
+    + '2つが かさなって 出る ことは ありません。' + NL
+    + 'タイミングは タイムラインの「出す ところ」で ずらせます。';
+  box.appendChild(nn);
 
   /* ---- 口パク ---- */
   box.appendChild(heading('👄 口パク'));

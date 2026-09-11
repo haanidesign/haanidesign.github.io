@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=216';
-import { newLayer } from './layer.js?v=216';
+import { S } from '../state.js?v=217';
+import { newLayer } from './layer.js?v=217';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -36,6 +36,7 @@ export function talkDefaults(project){
     hRatio: 0.3,             // 帯の たかさ（画面の なんわり）
     blip: true,
     blipEvery: 2,
+    blipHz: 880,             // 音の 高さ（大きいほど 高い）
     mouth: null              // 口を 動かす レイヤーの ばんごう
   };
 }
@@ -71,8 +72,9 @@ export function blipTimes(l){
   const n = letters(t.text).length;
   const cps = Math.max(1, t.cps || 20);
   const every = Math.max(1, Math.round(t.blipEvery || 2));
+  const hz = t.blipHz || 880;
   const out = [];
-  for(let i = 0; i < n; i += every) out.push(talkStart(l) + i / cps);
+  for(let i = 0; i < n; i += every) out.push({ t: talkStart(l) + i / cps, hz });
   return out;
 }
 
@@ -170,6 +172,31 @@ export function talkCanvas(l, time, project){
   }
 
   return l._tkC;
+}
+
+/**
+ * つぎの セリフを 足す。
+ * いまの セリフの すぐ あとから はじまる ように して、
+ * 見た目（帯の 色・大きさ・はやさ・音）は そっくり 引きつぐ。
+ */
+export function addNextTalk(l){
+  const t = l.talk || talkDefaults();
+  const nx = newLayer('セリフ', []);
+  nx.kind = 'talk';
+  nx.talk = Object.assign({}, t, { text: '' });
+  nx.noCam = true;
+  nx.pw = l.pw; nx.ph = l.ph;
+  nx.x = l.x; nx.y = l.y;
+  nx.scaleX = l.scaleX; nx.scaleY = l.scaleY; nx.rot = l.rot;
+  /* いまの セリフは「言いおわる まで」、つぎは その あとから。
+     こう して おくと、2つが かさなって 2まい 出る ことが ない。 */
+  const end = talkEnd(l);
+  l.span = { from: talkStart(l), to: end + 0.2 };
+  nx.span = { from: end + 0.3, to: null };
+  const at = S.proj.layers.indexOf(l);
+  S.proj.layers.splice(Math.max(0, at), 0, nx);
+  S.sel = nx.id;
+  return nx;
 }
 
 /** セリフ枠を 1つ つくる。いちばん 手前に 置く */
