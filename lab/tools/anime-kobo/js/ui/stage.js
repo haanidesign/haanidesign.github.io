@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=210';
-import { cleanPath } from '../engine/path.js?v=210';
+import { M, clamp } from '../engine/math.js?v=211';
+import { cleanPath } from '../engine/path.js?v=211';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=210';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=210';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=210';
+         keepChildren, cornersOf } from '../engine/layer.js?v=211';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=211';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=211';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=210';
-import { createRenderer } from '../render/renderer.js?v=210';
-import { attachInput } from './input.js?v=210';
-import { newStroke, paintDirty } from '../engine/paint.js?v=210';
+         bendChain } from '../engine/puppet.js?v=211';
+import { createRenderer } from '../render/renderer.js?v=211';
+import { attachInput } from './input.js?v=211';
+import { newStroke, paintDirty } from '../engine/paint.js?v=211';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=210';
+         copyPts, setPts } from '../engine/warp.js?v=211';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=210';
-import { inCamView } from '../render/camview.js?v=210';
-import { ORBIT_MAX } from '../engine/camera.js?v=210';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=211';
+import { inCamView } from '../render/camview.js?v=211';
+import { ORBIT_MAX } from '../engine/camera.js?v=211';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -538,12 +538,19 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
      そうしないと、重なった手前のレイヤーに毎回さらわれて狙ったものを動かせない。 */
   function pickPreferSelected(cp, P){
     const cur = selected();
-    if(hitsLayer(cur, P[cur && cur.id], S.proj.assets, cp.x, cp.y, S.imgs)) return cur;
+    /* いま えらんで いる ものは、わくの 中なら どこでも そのまま。
+
+       すけて いる ところを のぞく 見かた（v210）を えらんで いる ものにも
+       かけると、かたむけ・大きさを いじって いる さいちゅうに
+       わくの 中の すけた ところを さわった だけで、
+       べつの レイヤーに 持って いかれて しまう。
+       ＝「設定中の わくを つかみたい のに ちがうのを つかむ」 */
+    if(hitsLayer(cur, P[cur && cur.id], S.proj.assets, cp.x, cp.y)) return cur;
 
     // フォルダは 絵を持たないので、中身のどれかに さわったら フォルダのままにする。
     // そうしないと フォルダを つかんで動かせない。
     if(isFolder(cur) && membersOf(S.proj, cur)
-        .some(k => hitsLayer(k, P[k.id], S.proj.assets, cp.x, cp.y, S.imgs))) return cur;
+        .some(k => hitsLayer(k, P[k.id], S.proj.assets, cp.x, cp.y))) return cur;
 
     return pickLayer(S.proj, P, S.proj.assets, cp.x, cp.y, S.imgs);
   }
@@ -684,7 +691,9 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   /* ---- ハンドルの当たり判定 ---- */
   function hitHandle(cp){
     if(!handles) return null;
-    const r = 18 / S.view.z;
+    /* 指は マウスより 太い。つまみの まわりを ひろめに とる
+       （18 だと 指では よく はずれて、下の レイヤーを つかんで しまう）。 */
+    const r = 26 / S.view.z;
     // じく（まん中）は他のハンドルより先に見る
     if(handles.anchor && Math.hypot(cp.x - handles.anchor.x, cp.y - handles.anchor.y) < r) return 'anchor';
     for(const [k, h] of Object.entries(handles)){

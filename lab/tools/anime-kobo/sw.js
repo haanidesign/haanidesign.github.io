@@ -11,7 +11,7 @@
      この 道具は しょっちゅう 直すので、新しいのを 先に する。
      そのかわり 電波が 無い ときも 前に 見た ぶんは ひらける。 */
 
-const VER = 'v210';
+const VER = 'v211';
 const BOX = 'anime-kobo-' + VER;
 
 self.addEventListener('install', (e) => {
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (e) => {
       /* ページ本体（index.html）だけは ブラウザの ためこみを 通さずに 取る。
          ふつうに fetch すると、ブラウザが 自分の ためこみ（10分）から
          古い index.html を 出して しまい、中に 書いて ある
-         「?v=210」が いつまでも 古い ばんごうの ままに なる。
+         「?v=211」が いつまでも 古い ばんごうの ままに なる。
          中の ファイルは アドレスに ばんごうが ついて いる ので
          ためこんで いても まちがえない（ので さわらない）。 */
       const fresh = req.mode === 'navigate' || url.pathname.endsWith('/')
