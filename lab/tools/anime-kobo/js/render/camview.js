@@ -15,9 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         camMatrix, withShake } from '../engine/camera.js?v=244';
-import { valuesAt } from '../engine/anim.js?v=244';
-import { M } from '../engine/math.js?v=244';
+         camMatrix, withShake } from '../engine/camera.js?v=245';
+import { valuesAt } from '../engine/anim.js?v=245';
+import { M } from '../engine/math.js?v=245';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -163,7 +163,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
        ＝「板の 位置が ちがう」の 正体。
        ひくのは いちばん さいご、1回だけ。 */
     let z = depthLen(v), wx = 0, wy = 0, sx = 1, sy = 1;
-    let rx = 0, ry = 0, sheeted = false;
+    let rx = 0, ry = 0, rz = 0, sheeted = false;
     for(let i = chain.length - 1; i >= 0; i--){    // そとがわ から 中へ
       const f = chain[i];
       const fv = valuesAt(f, time);
@@ -179,20 +179,29 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
          まえは フォルダの たおれ と 中みの たおれ を 足して いた。
          45°の フォルダに 45°の 絵で 90° ＝ 板が まっ平らに 寝て、
          「カメラに 向いて いる はずなのに のぞき窓では 水平」に なって いた。 */
+      rz += fv.rot || 0;
       if(!f.collapse && !sheeted){
         z = depthLen(fv);
         rx = fv.rx || 0; ry = fv.ry || 0;
         sheeted = true;
-      } else if(!sheeted){
-        rx += fv.rx || 0; ry += fv.ry || 0;
       }
+      /* 「バラで 動かす」フォルダの たおれ（rx/ry）は 何も しない。
+         えがく ほうは、たたんで いない フォルダ だけ を 紙ごと たおす
+         （layer.js の sheet3D）。バラの ほうは その みちを 通らず、
+         場所を あわせる かけ算（M.trs）には rx/ry が そもそも 無い。
+         ＝ フォルダに 「ゆか」70° を 入れても 絵は 1ドットも 動かない。
+
+         のぞき窓は それを 中みに 足して いた ので、
+         まっすぐ 立って いる はずの 絵が 70° 寝て 見えて いた。
+         ＝「平べったい」の 正体。 */
     }
     /* 紙に 焼かれて いない（＝「バラで 動かす」だけ を 通って きた）なら、
        自分の たおれも きく。 */
     if(!sheeted){ rx += v.rx || 0; ry += v.ry || 0; }
+    rz += v.rot || 0;
     wx += sx * (v.x || 0); wy += sy * (v.y || 0);
     const ox = wx - cx, oy = wy - cy;
-    items.push({ l, v, z, ox, oy, sx, sy, rx, ry,
+    items.push({ l, v, z, ox, oy, sx, sy, rx, ry, rz,
                  ids: chain.map(f => f.id) });   // フォルダを えらんだ ときも 光らせる
   }
   items.sort((a, b) => b.z - a.z);
@@ -251,7 +260,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     const ox2 = it.ox, oy2 = it.oy;
 
     const pts = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([px, py]) => {
-      const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.v.rot || 0);
+      const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.rz);
       return P(ox2 + q.x, oy2 + q.y, it.z + q.z);
     });
 
@@ -270,7 +279,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
        1つも 入って いなければ まったく 写らない。 */
     let inN = 0;
     for(const [px, py] of [[x0,y0],[x1,y0],[x1,y1],[x0,y1]]){
-      const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.v.rot || 0);
+      const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.rz);
       if(onScreen(it.z, ox2 + q.x, oy2 + q.y)) inN++;
     }
     const out = inN === 0;

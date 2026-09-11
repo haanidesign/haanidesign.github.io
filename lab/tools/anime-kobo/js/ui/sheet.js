@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=244';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=245';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=244';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=245';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=244';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=245';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=244';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=244';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=244';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=244';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=245';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=245';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=245';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=245';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=244';
+         addTextLayer } from '../io/text.js?v=245';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=244';
-import { PATTERN_NAMES } from '../io/pattern.js?v=244';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=245';
+import { PATTERN_NAMES } from '../io/pattern.js?v=245';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=244';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=244';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=244';
+         PITCH_MAX } from '../engine/pano.js?v=245';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=245';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=245';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=244';
-import { readAsDataURL, loadImage } from '../io/image.js?v=244';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=245';
+import { readAsDataURL, loadImage } from '../io/image.js?v=245';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=244';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=244';
-import { newHand } from '../engine/hand.js?v=244';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=244';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=245';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=245';
+import { newHand } from '../engine/hand.js?v=245';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=245';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=244';
+  from './colorwheel.js?v=245';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=244';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=245';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=244';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=245';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
