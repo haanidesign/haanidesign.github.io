@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=219';
-import { newLayer } from './layer.js?v=219';
+import { S } from '../state.js?v=221';
+import { newLayer } from './layer.js?v=221';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -34,6 +34,9 @@ export function talkDefaults(project){
     pad: Math.round(P.w / 26),
     line: 1.55,
     hRatio: 0.3,             // 帯の たかさ（画面の なんわり）
+    /* 読みおわる までの 間（よいん）。
+       出おわった とたん 切りかわると 読めない。 */
+    hold: 1.2,
     blip: true,
     blipEvery: 2,
     blipHz: 880,             // 音の 高さ（大きいほど 高い）
@@ -63,6 +66,20 @@ function letters(text){
 export function talkEnd(l){
   const t = l.talk || talkDefaults();
   return talkStart(l) + letters(t.text).length / Math.max(1, t.cps || 20);
+}
+
+/** 出おわってから しばらく 置いた、消える 時こく */
+export function talkOut(l){
+  const t = l.talk || talkDefaults();
+  const hold = t.hold == null ? 1.2 : t.hold;
+  return talkEnd(l) + Math.max(0, hold);
+}
+
+/** 文の 長さに 合った よいん（めやす） */
+export function niceHold(l){
+  const t = l.talk || talkDefaults();
+  const n = String(t.text || '').length;
+  return Math.round(Math.min(3.5, Math.max(0.8, 0.6 + n * 0.06)) * 10) / 10;
 }
 
 /** 「ぽ」を 鳴らす 時こくの ならび */
@@ -191,9 +208,11 @@ export function addNextTalk(l){
   nx.scaleX = l.scaleX; nx.scaleY = l.scaleY; nx.rot = l.rot;
   /* いまの セリフは「言いおわる まで」、つぎは その あとから。
      こう して おくと、2つが かさなって 2まい 出る ことが ない。 */
-  const end = talkEnd(l);
-  l.span = { from: talkStart(l), to: end + 0.2 };
-  nx.span = { from: end + 0.3, to: null };
+  /* 読みおわる 間（よいん）を おいてから 次に する。
+     出おわった とたん 切りかわると 読めない。 */
+  const out = talkOut(l);
+  l.span = { from: talkStart(l), to: out };
+  nx.span = { from: out, to: null };
   const at = S.proj.layers.indexOf(l);
   S.proj.layers.splice(Math.max(0, at), 0, nx);
   S.sel = nx.id;

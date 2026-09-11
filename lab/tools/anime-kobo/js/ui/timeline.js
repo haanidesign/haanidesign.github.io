@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd } from '../engine/talk.js?v=219';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=219';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=221';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=221';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=219';
+         nearestFolder, setParent } from '../engine/layer.js?v=221';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=219';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=219';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=219';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=219';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=221';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=221';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=221';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=221';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -531,7 +531,16 @@ export function createTimeline(root, opts = {}){
        （タイミングを あわせる のが いちばん やりたい ことなので、
          「長さを 調節」を 出さなくても さわれる ように して おく） */
     if(isTalk(l)){
-      const a = talkStart(l), b = talkEnd(l);
+      const a = talkStart(l), b = talkEnd(l), c = talkOut(l);
+      /* よいん（読む 間）は うすい 帯で 後ろに 出す */
+      if(c > b + 1e-6){
+        const rest = document.createElement('div');
+        rest.className = 'talkhold';
+        rest.style.left = t2x(b) + 'px';
+        rest.style.width = Math.max(2, t2x(c) - t2x(b)) + 'px';
+        rest.title = 'よいん（読む 間）';
+        track.appendChild(rest);
+      }
       const bar = document.createElement('div');
       bar.className = 'talkbar' + (l.id === S.sel ? ' on' : '');
       bar.style.left = t2x(a) + 'px';
@@ -539,7 +548,7 @@ export function createTimeline(root, opts = {}){
       const say = (l.talk && l.talk.text) ? String(l.talk.text)
         .split(String.fromCharCode(10)).join(' ') : '';
       bar.textContent = say.slice(0, 18);
-      bar.title = a.toFixed(2) + '秒 〜 ' + b.toFixed(2) + '秒'
+      bar.title = a.toFixed(2) + '秒 〜 ' + b.toFixed(2) + '秒（よいん こみ ' + c.toFixed(2) + '秒まで）'
         + String.fromCharCode(10) + 'つまんで よこに 引っぱると ずらせます';
       attachTalkDrag(bar, l);
       track.appendChild(bar);
