@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=213';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=213';
+import { M, uid, ptInQuad } from './math.js?v=216';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=216';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=213';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=213';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=213';
-import { handTime } from './hand.js?v=213';
-import { WORK_KEYS } from '../state.js?v=213';
+         withShake } from './camera.js?v=216';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=216';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=216';
+import { handTime } from './hand.js?v=216';
+import { WORK_KEYS } from '../state.js?v=216';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -256,14 +256,18 @@ export function computeAll(project, time){
        ＝ フォルダの 中でも おくゆきの ずれが 出る。 */
     const free = p ? p.camFree : true;            // ここまで カメラが 来て いるか
     const collapsed = isFolder(l) && !!l.collapse;
-    const takesCam = !!camV && !isCam(l) && free && !collapsed;
+    /* 「カメラに 合わせない」＝ 画面に はりつけ。
+       セリフ枠・ロゴ・字まくの ように、カメラが ゆれても
+       いっしょに ゆれて ほしく ない ものに つかう。 */
+    const pinned = l.noCam === true;
+    const takesCam = !!camV && !isCam(l) && free && !collapsed && !pinned;
 
     /* フォルダは 中身を 1まいの 紙に まとめて から 出す。
        カメラが まわりこんで いる（または フォルダ自身を たおして いる）
        ときは、その 紙ごと 立体に する（下の sheet）。 */
     /* カメラが なくても、フォルダ自身を たおして あれば 立体に する
        （ふつうの レイヤーと 同じ。カメラは あれば いっしょに かかる）。 */
-    const sheet3D = !p && !isCam(l) && isFolder(l) && !collapsed
+    const sheet3D = !p && !isCam(l) && !pinned && isFolder(l) && !collapsed
                     && (orbit || is3D(v)) && membersOf(project, l).length > 0;
 
     const mNoCam = m;                             // カメラを かける まえの 姿
@@ -320,10 +324,10 @@ export function computeAll(project, time){
          紙の 大きさは あとで 中身から きめ直す（下の しあげ）。 */
       quad = sheetQuad3D(l, v3, project, camV);
       sheetOf[l.id] = { v: v3, camV };
-    } else if((is3D(v3) || orbit) && !isCam(l) && mine && !p){
+    } else if((is3D(v3) || (orbit && !pinned)) && !isCam(l) && mine && !p){
       const a = assetOf(project, l, v.frame);
-      if(a) quad = quad3D(l, v3, a, project, camV);
-    } else if((is3D(v3) || orbit) && !isCam(l) && mine && p){
+      if(a) quad = quad3D(l, v3, a, project, pinned ? null : camV);
+    } else if((is3D(v3) || (orbit && !pinned)) && !isCam(l) && mine && p){
       /* バラで 動かす フォルダの 中身。親の ぶんも 入った 姿（m）から
          四すみを 出す ―― ここで さっき カメラを かけて いる ので、
          その ぶんを 抜いた 姿で 計算する。 */

@@ -1,44 +1,44 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=213';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset } from '../state.js?v=216';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=213';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=216';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=213';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=216';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=213';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=213';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=213';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=213';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=216';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=216';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=216';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=216';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=213';
+         addTextLayer } from '../io/text.js?v=216';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=213';
-import { PATTERN_NAMES } from '../io/pattern.js?v=213';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=216';
+import { PATTERN_NAMES } from '../io/pattern.js?v=216';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=213';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=213';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=213';
+         PITCH_MAX } from '../engine/pano.js?v=216';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=216';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=216';
 import { isTalk, addTalkLayer, talkDefaults, talkMouthKeys,
-         talkEnd, talkStart } from '../engine/talk.js?v=213';
-import { readAsDataURL, loadImage } from '../io/image.js?v=213';
+         talkEnd, talkStart } from '../engine/talk.js?v=216';
+import { readAsDataURL, loadImage } from '../io/image.js?v=216';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=213';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=213';
-import { newHand } from '../engine/hand.js?v=213';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=213';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=216';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=216';
+import { newHand } from '../engine/hand.js?v=216';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=216';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=213';
+  from './colorwheel.js?v=216';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset } from '../io/audio.js?v=213';
+         guessBpm, firstOnset } from '../io/audio.js?v=216';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=213';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=216';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1052,10 +1052,32 @@ function presetGrid(box, list, run){
    カメラを ふった とき、手前の ものほど 大きく ずれる。 */
 function depthRow(box, l){
   if(isCam(l)) return;
-  if(!camOf(S.proj, S.time)) return;
+  if(!camOf(S.proj, S.time)) return;   /* カメラが 無ければ おくゆきの 話は 出さない */
   const NL = String.fromCharCode(10);
 
   box.appendChild(heading('おくゆき（カメラ用）'));
+
+  /* ---- カメラに 合わせない ----
+     セリフ枠・ロゴ・字まく は、カメラが ゆれても いっしょに
+     ゆれて ほしく ない。画面に はりつけて おける ように する。 */
+  box.appendChild(btnRow(
+    button(l.noCam ? '📌 画面に はりつけ（カメラに 合わせない）'
+                   : '🎥 カメラに 合わせる', () => {
+      edit('カメラとの つながり', () => { l.noCam = !l.noCam; });
+      notify(l.noCam ? 'カメラが ゆれても そのままに なります'
+                     : 'カメラに 合わせて 動きます');
+      onChange();
+      if(closeFn) closeFn();
+    })
+  ));
+  const ncn = document.createElement('div');
+  ncn.className = 'empty';
+  ncn.style.textAlign = 'left';
+  ncn.textContent = 'はりつけに すると、カメラの ふれ・よせ・まわりこみを' + NL
+    + 'ぜんぶ うけません（いつも 同じ ところに 出ます）。' + NL
+    + 'セリフ枠・ロゴ・字まく むけ。';
+  box.appendChild(ncn);
+
   box.appendChild(btnRow(
     button('🎥 カメラの 画面へ', () => { onCam(); })
   ));

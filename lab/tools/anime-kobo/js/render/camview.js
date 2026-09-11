@@ -15,8 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         withShake } from '../engine/camera.js?v=213';
-import { valuesAt } from '../engine/anim.js?v=213';
+         camMatrix, withShake } from '../engine/camera.js?v=216';
+import { valuesAt } from '../engine/anim.js?v=216';
+import { M } from '../engine/math.js?v=216';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -245,12 +246,22 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     g.fillStyle = '#F2A0B8'; g.fill();
   }
 
-  // 見えている はんい（0 の ところの 四すみへ 4本）
+  /* 見えている はんい（0 の ところの 四すみへ 4本）
+
+     ここは「ほんとうに 書き出される はんい」と 同じ 出し方に する。
+     前は ズームだけ 見て いて、よせ（ドリー）の ぶんが 入って
+     いなかった ので、のぞき窓の わくと 書き出した 絵の 画角が
+     ずれて 見えて いた。
+
+     絵を うつす とき（camMatrix）の ぎゃくを とれば、
+     画面の 四すみが キャンバスの どこに あたるかが そのまま 出る。 */
   const zoom = camV.scaleX || 1;
-  const fw = project.w / 2 / zoom, fh = project.h / 2 / zoom;
-  const far = [[-fw,-fh],[fw,-fh],[fw,fh],[-fw,fh]].map(([px, py]) => {
-    /* カメラの まわりこみ ぶんだけ、見て いる ほうも まわる */
-    const q = rot3({ x: px, y: py, z: CAM_F / zoom }, camV.rx || 0, camV.ry || 0, 0);
+  const inv = M.inv(camMatrix(camV, cx, cy, 0));
+  const far = [[0,0],[project.w,0],[project.w,project.h],[0,project.h]].map(([sx, sy]) => {
+    const c0 = M.apply(inv, sx, sy);          // キャンバスの ものさし
+    const px = c0.x - cx, py = c0.y - cy;
+    /* まわりこんで いる ときは、見て いる ほうも まわる */
+    const q = rot3({ x: px - cX, y: py - cY, z: -cZ }, camV.rx || 0, camV.ry || 0, 0);
     return P(cX + q.x, cY + q.y, cZ + q.z);
   });
 

@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=213';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=213';
-import { valuesAt } from '../engine/anim.js?v=213';
-import { S, frameAsset, frameImage } from '../state.js?v=213';
+         nearestFolder } from '../engine/layer.js?v=216';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=216';
+import { valuesAt } from '../engine/anim.js?v=216';
+import { S, frameAsset, frameImage } from '../state.js?v=216';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=213';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=213';
-import { paintCanvas } from '../engine/paint.js?v=213';
-import { panoCanvas } from '../engine/pano.js?v=213';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=213';
-import { roomCanvas } from '../engine/room.js?v=213';
-import { talkCanvas } from '../engine/talk.js?v=213';
-import { homography, applyH } from '../engine/warp.js?v=213';
-import { drawCamView } from './camview.js?v=213';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=213';
+         meshSizeFor } from '../engine/puppet.js?v=216';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=216';
+import { paintCanvas } from '../engine/paint.js?v=216';
+import { panoCanvas } from '../engine/pano.js?v=216';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=216';
+import { roomCanvas } from '../engine/room.js?v=216';
+import { talkCanvas } from '../engine/talk.js?v=216';
+import { homography, applyH } from '../engine/warp.js?v=216';
+import { drawCamView } from './camview.js?v=216';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=216';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -349,6 +349,25 @@ function flatMesh(w, h){
         l._q3flat[i*2] = me.verts[i].u; l._q3flat[i*2+1] = me.verts[i].v;
       }
       l._q3xy = mapXY(l._q3flat, n, H3, l._q3xy);
+
+      /* ます目ごとに「どれだけ つぶれて いるか」を 見て、
+         つぶれて いる ところは 小さくした 写しから 拾う。
+         ここを しないと、ななめから 見た とき トーンや 細い 線が
+         ちらちら する（カメラが 少し 動く たびに 拾う 点が かわる ため）。 */
+      const cellSrc = (asset.w / me.cols) * (asset.h / me.rows);
+      const triArea = (a0, b0, c0) => Math.abs(
+        (l._q3xy[b0*2] - l._q3xy[a0*2]) * (l._q3xy[c0*2+1] - l._q3xy[a0*2+1]) -
+        (l._q3xy[b0*2+1] - l._q3xy[a0*2+1]) * (l._q3xy[c0*2] - l._q3xy[a0*2])) / 2;
+      const lv = [[], [], []];
+      const T = me.tris;
+      for(let i = 0; i < T.length; i += 3){
+        const a0 = T[i], b0 = T[i+1], c0 = T[i+2];
+        const area = triArea(a0, b0, c0);
+        const comp = area > 0.01 ? Math.sqrt((cellSrc / 2) / area) : 99;
+        const lvl = comp < 1.7 ? 0 : (comp < 3.4 ? 1 : 2);
+        lv[lvl].push(a0, b0, c0);
+      }
+
       /* この あみは「きっちり となり合う」＝ かさならない ので 足し算で つなぐ。
          ふくらませて 上から ぬる やり方だと、すけた ところ
          （トーンの 点・筆の ガサガサした ふち・うすい 色）で
@@ -358,7 +377,17 @@ function flatMesh(w, h){
            足し算       … ずれ −0.9〜+0.1（見えない）
          あみの 形は 毎コマ 同じ なので、ちらつきの 心配も ない
          （ちらつくのは ゆがみ・ピン・手がき風 のような 動く あみ）。 */
-      drawDeformed(g, img, me, l._q3xy, 1, null, 'add');
+      if(!lv[1].length && !lv[2].length){
+        drawDeformed(g, img, me, l._q3xy, 1, null, 'add');
+      } else {
+        const mip = mipsOf(l, img, (asset.id || asset.name || '') + ':' + pose.v.frame);
+        for(let i = 0; i < 3; i++){
+          if(!lv[i].length) continue;
+          const im = mip[Math.min(i, mip.length - 1)];
+          const k = (im.naturalWidth || im.width) / (img.naturalWidth || img.width);
+          drawDeformed(g, im, { verts: me.verts, tris: lv[i] }, l._q3xy, k, null, 'add');
+        }
+      }
 
     } else {
       g.drawImage(img, -asset.w * l.pivot.x, -asset.h * l.pivot.y, asset.w, asset.h);
@@ -499,6 +528,34 @@ function flatMesh(w, h){
     g.globalCompositeOperation = 'source-over';      // ② こい ところを つめる
     g.drawImage(cv, 0, 0);
     g.drawImage(cv, 0, 0);
+  }
+
+  /* ---------- 小さくした 写し（ミップ）----------
+
+     カメラで ななめから 見ると、絵は おくほど ぎゅっと つぶれる。
+     もとの 絵から そのまま 拾うと、トーンの 点や 細い 線が
+     ぬけたり 出たり して、カメラが 少し 動く たびに ちらつく。
+     つぶれて いる ところは「はじめから 小さくした 絵」から 拾う。
+     （玉に はる ときと 同じ やり方） */
+  function mipsOf(l, img, tag){
+    const key = tag + '|' + (img.naturalWidth || img.width);
+    if(l._mip && l._mipKey === key) return l._mip;
+    const out = [img];
+    let prev = img, w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    for(let i = 0; i < 2 && w > 24 && h > 24; i++){
+      w = Math.max(12, Math.round(w / 2));
+      h = Math.max(12, Math.round(h / 2));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const gg = c.getContext('2d');
+      gg.imageSmoothingQuality = 'high';
+      gg.drawImage(prev, 0, 0, w, h);
+      c.complete = true; c.naturalWidth = w; c.naturalHeight = h;
+      out.push(c);
+      prev = c;
+    }
+    l._mip = out; l._mipKey = key;
+    return out;
   }
 
   /** 1枚ぶん描く。塗り・ふちどり があるときだけ別紙を経由する */

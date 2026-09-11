@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=213';
+import { uid } from './engine/math.js?v=216';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -87,6 +87,7 @@ export const WORK_KEYS = new Set([
   '_rmC', '_rmKey', '_rmMesh',          // 🏠 部屋の 紙と あみ
   '_rmXY', '_rmUV', '_rmOK',
   '_tkC', '_tkKey',                     // 💬 セリフ枠の 紙
+  '_mip', '_mipKey',                    // 小さくした 写し（ちらつき よけ）
   '_q3xy', '_q3flat',                   // 立体（3D）で 四すみに はめた あと
   '_blC', '_blKey', '_blMesh',          // 🔮 球に はった あとの 紙と あみ
   '_blXY', '_blUV', '_blZ', '_blSp', '_blSpKey', '_blMip', '_blMipKey'

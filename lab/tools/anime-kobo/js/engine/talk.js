@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=213';
-import { newLayer } from './layer.js?v=213';
+import { S } from '../state.js?v=216';
+import { newLayer } from './layer.js?v=216';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -177,6 +177,9 @@ export function addTalkLayer(name){
   const l = newLayer(name || 'セリフ', []);
   l.kind = 'talk';
   l.talk = talkDefaults(S.proj);
+  /* セリフ枠は 画面に はりつけ。カメラが ゆれても いっしょに
+     ゆれると 読みにくい（はじめから この ほうが よい）。 */
+  l.noCam = true;
   l.pw = S.proj.w; l.ph = S.proj.h;
   l.x = S.proj.w / 2; l.y = S.proj.h / 2;
   S.proj.layers.unshift(l);
