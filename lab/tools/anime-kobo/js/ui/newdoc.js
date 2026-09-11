@@ -1,6 +1,6 @@
 /* いちばん最初の画面。どの形の動画を作るかを選ぶ。 */
 
-import { SIZE_PRESETS } from '../state.js?v=254';
+import { SIZE_PRESETS } from '../state.js?v=255';
 
 const LENGTHS = [5, 8, 10, 15, 30, 60];   /* ショートを 作る 人が 多い ので みじかい ほうを あつく */
 

@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=254';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=255';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=254';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=255';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=254';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=255';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=254';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=254';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=254';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=254';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=255';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=255';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=255';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=255';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=254';
+         addTextLayer } from '../io/text.js?v=255';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=254';
-import { PATTERN_NAMES } from '../io/pattern.js?v=254';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=255';
+import { PATTERN_NAMES } from '../io/pattern.js?v=255';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=254';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=254';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=254';
+         PITCH_MAX } from '../engine/pano.js?v=255';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=255';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=255';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=254';
-import { readAsDataURL, loadImage } from '../io/image.js?v=254';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=255';
+import { readAsDataURL, loadImage } from '../io/image.js?v=255';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=254';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=254';
-import { newHand } from '../engine/hand.js?v=254';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=254';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=255';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=255';
+import { newHand } from '../engine/hand.js?v=255';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=255';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=254';
+  from './colorwheel.js?v=255';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=254';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=255';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=254';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=255';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -301,65 +301,34 @@ function foldNotes(host){
     const full = (el.textContent || '').trim();
     if(!full) return;
     const lines = full.split(NL).map(x => x.trim()).filter(x => x !== '');
+    /* みじかい もの（「レイヤーをえらんでね」など）は そのまま 出す。 */
     if(lines.length < 2 && full.length < 44) return;
     el.dataset.fold = '1';
 
-    /* 1行目 では なく「1つめの 文」を 出す。
-       せつめいは 見た目で 折り返して 書いて あるので、
-       1行目 だけ 取ると
-       「おく・ひだり・みぎ・天じょう・ゆか・うしろ の 6まいを」
-       の ように 文の とちゅうで 切れて しまう。 */
-    /* 行を つなぐ ときは あいだに ひとつ すきまを 入れる。
-       この せつめいは ことばの くぎりに すきまを 使って いる ので、
-       つめて つなぐと「6まいをはこの」の ように くっついて しまう。 */
-    const flat = lines.join(' ').replace(/\s+/g, ' ').trim();
-    let head = flat;
-    const dot = flat.indexOf('。');
-    if(dot >= 0 && dot < flat.length - 1){
-      head = flat.slice(0, dot + 1);                 // 1つめの 文まで
-    } else if(flat.length > 44){
-      /* 「。」が さいごに しか 無い ながい 文。
-         ことばの とちゅうで 切ると 読めない ので、
-         はじめの ほうの 「、」で 切る。 */
-      const k = flat.slice(0, 46).lastIndexOf('、');
-      head = k > 12 ? flat.slice(0, k + 1) + '…' : flat.slice(0, 42) + '…';
-    }
+    /* ？を さわるまでは まるごと 出さない。
+       せつめいは 1行でも 場所を とる。読みたい ときだけ 出せば、
+       ボタンが うもれない。 */
+    el.textContent = lines.join(NL);
+    el.style.whiteSpace = 'pre-wrap';
+    el.style.textAlign = 'left';
+    el.hidden = true;
 
-    el.textContent = '';
-    const t = document.createElement('span');
-    t.style.cssText = 'text-align:left';
-    t.textContent = head;
-    el.appendChild(t);
-
-    if(head.length >= flat.length) return;
-
-    const d = document.createElement('div');
-    d.style.cssText = 'text-align:left;margin-top:6px;white-space:pre-wrap';
-    d.hidden = true;
-    d.textContent = lines.join(NL);
-    el.appendChild(d);
-
-    /* ？は 小さく。見出しの おしりに ちょこんと つける。
-       まえは 大きな まるい ボタンを せつめいの よこに 置いて いて、
-       文より 目立って じゃま だった。 */
     const q = document.createElement('button');
     q.textContent = '?';
     q.title = 'くわしく';
     q.setAttribute('aria-label', 'くわしく');
-    /* おす たびに 出す・しまう を 入れかえる。
-       （さわって いる あいだ だけ 出す やり方も ためしたが、
-         読んで いる とちゅうで 指を うごかすと 消えて しまう ので
-         こちらに もどした） */
+    /* おす たびに 出す・しまう を 入れかえる。 */
     q.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      d.hidden = !d.hidden;
-      q.classList.toggle('on', !d.hidden);
-      q.title = d.hidden ? 'くわしく' : 'とじる';
+      el.hidden = !el.hidden;
+      q.classList.toggle('on', !el.hidden);
+      q.title = el.hidden ? 'くわしく' : 'とじる';
     });
 
-    /* すぐ 上の 見出しに つける。見出しが 無い（または もう
-       ？が ついて いる）ときだけ、文の うしろに 小さく 置く。 */
+    /* ？は 小さく。すぐ 上の 見出しの おしりに ちょこんと つける。
+       見出しが 無い（または もう ？が ついて いる）ときは、
+       せつめいの 場所に ？だけ 1つ 置く。 */
     let h = el.previousElementSibling;
     while(h && h.tagName !== 'H2' && !h.querySelector) h = h.previousElementSibling;
     if(h && h.tagName === 'H2' && !h.querySelector('button')){
@@ -369,9 +338,12 @@ function foldNotes(host){
       h.appendChild(q);
     } else {
       q.style.cssText = 'background:none;border:0;color:inherit;font:inherit;'
-        + 'font-size:.9em;opacity:.7;padding:0 4px;cursor:pointer;'
+        + 'font-size:.9em;opacity:.6;padding:0 6px;cursor:pointer;'
         + 'text-decoration:underline';
-      el.insertBefore(q, d);
+      const holder = document.createElement('div');
+      holder.style.cssText = 'text-align:left;margin:2px 0';
+      holder.appendChild(q);
+      el.parentNode.insertBefore(holder, el);
     }
   });
 }
