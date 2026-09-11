@@ -15,9 +15,9 @@
    ここは 見せるだけ。じっさいの 絵は c2d が 描く。 */
 
 import { CAM_F, DEPTH_UNIT, depthLen, camOf, camDolly, camTarget,
-         camMatrix, withShake } from '../engine/camera.js?v=238';
-import { valuesAt } from '../engine/anim.js?v=238';
-import { M } from '../engine/math.js?v=238';
+         camMatrix, withShake } from '../engine/camera.js?v=239';
+import { valuesAt } from '../engine/anim.js?v=239';
+import { M } from '../engine/math.js?v=239';
 
 /** のぞき窓の 大きさ（画面の ドット）と すみからの あき */
 export const VIEW_W = 168;
@@ -138,7 +138,6 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
      「バラで 動かす」フォルダなら 中みは 自分の おくゆきの まま。 */
   const byId = {};
   project.layers.forEach(l => { byId[l.id] = l; });
-  const off = (val, c) => (val == null ? 0 : val - c);
   const items = [];
   for(const l of project.layers){
     if(l.kind === 'cam' || l.kind === 'folder' || l.visible === false) continue;
@@ -153,16 +152,31 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     }
     if(skip) continue;
     const v = valuesAt(l, time);
-    let z = depthLen(v), ox = 0, oy = 0, sx = 1, sy = 1;
-    let rx = v.rx || 0, ry = v.ry || 0;
-    for(const f of chain){
+    /* 場所の 足し方。
+       えがく ほう（layer.js）は m = 親の m × 自分の trs(x,y) なので、
+       レイヤーの x は「キャンバスの どこ」では なく
+       「親から どれだけ」の 足し算 に なる。
+       フォルダの x は はじめ 0（newLayer の きめ）。
+       ここで 0 を「キャンバスの 左はし」と 見て cx を ひいて いた ので、
+       フォルダに 入れた 絵が まるごと 画面 はんぶん 左へ ずれ、
+       カメラより うしろに 立って 見えて いた。
+       ＝「板の 位置が ちがう」の 正体。
+       ひくのは いちばん さいご、1回だけ。 */
+    let z = depthLen(v), wx = 0, wy = 0, sx = 1, sy = 1;
+    let rx = v.rx || 0, ry = v.ry || 0, zSet = false;
+    for(let i = chain.length - 1; i >= 0; i--){    // そとがわ から 中へ
+      const f = chain[i];
       const fv = valuesAt(f, time);
+      wx += sx * (fv.x || 0); wy += sy * (fv.y || 0);
       sx *= (fv.scaleX == null ? 1 : fv.scaleX);
       sy *= (fv.scaleY == null ? 1 : fv.scaleY);
-      ox += off(fv.x, cx); oy += off(fv.y, cy);
       rx += fv.rx || 0; ry += fv.ry || 0;
-      if(!f.collapse) z = depthLen(fv);
+      /* まとめて 1まいの 紙に する フォルダが あれば、
+         その いちばん そとがわの おくゆきに そろう。 */
+      if(!f.collapse && !zSet){ z = depthLen(fv); zSet = true; }
     }
+    wx += sx * (v.x || 0); wy += sy * (v.y || 0);
+    const ox = wx - cx, oy = wy - cy;
     items.push({ l, v, z, ox, oy, sx, sy, rx, ry,
                  ids: chain.map(f => f.id) });   // フォルダを えらんだ ときも 光らせる
   }
@@ -219,8 +233,7 @@ export function drawCamView(g, canvas, project, time, selId, assetOf){
     const pvy = (it.l.pivot && it.l.pivot.y != null) ? it.l.pivot.y : 0.5;
     const x0 = -w * pvx, x1 = w * (1 - pvx);
     const y0 = -h * pvy, y1 = h * (1 - pvy);
-    const ox2 = off(it.v.x, cx) * it.sx + it.ox;
-    const oy2 = off(it.v.y, cy) * it.sy + it.oy;
+    const ox2 = it.ox, oy2 = it.oy;
 
     const pts = [[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([px, py]) => {
       const q = rot3({ x: px, y: py, z: 0 }, it.rx, it.ry, it.v.rot || 0);
