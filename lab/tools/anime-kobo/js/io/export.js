@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=245';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=245';
-import { isTalk, blipTimes } from '../engine/talk.js?v=245';
-import { encodeGif } from './gif.js?v=245';
+import { createRenderer } from '../render/renderer.js?v=247';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=247';
+import { isTalk, blipTimes } from '../engine/talk.js?v=247';
+import { encodeGif } from './gif.js?v=247';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -51,7 +51,42 @@ export async function exportVideo(project, opts = {}){
 
   const cv = document.createElement('canvas');
   cv.width = width; cv.height = height;
-  const R = createRenderer(cv);
+
+  /* ---------- 2ばいで 描いてから 縮める ----------
+     絵を ゆがめる（魚眼・まわりこみ・たおす）と、Canvas は 三角の
+     ます目に 切って 1つずつ 貼り直す ことしか できない。
+     その つぎ目が、細かい 絵（トーン）の うえで 明るい すじに なる。
+     実測: つぎ目の うえ +6.02 / つぎ目の 無い ところ +2.89。
+
+     2ばいの 大きさで 描いて から 半分に 縮めると、
+     すじは もとから 半分の 細さ に なり、縮める ときに
+     となりの ドットと まざって 消える。
+     ＝ 魚眼も まわりこみも つかった まま、線だけ 消せる。
+
+     絵を 作って いる あいだ は しない（重い）。書き出す ときだけ。
+     大きすぎる 動画（かた側 2160ごえ）は 紙が 作れない ことが あるので しない。 */
+  const ss = (project.sharpExport === false || width > 2160 || height > 2160) ? 1 : 2;
+  let R, paint;
+  if(ss > 1){
+    const big = document.createElement('canvas');
+    big.width = width * ss; big.height = height * ss;
+    R = createRenderer(big);
+    const g2 = cv.getContext('2d');
+    g2.imageSmoothingEnabled = true;
+    g2.imageSmoothingQuality = 'high';
+    paint = (t, o) => {
+      /* forExport の ときは view では なく opts.scale で 大きさが きまる
+         （c2d の tf）。ss だけ わたしても 紙の 左上 4分の1 にしか
+         描かれない ので、scale も いっしょに わたす。 */
+      R.draw(project, null, t, { x: 0, y: 0, z: 1 },
+             Object.assign({ ss, scale: ss }, o));
+      g2.clearRect(0, 0, width, height);
+      g2.drawImage(big, 0, 0, big.width, big.height, 0, 0, width, height);
+    };
+  } else {
+    R = createRenderer(cv);
+    paint = (t, o) => R.draw(project, null, t, { x: 0, y: 0, z: 1 }, o);
+  }
   const view = { x: 0, y: 0, z: 1 };
 
   const bitrate = opts.bitrate || Math.min(16_000_000, Math.round(width * height * fps * 0.12));
@@ -64,10 +99,10 @@ export async function exportVideo(project, opts = {}){
        動画には 音の みちが 1本 しか 無いので、先に 1つに する。 */
     const abuf = talkAudio(project, total / fps);
     const acfg = abuf ? await pickAudioCodec(abuf) : null;
-    return await encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
+    return await encodeWithWebCodecs({ cv, paint, project, fps, width, height,
                                        total, cfg, acfg, abuf, onProgress, shouldStop });
   }
-  return await recordWithMediaRecorder({ cv, R, project, view, fps, duration,
+  return await recordWithMediaRecorder({ cv, paint, fps, duration,
                                          onProgress, shouldStop });
 }
 
@@ -150,7 +185,7 @@ async function encodeAudio(muxer, cfg, buf, duration, off){
 }
 
 /* ---------- 本命：WebCodecs ---------- */
-async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
+async function encodeWithWebCodecs({ cv, paint, project, fps, width, height,
                                      total, cfg, acfg, abuf, onProgress, shouldStop }){
   const muxer = new Mp4Muxer.Muxer({
     target: new Mp4Muxer.ArrayBufferTarget(),
@@ -173,7 +208,7 @@ async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
     if(shouldStop()) { encoder.close(); throw new Error('やめました'); }
     if(failed) throw failed;
 
-    R.draw(project, null, i / fps, view, { forExport: true });
+    paint(i / fps, { forExport: true });
 
     const frame = new VideoFrame(cv, {
       timestamp: Math.round(i * usPerFrame),
@@ -212,7 +247,7 @@ async function encodeWithWebCodecs({ cv, R, project, view, fps, width, height,
 }
 
 /* ---------- 保険：MediaRecorder ---------- */
-async function recordWithMediaRecorder({ cv, R, project, view, fps, duration,
+async function recordWithMediaRecorder({ cv, paint, fps, duration,
                                          onProgress, shouldStop }){
   const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
     .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
@@ -233,7 +268,7 @@ async function recordWithMediaRecorder({ cv, R, project, view, fps, duration,
       const t = (performance.now() - t0) / 1000;
       if(shouldStop()){ rej(new Error('やめました')); return; }
       if(t >= duration){ res(); return; }
-      R.draw(project, null, t, view, { forExport: true });
+      paint(t, { forExport: true });
       onProgress(t / duration);
       requestAnimationFrame(step);
     };

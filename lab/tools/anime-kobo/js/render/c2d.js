@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=245';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=245';
-import { valuesAt } from '../engine/anim.js?v=245';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=245';
+         nearestFolder } from '../engine/layer.js?v=247';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=247';
+import { valuesAt } from '../engine/anim.js?v=247';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=247';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=245';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=245';
-import { paintCanvas } from '../engine/paint.js?v=245';
-import { panoCanvas } from '../engine/pano.js?v=245';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=245';
-import { roomCanvas } from '../engine/room.js?v=245';
-import { talkCanvas } from '../engine/talk.js?v=245';
-import { homography, applyH } from '../engine/warp.js?v=245';
-import { drawCamView } from './camview.js?v=245';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=245';
+         meshSizeFor } from '../engine/puppet.js?v=247';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=247';
+import { paintCanvas } from '../engine/paint.js?v=247';
+import { panoCanvas } from '../engine/pano.js?v=247';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=247';
+import { roomCanvas } from '../engine/room.js?v=247';
+import { talkCanvas } from '../engine/talk.js?v=247';
+import { homography, applyH } from '../engine/warp.js?v=247';
+import { drawCamView } from './camview.js?v=247';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=247';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -25,6 +25,13 @@ export function createC2D(canvas){
   const ctx = canvas.getContext('2d');
   let dotPat = null;
   let curT = 0;                 // いま 何秒めを 描いているか（手がき風の コマ用）
+  /* 書き出しで 2ばいの 紙に 描いて いる ときの ばいりつ。
+     写し（mip）を えらぶ ものさしに かける。
+     これを しないと、2ばいで 描いた ぶん「つぶれて いない」と 見なされて
+     もとの くっきりした 絵から 拾って しまい、
+     アミ点が 画面の ドットと けんかして 縮めた あとも もようが 残る。
+     実測（ユーザーの 作品）: たての すじ の とがり 9.6 → 63.8 と 悪化した。 */
+  let curSS = 1;
   // クリッピング・エフェクト用の作業キャンバス（使い回す）
   const tmp = [];
 
@@ -391,7 +398,7 @@ function flatMesh(w, h){
       for(let i = 0; i < T.length; i += 3){
         const a0 = T[i], b0 = T[i+1], c0 = T[i+2];
         const area = triArea(a0, b0, c0);
-        const comp = area > 0.01 ? Math.sqrt((cellSrc / 2) / area) : 99;
+        const comp = (area > 0.01 ? Math.sqrt((cellSrc / 2) / area) : 99) * curSS;
         /* comp が 1.25ばい で 写し1、2.5ばい で 写し2。
            その あいだは 小数で あらわす（1.8 なら 写し1 と 写し2 を 8:2）。 */
         let lf = Math.log2(comp / 1.25) + 1;
@@ -1667,6 +1674,7 @@ function flatMesh(w, h){
 
   function draw(project, imgs, time, view, opts = {}){
     curT = time;
+    curSS = (opts && opts.ss) || 1;
     const W = canvas.width, H = canvas.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
