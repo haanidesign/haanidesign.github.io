@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=249';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=249';
-import { isTalk, blipTimes } from '../engine/talk.js?v=249';
-import { encodeGif } from './gif.js?v=249';
+import { createRenderer } from '../render/renderer.js?v=250';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=250';
+import { isTalk, blipTimes } from '../engine/talk.js?v=250';
+import { encodeGif } from './gif.js?v=250';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -52,47 +52,8 @@ export async function exportVideo(project, opts = {}){
   const cv = document.createElement('canvas');
   cv.width = width; cv.height = height;
 
-  /* ---------- 2ばいで 描いてから 縮める ----------
-     絵を ゆがめる（魚眼・まわりこみ・たおす）と、Canvas は 三角の
-     ます目に 切って 1つずつ 貼り直す ことしか できない。
-     その つぎ目が、細かい 絵（トーン）の うえで 明るい すじに なる。
-     実測: つぎ目の うえ +6.02 / つぎ目の 無い ところ +2.89。
-
-     2ばいの 大きさで 描いて から 半分に 縮めると、
-     すじは もとから 半分の 細さ に なり、縮める ときに
-     となりの ドットと まざって 消える。
-     ＝ 魚眼も まわりこみも つかった まま、線だけ 消せる。
-
-     絵を 作って いる あいだ は しない（重い）。書き出す ときだけ。
-     大きすぎる 動画（かた側 2160ごえ）は 紙が 作れない ことが あるので しない。 */
-  /* はじめは 切って ある。
-     ユーザーの アミ点の 絵で ためして もらったら、入れた ほうが
-     きたなく なった。2ばいで 描くと アミ点が くっきり 出て しまい、
-     半分に 縮める ときに 画面の ドットと けんかして もように なる
-     （こまかい 点の 絵では ぎゃく効果）。
-     なめらかな 絵で 魚眼を つよく かける ような ときに どうぞ。 */
-  const ss = (project.sharpExport === true && width <= 2160 && height <= 2160) ? 2 : 1;
-  let R, paint;
-  if(ss > 1){
-    const big = document.createElement('canvas');
-    big.width = width * ss; big.height = height * ss;
-    R = createRenderer(big);
-    const g2 = cv.getContext('2d');
-    g2.imageSmoothingEnabled = true;
-    g2.imageSmoothingQuality = 'high';
-    paint = (t, o) => {
-      /* forExport の ときは view では なく opts.scale で 大きさが きまる
-         （c2d の tf）。ss だけ わたしても 紙の 左上 4分の1 にしか
-         描かれない ので、scale も いっしょに わたす。 */
-      R.draw(project, null, t, { x: 0, y: 0, z: 1 },
-             Object.assign({ ss, scale: ss }, o));
-      g2.clearRect(0, 0, width, height);
-      g2.drawImage(big, 0, 0, big.width, big.height, 0, 0, width, height);
-    };
-  } else {
-    R = createRenderer(cv);
-    paint = (t, o) => R.draw(project, null, t, { x: 0, y: 0, z: 1 }, o);
-  }
+  const R = createRenderer(cv);
+  const paint = (t, o) => R.draw(project, null, t, { x: 0, y: 0, z: 1 }, o);
   const view = { x: 0, y: 0, z: 1 };
 
   const bitrate = opts.bitrate || Math.min(16_000_000, Math.round(width * height * fps * 0.12));
