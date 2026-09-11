@@ -27,7 +27,7 @@
    カメラは ふつうの レイヤー（kind:'cam'）に して ある ので、
    よこ・たて・ズーム・かたむき に そのまま タイミングピンが うてる。 */
 
-import { M } from './math.js?v=256';
+import { M } from './math.js?v=257';
 
 export const isCam = (l) => !!l && l.kind === 'cam';
 

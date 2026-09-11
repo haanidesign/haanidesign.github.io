@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=256';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=257';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=256';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=257';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=256';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=257';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=256';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=256';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=256';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=256';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=257';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=257';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=257';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=257';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=256';
+         addTextLayer } from '../io/text.js?v=257';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=256';
-import { PATTERN_NAMES } from '../io/pattern.js?v=256';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=257';
+import { PATTERN_NAMES } from '../io/pattern.js?v=257';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=256';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=256';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=256';
+         PITCH_MAX } from '../engine/pano.js?v=257';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=257';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=257';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=256';
-import { readAsDataURL, loadImage } from '../io/image.js?v=256';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=257';
+import { readAsDataURL, loadImage } from '../io/image.js?v=257';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=256';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=256';
-import { newHand } from '../engine/hand.js?v=256';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=256';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=257';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=257';
+import { newHand } from '../engine/hand.js?v=257';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=257';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=256';
+  from './colorwheel.js?v=257';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=256';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=257';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=256';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=257';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -383,42 +383,6 @@ function foldNotes(host){
   });
 }
 
-/* ---------- ながい せつめいは たたむ ----------
-   ぜんぶ 出しっぱなしだと、せっていが 文字だらけに なって
-   ボタンが どこに あるか 分からなく なる。
-   1行だけ 出して、くわしくは ❓ を おした ときに 出す。 */
-export function hint(oneLine, detail){
-  const wrap = document.createElement('div');
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex;align-items:center;gap:6px;margin:2px 0 6px';
-  const t = document.createElement('div');
-  t.className = 'empty';
-  t.dataset.fold = '1';
-  t.style.cssText = 'text-align:left;flex:1;margin:0';
-  t.textContent = oneLine;
-  row.appendChild(t);
-  if(detail){
-    const b = document.createElement('button');
-    b.textContent = '❓';
-    b.style.cssText = 'flex:0 0 auto;padding:2px 10px;border-radius:999px;font-size:.85rem';
-    const d = document.createElement('div');
-    d.className = 'empty';
-    d.dataset.fold = '1';
-    d.style.cssText = 'text-align:left;white-space:pre-wrap';
-    d.hidden = true;
-    d.textContent = detail;
-    b.addEventListener('click', () => {
-      d.hidden = !d.hidden;
-      b.classList.toggle('on', !d.hidden);
-    });
-    row.appendChild(b);
-    wrap.appendChild(row);
-    wrap.appendChild(d);
-  } else {
-    wrap.appendChild(row);
-  }
-  return wrap;
-}
 
 export function field(label, node, valueNode){
   const r = document.createElement('div');
@@ -3647,11 +3611,17 @@ export function buildDocSheet(box, closeFn){
     qrow.appendChild(b);
   });
   box.appendChild(qrow);
-  box.appendChild(hint('さわって いる あいだ だけ かるく できます。',
-    '玉・部屋の あみを あらく します。' + NL
+  box.appendChild((() => {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = 'さわって いる あいだ だけ かるく できます。' + NL
+      + '玉・部屋の あみを あらく します。' + NL
     + 'つまみを はなすと すぐ きれいに 描き直します。' + NL
     + '書き出す 動画は いつも きれいです。' + NL
-    + '（実測: 玉 1コマ 6.1ms → あらいと 1.6ms）'));
+    + '（実測: 玉 1コマ 6.1ms → あらいと 1.6ms）';
+    return n;
+  })());
 
   /* ---- 枠の そと ----
      書き出す 動画は 枠の 中だけ。作って いる あいだだけの 話。 */
@@ -3666,11 +3636,17 @@ export function buildDocSheet(box, closeFn){
      こわれた ときに もどす ことも できなかった。 */
   box.appendChild(heading('作品の もちはこび'));
   {
-    box.appendChild(hint('作品を ファイルに して とっておけます。',
-      'べつの 機かいに うつす とき・とっておく ときに どうぞ。' + NL
+    box.appendChild((() => {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = '作品を ファイルに して とっておけます。' + NL
+      + 'べつの 機かいに うつす とき・とっておく ときに どうぞ。' + NL
       + '「かるい」ほうは 絵を 入れません。' + NL
       + 'どう くみ立てて あるかだけ の ファイルなので、' + NL
-      + 'ようすが おかしい ときに 見せる のに ちょうど いい。'));
+      + 'ようすが おかしい ときに 見せる のに ちょうど いい。';
+    return n;
+  })());
 
     const put = (obj, tail) => {
       const name = (S.proj.name || 'むだい').replace(/[\/:*?"<>|]/g, '_');
@@ -3726,10 +3702,16 @@ export function buildDocSheet(box, closeFn){
 
   box.appendChild(heading('📌 カメラに 合わせない もの'));
   {
-    box.appendChild(hint('おすたびに 🎥 と 📌 が 入れかわります。',
-      '📌 に した ものは、カメラの ふれ・よせ・まわりこみを' + NL
+    box.appendChild((() => {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = 'おすたびに 🎥 と 📌 が 入れかわります。' + NL
+      + '📌 に した ものは、カメラの ふれ・よせ・まわりこみを' + NL
       + 'ぜんぶ うけません（いつも 同じ ところに 出ます）。' + NL
-      + 'セリフ枠・ロゴ・字まく むけ。'));
+      + 'セリフ枠・ロゴ・字まく むけ。';
+    return n;
+  })());
 
     const rows = [];
     const walk = (parent, depth) => {
@@ -3783,11 +3765,17 @@ export function buildDocSheet(box, closeFn){
       if(closeFn) closeFn();
     })
   ));
-  box.appendChild(hint('枠の そとに いる ものを うすく 出します。',
-    '「画面の そとから 走って くる」「そとへ 出て いく」を' + NL
+  box.appendChild((() => {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = '枠の そとに いる ものを うすく 出します。' + NL
+      + '「画面の そとから 走って くる」「そとへ 出て いく」を' + NL
     + '作る とき、そとで どこに いるかが 見えます。' + NL
     + '書き出す 動画は いままでどおり 枠の 中だけ です。' + NL
-    + '画面を つまんで 小さく すれば、そとが 広く 見えます。'));
+    + '画面を つまんで 小さく すれば、そとが 広く 見えます。';
+    return n;
+  })());
 
   /* ---- 紙の 方眼 ---- */
   box.appendChild(heading('紙の 方眼'));
@@ -3800,9 +3788,15 @@ export function buildDocSheet(box, closeFn){
       if(closeFn) closeFn();
     })
   ));
-  box.appendChild(hint('目やすの 点です。書き出す 動画には 入りません。',
-    '大きく して 見て いると 目に つく ので、' + NL
-    + 'じゃまな ときは ここで 消せます。'));
+  box.appendChild((() => {
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = '目やすの 点です。書き出す 動画には 入りません。' + NL
+      + '大きく して 見て いると 目に つく ので、' + NL
+    + 'じゃまな ときは ここで 消せます。';
+    return n;
+  })());
 
   /* ---- 動画の長さ ----
      3〜120秒を つまみ 1本に すると、1秒が 1ドットも 無くて
