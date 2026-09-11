@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=251';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=252';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=251';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=252';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=251';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=252';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=251';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=251';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=251';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=251';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=252';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=252';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=252';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=252';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=251';
+         addTextLayer } from '../io/text.js?v=252';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=251';
-import { PATTERN_NAMES } from '../io/pattern.js?v=251';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=252';
+import { PATTERN_NAMES } from '../io/pattern.js?v=252';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=251';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=251';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=251';
+         PITCH_MAX } from '../engine/pano.js?v=252';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=252';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=252';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=251';
-import { readAsDataURL, loadImage } from '../io/image.js?v=251';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=252';
+import { readAsDataURL, loadImage } from '../io/image.js?v=252';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=251';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=251';
-import { newHand } from '../engine/hand.js?v=251';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=251';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=252';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=252';
+import { newHand } from '../engine/hand.js?v=252';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=252';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=251';
+  from './colorwheel.js?v=252';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=251';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=252';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=251';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=252';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -294,44 +294,78 @@ export function createSheet(sheetEl, backEl){
    1行目 だけ 出して、のこりは ❓ を おした ときに 出す。
    みじかい もの（1行・44字みまん）は そのまま。 */
 function foldNotes(host){
+  const NL = String.fromCharCode(10);
   host.querySelectorAll('.empty').forEach(el => {
     if(el.dataset.fold) return;
     if(el.querySelector('button')) return;
-    const txt = el.textContent || '';
-    const lines = txt.split(String.fromCharCode(10)).map(x => x.trim()).filter(x => x !== '');
-    if(lines.length < 2 && txt.length < 44) return;
+    const full = (el.textContent || '').trim();
+    if(!full) return;
+    const lines = full.split(NL).map(x => x.trim()).filter(x => x !== '');
+    if(lines.length < 2 && full.length < 44) return;
     el.dataset.fold = '1';
 
-    const head = lines[0];
-    const rest = lines.slice(1).join(String.fromCharCode(10));
+    /* 1行目 では なく「1つめの 文」を 出す。
+       せつめいは 見た目で 折り返して 書いて あるので、
+       1行目 だけ 取ると
+       「おく・ひだり・みぎ・天じょう・ゆか・うしろ の 6まいを」
+       の ように 文の とちゅうで 切れて しまう。 */
+    /* 行を つなぐ ときは あいだに ひとつ すきまを 入れる。
+       この せつめいは ことばの くぎりに すきまを 使って いる ので、
+       つめて つなぐと「6まいをはこの」の ように くっついて しまう。 */
+    const flat = lines.join(' ').replace(/\s+/g, ' ').trim();
+    let head = flat;
+    const dot = flat.indexOf('。');
+    if(dot >= 0 && dot < flat.length - 1){
+      head = flat.slice(0, dot + 1);                 // 1つめの 文まで
+    } else if(flat.length > 44){
+      /* 「。」が さいごに しか 無い ながい 文。
+         ことばの とちゅうで 切ると 読めない ので、
+         はじめの ほうの 「、」で 切る。 */
+      const k = flat.slice(0, 46).lastIndexOf('、');
+      head = k > 12 ? flat.slice(0, k + 1) + '…' : flat.slice(0, 42) + '…';
+    }
+
     el.textContent = '';
-
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:flex-start;gap:6px';
     const t = document.createElement('span');
-    t.style.cssText = 'flex:1;text-align:left';
+    t.style.cssText = 'text-align:left';
     t.textContent = head;
-    row.appendChild(t);
+    el.appendChild(t);
 
-    if(rest){
-      const b = document.createElement('button');
-      b.textContent = '❓';
-      b.title = 'くわしく';
-      b.style.cssText = 'flex:0 0 auto;padding:1px 9px;border-radius:999px;font-size:.85rem;line-height:1.6';
-      const d = document.createElement('div');
-      d.style.cssText = 'text-align:left;margin-top:4px;white-space:pre-wrap';
-      d.hidden = true;
-      d.textContent = rest;
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        d.hidden = !d.hidden;
-        b.classList.toggle('on', !d.hidden);
-      });
-      row.appendChild(b);
-      el.appendChild(row);
-      el.appendChild(d);
+    if(head.length >= flat.length) return;
+
+    const d = document.createElement('div');
+    d.style.cssText = 'text-align:left;margin-top:6px;white-space:pre-wrap';
+    d.hidden = true;
+    d.textContent = lines.join(NL);
+    el.appendChild(d);
+
+    /* ？は 小さく。見出しの おしりに ちょこんと つける。
+       まえは 大きな まるい ボタンを せつめいの よこに 置いて いて、
+       文より 目立って じゃま だった。 */
+    const q = document.createElement('button');
+    q.textContent = '?';
+    q.title = 'くわしく';
+    q.setAttribute('aria-label', 'くわしく');
+    q.addEventListener('click', (e) => {
+      e.stopPropagation();
+      d.hidden = !d.hidden;
+      q.classList.toggle('on', !d.hidden);
+    });
+
+    /* すぐ 上の 見出しに つける。見出しが 無い（または もう
+       ？が ついて いる）ときだけ、文の うしろに 小さく 置く。 */
+    let h = el.previousElementSibling;
+    while(h && h.tagName !== 'H2' && !h.querySelector) h = h.previousElementSibling;
+    if(h && h.tagName === 'H2' && !h.querySelector('button')){
+      q.style.cssText = 'background:none;border:0;color:inherit;font:inherit;'
+        + 'font-size:.8em;opacity:.75;padding:0 2px;margin-left:2px;'
+        + 'cursor:pointer;vertical-align:baseline;line-height:1';
+      h.appendChild(q);
     } else {
-      el.appendChild(row);
+      q.style.cssText = 'background:none;border:0;color:inherit;font:inherit;'
+        + 'font-size:.9em;opacity:.7;padding:0 4px;cursor:pointer;'
+        + 'text-decoration:underline';
+      el.insertBefore(q, d);
     }
   });
 }
