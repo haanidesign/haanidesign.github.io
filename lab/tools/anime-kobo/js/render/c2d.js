@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=239';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=239';
-import { valuesAt } from '../engine/anim.js?v=239';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=239';
+         nearestFolder } from '../engine/layer.js?v=240';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=240';
+import { valuesAt } from '../engine/anim.js?v=240';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=240';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=239';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=239';
-import { paintCanvas } from '../engine/paint.js?v=239';
-import { panoCanvas } from '../engine/pano.js?v=239';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=239';
-import { roomCanvas } from '../engine/room.js?v=239';
-import { talkCanvas } from '../engine/talk.js?v=239';
-import { homography, applyH } from '../engine/warp.js?v=239';
-import { drawCamView } from './camview.js?v=239';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=239';
+         meshSizeFor } from '../engine/puppet.js?v=240';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=240';
+import { paintCanvas } from '../engine/paint.js?v=240';
+import { panoCanvas } from '../engine/pano.js?v=240';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=240';
+import { roomCanvas } from '../engine/room.js?v=240';
+import { talkCanvas } from '../engine/talk.js?v=240';
+import { homography, applyH } from '../engine/warp.js?v=240';
+import { drawCamView } from './camview.js?v=240';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=240';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -1784,12 +1784,26 @@ function flatMesh(w, h){
     }
 
     lent = 0;
-    drawNodes(target, project, topNodes(project), poses, tf, subPoses);
+    /* 「画面に はりつけ」した ものは レンズを 通さない。
+       レンズは できあがった 絵ぜんたいを 貼り直す ので、
+       カメラに 合わせない はずの セリフ枠まで ゆがんで いた。
+       ほんものの カメラでも、レンズの ゆがみは レンズを 通った 光にだけ
+       かかる。字まくは あとから のせる もの。
+       だから レンズ ぶんを 先に 仕上げて、そのうえに はりつけた ものを 描く。 */
+    const tops = topNodes(project);
+    const pinnedTop = (target !== ctx)
+      ? tops.filter(l => poses[l.id] && poses[l.id].pinned)
+      : [];
+    const lensTop = pinnedTop.length
+      ? tops.filter(l => !(poses[l.id] && poses[l.id].pinned))
+      : tops;
+    drawNodes(target, project, lensTop, poses, tf, subPoses);
     if(target !== ctx){
       target.restore();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       drawLens(ctx, lensCanvas, project, tf, kFish);
       ctx.setTransform(...tf);
+      if(pinnedTop.length) drawNodes(ctx, project, pinnedTop, poses, tf, subPoses);
     }
     ctx.restore();
 

@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=239';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=239';
+import { M, uid, ptInQuad } from './math.js?v=240';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=240';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=239';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=239';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=239';
-import { handTime } from './hand.js?v=239';
-import { WORK_KEYS } from '../state.js?v=239';
+         withShake } from './camera.js?v=240';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=240';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=240';
+import { handTime } from './hand.js?v=240';
+import { WORK_KEYS } from '../state.js?v=240';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -360,7 +360,11 @@ export function computeAll(project, time){
     solving[l.id] = false;
     /* 子は カメラを 自分で 受けとる ひつようが あるか */
     const camFree = collapsed ? free : false;
-    return out[l.id] = { m, v, vis, quad, layer: l, camFree };
+    /* 「画面に はりつけ」かどうかを 姿に のせて おく。
+       魚眼レンズは できあがった 絵ぜんたいを 貼り直す ので、
+       はりつけた セリフ枠まで ゆがんで しまって いた。
+       c2d は これを 見て、レンズの あとに 別に 描く。 */
+    return out[l.id] = { m, v, vis, quad, layer: l, camFree, pinned };
   };
 
   project.layers.forEach(solve);
