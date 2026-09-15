@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs>
+    <pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#dots)"/>
+
+  <!-- そとの エリア（5x2） -->
+  <g>
+    <rect x="34" y="96" width="330" height="230" rx="10" fill="#FFFEF7" stroke="#1E1C14" stroke-width="6"/>
+    <g stroke="#1E1C14" stroke-width="3">
+      <rect x="50" y="112" width="60" height="96" rx="6" fill="#D8EDCB"/>
+      <rect x="118" y="112" width="60" height="96" rx="6" fill="#D8EDCB"/>
+      <rect x="186" y="112" width="60" height="96" rx="6" fill="#EFE9DC"/>
+      <rect x="254" y="112" width="60" height="96" rx="6" fill="#EFE9DC"/>
+      <rect x="50" y="216" width="60" height="96" rx="6" fill="#EFE9DC"/>
+      <rect x="118" y="216" width="60" height="96" rx="6" fill="#EFE9DC"/>
+      <rect x="186" y="216" width="60" height="96" rx="6" fill="#EFE9DC"/>
+      <rect x="254" y="216" width="60" height="96" rx="6" fill="#EFE9DC"/>
+    </g>
+    <text x="80" y="170" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="800" font-size="22" fill="#1E1C14">0%</text>
+    <text x="148" y="170" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="800" font-size="22" fill="#1E1C14">0%</text>
+    <text x="216" y="170" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="800" font-size="22" fill="#1E1C14">60%</text>
+    <text x="284" y="170" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="800" font-size="22" fill="#1E1C14">100%</text>
+  </g>
+
+  <!-- ドーム -->
+  <g transform="translate(404,150)">
+    <path d="M10 110 A70 70 0 0 1 150 110 Z" fill="#E1DD60" stroke="#1E1C14" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M0 110 h160" stroke="#1E1C14" stroke-width="6" stroke-linecap="round"/>
+    <path d="M80 40 V110 M35 62 A70 70 0 0 0 30 96 M125 62 A70 70 0 0 1 130 96" stroke="#1E1C14" stroke-width="3" fill="none" opacity=".6"/>
+  </g>
+
+  <!-- ゲージ -->
+  <g transform="translate(404,96)">
+    <rect x="0" y="0" width="160" height="12" rx="6" fill="#fff" stroke="#1E1C14" stroke-width="3"/>
+    <rect x="3" y="3" width="110" height="6" rx="3" fill="#5BA85B"/>
+    <rect x="0" y="22" width="160" height="12" rx="6" fill="#fff" stroke="#1E1C14" stroke-width="3"/>
+    <rect x="3" y="25" width="70" height="6" rx="3" fill="#D9A13B"/>
+  </g>
+
+  <rect x="34" y="34" width="290" height="44" rx="22" fill="#1E1C14"/>
+  <text x="179" y="64" text-anchor="middle" font-family="'M PLUS Rounded 1c',sans-serif"
+        font-weight="700" font-size="24" fill="#E1DD60">プロジェクト・ガーディアン</text>
+  <text x="34" y="366" font-family="'M PLUS Rounded 1c',sans-serif" font-weight="700"
+        font-size="19" fill="#1E1C14">ドームを もたせながら、外の 10エリアを 浄化する</text>
+</svg>

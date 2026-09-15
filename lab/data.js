@@ -199,6 +199,17 @@ const TOOLS = [
     thumb: "thumbs/chara-kobo.svg",
     url: "tools/chara-kobo/index.html",
     status: "live"
+  },
+  {
+    no: 19,
+    slug: "project-guardian",
+    title: "プロジェクト・ガーディアン",
+    desc: "ドームの酸素・電力・食料・耐久をもたせながら、外の10エリアの汚染を落としていくターン制のシミュレーション。子どもたちを施設に配属し、探索で安全を確保して浄化プラントを建て、襲来を防ぐ。全エリアを緑地化して環境再生タワーを建てれば終わり。",
+    tags: ["シミュレーション", "ターン制", "資源管理"],
+    cat: "game",
+    thumb: "thumbs/project-guardian.svg",
+    url: "tools/project-guardian/index.html",
+    status: "live"
   }
 ];
 

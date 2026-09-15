@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>プロジェクト・ガーディアン</title>
+<meta name="description" content="ドームを守りながら、外の汚染された10エリアを浄化していくターン制シミュレーション。">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470;
+  --ok:#5BA85B; --warn:#D9A13B; --bad:#C9553F; --sky:#6FA8C7;
+  --bd:2.5px solid var(--ink); --r:12px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--ink); background:var(--cream);
+  font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif; font-weight:700;
+  font-size:14px; line-height:1.5;
+}
+.wrap{max-width:1040px; margin:0 auto; padding:14px 14px 60px}
+h1{font-size:19px; margin:0}
+.head{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border:var(--bd); border-radius:var(--r); background:var(--main);
+  padding:10px 12px; box-shadow:4px 4px 0 var(--ink); margin-bottom:12px;
+}
+.head .sub{font-size:12px; color:#4a4630}
+.head .sp{margin-left:auto; display:flex; gap:6px; align-items:center}
+.turn{background:var(--paper); border:var(--bd); border-radius:999px; padding:3px 12px; font-size:13px}
+.card{
+  border:var(--bd); border-radius:var(--r); background:var(--paper);
+  box-shadow:4px 4px 0 var(--ink); padding:12px; margin-bottom:12px;
+}
+.card > h2{font-size:14px; margin:0 0 8px; display:flex; align-items:center; gap:6px}
+.card > h2 .note{font-size:11px; font-weight:500; color:var(--gray)}
+.cols{display:grid; grid-template-columns:1.15fr .85fr; gap:12px; align-items:start}
+@media(max-width:820px){ .cols{grid-template-columns:1fr} }
+
+/* リソース */
+.res{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+@media(max-width:560px){ .res{grid-template-columns:repeat(2,1fr)} }
+.gauge{border:2px solid var(--ink); border-radius:8px; padding:6px 8px; background:var(--cream)}
+.gauge .lb{display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px}
+.gauge .lb b{font-size:13px}
+.bar{height:9px; border:1.5px solid var(--ink); border-radius:999px; background:#fff; overflow:hidden}
+.bar > i{display:block; height:100%; background:var(--ok); transition:width .25s}
+.bar.mid > i{background:var(--warn)} .bar.low > i{background:var(--bad)}
+.delta{font-size:11px; font-weight:500}
+.delta.p{color:var(--ok)} .delta.m{color:var(--bad)}
+.stock{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; font-size:12px}
+.chip{border:2px solid var(--ink); border-radius:999px; padding:2px 10px; background:var(--main-soft)}
+
+/* エリア */
+.map{display:grid; grid-template-columns:repeat(5,1fr); gap:6px}
+@media(max-width:560px){ .map{grid-template-columns:repeat(3,1fr)} }
+.cell{
+  border:2px solid var(--ink); border-radius:8px; background:#EFE9DC;
+  padding:6px; text-align:left; font:inherit; font-size:11px; cursor:pointer;
+  position:relative; min-height:76px;
+}
+.cell:hover{box-shadow:2px 2px 0 var(--ink); transform:translate(-1px,-1px)}
+.cell.sel{background:var(--main); box-shadow:2px 2px 0 var(--ink)}
+.cell.pure{background:#D8EDCB}
+.cell .n{font-size:12px}
+.cell .p{font-size:15px}
+.cell .tag{font-size:10px; font-weight:500; color:#5a5540}
+.cell .icon{position:absolute; right:5px; top:4px; font-size:13px}
+.mini{height:6px; border:1.5px solid var(--ink); border-radius:999px; background:#fff; overflow:hidden; margin-top:3px}
+.mini > i{display:block; height:100%; background:var(--bad)}
+
+/* 居住者 */
+.cit{border:2px solid var(--ink); border-radius:8px; padding:8px; margin-bottom:7px; background:var(--cream)}
+.cit.dead{opacity:.45; background:#e5e2d5}
+.cit .top{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.cit .nm{font-size:13px}
+.cit .sk{font-size:11px; font-weight:500; color:#5a5540; margin-left:auto}
+.cit .st{display:flex; gap:8px; margin:5px 0; font-size:11px}
+.cit .st > div{flex:1}
+.cit select{font:inherit; font-size:12px; font-weight:700; border:2px solid var(--ink); border-radius:6px; padding:3px 6px; background:var(--paper); width:100%}
+.mood{font-size:11px; font-weight:500}
+
+/* ボタン */
+.btn{
+  font:inherit; font-size:13px; font-weight:800; cursor:pointer;
+  border:var(--bd); border-radius:8px; background:var(--paper); color:var(--ink);
+  padding:7px 14px; box-shadow:3px 3px 0 var(--ink);
+}
+.btn:hover{transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink)}
+.btn:disabled{opacity:.4; cursor:not-allowed; box-shadow:2px 2px 0 var(--ink); transform:none}
+.btn.g{background:var(--main)}
+.btn.sm{font-size:12px; padding:5px 10px; box-shadow:2px 2px 0 var(--ink)}
+.btnrow{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+
+/* ログ */
+#log{height:200px; overflow:auto; border:2px solid var(--ink); border-radius:8px; background:#fff; padding:8px; font-size:12px; font-weight:500}
+#log p{margin:0 0 3px}
+#log .t{font-weight:800; margin-top:6px; border-top:1px dashed #ccc; padding-top:5px}
+#log .g{color:#3f7a3f} #log .r{color:#a63c2a} #log .b{color:#3d6d88}
+
+/* 結果 */
+.veil{position:fixed; inset:0; background:rgba(30,28,20,.72); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50}
+.veil .box{background:var(--paper); border:var(--bd); border-radius:var(--r); box-shadow:6px 6px 0 var(--ink); padding:20px; max-width:420px; text-align:center}
+.veil h3{margin:0 0 8px; font-size:18px}
+.veil p{font-size:13px; font-weight:500}
+.foot{font-size:11px; font-weight:500; color:var(--gray); text-align:center}
+.foot a{color:var(--gray)}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <h1>プロジェクト・ガーディアン</h1>
+    <span class="sub">ドーム維持・環境再生シミュレーション</span>
+    <div class="sp">
+      <span class="turn">ターン <b id="turnNo">1</b></span>
+      <button class="btn sm" id="btnReset">最初から</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ドーム状態 <span class="note" id="hint">居住者を施設に配属して、ターンを進める</span></h2>
+    <div class="res" id="res"></div>
+    <div class="stock" id="stock"></div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="card">
+        <h2>ドーム外エリア <span class="note">10グリッド／汚染度0％で緑地化</span></h2>
+        <div class="map" id="map"></div>
+        <div id="cellInfo" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2>環境再生タワー</h2>
+        <div id="tower"></div>
+      </div>
+
+      <div class="card">
+        <h2>記録</h2>
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>配属 <span class="note" id="assignNote"></span></h2>
+        <div id="cits"></div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn g" id="btnTurn">ターンを進める</button>
+          <button class="btn sm" id="btnRepair">ドーム修復（金属20）</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>施設のはたらき</h2>
+        <div style="font-size:12px; font-weight:500; line-height:1.7">
+          <div>🌿 <b>植物園</b>：酸素をつくる（作業）</div>
+          <div>⚡ <b>発電機</b>：電力をつくる（作業／出力は多め）</div>
+          <div>🌾 <b>農場</b>：食料をつくる（作業）</div>
+          <div>🔬 <b>研究所</b>：研究を進める（研究）</div>
+          <div>🚶 <b>探索隊</b>：選んだエリアの安全確保と、金属・浄化資材の回収（作業＋戦闘）</div>
+          <div>🛡 <b>防衛</b>：汚染生物の襲来に備える（戦闘）</div>
+          <div>☕ <b>休憩</b>：体調とメンタルを回復</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot"><a href="../../index.html">← HAANI LAB にもどる</a></p>
+</div>
+
+<div class="veil hide" id="veil"><div class="box">
+  <h3 id="veilTitle"></h3>
+  <p id="veilText"></p>
+  <button class="btn g" id="veilBtn">もう一度</button>
+</div></div>
+
+<script>
+/* ====== 定数 ====== */
+const FACILITIES = [
+  {id:"garden",  name:"🌿 植物園"},
+  {id:"power",   name:"⚡ 発電機"},
+  {id:"farm",    name:"🌾 農場"},
+  {id:"lab",     name:"🔬 研究所"},
+  {id:"scout",   name:"🚶 探索隊"},
+  {id:"guard",   name:"🛡 防衛"},
+  {id:"rest",    name:"☕ 休憩"}
+];
+const NAMES = ["ノア","リク","ミオ","ハル","セナ","ユイ","トウマ","アオ"];
+const PLANT_COST = {power:50, metal:30};
+const TOWER_COST = {research:200, metal:100, parts:12};
+const GRIDS = 10;
+
+let G = null;
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const rnd = n => Math.floor(Math.random()*n);
+
+/* ====== 初期化 ====== */
+function newGame(){
+  const cits = [];
+  for(let i=0;i<6;i++){
+    cits.push({
+      id:i, name:NAMES[i],
+      health:100, mental:100,
+      work_skill: 30+rnd(50), research_skill: 30+rnd(50), combat_skill: 30+rnd(50),
+      assigned_facility: ["garden","power","farm","lab","scout","guard"][i],
+      alive:true
+    });
+  }
+  const grids = [];
+  for(let i=0;i<GRIDS;i++){
+    grids.push({grid_id:i+1, pollution_level:100, has_plant:false, is_purified:false,
+                secured:0, bonus:null});
+  }
+  G = {
+    turn:1,
+    dome:{oxygen:70, power:70, food:70, hp:100},
+    metal:40, parts:0, research:0,
+    citizens:cits, grids:grids,
+    selected:0, tower:0, threat:0, over:false,
+    log:[]
+  };
+  logT("ターン 1");
+  say("ドームの外は、まだ全部まっ黒。ここから始める。","b");
+}
+
+/* ====== ログ ====== */
+function logT(t){ G.log.push({t:true, s:t}); }
+function say(s, c){ G.log.push({s:s, c:c||""}); }
+function drawLog(){
+  const el = $("#log");
+  el.innerHTML = G.log.map(l => `<p class="${l.t?"t":""} ${l.c||""}">${l.s}</p>`).join("");
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ====== 計算 ====== */
+function alive(){ return G.citizens.filter(c=>c.alive); }
+function at(f){ return alive().filter(c=>c.assigned_facility===f); }
+
+// メンタルと体調で効率が変わる
+function eff(c){
+  let e = 1;
+  if(c.mental < 25) e *= .5;
+  else if(c.mental < 50) e *= .75;
+  if(c.health < 30) e *= .6;
+  else if(c.health < 60) e *= .85;
+  return e;
+}
+function out(c, skill){ return Math.max(1, Math.round((2 + skill/20) * eff(c))); }
+
+function upkeep(){
+  const n = alive().length;
+  const plants = G.grids.filter(g=>g.has_plant && !g.is_purified).length;
+  return {
+    oxygen: Math.ceil(n*0.6),
+    power:  Math.ceil(n*0.5) + plants*2,
+    food:   Math.ceil(n*0.6)
+  };
+}
+function gain(){
+  let o=0,p=0,f=0;
+  at("garden").forEach(c=> o += out(c, c.work_skill));
+  at("power").forEach(c=> p += out(c, c.work_skill)*2);
+  at("farm").forEach(c=> f += out(c, c.work_skill));
+  // 緑地化したエリアのボーナス
+  G.grids.filter(g=>g.is_purified).forEach(g=>{
+    if(g.bonus==="air") o += 2;
+    if(g.bonus==="sun") p += 2;
+    if(g.bonus==="soil") f += 2;
+  });
+  return {oxygen:o, power:p, food:f};
+}
+
+/* ====== 描画 ====== */
+function draw(){
+  $("#turnNo").textContent = G.turn;
+  drawRes(); drawMap(); drawCits(); drawTower(); drawCellInfo(); drawLog();
+  $("#assignNote").textContent = alive().length + "人／体調0で死亡";
+}
+
+function drawRes(){
+  const up = upkeep(), gn = gain();
+  const rows = [
+    {k:"oxygen", n:"酸素", d:gn.oxygen-up.oxygen},
+    {k:"power",  n:"電力", d:gn.power-up.power},
+    {k:"food",   n:"食料", d:gn.food-up.food},
+    {k:"hp",     n:"ドーム耐久", d:null}
+  ];
+  $("#res").innerHTML = rows.map(r=>{
+    const v = G.dome[r.k];
+    const cls = v<25 ? "low" : v<50 ? "mid" : "";
+    const d = r.d===null ? "" :
+      `<span class="delta ${r.d>=0?"p":"m"}">${r.d>=0?"+":""}${r.d}/ターン</span>`;
+    return `<div class="gauge"><div class="lb"><span>${r.n}</span><b>${v}</b></div>
+      <div class="bar ${cls}"><i style="width:${v}%"></i></div>
+      <div style="margin-top:3px">${d}</div></div>`;
+  }).join("");
+  $("#stock").innerHTML =
+    `<span class="chip">金属 ${G.metal}</span>
+     <span class="chip">浄化資材 ${G.parts}</span>
+     <span class="chip">研究 ${G.research}</span>
+     <span class="chip">緑地 ${G.grids.filter(g=>g.is_purified).length}／${GRIDS}</span>`;
+}
+
+function drawMap(){
+  $("#map").innerHTML = G.grids.map((g,i)=>{
+    const icon = g.is_purified ? "🌳" : g.has_plant ? "🏭" : g.secured>=100 ? "🚩" : "";
+    const tag = g.is_purified ? "緑地化ずみ"
+      : g.has_plant ? "浄化中"
+      : g.secured>=100 ? "安全確保ずみ"
+      : "安全度 " + g.secured + "％";
+    return `<button class="cell ${i===G.selected?"sel":""} ${g.is_purified?"pure":""}" data-i="${i}">
+      <div class="n">エリア ${g.grid_id}</div>
+      <div class="p">${g.pollution_level}<span style="font-size:10px">％</span></div>
+      <div class="mini"><i style="width:${g.pollution_level}%"></i></div>
+      <div class="tag">${tag}</div>
+      <span class="icon">${icon}</span>
+    </button>`;
+  }).join("");
+  document.querySelectorAll(".cell").forEach(b=>{
+    b.onclick = ()=>{ G.selected = +b.dataset.i; draw(); };
+  });
+}
+
+function drawCellInfo(){
+  const g = G.grids[G.selected];
+  let s = `<div style="font-size:12px; font-weight:500">
+    <b style="font-size:13px">エリア ${g.grid_id}</b>　汚染度 ${g.pollution_level}％`;
+  if(g.is_purified){
+    const bn = {air:"きれいな空気（酸素+2）", sun:"ひらけた日射（電力+2）", soil:"よい土（食料+2）"}[g.bonus];
+    s += `<br>緑地化が終わった。特殊資源：${bn}`;
+  }else if(g.has_plant){
+    s += `<br>浄化プラント稼働中。毎ターン10％ずつ下がる（電力を2使う）`;
+  }else if(g.secured>=100){
+    s += `<br>安全確保ずみ。浄化プラントを建てられる`;
+  }else{
+    s += `<br>探索隊を送って安全を確保する（探索隊の配属先はここ）`;
+  }
+  s += `</div><div class="btnrow" style="margin-top:8px">`;
+  if(!g.is_purified && !g.has_plant){
+    const ok = g.secured>=100 && G.dome.power>=PLANT_COST.power && G.metal>=PLANT_COST.metal;
+    s += `<button class="btn sm ${ok?"g":""}" id="btnPlant" ${ok?"":"disabled"}>浄化プラントを建てる（電力${PLANT_COST.power}・金属${PLANT_COST.metal}）</button>`;
+  }
+  s += `</div>`;
+  $("#cellInfo").innerHTML = s;
+  const bp = $("#btnPlant");
+  if(bp) bp.onclick = buildPlant;
+}
+
+function drawCits(){
+  $("#cits").innerHTML = G.citizens.map(c=>{
+    if(!c.alive) return `<div class="cit dead"><div class="top"><span class="nm">${c.name}</span>
+      <span class="sk">力尽きた</span></div></div>`;
+    const mood = c.mental<25 ? "限界が近い" : c.mental<50 ? "つかれている" : "おちついている";
+    return `<div class="cit">
+      <div class="top"><span class="nm">${c.name}</span>
+        <span class="sk">作業${c.work_skill}／研究${c.research_skill}／戦闘${c.combat_skill}</span></div>
+      <div class="st">
+        <div>体調 ${c.health}<div class="bar ${c.health<25?"low":c.health<50?"mid":""}"><i style="width:${c.health}%"></i></div></div>
+        <div>メンタル ${c.mental}<div class="bar ${c.mental<25?"low":c.mental<50?"mid":""}"><i style="width:${c.mental}%"></i></div></div>
+      </div>
+      <div class="mood">${mood}</div>
+      <select data-id="${c.id}">
+        ${FACILITIES.map(f=>`<option value="${f.id}" ${c.assigned_facility===f.id?"selected":""}>${f.name}</option>`).join("")}
+      </select>
+    </div>`;
+  }).join("");
+  document.querySelectorAll(".cit select").forEach(s=>{
+    s.onchange = ()=>{
+      G.citizens[+s.dataset.id].assigned_facility = s.value;
+      draw();
+    };
+  });
+}
+
+function drawTower(){
+  const pure = G.grids.filter(g=>g.is_purified).length;
+  const ready = pure===GRIDS;
+  let s = `<div style="font-size:12px; font-weight:500">
+    緑地化 ${pure}／${GRIDS}　・　研究 ${G.research}／${TOWER_COST.research}
+    ・　金属 ${G.metal}／${TOWER_COST.metal}　・　浄化資材 ${G.parts}／${TOWER_COST.parts}</div>`;
+  if(G.tower>0){
+    s += `<div style="margin-top:6px">建設 ${G.tower}％</div>
+      <div class="bar"><i style="width:${G.tower}%"></i></div>`;
+  }
+  const ok = ready && G.research>=TOWER_COST.research && G.metal>=TOWER_COST.metal && G.parts>=TOWER_COST.parts && G.tower===0;
+  s += `<div class="btnrow" style="margin-top:8px">
+    <button class="btn sm ${ok?"g":""}" id="btnTower" ${ok?"":"disabled"}>タワー建設を始める</button>
+    <span class="note" style="font-size:11px; font-weight:500; color:var(--gray)">全エリアの緑地化と資材がそろうと建てられる</span></div>`;
+  $("#tower").innerHTML = s;
+  const bt = $("#btnTower");
+  if(bt) bt.onclick = ()=>{
+    G.research -= TOWER_COST.research; G.metal -= TOWER_COST.metal; G.parts -= TOWER_COST.parts;
+    G.tower = 1;
+    say("環境再生タワーの建設を始めた。","g");
+    draw();
+  };
+}
+
+/* ====== 操作 ====== */
+function buildPlant(){
+  const g = G.grids[G.selected];
+  if(g.secured<100 || g.has_plant || g.is_purified) return;
+  if(G.dome.power<PLANT_COST.power || G.metal<PLANT_COST.metal) return;
+  G.dome.power -= PLANT_COST.power;
+  G.metal -= PLANT_COST.metal;
+  g.has_plant = true;
+  say(`エリア${g.grid_id}に浄化プラントを建てた。`,"g");
+  draw();
+}
+
+function repair(){
+  if(G.metal<20 || G.dome.hp>=100) return;
+  G.metal -= 20;
+  G.dome.hp = clamp(G.dome.hp+25, 0, 100);
+  say("ドームの壁を修復した。","g");
+  draw();
+}
+
+/* ====== ターン処理 ====== */
+function nextTurn(){
+  if(G.over) return;
+  logT("ターン " + G.turn);
+
+  /* --- 実行フェーズ --- */
+  const gn = gain();
+  G.dome.oxygen = clamp(G.dome.oxygen + gn.oxygen, 0, 100);
+  G.dome.power  = clamp(G.dome.power  + gn.power , 0, 100);
+  G.dome.food   = clamp(G.dome.food   + gn.food  , 0, 100);
+  say(`生産：酸素+${gn.oxygen}／電力+${gn.power}／食料+${gn.food}`);
+
+  const labs = at("lab");
+  if(labs.length){
+    let r = 0;
+    labs.forEach(c=> r += out(c, c.research_skill)*2);
+    G.research += r;
+    say(`研究が ${r} 進んだ（累計 ${G.research}）`,"b");
+  }
+
+  /* 探索隊 */
+  const scouts = at("scout");
+  if(scouts.length){
+    const g = G.grids[G.selected];
+    let m=0, p=0, sec=0;
+    scouts.forEach(c=>{
+      m += out(c, c.work_skill)*2;
+      sec += 15 + Math.round(c.work_skill/6);
+      if(Math.random() < .45) p += 1;
+      // 外は危ない
+      if(Math.random() < .35){
+        const dmg = clamp(12 - Math.round(c.combat_skill/12), 3, 12);
+        c.health = clamp(c.health - dmg, 0, 100);
+        say(`${c.name}は外でけがをした（体調-${dmg}）`,"r");
+      }
+      c.mental = clamp(c.mental - 6, 0, 100);
+    });
+    G.metal += m; G.parts += p;
+    if(!g.is_purified && g.secured<100){
+      g.secured = clamp(g.secured + sec, 0, 100);
+      if(g.secured>=100) say(`エリア${g.grid_id}の安全を確保した。`,"g");
+      else say(`エリア${g.grid_id}の安全度 ${g.secured}％`);
+    }
+    say(`探索の成果：金属+${m}／浄化資材+${p}`);
+  }
+
+  /* --- 浄化フェーズ --- */
+  let powerUse = 0;
+  G.grids.forEach(g=>{
+    if(g.has_plant && !g.is_purified){
+      g.pollution_level = clamp(g.pollution_level - 10, 0, 100);
+      powerUse += 2;
+      if(g.pollution_level===0){
+        g.is_purified = true;
+        g.bonus = ["air","sun","soil"][rnd(3)];
+        const bn = {air:"きれいな空気", sun:"ひらけた日射", soil:"よい土"}[g.bonus];
+        say(`エリア${g.grid_id}が緑地化した。特殊資源：${bn}`,"g");
+      }
+    }
+  });
+
+  /* --- 防衛フェーズ --- */
+  defense();
+
+  /* --- ターン終了処理 --- */
+  const up = upkeep();
+  G.dome.oxygen = clamp(G.dome.oxygen - up.oxygen, 0, 100);
+  G.dome.power  = clamp(G.dome.power  - up.power , 0, 100);
+  G.dome.food   = clamp(G.dome.food   - up.food  , 0, 100);
+  say(`消費：酸素-${up.oxygen}／電力-${up.power}／食料-${up.food}`);
+
+  /* 体調とメンタル */
+  alive().forEach(c=>{
+    if(c.assigned_facility==="rest"){
+      c.health = clamp(c.health + 14, 0, 100);
+      c.mental = clamp(c.mental + 25, 0, 100);
+    }else{
+      c.mental = clamp(c.mental - 2, 0, 100);
+      if(c.assigned_facility!=="scout") c.health = clamp(c.health + 2, 0, 100);
+    }
+    if(G.dome.food>40 && G.dome.oxygen>40) c.mental = clamp(c.mental + 2, 0, 100);
+    if(G.dome.food===0){ c.health = clamp(c.health-10,0,100); }
+    if(G.dome.oxygen===0){ c.health = clamp(c.health-12,0,100); }
+    if(c.mental<=10 && Math.random()<.4){
+      G.dome.hp = clamp(G.dome.hp-5,0,100);
+      c.mental = clamp(c.mental+15,0,100);
+      say(`${c.name}が暴走して設備をこわした（ドーム耐久-5）`,"r");
+    }
+    if(c.health<=0){
+      c.alive = false; c.health = 0;
+      say(`${c.name}が力尽きた。`,"r");
+    }
+  });
+  if(G.dome.food===0) say("食料が尽きている。","r");
+  if(G.dome.oxygen<=5) say("酸素が足りない。","r");
+
+  /* タワー建設 */
+  if(G.tower>0 && G.tower<100){
+    G.tower = clamp(G.tower + 20, 0, 100);
+    say(`タワー建設 ${G.tower}％`,"g");
+  }
+
+  G.turn++;
+  judge();
+  draw();
+}
+
+function defense(){
+  const plants = G.grids.filter(g=>g.has_plant && !g.is_purified);
+  G.threat = Math.min(46, 6 + G.turn*0.8 + plants.length*5);
+  const chance = plants.length ? .28 + plants.length*.07 : .12;
+  if(Math.random() > chance) return;
+
+  const power = Math.round(G.threat*(.7+Math.random()*.6));
+  let def = 5;
+  at("guard").forEach(c=> def += Math.round((c.combat_skill/3)*eff(c)) );
+  say(`汚染生物が襲来（戦力 ${power}）／防衛 ${def}`,"r");
+
+  if(def >= power){
+    say("防衛に成功した。","g");
+    at("guard").forEach(c=>{
+      if(Math.random()<.3){ c.health = clamp(c.health-6,0,100); }
+      c.mental = clamp(c.mental-4,0,100);
+    });
+  }else{
+    const over = Math.min(power - def, 18);
+    if(plants.length && Math.random()<.5){
+      const t = plants[rnd(plants.length)];
+      t.has_plant = false;
+      t.secured = clamp(t.secured-30,0,100);
+      say(`エリア${t.grid_id}の浄化プラントが壊された。`,"r");
+    }else{
+      G.dome.hp = clamp(G.dome.hp - over, 0, 100);
+      say(`ドームが攻撃された（耐久-${over}）`,"r");
+    }
+    at("guard").forEach(c=>{
+      c.health = clamp(c.health - (6+rnd(8)),0,100);
+      c.mental = clamp(c.mental-8,0,100);
+    });
+  }
+}
+
+function judge(){
+  if(G.over) return;
+  if(G.tower>=100){ return end(true, "環境再生タワーが動きだした。ドームの外に、また緑がもどってくる。"); }
+  if(G.dome.oxygen<=0) return end(false, "酸素が尽きた。");
+  if(G.dome.power<=0)  return end(false, "電力が尽きて、ドームが止まった。");
+  if(G.dome.hp<=0)     return end(false, "ドームのコアが壊れた。");
+  if(alive().length===0) return end(false, "居住者が全員いなくなった。");
+}
+
+function end(win, text){
+  G.over = true;
+  say(win ? "── 環境再生、達成 ──" : "── ドーム崩壊 ──", win?"g":"r");
+  $("#veilTitle").textContent = win ? "再生できた" : "ここで終わった";
+  $("#veilText").textContent = text + `（${G.turn-1}ターン／緑地 ${G.grids.filter(g=>g.is_purified).length}）`;
+  $("#veil").classList.remove("hide");
+  $("#btnTurn").disabled = true;
+}
+
+/* ====== 起動 ====== */
+$("#btnTurn").onclick = nextTurn;
+$("#btnRepair").onclick = repair;
+$("#btnReset").onclick = reset;
+$("#veilBtn").onclick = reset;
+function reset(){
+  $("#veil").classList.add("hide");
+  $("#btnTurn").disabled = false;
+  newGame(); draw();
+}
+newGame(); draw();
+</script>
+</body>
+</html>
