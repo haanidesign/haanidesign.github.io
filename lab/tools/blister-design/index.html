@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ブリスター設計室 — ブリスターパック風キーホルダーの版下づくり</title>
+<meta name="description" content="3層アクリルのブリスターパック風キーホルダー用の版下を作る道具。台紙の印刷、中身パーツの抜き、ビス穴の位置を決めて、印刷用PNGとカット線SVGを書き出す。">
+<style>
+:root{
+  --bg:#12131a; --panel:#1b1d27; --panel2:#22242f; --line:#2e3140;
+  --ink:#e8e6df; --dim:#8b8fa3;
+  --acc:#ffd447; --acc2:#4fd1c5; --warn:#ff8a65; --ng:#ff5d6c; --ok:#7ddc8c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;}
+header{padding:12px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-size:16px;margin:0;letter-spacing:.14em;font-family:ui-monospace,Menlo,monospace}
+h1 b{color:var(--acc)}
+header span{font-size:12px;color:var(--dim)}
+header .sp{flex:1}
+.wrap{display:flex;align-items:stretch;min-height:calc(100vh - 50px);flex-wrap:wrap}
+.side{width:320px;flex:0 0 320px;border-right:1px solid var(--line);padding:14px;background:var(--panel)}
+.side.r{border-right:none;border-left:1px solid var(--line);width:340px;flex:0 0 340px}
+.main{flex:1 1 420px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:320px}
+@media(max-width:1180px){.side,.side.r{width:100%;flex:0 0 auto;border:none;border-bottom:1px solid var(--line)}}
+
+h2.sec{font-size:11px;letter-spacing:.14em;color:var(--acc);margin:18px 0 8px;
+  font-family:ui-monospace,monospace;border-bottom:1px solid var(--line);padding-bottom:5px}
+h2.sec:first-child{margin-top:0}
+label.f{display:block;margin:11px 0 5px;font-size:11px;letter-spacing:.08em;color:var(--dim);
+  font-family:ui-monospace,monospace}
+label.f em{float:right;font-style:normal;color:var(--acc)}
+input[type=range]{width:100%;accent-color:var(--acc)}
+input[type=text],input[type=number],select,button,textarea{width:100%;background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line);border-radius:4px;padding:8px;font-size:13px;font-family:inherit}
+input[type=color]{width:100%;height:32px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px}
+button{cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.go{background:var(--acc);color:#12131a;font-weight:700;border:none;padding:11px;letter-spacing:.06em}
+button.go:hover{background:#ffe073}
+button.sm{padding:6px;font-size:12px}
+.row{display:flex;gap:8px;margin-top:8px}
+.row>*{flex:1}
+.drop{border:2px dashed var(--line);border-radius:6px;padding:16px 10px;text-align:center;
+  color:var(--dim);font-size:12px;cursor:pointer;transition:.15s;margin-top:6px}
+.drop:hover,.drop.on{border-color:var(--acc);color:var(--ink)}
+.drop b{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}
+.chk{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:8px;cursor:pointer}
+.chk input{accent-color:var(--acc);width:15px;height:15px}
+.seg{display:flex;gap:0;margin-top:6px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:var(--panel2);font-size:12px;padding:8px 4px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--acc);color:#12131a;font-weight:700}
+
+.stage{flex:1;display:flex;align-items:center;justify-content:center;background:
+  repeating-conic-gradient(#191b23 0% 25%, #1e2029 0% 50%) 0 0/20px 20px;
+  border:1px solid var(--line);border-radius:6px;padding:16px;min-height:420px;position:relative;overflow:auto}
+canvas#view{max-width:100%;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.hint{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--dim);
+  font-family:ui-monospace,monospace;pointer-events:none}
+
+.iso{display:flex;justify-content:center;align-items:center;padding:26px 10px 34px;
+  border:1px solid var(--line);border-radius:6px;background:#15161e;overflow:hidden}
+.iso .stackbox{position:relative;transform:rotateX(52deg) rotateZ(-38deg);transform-style:preserve-3d}
+.iso .lay{position:absolute;left:0;top:0;transition:.2s}
+.iso .lay img{display:block;width:100%;border-radius:3px}
+
+.check{font-size:12.5px;line-height:1.6}
+.check div{padding:7px 8px;border-left:3px solid var(--line);background:#1e2029;margin-bottom:6px;border-radius:0 4px 4px 0}
+.check div.ok{border-color:var(--ok)}
+.check div.warn{border-color:var(--warn)}
+.check div.ng{border-color:var(--ng)}
+.check b{display:block;font-size:11px;letter-spacing:.06em;color:var(--dim);font-family:ui-monospace,monospace}
+.spec{font-size:12px;color:var(--dim);line-height:1.7;font-family:ui-monospace,monospace;
+  background:#16171f;border:1px solid var(--line);border-radius:4px;padding:10px;white-space:pre-wrap}
+.tips{font-size:12.5px;line-height:1.75;color:var(--dim)}
+.tips b{color:var(--ink)}
+.tips ul{padding-left:18px;margin:6px 0}
+details summary{cursor:pointer;font-size:12px;color:var(--acc);margin-top:10px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BLISTER <b>DESIGN</b></h1>
+  <span>ブリスターパック風キーホルダー・3層アクリルの版下づくり</span>
+  <span class="sp"></span>
+  <span id="sizeNote">50 × 75 mm</span>
+</header>
+
+<div class="wrap">
+
+<!-- ============ 左：サイズ・台紙 ============ -->
+<aside class="side">
+  <h2 class="sec">サイズ</h2>
+  <div class="seg" id="segSize">
+    <button data-w="50" data-h="75" class="on">50×75</button>
+    <button data-w="75" data-h="100">75×100</button>
+    <button data-w="0" data-h="0">自由</button>
+  </div>
+  <div class="row" id="freeSize" style="display:none">
+    <div><label class="f">よこ mm</label><input type="number" id="fw" value="60" min="20" max="200"></div>
+    <div><label class="f">たて mm</label><input type="number" id="fh" value="90" min="20" max="200"></div>
+  </div>
+  <label class="f">角丸 <em id="vRad">4.0 mm</em></label>
+  <input type="range" id="rad" min="0" max="15" step="0.5" value="4">
+
+  <h2 class="sec">3枚目・台紙の印刷</h2>
+  <label class="f">下地の色</label>
+  <input type="color" id="bgcol" value="#f2f0be">
+  <label class="f">下地のもよう</label>
+  <select id="bgPat">
+    <option value="none">なし（べた）</option>
+    <option value="dot">水玉</option>
+    <option value="stripe">ななめ縞</option>
+    <option value="grid">方眼</option>
+    <option value="sun">集中線</option>
+  </select>
+  <label class="f">もようの色</label>
+  <input type="color" id="patCol" value="#e1dd60">
+  <div class="drop" id="dropBack">
+    <b>台紙の絵を置く</b>クリック / ドラッグ＆ドロップ（PNG・JPG）
+  </div>
+  <div id="backCtl" style="display:none">
+    <label class="f">大きさ <em id="vBs">100%</em></label>
+    <input type="range" id="bs" min="10" max="300" value="100">
+    <label class="f">よこ位置 <em id="vBx">0</em></label>
+    <input type="range" id="bx" min="-60" max="60" value="0">
+    <label class="f">たて位置 <em id="vBy">0</em></label>
+    <input type="range" id="by" min="-60" max="60" value="0">
+    <div class="row"><button class="sm" id="backFit">枠いっぱい</button><button class="sm" id="backDel">消す</button></div>
+  </div>
+
+  <h2 class="sec">台紙の文字</h2>
+  <input type="text" id="t1" placeholder="大きい文字（商品名など）">
+  <div class="row" style="margin-top:6px">
+    <div style="flex:2"><label class="f">大きさ <em id="vT1s">7.0 mm</em></label>
+      <input type="range" id="t1s" min="2" max="20" step="0.5" value="7"></div>
+    <div style="flex:1"><label class="f">色</label><input type="color" id="t1c" value="#1e1c14"></div>
+  </div>
+  <label class="f">たて位置 <em id="vT1y">10 %</em></label>
+  <input type="range" id="t1y" min="0" max="100" value="10">
+  <input type="text" id="t2" placeholder="小さい文字（サブタイトル・日付）" style="margin-top:10px">
+  <div class="row" style="margin-top:6px">
+    <div style="flex:2"><label class="f">大きさ <em id="vT2s">3.5 mm</em></label>
+      <input type="range" id="t2s" min="2" max="12" step="0.5" value="3.5"></div>
+    <div style="flex:1"><label class="f">色</label><input type="color" id="t2c" value="#8a8470"></div>
+  </div>
+  <label class="f">たて位置 <em id="vT2y">90 %</em></label>
+  <input type="range" id="t2y" min="0" max="100" value="90">
+</aside>
+
+<!-- ============ 中央：プレビュー ============ -->
+<main class="main">
+  <div class="stage">
+    <canvas id="view"></canvas>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="seg" id="segView">
+    <button data-v="top" class="on">重ねて見る</button>
+    <button data-v="l1">1枚目</button>
+    <button data-v="l2">2枚目（窓）</button>
+    <button data-v="l3">3枚目（台紙）</button>
+    <button data-v="part">中身パーツ</button>
+  </div>
+  <div class="row">
+    <label class="chk"><input type="checkbox" id="showGuide" checked>ガイドを出す</label>
+    <label class="chk"><input type="checkbox" id="showHole" checked>ビス穴</label>
+    <label class="chk"><input type="checkbox" id="showBleed" checked>塗り足し</label>
+    <label class="chk"><input type="checkbox" id="showIso" checked>立体で見る</label>
+  </div>
+
+  <div class="iso" id="isoWrap">
+    <div class="stackbox" id="stackbox">
+      <div class="lay" data-z="46"><img id="isoL1"></div>
+      <div class="lay" data-z="30"><img id="isoPart"></div>
+      <div class="lay" data-z="16"><img id="isoL2"></div>
+      <div class="lay" data-z="0"><img id="isoL3"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ============ 右：パーツ・穴・チェック・書き出し ============ -->
+<aside class="side r">
+  <h2 class="sec">中身パーツ（3mm・印刷可）</h2>
+  <div class="drop" id="dropPart">
+    <b>中身の絵を置く</b>背景が透明のPNGがいちばん確実
+  </div>
+  <div id="partCtl" style="display:none">
+    <label class="f">大きさ <em id="vPs">100%</em></label>
+    <input type="range" id="ps" min="10" max="300" value="100">
+    <label class="f">よこ位置 <em id="vPx">0</em></label>
+    <input type="range" id="px" min="-60" max="60" value="0">
+    <label class="f">たて位置 <em id="vPy">0</em></label>
+    <input type="range" id="py" min="-60" max="60" value="0">
+    <label class="f">白フチの太さ <em id="vOff">1.5 mm</em></label>
+    <input type="range" id="off" min="0" max="5" step="0.1" value="1.5">
+    <label class="f">2枚目の窓のゆとり <em id="vClr">0.3 mm</em></label>
+    <input type="range" id="clr" min="0" max="2" step="0.1" value="0.3">
+    <label class="chk"><input type="checkbox" id="smooth" checked>カット線をなめらかにする</label>
+    <div class="row"><button class="sm" id="partFit">ちょうどよく</button><button class="sm" id="partDel">消す</button></div>
+  </div>
+  <div class="note" id="partInfo">まだ置かれていません。絵がないうちは、まるい仮のパーツで表示します。</div>
+
+  <h2 class="sec">ビス穴</h2>
+  <div class="seg" id="segHole">
+    <button data-n="4" class="on">4すみ</button>
+    <button data-n="6">6か所</button>
+    <button data-n="2">上2つ</button>
+    <button data-n="0">なし</button>
+  </div>
+  <label class="f">穴の直径 <em id="vHd">5.0 mm</em></label>
+  <input type="range" id="hd" min="2" max="10" step="0.5" value="5">
+  <label class="f">フチからの距離 <em id="vHm">6.0 mm</em></label>
+  <input type="range" id="hm" min="3" max="20" step="0.5" value="6">
+  <label class="chk"><input type="checkbox" id="ring" checked>ストラップ穴を上に付ける</label>
+
+  <h2 class="sec">見てもらった結果</h2>
+  <div class="check" id="check"></div>
+
+  <h2 class="sec">書き出し</h2>
+  <label class="f">解像度 <em id="vDpi">350 dpi</em></label>
+  <input type="range" id="dpi" min="150" max="600" step="50" value="350">
+  <button class="go" id="expAll">まとめて書き出す（4点）</button>
+  <div class="row">
+    <button class="sm" id="expBack">台紙PNG</button>
+    <button class="sm" id="expPart">パーツPNG</button>
+  </div>
+  <div class="row">
+    <button class="sm" id="expSvg">カット線SVG</button>
+    <button class="sm" id="expSpec">仕様メモ</button>
+  </div>
+  <div class="note">書き出しは 3mm の塗り足し込み。SVG は 1mm = 1 単位（原寸）で、線ごとにレイヤー分けしてあります。</div>
+
+  <details>
+    <summary>作るときの目安を読む</summary>
+    <div class="tips">
+      <ul>
+        <li><b>厚み</b>／1枚目 1mm・2枚目 3mm・3枚目 3mm。合わせて 7mm。中身パーツは 2枚目と同じ 3mm なので、2枚目の窓にぴったり落とし込む形になります。</li>
+        <li><b>細い所</b>／3mm アクリルは 2mm を切ると欠けやすいです。しっぽ・指先・毛先は太らせるか、白フチで埋めます。</li>
+        <li><b>白フチ</b>／1.5mm 前後がいちばん見栄えがします。0 にすると絵のフチが直接カット線になり、色ズレが目立ちます。</li>
+        <li><b>窓のゆとり</b>／0.2〜0.5mm。0 だとパーツが入りません。1mm を超えるとガタつきます。</li>
+        <li><b>ビス穴</b>／穴のフチから絵まで 2mm 以上あけます。穴とパーツが近いと組んだとき干渉します。</li>
+        <li><b>塗り足し</b>／フチなし印刷は、外側に 3mm はみ出させます。文字は逆に、フチから 4mm 内側に入れておくと切れません。</li>
+        <li><b>解像度</b>／原寸で 350dpi。50×75mm なら 689×1033px 以上あれば足ります。</li>
+      </ul>
+    </div>
+  </details>
+</aside>
+</div>
+
+<script>
+/* ====== 基本の値 ====== */
+const S = {
+  bxMap: v => v*0.25,   // スライダー -60..60 → -15..15mm
+  w:50, h:75, rad:4,
+  bgCol:'#f2f0be', patCol:'#e1dd60', pat:'none',
+  back:null, bs:100, bx:0, by:0,
+  part:null, ps:100, px:0, py:0, off:1.5, clr:0.3, smooth:true,
+  holes:4, hd:5, hm:6, ring:true,
+  t1:'', t1s:7, t1c:'#1e1c14', t1y:10,
+  t2:'', t2s:3.5, t2c:'#8a8470', t2y:90,
+  view:'top', guide:true, showHole:true, bleed:true, iso:true,
+  dpi:350
+};
+const BLEED = 3;             // 塗り足し mm
+const PX = 6;                // 画面プレビューの 1mm あたり px
+const $ = id => document.getElementById(id);
+let PART = { paths:[], area:0, minw:0, bbox:null, src:null };
+const MASKW = 520;   // 輪郭を取るときの解析幅
+const view = $('view'), ctx = view.getContext('2d');
+
+/* ====== 入力のつなぎこみ ====== */
+function bindRange(id, key, fmt){
+  const el = $(id), lab = $('v'+id.charAt(0).toUpperCase()+id.slice(1));
+  const upd = ()=>{ S[key] = parseFloat(el.value); if(lab) lab.textContent = fmt(S[key]); render(); };
+  el.addEventListener('input', upd); upd();
+}
+const mm = v => v.toFixed(1)+' mm';
+const pc = v => v+'%';
+
+bindRange('rad','rad',mm);
+bindRange('bs','bs',pc); bindRange('bx','bx',v=>v); bindRange('by','by',v=>v);
+bindRange('ps','ps',pc); bindRange('px','px',v=>v); bindRange('py','py',v=>v);
+bindRange('off','off',mm); bindRange('clr','clr',mm);
+bindRange('hd','hd',mm); bindRange('hm','hm',mm);
+bindRange('t1s','t1s',mm); bindRange('t1y','t1y',v=>v+' %');
+bindRange('t2s','t2s',mm); bindRange('t2y','t2y',v=>v+' %');
+bindRange('dpi','dpi',v=>v+' dpi');
+
+// 色とテキスト
+[['bgcol','bgCol'],['patCol','patCol'],['t1c','t1c'],['t2c','t2c']].forEach(([id,key])=>{
+  const el=$(id); if(!el) return;
+  el.addEventListener('input',()=>{ S[key]=el.value; render(); });
+});
+[['t1','t1'],['t2','t2']].forEach(([id,key])=>{
+  $(id).addEventListener('input',()=>{ S[key]=$(id).value; render(); });
+});
+$('bgPat').addEventListener('change',()=>{ S.pat=$('bgPat').value; render(); });
+$('smooth').addEventListener('change',()=>{ S.smooth=$('smooth').checked; rebuildPart(); });
+$('ring').addEventListener('change',()=>{ S.ring=$('ring').checked; render(); });
+['showGuide:guide','showHole:showHole','showBleed:bleed','showIso:iso'].forEach(p=>{
+  const [id,key]=p.split(':');
+  $(id).addEventListener('change',()=>{ S[key]=$(id).checked;
+    if(key==='iso') $('isoWrap').style.display = S.iso?'flex':'none';
+    render(); });
+});
+
+function segment(wrapId, fn){
+  const w = $(wrapId);
+  w.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    [...w.children].forEach(c=>c.classList.remove('on')); b.classList.add('on');
+    fn(b);
+  });
+}
+segment('segSize', b=>{
+  const w = +b.dataset.w, h = +b.dataset.h;
+  if(w===0){ $('freeSize').style.display='flex'; S.w=+$('fw').value; S.h=+$('fh').value; }
+  else { $('freeSize').style.display='none'; S.w=w; S.h=h; }
+  rebuildPart();
+});
+['fw','fh'].forEach(id=>$(id).addEventListener('input',()=>{
+  S.w = Math.max(20,+$('fw').value||50); S.h = Math.max(20,+$('fh').value||75); rebuildPart();
+}));
+segment('segView', b=>{ S.view=b.dataset.v; render(); });
+segment('segHole', b=>{ S.holes=+b.dataset.n; render(); });
+
+/* ====== 画像の読み込み ====== */
+function setupDrop(dropId, onImg){
+  const d = $(dropId);
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*'; input.style.display='none';
+  document.body.appendChild(input);
+  d.addEventListener('click',()=>input.click());
+  input.addEventListener('change',()=>{ if(input.files[0]) load(input.files[0]); input.value=''; });
+  ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('on')}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('on')}));
+  d.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) load(f); });
+  function load(f){
+    const r = new FileReader();
+    r.onload = ()=>{ const im = new Image(); im.onload=()=>onImg(im); im.src = r.result; };
+    r.readAsDataURL(f);
+  }
+}
+setupDrop('dropBack', im=>{ S.back=im; $('backCtl').style.display='block'; fitBack(); });
+setupDrop('dropPart', im=>{ S.part=im; $('partCtl').style.display='block'; fitPart(); });
+
+function fitBack(){
+  const tw = S.w+BLEED*2, th = S.h+BLEED*2;
+  const k = Math.max(tw/S.back.width, th/S.back.height);
+  const need = Math.round(k * S.back.width / (S.w/100));
+  $('bs').value = Math.min(300, Math.max(10, Math.round(k*S.back.width/S.w*100)));
+  S.bs = +$('bs').value; $('vBs').textContent = S.bs+'%';
+  $('bx').value=0; $('by').value=0; S.bx=0; S.by=0; render();
+}
+function fitPart(){
+  const target = Math.min(S.w-16, S.h-22);
+  const k = target / Math.max(S.part.width, S.part.height);
+  $('ps').value = Math.min(300, Math.max(10, Math.round(k*S.part.width/S.w*100)));
+  S.ps = +$('ps').value; $('vPs').textContent = S.ps+'%';
+  $('px').value=0; $('py').value=0; S.px=0; S.py=0; rebuildPart();
+}
+$('backFit').addEventListener('click',()=>S.back&&fitBack());
+$('partFit').addEventListener('click',()=>S.part&&fitPart());
+$('backDel').addEventListener('click',()=>{ S.back=null; $('backCtl').style.display='none'; render(); });
+$('partDel').addEventListener('click',()=>{ S.part=null; $('partCtl').style.display='none'; rebuildPart(); });
+
+/* ====== パーツの輪郭を取り出す ======
+   透明PNG → アルファを2値化 → 白フチぶん太らせる → 輪郭をたどる → 点を間引く
+   輪郭は mm 単位（台紙の左上が原点）で持つ。 */
+function partRectMM(){
+  // パーツ画像を配置したときの mm 矩形
+  if(!S.part){
+    const d = Math.min(S.w-18, S.h-26);
+    return { x:(S.w-d)/2+S.px*0.2, y:(S.h-d)/2+S.py*0.2, w:d, h:d };
+  }
+  const w = S.w * S.ps/100;
+  const h = w * S.part.height / S.part.width;
+  return { x:(S.w-w)/2 + S.bxMap(S.px), y:(S.h-h)/2 + S.bxMap(S.py), w, h };
+}
+
+function rebuildPart(){
+  PART = { paths:[], area:0, minw:0, bbox:null, src:null };
+  if(!S.part){ renderAll(); return; }
+  const r = partRectMM();
+  const sc = MASKW / r.w;                       // px per mm
+  const W = Math.round(r.w*sc), H = Math.round(r.h*sc);
+  const pad = Math.ceil((S.off+1)*sc)+2;
+  const c = document.createElement('canvas');
+  c.width = W+pad*2; c.height = H+pad*2;
+  const g = c.getContext('2d');
+  // 太らせ（円状に何度も描いて膨張させる）
+  const rr = S.off*sc;
+  if(rr>0.5){
+    const n = Math.max(12, Math.min(48, Math.round(rr*2)));
+    for(let i=0;i<n;i++){
+      const a = i/n*Math.PI*2;
+      g.drawImage(S.part, pad+Math.cos(a)*rr, pad+Math.sin(a)*rr, W, H);
+    }
+  }
+  g.drawImage(S.part, pad, pad, W, H);
+  const d = g.getImageData(0,0,c.width,c.height);
+  const mask = new Uint8Array(c.width*c.height);
+  let area=0;
+  for(let i=0,p=3;i<mask.length;i++,p+=4){ if(d.data[p]>40){ mask[i]=1; area++; } }
+  // 輪郭（マーチングスクエア風の境界追跡）
+  const paths = traceContours(mask, c.width, c.height)
+      .map(p=>simplify(p, S.smooth?1.6:0.6))
+      .filter(p=>p.length>=6);
+  // mm へ変換（原点＝台紙左上）
+  PART.paths = paths.map(p=>p.map(([x,y])=>[ r.x + (x-pad)/sc, r.y + (y-pad)/sc ]));
+  PART.area = area/(sc*sc);
+  PART.minw = minWidth(mask, c.width, c.height)/sc;
+  PART.bbox = bboxOf(PART.paths);
+  renderAll();
+}
+function bboxOf(paths){
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  paths.forEach(p=>p.forEach(([x,y])=>{ a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y); }));
+  return paths.length? {x:a,y:b,w:c-a,h:d-b} : null;
+}
+/* 境界追跡（ムーア近傍）。外側の輪郭と、穴の輪郭をまとめて拾う。 */
+function traceContours(mask, W, H){
+  const seen = new Uint8Array(W*H);
+  const at = (x,y)=> (x<0||y<0||x>=W||y>=H)?0:mask[y*W+x];
+  const dirs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+  const out = [];
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    const i=y*W+x;
+    if(!mask[i]||seen[i]) continue;
+    if(at(x-1,y)&&at(x,y-1)&&at(x+1,y)&&at(x,y+1)) continue;  // 内部
+    // 追跡開始
+    const path=[]; let cx=x, cy=y, dir=6, guard=0;
+    do{
+      path.push([cx+0.5,cy+0.5]); seen[cy*W+cx]=1;
+      let found=false;
+      for(let k=0;k<8;k++){
+        const nd=(dir+6+k)%8, [dx,dy]=dirs[nd];
+        const nx=cx+dx, ny=cy+dy;
+        if(at(nx,ny)){ cx=nx; cy=ny; dir=nd; found=true; break; }
+      }
+      if(!found) break;
+    } while((cx!==x||cy!==y) && ++guard<W*H*2);
+    if(path.length>24) out.push(path);
+  }
+  out.sort((a,b)=>b.length-a.length);
+  return out.slice(0,6);
+}
+/* 点を間引く（Douglas-Peucker） */
+function simplify(pts, tol){
+  if(pts.length<4) return pts;
+  const keep = new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const stack=[[0,pts.length-1]];
+  while(stack.length){
+    const [a,b]=stack.pop();
+    let md=0, mi=-1;
+    const [ax,ay]=pts[a],[bx,by]=pts[b];
+    const dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy)||1;
+    for(let i=a+1;i<b;i++){
+      const d=Math.abs((pts[i][0]-ax)*dy-(pts[i][1]-ay)*dx)/L;
+      if(d>md){ md=d; mi=i; }
+    }
+    if(md>tol&&mi>0){ keep[mi]=1; stack.push([a,mi],[mi,b]); }
+  }
+  return pts.filter((_,i)=>keep[i]);
+}
+/* 細い所の目安（行・列の連続長の下位2%） */
+function minWidth(mask,W,H){
+  const runs=[];
+  const scan=(get,n,m)=>{
+    for(let a=0;a<n;a++){ let c=0;
+      for(let b=0;b<m;b++){ if(get(a,b)) c++; else { if(c>1) runs.push(c); c=0; } }
+      if(c>1) runs.push(c);
+    }
+  };
+  scan((y,x)=>mask[y*W+x],H,W);
+  scan((x,y)=>mask[y*W+x],W,H);
+  if(!runs.length) return 0;
+  runs.sort((a,b)=>a-b);
+  return runs[Math.floor(runs.length*0.02)];
+}
+
+/* ====== 穴の位置（mm） ====== */
+function holePts(){
+  const p=[], m=S.hm, r=S.hd/2;
+  if(S.holes>=2){ p.push([m,m],[S.w-m,m]); }
+  if(S.holes>=4){ p.push([m,S.h-m],[S.w-m,S.h-m]); }
+  if(S.holes>=6){ p.push([m,S.h/2],[S.w-m,S.h/2]); }
+  return p.map(([x,y])=>({x,y,r}));
+}
+function ringPt(){ return S.ring ? {x:S.w/2, y:S.hm*0.75, r:2} : null; }
+
+/* ====== 描画 ====== */
+function roundRect(c,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+function drawPattern(c,k){
+  if(S.pat==='none') return;
+  c.save(); c.strokeStyle=S.patCol; c.fillStyle=S.patCol;
+  const W=S.w+BLEED*2, H=S.h+BLEED*2;
+  if(S.pat==='dot'){
+    for(let y=-BLEED;y<H;y+=5) for(let x=-BLEED;x<W;x+=5){
+      c.beginPath(); c.arc(x*k,y*k,1.1*k,0,7); c.fill();
+    }
+  } else if(S.pat==='stripe'){
+    c.lineWidth=1.6*k;
+    for(let i=-H;i<W+H;i+=6){ c.beginPath(); c.moveTo(i*k,-BLEED*k); c.lineTo((i+H)*k,H*k); c.stroke(); }
+  } else if(S.pat==='grid'){
+    c.lineWidth=0.4*k;
+    for(let x=0;x<W;x+=5){ c.beginPath(); c.moveTo(x*k,-BLEED*k); c.lineTo(x*k,H*k); c.stroke(); }
+    for(let y=0;y<H;y+=5){ c.beginPath(); c.moveTo(-BLEED*k,y*k); c.lineTo(W*k,y*k); c.stroke(); }
+  } else if(S.pat==='sun'){
+    const cx=S.w/2*k, cy=S.h/2*k, R=Math.hypot(W,H)*k;
+    for(let i=0;i<72;i++){
+      const a=i/72*Math.PI*2;
+      c.beginPath(); c.moveTo(cx,cy);
+      c.lineTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R);
+      c.lineTo(cx+Math.cos(a+0.028)*R, cy+Math.sin(a+0.028)*R);
+      c.closePath(); c.fill();
+    }
+  }
+  c.restore();
+}
+/* 3枚目：台紙の印刷（塗り足し込み・原点は塗り足しの外角） */
+function drawBack(c,k,withBleed){
+  const off = withBleed?BLEED:0;
+  c.save(); c.translate(off*k, off*k);
+  c.save();
+  c.beginPath(); c.rect(-off*k,-off*k,(S.w+off*2)*k,(S.h+off*2)*k); c.clip();
+  c.fillStyle=S.bgCol; c.fillRect(-off*k,-off*k,(S.w+off*2)*k,(S.h+off*2)*k);
+  drawPattern(c,k);
+  if(S.back){
+    const w = S.w*S.bs/100*k, h = w*S.back.height/S.back.width;
+    c.drawImage(S.back, (S.w*k-w)/2 + S.bxMap(S.bx)*k, (S.h*k-h)/2 + S.bxMap(S.by)*k, w, h);
+  }
+  c.restore();
+  // 文字
+  c.textAlign='center';
+  if(S.t1){ c.fillStyle=S.t1c; c.font='700 '+(S.t1s*k)+'px "M PLUS Rounded 1c","Hiragino Kaku Gothic ProN",sans-serif';
+    c.fillText(S.t1, S.w/2*k, (S.h*S.t1y/100)*k + S.t1s*k*0.36); }
+  if(S.t2){ c.fillStyle=S.t2c; c.font='500 '+(S.t2s*k)+'px "M PLUS Rounded 1c","Hiragino Kaku Gothic ProN",sans-serif';
+    c.fillText(S.t2, S.w/2*k, (S.h*S.t2y/100)*k + S.t2s*k*0.36); }
+  c.restore();
+}
+/* パーツの絵（印刷ぶん） */
+function drawPartArt(c,k,ox,oy){
+  const r = partRectMM();
+  if(S.part) c.drawImage(S.part, (r.x+ox)*k, (r.y+oy)*k, r.w*k, r.h*k);
+  else { c.fillStyle='#ffb3c1'; c.beginPath();
+    c.arc((r.x+r.w/2+ox)*k,(r.y+r.h/2+oy)*k, r.w/2*k, 0, 7); c.fill(); }
+}
+/* パーツの外形パス（白フチ込み）。ofsMM ぶん外側に広げて窓にも使う */
+function partPath(c,k,ox,oy,grow){
+  c.beginPath();
+  if(PART.paths.length){
+    PART.paths.forEach(p=>{
+      let cx=0,cy=0; p.forEach(([x,y])=>{cx+=x;cy+=y;}); cx/=p.length; cy/=p.length;
+      p.forEach(([x,y],i)=>{
+        let X=x,Y=y;
+        if(grow){ const dx=x-cx, dy=y-cy, L=Math.hypot(dx,dy)||1; X+=dx/L*grow; Y+=dy/L*grow; }
+        const sx=(X+ox)*k, sy=(Y+oy)*k;
+        i? c.lineTo(sx,sy) : c.moveTo(sx,sy);
+      });
+      c.closePath();
+    });
+  } else {
+    const r = partRectMM();
+    const rr = r.w/2 + S.off + (grow||0);
+    c.moveTo((r.x+r.w/2+rr+ox)*k,(r.y+r.h/2+oy)*k);
+    c.arc((r.x+r.w/2+ox)*k,(r.y+r.h/2+oy)*k, rr*k, 0, 7);
+  }
+}
+function drawHoles(c,k,ox,oy,style){
+  const list = holePts(); const rg = ringPt(); if(rg) list.push(rg);
+  list.forEach(h=>{
+    c.beginPath(); c.arc((h.x+ox)*k,(h.y+oy)*k,h.r*k,0,7);
+    if(style==='cut'){ c.strokeStyle='#ff3b6b'; c.lineWidth=Math.max(1,0.18*k); c.stroke(); }
+    else { c.fillStyle='rgba(18,19,26,.55)'; c.fill();
+      c.strokeStyle='rgba(255,255,255,.45)'; c.lineWidth=1; c.stroke(); }
+  });
+}
+
+/* --- 画面プレビュー --- */
+function render(){
+  const k = PX;
+  const ox = S.bleed?BLEED:0, oy = ox;
+  const W = (S.w + (S.bleed?BLEED*2:0))*k, H = (S.h + (S.bleed?BLEED*2:0))*k;
+  view.width=W; view.height=H;
+  view.style.width = Math.min(W, 520)+'px';
+  ctx.clearRect(0,0,W,H);
+
+  const V = S.view;
+  // 台紙（3枚目）
+  if(V==='top'||V==='l3'){
+    ctx.save(); roundRect(ctx,ox*k,oy*k,S.w*k,S.h*k,S.rad*k); ctx.clip();
+    drawBack(ctx,k,false); ctx.restore();
+    if(S.bleed && V==='l3'){ ctx.save(); ctx.globalAlpha=.35; drawBack(ctx,k,true); ctx.restore(); }
+  }
+  // 中身パーツ
+  if(V==='top'||V==='part'){
+    ctx.save();
+    if(V==='top'){ partPath(ctx,k,ox,oy,0); ctx.fillStyle='#fff'; ctx.fill(); ctx.clip(); }
+    else { partPath(ctx,k,ox,oy,0); ctx.fillStyle='#fff'; ctx.fill(); ctx.clip(); }
+    drawPartArt(ctx,k,ox,oy);
+    ctx.restore();
+    ctx.save(); partPath(ctx,k,ox,oy,0);
+    ctx.strokeStyle='#ff3b6b'; ctx.lineWidth=1.2; ctx.stroke(); ctx.restore();
+  }
+  // 2枚目（窓）
+  if(V==='l2'){
+    ctx.save();
+    roundRect(ctx,ox*k,oy*k,S.w*k,S.h*k,S.rad*k);
+    ctx.fillStyle='rgba(235,238,245,.85)'; ctx.fill();
+    ctx.globalCompositeOperation='destination-out';
+    partPath(ctx,k,ox,oy,S.clr); ctx.fill();
+    ctx.restore();
+    ctx.save(); partPath(ctx,k,ox,oy,S.clr);
+    ctx.strokeStyle='#ff3b6b'; ctx.lineWidth=1.2; ctx.stroke(); ctx.restore();
+  }
+  // 1枚目（透明ふた）
+  if(V==='l1'){
+    ctx.save(); roundRect(ctx,ox*k,oy*k,S.w*k,S.h*k,S.rad*k);
+    ctx.fillStyle='rgba(150,205,235,.30)'; ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+  }
+  if(V==='top'){
+    // ふたのつや
+    ctx.save(); roundRect(ctx,ox*k,oy*k,S.w*k,S.h*k,S.rad*k); ctx.clip();
+    const gr = ctx.createLinearGradient(ox*k,oy*k,(ox+S.w)*k,(oy+S.h)*k);
+    gr.addColorStop(0,'rgba(255,255,255,.22)'); gr.addColorStop(.45,'rgba(255,255,255,.04)');
+    gr.addColorStop(.5,'rgba(255,255,255,.18)'); gr.addColorStop(1,'rgba(255,255,255,.03)');
+    ctx.fillStyle=gr; ctx.fillRect(ox*k,oy*k,S.w*k,S.h*k); ctx.restore();
+  }
+  // 外形
+  ctx.save(); roundRect(ctx,ox*k,oy*k,S.w*k,S.h*k,S.rad*k);
+  ctx.strokeStyle= S.guide?'#ff3b6b':'rgba(255,255,255,.35)'; ctx.lineWidth=1.4; ctx.stroke(); ctx.restore();
+  // ガイド
+  if(S.guide){
+    ctx.save(); ctx.setLineDash([5,4]); ctx.lineWidth=1;
+    if(S.bleed){ ctx.strokeStyle='rgba(79,209,197,.85)';
+      roundRect(ctx,0,0,(S.w+BLEED*2)*k,(S.h+BLEED*2)*k,(S.rad+BLEED)*k); ctx.stroke(); }
+    ctx.strokeStyle='rgba(255,212,71,.8)';
+    roundRect(ctx,(ox+4)*k,(oy+4)*k,(S.w-8)*k,(S.h-8)*k,Math.max(0,S.rad-4)*k); ctx.stroke();
+    ctx.restore();
+  }
+  // 穴
+  if(S.showHole) drawHoles(ctx,k,ox,oy, V==='top'?'fill':'cut');
+
+  $('hint').textContent = `${S.w} × ${S.h} mm ／ 1mm = ${k}px 表示`;
+  $('sizeNote').textContent = `${S.w} × ${S.h} mm`;
+  doCheck();
+  if(S.iso) renderIso();
+}
+
+/* --- 立体プレビュー --- */
+function layerCanvas(kind, k){
+  const c = document.createElement('canvas');
+  c.width = S.w*k; c.height = S.h*k;
+  const g = c.getContext('2d');
+  if(kind==='l3'){
+    g.save(); roundRect(g,0,0,S.w*k,S.h*k,S.rad*k); g.clip(); drawBack(g,k,false); g.restore();
+  } else if(kind==='l2'){
+    g.save(); roundRect(g,0,0,S.w*k,S.h*k,S.rad*k); g.fillStyle='rgba(226,232,240,.88)'; g.fill();
+    g.globalCompositeOperation='destination-out'; partPath(g,k,0,0,S.clr); g.fill(); g.restore();
+  } else if(kind==='l1'){
+    g.save(); roundRect(g,0,0,S.w*k,S.h*k,S.rad*k);
+    g.fillStyle='rgba(168,214,240,.35)'; g.fill(); g.restore();
+  } else if(kind==='part'){
+    g.save(); partPath(g,k,0,0,0); g.fillStyle='#fff'; g.fill(); g.save(); g.clip();
+    drawPartArt(g,k,0,0); g.restore(); g.restore();
+  }
+  if(kind!=='part' && S.showHole){
+    const list = holePts(); const rg=ringPt(); if(rg) list.push(rg);
+    g.save(); g.globalCompositeOperation='destination-out';
+    list.forEach(h=>{ g.beginPath(); g.arc(h.x*k,h.y*k,h.r*k,0,7); g.fill(); });
+    g.restore();
+  }
+  return c;
+}
+function renderIso(){
+  const k = 3.2;
+  const box = $('stackbox');
+  box.style.width = (S.w*k)+'px'; box.style.height = (S.h*k)+'px';
+  [['isoL3','l3',0],['isoL2','l2',16],['isoPart','part',13],['isoL1','l1',40]].forEach(([id,kind,z])=>{
+    const img = $(id);
+    img.src = layerCanvas(kind,k).toDataURL();
+    img.parentElement.style.transform = `translateZ(${z}px)`;
+    img.parentElement.style.width = (S.w*k)+'px';
+  });
+}
+
+function renderAll(){ render(); }
+
+/* ====== チェック ====== */
+function doCheck(){
+  const out = [];
+  const add=(cls,t,b)=>out.push(`<div class="${cls}"><b>${t}</b>${b}</div>`);
+  const bb = PART.bbox || (()=>{ const r=partRectMM(); return {x:r.x-S.off,y:r.y-S.off,w:r.w+S.off*2,h:r.h+S.off*2}; })();
+
+  // フチからの余白
+  const marg = Math.min(bb.x, bb.y, S.w-(bb.x+bb.w), S.h-(bb.y+bb.h));
+  if(marg < 0) add('ng','パーツが 台紙から はみ出している',`${Math.abs(marg).toFixed(1)}mm 出ています。小さくするか、台紙を大きくしてください。`);
+  else if(marg < 5) add('warn','パーツと フチが 近い',`いちばん近い所で ${marg.toFixed(1)}mm。5mm 以上あると 2枚目の枠が しっかり残ります。`);
+  else add('ok','パーツの まわりの余白',`${marg.toFixed(1)}mm。ちょうどいいです。`);
+
+  // 穴との距離
+  const hs = holePts(); const rg = ringPt(); if(rg) hs.push(rg);
+  let hmin = 999;
+  hs.forEach(h=>{
+    const dx = Math.max(bb.x-h.x, 0, h.x-(bb.x+bb.w));
+    const dy = Math.max(bb.y-h.y, 0, h.y-(bb.y+bb.h));
+    hmin = Math.min(hmin, Math.hypot(dx,dy)-h.r);
+  });
+  if(hs.length===0) add('warn','ビス穴が ない','1枚目・2枚目・3枚目を とめる ビスが ないと ばらけます。');
+  else if(hmin < 0) add('ng','ビス穴が パーツに かかっている','穴を フチ寄りにするか、パーツを 小さくしてください。');
+  else if(hmin < 2) add('warn','ビス穴と パーツが 近い',`あき ${hmin.toFixed(1)}mm。2mm 以上 ほしいところです。`);
+  else add('ok','ビス穴と パーツの あき',`${hmin.toFixed(1)}mm。ぶつかりません。`);
+
+  // 穴とフチ
+  const edge = S.hm - S.hd/2;
+  if(edge < 2) add('ng','ビス穴が フチに 近すぎる',`あと ${(2-edge).toFixed(1)}mm 内側へ。アクリルが 割れます。`);
+  else if(edge < 3) add('warn','ビス穴と フチが やや近い',`あき ${edge.toFixed(1)}mm。3mm あると安心です。`);
+
+  // 細い所
+  if(S.part){
+    if(PART.minw && PART.minw < 2)
+      add('ng','細い所が ある',`いちばん細い所が およそ ${PART.minw.toFixed(1)}mm。3mm 厚では 欠けます。白フチを 太くするか、形を まとめてください。`);
+    else if(PART.minw && PART.minw < 3)
+      add('warn','やや 細い所が ある',`およそ ${PART.minw.toFixed(1)}mm。白フチを 0.5mm 足すと 安心です。`);
+    else add('ok','パーツの 太さ',`細い所で およそ ${(PART.minw||0).toFixed(1)}mm。折れにくいです。`);
+  }
+
+  // 白フチ
+  if(S.part && S.off < 0.8) add('warn','白フチが 細い','1.2〜2mm に すると、印刷の ずれが 目立ちません。');
+
+  // 窓のゆとり
+  if(S.clr < 0.15) add('ng','窓の ゆとりが 足りない','0.2〜0.5mm ないと パーツが 入りません。');
+  else if(S.clr > 1) add('warn','窓の ゆとりが 大きい',`${S.clr.toFixed(1)}mm。中で ガタつきます。0.5mm くらいまで。`);
+
+  // 解像度
+  if(S.back){
+    const need = (S.w+BLEED*2)/25.4*S.dpi;
+    const have = S.back.width * (S.bs/100) ? S.back.width : 0;
+    const eff = S.back.width / (S.w*S.bs/100/25.4);
+    if(eff < S.dpi*0.8) add('ng','台紙の絵が あらい',`いまの大きさだと およそ ${Math.round(eff)}dpi。${S.dpi}dpi には ${Math.ceil(need)}px 幅 ほしいです。`);
+    else if(eff < S.dpi) add('warn','台紙の絵の 解像度が すこし 足りない',`およそ ${Math.round(eff)}dpi。`);
+    else add('ok','台紙の絵の 解像度',`およそ ${Math.round(eff)}dpi。足ります。`);
+  } else {
+    add('warn','台紙の絵が まだ ない','べた塗り＋もようでも 作れますが、絵を 置くと らしくなります。');
+  }
+  if(S.part){
+    const eff = S.part.width / (partRectMM().w/25.4);
+    if(eff < S.dpi*0.8) add('ng','中身パーツの絵が あらい',`およそ ${Math.round(eff)}dpi。もっと 大きい絵を 使ってください。`);
+  } else {
+    add('warn','中身パーツが まだ ない','背景が 透明な PNG を 置くと、輪郭から カット線を 作ります。');
+  }
+
+  // 文字
+  const texts = [[S.t1,S.t1s,S.t1y],[S.t2,S.t2s,S.t2y]].filter(t=>t[0]);
+  texts.forEach(([t,sz,y])=>{
+    if(sz < 3) add('warn','文字が 小さい',`「${t}」は ${sz}mm（約 ${(sz*2.83).toFixed(0)}pt）。3mm 以上が 読めます。`);
+    const py = S.h*y/100;
+    if(py < 5 || py > S.h-4) add('ng','文字が フチに 近い',`「${t}」が 切れます。フチから 4mm 内側へ。`);
+  });
+
+  // 合計と価格の目安になる情報
+  const areaCm = (S.w*S.h)/100;
+  add('ok','できあがり',`${S.w}×${S.h}mm・厚さ 7mm（1+3+3）・台紙 ${areaCm.toFixed(1)}平方cm`);
+
+  $('check').innerHTML = out.join('');
+  $('partInfo').textContent = S.part
+    ? `カット線の 点の数：${PART.paths.reduce((a,p)=>a+p.length,0)} ／ 輪郭 ${PART.paths.length} 本`
+    : 'まだ 置かれていません。絵が ないうちは、まるい 仮のパーツで 表示します。';
+}
+
+/* ====== 書き出し ====== */
+function dl(name, url){
+  const a = document.createElement('a'); a.href=url; a.download=name; a.click();
+}
+function expScale(){ return S.dpi/25.4; }   // px per mm
+
+function makeBackPNG(){
+  const k = expScale();
+  const c = document.createElement('canvas');
+  c.width = Math.round((S.w+BLEED*2)*k); c.height = Math.round((S.h+BLEED*2)*k);
+  const g = c.getContext('2d');
+  drawBack(g,k,true);
+  return c;
+}
+function makePartPNG(){
+  const k = expScale();
+  const bb = PART.bbox || (()=>{ const r=partRectMM(); return {x:r.x-S.off,y:r.y-S.off,w:r.w+S.off*2,h:r.h+S.off*2}; })();
+  const pad = 2;
+  const c = document.createElement('canvas');
+  c.width = Math.round((bb.w+pad*2)*k); c.height = Math.round((bb.h+pad*2)*k);
+  const g = c.getContext('2d');
+  const ox = -bb.x+pad, oy = -bb.y+pad;
+  g.save(); partPath(g,k,ox,oy,0); g.fillStyle='#ffffff'; g.fill(); g.clip();
+  drawPartArt(g,k,ox,oy); g.restore();
+  return c;
+}
+function svgPath(paths, grow){
+  return paths.map(p=>{
+    let cx=0,cy=0; p.forEach(([x,y])=>{cx+=x;cy+=y;}); cx/=p.length; cy/=p.length;
+    return p.map(([x,y],i)=>{
+      let X=x,Y=y;
+      if(grow){ const dx=x-cx,dy=y-cy,L=Math.hypot(dx,dy)||1; X+=dx/L*grow; Y+=dy/L*grow; }
+      return (i?'L':'M')+X.toFixed(2)+' '+Y.toFixed(2);
+    }).join(' ')+' Z';
+  }).join(' ');
+}
+function makeSVG(){
+  const W=S.w, H=S.h, r=S.rad;
+  const outer = `M ${r} 0 H ${W-r} A ${r} ${r} 0 0 1 ${W} ${r} V ${H-r} A ${r} ${r} 0 0 1 ${W-r} ${H} H ${r} A ${r} ${r} 0 0 1 0 ${H-r} V ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`;
+  const hs = holePts(); const rg=ringPt(); if(rg) hs.push(rg);
+  const holes = hs.map(h=>`<circle cx="${h.x}" cy="${h.y}" r="${h.r}"/>`).join('');
+  let partD='', windowD='';
+  if(PART.paths.length){ partD = svgPath(PART.paths,0); windowD = svgPath(PART.paths,S.clr); }
+  else {
+    const rr = partRectMM(); const R = rr.w/2+S.off;
+    partD = `M ${(rr.x+rr.w/2-R).toFixed(2)} ${(rr.y+rr.h/2).toFixed(2)} a ${R} ${R} 0 1 0 ${(R*2).toFixed(2)} 0 a ${R} ${R} 0 1 0 ${(-R*2).toFixed(2)} 0 Z`;
+    windowD = partD;
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
+<g id="外形" fill="none" stroke="#ff0000" stroke-width="0.1"><path d="${outer}"/></g>
+<g id="ビス穴" fill="none" stroke="#0000ff" stroke-width="0.1">${holes}</g>
+<g id="2枚目の窓" fill="none" stroke="#00a0ff" stroke-width="0.1"><path d="${windowD}"/></g>
+<g id="中身パーツ外形" fill="none" stroke="#ff00ff" stroke-width="0.1"><path d="${partD}"/></g>
+</svg>`;
+}
+function makeSpec(){
+  const bb = PART.bbox;
+  return [
+ `ブリスターパック風キーホルダー 仕様メモ`,
+ `作成日: ${new Date().toLocaleDateString('ja-JP')}`,
+ ``,
+ `外形       : ${S.w} × ${S.h} mm  角丸 ${S.rad} mm`,
+ `1枚目      : 1mm 透明アクリル／印刷 あり（必要なら）`,
+ `2枚目      : 3mm 透明アクリル／中身パーツの形に くり抜き（ゆとり ${S.clr.toFixed(1)}mm）`,
+ `3枚目      : 3mm／フチなし印刷・両面可／塗り足し ${BLEED}mm`,
+ `中身パーツ : 3mm／印刷 あり／白フチ ${S.off.toFixed(1)}mm`,
+ bb? `　　外寸   : ${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} mm` : `　　外寸   : （仮のまる）`,
+ PART.minw? `　　細い所 : およそ ${PART.minw.toFixed(1)} mm` : ``,
+ ``,
+ `ビス穴     : ${holePts().length} か所／直径 ${S.hd.toFixed(1)}mm／フチから ${S.hm.toFixed(1)}mm`,
+ `ストラップ : ${S.ring?'あり（上・直径4mm）':'なし'}`,
+ `厚み合計   : 7 mm`,
+ `解像度     : ${S.dpi} dpi`,
+ ``,
+ `書き出したもの`,
+ `  blister_daishi.png  … 3枚目の印刷（塗り足し込み）`,
+ `  blister_parts.png   … 中身パーツの印刷（白フチ込み）`,
+ `  blister_cut.svg     … 外形・ビス穴・窓・パーツ外形（1単位 = 1mm）`,
+  ].filter(Boolean).join('\n');
+}
+$('expBack').addEventListener('click',()=>dl('blister_daishi.png', makeBackPNG().toDataURL('image/png')));
+$('expPart').addEventListener('click',()=>dl('blister_parts.png', makePartPNG().toDataURL('image/png')));
+$('expSvg').addEventListener('click',()=>dl('blister_cut.svg',
+  URL.createObjectURL(new Blob([makeSVG()],{type:'image/svg+xml'}))));
+$('expSpec').addEventListener('click',()=>dl('blister_spec.txt',
+  URL.createObjectURL(new Blob([makeSpec()],{type:'text/plain;charset=utf-8'}))));
+$('expAll').addEventListener('click',()=>{
+  dl('blister_daishi.png', makeBackPNG().toDataURL('image/png'));
+  setTimeout(()=>dl('blister_parts.png', makePartPNG().toDataURL('image/png')),250);
+  setTimeout(()=>dl('blister_cut.svg', URL.createObjectURL(new Blob([makeSVG()],{type:'image/svg+xml'}))),500);
+  setTimeout(()=>dl('blister_spec.txt', URL.createObjectURL(new Blob([makeSpec()],{type:'text/plain;charset=utf-8'}))),750);
+});
+
+/* ====== はじめの表示 ====== */
+document.fonts && document.fonts.ready.then(()=>render());
+rebuildPart();
+</script>
+</body>
+</html>
