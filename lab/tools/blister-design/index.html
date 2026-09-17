@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ブリスター設計室 — パッケージ風アクキーの版下づくり</title>
+<meta name="description" content="パッケージ風アクリルキーホルダー（1mm＋3mm＋3mmの3層）の版下を組む台。台紙の印刷、中身パーツ、ビス穴、アタッチメント穴を決めて、レイヤー別のPNGとカットパスSVGを書き出す。">
+<style>
+:root{
+  --bg:#12131a; --panel:#1b1d27; --panel2:#22242f; --line:#2e3140;
+  --ink:#e8e6df; --dim:#8b8fa3;
+  --acc:#ffd447; --acc2:#4fd1c5; --warn:#ffab5e; --ng:#ff5d6c; --ok:#7ddc8c;
+  --cut:#ff2d6f; --cut2:#00c2a8; --cut3:#4f9dff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+header{padding:11px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-size:16px;margin:0;letter-spacing:.14em;font-family:ui-monospace,Menlo,monospace}
+h1 b{color:var(--acc)}
+header span{font-size:12px;color:var(--dim)}
+header .sp{flex:1}
+.wrap{display:flex;align-items:stretch;min-height:calc(100vh - 48px);flex-wrap:wrap}
+.side{width:320px;flex:0 0 320px;border-right:1px solid var(--line);padding:14px;background:var(--panel)}
+.side.r{border-right:none;border-left:1px solid var(--line);width:350px;flex:0 0 350px}
+.main{flex:1 1 400px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:320px}
+@media(max-width:1200px){.side,.side.r{width:100%;flex:0 0 auto;border:none;border-bottom:1px solid var(--line)}}
+
+h2.sec{font-size:11px;letter-spacing:.14em;color:var(--acc);margin:18px 0 8px;
+  font-family:ui-monospace,monospace;border-bottom:1px solid var(--line);padding-bottom:5px}
+h2.sec:first-child{margin-top:0}
+h2.sec small{float:right;color:var(--dim);letter-spacing:0;font-size:10px}
+label.f{display:block;margin:10px 0 4px;font-size:11px;letter-spacing:.06em;color:var(--dim);
+  font-family:ui-monospace,monospace}
+label.f em{float:right;font-style:normal;color:var(--acc)}
+input[type=range]{width:100%;accent-color:var(--acc);margin:0}
+input[type=text],input[type=number],select,button,textarea{width:100%;background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line);border-radius:4px;padding:8px;font-size:13px;font-family:inherit}
+input[type=color]{width:100%;height:30px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px}
+button{cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.go{background:var(--acc);color:#12131a;font-weight:700;border:none;padding:11px;letter-spacing:.06em}
+button.go:hover{background:#ffe073}
+button.sm{padding:6px;font-size:12px}
+.row{display:flex;gap:8px;margin-top:8px}
+.row>*{flex:1}
+.drop{border:2px dashed var(--line);border-radius:6px;padding:14px 10px;text-align:center;
+  color:var(--dim);font-size:12px;cursor:pointer;transition:.15s;margin-top:6px}
+.drop:hover,.drop.on{border-color:var(--acc);color:var(--ink)}
+.drop b{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}
+.chk{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:8px;cursor:pointer}
+.chk input{accent-color:var(--acc);width:15px;height:15px}
+.seg{display:flex;margin-top:6px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:var(--panel2);font-size:12px;padding:8px 3px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--acc);color:#12131a;font-weight:700}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tabs button{width:auto;flex:0 0 auto;padding:6px 11px;font-size:12px}
+.tabs button.on{background:var(--acc);color:#12131a;font-weight:700;border-color:var(--acc)}
+.tabs button.add{color:var(--acc)}
+
+.stage{flex:1;display:flex;align-items:center;justify-content:center;
+  background:repeating-conic-gradient(#191b23 0% 25%, #1e2029 0% 50%) 0 0/20px 20px;
+  border:1px solid var(--line);border-radius:6px;padding:16px;min-height:430px;position:relative;overflow:auto}
+canvas#view{max-width:100%;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.hint{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--dim);
+  font-family:ui-monospace,monospace;pointer-events:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--dim);font-family:ui-monospace,monospace}
+.legend i{display:inline-block;width:16px;height:0;border-top:2px solid;margin-right:5px;vertical-align:middle}
+
+.iso{display:flex;justify-content:center;align-items:center;padding:24px 10px 30px;
+  border:1px solid var(--line);border-radius:6px;background:#15161e;overflow:hidden;min-height:250px}
+.iso .stackbox{position:relative;transform:rotateX(52deg) rotateZ(-38deg);transform-style:preserve-3d}
+.iso .lay{position:absolute;left:0;top:0}
+.iso .lay img{display:block;width:100%}
+
+.check{font-size:12.5px;line-height:1.6}
+.check div{padding:7px 8px;border-left:3px solid var(--line);background:#1e2029;margin-bottom:6px;border-radius:0 4px 4px 0}
+.check div.ok{border-color:var(--ok)}
+.check div.warn{border-color:var(--warn)}
+.check div.ng{border-color:var(--ng)}
+.check b{display:block;font-size:11px;letter-spacing:.06em;color:var(--dim);font-family:ui-monospace,monospace}
+.tips{font-size:12.5px;line-height:1.75;color:var(--dim)}
+.tips b{color:var(--ink)}
+.tips ul{padding-left:18px;margin:6px 0}
+details summary{cursor:pointer;font-size:12px;color:var(--acc);margin-top:10px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.6;margin-top:6px}
+.note b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BLISTER <b>DESIGN</b></h1>
+  <span>パッケージ風アクキー・3層アクリルの版下づくり</span>
+  <span class="sp"></span>
+  <span id="sizeNote">50 × 75 mm</span>
+</header>
+
+<div class="wrap">
+
+<!-- ======== 左：形と 3枚目の印刷 ======== -->
+<aside class="side">
+  <h2 class="sec">かたち<small>3枚目＝いちばん外側</small></h2>
+  <div class="seg" id="segSize">
+    <button data-w="50" data-h="75" class="on">50×75</button>
+    <button data-w="75" data-h="100">75×100</button>
+    <button data-w="0" data-h="0">自由</button>
+  </div>
+  <div class="row" id="freeSize" style="display:none">
+    <div><label class="f">よこ mm</label><input type="number" id="fw" value="60" min="20" max="200"></div>
+    <div><label class="f">たて mm</label><input type="number" id="fh" value="90" min="20" max="200"></div>
+  </div>
+  <div class="seg" id="segShape">
+    <button data-s="arch" class="on">上が丸い</button>
+    <button data-s="rect">角丸四角</button>
+  </div>
+  <label class="f">角丸 <em id="vRad">5.0 mm</em></label>
+  <input type="range" id="rad" min="0" max="20" step="0.5" value="5">
+
+  <h2 class="sec">1枚目・2枚目の板<small>3枚目より 一回り小さい</small></h2>
+  <label class="f">左右・下のへこみ <em id="vIns">5.0 mm</em></label>
+  <input type="range" id="ins" min="2" max="20" step="0.5" value="5">
+  <label class="f">上のへこみ <em id="vInsT">22.0 mm</em></label>
+  <input type="range" id="insT" min="2" max="60" step="0.5" value="22">
+  <label class="f">角丸 <em id="vIrad">4.0 mm</em></label>
+  <input type="range" id="irad" min="0" max="16" step="0.5" value="4">
+
+  <h2 class="sec">3枚目・表の印刷<small>フチなし・両面 可</small></h2>
+  <label class="f">下地の色</label>
+  <input type="color" id="bgcol" value="#f8c9d4">
+  <div class="row">
+    <div><label class="f">もよう</label>
+      <select id="bgPat">
+        <option value="none">なし</option><option value="dot">水玉</option>
+        <option value="stripe">ななめ縞</option><option value="grid">方眼</option>
+        <option value="sun" selected>集中線</option>
+      </select></div>
+    <div><label class="f">もようの色</label><input type="color" id="patCol" value="#ffe3ea"></div>
+  </div>
+  <div class="drop" id="dropBack"><b>表の絵を置く</b>クリック / ドラッグ＆ドロップ</div>
+  <div id="backCtl" style="display:none">
+    <label class="f">大きさ <em id="vBs">100%</em></label><input type="range" id="bs" min="10" max="300" value="100">
+    <label class="f">よこ位置 <em id="vBx">0</em></label><input type="range" id="bx" min="-60" max="60" value="0">
+    <label class="f">たて位置 <em id="vBy">0</em></label><input type="range" id="by" min="-60" max="60" value="0">
+    <div class="row"><button class="sm" id="backFit">枠いっぱい</button><button class="sm" id="backDel">消す</button></div>
+  </div>
+
+  <h2 class="sec">3枚目・表の文字</h2>
+  <input type="text" id="t1" placeholder="大きい文字（商品名など）">
+  <div class="row" style="margin-top:6px">
+    <div style="flex:2"><label class="f">大きさ <em id="vT1s">7.0 mm</em></label>
+      <input type="range" id="t1s" min="2" max="20" step="0.5" value="7"></div>
+    <div style="flex:1"><label class="f">色</label><input type="color" id="t1c" value="#e0447a"></div>
+  </div>
+  <label class="f">たて位置 <em id="vT1y">12 %</em></label>
+  <input type="range" id="t1y" min="0" max="100" value="12">
+  <input type="text" id="t2" placeholder="小さい文字" style="margin-top:10px">
+  <div class="row" style="margin-top:6px">
+    <div style="flex:2"><label class="f">大きさ <em id="vT2s">3.5 mm</em></label>
+      <input type="range" id="t2s" min="2" max="12" step="0.5" value="3.5"></div>
+    <div style="flex:1"><label class="f">色</label><input type="color" id="t2c" value="#8a6b74"></div>
+  </div>
+  <label class="f">たて位置 <em id="vT2y">93 %</em></label>
+  <input type="range" id="t2y" min="0" max="100" value="93">
+
+  <h2 class="sec">3枚目・裏の印刷<small>両面のときだけ</small></h2>
+  <label class="chk"><input type="checkbox" id="twoSide">両面印刷にする</label>
+  <div id="uraCtl" style="display:none">
+    <label class="f">裏の下地</label><input type="color" id="uracol" value="#ffffff">
+    <div class="drop" id="dropUra"><b>裏の絵を置く</b>左右は自動で反転しません</div>
+    <input type="text" id="t3" placeholder="裏の文字（注意書きなど）" style="margin-top:8px">
+  </div>
+
+  <h2 class="sec">1枚目の印刷<small>表のみ・裏は不可</small></h2>
+  <label class="chk"><input type="checkbox" id="useL1">1枚目にも印刷する</label>
+  <div id="l1Ctl" style="display:none">
+    <div class="drop" id="dropL1"><b>1枚目の絵を置く</b>ツヤ・キラ文字・フレームなど</div>
+    <label class="f">こさ <em id="vL1a">100%</em></label><input type="range" id="l1a" min="10" max="100" value="100">
+  </div>
+</aside>
+
+<!-- ======== 中央：プレビュー ======== -->
+<main class="main">
+  <div class="stage">
+    <canvas id="view"></canvas>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="seg" id="segView">
+    <button data-v="top" class="on">重ねて見る</button>
+    <button data-v="l1">1枚目</button>
+    <button data-v="l2">2枚目</button>
+    <button data-v="l3">3枚目 表</button>
+    <button data-v="l3b">3枚目 裏</button>
+    <button data-v="part">中身</button>
+    <button data-v="cut">カットパス</button>
+  </div>
+  <div class="row">
+    <label class="chk"><input type="checkbox" id="showGuide" checked>ガイド</label>
+    <label class="chk"><input type="checkbox" id="showHole" checked>穴</label>
+    <label class="chk"><input type="checkbox" id="showBleed" checked>塗り足し</label>
+    <label class="chk"><input type="checkbox" id="showIso" checked>立体で見る</label>
+  </div>
+  <div class="legend">
+    <span><i style="border-color:#ff2d6f"></i>3枚目のカットパス</span>
+    <span><i style="border-color:#4f9dff"></i>ビス穴</span>
+    <span><i style="border-color:#00c2a8"></i>1枚目・2枚目の輪郭／中身（共通）</span>
+    <span><i style="border-color:#ffd447;border-top-style:dashed"></i>2mm 内側</span>
+  </div>
+
+  <div class="iso" id="isoWrap">
+    <div class="stackbox" id="stackbox">
+      <div class="lay"><img id="isoL1"></div>
+      <div class="lay"><img id="isoPart"></div>
+      <div class="lay"><img id="isoL2"></div>
+      <div class="lay"><img id="isoL3"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ======== 右：中身パーツ・穴・チェック・書き出し ======== -->
+<aside class="side r">
+  <h2 class="sec">中身パーツ<small>3mm厚・印刷可・5個まで</small></h2>
+  <div class="tabs" id="partTabs"></div>
+  <div class="drop" id="dropPart"><b>いま選んでいる枠に 絵を置く</b>背景が透明のPNGだと 輪郭をひろえます</div>
+  <div id="partCtl">
+    <label class="f">大きさ <em id="vPs">100%</em></label><input type="range" id="ps" min="10" max="300" value="100">
+    <label class="f">よこ位置 <em id="vPx">0</em></label><input type="range" id="px" min="-60" max="60" value="0">
+    <label class="f">たて位置 <em id="vPy">0</em></label><input type="range" id="py" min="-60" max="60" value="0">
+    <label class="f">白フチの太さ <em id="vOff">1.5 mm</em></label><input type="range" id="off" min="0" max="5" step="0.1" value="1.5">
+    <div class="row"><button class="sm" id="partFit">ちょうどよく</button><button class="sm" id="partDel">この枠を消す</button></div>
+  </div>
+  <label class="chk"><input type="checkbox" id="smooth" checked>カットパスを なめらかにする</label>
+  <label class="f">2枚目の窓の ゆとり <em id="vClr">0.0 mm</em></label>
+  <input type="range" id="clr" min="0" max="1" step="0.05" value="0">
+  <div class="note">窓と中身は <b>同じカットパス</b>を使うのがきまりです。ふつうは 0 のままで出してください。</div>
+  <div class="note" id="partInfo"></div>
+
+  <h2 class="sec">アタッチメント穴<small>3枚目の上</small></h2>
+  <div class="seg" id="segAtt">
+    <button data-a="pkg" class="on">パッケージ風</button>
+    <button data-a="round">通常（丸）</button>
+    <button data-a="none">なし</button>
+  </div>
+  <label class="f">大きさ <em id="vAs">100%</em></label><input type="range" id="as" min="60" max="180" value="100">
+  <label class="f">カットパスからの あき <em id="vAg">2.25 mm</em></label>
+  <input type="range" id="ag" min="1.5" max="6" step="0.25" value="2.25">
+
+  <h2 class="sec">ビス穴<small>2〜4個・対で配置</small></h2>
+  <div class="seg" id="segHole">
+    <button data-n="4" class="on">4つ</button>
+    <button data-n="2">上2つ</button>
+    <button data-n="2b">下2つ</button>
+  </div>
+  <label class="f">穴の直径 <em id="vHd">2.5 mm</em></label><input type="range" id="hd" min="1.5" max="6" step="0.1" value="2.5">
+  <label class="f">板のフチからの 距離 <em id="vHm">4.0 mm</em></label><input type="range" id="hm" min="2" max="20" step="0.5" value="4">
+
+  <h2 class="sec">見てもらった結果</h2>
+  <div class="check" id="check"></div>
+
+  <h2 class="sec">書き出し</h2>
+  <label class="f">解像度 <em id="vDpi">350 dpi</em></label>
+  <input type="range" id="dpi" min="150" max="600" step="50" value="350">
+  <label class="chk"><input type="checkbox" id="wantWhite" checked>白押さえも いっしょに出す</label>
+  <button class="go" id="expAll" style="margin-top:8px">まとめて 書き出す</button>
+  <div class="row">
+    <button class="sm" id="expBack">3枚目 表</button>
+    <button class="sm" id="expUra">3枚目 裏</button>
+  </div>
+  <div class="row">
+    <button class="sm" id="expL1">1枚目</button>
+    <button class="sm" id="expPart">中身（別々）</button>
+  </div>
+  <div class="row">
+    <button class="sm" id="expSvg">カットパスSVG</button>
+    <button class="sm" id="expSpec">仕様メモ</button>
+  </div>
+  <div class="note">3枚目は 塗り足し 3mm 込み。SVG は 1単位 = 1mm（原寸）で、
+    「3枚目カットパス」「ビス穴」「1枚目・2枚目 輪郭＋中身」に 分けてあります。</div>
+
+  <details>
+    <summary>きまりごとを 読む</summary>
+    <div class="tips">
+      <ul>
+        <li><b>構造</b>／1枚目 1mm（表だけ印刷可）＋2枚目 3mm（印刷なし・窓）＋3枚目 3mm（フチなし・両面可）。中身パーツは 3mm で 2枚目の窓に入ります。</li>
+        <li><b>カットパス</b>／3枚目の外形と、1枚目・2枚目の輪郭は 別。1枚目・2枚目の輪郭と中身の形は <b>共通のパス</b>を使うので、二重に作りません。ビス穴も 3枚 共通です。</li>
+        <li><b>アクリルのフチ</b>／3mm 以上が推奨。<b>2mm 未満は カットできません</b>。中身パーツの細い所も同じです。</li>
+        <li><b>中身パーツ</b>／最小 12×12mm、5個まで。入稿のときは 1枚にまとめず 別々の画像にします。</li>
+        <li><b>塗り足し</b>／フチなし印刷は カットパスの外に 3mm。絵柄の続きを置くこと（途切れていると 効きません）。</li>
+        <li><b>大事な絵柄・文字</b>／カットパスから 2mm 内側に入れます。</li>
+        <li><b>ビス穴</b>／対になるように、2個以上 4個まで。</li>
+        <li><b>アタッチメント穴</b>／穴とカットパスの間が 2.25mm くらいになるように。</li>
+        <li><b>レイヤー</b>／「1枚目デザイン／白押さえ」「中身デザイン／白押さえ」「3枚目 表デザイン／白押さえ／裏デザイン」に 分けて入稿します。中身と1枚目は 裏の印刷ができません。</li>
+      </ul>
+    </div>
+  </details>
+</aside>
+</div>
+
+<script>
+/* =========================================================
+   パッケージ風アクキー 版下ツール
+   ・3枚目 … 外形＝いちばん大きい。アタッチメント穴つき。両面／フチなし可
+   ・1枚目・2枚目 … 3枚目の内側に入る板。輪郭は共通パス
+   ・中身パーツ … 2枚目の窓と同じパス。最大5個
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const BLEED = 3, SAFE = 2, MINW = 2, RECW = 3;   // mm：塗り足し／安全域／最小カット幅／推奨フチ
+const PX = 6;                                     // 画面 1mm = 6px
+const MASKW = 520;
+const MAXPART = 5;
+
+const S = {
+  bxMap: v => v*0.25,
+  w:50, h:75, shape:'arch', rad:5, ins:5, insT:22, irad:4,
+  bgCol:'#f8c9d4', patCol:'#ffe3ea', pat:'sun',
+  back:null, bs:100, bx:0, by:0,
+  twoSide:false, uraCol:'#ffffff', ura:null, t3:'',
+  useL1:false, l1img:null, l1a:100,
+  clr:0, smooth:true,
+  att:'pkg', as:100, ag:2.25,
+  holes:'4', hd:2.5, hm:4,
+  t1:'', t1s:7, t1c:'#e0447a', t1y:12,
+  t2:'', t2s:3.5, t2c:'#8a6b74', t2y:93,
+  view:'top', guide:true, showHole:true, bleed:true, iso:true,
+  dpi:350, white:true
+};
+/* 中身パーツ：{img, ps,px,py,off, paths[], win[], minw, bbox} */
+let PARTS = [ newPart() ];
+let sel = 0;
+function newPart(){ return { img:null, ps:100, px:0, py:0, off:1.5, paths:[], win:[], minw:0, bbox:null }; }
+
+/* ---------- 入力 ---------- */
+function bindRange(id, get, set, fmt){
+  const el = $(id), lab = $('v'+id.charAt(0).toUpperCase()+id.slice(1));
+  const upd = ()=>{ set(parseFloat(el.value)); if(lab) lab.textContent = fmt(parseFloat(el.value)); };
+  el.addEventListener('input', ()=>{ upd(); render(); });
+  upd();
+}
+const mm = v => v.toFixed(1)+' mm', pc = v => v+'%';
+const G = k => (v)=>{ S[k]=v; }, P = k => (v)=>{ PARTS[sel][k]=v; };
+
+bindRange('rad', 0, G('rad'), mm);
+bindRange('ins', 0, G('ins'), mm);
+bindRange('insT',0, G('insT'), mm);
+bindRange('irad',0, G('irad'), mm);
+bindRange('bs',  0, G('bs'), pc);
+bindRange('bx',  0, G('bx'), v=>v);
+bindRange('by',  0, G('by'), v=>v);
+bindRange('l1a', 0, G('l1a'), pc);
+bindRange('as',  0, G('as'), pc);
+bindRange('ag',  0, G('ag'), v=>v.toFixed(2)+' mm');
+bindRange('hd',  0, G('hd'), mm);
+bindRange('hm',  0, G('hm'), mm);
+bindRange('t1s', 0, G('t1s'), mm);
+bindRange('t1y', 0, G('t1y'), v=>v+' %');
+bindRange('t2s', 0, G('t2s'), mm);
+bindRange('t2y', 0, G('t2y'), v=>v+' %');
+bindRange('dpi', 0, G('dpi'), v=>v+' dpi');
+bindRange('clr', 0, v=>{ S.clr=v; }, mm);
+// パーツ側（変えたら輪郭を作り直す）
+['ps','px','py'].forEach(id=>{
+  const el=$(id), lab=$('v'+id.charAt(0).toUpperCase()+id.slice(1));
+  el.addEventListener('input',()=>{ PARTS[sel][id]=+el.value;
+    lab.textContent = id==='ps'? el.value+'%' : el.value; rebuild(sel); });
+});
+$('off').addEventListener('input',()=>{ PARTS[sel].off=+$('off').value;
+  $('vOff').textContent = mm(+$('off').value); rebuild(sel); });
+$('clr').addEventListener('change',()=>rebuildAll());
+$('smooth').addEventListener('change',()=>{ S.smooth=$('smooth').checked; rebuildAll(); });
+
+[['bgcol','bgCol'],['patCol','patCol'],['t1c','t1c'],['t2c','t2c'],['uracol','uraCol']].forEach(([id,key])=>{
+  $(id).addEventListener('input',()=>{ S[key]=$(id).value; render(); });
+});
+[['t1','t1'],['t2','t2'],['t3','t3']].forEach(([id,key])=>{
+  $(id).addEventListener('input',()=>{ S[key]=$(id).value; render(); });
+});
+$('bgPat').addEventListener('change',()=>{ S.pat=$('bgPat').value; render(); });
+$('twoSide').addEventListener('change',()=>{ S.twoSide=$('twoSide').checked;
+  $('uraCtl').style.display = S.twoSide?'block':'none'; render(); });
+$('useL1').addEventListener('change',()=>{ S.useL1=$('useL1').checked;
+  $('l1Ctl').style.display = S.useL1?'block':'none'; render(); });
+$('wantWhite').addEventListener('change',()=>{ S.white=$('wantWhite').checked; });
+['showGuide:guide','showHole:showHole','showBleed:bleed','showIso:iso'].forEach(p=>{
+  const [id,key]=p.split(':');
+  $(id).addEventListener('change',()=>{ S[key]=$(id).checked;
+    if(key==='iso') $('isoWrap').style.display = S.iso?'flex':'none'; render(); });
+});
+function segment(wrapId, fn){
+  const w=$(wrapId);
+  w.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    [...w.children].forEach(c=>c.classList.remove('on')); b.classList.add('on'); fn(b); });
+}
+segment('segSize', b=>{
+  const w=+b.dataset.w, h=+b.dataset.h;
+  if(!w){ $('freeSize').style.display='flex'; S.w=+$('fw').value; S.h=+$('fh').value; }
+  else { $('freeSize').style.display='none'; S.w=w; S.h=h; }
+  if(S.shape==='arch'){ S.insT = Math.max(S.ins+2, Math.round(S.w*0.44*2)/2); $('insT').value=S.insT; $('vInsT').textContent=mm(S.insT); }
+  rebuildAll();
+});
+['fw','fh'].forEach(id=>$(id).addEventListener('input',()=>{
+  S.w=Math.max(20,+$('fw').value||50); S.h=Math.max(20,+$('fh').value||75); rebuildAll(); }));
+segment('segShape', b=>{ S.shape=b.dataset.s;
+  if(S.shape==='arch'){ S.insT=Math.max(S.ins+2, Math.round(S.w*0.44*2)/2); }
+  else { S.insT=S.ins+3; }
+  $('insT').value=S.insT; $('vInsT').textContent=mm(S.insT); rebuildAll(); });
+segment('segView', b=>{ S.view=b.dataset.v; render(); });
+segment('segAtt',  b=>{ S.att=b.dataset.a; render(); });
+segment('segHole', b=>{ S.holes=b.dataset.n; render(); });
+
+/* ---------- 画像を置く ---------- */
+function setupDrop(dropId, onImg){
+  const d=$(dropId), input=document.createElement('input');
+  input.type='file'; input.accept='image/*'; input.style.display='none';
+  document.body.appendChild(input);
+  d.addEventListener('click',()=>input.click());
+  input.addEventListener('change',()=>{ if(input.files[0]) load(input.files[0]); input.value=''; });
+  ['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('on')}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('on')}));
+  d.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) load(f); });
+  function load(f){ const r=new FileReader();
+    r.onload=()=>{ const im=new Image(); im.onload=()=>onImg(im); im.src=r.result; }; r.readAsDataURL(f); }
+}
+setupDrop('dropBack', im=>{ S.back=im; $('backCtl').style.display='block'; fitBack(); });
+setupDrop('dropUra',  im=>{ S.ura=im; render(); });
+setupDrop('dropL1',   im=>{ S.l1img=im; render(); });
+setupDrop('dropPart', im=>{ PARTS[sel].img=im; fitPart(sel); });
+
+function fitBack(){
+  const k = Math.max((S.w+BLEED*2)/S.back.width, (S.h+BLEED*2)/S.back.height);
+  $('bs').value = Math.min(300, Math.max(10, Math.round(k*S.back.width/S.w*100)));
+  S.bs=+$('bs').value; $('vBs').textContent=S.bs+'%';
+  $('bx').value=0; $('by').value=0; S.bx=0; S.by=0; render();
+}
+function fitPart(i){
+  layoutParts();
+  syncPartUI(); rebuildAll();
+}
+/* 中身パーツを 重ならないように 並べ直す */
+const SPOTS = {
+  1:[[0,0]],
+  2:[[-42,0],[42,0]],
+  3:[[0,-38],[-42,28],[42,28]],
+  4:[[-42,-32],[42,-32],[-42,32],[42,32]],
+  5:[[-42,-34],[42,-34],[0,0],[-42,34],[42,34]]
+};
+function layoutParts(){
+  const r=innerRect();
+  const live=PARTS.map((p,i)=>({p,i})).filter(o=>o.p.img);
+  const n=Math.max(1,live.length);
+  const spots=SPOTS[Math.min(5,n)]||SPOTS[1];
+  const target = n===1 ? Math.min(r.w-RECW*2-4, r.h-RECW*2-4)
+               : n===2 ? Math.min(r.w*0.44, r.h-RECW*2-4)
+               : Math.min(r.w,r.h)*0.38;
+  live.forEach((o,j)=>{
+    const p=o.p, k=target/Math.max(p.img.width,p.img.height);
+    p.ps=Math.min(300,Math.max(10,Math.round(k*p.img.width/S.w*100)));
+    const sp=spots[j]||[0,0];
+    p.px=sp[0]; p.py=sp[1];
+  });
+}
+$('backFit').addEventListener('click',()=>S.back&&fitBack());
+$('backDel').addEventListener('click',()=>{ S.back=null; $('backCtl').style.display='none'; render(); });
+$('partFit').addEventListener('click',()=>PARTS[sel].img&&fitPart(sel));
+$('partDel').addEventListener('click',()=>{
+  if(PARTS.length===1){ PARTS[0]=newPart(); } else { PARTS.splice(sel,1); sel=Math.max(0,sel-1); }
+  syncPartUI(); rebuildAll();
+});
+function syncPartUI(){
+  const p=PARTS[sel];
+  $('ps').value=p.ps; $('vPs').textContent=p.ps+'%';
+  $('px').value=p.px; $('vPx').textContent=p.px;
+  $('py').value=p.py; $('vPy').textContent=p.py;
+  $('off').value=p.off; $('vOff').textContent=mm(p.off);
+  const t=$('partTabs'); t.innerHTML='';
+  PARTS.forEach((q,i)=>{
+    const b=document.createElement('button');
+    b.textContent = '①②③④⑤'[i] + (q.img?'':' 空');
+    if(i===sel) b.classList.add('on');
+    b.addEventListener('click',()=>{ sel=i; syncPartUI(); render(); });
+    t.appendChild(b);
+  });
+  if(PARTS.length<MAXPART){
+    const b=document.createElement('button'); b.className='add'; b.textContent='＋ 足す';
+    b.addEventListener('click',()=>{
+      PARTS.push(newPart()); sel=PARTS.length-1;
+      layoutParts(); syncPartUI(); rebuildAll(); });
+    t.appendChild(b);
+  }
+}
+
+/* =========================================================
+   かたち（mm 座標・原点は 3枚目の左上）
+   ========================================================= */
+function innerRect(){
+  return { x:S.ins, y:S.insT, w:Math.max(5,S.w-S.ins*2), h:Math.max(5,S.h-S.insT-S.ins), r:S.irad };
+}
+/* 3枚目の外形：canvas パス */
+function outerPath(c,k,ox,oy){
+  const w=S.w,h=S.h,r=S.rad,X=ox*k,Y=oy*k;
+  c.beginPath();
+  if(S.shape==='arch'){
+    const R=w/2;
+    c.moveTo(X, Y+R*k);
+    c.arc(X+R*k, Y+R*k, R*k, Math.PI, 0);
+    c.lineTo(X+w*k, Y+(h-r)*k);
+    c.arcTo(X+w*k, Y+h*k, X+(w-r)*k, Y+h*k, r*k);
+    c.lineTo(X+r*k, Y+h*k);
+    c.arcTo(X, Y+h*k, X, Y+(h-r)*k, r*k);
+    c.closePath();
+  } else {
+    const rr=Math.min(r,w/2,h/2);
+    c.moveTo(X+rr*k,Y);
+    c.arcTo(X+w*k,Y,X+w*k,Y+h*k,rr*k); c.arcTo(X+w*k,Y+h*k,X,Y+h*k,rr*k);
+    c.arcTo(X,Y+h*k,X,Y,rr*k); c.arcTo(X,Y,X+w*k,Y,rr*k); c.closePath();
+  }
+}
+function outerPathD(){
+  const w=S.w,h=S.h,r=S.rad;
+  if(S.shape==='arch'){
+    const R=w/2;
+    return `M 0 ${R} A ${R} ${R} 0 0 1 ${w} ${R} V ${(h-r).toFixed(2)} `+
+           `A ${r} ${r} 0 0 1 ${(w-r).toFixed(2)} ${h} H ${r} A ${r} ${r} 0 0 1 0 ${(h-r).toFixed(2)} Z`;
+  }
+  const rr=Math.min(r,w/2,h/2);
+  return `M ${rr} 0 H ${(w-rr).toFixed(2)} A ${rr} ${rr} 0 0 1 ${w} ${rr} V ${(h-rr).toFixed(2)} `+
+         `A ${rr} ${rr} 0 0 1 ${(w-rr).toFixed(2)} ${h} H ${rr} A ${rr} ${rr} 0 0 1 0 ${(h-rr).toFixed(2)} `+
+         `V ${rr} A ${rr} ${rr} 0 0 1 ${rr} 0 Z`;
+}
+function innerPath(c,k,ox,oy){
+  const r=innerRect(), rr=Math.min(r.r,r.w/2,r.h/2), X=(ox+r.x)*k, Y=(oy+r.y)*k, W=r.w*k, H=r.h*k;
+  c.beginPath();
+  c.moveTo(X+rr*k,Y); c.arcTo(X+W,Y,X+W,Y+H,rr*k); c.arcTo(X+W,Y+H,X,Y+H,rr*k);
+  c.arcTo(X,Y+H,X,Y,rr*k); c.arcTo(X,Y,X+W,Y,rr*k); c.closePath();
+}
+function innerPathD(){
+  const r=innerRect(), rr=Math.min(r.r,r.w/2,r.h/2);
+  const x=r.x,y=r.y,w=r.w,h=r.h;
+  return `M ${(x+rr).toFixed(2)} ${y} H ${(x+w-rr).toFixed(2)} A ${rr} ${rr} 0 0 1 ${(x+w).toFixed(2)} ${(y+rr).toFixed(2)} `+
+         `V ${(y+h-rr).toFixed(2)} A ${rr} ${rr} 0 0 1 ${(x+w-rr).toFixed(2)} ${(y+h).toFixed(2)} `+
+         `H ${(x+rr).toFixed(2)} A ${rr} ${rr} 0 0 1 ${x} ${(y+h-rr).toFixed(2)} `+
+         `V ${(y+rr).toFixed(2)} A ${rr} ${rr} 0 0 1 ${(x+rr).toFixed(2)} ${y} Z`;
+}
+/* アタッチメント穴 */
+function attSize(){ const s=S.as/100; return S.att==='pkg' ? {w:11*s,h:6*s} : {w:3.2*s,h:3.2*s}; }
+function attCenter(){
+  if(S.att==='none') return null;
+  const a=attSize();
+  const topGap = S.ag;                    // カットパスからのあき
+  return { x:S.w/2, y:topGap + a.h/2, ...a };
+}
+function attPath(c,k,ox,oy){
+  const a=attCenter(); if(!a) return false;
+  const cx=(ox+a.x)*k, cy=(oy+a.y)*k;
+  c.beginPath();
+  if(S.att==='round'){ c.arc(cx,cy,a.w/2*k,0,7); return true; }
+  // パッケージ風：下が角丸の長方形＋上にふくらみ
+  const W=a.w*k, H=a.h*k, r=Math.min(H/2, W/4), rb=H*0.52, bx=Math.sqrt(Math.max(0,rb*rb-(H*0.28)*(H*0.28)));
+  const L=cx-W/2, R=cx+W/2, T=cy-H/2+H*0.22, B=cy+H/2;
+  c.moveTo(L, B-r);
+  c.lineTo(L, T+r); c.arcTo(L,T,L+r,T,r);
+  c.lineTo(cx-bx, T);
+  c.arc(cx, T+H*0.28, rb, Math.atan2(-H*0.28,-bx), Math.atan2(-H*0.28,bx), false);
+  c.lineTo(R-r, T); c.arcTo(R,T,R,T+r,r);
+  c.lineTo(R, B-r); c.arcTo(R,B,R-r,B,r);
+  c.lineTo(L+r, B); c.arcTo(L,B,L,B-r,r);
+  c.closePath();
+  return true;
+}
+function attPathD(){
+  const a=attCenter(); if(!a) return '';
+  const cx=a.x, cy=a.y;
+  if(S.att==='round'){ const r=a.w/2;
+    return `M ${(cx-r).toFixed(2)} ${cy.toFixed(2)} a ${r} ${r} 0 1 0 ${(r*2).toFixed(2)} 0 a ${r} ${r} 0 1 0 ${(-r*2).toFixed(2)} 0 Z`; }
+  const W=a.w,H=a.h, r=Math.min(H/2,W/4), rb=H*.52, bx=Math.sqrt(Math.max(0,rb*rb-(H*.28)*(H*.28)));
+  const L=cx-W/2,R=cx+W/2,T=cy-H/2+H*.22,B=cy+H/2;
+  return `M ${L.toFixed(2)} ${(B-r).toFixed(2)} V ${(T+r).toFixed(2)} A ${r} ${r} 0 0 1 ${(L+r).toFixed(2)} ${T.toFixed(2)} `+
+    `H ${(cx-bx).toFixed(2)} A ${rb.toFixed(2)} ${rb.toFixed(2)} 0 0 1 ${(cx+bx).toFixed(2)} ${T.toFixed(2)} `+
+    `H ${(R-r).toFixed(2)} A ${r} ${r} 0 0 1 ${R.toFixed(2)} ${(T+r).toFixed(2)} V ${(B-r).toFixed(2)} `+
+    `A ${r} ${r} 0 0 1 ${(R-r).toFixed(2)} ${B.toFixed(2)} H ${(L+r).toFixed(2)} `+
+    `A ${r} ${r} 0 0 1 ${L.toFixed(2)} ${(B-r).toFixed(2)} Z`;
+}
+/* ビス穴：1枚目・2枚目の板の四隅（対で配置） */
+function screwPts(){
+  const r=innerRect(), m=S.hm, rad=S.hd/2, out=[];
+  const L=r.x+m, R=r.x+r.w-m, T=r.y+m, B=r.y+r.h-m;
+  if(S.holes==='4'){ out.push([L,T],[R,T],[L,B],[R,B]); }
+  else if(S.holes==='2'){ out.push([L,T],[R,T]); }
+  else { out.push([L,B],[R,B]); }
+  return out.map(([x,y])=>({x,y,r:rad}));
+}
+
+/* =========================================================
+   中身パーツの輪郭を ひろう
+   ========================================================= */
+function partRect(i){
+  const p=PARTS[i], r=innerRect();
+  if(!p.img){ const d=Math.min(r.w-8,r.h-8)*0.55;
+    return { x:r.x+(r.w-d)/2+S.bxMap(p.px), y:r.y+(r.h-d)/2+S.bxMap(p.py), w:d, h:d }; }
+  const w=S.w*p.ps/100, h=w*p.img.height/p.img.width;
+  return { x:r.x+(r.w-w)/2+S.bxMap(p.px), y:r.y+(r.h-h)/2+S.bxMap(p.py), w, h };
+}
+function dilateTrace(img, r, sc, W, H, pad){
+  const c=document.createElement('canvas');
+  c.width=W+pad*2; c.height=H+pad*2;
+  const g=c.getContext('2d');
+  if(r>0.5){ const n=Math.max(12,Math.min(48,Math.round(r*2)));
+    for(let i=0;i<n;i++){ const a=i/n*Math.PI*2;
+      g.drawImage(img, pad+Math.cos(a)*r, pad+Math.sin(a)*r, W, H); } }
+  g.drawImage(img, pad, pad, W, H);
+  const d=g.getImageData(0,0,c.width,c.height);
+  const mask=new Uint8Array(c.width*c.height);
+  for(let i=0,p=3;i<mask.length;i++,p+=4) if(d.data[p]>40) mask[i]=1;
+  return { mask, W:c.width, H:c.height };
+}
+function rebuild(i){
+  const p=PARTS[i];
+  p.paths=[]; p.win=[]; p.minw=0; p.bbox=null;
+  if(!p.img){ render(); return; }
+  const r=partRect(i), sc=MASKW/r.w;
+  const W=Math.round(r.w*sc), H=Math.round(r.h*sc);
+  const pad=Math.ceil((p.off+S.clr+1)*sc)+2;
+  const tol=S.smooth?1.6:0.6;
+  const toMM = pts => pts.map(([x,y])=>[ r.x+(x-pad)/sc, r.y+(y-pad)/sc ]);
+
+  const a=dilateTrace(p.img, p.off*sc, sc, W, H, pad);
+  p.paths = traceContours(a.mask,a.W,a.H).map(q=>simplify(q,tol)).filter(q=>q.length>=6).map(toMM);
+  p.minw = minWidth(a.mask,a.W,a.H)/sc;
+  p.bbox = bboxOf(p.paths);
+  if(S.clr>0.01){
+    const b=dilateTrace(p.img,(p.off+S.clr)*sc,sc,W,H,pad);
+    p.win = traceContours(b.mask,b.W,b.H).map(q=>simplify(q,tol)).filter(q=>q.length>=6).map(toMM);
+  } else p.win = p.paths;
+  render();
+}
+function rebuildAll(){ PARTS.forEach((p,i)=>rebuild(i)); render(); }
+function bboxOf(paths){
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  paths.forEach(p=>p.forEach(([x,y])=>{ a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,x);d=Math.max(d,y); }));
+  return paths.length?{x:a,y:b,w:c-a,h:d-b}:null;
+}
+function traceContours(mask,W,H){
+  const seen=new Uint8Array(W*H);
+  const at=(x,y)=>(x<0||y<0||x>=W||y>=H)?0:mask[y*W+x];
+  const dirs=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+  const out=[];
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    const i=y*W+x;
+    if(!mask[i]||seen[i]) continue;
+    if(at(x-1,y)&&at(x,y-1)&&at(x+1,y)&&at(x,y+1)) continue;
+    const path=[]; let cx=x,cy=y,dir=6,guard=0;
+    do{ path.push([cx+0.5,cy+0.5]); seen[cy*W+cx]=1;
+      let found=false;
+      for(let k=0;k<8;k++){ const nd=(dir+6+k)%8,[dx,dy]=dirs[nd],nx=cx+dx,ny=cy+dy;
+        if(at(nx,ny)){ cx=nx;cy=ny;dir=nd;found=true;break; } }
+      if(!found) break;
+    } while((cx!==x||cy!==y)&&++guard<W*H*2);
+    if(path.length>24) out.push(path);
+  }
+  out.sort((a,b)=>b.length-a.length);
+  return out.slice(0,6);
+}
+function simplify(pts,tol){
+  if(pts.length<4) return pts;
+  const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const st=[[0,pts.length-1]];
+  while(st.length){ const [a,b]=st.pop(); let md=0,mi=-1;
+    const [ax,ay]=pts[a],[bx,by]=pts[b], dx=bx-ax, dy=by-ay, L=Math.hypot(dx,dy)||1;
+    for(let i=a+1;i<b;i++){ const d=Math.abs((pts[i][0]-ax)*dy-(pts[i][1]-ay)*dx)/L;
+      if(d>md){md=d;mi=i;} }
+    if(md>tol&&mi>0){ keep[mi]=1; st.push([a,mi],[mi,b]); } }
+  return pts.filter((_,i)=>keep[i]);
+}
+function minWidth(mask,W,H){
+  const runs=[];
+  const scan=(get,n,m)=>{ for(let a=0;a<n;a++){ let c=0;
+    for(let b=0;b<m;b++){ if(get(a,b)) c++; else { if(c>1) runs.push(c); c=0; } }
+    if(c>1) runs.push(c); } };
+  scan((y,x)=>mask[y*W+x],H,W); scan((x,y)=>mask[y*W+x],W,H);
+  if(!runs.length) return 0;
+  runs.sort((a,b)=>a-b);
+  return runs[Math.floor(runs.length*0.02)];
+}
+/* パーツのパス（canvas）。which='paths'|'win' */
+function partPath(c,k,ox,oy,which,only){
+  c.beginPath();
+  PARTS.forEach((p,i)=>{
+    if(only!=null && only!==i) return;
+    const list = p[which].length? p[which] : null;
+    if(list){ list.forEach(q=>{ q.forEach(([x,y],j)=>{
+        const sx=(x+ox)*k, sy=(y+oy)*k; j?c.lineTo(sx,sy):c.moveTo(sx,sy); }); c.closePath(); }); }
+    else if(!p.img && (only!=null || PARTS.length===1 || i===sel)){
+      const r=partRect(i), rr=r.w/2+p.off+(which==='win'?S.clr:0);
+      c.moveTo((r.x+r.w/2+rr+ox)*k,(r.y+r.h/2+oy)*k);
+      c.arc((r.x+r.w/2+ox)*k,(r.y+r.h/2+oy)*k,rr*k,0,7);
+    }
+  });
+}
+function partPathD(which){
+  const out=[];
+  PARTS.forEach((p,i)=>{
+    const list=p[which].length?p[which]:null;
+    if(list) list.forEach(q=>out.push(q.map(([x,y],j)=>(j?'L':'M')+x.toFixed(2)+' '+y.toFixed(2)).join(' ')+' Z'));
+    else if(!p.img && PARTS.length===1){
+      const r=partRect(i), rr=r.w/2+p.off+(which==='win'?S.clr:0), cx=r.x+r.w/2, cy=r.y+r.h/2;
+      out.push(`M ${(cx-rr).toFixed(2)} ${cy.toFixed(2)} a ${rr.toFixed(2)} ${rr.toFixed(2)} 0 1 0 ${(rr*2).toFixed(2)} 0 `+
+               `a ${rr.toFixed(2)} ${rr.toFixed(2)} 0 1 0 ${(-rr*2).toFixed(2)} 0 Z`);
+    }
+  });
+  return out.join(' ');
+}
+
+/* =========================================================
+   描く
+   ========================================================= */
+function drawPattern(c,k){
+  if(S.pat==='none') return;
+  c.save(); c.strokeStyle=S.patCol; c.fillStyle=S.patCol;
+  const W=S.w+BLEED*2, H=S.h+BLEED*2;
+  if(S.pat==='dot'){ for(let y=-BLEED;y<H;y+=5) for(let x=-BLEED;x<W;x+=5){
+      c.beginPath(); c.arc(x*k,y*k,1.1*k,0,7); c.fill(); } }
+  else if(S.pat==='stripe'){ c.lineWidth=1.6*k;
+    for(let i=-H;i<W+H;i+=6){ c.beginPath(); c.moveTo(i*k,-BLEED*k); c.lineTo((i+H)*k,H*k); c.stroke(); } }
+  else if(S.pat==='grid'){ c.lineWidth=0.4*k;
+    for(let x=0;x<W;x+=5){ c.beginPath(); c.moveTo(x*k,-BLEED*k); c.lineTo(x*k,H*k); c.stroke(); }
+    for(let y=0;y<H;y+=5){ c.beginPath(); c.moveTo(-BLEED*k,y*k); c.lineTo(W*k,y*k); c.stroke(); } }
+  else if(S.pat==='sun'){ const cx=S.w/2*k, cy=S.h*0.42*k, R=Math.hypot(W,H)*k;
+    for(let i=0;i<72;i++){ const a=i/72*Math.PI*2;
+      c.beginPath(); c.moveTo(cx,cy);
+      c.lineTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);
+      c.lineTo(cx+Math.cos(a+0.028)*R,cy+Math.sin(a+0.028)*R); c.closePath(); c.fill(); } }
+  c.restore();
+}
+function setFont(c,size,k,bold){
+  c.font=(bold?'700 ':'500 ')+(size*k)+'px "M PLUS Rounded 1c","Hiragino Kaku Gothic ProN",sans-serif';
+}
+/* 3枚目 表（ox,oy は塗り足しぶんのずらし） */
+function drawL3(c,k,ox,oy,bleed){
+  c.save();
+  c.beginPath(); c.rect((ox-(bleed?BLEED:0))*k,(oy-(bleed?BLEED:0))*k,
+    (S.w+(bleed?BLEED*2:0))*k,(S.h+(bleed?BLEED*2:0))*k); c.clip();
+  c.translate(ox*k,oy*k);
+  c.fillStyle=S.bgCol; c.fillRect(-BLEED*k,-BLEED*k,(S.w+BLEED*2)*k,(S.h+BLEED*2)*k);
+  drawPattern(c,k);
+  if(S.back){ const w=S.w*S.bs/100*k, h=w*S.back.height/S.back.width;
+    c.drawImage(S.back,(S.w*k-w)/2+S.bxMap(S.bx)*k,(S.h*k-h)/2+S.bxMap(S.by)*k,w,h); }
+  c.textAlign='center';
+  if(S.t1){ c.fillStyle=S.t1c; setFont(c,S.t1s,k,true);
+    c.fillText(S.t1,S.w/2*k,(S.h*S.t1y/100)*k+S.t1s*k*0.36); }
+  if(S.t2){ c.fillStyle=S.t2c; setFont(c,S.t2s,k,false);
+    c.fillText(S.t2,S.w/2*k,(S.h*S.t2y/100)*k+S.t2s*k*0.36); }
+  c.restore();
+}
+function drawL3back(c,k,ox,oy,bleed){
+  c.save();
+  c.beginPath(); c.rect((ox-(bleed?BLEED:0))*k,(oy-(bleed?BLEED:0))*k,
+    (S.w+(bleed?BLEED*2:0))*k,(S.h+(bleed?BLEED*2:0))*k); c.clip();
+  c.translate(ox*k,oy*k);
+  c.fillStyle=S.uraCol; c.fillRect(-BLEED*k,-BLEED*k,(S.w+BLEED*2)*k,(S.h+BLEED*2)*k);
+  if(S.ura){ const w=S.w*k, h=w*S.ura.height/S.ura.width;
+    c.drawImage(S.ura,0,(S.h*k-h)/2,w,h); }
+  if(S.t3){ c.fillStyle='#777'; c.textAlign='center'; setFont(c,3,k,false);
+    c.fillText(S.t3,S.w/2*k,S.h*0.92*k); }
+  c.restore();
+}
+function drawL1art(c,k,ox,oy){
+  if(!S.l1img) return;
+  c.save(); c.globalAlpha=S.l1a/100;
+  const r=innerRect(), w=r.w*k, h=w*S.l1img.height/S.l1img.width;
+  c.drawImage(S.l1img,(ox+r.x)*k,(oy+r.y)*k+(r.h*k-h)/2,w,h); c.restore();
+}
+function drawPartArt(c,k,ox,oy,i){
+  const p=PARTS[i], r=partRect(i);
+  if(p.img) c.drawImage(p.img,(r.x+ox)*k,(r.y+oy)*k,r.w*k,r.h*k);
+  else { c.fillStyle='#ffb3c1'; c.beginPath();
+    c.arc((r.x+r.w/2+ox)*k,(r.y+r.h/2+oy)*k,r.w/2*k,0,7); c.fill(); }
+}
+/* パーツ（白フチ＋絵）をまとめて描く */
+function drawParts(c,k,ox,oy){
+  PARTS.forEach((p,i)=>{
+    if(!p.img && !(PARTS.length===1)) return;
+    c.save(); partPath(c,k,ox,oy,'paths',i); c.fillStyle='#fff'; c.fill(); c.clip();
+    drawPartArt(c,k,ox,oy,i); c.restore();
+  });
+}
+function drawHoles(c,k,ox,oy,mode){
+  const cut = mode==='cut';
+  screwPts().forEach(h=>{
+    c.beginPath(); c.arc((h.x+ox)*k,(h.y+oy)*k,h.r*k,0,7);
+    if(cut){ c.strokeStyle=getCSS('--cut3'); c.lineWidth=1.3; c.stroke(); }
+    else { c.fillStyle='rgba(20,22,30,.5)'; c.fill();
+      c.strokeStyle='rgba(255,255,255,.4)'; c.lineWidth=1; c.stroke(); }
+  });
+}
+function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+const view=$('view'), ctx=view.getContext('2d');
+function render(){
+  const k=PX, pad=S.bleed?BLEED:0, ox=pad, oy=pad;
+  const W=(S.w+pad*2)*k, H=(S.h+pad*2)*k;
+  view.width=W; view.height=H;
+  view.style.width=Math.min(W,470)+'px';
+  ctx.clearRect(0,0,W,H);
+  const V=S.view;
+
+  /* --- 3枚目 --- */
+  if(V==='top'||V==='l3'||V==='l3b'||V==='l1'||V==='l2'||V==='part'){
+    const back = (V==='l3b');
+    if(V==='l3'||V==='l3b'||V==='top'){
+      if(S.bleed){ ctx.save(); ctx.globalAlpha=.55;
+        (back?drawL3back:drawL3)(ctx,k,ox,oy,true); ctx.restore(); }
+      ctx.save(); outerPath(ctx,k,ox,oy); ctx.clip();
+      (back?drawL3back:drawL3)(ctx,k,ox,oy,false); ctx.restore();
+    } else {
+      // 他の層を見るときは 台紙を うっすら敷く
+      ctx.save(); ctx.globalAlpha=.25; outerPath(ctx,k,ox,oy); ctx.clip();
+      drawL3(ctx,k,ox,oy,false); ctx.restore();
+    }
+  }
+  /* --- 2枚目：板から 窓を抜く --- */
+  if(V==='top'||V==='l2'){
+    ctx.save();
+    innerPath(ctx,k,ox,oy);
+    ctx.fillStyle = V==='l2' ? 'rgba(226,232,240,.9)' : 'rgba(210,228,240,.35)';
+    ctx.fill();
+    ctx.globalCompositeOperation='destination-out';
+    partPath(ctx,k,ox,oy,'win'); ctx.fill();
+    ctx.restore();
+  }
+  /* --- 中身 --- */
+  if(V==='top'||V==='part'){ drawParts(ctx,k,ox,oy); }
+  /* --- 1枚目 --- */
+  if(V==='top'||V==='l1'){
+    ctx.save(); innerPath(ctx,k,ox,oy); ctx.clip();
+    if(V==='l1'){ ctx.fillStyle='rgba(150,205,235,.28)'; ctx.fillRect(0,0,W,H); }
+    if(S.useL1) drawL1art(ctx,k,ox,oy);
+    const gr=ctx.createLinearGradient((ox)*k,(oy)*k,(ox+S.w)*k,(oy+S.h)*k);
+    gr.addColorStop(0,'rgba(255,255,255,.22)'); gr.addColorStop(.45,'rgba(255,255,255,.04)');
+    gr.addColorStop(.5,'rgba(255,255,255,.18)'); gr.addColorStop(1,'rgba(255,255,255,.03)');
+    ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+  /* --- カットパスだけ --- */
+  if(V==='cut'){
+    ctx.fillStyle='#0e0f15'; ctx.fillRect(0,0,W,H);
+  }
+
+  /* --- 線（どの表示でも 出す） --- */
+  ctx.save();
+  ctx.lineWidth=1.5; ctx.strokeStyle=getCSS('--cut');
+  outerPath(ctx,k,ox,oy); ctx.stroke();
+  if(attPath(ctx,k,ox,oy)) ctx.stroke();
+  ctx.strokeStyle=getCSS('--cut2'); ctx.lineWidth=1.3;
+  innerPath(ctx,k,ox,oy); ctx.stroke();
+  partPath(ctx,k,ox,oy,'win'); ctx.stroke();
+  ctx.restore();
+  if(S.showHole) drawHoles(ctx,k,ox,oy, V==='top'?'fill':'cut');
+
+  /* --- ガイド --- */
+  if(S.guide){
+    ctx.save(); ctx.setLineDash([5,4]); ctx.lineWidth=1;
+    if(S.bleed){ ctx.strokeStyle='rgba(79,209,197,.7)';
+      ctx.strokeRect(0.5,0.5,W-1,H-1); }
+    // 2mm 内側（外形を 2mm ぶん 縮めた形）
+    ctx.save();
+    ctx.translate((ox+SAFE)*k,(oy+SAFE)*k);
+    ctx.scale((S.w-SAFE*2)/S.w,(S.h-SAFE*2)/S.h);
+    outerPath(ctx,k,0,0);
+    ctx.restore();
+    ctx.strokeStyle='rgba(255,212,71,.85)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  $('hint').textContent=`3枚目 ${S.w}×${S.h}mm ／ 1・2枚目 ${innerRect().w.toFixed(1)}×${innerRect().h.toFixed(1)}mm`;
+  $('sizeNote').textContent=`${S.w} × ${S.h} mm`;
+  doCheck();
+  if(S.iso) renderIso();
+}
+
+/* --- 立体 --- */
+function layerCanvas(kind,k){
+  const c=document.createElement('canvas');
+  c.width=S.w*k; c.height=S.h*k;
+  const g=c.getContext('2d');
+  if(kind==='l3'){ g.save(); outerPath(g,k,0,0); g.clip(); drawL3(g,k,0,0,false); g.restore(); }
+  else if(kind==='l2'){ g.save(); innerPath(g,k,0,0);
+    g.fillStyle='rgba(226,232,240,.9)'; g.fill();
+    g.globalCompositeOperation='destination-out'; partPath(g,k,0,0,'win'); g.fill(); g.restore(); }
+  else if(kind==='l1'){ g.save(); innerPath(g,k,0,0); g.fillStyle='rgba(176,214,238,.4)'; g.fill();
+    g.clip(); if(S.useL1) drawL1art(g,k,0,0); g.restore(); }
+  else if(kind==='part'){ drawParts(g,k,0,0); }
+  if(kind!=='part' && S.showHole){
+    g.save(); g.globalCompositeOperation='destination-out';
+    screwPts().forEach(h=>{ g.beginPath(); g.arc(h.x*k,h.y*k,h.r*k,0,7); g.fill(); });
+    if(kind==='l3'&&attPath(g,k,0,0)) g.fill();
+    g.restore();
+  }
+  return c;
+}
+function renderIso(){
+  const k=3.0, box=$('stackbox');
+  box.style.width=(S.w*k)+'px'; box.style.height=(S.h*k)+'px';
+  [['isoL3','l3',0],['isoL2','l2',16],['isoPart','part',13],['isoL1','l1',40]].forEach(([id,kind,z])=>{
+    const img=$(id);
+    img.src=layerCanvas(kind,k).toDataURL();
+    img.parentElement.style.transform=`translateZ(${z}px)`;
+    img.parentElement.style.width=(S.w*k)+'px';
+  });
+}
+
+/* =========================================================
+   チェック（アクリルグッズの達人の きまりに合わせて）
+   ========================================================= */
+function sdBox(px,py,x,y,w,h,r){
+  const cx=x+w/2, cy=y+h/2, hw=w/2, hh=h/2;
+  r=Math.min(r,hw,hh);
+  const qx=Math.abs(px-cx)-(hw-r), qy=Math.abs(py-cy)-(hh-r);
+  const outside=Math.hypot(Math.max(qx,0),Math.max(qy,0));
+  const inside=Math.min(Math.max(qx,qy),0);
+  return -(outside+inside-r);   // 中が プラス
+}
+function innerDist(x,y){ const r=innerRect(); return sdBox(x,y,r.x,r.y,r.w,r.h,r.r); }
+function outerDist(x,y){
+  if(S.shape==='rect') return sdBox(x,y,0,0,S.w,S.h,S.rad);
+  const R=S.w/2;
+  const dCircle = R - Math.hypot(x-R, y-R);
+  const dBox = sdBox(x,y,0,R,S.w,S.h-R,S.rad);
+  return Math.max(dCircle,dBox);
+}
+function allPartPts(){
+  const out=[];
+  PARTS.forEach((p,i)=>{
+    if(p.paths.length) p.paths.forEach(q=>q.forEach(pt=>out.push([pt[0],pt[1],i])));
+    else if(!p.img && PARTS.length===1){
+      const r=partRect(i), rr=r.w/2+p.off, cx=r.x+r.w/2, cy=r.y+r.h/2;
+      for(let a=0;a<36;a++) out.push([cx+Math.cos(a/36*6.283)*rr, cy+Math.sin(a/36*6.283)*rr, i]);
+    }
+  });
+  return out;
+}
+function doCheck(){
+  const out=[]; const add=(cls,t,b)=>out.push(`<div class="${cls}"><b>${t}</b>${b}</div>`);
+  const pts=allPartPts();
+  const used=PARTS.filter(p=>p.img).length;
+
+  /* 2枚目のフチ幅（窓と 板のフチの間） */
+  if(pts.length){
+    let edge=1e9; pts.forEach(([x,y])=>{ edge=Math.min(edge, innerDist(x,y)-S.clr); });
+    if(edge<0) add('ng','中身が 板から はみ出している',`${Math.abs(edge).toFixed(1)}mm 出ています。`);
+    else if(edge<MINW) add('ng','アクリルのフチが 細すぎる',`いちばん細い所 ${edge.toFixed(1)}mm。<b>2mm 未満は カットできません。</b>`);
+    else if(edge<RECW) add('warn','アクリルのフチが 細い',`${edge.toFixed(1)}mm。3mm 以上が おすすめです。`);
+    else add('ok','2枚目のフチの 幅',`いちばん細い所で ${edge.toFixed(1)}mm。`);
+  }
+  /* パーツ同士の あき */
+  if(used>1){
+    let gap=1e9;
+    for(let a=0;a<pts.length;a++) for(let b=a+1;b<pts.length;b++){
+      if(pts[a][2]===pts[b][2]) continue;
+      const d=Math.hypot(pts[a][0]-pts[b][0],pts[a][1]-pts[b][1]);
+      if(d<gap) gap=d;
+    }
+    if(gap<MINW) add('ng','パーツ同士が 近すぎる',`あき ${gap.toFixed(1)}mm。間の アクリルが 2mm 未満だと 切れません。`);
+    else if(gap<RECW) add('warn','パーツ同士が 近い',`あき ${gap.toFixed(1)}mm。3mm ほしいところです。`);
+    else add('ok','パーツ同士の あき',`${gap.toFixed(1)}mm。`);
+  }
+  /* 個数と 最小サイズ */
+  if(used>MAXPART) add('ng','中身パーツが 多い',`${used}個。5個までです。`);
+  PARTS.forEach((p,i)=>{
+    if(!p.bbox) return;
+    if(p.bbox.w<12||p.bbox.h<12)
+      add('ng','中身パーツが 小さい',`${'①②③④⑤'[i]} は ${p.bbox.w.toFixed(1)}×${p.bbox.h.toFixed(1)}mm。<b>最小 12×12mm</b>です。`);
+    if(p.minw&&p.minw<MINW)
+      add('ng','中身パーツに 細い所',`${'①②③④⑤'[i]} の 細い所が およそ ${p.minw.toFixed(1)}mm。2mm 未満は 切れません。`);
+    else if(p.minw&&p.minw<RECW)
+      add('warn','中身パーツが やや 細い',`${'①②③④⑤'[i]} で およそ ${p.minw.toFixed(1)}mm。白フチを 足すと 安心です。`);
+  });
+  if(used===0) add('warn','中身パーツが まだ ない','背景が 透明な PNG を 置くと、輪郭から カットパスを 作ります。');
+  else if(PARTS.every(p=>!p.img||p.off>=0.8)===false) add('warn','白フチが 細い','1.2〜2mm あると 色ズレが 目立ちません。');
+
+  /* ビス穴 */
+  const sc=screwPts();
+  if(sc.length<2) add('ng','ビス穴が 足りない','2個以上、対になるように 置きます。');
+  else if(sc.length>4) add('ng','ビス穴が 多い','4個までです。');
+  else add('ok','ビス穴の 数',`${sc.length}個。対に なっています。`);
+  let he=1e9, hp=1e9;
+  sc.forEach(h=>{
+    he=Math.min(he, innerDist(h.x,h.y)-h.r);
+    pts.forEach(([x,y])=>{ hp=Math.min(hp, Math.hypot(x-h.x,y-h.y)-h.r); });
+  });
+  if(sc.length){
+    if(he<MINW) add('ng','ビス穴が 板のフチに 近すぎる',`あき ${he.toFixed(1)}mm。2mm 未満は 割れます。`);
+    else if(he<RECW) add('warn','ビス穴と フチが 近い',`あき ${he.toFixed(1)}mm。3mm ほしいところ。`);
+    else add('ok','ビス穴と フチの あき',`${he.toFixed(1)}mm。`);
+    if(pts.length){
+      if(hp<0) add('ng','ビス穴が 中身に かかっている','穴か パーツを 動かしてください。');
+      else if(hp<MINW) add('ng','ビス穴と 中身が 近すぎる',`あき ${hp.toFixed(1)}mm。2mm 未満は 切れません。`);
+      else if(hp<RECW) add('warn','ビス穴と 中身が 近い',`あき ${hp.toFixed(1)}mm。`);
+      else add('ok','ビス穴と 中身の あき',`${hp.toFixed(1)}mm。`);
+    }
+  }
+  /* アタッチメント穴 */
+  const a=attCenter();
+  if(!a) add('warn','アタッチメント穴が ない','ボールチェーンや ナスカンを 通す穴です。付けないなら このままで。');
+  else {
+    const top = outerDist(a.x, a.y - a.h/2);
+    if(Math.abs(top-S.ag)>0.6 || top<1.5)
+      add('warn','アタッチメント穴の あき',`カットパスまで ${top.toFixed(2)}mm。<b>2.25mm くらい</b>に なるよう 合わせてください。`);
+    else add('ok','アタッチメント穴の あき',`${top.toFixed(2)}mm。ちょうどいいです。`);
+    if(S.shape!=='arch' && S.att==='pkg')
+      add('warn','上が 四角のまま','パッケージ風の穴は、上が丸い形と 相性がいいです。');
+  }
+  /* 3枚目：塗り足しと 2mm 内側 */
+  if(!S.back) add('warn','3枚目の 絵が まだ ない','べた塗り＋もようでも 作れますが、フチなしにするなら 絵の続きを 外へ 3mm 出します。');
+  else {
+    const eff=S.back.width/(S.w*S.bs/100/25.4);
+    const covW=S.w*S.bs/100, covH=covW*S.back.height/S.back.width;
+    if(covW < S.w+BLEED*2-0.1 || covH < S.h+BLEED*2-0.1)
+      add('ng','塗り足しが 足りない',`絵が ${covW.toFixed(1)}×${covH.toFixed(1)}mm。外形＋3mm（${(S.w+6)}×${(S.h+6)}mm）を おおう大きさに してください。`);
+    else add('ok','塗り足し','外へ 3mm はみ出ています。');
+    if(eff<S.dpi*0.8) add('ng','3枚目の 絵が あらい',`およそ ${Math.round(eff)}dpi。${S.dpi}dpi には ${Math.ceil((S.w+6)/25.4*S.dpi)}px 幅 ほしいです。`);
+    else if(eff<S.dpi) add('warn','3枚目の 解像度が すこし 足りない',`およそ ${Math.round(eff)}dpi。`);
+    else add('ok','3枚目の 解像度',`およそ ${Math.round(eff)}dpi。`);
+  }
+  [[S.t1,S.t1s,S.t1y,'大きい文字'],[S.t2,S.t2s,S.t2y,'小さい文字']].filter(t=>t[0]).forEach(([t,sz,y,name])=>{
+    const py=S.h*y/100, d=outerDist(S.w/2,py);
+    if(d<SAFE) add('ng','文字が カットパスに 近い',`${name}「${t}」は フチまで ${Math.max(0,d).toFixed(1)}mm。<b>2mm 内側</b>に 入れてください。`);
+    if(sz<3) add('warn','文字が 小さい',`${name}は ${sz}mm（約 ${(sz*2.83).toFixed(0)}pt）。`);
+  });
+  PARTS.forEach((p,i)=>{
+    if(p.img && p.bbox){
+      const eff=p.img.width/(partRect(i).w/25.4);
+      if(eff<S.dpi*0.8) add('ng','中身の 絵が あらい',`${'①②③④⑤'[i]} は およそ ${Math.round(eff)}dpi。`);
+    }
+  });
+  if(S.twoSide && !S.ura) add('warn','裏の 絵が ない','両面印刷に している間は、3枚目の 裏デザインも 用意します。');
+
+  add('ok','できあがり',
+    `3枚目 ${S.w}×${S.h}mm／1・2枚目 ${innerRect().w.toFixed(1)}×${innerRect().h.toFixed(1)}mm／厚み 7mm`+
+    `／中身 ${used}個／${S.twoSide?'両面印刷':'片面印刷'}`);
+
+  $('check').innerHTML=out.join('');
+  const n=PARTS.reduce((a,p)=>a+p.paths.reduce((b,q)=>b+q.length,0),0);
+  $('partInfo').textContent = used? `カットパスの 点の数：${n}` : '';
+}
+
+/* =========================================================
+   書き出し
+   ========================================================= */
+function dl(name,url){ const a=document.createElement('a'); a.href=url; a.download=name; a.click(); }
+const K = ()=> S.dpi/25.4;
+function blobURL(t,type){ return URL.createObjectURL(new Blob([t],{type})); }
+
+function cvL3(back){
+  const k=K(), c=document.createElement('canvas');
+  c.width=Math.round((S.w+BLEED*2)*k); c.height=Math.round((S.h+BLEED*2)*k);
+  const g=c.getContext('2d');
+  (back?drawL3back:drawL3)(g,k,BLEED,BLEED,true);
+  return c;
+}
+function cvL1(){
+  const k=K(), r=innerRect(), c=document.createElement('canvas');
+  c.width=Math.round(r.w*k); c.height=Math.round(r.h*k);
+  const g=c.getContext('2d');
+  if(S.l1img){ g.save(); g.globalAlpha=S.l1a/100;
+    const w=r.w*k, h=w*S.l1img.height/S.l1img.width;
+    g.drawImage(S.l1img,0,(r.h*k-h)/2,w,h); g.restore(); }
+  return c;
+}
+function cvPart(i){
+  const k=K(), p=PARTS[i];
+  const bb=p.bbox || (()=>{ const r=partRect(i); return {x:r.x-p.off,y:r.y-p.off,w:r.w+p.off*2,h:r.h+p.off*2}; })();
+  const pad=1, c=document.createElement('canvas');
+  c.width=Math.round((bb.w+pad*2)*k); c.height=Math.round((bb.h+pad*2)*k);
+  const g=c.getContext('2d');
+  const ox=-bb.x+pad, oy=-bb.y+pad;
+  g.save(); partPath(g,k,ox,oy,'paths',i); g.fillStyle='#fff'; g.fill(); g.clip();
+  drawPartArt(g,k,ox,oy,i); g.restore();
+  return c;
+}
+/* 白押さえ＝絵のある所を 黒で塗った シルエット */
+function cvWhite(src){
+  const c=document.createElement('canvas');
+  c.width=src.width; c.height=src.height;
+  const g=c.getContext('2d');
+  g.drawImage(src,0,0);
+  const d=g.getImageData(0,0,c.width,c.height);
+  for(let i=0;i<d.data.length;i+=4){
+    const a=d.data[i+3];
+    d.data[i]=d.data[i+1]=d.data[i+2]= a>8?0:0;
+    d.data[i+3]= a>8?255:0;
+  }
+  g.putImageData(d,0,0);
+  return c;
+}
+function makeSVG(){
+  const W=S.w,H=S.h;
+  const screws=screwPts().map(h=>`<circle cx="${h.x.toFixed(2)}" cy="${h.y.toFixed(2)}" r="${h.r.toFixed(2)}"/>`).join('');
+  const att=attPathD();
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">
+<g id="3枚目のカットパス" fill="none" stroke="#ff0000" stroke-width="0.1">
+  <path d="${outerPathD()}"/>${att?`<path d="${att}"/>`:''}
+</g>
+<g id="ビス穴のカットパス" fill="none" stroke="#0000ff" stroke-width="0.1">${screws}</g>
+<g id="1枚目・2枚目 輪郭・中身用のカットパス" fill="none" stroke="#00a000" stroke-width="0.1">
+  <path d="${innerPathD()}"/>
+  <path d="${partPathD('win')}"/>
+</g>
+</svg>`;
+}
+function makeSpec(){
+  const r=innerRect(), used=PARTS.filter(p=>p.img).length;
+  const L=[];
+  L.push('パッケージ風アクキー 仕様メモ');
+  L.push('作成日: '+new Date().toLocaleDateString('ja-JP'));
+  L.push('');
+  L.push(`3枚目（3mm）: ${S.w} × ${S.h} mm ／ ${S.shape==='arch'?'上が丸い形':'角丸四角'} ／ 角丸 ${S.rad}mm`);
+  L.push(`　印刷      : ${S.twoSide?'両面':'片面'}・フチなし（塗り足し ${BLEED}mm）`);
+  L.push(`1枚目（1mm）・2枚目（3mm）: ${r.w.toFixed(1)} × ${r.h.toFixed(1)} mm ／ 角丸 ${r.r}mm`);
+  L.push(`　1枚目の印刷: ${S.useL1?'あり（表のみ）':'なし'}`);
+  L.push(`　輪郭と 中身の カットパスは 共通`);
+  L.push('');
+  L.push(`中身パーツ（3mm・印刷可）: ${used} 個`);
+  PARTS.forEach((p,i)=>{ if(!p.img) return;
+    L.push(`　${'①②③④⑤'[i]} ${p.bbox? p.bbox.w.toFixed(1)+' × '+p.bbox.h.toFixed(1)+' mm':''}`+
+           `／白フチ ${p.off.toFixed(1)}mm`+(p.minw?`／細い所 およそ ${p.minw.toFixed(1)}mm`:''));
+  });
+  L.push('');
+  L.push(`ビス穴      : ${screwPts().length} 個 ／ 直径 ${S.hd.toFixed(1)}mm ／ 板のフチから ${S.hm.toFixed(1)}mm`);
+  L.push(`アタッチメント穴: ${S.att==='none'?'なし':(S.att==='pkg'?'パッケージ風アクキー用':'通常用')}`+
+         (S.att==='none'?'':` ／ カットパスから ${S.ag.toFixed(2)}mm`));
+  L.push(`窓のゆとり  : ${S.clr.toFixed(2)}mm（0＝共通パス）`);
+  L.push(`厚み合計    : 7 mm ／ 解像度 ${S.dpi} dpi`);
+  L.push('');
+  L.push('書き出したファイル');
+  L.push('  3maime_omote.png     … 3枚目 表デザイン（塗り足し込み）');
+  if(S.twoSide) L.push('  3maime_ura.png       … 3枚目 裏デザイン');
+  if(S.useL1)   L.push('  1maime.png           … 1枚目 デザイン');
+  L.push('  nakami_1..n.png      … 中身デザイン（1枚ずつ 別ファイル）');
+  if(S.white)   L.push('  *_shiroosae.png      … 白押さえ');
+  L.push('  cutpath.svg          … 3枚目／ビス穴／1枚目・2枚目＋中身');
+  return L.join('\n');
+}
+function png(c){ return c.toDataURL('image/png'); }
+$('expBack').addEventListener('click',()=>{ dl('3maime_omote.png',png(cvL3(false)));
+  if(S.white) setTimeout(()=>dl('3maime_omote_shiroosae.png',png(cvWhite(cvL3(false)))),200); });
+$('expUra').addEventListener('click',()=>{ if(!S.twoSide){ alert('両面印刷に チェックを 入れてください。'); return; }
+  dl('3maime_ura.png',png(cvL3(true))); });
+$('expL1').addEventListener('click',()=>{ dl('1maime.png',png(cvL1()));
+  if(S.white) setTimeout(()=>dl('1maime_shiroosae.png',png(cvWhite(cvL1()))),200); });
+$('expPart').addEventListener('click',()=>exportParts());
+function exportParts(delay=0){
+  let t=delay;
+  PARTS.forEach((p,i)=>{ if(!p.img&&PARTS.length>1) return;
+    const c=cvPart(i);
+    setTimeout(()=>dl(`nakami_${i+1}.png`,png(c)),t); t+=200;
+    if(S.white) { setTimeout(()=>dl(`nakami_${i+1}_shiroosae.png`,png(cvWhite(c))),t); t+=200; }
+  });
+  return t;
+}
+$('expSvg').addEventListener('click',()=>dl('cutpath.svg',blobURL(makeSVG(),'image/svg+xml')));
+$('expSpec').addEventListener('click',()=>dl('shiyou_memo.txt',blobURL(makeSpec(),'text/plain;charset=utf-8')));
+$('expAll').addEventListener('click',()=>{
+  let t=0;
+  const push=(name,url)=>{ setTimeout(()=>dl(name,url),t); t+=220; };
+  push('3maime_omote.png',png(cvL3(false)));
+  if(S.white) push('3maime_omote_shiroosae.png',png(cvWhite(cvL3(false))));
+  if(S.twoSide) push('3maime_ura.png',png(cvL3(true)));
+  if(S.useL1){ push('1maime.png',png(cvL1()));
+    if(S.white) push('1maime_shiroosae.png',png(cvWhite(cvL1()))); }
+  t=exportParts(t);
+  setTimeout(()=>dl('cutpath.svg',blobURL(makeSVG(),'image/svg+xml')),t); t+=220;
+  setTimeout(()=>dl('shiyou_memo.txt',blobURL(makeSpec(),'text/plain;charset=utf-8')),t);
+});
+
+/* ---------- はじめ ---------- */
+syncPartUI();
+render();
+document.fonts && document.fonts.ready.then(()=>render());
+</script>
+</body>
+</html>

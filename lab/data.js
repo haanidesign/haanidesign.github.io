@@ -210,6 +210,17 @@ const TOOLS = [
     thumb: "thumbs/project-guardian.svg",
     url: "tools/project-guardian/index.html",
     status: "live"
+  },
+  {
+    no: 20,
+    slug: "blister-design",
+    title: "ブリスター設計室",
+    desc: "ブリスターパック風キーホルダー（1mm＋3mm＋3mmの3層アクリル）の版下を組む台。台紙の絵と文字、中身パーツ、ビス穴の位置を決めると、パーツの透過PNGから輪郭をひろって白フチ付きのカット線と2枚目の窓を作る。フチの余白・穴とのあき・細い所の太さ・解像度を見て直す所を出す。台紙PNG、パーツPNG、原寸のカット線SVG、仕様メモを書き出せる。",
+    tags: ["アクリル", "グッズ", "版下", "カット線", "SVG書き出し"],
+    cat: "other",
+    thumb: "thumbs/blister-design.svg",
+    url: "tools/blister-design/index.html",
+    status: "live"
   }
 ];
 

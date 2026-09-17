@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs>
+    <pattern id="bd-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+    <g id="bd-part">
+      <path d="M0-78a52 52 0 1 1 -.1 0 Z M-30 -30 h60 v96 a30 30 0 0 1 -60 0 Z"/>
+    </g>
+  </defs>
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#bd-dots)"/>
+
+  <g transform="translate(340 215) skewY(-15) scale(.50 .46)">
+    <!-- 3枚目：台紙 -->
+    <g transform="translate(-80 110)">
+      <rect x="-110" y="-150" width="220" height="300" rx="14" fill="#F2F0BE" stroke="#1E1C14" stroke-width="4"/>
+      <circle cx="-82" cy="-122" r="10" fill="#1E1C14" opacity=".35"/>
+      <circle cx="82" cy="-122" r="10" fill="#1E1C14" opacity=".35"/>
+      <circle cx="-82" cy="122" r="10" fill="#1E1C14" opacity=".35"/>
+      <circle cx="82" cy="122" r="10" fill="#1E1C14" opacity=".35"/>
+    </g>
+    <!-- 中身パーツ -->
+    <g transform="translate(-15 30)">
+      <use href="#bd-part" fill="#FFB3C1" stroke="#fff" stroke-width="12" stroke-linejoin="round"/>
+      <use href="#bd-part" fill="none" stroke="#E15A78" stroke-width="3" stroke-linejoin="round"/>
+    </g>
+    <!-- 2枚目：窓あき -->
+    <g transform="translate(-15 5)" opacity=".93">
+      <path d="M-110-150 h220 a14 14 0 0 1 14 14 v272 a14 14 0 0 1 -14 14 h-220 a14 14 0 0 1 -14 -14 v-272 a14 14 0 0 1 14 -14 Z
+               M0 -84 a58 58 0 1 0 .1 0 Z M-36 -36 h72 v102 a36 36 0 0 1 -72 0 Z"
+            fill="#EDF4F8" fill-rule="evenodd" stroke="#1E1C14" stroke-width="4"/>
+    </g>
+    <!-- 1枚目：透明ふた -->
+    <g transform="translate(55 -105)">
+      <rect x="-110" y="-150" width="220" height="300" rx="14" fill="#BFE0F0" fill-opacity=".5" stroke="#1E1C14" stroke-width="4"/>
+    </g>
+  </g>
+
+  <g font-family="'M PLUS Rounded 1c',sans-serif" font-weight="800" fill="#1E1C14">
+    <text x="34" y="62" font-size="34">ブリスター設計室</text>
+    <text x="34" y="92" font-size="17" fill="#8A8470">3層アクリルの版下をつくる</text>
+  </g>
+</svg>
