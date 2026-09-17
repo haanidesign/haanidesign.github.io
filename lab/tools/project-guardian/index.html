@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="theme-color" content="#E1DD60">
 <title>プロジェクト・ガーディアン</title>
-<meta name="description" content="さいごのドームを まもりながら、そとの まっくろな 10エリアを みどりに もどしていく ゲーム。">
+<meta name="description" content="ドームを そだてて、夜だけ そとに 出て 灰を そうじして 発掘する、ほうっておいても すすむ ゲーム。">
 <link rel="icon" type="image/png" href="../../../favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,247 +14,237 @@
 :root{
   --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
   --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470;
-  --ok:#5BA85B; --warn:#E6A93C; --bad:#D8563F; --sky:#6FA8C7; --pink:#E58AA5;
+  --ok:#5BA85B; --warn:#E6A93C; --bad:#D8563F; --sky:#6FA8C7; --night:#2E3350;
   --bd:3px solid var(--ink); --r:16px;
   --top:env(safe-area-inset-top,0px); --bot:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{
-  margin:0; color:var(--ink); background:#EDE9D6;
+body{margin:0; color:var(--ink); background:#EDE9D6; font-size:15px; line-height:1.5;
   font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif; font-weight:800;
-  font-size:15px; line-height:1.5; overscroll-behavior:none;
-  -webkit-user-select:none; user-select:none;
-}
+  overscroll-behavior:none; -webkit-user-select:none; user-select:none}
 button{font:inherit; color:inherit; border:0; background:none; cursor:pointer}
-
-/* ── 端末わく ── */
-#app{
-  position:relative; width:100%; max-width:430px; margin:0 auto;
-  min-height:100dvh; background:var(--cream);
-  display:flex; flex-direction:column; overflow:hidden;
-  box-shadow:0 0 0 3px var(--ink);
-}
+#app{position:relative; width:100%; max-width:430px; margin:0 auto; min-height:100dvh;
+  background:var(--cream); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 0 0 3px var(--ink)}
 @media(min-width:460px){ body{padding:14px 0} #app{min-height:calc(100dvh - 28px); border-radius:22px} }
+#app.night{background:#E6E4DE}
 
-/* ── ヘッダー ── */
-header{
-  padding:calc(8px + var(--top)) 12px 8px; background:var(--main);
-  border-bottom:var(--bd); display:flex; align-items:center; gap:8px; flex:0 0 auto;
-}
-header .ttl{font-size:15px}
-header .turn{margin-left:auto; background:var(--paper); border:2.5px solid var(--ink);
-  border-radius:999px; padding:2px 12px; font-size:14px}
-.iconbtn{width:34px; height:34px; border:2.5px solid var(--ink); border-radius:50%;
-  background:var(--paper); font-size:15px; display:grid; place-items:center}
+header{padding:calc(8px + var(--top)) 12px 7px; background:var(--main); border-bottom:var(--bd); flex:0 0 auto}
+#app.night header{background:var(--night); color:#F4F2E4}
+.hrow{display:flex; align-items:center; gap:8px}
+.hrow .ttl{font-size:14px}
+.hrow .ph{margin-left:auto; font-size:13px; background:var(--paper); color:var(--ink);
+  border:2.5px solid var(--ink); border-radius:999px; padding:1px 11px}
+.iconbtn{width:32px; height:32px; border:2.5px solid var(--ink); border-radius:50%; background:var(--paper);
+  color:var(--ink); font-size:14px; display:grid; place-items:center; flex:0 0 auto}
+.clock{height:8px; border:2.5px solid var(--ink); border-radius:999px; background:var(--paper);
+  margin-top:6px; overflow:hidden}
+.clock > i{display:block; height:100%; background:var(--main-deep); transition:width .3s linear}
+#app.night .clock > i{background:#7C86C4}
 
-/* ── ゲージ ── */
-.meters{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:8px 10px;
+.meters{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:7px 10px;
   background:var(--main-soft); border-bottom:var(--bd); flex:0 0 auto}
-.m{background:var(--paper); border:2.5px solid var(--ink); border-radius:12px; padding:4px 5px; text-align:center}
-.m .e{font-size:17px; line-height:1.1}
+#app.night .meters{background:#D6D4CC}
+.m{background:var(--paper); border:2.5px solid var(--ink); border-radius:12px; padding:3px 4px; text-align:center}
+.m .e{font-size:16px; line-height:1.1}
 .m .v{font-size:13px}
-.m .bar{height:7px; border:2px solid var(--ink); border-radius:999px; background:#fff; overflow:hidden; margin-top:2px}
-.m .bar > i{display:block; height:100%; background:var(--ok); transition:width .35s}
+.m .bar{height:6px; border:2px solid var(--ink); border-radius:999px; background:#fff; overflow:hidden; margin-top:2px}
+.m .bar > i{display:block; height:100%; background:var(--ok); transition:width .3s linear}
 .m.mid .bar > i{background:var(--warn)} .m.low .bar > i{background:var(--bad)}
-.m.low{animation:blink 1s infinite}
-@keyframes blink{50%{background:#FFE3DC}}
-.m .d{font-size:10px; font-weight:700}
-.m .d.p{color:#3f7a3f} .m .d.m{color:#a63c2a}
 
-/* ── タブ ── */
-.tabs{display:flex; gap:6px; padding:8px 10px 0; flex:0 0 auto}
+.tabs{display:flex; gap:5px; padding:7px 9px 0; flex:0 0 auto}
 .tab{flex:1; border:2.5px solid var(--ink); border-bottom:0; border-radius:12px 12px 0 0;
-  background:#E2DECB; padding:8px 4px; font-size:14px; text-align:center}
+  background:#E2DECB; padding:7px 2px; font-size:13px; text-align:center}
 .tab.on{background:var(--paper); box-shadow:inset 0 -3px 0 var(--paper)}
-.tab .bdg.hide{display:none}
-.tab .bdg{display:inline-block; min-width:18px; background:var(--bad); color:#fff;
-  border-radius:999px; font-size:11px; padding:0 5px; margin-left:3px}
+.tab .dot{display:inline-block; width:9px; height:9px; background:var(--bad); border:2px solid var(--ink);
+  border-radius:50%; margin-left:2px; vertical-align:1px}
+main{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; border-top:var(--bd);
+  background:var(--paper); padding:10px 10px 16px}
+.sec{font-size:12px; color:var(--gray); margin:10px 0 6px}
+.tip{font-size:12.5px; color:#4a4630; background:var(--main-soft); border:2.5px solid var(--ink);
+  border-radius:12px; padding:8px 10px; margin-bottom:9px}
 
-/* ── なかみ ── */
-main{flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch;
-  border-top:var(--bd); background:var(--paper); padding:10px 10px 14px}
-.sec{font-size:12px; color:var(--gray); font-weight:700; margin:2px 0 6px}
+/* 施設カード */
+.fac{border:2.5px solid var(--ink); border-radius:14px; background:var(--cream); padding:9px;
+  margin-bottom:9px; box-shadow:3px 3px 0 var(--ink)}
+.fac .r1{display:flex; align-items:center; gap:9px}
+.fac .ico{width:44px; height:44px; border:2.5px solid var(--ink); border-radius:12px; background:var(--main-soft);
+  display:grid; place-items:center; font-size:22px; flex:0 0 auto; position:relative}
+.fac .ico .kid{position:absolute; right:-6px; bottom:-6px; font-size:15px}
+.fac .nm{font-size:15px}
+.fac .rate{font-size:12px; color:#4a4630}
+.fac .who{font-size:11px; color:var(--gray)}
+.fac .ico{cursor:pointer}
+.fac .lv{margin-left:auto; font-size:12px; background:var(--paper); border:2.5px solid var(--ink);
+  border-radius:999px; padding:1px 9px}
+.fac .r2{display:flex; gap:6px; margin-top:8px}
+.fac .r2 button{flex:1; border:2.5px solid var(--ink); border-radius:11px; background:var(--paper);
+  padding:9px 4px; font-size:13px; box-shadow:0 3px 0 var(--ink)}
+.fac .r2 button:active{transform:translateY(2px); box-shadow:0 1px 0 var(--ink)}
+.fac .r2 .help{background:#8FD07A}
+.fac .r2 button:disabled{opacity:.45; box-shadow:0 2px 0 var(--ink)}
+.fac.buff{box-shadow:3px 3px 0 var(--ink), 0 0 0 3px #8FD07A inset}
+.fac .sub{font-size:11px; display:block; font-weight:700}
 
-/* なかま */
-.card{display:flex; align-items:center; gap:9px; width:100%; text-align:left;
-  border:2.5px solid var(--ink); border-radius:14px; background:var(--cream);
-  padding:8px 9px; margin-bottom:8px; box-shadow:3px 3px 0 var(--ink)}
-.card:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink)}
-.card.dead{opacity:.5; box-shadow:none}
-.face{width:46px; height:46px; flex:0 0 auto; border:2.5px solid var(--ink); border-radius:50%;
-  display:grid; place-items:center; font-size:23px; background:var(--main-soft)}
-.card .info{flex:1 1 auto; min-width:0}
-.card .nm{font-size:15px}
-.card .nowjob{font-size:13px; color:#4a4630}
-.pips{display:flex; gap:7px; margin-top:3px; font-size:11px; font-weight:700}
-.pips .bar{width:46px; height:7px; border:2px solid var(--ink); border-radius:999px; background:#fff; display:inline-block; overflow:hidden; vertical-align:-1px}
-.pips .bar > i{display:block; height:100%; background:var(--ok)}
-.pips .bar.mid > i{background:var(--warn)} .pips .bar.low > i{background:var(--bad)}
-.card .go{font-size:20px; color:var(--gray)}
-
-/* そと */
+/* エリア */
 .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:7px}
-.tile{position:relative; aspect-ratio:1; border:2.5px solid var(--ink); border-radius:12px;
-  background:#B9B2A0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:1px; box-shadow:2px 2px 0 var(--ink); overflow:hidden}
+.tile{position:relative; aspect-ratio:1; border:2.5px solid var(--ink); border-radius:12px; background:#B9B2A0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:2px 2px 0 var(--ink)}
 .tile:active{transform:translate(2px,2px); box-shadow:0 0 0 var(--ink)}
-.tile .e{font-size:20px}
-.tile .p{font-size:12px}
-.tile .n{position:absolute; left:3px; top:2px; font-size:10px; color:#fff; text-shadow:0 1px 0 #000}
+.tile:disabled{opacity:.55; box-shadow:1px 1px 0 var(--ink)}
+.tile .e{font-size:19px} .tile .p{font-size:12px}
+.tile .n{position:absolute; left:3px; top:1px; font-size:10px; color:#fff; text-shadow:0 1px 0 #000}
 .tile.mid{background:#A79D74} .tile.low{background:#8FA86B} .tile.pure{background:#7CC06A}
-.tile.plant{box-shadow:2px 2px 0 var(--ink), inset 0 0 0 3px var(--sky)}
-.tile .badge{position:absolute; right:2px; top:1px; font-size:13px}
-.legend{display:flex; gap:10px; flex-wrap:wrap; font-size:11px; font-weight:700; color:#4a4630; margin-top:8px}
 
-/* ドーム絵 */
-.domebox{border:2.5px solid var(--ink); border-radius:14px; background:#DCEAF2; overflow:hidden; margin-bottom:10px}
-.domebox svg{display:block; width:100%; height:auto}
+/* コレクション */
+.rel{display:grid; grid-template-columns:repeat(3,1fr); gap:7px}
+.relc{border:2.5px solid var(--ink); border-radius:12px; background:var(--cream); padding:8px 4px; text-align:center}
+.relc.off{background:#E4E1D4; opacity:.65}
+.relc .e{font-size:24px; display:block}
+.relc .n{font-size:11px} .relc .s{font-size:10px; color:#4a4630}
 
-/* ── フッター ── */
-footer{flex:0 0 auto; padding:9px 10px calc(9px + var(--bot)); background:var(--main);
-  border-top:var(--bd); display:flex; gap:8px}
-.big{flex:1; border:var(--bd); border-radius:14px; background:var(--paper);
-  padding:13px 8px; font-size:17px; box-shadow:0 4px 0 var(--ink); text-align:center}
+footer{flex:0 0 auto; padding:9px 10px calc(9px + var(--bot)); background:var(--main); border-top:var(--bd); display:flex; gap:8px}
+#app.night footer{background:var(--night)}
+.big{flex:1; border:var(--bd); border-radius:14px; background:var(--paper); padding:13px 8px;
+  font-size:16px; box-shadow:0 4px 0 var(--ink); text-align:center; color:var(--ink)}
 .big:active{transform:translateY(3px); box-shadow:0 1px 0 var(--ink)}
-.big.go{background:#8FD07A}
-.big.sub{flex:0 0 108px; font-size:15px; background:var(--paper)}
-.big:disabled{opacity:.45; box-shadow:0 2px 0 var(--ink)}
+.big.go{background:#8FD07A} .big.night{background:#9AA3E0}
+.big:disabled{opacity:.5; box-shadow:0 2px 0 var(--ink)}
+.big .sub{display:block; font-size:11px; font-weight:700}
 
-/* ── シート ── */
-.sheet{position:absolute; inset:0; background:rgba(30,28,20,.55); display:flex;
-  align-items:flex-end; justify-content:center; z-index:30}
+/* シート */
+.sheet{position:absolute; inset:0; background:rgba(30,28,20,.55); display:flex; align-items:flex-end;
+  justify-content:center; z-index:30}
 .sheet.hide{display:none}
-.sheet .box{width:100%; background:var(--paper); border-top:var(--bd);
-  border-radius:20px 20px 0 0; padding:14px 12px calc(14px + var(--bot));
-  max-height:88%; overflow-y:auto; animation:up .18s ease-out}
-@keyframes up{from{transform:translateY(30px)}}
+.sheet .box{width:100%; background:var(--paper); border-top:var(--bd); border-radius:20px 20px 0 0;
+  padding:14px 12px calc(14px + var(--bot)); max-height:88%; overflow-y:auto; animation:up .18s ease-out}
+@keyframes up{from{transform:translateY(26px)}}
 .sheet h3{margin:0 0 4px; font-size:17px; text-align:center}
-.sheet .lead{font-size:13px; font-weight:700; color:#4a4630; text-align:center; margin:0 0 10px}
-.jobs{display:grid; grid-template-columns:repeat(3,1fr); gap:7px}
-.job{border:2.5px solid var(--ink); border-radius:13px; background:var(--cream);
-  padding:9px 3px; text-align:center; box-shadow:2px 2px 0 var(--ink)}
-.job:active{transform:translate(2px,2px); box-shadow:0 0 0 var(--ink)}
-.job.on{background:var(--main)}
-.job .e{font-size:24px; display:block; line-height:1.2}
-.job .n{font-size:12px}
-.job .s{font-size:10px; font-weight:700; color:#5a5540}
-.close{width:100%; margin-top:10px; border:2.5px solid var(--ink); border-radius:13px;
-  background:var(--cream); padding:11px; font-size:15px; box-shadow:0 3px 0 var(--ink)}
+.sheet .lead{font-size:13px; color:#4a4630; text-align:center; margin:0 0 10px; font-weight:700}
+.close{width:100%; margin-top:9px; border:2.5px solid var(--ink); border-radius:13px; background:var(--cream);
+  padding:11px; font-size:15px; box-shadow:0 3px 0 var(--ink)}
 
-/* できごと */
-.evt{display:flex; gap:8px; align-items:flex-start; border:2.5px solid var(--ink); border-radius:12px;
-  background:var(--cream); padding:8px 9px; margin-bottom:6px; font-size:13px; font-weight:700}
-.evt.g{background:#E2F3DA} .evt.r{background:#FBE3DC} .evt.b{background:#E0EDF4}
-.evt .e{font-size:17px; line-height:1.2}
+/* ミニゲーム */
+#mg{position:absolute; inset:0; z-index:38; background:#F4F1E0; display:flex; flex-direction:column}
+#mg.hide{display:none}
+#mg.dark{background:#232842; color:#F4F2E4}
+#mg .bar{padding:calc(8px + var(--top)) 12px 8px; border-bottom:var(--bd); background:var(--main); flex:0 0 auto}
+#mg.dark .bar{background:var(--night); color:#F4F2E4}
+#mg .bar .t1{display:flex; align-items:center; gap:8px; font-size:14px}
+#mg .bar .t2{font-size:12px; font-weight:700; margin-top:2px}
+#mg .time{height:9px; border:2.5px solid var(--ink); border-radius:999px; background:var(--paper); margin-top:6px; overflow:hidden}
+#mg .time > i{display:block; height:100%; background:var(--bad); width:100%}
+#mg .field{flex:1 1 auto; position:relative; overflow:hidden; padding:10px}
+#mg .foot{padding:9px 12px calc(9px + var(--bot)); border-top:var(--bd); background:var(--main); flex:0 0 auto}
+#mg.dark .foot{background:var(--night)}
+
+.target{position:absolute; width:62px; height:62px; border:2.5px solid var(--ink); border-radius:50%;
+  background:var(--paper); display:grid; place-items:center; font-size:28px; box-shadow:2px 2px 0 var(--ink)}
+.target.gone{opacity:0; transform:scale(.4); transition:.15s}
+.cells{display:grid; gap:6px; height:100%}
+.cell{border:2.5px solid var(--ink); border-radius:10px; background:#9E9683; display:grid; place-items:center;
+  font-size:22px; box-shadow:2px 2px 0 var(--ink)}
+.cell.done{background:#CFCBB4; box-shadow:none; font-size:15px}
+.cell.dig{background:#8A7A5E}
+.cell.dug{background:#D9D2BC; box-shadow:none}
+.wires{display:flex; justify-content:space-between; height:100%; align-items:center; padding:0 6px}
+.wcol{display:flex; flex-direction:column; gap:14px; width:78px}
+.wire{height:50px; border:2.5px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink)}
+.wire.on{outline:4px solid var(--ink); outline-offset:2px}
+.wire.done{opacity:.35; box-shadow:none}
+.seq{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; height:100%}
+.seq button{border:2.5px solid var(--ink); border-radius:12px; background:var(--paper); font-size:26px;
+  box-shadow:2px 2px 0 var(--ink)}
+.seq button.done{background:#8FD07A; opacity:.5}
 
 /* ものがたり */
 #story{position:absolute; inset:0; z-index:40; background:#2A2718; display:flex; flex-direction:column;
   justify-content:flex-end; padding:0 0 calc(18px + var(--bot))}
 #story.hide{display:none}
 #story .art{flex:1; display:grid; place-items:center; padding:16px}
-#story .art svg{width:100%; max-width:300px; height:auto}
-#story .bubble{margin:0 14px; border:var(--bd); border-radius:16px; background:var(--paper);
-  padding:14px; font-size:15px; line-height:1.7; min-height:108px}
+#story .art svg{width:100%; max-width:290px; height:auto}
+#story .bubble{margin:0 14px; border:var(--bd); border-radius:16px; background:var(--paper); color:var(--ink);
+  padding:14px; font-size:15px; line-height:1.7; min-height:104px}
 #story .who{font-size:12px; color:var(--gray); margin-bottom:3px}
-#story .next{text-align:right; font-size:12px; color:var(--gray); margin:6px 20px 0}
+#story .next{text-align:right; font-size:12px; color:#9a957f; margin:6px 20px 0}
 
-/* タイトル */
-#title{position:absolute; inset:0; z-index:45; background:var(--main);
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px}
+#title{position:absolute; inset:0; z-index:45; background:var(--main); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:12px; padding:22px}
 #title.hide{display:none}
-#title svg{width:78%; max-width:260px; height:auto}
-#title h1{font-size:25px; margin:0; text-align:center; line-height:1.3}
-#title .sub{font-size:13px; font-weight:700; text-align:center; color:#4a4630; margin:-6px 0 0}
+#title svg{width:74%; max-width:240px; height:auto}
+#title h1{font-size:24px; margin:0; text-align:center; line-height:1.3}
+#title .sub{font-size:13px; font-weight:700; text-align:center; color:#4a4630; margin:-4px 0 0}
 #title .big{max-width:250px; width:100%; flex:0 0 auto}
-
-/* けっか */
-.fin{text-align:center}
-.fin .em{font-size:48px}
 .hide{display:none}
-.tip{font-size:12px; font-weight:700; color:#4a4630; background:var(--main-soft);
-  border:2.5px solid var(--ink); border-radius:12px; padding:8px 10px; margin-bottom:9px}
+.fin{text-align:center} .fin .em{font-size:46px}
+.toast{position:absolute; left:50%; bottom:84px; transform:translateX(-50%); background:#1E1C14; color:#FFFEF7;
+  padding:8px 16px; border-radius:999px; font-size:13px; z-index:36; white-space:nowrap}
 </style>
 </head>
 <body>
 <div id="app">
-
   <header>
-    <span class="ttl">プロジェクト・ガーディアン</span>
-    <span class="turn"><b id="turnNo">1</b>日め</span>
-    <button class="iconbtn" id="btnMenu" aria-label="メニュー">☰</button>
+    <div class="hrow">
+      <span class="ttl">プロジェクト・ガーディアン</span>
+      <span class="ph" id="phase">☀️ ひる</span>
+      <button class="iconbtn" id="btnMenu">☰</button>
+    </div>
+    <div class="clock"><i id="clockBar" style="width:0%"></i></div>
   </header>
 
   <div class="meters" id="meters"></div>
 
   <div class="tabs">
-    <button class="tab on" data-tab="team">👦 なかま</button>
-    <button class="tab" data-tab="out">🗺 そと<span class="bdg hide" id="bdgOut"></span></button>
+    <button class="tab on" data-tab="dome">🏠 ドーム</button>
+    <button class="tab" data-tab="out">🌙 そと<span class="dot hide" id="dotOut"></span></button>
+    <button class="tab" data-tab="rel">📦 おたから</button>
   </div>
 
   <main id="main"></main>
 
-  <footer>
-    <button class="big sub" id="btnAuto">おまかせ</button>
-    <button class="big go" id="btnTurn">つぎの日へ ▶</button>
-  </footer>
+  <footer id="footer"></footer>
 
-  <!-- シート -->
   <div class="sheet hide" id="sheet"><div class="box" id="sheetBox"></div></div>
 
-  <!-- ものがたり -->
+  <div id="mg" class="hide">
+    <div class="bar">
+      <div class="t1"><span id="mgTitle"></span><span style="margin-left:auto" id="mgScore"></span></div>
+      <div class="t2" id="mgHelp"></div>
+      <div class="time"><i id="mgTime"></i></div>
+    </div>
+    <div class="field" id="mgField"></div>
+    <div class="foot"><button class="big" id="mgQuit">やめる</button></div>
+  </div>
+
   <div id="story" class="hide">
     <div class="art" id="storyArt"></div>
     <div class="bubble"><div class="who" id="storyWho"></div><div id="storyText"></div></div>
     <div class="next">タップで つぎへ ▶</div>
   </div>
 
-  <!-- タイトル -->
   <div id="title">
-    <svg viewBox="0 0 240 180" aria-hidden="true">
-      <rect x="6" y="140" width="228" height="34" rx="8" fill="#8FA86B" stroke="#1E1C14" stroke-width="4"/>
-      <path d="M40 146 A80 80 0 0 1 200 146 Z" fill="#FFFEF7" fill-opacity=".85" stroke="#1E1C14" stroke-width="5" stroke-linejoin="round"/>
-      <path d="M120 66 V146 M74 84 A80 80 0 0 0 64 122 M166 84 A80 80 0 0 1 176 122" stroke="#1E1C14" stroke-width="3" fill="none" opacity=".45"/>
-      <g stroke="#1E1C14" stroke-width="3.4" fill="none" stroke-linecap="round">
-        <circle cx="100" cy="118" r="9" fill="#F2F0BE"/>
-        <path d="M100 127 V142 M100 131 l-9 8 M100 131 l9 8"/>
-        <circle cx="140" cy="121" r="8" fill="#F2F0BE"/>
-        <path d="M140 129 V142 M140 133 l-8 7 M140 133 l8 7"/>
-      </g>
-      <g fill="#5BA85B"><circle cx="30" cy="140" r="9"/><circle cx="212" cy="138" r="11"/></g>
-      <g fill="#1E1C14" opacity=".25"><circle cx="30" cy="30" r="14"/><circle cx="46" cy="26" r="11"/><circle cx="200" cy="40" r="16"/><circle cx="182" cy="36" r="11"/></g>
+    <svg viewBox="0 0 240 170" aria-hidden="true">
+      <rect x="6" y="132" width="228" height="34" rx="8" fill="#8FA86B" stroke="#1E1C14" stroke-width="4"/>
+      <path d="M44 138 A78 78 0 0 1 196 138 Z" fill="#FFFEF7" fill-opacity=".85" stroke="#1E1C14" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M120 58 V138 M76 76 A78 78 0 0 0 66 114 M164 76 A78 78 0 0 1 174 114" stroke="#1E1C14" stroke-width="3" fill="none" opacity=".4"/>
+      <text x="100" y="128" font-size="20" text-anchor="middle">👦</text>
+      <text x="142" y="128" font-size="20" text-anchor="middle">👧</text>
+      <g fill="#5BA85B"><circle cx="28" cy="132" r="9"/><circle cx="214" cy="130" r="11"/></g>
+      <g fill="#1E1C14" opacity=".22"><circle cx="30" cy="28" r="14"/><circle cx="46" cy="24" r="11"/><circle cx="202" cy="38" r="16"/></g>
     </svg>
     <h1>プロジェクト<br>ガーディアン</h1>
-    <p class="sub">さいごの ドームを まもりながら、<br>そとの せかいを みどりに もどそう。</p>
+    <p class="sub">ひるは ドームの しごと、<br>よるは そとで 灰そうじと 発掘。</p>
     <button class="big go" id="btnStart">はじめる ▶</button>
-    <button class="big sub" id="btnSkip" style="flex:0 0 auto; width:170px; font-size:13px; background:var(--paper)">おはなしを とばす</button>
+    <button class="big" id="btnSkip" style="flex:0 0 auto; width:180px; font-size:13px">おはなしを とばす</button>
   </div>
-
 </div>
 
 <script>
-/* ══════════ データ ══════════ */
-const JOBS = [
-  {id:"garden", e:"🌿", n:"しょくぶつえん", s:"さんそ +",   sk:"work_skill"},
-  {id:"power",  e:"⚡", n:"はつでんき",     s:"でんき ++",  sk:"work_skill"},
-  {id:"farm",   e:"🌾", n:"のうじょう",     s:"たべもの +", sk:"work_skill"},
-  {id:"lab",    e:"🔬", n:"けんきゅうじょ", s:"けんきゅう +", sk:"research_skill"},
-  {id:"scout",  e:"🎒", n:"たんけんたい",   s:"そとへ いく", sk:"work_skill"},
-  {id:"guard",  e:"🛡", n:"ぼうえい",       s:"みんなを まもる", sk:"combat_skill"},
-  {id:"rest",   e:"☕", n:"おやすみ",       s:"げんき かいふく", sk:null}
-];
-const JOB = id => JOBS.find(j=>j.id===id);
-const KIDS = [
-  {name:"ノア", face:"🧑‍🚀"}, {name:"リク", face:"👦"}, {name:"ミオ", face:"👧"},
-  {name:"ハル", face:"🧒"},  {name:"セナ", face:"👩‍🔧"}, {name:"ユイ", face:"👩‍🔬"}
-];
-const PLANT_COST = {power:50, metal:30};
-const TOWER_COST = {research:200, metal:100, parts:12};
-const GRIDS = 10;
-
-/* エリアごとの みどころ */
-const AREA_NAME = ["はいきょ通り","かれた池","さびた鉄橋","もりの入口","風の丘",
-                   "しずんだ駅","ガラスの谷","ふるい温室","ひかりの岸","そらの広場"];
+/* ══════════════ データ ══════════════ */
+const DAY_SEC = 100, NIGHT_SEC = 70;
+const SAVE_KEY = "pg_idle_v1";
+const AREAS = ["はいきょ通り","かれた池","さびた鉄橋","もりの入口","風の丘",
+               "しずんだ駅","ガラスの谷","ふるい温室","ひかりの岸","そらの広場"];
 const AREA_STORY = [
   "はいきょの すきまから、ちいさな 草が 顔を 出した。",
   "池に みずが もどって、かえるが ないた。",
@@ -267,479 +257,551 @@ const AREA_STORY = [
   "岸べに ちょうちょが もどってきた。",
   "そらの 広場から、ひさしぶりに 青い そらが 見えた。"
 ];
+const FACS = [
+  {id:"farm",   e:"🌾", kid:"👦", n:"はたけ",       res:"food",   rate:0.55, game:"water", gn:"みずやり"},
+  {id:"power",  e:"⚡", kid:"👩‍🔧", n:"はつでんき",   res:"power",  rate:0.60, game:"wire",  gn:"はいせん つなぎ"},
+  {id:"garden", e:"🌿", kid:"👧", n:"しょくぶつえん", res:"oxygen", rate:0.55, game:"bug",   gn:"むしとり"},
+  {id:"filter", e:"🌀", kid:"🧒", n:"ろかそうち",    res:"metal",  rate:0.30, game:"dust",  gn:"フィルター そうじ"}
+];
+const RES_E = {food:"🍞", power:"⚡", oxygen:"💨", metal:"🔩"};
+const KIDS = [
+  {id:"noa",  face:"🧑‍🚀", n:"ノア", spec:"night",  sn:"そとの しごとが とくい"},
+  {id:"riku", face:"👦",   n:"リク", spec:"farm",   sn:"はたけが とくい"},
+  {id:"mio",  face:"👧",   n:"ミオ", spec:"garden", sn:"しょくぶつが とくい"},
+  {id:"sena", face:"👩‍🔧", n:"セナ", spec:"power",  sn:"きかいが とくい"},
+  {id:"yui",  face:"👩‍🔬", n:"ユイ", spec:"filter", sn:"ろかそうちが とくい"}
+];
+const KID = id => KIDS.find(k=>k.id===id);
+const RELICS = [
+  {id:"radio",  e:"📻", n:"ふるいラジオ",   s:"みんなの やる気 +5%", t:"むかしの ラジオだ。ざーっと いう おとの あいだに、うたが きこえた。"},
+  {id:"solar",  e:"🔆", n:"たいようでんち", s:"でんき +15%",         t:"ひびわれた たいようでんち。まだ ちゃんと はたらくみたい。"},
+  {id:"seed",   e:"🥫", n:"たねの かんづめ", s:"たべもの +15%",       t:"かんの なかは たね。100年 ねむっていた たねが、まだ 生きていた。"},
+  {id:"mask",   e:"😷", n:"ふるいマスク",   s:"よるの じかん +10びょう", t:"しっかりした マスク。これなら もっと ながく そとに いられる。"},
+  {id:"broom",  e:"🧹", n:"てつのほうき",   s:"灰そうじ 1かいで 2ますぶん", t:"かたい てつの ほうき。灰を ざっと はらえる。"},
+  {id:"shovel", e:"⛏", n:"おおきなスコップ", s:"はっくつが 2かい ふえる", t:"おおきな スコップ。もっと ふかく ほれそうだ。"},
+  {id:"lamp",   e:"🏮", n:"てらすランプ",   s:"よるの みつけやすさ アップ", t:"あかりが つくと、灰の むこうが すこし 見えた。"},
+  {id:"book",   e:"📗", n:"しょくぶつずかん", s:"さんそ +15%",        t:"やぶれた ずかん。むかしの 木の なまえが ならんでいる。"},
+  {id:"gear",   e:"⚙️", n:"きかいの はぐるま", s:"ろかそうち +25%",     t:"きれいな はぐるま。ろかそうちが すこし しずかに なった。"},
+  {id:"bike",   e:"🚲", n:"さびた じてんしゃ", s:"はっくつの おたから +",  t:"さびた じてんしゃ。なおせば、とおくまで ほりに いける。"},
+  {id:"doll",   e:"🧸", n:"くまの ぬいぐるみ", s:"みんなの やる気 +10%",  t:"だれかの たからもの だったんだね、と ミオが そっと ほこりを はらった。"},
+  {id:"photo",  e:"🖼", n:"いちまいの しゃしん", s:"ぜんぶの しごと +10%", t:"うつっているのは、みどりの まち。ここは、むかし こんな ばしょ だった。"}
+];
+const RELIC = id => RELICS.find(r=>r.id===id);
 
-/* ものがたり */
 const ART = {
-  dome:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#3A3520"/>
-    <rect x="0" y="118" width="240" height="42" fill="#5A5236"/>
+  dome:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#3A3520"/><rect x="0" y="118" width="240" height="42" fill="#5A5236"/>
     <path d="M50 122 A72 72 0 0 1 190 122 Z" fill="#F2F0BE" fill-opacity=".9" stroke="#1E1C14" stroke-width="5"/>
-    <path d="M120 50 V122" stroke="#1E1C14" stroke-width="3" opacity=".4"/>
     <g fill="#1E1C14" opacity=".35"><circle cx="34" cy="34" r="16"/><circle cx="54" cy="30" r="12"/><circle cx="196" cy="42" r="18"/></g>
-    <g fill="#E1DD60"><circle cx="100" cy="104" r="5"/><circle cx="140" cy="104" r="5"/></g></svg>`,
-  kids:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#F2F0BE"/>
-    <g stroke="#1E1C14" stroke-width="4" fill="none" stroke-linecap="round">
-      <circle cx="70" cy="66" r="15" fill="#FFFEF7"/><path d="M70 81 V112 M70 88 l-14 12 M70 88 l14 12 M70 112 l-10 26 M70 112 l10 26"/>
-      <circle cx="120" cy="58" r="15" fill="#FFFEF7"/><path d="M120 73 V106 M120 80 l-14 12 M120 80 l14 12 M120 106 l-10 32 M120 106 l10 32"/>
-      <circle cx="170" cy="68" r="15" fill="#FFFEF7"/><path d="M170 83 V112 M170 90 l-14 10 M170 90 l14 10 M170 112 l-9 26 M170 112 l9 26"/>
-    </g>
-    <path d="M0 140 H240" stroke="#1E1C14" stroke-width="5"/></svg>`,
-  map:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#2A2718"/>
-    <g stroke="#FFFEF7" stroke-width="3" fill="#4A4430" opacity=".9">
-      <rect x="20" y="24" width="44" height="44" rx="6"/><rect x="72" y="24" width="44" height="44" rx="6"/>
-      <rect x="124" y="24" width="44" height="44" rx="6"/><rect x="176" y="24" width="44" height="44" rx="6"/>
-      <rect x="20" y="76" width="44" height="44" rx="6"/><rect x="72" y="76" width="44" height="44" rx="6"/>
-      <rect x="124" y="76" width="44" height="44" rx="6"/><rect x="176" y="76" width="44" height="44" rx="6"/></g>
-    <text x="120" y="148" text-anchor="middle" fill="#E1DD60" font-family="sans-serif" font-size="17" font-weight="700">よごれ 100%</text></svg>`,
-  monster:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#3A2438"/>
-    <g fill="#6E3B6B" stroke="#1E1C14" stroke-width="4">
-      <path d="M60 130 q10 -70 60 -70 q50 0 60 70 z"/></g>
-    <g fill="#E1DD60"><circle cx="100" cy="92" r="8"/><circle cx="142" cy="92" r="8"/></g>
-    <g fill="#1E1C14"><circle cx="102" cy="94" r="4"/><circle cx="144" cy="94" r="4"/></g>
-    <path d="M96 116 q24 14 48 0" stroke="#1E1C14" stroke-width="4" fill="none"/></svg>`,
-  green:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#BFE3F2"/>
-    <rect x="0" y="108" width="240" height="52" fill="#7CC06A"/>
+    <text x="100" y="114" font-size="18" text-anchor="middle">👦</text><text x="140" y="114" font-size="18" text-anchor="middle">👧</text></svg>`,
+  night:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#232842"/>
+    <circle cx="196" cy="34" r="16" fill="#F2F0BE"/><g fill="#F2F0BE"><circle cx="40" cy="30" r="2"/><circle cx="80" cy="50" r="2"/><circle cx="140" cy="26" r="2"/><circle cx="60" cy="78" r="2"/></g>
+    <rect x="0" y="120" width="240" height="40" fill="#4A4430"/>
+    <text x="70" y="136" font-size="22" text-anchor="middle">🧹</text><text x="150" y="136" font-size="22" text-anchor="middle">⛏</text>
+    <path d="M0 120 H240" stroke="#F4F2E4" stroke-width="3" opacity=".5"/></svg>`,
+  green:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#BFE3F2"/><rect x="0" y="108" width="240" height="52" fill="#7CC06A"/>
     <circle cx="200" cy="36" r="20" fill="#E1DD60"/>
     <g stroke="#1E1C14" stroke-width="4" fill="#5BA85B"><circle cx="54" cy="92" r="24"/><circle cx="150" cy="84" r="18"/></g>
-    <g stroke="#1E1C14" stroke-width="5"><path d="M54 116 V132" /><path d="M150 102 V132"/></g>
-    <path d="M0 132 H240" stroke="#1E1C14" stroke-width="5"/></svg>`,
-  tower:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#BFE3F2"/>
-    <rect x="0" y="120" width="240" height="40" fill="#7CC06A"/>
-    <g stroke="#1E1C14" stroke-width="5" fill="#F2F0BE">
-      <path d="M100 120 L108 40 h24 l8 80 z"/><circle cx="120" cy="32" r="16" fill="#E1DD60"/></g>
-    <g stroke="#E1DD60" stroke-width="5" stroke-linecap="round">
-      <path d="M120 4 V-6 M150 22 l14 -8 M90 22 l-14 -8 M158 50 l16 2 M82 50 l-16 2"/></g></svg>`
+    <g stroke="#1E1C14" stroke-width="5"><path d="M54 116 V132"/><path d="M150 102 V132"/></g><path d="M0 132 H240" stroke="#1E1C14" stroke-width="5"/></svg>`,
+  tower:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#BFE3F2"/><rect x="0" y="120" width="240" height="40" fill="#7CC06A"/>
+    <g stroke="#1E1C14" stroke-width="5" fill="#F2F0BE"><path d="M100 120 L108 40 h24 l8 80 z"/><circle cx="120" cy="32" r="16" fill="#E1DD60"/></g>
+    <g stroke="#E1DD60" stroke-width="5" stroke-linecap="round"><path d="M150 22 l14 -8 M90 22 l-14 -8 M158 50 l16 2 M82 50 l-16 2"/></g></svg>`,
+  relic:`<svg viewBox="0 0 240 160"><rect width="240" height="160" fill="#2E2A18"/>
+    <ellipse cx="120" cy="120" rx="80" ry="26" fill="#5A5236"/><circle cx="120" cy="86" r="40" fill="#E1DD60" opacity=".25"/>
+    <text x="120" y="104" font-size="52" text-anchor="middle">📦</text></svg>`
 };
 const PROLOGUE = [
-  {art:"map",  who:"", t:"せかいの そとがわは、まっくろな よごれに つつまれてしまった。"},
-  {art:"dome", who:"", t:"のこったのは、この ドーム ひとつだけ。"},
-  {art:"kids", who:"ノア", t:"ぼくたちが、ここを まもる。\nそして、そとの せかいを みどりに もどすんだ。"},
-  {art:"monster", who:"ミオ", t:"でも そとには、よごれから 生まれた いきものが いるよ。\n気をつけないと……"},
-  {art:"kids", who:"セナ", t:"だいじょうぶ。\nみんなで しごとを 分けあえば、きっと できる！"},
-  {art:"map",  who:"", t:"10コの エリアの よごれを ぜんぶ 0% にして、\n「さいせいタワー」を 立てたら クリア。\n\nさあ、はじめよう。"}
+  {art:"dome",  who:"", t:"そとの せかいは、はいに うもれてしまった。\nのこったのは この ドーム ひとつ。"},
+  {art:"dome",  who:"ノア", t:"ひるの あいだは、ドームの しごと。\nはたけ、はつでんき、しょくぶつえん、ろかそうち。"},
+  {art:"dome",  who:"ミオ", t:"みんな ちゃんと はたらいてくれるから、\nほうっておいても すこしずつ たまるよ。\nてつだうと、もっと はやい！"},
+  {art:"dome",  who:"", t:"なかまは 5人。\n🧑‍🚀ノアは そと、👦リクは はたけ、👧ミオは しょくぶつ、\n👩‍🔧セナは きかい、👩‍🔬ユイは ろかそうち が とくい。\n\nとくいな しごとに おくと、ぐんと はやくなる。"},
+  {art:"night", who:"セナ", t:"そして よるだけ、そとに 出られる。\nひるは 灰の あらしで あぶないの。"},
+  {art:"night", who:"リク", t:"よるは、灰を そうじして、\nじめんを ほって むかしの ものを さがすんだ。"},
+  {art:"relic", who:"", t:"むかしの ものは、ドームを つよくしてくれる。\n\n10コの エリアを ぜんぶ みどりに もどして、\nさいせいタワーを 立てたら クリア。"}
 ];
 
-/* ══════════ じょうたい ══════════ */
-let G=null, TAB="team", QUEUE=[], QI=0, AFTER=null;
+/* ══════════════ じょうたい ══════════════ */
+let S=null, TAB="dome", QUEUE=[], QI=0, AFTER=null, MG=null, LOOP=null;
 const $ = s => document.querySelector(s);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd=n=>Math.floor(Math.random()*n);
+const now=()=>Date.now();
 
-function newGame(){
-  const cits = KIDS.map((k,i)=>({
-    id:i, name:k.name, face:k.face, health:100, mental:100,
-    work_skill:35+rnd(45), research_skill:35+rnd(45), combat_skill:35+rnd(45),
-    assigned_facility:["garden","power","farm","lab","scout","guard"][i], alive:true
-  }));
-  const grids = [];
-  for(let i=0;i<GRIDS;i++) grids.push({grid_id:i+1, name:AREA_NAME[i], pollution_level:100,
-    has_plant:false, is_purified:false, secured:0, bonus:null});
-  G = {turn:1, dome:{oxygen:70,power:70,food:70,hp:100}, metal:40, parts:0, research:0,
-       citizens:cits, grids:grids, target:0, tower:0, over:false, events:[], seen:{}};
+function newState(){
+  return {
+    t: now(), clock: 0, started:false,
+    res: {oxygen:60, power:60, food:60, metal:10},
+    fac: {farm:{lv:1,buff:0,cool:0}, power:{lv:1,buff:0,cool:0},
+          garden:{lv:1,buff:0,cool:0}, filter:{lv:1,buff:0,cool:0}},
+    areas: AREAS.map((n,i)=>({n:n, ash:100, green:false})),
+    relics: [], tower:0, seenWin:false, digLeft:6, nightUsed:false,
+    assign: {farm:"riku", power:"sena", garden:"mio", filter:"yui", night:"noa"}
+  };
+}
+function save(){
+  try{ S.t=now(); localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+}
+function load(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY); if(!raw) return null;
+    const s=JSON.parse(raw); if(!s||!s.res) return null;
+    if(!s.assign) s.assign={farm:"riku", power:"sena", garden:"mio", filter:"yui", night:"noa"};
+    return s;
+  }catch(e){ return null; }
 }
 
-/* ══════════ けいさん ══════════ */
-const alive = () => G.citizens.filter(c=>c.alive);
-const at = f => alive().filter(c=>c.assigned_facility===f);
-function eff(c){
-  let e=1;
-  if(c.mental<25) e*=.5; else if(c.mental<50) e*=.75;
-  if(c.health<30) e*=.6; else if(c.health<60) e*=.85;
-  return e;
+/* ボーナス */
+const hasR = id => S.relics.includes(id);
+function mult(res){
+  let m=1;
+  if(hasR("photo")) m*=1.10;
+  if(hasR("radio")) m*=1.05;
+  if(hasR("doll"))  m*=1.10;
+  if(res==="power"  && hasR("solar")) m*=1.15;
+  if(res==="food"   && hasR("seed"))  m*=1.15;
+  if(res==="oxygen" && hasR("book"))  m*=1.15;
+  if(res==="metal"  && hasR("gear"))  m*=1.25;
+  return m;
 }
-const out=(c,sk)=>Math.max(1, Math.round((2+sk/20)*eff(c)));
-function upkeep(){
-  const n=alive().length, plants=G.grids.filter(g=>g.has_plant&&!g.is_purified).length;
-  return {oxygen:Math.ceil(n*0.6), power:Math.ceil(n*0.5)+plants*2, food:Math.ceil(n*0.6)};
+function kidBonus(facId){
+  const k=KID(S.assign[facId]);
+  if(!k) return 0.6;                 // だれも いなくても すこしは すすむ
+  return k.spec===facId ? 1.7 : 1.15; // とくいな しごとなら もっと
 }
-function gain(){
-  let o=0,p=0,f=0;
-  at("garden").forEach(c=> o+=out(c,c.work_skill));
-  at("power").forEach(c=> p+=out(c,c.work_skill)*2);
-  at("farm").forEach(c=> f+=out(c,c.work_skill));
-  G.grids.filter(g=>g.is_purified).forEach(g=>{
-    if(g.bonus==="air") o+=2; if(g.bonus==="sun") p+=2; if(g.bonus==="soil") f+=2;
+function facRate(f){
+  const st=S.fac[f.id];
+  const buff = st.buff>now() ? 2 : 1;
+  return f.rate * st.lv * mult(f.res) * buff * kidBonus(f.id);
+}
+function useRate(){ // 1びょうあたりの しょうひ
+  return {oxygen:0.35, power:0.4, food:0.35};
+}
+function netRate(res){
+  let g=0;
+  FACS.forEach(f=>{ if(f.res===res) g+=facRate(f); });
+  const u=useRate()[res]||0;
+  return g-u;
+}
+function upCost(id){ return Math.round(18*Math.pow(1.55, S.fac[id].lv-1)); }
+const phase = () => (S.clock % (DAY_SEC+NIGHT_SEC)) < DAY_SEC ? "day" : "night";
+function phaseLeft(){
+  const c=S.clock%(DAY_SEC+NIGHT_SEC);
+  return phase()==="day" ? DAY_SEC-c : DAY_SEC+NIGHT_SEC-c;
+}
+function nightSec(){
+  const k=KID(S.assign.night);
+  return 18 + (hasR("mask")?10:0) + (k&&k.spec==="night"?6:0);
+}
+function broomPower(){
+  const k=KID(S.assign.night);
+  return (hasR("broom")?2:1) + (k&&k.spec==="night"?1:0);
+}
+function digCount(){
+  const k=KID(S.assign.night);
+  return 6 + (hasR("shovel")?2:0) + (k&&k.spec==="night"?2:0);
+}
+const greenCount = () => S.areas.filter(a=>a.green).length;
+
+/* ══════════════ すすむ ══════════════ */
+function advance(sec){
+  if(sec<=0) return;
+  const u=useRate();
+  ["oxygen","power","food"].forEach(r=>{
+    let g=0; FACS.forEach(f=>{ if(f.res===r) g+=facRate(f); });
+    S.res[r] = clamp(S.res[r] + (g-u[r])*sec, 0, 100);
   });
-  return {oxygen:o, power:p, food:f};
+  let m=0; FACS.forEach(f=>{ if(f.res==="metal") m+=facRate(f); });
+  S.res.metal += m*sec;
+  const before=phase();
+  S.clock += sec;
+  if(before!=="night" && phase()==="night"){ S.digLeft = digCount(); S.nightUsed=false; }
+  if(S.tower>0 && S.tower<100) S.tower = clamp(S.tower + sec*2, 0, 100);
 }
 
-/* ══════════ えがく ══════════ */
-function draw(){
-  $("#turnNo").textContent=G.turn;
+function tick(){
+  const t=now(); const dt=Math.min((t-S.t)/1000, 2); S.t=t;
+  const wasPhase=phase();
+  advance(dt);
+  updateLive();
+  if(wasPhase!==phase()){ render(); flash(phase()==="night"?"🌙 よるに なった。そとに 出られるよ":"☀️ あさが きた"); }
+  if(S.tower>=100 && !S.seenWin){ S.seenWin=true; win(); }
+}
+
+/* ══════════════ えがく ══════════════ */
+function render(){
+  $("#app").classList.toggle("night", phase()==="night");
+  $("#phase").textContent = phase()==="day" ? "☀️ ひる" : "🌙 よる";
   drawMeters();
-  $("#main").innerHTML = TAB==="team" ? viewTeam() : viewOut();
+  $("#main").innerHTML = TAB==="dome" ? viewDome() : TAB==="out" ? viewOut() : viewRel();
+  drawFooter();
   bind();
-  const n = G.grids.filter(g=>!g.is_purified && g.secured>=100 && !g.has_plant &&
-             G.dome.power>=PLANT_COST.power && G.metal>=PLANT_COST.metal).length;
-  const b=$("#bdgOut");
-  b.classList.toggle("hide", n===0); b.textContent=n;
+  updateLive();
+  $("#dotOut").classList.toggle("hide", phase()!=="night");
 }
 
 function drawMeters(){
-  const up=upkeep(), gn=gain();
-  const rows=[
-    {e:"💨", n:"さんそ", v:G.dome.oxygen, d:gn.oxygen-up.oxygen},
-    {e:"⚡", n:"でんき", v:G.dome.power,  d:gn.power-up.power},
-    {e:"🍞", n:"たべもの", v:G.dome.food, d:gn.food-up.food},
-    {e:"🏠", n:"ドーム", v:G.dome.hp,     d:null}
-  ];
-  $("#meters").innerHTML = rows.map(r=>{
-    const cls = r.v<25?"low":r.v<50?"mid":"";
-    const d = r.d===null?"&nbsp;":`<span class="d ${r.d>=0?"p":"m"}">${r.d>=0?"+":""}${r.d}</span>`;
-    return `<div class="m ${cls}"><div class="e">${r.e}</div>
-      <div class="v">${r.v}</div><div class="bar"><i style="width:${r.v}%"></i></div><div>${d}</div></div>`;
-  }).join("");
+  $("#meters").innerHTML = ["oxygen","power","food"].map(r=>{
+    const v=S.res[r];
+    return `<div class="m" id="m-${r}"><div class="e">${RES_E[r]}</div><div class="v"><b id="v-${r}">0</b></div>
+      <div class="bar"><i id="b-${r}" style="width:0%"></i></div></div>`;
+  }).join("") + `<div class="m"><div class="e">🔩</div><div class="v"><b id="v-metal">0</b></div>
+      <div class="bar" style="border-color:transparent; background:none"></div></div>`;
 }
 
-function viewTeam(){
-  const tired = alive().filter(c=>c.mental<35||c.health<40).length;
-  let s = `<div class="tip">🖐 なかまを タップすると、しごとを えらべるよ。${tired?`<br>🥱 つかれている子が ${tired}人。「☕ おやすみ」も だいじ。`:""}</div>`;
-  s += G.citizens.map(c=>{
-    if(!c.alive) return `<div class="card dead"><div class="face">😇</div>
-      <div class="info"><div class="nm">${c.name}</div><div class="nowjob">ちからつきた……</div></div></div>`;
-    const j=JOB(c.assigned_facility);
-    const bar=(v,w)=>`<span class="bar ${v<25?"low":v<50?"mid":""}"><i style="width:${v}%"></i></span>`;
-    return `<button class="card" data-cit="${c.id}">
-      <div class="face">${c.face}</div>
-      <div class="info">
-        <div class="nm">${c.name}</div>
-        <div class="nowjob">${j.e} ${j.n}</div>
-        <div class="pips">❤️${bar(c.health)} 😊${bar(c.mental)}</div>
-      </div><div class="go">›</div></button>`;
-  }).join("");
-  s += `<div class="sec">もちもの</div>
-    <div class="tip" style="background:var(--cream)">
-      🔩 きんぞく ${G.metal}　🧪 じょうかざい ${G.parts}　📘 けんきゅう ${G.research}</div>`;
-  if(G.dome.hp<100){
-    const ok = G.metal>=20;
-    s += `<button class="close" id="btnFix" ${ok?"":"disabled"} style="margin-top:0;${ok?"background:#8FD07A":"opacity:.5"}">
-      🔧 ドームを なおす（🔩20 → 🏠+25）</button>`;
+function updateLive(){
+  ["oxygen","power","food"].forEach(r=>{
+    const v=S.res[r], el=$("#v-"+r), b=$("#b-"+r), m=$("#m-"+r);
+    if(!el) return;
+    el.textContent=Math.floor(v);
+    b.style.width=v+"%";
+    m.className = "m " + (v<20?"low":v<45?"mid":"");
+  });
+  const mv=$("#v-metal"); if(mv) mv.textContent=Math.floor(S.res.metal);
+  const cb=$("#clockBar");
+  if(cb){
+    const total=phase()==="day"?DAY_SEC:NIGHT_SEC;
+    cb.style.width=(100*(1-phaseLeft()/total))+"%";
   }
+  // 施設の 数字
+  FACS.forEach(f=>{
+    const e=$("#rate-"+f.id); if(!e) return;
+    e.innerHTML = `${RES_E[f.res]} ${facRate(f).toFixed(1)} /びょう` + (S.fac[f.id].buff>now()?" 🔥×2":"");
+    const c=$("#cool-"+f.id);
+    if(c){
+      const left=Math.ceil((S.fac[f.id].cool-now())/1000);
+      c.disabled = left>0 || phase()!=="day";
+      c.innerHTML = phase()!=="day" ? `🌙 よるは おやすみ` :
+        left>0 ? `⏳ ${left}びょう` : `🎮 ${f.gn}<span class="sub">てつだうと ドンと ふえる</span>`;
+    }
+    const u=$("#up-"+f.id);
+    if(u){ const c2=upCost(f.id); u.disabled = S.res.metal<c2;
+      u.innerHTML = `⬆️ レベルアップ<span class="sub">🔩 ${c2}</span>`; }
+    const card=$("#fac-"+f.id); if(card) card.classList.toggle("buff", S.fac[f.id].buff>now());
+  });
+  const dg=$("#digLeft"); if(dg) dg.textContent=S.digLeft;
+}
+
+function kidFace(facId){ const k=KID(S.assign[facId]); return k?k.face:"➕"; }
+function kidLabel(facId){
+  const k=KID(S.assign[facId]);
+  if(!k) return "だれも いない（おそい）";
+  return `${k.n}${k.spec===facId?"（とくい ×1.7）":"（×1.15）"}`;
+}
+function openKidPick(slot){
+  const title = slot==="night" ? "よるの そとに いく なかま" : "だれに まかせる？";
+  openSheet(`<h3>${title}</h3><p class="lead">タップで えらぶ。ほかの しごとの 子を えらぶと いれかわるよ。</p>
+    ${KIDS.map(k=>{
+      const at = Object.keys(S.assign).find(f=>S.assign[f]===k.id);
+      const here = S.assign[slot]===k.id;
+      const where = at ? (at==="night"?"🌙 よるの たんとう":"いま "+(FACS.find(f=>f.id===at)||{}).n) : "おやすみ中";
+      const good = k.spec===slot;
+      return `<button class="close" data-pick="${k.id}" style="text-align:left; ${here?"background:var(--main)":good?"background:#DFF0D6":""}">
+        <span style="font-size:22px">${k.face}</span> ${k.n}　<span style="font-size:11px">${k.sn}</span>
+        <span class="sub" style="display:block; font-size:11px">${good?"⭐ この しごとが とくい":""} ${where}</span></button>`;
+    }).join("")}
+    <button class="close" data-pick="">だれも おかない</button>
+    <button class="close" id="btnCloseSheet">とじる</button>`);
+  document.querySelectorAll("[data-pick]").forEach(b=> b.onclick=()=>{
+    const id=b.dataset.pick;
+    if(id){
+      Object.keys(S.assign).forEach(f=>{ if(S.assign[f]===id) S.assign[f]=null; });
+      S.assign[slot]=id;
+    }else S.assign[slot]=null;
+    closeSheet(); save(); render();
+  });
+}
+function viewDome(){
+  let s=`<div class="tip">${phase()==="day"
+    ? "☀️ ひるは ドームの しごと。ほうっておいても たまるよ。<br>🎮 ボタンで てつだうと、ドンと ふえて 60びょう 2ばいに なる。"
+    : "🌙 よるは みんな おやすみ。いまは そとに 出られる（「🌙 そと」タブ）。"}</div>`;
+  s += FACS.map(f=>`
+    <div class="fac" id="fac-${f.id}">
+      <div class="r1">
+        <button class="ico" data-kidslot="${f.id}">${f.e}<span class="kid">${kidFace(f.id)}</span></button>
+        <div><div class="nm">${f.n}</div><div class="rate" id="rate-${f.id}"></div>
+          <div class="who">${kidLabel(f.id)}</div></div>
+        <div class="lv">Lv.${S.fac[f.id].lv}</div>
+      </div>
+      <div class="r2">
+        <button class="help" id="cool-${f.id}" data-game="${f.id}"></button>
+        <button id="up-${f.id}" data-up="${f.id}"></button>
+      </div>
+    </div>`).join("");
+  const g=greenCount();
+  s += `<div class="sec">ドームの ようす</div>
+    <div class="tip" style="background:var(--cream)">🌳 みどりに もどした エリア ${g} / 10　📦 おたから ${S.relics.length} / ${RELICS.length}
+      ${S.tower>0?`<br>🗼 さいせいタワー ${Math.floor(S.tower)}%`:""}</div>`;
   return s;
 }
 
 function viewOut(){
-  const pure=G.grids.filter(g=>g.is_purified).length;
-  let s = `<div class="domebox">${domeArt()}</div>`;
-  s += `<div class="tip">🗺 エリアを タップ。まず「たんけん」で あんぜんにして、つぎに 「じょうかプラント」を たてよう。<br>みどりに なったエリア ${pure} / ${GRIDS}</div>`;
-  s += `<div class="grid">` + G.grids.map((g,i)=>{
-    const cls = g.is_purified?"pure": g.pollution_level<=40?"low": g.pollution_level<=70?"mid":"";
-    const e = g.is_purified?"🌳": g.has_plant?"🏭": g.secured>=100?"🚩":"☠️";
-    const ready = !g.has_plant&&!g.is_purified&&g.secured>=100&&G.dome.power>=PLANT_COST.power&&G.metal>=PLANT_COST.metal;
-    return `<button class="tile ${cls} ${g.has_plant?"plant":""}" data-grid="${i}">
-      <span class="n">${g.grid_id}</span>${ready?'<span class="badge">✨</span>':""}
-      <span class="e">${e}</span><span class="p">${g.pollution_level}%</span></button>`;
+  if(phase()!=="night"){
+    return `<div class="tip">☀️ ひるは 灰の あらしで そとに 出られない。<br>あと <b id="untilNight">${Math.ceil(phaseLeft())}</b> びょうで よるが くるよ。</div>
+      <div style="text-align:center; font-size:60px; margin:26px 0">🌪</div>
+      <div class="tip" style="background:var(--cream)">よるに なったら…<br>🧹 灰そうじ … エリアの 灰を へらす<br>⛏ はっくつ … 🔩と むかしの ものが 出る</div>`;
+  }
+  const nk=KID(S.assign.night);
+  let s=`<div class="fac"><div class="r1">
+      <button class="ico" data-kidslot="night">🌙<span class="kid">${nk?nk.face:"➕"}</span></button>
+      <div><div class="nm">${nk?nk.n+" と いく":"だれと いく？"}</div>
+        <div class="rate">${nk?nk.sn:"タップして えらぼう"}</div>
+        <div class="who">🧹 1かいで ${broomPower()}%　⛏ ${digCount()}かい　⏱ ${nightSec()}びょう</div></div>
+    </div></div>
+    <div class="tip">🌙 よる。エリアを えらんで、灰を そうじしよう。<br>灰が 0% に なると みどりに もどるよ。</div>`;
+  s += `<div class="grid">` + S.areas.map((a,i)=>{
+    const cls=a.green?"pure":a.ash<=40?"low":a.ash<=70?"mid":"";
+    return `<button class="tile ${cls}" data-area="${i}" ${a.green?"disabled":""}>
+      <span class="n">${i+1}</span><span class="e">${a.green?"🌳":"🌫"}</span><span class="p">${Math.ceil(a.ash)}%</span></button>`;
   }).join("") + `</div>`;
-  s += `<div class="legend"><span>☠️ よごれたまま</span><span>🚩 あんぜん</span><span>🏭 じょうか中</span><span>🌳 みどり</span></div>`;
-
-  /* タワー */
-  const okAll = pure===GRIDS;
-  const can = okAll && G.research>=TOWER_COST.research && G.metal>=TOWER_COST.metal && G.parts>=TOWER_COST.parts && G.tower===0;
-  s += `<div class="sec">さいせいタワー</div><div class="tip" style="background:var(--main-soft)">
-    🌳 みどり ${pure}/${GRIDS}　📘 ${G.research}/${TOWER_COST.research}　🔩 ${G.metal}/${TOWER_COST.metal}　🧪 ${G.parts}/${TOWER_COST.parts}
-    ${G.tower>0?`<br>🗼 けんせつ ${G.tower}%`:""}</div>`;
-  if(G.tower===0) s += `<button class="close ${can?"":""}" id="btnTower" ${can?"":"disabled"} style="${can?"background:#8FD07A":"opacity:.5"}">🗼 タワーを 立てる</button>`;
+  s += `<div class="sec">はっくつ</div>
+    <div class="tip" style="background:var(--cream)">⛏ こんやの のこり <b id="digLeft">${S.digLeft}</b> かい（${digCount()}かい中）<br>ほると 🔩 と、ときどき むかしの ものが 出るよ。</div>
+    <button class="close" id="btnDig" style="background:#9AA3E0">⛏ じめんを ほる</button>`;
+  const g=greenCount();
+  if(g===10 && S.tower===0){
+    const ok=S.res.metal>=200 && S.relics.length>=5;
+    s += `<div class="sec">さいせいタワー</div>
+      <div class="tip">🗼 ぜんぶ みどりに なった！<br>🔩200 と 📦5こ で タワーを 立てられる（いま 🔩${Math.floor(S.res.metal)}・📦${S.relics.length}）</div>
+      <button class="close" id="btnTower" ${ok?"":"disabled"} style="${ok?"background:#8FD07A":"opacity:.5"}">🗼 さいせいタワーを 立てる</button>`;
+  }
   return s;
 }
 
-function domeArt(){
-  const d=G.dome, bad = d.hp<50;
-  const sky = d.oxygen<30 ? "#E8C8BE" : "#DCEAF2";
-  const ground = G.grids.filter(g=>g.is_purified).length>=5 ? "#7CC06A" : "#9C9377";
-  const kids = alive().slice(0,4).map((c,i)=>
-    `<text x="${86+i*24}" y="112" font-size="17" text-anchor="middle">${c.face}</text>`).join("");
-  return `<svg viewBox="0 0 240 125" aria-hidden="true">
-    <rect width="240" height="125" fill="${sky}"/>
-    <rect x="0" y="100" width="240" height="25" fill="${ground}"/>
-    <path d="M52 116 A70 70 0 0 1 188 116 Z" fill="#FFFEF7" fill-opacity=".75" stroke="#1E1C14" stroke-width="4" stroke-linejoin="round"/>
-    <path d="M120 46 V116 M78 62 A70 70 0 0 0 68 96 M162 62 A70 70 0 0 1 172 96" stroke="#1E1C14" stroke-width="2" fill="none" opacity=".35"/>
-    ${bad?'<path d="M104 116 L112 74 M150 116 L142 82" stroke="#D8563F" stroke-width="4" fill="none"/>':""}
-    ${kids}
-    <path d="M0 116 H240" stroke="#1E1C14" stroke-width="4"/>
-    ${G.tower>0?`<g><rect x="200" y="${116-G.tower*0.6}" width="14" height="${G.tower*0.6}" fill="#F2F0BE" stroke="#1E1C14" stroke-width="3"/></g>`:""}
-  </svg>`;
+function viewRel(){
+  let s=`<div class="tip">📦 よるの はっくつで 出てきた むかしの もの。もっているだけで ドームが つよくなる。</div>`;
+  s += `<div class="rel">` + RELICS.map(r=>{
+    const got=hasR(r.id);
+    return `<div class="relc ${got?"":"off"}"><span class="e">${got?r.e:"❔"}</span>
+      <span class="n">${got?r.n:"？？？"}</span><span class="s">${got?r.s:"まだ 見つけてない"}</span></div>`;
+  }).join("") + `</div>`;
+  return s;
+}
+
+function drawFooter(){
+  const f=$("#footer");
+  if(phase()==="night"){
+    f.innerHTML = `<button class="big night" id="fNight">🌙 そとへ 出る<span class="sub">灰そうじ と はっくつ</span></button>`;
+    $("#fNight").onclick=()=>{ TAB="out"; setTab(); };
+  }else{
+    const nxt=Math.ceil(phaseLeft());
+    f.innerHTML = `<button class="big" id="fDay">☀️ ひるの しごと ちゅう<span class="sub">よるまで あと <b id="untilN2">${nxt}</b> びょう</span></button>`;
+    $("#fDay").onclick=()=>{ TAB="dome"; setTab(); };
+  }
 }
 
 function bind(){
-  document.querySelectorAll("[data-cit]").forEach(b=> b.onclick=()=>openJob(+b.dataset.cit));
-  document.querySelectorAll("[data-grid]").forEach(b=> b.onclick=()=>openArea(+b.dataset.grid));
-  const t=$("#btnTower"); if(t) t.onclick=startTower;
-  const f=$("#btnFix"); if(f) f.onclick=()=>{ repair(); draw(); toast("ドームを なおした！"); };
+  document.querySelectorAll("[data-game]").forEach(b=> b.onclick=()=>startFacGame(b.dataset.game));
+  document.querySelectorAll("[data-up]").forEach(b=> b.onclick=()=>upgrade(b.dataset.up));
+  document.querySelectorAll("[data-kidslot]").forEach(b=> b.onclick=()=>openKidPick(b.dataset.kidslot));
+  document.querySelectorAll("[data-area]").forEach(b=> b.onclick=()=>startAsh(+b.dataset.area));
+  const d=$("#btnDig"); if(d) d.onclick=startDig;
+  const t=$("#btnTower"); if(t) t.onclick=buildTower;
 }
+function setTab(){
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x.dataset.tab===TAB));
+  render();
+}
+document.querySelectorAll(".tab").forEach(t=> t.onclick=()=>{ TAB=t.dataset.tab; setTab(); });
 
-/* ══════════ シート ══════════ */
+/* ══════════════ そうさ ══════════════ */
+function upgrade(id){
+  const c=upCost(id);
+  if(S.res.metal<c) return;
+  S.res.metal-=c; S.fac[id].lv++;
+  save(); render(); flash("レベルアップ！ もっと はやく なった");
+}
+function buildTower(){
+  if(S.res.metal<200||S.relics.length<5) return;
+  S.res.metal-=200; S.tower=1; save();
+  story([{art:"tower", who:"ユイ", t:"さいせいタワー、けんせつ かいし！\nあと すこしで せかいが かわるよ。"}], render);
+}
+function flash(t){
+  const d=document.createElement("div"); d.className="toast"; d.textContent=t;
+  $("#app").appendChild(d); setTimeout(()=>d.remove(),1600);
+}
 function openSheet(html){ $("#sheetBox").innerHTML=html; $("#sheet").classList.remove("hide"); }
 function closeSheet(){ $("#sheet").classList.add("hide"); }
-$("#sheet").onclick = e => { if(e.target.id==="sheet") closeSheet(); };
+$("#sheet").onclick = e=>{ if(e.target.id==="sheet") closeSheet(); };
 
-function openJob(id){
-  const c=G.citizens[id]; if(!c.alive) return;
-  const mood = c.mental<25?"もう げんかい……":c.mental<50?"ちょっと つかれた":"げんき！";
-  openSheet(`
-    <h3>${c.face} ${c.name}</h3>
-    <p class="lead">${mood}　❤️${c.health}　😊${c.mental}<br>
-      💪${c.work_skill}　📘${c.research_skill}　⚔️${c.combat_skill}　（とくいな しごとほど よく はたらく）</p>
-    <div class="jobs">${JOBS.map(j=>`
-      <button class="job ${c.assigned_facility===j.id?"on":""}" data-job="${j.id}">
-        <span class="e">${j.e}</span><span class="n">${j.n}</span><span class="s">${j.s}</span>
-        ${j.sk?`<span class="s">とくい ${c[j.sk]}</span>`:`<span class="s">&nbsp;</span>`}
-      </button>`).join("")}</div>
-    <button class="close" id="btnCloseSheet">とじる</button>`);
-  document.querySelectorAll("[data-job]").forEach(b=> b.onclick=()=>{
-    c.assigned_facility=b.dataset.job; closeSheet(); draw();
+/* ══════════════ ミニゲーム ══════════════ */
+function openMG(o){
+  MG={score:0, end:o.time, t0:now(), kind:o.kind, dark:!!o.dark, finish:o.finish};
+  $("#mg").classList.remove("hide");
+  $("#mg").classList.toggle("dark", !!o.dark);
+  $("#mgTitle").textContent=o.title;
+  $("#mgHelp").textContent=o.help;
+  $("#mgField").innerHTML="";
+  $("#mgScore").textContent="";
+  o.build($("#mgField"));
+  MG.timer=setInterval(()=>{
+    const left=MG.end-(now()-MG.t0)/1000;
+    $("#mgTime").style.width=clamp(left/MG.end*100,0,100)+"%";
+    if(left<=0) endMG();
+  },100);
+}
+function scoreMG(n){ MG.score+=n; $("#mgScore").textContent="⭐ "+MG.score; }
+function endMG(){
+  if(!MG) return;
+  clearInterval(MG.timer);
+  const m=MG; MG=null;
+  $("#mg").classList.add("hide");
+  $("#mgField").innerHTML="";
+  m.finish(m.score);
+  save();
+}
+$("#mgQuit").onclick=endMG;
+
+/* まとあて（みずやり・むしとり・ほこり） */
+function tapGame(cfg){
+  openMG({
+    title:cfg.title, help:cfg.help, time:cfg.time, dark:cfg.dark,
+    build(field){
+      let live=0;
+      const spawn=()=>{
+        if(!MG) return;
+        const el=document.createElement("button");
+        el.className="target"; el.textContent=cfg.emoji[rnd(cfg.emoji.length)];
+        const w=field.clientWidth-72, h=field.clientHeight-72;
+        el.style.left=(10+rnd(Math.max(1,w)))+"px";
+        el.style.top =(10+rnd(Math.max(1,h)))+"px";
+        el.onclick=()=>{ el.classList.add("gone"); setTimeout(()=>el.remove(),150); live--; scoreMG(1); setTimeout(spawn, 120+rnd(260)); };
+        field.appendChild(el); live++;
+        setTimeout(()=>{ if(el.isConnected){ el.remove(); live--; setTimeout(spawn,200); } }, 1500+rnd(900));
+      };
+      for(let i=0;i<cfg.n;i++) setTimeout(spawn, i*200);
+    },
+    finish:cfg.finish
   });
-  $("#btnCloseSheet").onclick=closeSheet;
 }
 
-function openArea(i){
-  const g=G.grids[i]; G.target=i;
-  let body, act="";
-  if(g.is_purified){
-    const bn={air:"きれいな くうき（さんそ +2）", sun:"おひさま（でんき +2）", soil:"いい つち（たべもの +2）"}[g.bonus];
-    body=`🌳 みどりに もどった！<br>${AREA_STORY[i]}<br><br>ここから とどく もの：${bn}`;
-  }else if(g.has_plant){
-    body=`🏭 じょうかプラントが うごいている。<br>1日に よごれが 10% ずつ へるよ。（でんきを 2 つかう）`;
-  }else if(g.secured>=100){
-    const ok=G.dome.power>=PLANT_COST.power&&G.metal>=PLANT_COST.metal;
-    body=`🚩 あんぜんに なった！<br>じょうかプラントを 立てられるよ。`;
-    act=`<button class="close" id="btnPlant" ${ok?"":"disabled"} style="${ok?"background:#8FD07A":"opacity:.5"}">
-      🏭 じょうかプラントを 立てる<br><span style="font-size:12px">⚡50 ＋ 🔩30 ${ok?"":"（たりない）"}</span></button>`;
-  }else{
-    const sc=at("scout").length;
-    body=`☠️ まだ あぶない ばしょ。<br>あんぜん ${g.secured}%<br><br>
-      「🎒 たんけんたい」の なかまを えらんで、つぎの日へ すすむと ここを しらべに いくよ。
-      ${sc?`<br>いま たんけんたい：${sc}人`:`<br>⚠️ いまは だれも たんけんたいに いないよ`}`;
-    act=`<button class="close" id="btnAim" style="background:var(--main)">🎯 ここを たんけんする ばしょに する</button>`;
-  }
-  openSheet(`<h3>エリア${g.grid_id}　${g.name}</h3>
-    <p class="lead">よごれ ${g.pollution_level}%</p>
-    <div class="tip" style="background:var(--cream)">${body}</div>
-    ${act}<button class="close" id="btnCloseSheet">とじる</button>`);
-  $("#btnCloseSheet").onclick=closeSheet;
-  const bp=$("#btnPlant"); if(bp) bp.onclick=()=>{ buildPlant(); closeSheet(); draw(); };
-  const ba=$("#btnAim"); if(ba) ba.onclick=()=>{ closeSheet(); draw(); };
+/* はいせん つなぎ */
+function wireGame(finish){
+  const cols=["#D8563F","#E6A93C","#5BA85B","#6FA8C7","#B07BC4"];
+  openMG({
+    title:"⚡ はいせん つなぎ", help:"おなじ 色を 左→右の じゅんに タップ", time:22, dark:false,
+    build(field){
+      const order=[0,1,2,3,4].sort(()=>Math.random()-.5);
+      field.innerHTML=`<div class="wires"><div class="wcol" id="wl"></div><div class="wcol" id="wr"></div></div>`;
+      const L=field.querySelector("#wl"), R=field.querySelector("#wr");
+      let sel=null;
+      cols.forEach((c,i)=>{
+        const b=document.createElement("button"); b.className="wire"; b.style.background=c; b.dataset.c=i;
+        b.onclick=()=>{ if(b.classList.contains("done")) return;
+          L.querySelectorAll(".wire").forEach(x=>x.classList.remove("on")); b.classList.add("on"); sel=b; };
+        L.appendChild(b);
+      });
+      order.forEach(i=>{
+        const b=document.createElement("button"); b.className="wire"; b.style.background=cols[i]; b.dataset.c=i;
+        b.onclick=()=>{
+          if(!sel||b.classList.contains("done")) return;
+          if(sel.dataset.c===b.dataset.c){
+            sel.classList.add("done"); sel.classList.remove("on"); b.classList.add("done");
+            sel=null; scoreMG(1);
+            if(MG.score>=5) setTimeout(endMG,250);
+          }else{ b.animate([{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"none"}],140); }
+        };
+        R.appendChild(b);
+      });
+    },
+    finish
+  });
 }
 
-function buildPlant(){
-  const g=G.grids[G.target];
-  if(g.secured<100||g.has_plant||g.is_purified) return;
-  if(G.dome.power<PLANT_COST.power||G.metal<PLANT_COST.metal) return;
-  G.dome.power-=PLANT_COST.power; G.metal-=PLANT_COST.metal; g.has_plant=true;
+/* 灰そうじ */
+function startAsh(i){
+  const a=S.areas[i]; if(a.green) return;
+  ashGameFor(i, broomPower());
 }
-function repair(){
-  if(G.metal<20||G.dome.hp>=100) return;
-  G.metal-=20; G.dome.hp=clamp(G.dome.hp+25,0,100);
-}
-function startTower(){
-  if(G.tower>0) return;
-  G.research-=TOWER_COST.research; G.metal-=TOWER_COST.metal; G.parts-=TOWER_COST.parts;
-  G.tower=1;
-  story([{art:"tower", who:"ユイ", t:"さいせいタワーの けんせつ、はじめるよ！\nあと すこしで せかいが かわる。"}], draw);
-}
-
-/* ══════════ おまかせ ══════════ */
-function autoAssign(){
-  const al=alive(); if(!al.length) return;
-  al.forEach(c=> c.assigned_facility="rest");
-  const pool=al.filter(c=>c.mental>=32&&c.health>=38);
-  const take=(f,n,sk)=>{ pool.sort((a,b)=>b[sk]-a[sk]); for(let i=0;i<n&&pool.length;i++) pool.shift().assigned_facility=f; };
-  if(G.dome.oxygen<75) take("garden",1,"work_skill");
-  if(G.dome.food<75)   take("farm",1,"work_skill");
-  if(G.dome.power<95)  take("power",2,"work_skill");
-  const t=G.grids.findIndex(g=>!g.is_purified&&!g.has_plant);
-  if(t>=0){ G.target=t; if(G.grids[t].secured<100) take("scout",1,"work_skill"); }
-  if(G.research<TOWER_COST.research) take("lab",1,"research_skill");
-  take("guard",pool.length,"combat_skill");
-  draw();
-  toast("おまかせで しごとを きめたよ");
-}
-function toast(t){
-  const d=document.createElement("div");
-  d.textContent=t;
-  d.style.cssText="position:absolute;left:50%;bottom:86px;transform:translateX(-50%);background:#1E1C14;color:#FFFEF7;padding:8px 16px;border-radius:999px;font-size:13px;z-index:35;white-space:nowrap";
-  $("#app").appendChild(d);
-  setTimeout(()=>d.remove(),1400);
-}
-
-/* ══════════ 1日 ══════════ */
-function ev(e,s,c){ G.events.push({e:e,s:s,c:c||""}); }
-
-function nextTurn(){
-  if(G.over) return;
-  G.events=[];
-
-  const gn=gain();
-  G.dome.oxygen=clamp(G.dome.oxygen+gn.oxygen,0,100);
-  G.dome.power =clamp(G.dome.power +gn.power ,0,100);
-  G.dome.food  =clamp(G.dome.food  +gn.food  ,0,100);
-  ev("🏭",`つくった：💨+${gn.oxygen}　⚡+${gn.power}　🍞+${gn.food}`);
-
-  const labs=at("lab");
-  if(labs.length){
-    let r=0; labs.forEach(c=> r+=out(c,c.research_skill)*2);
-    G.research+=r; ev("📘",`けんきゅうが ${r} すすんだ（ぜんぶで ${G.research}）`,"b");
-  }
-
-  const scouts=at("scout");
-  if(scouts.length){
-    const g=G.grids[G.target]; let m=0,p=0,sec=0;
-    scouts.forEach(c=>{
-      m+=out(c,c.work_skill)*2; sec+=15+Math.round(c.work_skill/6);
-      if(Math.random()<.45) p+=1;
-      if(Math.random()<.35){
-        const dmg=clamp(12-Math.round(c.combat_skill/12),3,12);
-        c.health=clamp(c.health-dmg,0,100);
-        ev("🩹",`${c.name}が そとで けがを した（❤️-${dmg}）`,"r");
+function ashGameFor(i, power){
+  const a=S.areas[i];
+  openMG({
+    title:`🧹 ${a.n} の 灰そうじ`, help:"灰の ますを タップして はらう", time:nightSec(), dark:true,
+    build(field){
+      field.innerHTML=`<div class="cells" id="cs" style="grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(7,1fr)"></div>`;
+      const cs=field.querySelector("#cs");
+      for(let k=0;k<35;k++){
+        const b=document.createElement("button"); b.className="cell"; b.textContent="🌫";
+        b.onclick=()=>{ if(b.classList.contains("done")) return;
+          b.classList.add("done"); b.textContent=["🪨","🌱","🕳","🍂"][rnd(4)]; scoreMG(1); };
+        cs.appendChild(b);
       }
-      c.mental=clamp(c.mental-6,0,100);
-    });
-    G.metal+=m; G.parts+=p;
-    ev("🎒",`たんけんの おみやげ：🔩+${m}　🧪+${p}`);
-    if(!g.is_purified&&g.secured<100){
-      g.secured=clamp(g.secured+sec,0,100);
-      if(g.secured>=100) ev("🚩",`${g.name}が あんぜんに なった！プラントを 立てられるよ`,"g");
-      else ev("🗺",`${g.name}の あんぜん ${g.secured}%`);
-    }
-  }
-
-  /* じょうか */
-  const done=[];
-  G.grids.forEach((g,i)=>{
-    if(g.has_plant&&!g.is_purified){
-      g.pollution_level=clamp(g.pollution_level-10,0,100);
-      if(g.pollution_level===0){
-        g.is_purified=true; g.bonus=["air","sun","soil"][rnd(3)];
-        ev("🌳",`${g.name}が みどりに もどった！`,"g");
-        done.push(i);
-      }else ev("🏭",`${g.name}の よごれ ${g.pollution_level}%`);
+    },
+    finish(sc){
+      const cleaned=sc*power;
+      const before=a.ash;
+      a.ash=clamp(a.ash-cleaned,0,100);
+      S.res.metal += Math.round(sc*0.6);
+      let msg=`灰を ${cleaned}% はらった（🔩+${Math.round(sc*0.6)}）`;
+      if(a.ash<=0 && !a.green){
+        a.green=true;
+        story([{art:"green", who:"", t:AREA_STORY[i]}], ()=>{ render(); });
+        msg=`${a.n}が みどりに もどった！`;
+      }
+      render(); flash(msg);
     }
   });
-
-  defense();
-
-  const up=upkeep();
-  G.dome.oxygen=clamp(G.dome.oxygen-up.oxygen,0,100);
-  G.dome.power =clamp(G.dome.power -up.power ,0,100);
-  G.dome.food  =clamp(G.dome.food  -up.food  ,0,100);
-  ev("🍽",`つかった：💨-${up.oxygen}　⚡-${up.power}　🍞-${up.food}`);
-
-  alive().forEach(c=>{
-    if(c.assigned_facility==="rest"){
-      c.health=clamp(c.health+14,0,100); c.mental=clamp(c.mental+25,0,100);
-    }else{
-      c.mental=clamp(c.mental-2,0,100);
-      if(c.assigned_facility!=="scout") c.health=clamp(c.health+2,0,100);
-    }
-    if(G.dome.food>40&&G.dome.oxygen>40) c.mental=clamp(c.mental+2,0,100);
-    if(G.dome.food===0) c.health=clamp(c.health-10,0,100);
-    if(G.dome.oxygen===0) c.health=clamp(c.health-12,0,100);
-    if(c.mental<=10&&Math.random()<.4){
-      G.dome.hp=clamp(G.dome.hp-5,0,100); c.mental=clamp(c.mental+15,0,100);
-      ev("😵",`${c.name}が なきだして、きかいを こわしちゃった（🏠-5）`,"r");
-    }
-    if(c.health<=0){ c.alive=false; c.health=0; ev("😇",`${c.name}が ちからつきた……`,"r"); }
-  });
-  if(G.dome.food<=10) ev("⚠️","たべものが へってきた！のうじょうに 人を ふやそう","r");
-  if(G.dome.oxygen<=10) ev("⚠️","さんそが すくない！しょくぶつえんに 人を ふやそう","r");
-  if(G.dome.power<=10) ev("⚠️","でんきが たりない！はつでんきに 人を ふやそう","r");
-
-  if(G.tower>0&&G.tower<100){
-    G.tower=clamp(G.tower+20,0,100);
-    ev("🗼",`さいせいタワー ${G.tower}%`,"g");
-  }
-
-  G.turn++;
-  showEvents(done);
 }
 
-function defense(){
-  const plants=G.grids.filter(g=>g.has_plant&&!g.is_purified);
-  const threat=Math.min(46, 6+G.turn*0.8+plants.length*5);
-  const chance=plants.length ? .28+plants.length*.07 : .12;
-  if(Math.random()>chance) return;
-  const power=Math.round(threat*(.7+Math.random()*.6));
-  let def=5;
-  at("guard").forEach(c=> def+=Math.round((c.combat_skill/3)*eff(c)));
-  ev("👾",`よごれの いきものが きた！　てき ${power} ／ ぼうえい ${def}`,"r");
-  if(def>=power){
-    ev("🛡","おいはらった！みんな ぶじ","g");
-    at("guard").forEach(c=>{ if(Math.random()<.3) c.health=clamp(c.health-6,0,100); c.mental=clamp(c.mental-4,0,100); });
-  }else{
-    const over=Math.min(power-def,18);
-    if(plants.length&&Math.random()<.5){
-      const t=plants[rnd(plants.length)];
-      t.has_plant=false; t.secured=clamp(t.secured-30,0,100);
-      ev("💥",`${t.name}の プラントが こわされた……`,"r");
-    }else{
-      G.dome.hp=clamp(G.dome.hp-over,0,100);
-      ev("💥",`ドームが こうげきされた（🏠-${over}）`,"r");
-    }
-    at("guard").forEach(c=>{ c.health=clamp(c.health-(6+rnd(8)),0,100); c.mental=clamp(c.mental-8,0,100); });
-  }
+/* はっくつ */
+function startDig(){
+  if(S.digLeft<=0){ flash("こんやは もう ほれない。つぎの よるに また ほろう"); return; }
+  const digs=S.digLeft;
+  openMG({
+    title:"⛏ はっくつ", help:`ますを タップして ほる（のこり ${digs}かい）`, time:40, dark:true,
+    build(field){
+      field.innerHTML=`<div class="cells" id="cs" style="grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(4,1fr)"></div>`;
+      const cs=field.querySelector("#cs");
+      let left=digs;
+      const missing=RELICS.filter(r=>!hasR(r.id));
+      for(let k=0;k<12;k++){
+        const b=document.createElement("button"); b.className="cell dig"; b.textContent="⬛";
+        b.onclick=()=>{
+          if(b.classList.contains("dug")||left<=0) return;
+          b.classList.add("dug"); left--; S.digLeft--;
+          const chance = 0.16 + (hasR("lamp")?0.08:0) + (hasR("bike")?0.06:0);
+          if(missing.length && Math.random()<chance){
+            const r=missing.splice(rnd(missing.length),1)[0];
+            S.relics.push(r.id); b.textContent=r.e;
+            scoreMG(0);
+            setTimeout(()=>{ endMG(); story([{art:"relic", who:"", t:`${r.e} ${r.n} を 見つけた！\n\n${r.t}\n\n（${r.s}）`}], ()=>{ render(); }); },300);
+            return;
+          }
+          const m=3+rnd(6)+(hasR("bike")?2:0);
+          S.res.metal+=m; b.textContent="🔩"+m; scoreMG(m);
+          $("#mgHelp").textContent=`ますを タップして ほる（のこり ${left}かい）`;
+          if(left<=0) setTimeout(endMG,400);
+        };
+        cs.appendChild(b);
+      }
+    },
+    finish(sc){ render(); if(sc) flash(`🔩 ${sc} 手に入れた`); }
+  });
 }
 
-/* 1日の けっか */
-function showEvents(done){
-  const list = G.events.map(e=>`<div class="evt ${e.c}"><span class="e">${e.e}</span><span>${e.s}</span></div>`).join("");
-  const ready = G.grids.map((g,i)=>({g,i})).filter(o=>!o.g.is_purified && !o.g.has_plant && o.g.secured>=100
-    && G.dome.power>=PLANT_COST.power && G.metal>=PLANT_COST.metal);
-  const fix = (G.dome.hp<65 && G.metal>=20)
-    ? `<button class="close" id="btnFixNow" style="background:var(--main)">🔧 ドームを なおす（🔩20 → 🏠+25）</button>` : "";
-  const btns = ready.map(o=>`<button class="close" data-build="${o.i}" style="background:#8FD07A">
-    🏭 ${o.g.name}に プラントを 立てる<br><span style="font-size:12px">⚡50 ＋ 🔩30</span></button>`).join("");
-  openSheet(`<h3>${G.turn-1}日めの できごと</h3><p class="lead">タップして よんでね</p>
-    ${list}${fix}${btns}<button class="close" id="btnCloseSheet" style="background:${btns?"var(--cream)":"#8FD07A"}">${btns?"あとで きめる":"わかった！"}</button>`);
-  const fx=$("#btnFixNow"); if(fx) fx.onclick=()=>{ repair(); fx.remove(); draw(); toast("ドームを なおした！"); };
-  document.querySelectorAll("[data-build]").forEach(b=> b.onclick=()=>{
-    G.target=+b.dataset.build; buildPlant(); b.remove(); draw(); toast("プラントを 立てたよ！");
-  });
-  $("#btnCloseSheet").onclick=()=>{
-    closeSheet();
-    const after=()=>{ draw(); judge(); };
-    if(done.length){ story(done.map(i=>({art:"green", who:"", t:AREA_STORY[i]})), after); }
-    else after();
+/* 施設ミニゲーム */
+function startFacGame(id){
+  if(phase()!=="day") return;
+  const f=FACS.find(x=>x.id===id);
+  if(S.fac[id].cool>now()) return;
+  const done = sc => {
+    S.fac[id].cool = now()+40000;
+    S.fac[id].buff = now()+60000;
+    if(f.res==="metal") S.res.metal += sc*2;
+    else S.res[f.res] = clamp(S.res[f.res] + sc*2.2, 0, 100);
+    render();
+    flash(`よく できた！ ${RES_E[f.res]}+${Math.round(sc*2.2)}　60びょう 2ばい 🔥`);
   };
+  if(id==="power") return wireGame(done);
+  if(id==="farm")  return tapGame({title:"🌾 みずやり", help:"めが 出たら タップして みずを あげよう",
+    time:16, n:3, emoji:["🌱","🌿","🌾"], finish:done});
+  if(id==="garden")return tapGame({title:"🌿 むしとり", help:"はっぱの むしを タップ",
+    time:16, n:3, emoji:["🐛","🦗","🐌"], finish:done});
+  if(id==="filter")return tapGame({title:"🌀 フィルターそうじ", help:"ほこりを タップして とる",
+    time:16, n:4, emoji:["💨","🌫","🕸"], finish:done});
 }
 
-function judge(){
-  if(G.over) return;
-  if(G.tower>=100) return finish(true);
-  if(G.dome.oxygen<=0) return finish(false,"さんそが なくなってしまった……");
-  if(G.dome.power<=0)  return finish(false,"でんきが きえて、ドームが とまった……");
-  if(G.dome.hp<=0)     return finish(false,"ドームが こわれてしまった……");
-  if(alive().length===0) return finish(false,"みんな いなくなってしまった……");
-}
-
-function finish(win, why){
-  G.over=true;
-  if(win){
-    story([
-      {art:"tower", who:"", t:"さいせいタワーが 光りはじめた。"},
-      {art:"green", who:"ノア", t:"見て！\nそとの せかいが、みどりに なっていくよ！"},
-      {art:"green", who:"", t:`${G.turn-1}日かかったけど、\nきみたちは せかいを もとに もどした。\n\n── クリア！ ──`}
-    ], ()=>{
-      openSheet(`<div class="fin"><div class="em">🌳🎉🌳</div><h3>クリア！</h3>
-        <p class="lead">${G.turn-1}日で せかいを みどりに もどした。<br>のこった なかま ${alive().length}人</p></div>
-        <button class="close" id="btnAgain" style="background:#8FD07A">もういちど あそぶ</button>`);
-      $("#btnAgain").onclick=reset;
-    });
-  }else{
-    const pure=G.grids.filter(g=>g.is_purified).length;
-    story([{art:"dome", who:"", t:why+"\n\nでも、みどりに もどした エリアは のこった。\nつぎは もっと うまく やれるはず。"}], ()=>{
-      openSheet(`<div class="fin"><div class="em">😢</div><h3>ここで おしまい</h3>
-        <p class="lead">${why}<br>${G.turn-1}日／みどりに した エリア ${pure}</p></div>
-        <div class="tip">💡 コツ：<br>・ゲージが 50 を きったら、その しごとに 人を ふやす<br>
-        ・😊が へった子は 「☕ おやすみ」に<br>・プラントを 立てたら 「🛡 ぼうえい」に 1人 おく</div>
-        <button class="close" id="btnAgain" style="background:#8FD07A">もういちど あそぶ</button>`);
-      $("#btnAgain").onclick=reset;
-    });
-  }
-}
-
-/* ══════════ ものがたり ══════════ */
+/* ══════════════ ものがたり ══════════════ */
 function story(pages, after){
   QUEUE=pages; QI=0; AFTER=after||null;
-  $("#story").classList.remove("hide");
-  showPage();
+  $("#story").classList.remove("hide"); showPage();
 }
 function showPage(){
   const p=QUEUE[QI];
@@ -749,44 +811,71 @@ function showPage(){
 }
 $("#story").onclick=()=>{
   QI++;
-  if(QI>=QUEUE.length){
-    $("#story").classList.add("hide");
-    const f=AFTER; AFTER=null; if(f) f();
-  }else showPage();
+  if(QI>=QUEUE.length){ $("#story").classList.add("hide"); const f=AFTER; AFTER=null; if(f) f(); }
+  else showPage();
 };
 
-/* ══════════ そうさ ══════════ */
-document.querySelectorAll(".tab").forEach(t=> t.onclick=()=>{
-  TAB=t.dataset.tab;
-  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
-  draw();
-});
-$("#btnTurn").onclick=nextTurn;
-$("#btnAuto").onclick=autoAssign;
+function win(){
+  story([
+    {art:"tower", who:"", t:"さいせいタワーが 光りはじめた。"},
+    {art:"green", who:"ノア", t:"見て！ そとの せかいが みどりに なっていくよ！"},
+    {art:"green", who:"", t:"きみたちは、せかいを もとに もどした。\n\n── クリア！ ──"}
+  ], ()=>{
+    openSheet(`<div class="fin"><div class="em">🌳🎉🌳</div><h3>クリア！</h3>
+      <p class="lead">おたから ${S.relics.length} / ${RELICS.length}こ<br>そのまま あそびつづけても いいよ。</p></div>
+      <button class="close" id="btnCl" style="background:#8FD07A">つづける</button>`);
+    $("#btnCl").onclick=closeSheet;
+  });
+}
+
+/* ══════════════ メニュー ══════════════ */
 $("#btnMenu").onclick=()=>openSheet(`
-  <h3>メニュー</h3>
-  <div class="tip">🎯 めざすこと<br>10コの エリアを ぜんぶ みどり（よごれ0%）に して、さいせいタワーを 立てる。</div>
-  <div class="tip">☠️ きをつけること<br>💨さんそ・⚡でんき・🏠ドームが 0に なると おしまい。</div>
-  <div class="tip">💡 すすめかた<br>①なかまに しごとを わりふる → ②「つぎの日へ」 → ③そとを たんけん → ④プラントを 立てる</div>
+  <h3>あそびかた</h3>
+  <div class="tip">☀️ <b>ひる（${DAY_SEC}びょう）</b><br>ドームの 4つの しごとが、ほうっておいても すすむ。
+    🎮 ボタンで ミニゲームを すると ドンと ふえて、60びょう 2ばいに なる。<br>🔩で レベルアップ すると もっと はやい。</div>
+  <div class="tip">🌙 <b>よる（${NIGHT_SEC}びょう）</b><br>そとに 出られる。エリアの 灰を そうじすると、灰が 0%で みどりに もどる。
+    じめんを ほると 🔩 と むかしの ものが 出る。</div>
+  <div class="tip">👦 <b>なかま（5人）</b><br>ひとりずつ とくいな しごとが ある。しせつの 顔アイコンを タップして、だれに まかせるか きめよう。とくいな しごとなら ×1.7。<br>よるは 「だれと いく？」で ひとり つれていく。</div>
+  <div class="tip">🎯 <b>めざすこと</b><br>10エリアを ぜんぶ みどりに して、🔩200 と 📦5こで さいせいタワーを 立てる。</div>
+  <div class="tip">💾 とちゅうで とじても、つづきから あそべる（じかんも すすんでいる）。</div>
   <button class="close" id="btnReset">はじめから やりなおす</button>
   <button class="close" id="btnCloseSheet">とじる</button>`);
 $("#sheet").addEventListener("click", e=>{
-  if(e.target.id==="btnReset"){ closeSheet(); reset(); }
-  if(e.target.id==="btnCloseSheet" && !e.target.onclick) closeSheet();
+  if(e.target.id==="btnCloseSheet") closeSheet();
+  if(e.target.id==="btnReset"){
+    closeSheet();
+    try{ localStorage.removeItem(SAVE_KEY); }catch(err){}
+    S=newState(); TAB="dome"; setTab();
+    $("#title").classList.remove("hide");
+  }
 });
-$("#btnStart").onclick=()=>{
-  $("#title").classList.add("hide");
-  story(PROLOGUE, draw);
-};
-$("#btnSkip").onclick=()=>{ $("#title").classList.add("hide"); draw(); };
-function reset(){
-  closeSheet(); $("#story").classList.add("hide");
-  newGame(); TAB="team";
-  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.dataset.tab==="team"));
-  $("#title").classList.remove("hide");
-  draw();
+
+/* ══════════════ きどう ══════════════ */
+function boot(){
+  const saved=load();
+  if(saved){
+    S=saved;
+    const away=clamp((now()-S.t)/1000, 0, 60*60*8);
+    advance(away);
+    S.t=now();
+    $("#title").classList.add("hide");
+    setTab();
+    if(away>60){
+      const h=Math.floor(away/3600), m=Math.floor(away%3600/60);
+      setTimeout(()=>flash(`おかえり！ ${h?h+"じかん":""}${m}ふん ぶん すすんでいたよ`), 400);
+    }
+  }else{
+    S=newState(); render();
+  }
+  clearInterval(LOOP);
+  LOOP=setInterval(()=>{ tick(); }, 250);
+  setInterval(save, 5000);
+  document.addEventListener("visibilitychange", ()=>{ if(document.hidden) save(); else { S.t=now(); } });
+  window.addEventListener("pagehide", save);
 }
-newGame(); draw();
+$("#btnStart").onclick=()=>{ $("#title").classList.add("hide"); S.started=true; story(PROLOGUE, render); };
+$("#btnSkip").onclick=()=>{ $("#title").classList.add("hide"); S.started=true; render(); };
+boot();
 </script>
 </body>
 </html>
