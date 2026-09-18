@@ -3,21 +3,21 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=261';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=261';
-import { valuesAt } from '../engine/anim.js?v=261';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=261';
+         nearestFolder } from '../engine/layer.js?v=262';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=262';
+import { valuesAt } from '../engine/anim.js?v=262';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=262';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=261';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=261';
-import { paintCanvas } from '../engine/paint.js?v=261';
-import { panoCanvas } from '../engine/pano.js?v=261';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=261';
-import { roomCanvas } from '../engine/room.js?v=261';
-import { talkCanvas } from '../engine/talk.js?v=261';
-import { homography, applyH } from '../engine/warp.js?v=261';
-import { drawCamView } from './camview.js?v=261';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=261';
+         meshSizeFor } from '../engine/puppet.js?v=262';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=262';
+import { paintCanvas } from '../engine/paint.js?v=262';
+import { panoCanvas } from '../engine/pano.js?v=262';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=262';
+import { roomCanvas } from '../engine/room.js?v=262';
+import { talkCanvas } from '../engine/talk.js?v=262';
+import { homography, applyH } from '../engine/warp.js?v=262';
+import { drawCamView } from './camview.js?v=262';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=262';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -28,11 +28,12 @@ export function createC2D(canvas){
   // クリッピング・エフェクト用の作業キャンバス（使い回す）
   const tmp = [];
 
-  function scratch(i, dst){
+  function scratch(i, dst, pad){
     if(!tmp[i]) tmp[i] = document.createElement('canvas');
     const c = tmp[i];
-    const w = (dst && dst.width)  || canvas.width;
-    const h = (dst && dst.height) || canvas.height;
+    const m = pad ? Math.max(1, Math.ceil(pad)) : 0;
+    const w = ((dst && dst.width)  || canvas.width)  + m * 2;
+    const h = ((dst && dst.height) || canvas.height) + m * 2;
     if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
     return c;
   }
@@ -48,8 +49,8 @@ export function createC2D(canvas){
      その とちゅうで つかう 別紙まで 画面の 大きさの ままだと、
      画面の たてはば より 下に ある 中身が そこで 切れる。
      ＝ ズームするほど 下が 消えて いく（実測: 579 で ぴたりと 切れて いた）。 */
-  function alloc(dst){
-    const c = scratch(lent++, dst);
+  function alloc(dst, pad){
+    const c = scratch(lent++, dst, pad);
     const g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
@@ -86,6 +87,18 @@ export function createC2D(canvas){
     g.filter = 'none';
     g.clearRect(0, 0, w, h);
     return bigC;
+  }
+
+  /* 手がき風で 紙を ずらす ぶん（キャンバスの ドット）。
+     ずらした ぶんだけ、まとめる 別紙を まわりに ひろげて おく。 */
+  function handPad(hand, project){
+    const size = Math.min(project.w, project.h);
+    /* ずれは コマごとに 変わる ので、いちばん 大きい ときで 見る
+       （hand.js の handShift と 同じ 式。ゆれは -1〜1）。 */
+    const w = Math.max(0, Math.min(1, (hand && hand.wobble) || 0));
+    const mv = w * Math.max(2, size * 0.012);                    // よこ・たての ずれ
+    const rot = w * 0.012 * Math.hypot(project.w, project.h) / 2; // まわした ぶん
+    return Math.ceil(boilPx(hand, size) + mv + rot + 2);
   }
 
   function dots(){
@@ -1301,18 +1314,36 @@ function flatMesh(w, h){
     const fhand = handOn(f) ? f.hand : null;
     if(fhand && !(v.pins && v.pins.length)){
       const sz = handMeshSize(fhand);
-      if(!f._hmesh || f._hkey !== sz.cols){
+      /* あみは 画面より すこし 外まで 張る。
+
+         手がき風は まとめた 紙 ぜんたいを ずらす・まわす ので、
+         あみが 画面ぴったり だと、ずらした がわの はしに
+         なにも ない すきまが 出る
+         （画面の ふちが 1〜3ドット 白く なって いた）。
+         ずらす ぶんだけ 外へ ひろげて おけば、はしまで 絵が つづく。 */
+      const pad = handPad(fhand, project);
+      const hkey = sz.cols + ':' + pad;
+      if(!f._hmesh || f._hkey !== hkey){
         // フォルダの あみは キャンバスの ドットで 張る（ピンのときと 同じ）
-        f._hmesh = buildMeshRect(project.w, project.h, sz.cols, sz.rows);
-        f._hkey = sz.cols;
+        f._hmesh = buildMeshRect(project.w + pad * 2, project.h + pad * 2, sz.cols, sz.rows);
+        for(const q of f._hmesh.verts){ q.u -= pad; q.v -= pad; }
+        f._hkey = hkey;
         const n0 = f._hmesh.verts.length;
         const b = new Float32Array(n0 * 2);
         for(let i = 0; i < n0; i++){ b[i*2] = f._hmesh.verts[i].u; b[i*2+1] = f._hmesh.verts[i].v; }
         f._hbase = b;
+        f._huv = null;
       }
       const px = boilPx(fhand, Math.min(project.w, project.h));
-      const tf0 = [tf[0], 0, 0, tf[3], 0, 0];
-      const tmpC = alloc(c), tg = tmpC.getContext('2d');
+      /* 中身は まわりに ゆとりの ある 別紙に まとめる
+         （ひろげた あみに のせる ぶんも いる） */
+      const k0 = Math.abs(tf[0]);
+      /* まとめる ときの ずらしは「画面と 同じ 場所」＋ふちの ゆとり。
+         0,0 に して いた ころは、ズームして 見て いる ときに
+         別紙から はみ出た ぶん（画面の 右・下）が 切れて いた。 */
+      const mx = Math.ceil(pad * k0) + tf[4], my = Math.ceil(pad * k0) + tf[5];
+      const tf0 = [tf[0], 0, 0, tf[3], mx, my];
+      const tmpC = alloc(c, Math.ceil(pad * k0)), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
       drawNodes(tg, project, kids, poses, tf0);
 
@@ -1321,6 +1352,13 @@ function flatMesh(w, h){
       const fr = handFrame(fhand, curT), sd = handSeed(f);
       boil(f._hbase, f._bxy, px, fr, sd);
 
+      /* 別紙の どこを はるか。まとめる ときに ずらした ぶんを たす。 */
+      if(!f._huv || f._huv.length < n * 2) f._huv = new Float32Array(n * 2);
+      for(let i = 0; i < n; i++){
+        f._huv[i * 2]     = f._hmesh.verts[i].u * k0 + mx;
+        f._huv[i * 2 + 1] = f._hmesh.verts[i].v * k0 + my;
+      }
+
       // 紙の ずれ は まとめた 1まいごと 動かす
       const sh = handShift(fhand, fr, sd, Math.min(project.w, project.h));
       gx.save();
@@ -1328,7 +1366,7 @@ function flatMesh(w, h){
       gx.translate(project.w / 2 + sh.dx, project.h / 2 + sh.dy);
       gx.rotate(sh.rot);
       gx.translate(-project.w / 2, -project.h / 2);
-      drawDeformed(gx, tmpC, f._hmesh, f._bxy, Math.abs(tf[0]));
+      drawDeformed(gx, tmpC, f._hmesh, f._bxy, 1, f._huv);
       gx.restore();
       back(1);
 
@@ -1345,7 +1383,7 @@ function flatMesh(w, h){
          画面の 外に ある ぶんも 切らずに とっておく ので、
          ゆがめて 中へ 持ってきても 切れない。 */
       const k0 = Math.abs(tf[0]);
-      const mx = MARGIN, my = MARGIN;
+      const mx = MARGIN + tf[4], my = MARGIN + tf[5];
       const tf0 = [tf[0], 0, 0, tf[3], mx, my];
       const tmpC = bigSheet(), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
@@ -1378,7 +1416,7 @@ function flatMesh(w, h){
       /* こちらも まわりに ゆとりの ある 別紙に まとめる
          （画面の 外の ぶんが 切れない ように） */
       const k0 = Math.abs(tf[0]);
-      const mx = MARGIN, my = MARGIN;
+      const mx = MARGIN + tf[4], my = MARGIN + tf[5];
       const tf0 = [tf[0], 0, 0, tf[3], mx, my];
       const tmpC = bigSheet(), tg = tmpC.getContext('2d');
       tg.setTransform(...tf0);
