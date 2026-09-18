@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=259';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=259';
+import { M, uid, ptInQuad } from './math.js?v=260';
+import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=260';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=259';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=259';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=259';
-import { handTime } from './hand.js?v=259';
-import { WORK_KEYS } from '../state.js?v=259';
+         withShake } from './camera.js?v=260';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=260';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=260';
+import { handTime } from './hand.js?v=260';
+import { WORK_KEYS } from '../state.js?v=260';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -285,7 +285,11 @@ export function computeAll(project, time){
     const sheet3D = !p && !isCam(l) && !pinned && isFolder(l) && !collapsed
                     && (orbit || is3D(v)) && membersOf(project, l).length > 0;
 
-    const mNoCam = m;                             // カメラを かける まえの 姿
+    /* カメラを かける まえの 姿。
+       親が すでに カメラを 受けとって いても、
+       ここだけは カメラ ぬきで つないで いく
+       （子の 四すみを 出す ときに つかう）。 */
+    const mNoCam = p ? M.mul(p.mNoCam, local) : local;
     if(takesCam && !sheet3D) m = M.mul(camMatrix(camV, ccx, ccy, depthLen(v)), m);
 
     /* コマごとの ずれ。
@@ -348,6 +352,14 @@ export function computeAll(project, time){
          その ぶんを 抜いた 姿で 計算する。 */
       const a = assetOf(project, l, v.frame);
       if(a) quad = quadFromM(l, v3, a, mNoCam, project, camV);
+    } else if(p && !isFolder(p.layer) && p.quad && !isCam(l) && !pinned){
+      /* 親が 四すみで 描かれて いる（カメラが まわりこんで いる など）のに、
+         子は ふつうの 行列の まま だった。
+         行列の カメラは「おくが せまい」を 出せない ので、
+         親の 絵と 子の 絵が ずれて いた（ピンで 動かす 髪 など）。
+         子も 親ごしの 姿から 四すみを 出して、同じ うつし方に そろえる。 */
+      const a = assetOf(project, l, v.frame);
+      if(a) quad = quadFromM(l, v3, a, mNoCam, project, camV);
     }
 
     /* ピンぼけ（被写界深度）。ピントの おくゆきから 離れた 紙ほど ぼける。
@@ -364,7 +376,7 @@ export function computeAll(project, time){
        魚眼レンズは できあがった 絵ぜんたいを 貼り直す ので、
        はりつけた セリフ枠まで ゆがんで しまって いた。
        c2d は これを 見て、レンズの あとに 別に 描く。 */
-    return out[l.id] = { m, v, vis, quad, layer: l, camFree, pinned };
+    return out[l.id] = { m, mNoCam, v, vis, quad, layer: l, camFree, pinned };
   };
 
   project.layers.forEach(solve);
