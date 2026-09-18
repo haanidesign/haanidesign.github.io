@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=260';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=260';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=261';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=261';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=260';
+         nearestFolder, setParent } from '../engine/layer.js?v=261';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=260';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=260';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=260';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=260';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=261';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=261';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=261';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=261';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -862,6 +862,18 @@ export function createTimeline(root, opts = {}){
          トラックの 2わり ぶん とるので、まん中あたりから 先は
          もう すすむ ゾーンに なる。 */
       const EDGE = Math.max(48, rect.width * 0.22);
+      /* はしの ゾーンは「まん中を 一度 通ってから」きく ように する。
+
+         ゾーンは トラックの 2わり ぶん あるので、
+         はしの ほうに ある ピン（0秒の ピンなど）は
+         さわった ところが もう ゾーンの 中。
+         そのまま だと、ちょっと さわっただけで
+         ひだりへ どんどん 走って いって しまう。
+         （これが「さわると かってに 左へ 行く」の もと）
+
+         まん中まで もどるか、トラックの そとへ 出るまでは
+         その がわの ゾーンは きかない。 */
+      let armL = false, armR = false;
       let auto = null, autoV = 0;
       const stopAuto = () => { if(auto){ clearInterval(auto); auto = null; } };
       const setAuto = (v) => {
@@ -931,7 +943,10 @@ export function createTimeline(root, opts = {}){
         }
         /* はしから 出た ぶんで はやさを きめる。
            少し 出たら ゆっくり、うんと 出したら はやい。 */
-        const over = x < EDGE ? (x - EDGE) : (x > w - EDGE ? (x - (w - EDGE)) : 0);
+        if(x >= EDGE || x < 0) armL = true;
+        if(x <= w - EDGE || x > w) armR = true;
+        const over = (x < EDGE && armL) ? (x - EDGE)
+                   : ((x > w - EDGE && armR) ? (x - (w - EDGE)) : 0);
         if(over){
           const k = Math.min(6, Math.abs(over) / EDGE);      // 1〜6ばい
           setAuto(Math.sign(over) * step() * (1 + k * k * 3));
