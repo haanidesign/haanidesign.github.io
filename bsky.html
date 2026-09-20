@@ -3,58 +3,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bluesky ギャラリー（試作） — はぁにデザイン工房</title>
+<title>ギャラリー — はぁにデザイン工房</title>
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=16">
 <style>
-/* ===== この試作ページだけの見た目 ===== */
+/* ===== 一覧 ===== */
 .bs-wrap{max-width:1240px;margin:1rem auto;border:var(--bd);border-radius:18px;
   background:var(--paper);box-shadow:0 6px 0 var(--ink);overflow:hidden;}
-.bs-bar{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;
+.bs-bar{display:flex;align-items:center;gap:.7rem;
   padding:.7rem 1rem;background:var(--main);border-bottom:var(--bd);}
 .bs-bar h1{font-size:1rem;}
 .bs-bar .sp{margin-left:auto;}
-.bs-note{padding:.9rem 1.2rem;border-bottom:var(--bd);background:var(--main-soft);
-  font-size:.8rem;line-height:1.7;}
-.bs-body{padding:1.2rem;}
 
-.bs-grid{display:grid;gap:1rem;
-  grid-template-columns:repeat(auto-fill,minmax(230px,1fr));}
-.bs-card{border:var(--bd);border-radius:var(--r);background:var(--paper);
-  box-shadow:0 3px 0 var(--ink);overflow:hidden;display:flex;flex-direction:column;
-  transition:transform .08s,box-shadow .08s;}
-.bs-card:hover{transform:translateY(-2px);box-shadow:0 5px 0 var(--ink);}
-.bs-thumb{position:relative;display:block;width:100%;background:var(--main-soft);
-  border-bottom:var(--bd);cursor:zoom-in;aspect-ratio:1/1;}
-.bs-thumb img{width:100%;height:100%;object-fit:cover;}
-.bs-multi{position:absolute;right:.4rem;top:.4rem;
-  background:var(--ink);color:var(--main);border-radius:8px;
-  padding:.1rem .45rem;font-size:.7rem;}
-.bs-meta{padding:.6rem .7rem;font-size:.76rem;line-height:1.6;}
-.bs-text{font-weight:500;overflow:hidden;display:-webkit-box;
-  -webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:pre-wrap;}
+.bs-grid{display:grid;gap:4px;padding:4px;
+  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
+.bs-cell{display:block;position:relative;aspect-ratio:1/1;
+  background:var(--main-soft);cursor:zoom-in;overflow:hidden;}
+.bs-cell img{width:100%;height:100%;object-fit:cover;
+  transition:transform .25s ease, opacity .25s ease;}
+.bs-cell:hover img{transform:scale(1.04);opacity:.88;}
 
 .bs-msg{padding:2.5rem 1rem;text-align:center;font-size:.85rem;color:var(--gray);}
-.bs-more{display:flex;justify-content:center;padding:1.2rem 0 .3rem;}
+.bs-more{display:flex;justify-content:center;padding:1.1rem 0 1.3rem;}
 
-/* ふきだしの 拡大 */
+/* ===== 拡大 ===== */
 .bs-box{position:fixed;inset:0;z-index:99;display:none;
   align-items:center;justify-content:center;padding:1.5rem;
-  background:rgba(30,28,20,.82);}
+  background:rgba(30,28,20,.85);}
 .bs-box.on{display:flex;}
-.bs-box img{max-width:100%;max-height:82vh;border:var(--bd);border-radius:var(--r);
+.bs-box img{max-width:100%;max-height:84vh;border:var(--bd);border-radius:var(--r);
   background:var(--paper);}
-.bs-box .bs-x{position:absolute;right:1rem;top:1rem;}
-.bs-box .bs-arrow{position:absolute;top:50%;transform:translateY(-50%);}
-.bs-box .bs-prev{left:1rem;} .bs-box .bs-next{right:1rem;}
-.bs-cap{position:absolute;left:0;right:0;bottom:0;padding:.7rem 1rem;
-  text-align:center;color:var(--main);font-size:.78rem;}
-@media(max-width:600px){
-  .bs-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.7rem;}
-  .bs-body{padding:.7rem;}
+.bs-x{position:absolute;right:1rem;top:1rem;}
+.bs-arrow{position:absolute;top:50%;transform:translateY(-50%);}
+.bs-prev{left:1rem;} .bs-next{right:1rem;}
+.bs-cap{position:absolute;left:0;right:0;bottom:.4rem;
+  text-align:center;color:var(--main);font-size:.75rem;}
+
+@media(max-width:700px){
+  .bs-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:3px;padding:3px;}
+  .bs-wrap{margin:.5rem;border-radius:14px;}
 }
 </style>
 </head>
@@ -62,26 +52,18 @@
 
 <div class="bs-wrap">
   <div class="bs-bar">
-    <h1>Bluesky ギャラリー</h1>
-    <span class="dot" style="font-size:.75rem">試作ページ</span>
+    <h1>ギャラリー</h1>
     <span class="sp"></span>
     <a href="index.html" class="btn btn-sm">もどる</a>
   </div>
 
-  <div class="bs-note">
-    Bluesky に 投稿した 画像を その場で 読んで 並べています。<br>
-    投稿すれば ここに 増え、消せば ここからも 消えます。手での 更新は いりません。
-  </div>
-
-  <div class="bs-body">
-    <div id="bs-grid" class="bs-grid"></div>
-    <div id="bs-msg" class="bs-msg">読み込み中…</div>
-    <div class="bs-more"><button id="bs-more" class="btn" hidden>もっと見る</button></div>
-  </div>
+  <div id="bs-grid" class="bs-grid"></div>
+  <div id="bs-msg" class="bs-msg">読み込み中…</div>
+  <div class="bs-more"><button id="bs-more" class="btn" hidden>もっと見る</button></div>
 </div>
 
 <div id="bs-box" class="bs-box">
-  <button class="btn btn-sm bs-x" data-act="close">✕ 閉じる</button>
+  <button class="btn btn-sm bs-x" data-act="close">✕</button>
   <button class="btn btn-sm bs-arrow bs-prev" data-act="prev">‹</button>
   <button class="btn btn-sm bs-arrow bs-next" data-act="next">›</button>
   <img id="bs-box-img" alt="">
@@ -94,7 +76,7 @@
 
   var HANDLE = 'haanidesign.bsky.social';
   var API    = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed';
-  var PAGE   = 30;
+  var PAGE   = 40;
 
   var grid = document.getElementById('bs-grid');
   var msg  = document.getElementById('bs-msg');
@@ -103,14 +85,12 @@
   var boxImg = document.getElementById('bs-box-img');
   var cap  = document.getElementById('bs-cap');
 
-  var cursor = null;      // つぎの ページの しるし
-  var done   = false;
-  var busy   = false;
-  var again  = false;     // 中身が なかった ときに つぎを 取るか
-  var shots  = [];        // 拡大用に ためた 画像
-  var at     = 0;
+  var cursor = null;
+  var done = false, busy = false, again = false;
+  var shots = [];   // 拡大用
+  var at = 0;
 
-  // 投稿から 画像の 束を とり出す。埋め込みの 形が 何通りか あるので ならす
+  // 埋め込みの 形が 何通りか あるので ならす
   function imagesOf(post){
     var e = post && post.embed;
     if(!e) return [];
@@ -122,53 +102,27 @@
     return [];
   }
 
-  function card(post, imgs){
-    var first = imgs[0];
-    var idx = shots.length;
-    imgs.forEach(function(im){
-      shots.push({ src: im.fullsize || im.thumb, alt: im.alt || '' });
-    });
-
-    var el = document.createElement('article');
-    el.className = 'bs-card';
+  function cell(im){
+    var i = shots.length;
+    shots.push({ src: im.fullsize || im.thumb, alt: im.alt || '' });
 
     var a = document.createElement('a');
-    a.className = 'bs-thumb';
-    a.href = first.fullsize || first.thumb;
-    a.addEventListener('click', function(ev){ ev.preventDefault(); open(idx); });
+    a.className = 'bs-cell';
+    a.href = im.fullsize || im.thumb;
+    a.addEventListener('click', function(ev){ ev.preventDefault(); open(i); });
 
     var img = document.createElement('img');
-    img.src = first.thumb || first.fullsize;
-    img.alt = first.alt || '作品';
+    img.src = im.thumb || im.fullsize;
+    img.alt = im.alt || '';
     img.loading = 'lazy';
     img.decoding = 'async';
     a.appendChild(img);
-
-    if(imgs.length > 1){
-      var n = document.createElement('span');
-      n.className = 'bs-multi dot';
-      n.textContent = imgs.length + '枚';
-      a.appendChild(n);
-    }
-    el.appendChild(a);
-
-    var text = (post.record && post.record.text) || '';
-    if(text.trim()){
-      var meta = document.createElement('div');
-      meta.className = 'bs-meta';
-      var t = document.createElement('div');
-      t.className = 'bs-text';
-      t.textContent = text;
-      meta.appendChild(t);
-      el.appendChild(meta);
-    }
-    return el;
+    return a;
   }
 
   function load(){
     if(busy || done) return;
-    busy = true;
-    again = false;
+    busy = true; again = false;
     more.disabled = true;
 
     var url = API + '?actor=' + encodeURIComponent(HANDLE)
@@ -188,7 +142,7 @@
 
         var added = 0;
         feed.forEach(function(item){
-          if(item.reason) return;                 // 他の人の 投稿の ひろい上げは のぞく
+          if(item.reason) return;                 // 他の人の 投稿の ひろい上げ
           var post = item.post;
           if(!post) return;
           // 他の人への 返信だけ のぞく（自分の 続き投稿は 残す）
@@ -197,10 +151,10 @@
             var pd = p && p.author && p.author.did;
             if(!pd || pd !== (post.author && post.author.did)) return;
           }
-          var imgs = imagesOf(post);
-          if(!imgs.length) return;
-          grid.appendChild(card(post, imgs));
-          added++;
+          imagesOf(post).forEach(function(im){
+            grid.appendChild(cell(im));
+            added++;
+          });
         });
 
         if(!grid.children.length && done){
@@ -209,13 +163,11 @@
           msg.hidden = true;
         }
         more.hidden = done;
-        // 画像なしの ページが 続いた ときは 自動で つぎを 取りにいく
         again = (!added && !done);
       })
       .catch(function(err){
         msg.hidden = false;
-        msg.textContent = '読み込めませんでした（' + err.message + '）。' +
-          'ハンドル名が あっているか、通信が 通っているかを 見てください。';
+        msg.textContent = '読み込めませんでした（' + err.message + '）';
         more.hidden = true;
       })
       .then(function(){
@@ -227,8 +179,7 @@
 
   /* ===== 拡大 ===== */
   function open(i){
-    at = i;
-    show();
+    at = i; show();
     box.classList.add('on');
     document.body.style.overflow = 'hidden';
   }
@@ -242,15 +193,14 @@
     at = (at + shots.length) % shots.length;
     boxImg.src = shots[at].src;
     boxImg.alt = shots[at].alt;
-    cap.textContent = (at + 1) + ' / ' + shots.length +
-      (shots[at].alt ? '　' + shots[at].alt : '');
+    cap.textContent = (at + 1) + ' / ' + shots.length;
   }
 
   box.addEventListener('click', function(ev){
     var act = ev.target.getAttribute && ev.target.getAttribute('data-act');
     if(act === 'prev'){ at--; show(); return; }
     if(act === 'next'){ at++; show(); return; }
-    if(act === 'close' || ev.target === box){ close(); }
+    if(act === 'close' || ev.target === box) close();
   });
   document.addEventListener('keydown', function(ev){
     if(!box.classList.contains('on')) return;
