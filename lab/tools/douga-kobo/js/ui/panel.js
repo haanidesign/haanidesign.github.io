@@ -3,16 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=11';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=11';
-import { storeOk } from '../store.js?v=11';
-import { bus } from '../bus.js?v=11';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=11';
-import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile } from '../text.js?v=11';
+} from '../state.js?v=12';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=12';
+import { storeOk } from '../store.js?v=12';
+import { bus } from '../bus.js?v=12';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=12';
+import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile } from '../text.js?v=12';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=11';
+} from '../edit.js?v=12';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -250,6 +250,9 @@ function clipBody(c) {
             c.fit, v => { c.fit = v; live(); }) : null,
         pick('出かた', [['none', 'そのまま'], ['fade', 'じわっ'], ['up', '下から'],
         ['zoom', 'ズーム'], ['kenburns', 'ゆっくり寄る']], c.anim, v => { c.anim = v; live(); }),
+      c.kind !== 'text'
+        ? range('うごきの あと', c.mblur || 0, 0, 1, .05, '', v => { c.mblur = v; live(); })
+        : null,
         grid('まん中へ', [
           btn('↔ よこ', 'btn-sm', () => { c.x = 0; pushUndo(); live(); }),
           btn('↕ たて', 'btn-sm', () => { c.y = 0; pushUndo(); live(); }),
@@ -605,7 +608,10 @@ function fileBody() {
   const nm = el('input'); nm.type = 'text'; nm.value = (S.name && S.name !== 'むだい') ? S.name : 'douga';
   w.appendChild(group('この さくひん', [
     hint('さわる たびに じどうで ほぞんされます。<br>つぎに ひらいた とき「つづきから」で 出てきます。'),
-    grid(null, [btn('🏠 さくひん えらびへ', 'btn-sm', () => { close(); bus.home(); })])
+    grid(null, [
+      btn('🏠 さくひん えらびへ', 'btn-sm', () => { close(); bus.home(); }),
+      btn('▶ デモを ひらく', 'btn-sm', () => { close(); bus.demo(); })
+    ])
   ]));
   w.appendChild(group('ひとまとめ（素材ごと）', [
     row('名前', nm),
@@ -717,6 +723,8 @@ function helpBody() {
   const w = el('div', 'doc');
   w.innerHTML = `
   <p>ブラウザの 中だけで 動く。素材は どこにも 送られない。</p>
+  <p><b>はじめての ときは デモから。</b> 上の「動画工房」を おして
+  「▶ デモを ひらく」。曲も 歌詞も 入って いるので、▶ を おすだけで 見られます。</p>
   <h3>1. 入れる</h3>
   <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす。
   えらんだ ものは <b>そのまま タイムラインに ならびます</b>
@@ -749,11 +757,14 @@ function helpBody() {
   <li><b>たて書き</b>・カーブ・文字づめ・字あき・行あき・かたむき・反転</li>
   <li><b>グラデーション</b>・ふち・<b>かげ</b>・<b>ひかり</b>（グロー）</li>
   <li>歌詞に 合う 書たいが 20種。手もちの 書たい（ttf・otf）も 入れられる</li></ul>
-  <h3>5. しあげ</h3>
+  <h3>5. うごきの あと</h3>
+  <ul><li>動画・画像・色の ふだにも <b>うごきの あと</b>（モーションブラー）が つけられます。
+  ズームや 下から 出す ときに かけると、はやい うごきが なめらかに 見えます</li></ul>
+  <h3>6. しあげ</h3>
   <ul><li>🎛しあげ は 画ぜんたいに かける。まわり暗く・ざらざら・色ずれ</li>
   <li>ぴかっ・ゆれ・ズームは <b>拍ごと</b>に 出る</li>
   <li>🎨 いろの ふだ で 下じきの 色を 時間で かえられる</li></ul>
-  <h3>6. 指の わざ</h3>
+  <h3>7. 指の わざ</h3>
   <ul><li>絵を じかに ドラッグ。四すみの <b>まる</b>で 大きさと かたむき</li>
   <li><b>2本指</b>で 画面を ずらす・つまんで 大きく／小さく。
   なにも 無い ところを 1本指で なぞっても ずらせます</li>
@@ -761,7 +772,7 @@ function helpBody() {
   <li>上の <b>⤢</b> で もとの 大きさに もどります</li>
   <li><b>2本指で トン</b> … もどす　<b>3本指で トン</b> … やりなおし</li>
   <li>タイムラインを <b>2本指で つまむ</b> … 時間じくの のびちぢみ</li></ul>
-  <h3>7. 出す</h3>
+  <h3>8. 出す</h3>
   <ul><li>右上の <b>▶書き出す</b> → <b>MP4</b>（1コマずつ 焼く。コマ落ちしない）</li>
   <li>できない ブラウザでは 通しで 録って WebM に なる</li>
   <li>📷 で いまの 絵を PNG に</li>

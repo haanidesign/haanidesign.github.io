@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=11';
+import { bus } from './bus.js?v=12';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -33,7 +33,7 @@ export function newClip(kind, o = {}) {
     vol: 1, fin: 0, fout: 0,
     color: '#E1DD60', color2: '#F2A0B8', grad: false, gradDir: 0,
     fx: { br: 100, ct: 100, sa: 100, bl: 0, hue: 0, sepia: 0 },
-    anim: 'none',
+    anim: 'none', mblur: 0,
     text: {
       str: 'ここに もじ', size: 80, color: '#FFFEF7', stroke: '#1E1C14',
       sw: 9, weight: 800, align: 'center', bgOn: false, bgColor: '#E1DD60',
