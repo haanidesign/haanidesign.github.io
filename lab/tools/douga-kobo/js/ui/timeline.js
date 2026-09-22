@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=9';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=9';
-import { bus } from '../bus.js?v=9';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=9';
+} from '../state.js?v=10';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=10';
+import { bus } from '../bus.js?v=10';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=10';
 
 const el = {};
 export function init() {
@@ -41,9 +41,11 @@ function drawHeads() {
     const d = document.createElement('div');
     d.className = 'thead' + (S.selTrack === tr.id ? ' sel' : '');
     const ic = { video: '🎞', audio: '🎵', text: '🅰' }[tr.kind];
+    /* 音の段に「目」は いらない。音けしと まぎらわしい ので 出さない */
+    const eye = tr.kind === 'audio' ? '' :
+      `<button class="tb ${tr.hidden ? 'off' : ''}" data-a="hide" title="出す／かくす">${tr.hidden ? '🚫' : '👁'}</button>`;
     d.innerHTML =
-      `<span class="ic">${ic}</span><span class="nm"></span>` +
-      `<button class="tb ${tr.hidden ? 'off' : ''}" data-a="hide" title="出す／かくす">${tr.hidden ? '🚫' : '👁'}</button>` +
+      `<span class="ic">${ic}</span><span class="nm"></span>` + eye +
       `<button class="tb ${tr.mute ? 'off' : ''}" data-a="mute" title="音を 出す／けす">${tr.mute ? '🔇' : '🔊'}</button>` +
       `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>`;
     d.querySelector('.nm').textContent = tr.name;

@@ -2,10 +2,10 @@
    本命 … WebCodecs で 1コマずつ 焼いて、mp4-muxer で MP4 の 箱に 詰める。
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
-import { S, clamp, duration, allClips, r2 } from './state.js?v=9';
-import { MEDIA, animFrameAt } from './media.js?v=9';
-import { renderOut, outCanvas, activeClips } from './render.js?v=9';
-import { fadeAlpha } from './render.js?v=9';
+import { S, clamp, duration, allClips, r2 } from './state.js?v=10';
+import { MEDIA, animFrameAt } from './media.js?v=10';
+import { renderOut, outCanvas, activeClips } from './render.js?v=10';
+import { fadeAlpha } from './render.js?v=10';
 
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 
@@ -77,7 +77,7 @@ export async function mixAudio(dur, onProgress) {
   const rate = 48000;
   const jobs = [];
   for (const { c, t: tr } of allClips()) {
-    if (tr.mute || tr.hidden && tr.kind === 'audio') continue;
+    if (tr.mute || tr.hidden) continue;        // 🔇 でも 🚫 でも 音は 入らない
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
     if (!m || m.kind === 'image') continue;
