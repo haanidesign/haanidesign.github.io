@@ -467,8 +467,10 @@ function allTasks(){
   return tasks.concat(bskyPosts);
 }
 
+/* 枡に並べるのは 絵と動画だけ。
+   文字だけの予定は 枡に出さず、下の「これからの予定」で読んでもらう。 */
 function onDay(key){
-  return allTasks().filter(t => t.date === key);
+  return allTasks().filter(t => t.date === key && t.image);
 }
 
 function render(){
@@ -516,15 +518,15 @@ function render(){
       </div>
       ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
       ${shown.map(t => t.image
-        ? `<${t.url && t.bsky ? "a" : "div"} class="card${t.bsky ? " bsky" : ""}" data-id="${esc(t.id)}"${t.url && t.bsky ? ` href="${esc(t.url)}" target="_blank" rel="noopener"` : ""} title="${esc(t.title)}">
+        ? `<${t.url && t.bsky ? "a" : "div"} class="card${t.bsky ? " bsky" : ""}" data-id="${esc(t.id)}"${t.url && t.bsky ? ` href="${esc(t.url)}" target="_blank" rel="noopener"` : ""} ${t.title ? `title="${esc(t.title)}"` : ""}>
              <div class="card-top">
-               ${t.category ? `<span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+               ${t.category && !t.bsky ? `<span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
                ${t.video ? `<span class="n">▶</span>` : ""}
                ${t.count > 1 ? `<span class="n dot">${t.count}枚</span>` : ""}
                ${t.time ? `<span class="at">${esc(t.time)}</span>` : ""}
              </div>
              <img src="${esc(t.image)}" alt="" loading="lazy">
-             <span class="cap">${esc(t.title)}</span>
+             ${t.title && !t.bsky ? `<span class="cap">${esc(t.title)}</span>` : ""}
            </${t.url && t.bsky ? "a" : "div"}>`
         : `<div class="ev" data-id="${esc(t.id)}" style="background:${colorOf(t.category)}" title="${esc(t.title)}">${esc(t.title)}</div>`
       ).join("")}
@@ -658,7 +660,8 @@ function picShow(){
   $("#picImg").alt = t.title || "";
   const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
   $("#picCap").textContent =
-    `${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})${t.time ? " " + t.time : ""}　${t.title || ""}`;
+    `${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})${t.time ? " " + t.time : ""}` +
+    (t.title ? "　" + t.title : "");
   $("#picRow").innerHTML = t.url
     ? `<a class="btn btn-sm btn-g" href="${esc(t.url)}" target="_blank" rel="noopener">${
         t.bsky ? (t.video ? "Bluesky で 見る" : "投稿を見る") : "Notion で見る"}</a>`
@@ -704,7 +707,7 @@ function renderUpcoming(){
 
   $("#upcoming").innerHTML = list.map(t => {
     const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
-    return `<li>
+    return `<li data-id="${esc(t.id)}">
       <span class="when">${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})</span>
       ${t.image ? `<img class="upthumb" src="${esc(t.image)}" alt="" loading="lazy">` : ""}
       <span class="what">${esc(t.title)}${t.time ? ` <span class="uptime dot">${esc(t.time)}</span>` : ""}</span>
@@ -785,8 +788,8 @@ async function loadBsky(){
           id: "bsky:" + post.cid,
           date: when.date,
           time: when.time,
-          title: text || (media.kind === "video" ? "Bluesky に出した動画" : "Bluesky に出した絵"),
-          category: "投稿",
+          title: text,            // 文が 無ければ 何も出さない
+          category: "投稿",        // 数えるのに 使うだけで、枡には 出さない
           image: media.thumb,
           imageFull: media.full,
           video: media.video || null,
