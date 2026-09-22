@@ -1,15 +1,15 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=262';
+import { M } from './engine/math.js?v=263';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=262';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=263';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=262';
-import { createStage } from './ui/stage.js?v=262';
-import { createRenderer } from './render/renderer.js?v=262';
-import { createTimeline } from './ui/timeline.js?v=262';
-import { fmtTime } from './engine/anim.js?v=262';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=263';
+import { createStage } from './ui/stage.js?v=263';
+import { createRenderer } from './render/renderer.js?v=263';
+import { createTimeline } from './ui/timeline.js?v=263';
+import { fmtTime } from './engine/anim.js?v=263';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -20,23 +20,24 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=262';
+         setWarper } from './ui/sheet.js?v=263';
 
-import { showNewDoc } from './ui/newdoc.js?v=262';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=262';
-import { fitToCanvas, isBg } from './io/bg.js?v=262';
-import * as Audio from './io/audio.js?v=262';
-import { isTalk, blipTimes } from './engine/talk.js?v=262';
+import { showNewDoc } from './ui/newdoc.js?v=263';
+import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=263';
+import { fitToCanvas, isBg } from './io/bg.js?v=263';
+import * as Audio from './io/audio.js?v=263';
+import { isTalk, blipTimes } from './engine/talk.js?v=263';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=262';
-import { importPsd } from './io/psd.js?v=262';
-import { splitTextChars } from './io/text.js?v=262';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=263';
+import { importPsd } from './io/psd.js?v=263';
+import { splitTextChars } from './io/text.js?v=263';
+import { exportAE } from './io/ae.js?v=263';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=262';
-import { pathKeys, pathLength } from './engine/path.js?v=262';
-import { paintDirty } from './engine/paint.js?v=262';
+         canUseWebCodecs } from './io/export.js?v=263';
+import { pathKeys, pathLength } from './engine/path.js?v=263';
+import { paintDirty } from './engine/paint.js?v=263';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=262';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=263';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1224,7 +1225,9 @@ async function runExport(kind){
   box.classList.add('on');
   title.textContent = kind === 'gif'
     ? 'すける GIFを つくっています'
-    : (canUseWebCodecs() ? '動画を つくっています' : '動画を つくっています（実時間）');
+    : (kind === 'ae'
+        ? 'AE用に 焼いています（レイヤーごと）'
+        : (canUseWebCodecs() ? '動画を つくっています' : '動画を つくっています（実時間）'));
   fill.style.width = '0%'; pct.textContent = '0%';
 
   const onProgress = (p) => {
@@ -1235,7 +1238,9 @@ async function runExport(kind){
 
   try{
     const g = S.proj.gif || {};
-    const r = kind === 'gif'
+    const r = kind === 'ae'
+      ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
+      : kind === 'gif'
       ? await exportGif(S.proj, {
           fps: g.fps || 12,
           maxSide: g.maxSide || 480,
@@ -1244,7 +1249,7 @@ async function runExport(kind){
         })
       : await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport });
 
-    const name = (S.proj.name || 'anime') + '.' + r.ext;
+    const name = (S.proj.name || 'anime') + (kind === 'ae' ? '_AE' : '') + '.' + r.ext;
     const mb = (r.blob.size / 1048576).toFixed(1);
     box.classList.remove('on');
 
