@@ -40,6 +40,10 @@ function loop(ts) {
   if (!S.playing) return;
   if (!t0) t0 = ts;
   S.time = base + (ts - t0) / 1000;
+  const L = S.loop;
+  if (L && L.on && L.b > L.a && S.time >= L.b) {
+    S.time = L.a; base = L.a; t0 = ts;          // くりかえし
+  }
   if (S.time >= duration()) { S.time = duration(); pause(); bus.tick(); return; }
   syncMedia(S.time);
   renderStage(S.time, false);
@@ -48,7 +52,9 @@ function loop(ts) {
 }
 export function play() {
   if (S.playing) return;
-  if (S.time >= duration() - 0.02) S.time = 0;
+  const L = S.loop;
+  if (L && L.on && L.b > L.a && (S.time < L.a || S.time >= L.b)) S.time = L.a;
+  else if (S.time >= duration() - 0.02) S.time = 0;
   audioCtx();
   S.playing = true; base = S.time; t0 = 0;
   bus.play();

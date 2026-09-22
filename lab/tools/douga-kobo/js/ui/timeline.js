@@ -5,6 +5,7 @@ import {
 } from '../state.js';
 import { MEDIA, paintPoster, paintPeaks } from '../media.js';
 import { bus } from '../bus.js';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js';
 
 const el = {};
 export function init() {
@@ -15,6 +16,8 @@ export function init() {
   el.rcv = $('#rulerCv');
   el.play = $('#playhead');
   el.snapline = $('#snapline');
+  el.beat = $('#beatCv');
+  el.loop = $('#loopband');
   el.scroll.addEventListener('scroll', () => {
     el.heads.style.transform = `translateY(${-el.scroll.scrollTop}px)`;
   });
@@ -29,7 +32,7 @@ export const t2x = t => t * S.pps;
 const width = () => Math.max(el.scroll.clientWidth + 160, t2x(duration()) + 360);
 
 /* ---------- えがく ---------- */
-export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); }
+export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); }
 
 function drawHeads() {
   el.heads.innerHTML = '';
@@ -40,17 +43,38 @@ function drawHeads() {
     d.innerHTML =
       `<span class="ic">${ic}</span><span class="nm"></span>` +
       `<button class="tb ${tr.hidden ? 'off' : ''}" data-a="hide" title="出す／かくす">${tr.hidden ? '🚫' : '👁'}</button>` +
-      `<button class="tb ${tr.mute ? 'off' : ''}" data-a="mute" title="音を 出す／けす">${tr.mute ? '🔇' : '🔊'}</button>`;
+      `<button class="tb ${tr.mute ? 'off' : ''}" data-a="mute" title="音を 出す／けす">${tr.mute ? '🔇' : '🔊'}</button>` +
+      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>`;
     d.querySelector('.nm').textContent = tr.name;
     d.addEventListener('click', e => {
       const a = e.target.dataset && e.target.dataset.a;
       S.selTrack = tr.id;
       if (a === 'hide') tr.hidden = !tr.hidden;
       else if (a === 'mute') tr.mute = !tr.mute;
+      else if (a === 'lock') tr.lock = !tr.lock;
       if (a) { pushUndo(); bus.all(); } else bus.all();
     });
     el.heads.appendChild(d);
   });
+}
+
+function drawBeatGrid(w, h) {
+  const cv = el.beat;
+  if (!beatOn() || !S.beat.grid || S.pps * stepSec() < 6) { cv.width = 0; return; }
+  cv.width = w; cv.height = Math.max(1, h);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const g = cv.getContext('2d');
+  const st = stepSec(), off = S.beat.offset || 0;
+  const perBar = (S.beat.per || 4) * (S.beat.div || 1);
+  let n = Math.ceil((0 - off) / st);
+  for (let t = off + n * st; t2x(t) < w; t += st, n++) {
+    if (t < 0) continue;
+    const x = Math.round(t2x(t)) + .5;
+    const bar = perBar > 0 && ((n % perBar) + perBar) % perBar === 0;
+    g.strokeStyle = bar ? 'rgba(30,28,20,.34)' : 'rgba(30,28,20,.13)';
+    g.lineWidth = bar ? 2 : 1;
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, cv.height); g.stroke();
+  }
 }
 
 function drawLanes() {
@@ -65,6 +89,7 @@ function drawLanes() {
     tr.clips.forEach(c => L.appendChild(clipEl(c)));
     el.lanes.appendChild(L);
   });
+  drawBeatGrid(w, S.tracks.length * 64);
 }
 
 function clipEl(c) {
@@ -73,13 +98,20 @@ function clipEl(c) {
   d.style.left = t2x(c.start) + 'px';
   d.style.width = Math.max(26, t2x(c.dur)) + 'px';
   d.dataset.cid = c.id;
-  const label = c.kind === 'text' ? (c.text.str.split('\n')[0] || 'もじ') : (c.name || '素材');
+  const label = c.kind === 'text' ? (c.text.str.split('\n')[0] || 'もじ')
+    : c.kind === 'color' ? (c.grad ? 'グラデ' : 'いろ') : (c.name || '素材');
   d.innerHTML = `<div class="nm"></div><div class="body"></div>
     <div class="grip l"></div><div class="grip r"></div>`;
   d.querySelector('.nm').textContent =
-    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : '🎞 ') + label;
+    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'color' ? '🎨 ' : '🎞 ') + label;
   const body = d.querySelector('.body');
   const pw = Math.max(26, Math.round(t2x(c.dur)));
+  if (c.kind === 'color') {
+    const sw = document.createElement('div');
+    sw.style.cssText = `position:absolute;inset:0;background:${c.grad
+      ? `linear-gradient(${(c.gradDir || 0) + 90}deg, ${c.color}, ${c.color2 || c.color})` : c.color};`;
+    body.appendChild(sw);
+  }
   const m = c.mid ? MEDIA.get(c.mid) : null;
   if (m && m.kind === 'audio') {
     const cv = document.createElement('canvas');
@@ -105,10 +137,11 @@ function drawRuler() {
   el.rcv.width = w; el.rcv.style.width = w + 'px';
   const g = el.rcv.getContext('2d');
   g.fillStyle = '#F2F0BE'; g.fillRect(0, 0, w, 30);
-  const steps = [1 / S.fps, .1, .5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
-  const step = steps.find(s => s * S.pps > 74) || 900;
   g.strokeStyle = '#1E1C14'; g.fillStyle = '#1E1C14';
   g.font = "12px 'DotGothic16', monospace"; g.textBaseline = 'top';
+  if (beatOn() && S.beat.grid) { drawBarRuler(g, w); return; }
+  const steps = [1 / S.fps, .1, .5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+  const step = steps.find(s => s * S.pps > 74) || 900;
   for (let t = 0; t2x(t) < w; t += step) {
     const x = Math.round(t2x(t)) + .5;
     g.globalAlpha = .9; g.lineWidth = 2;
@@ -123,6 +156,55 @@ function drawRuler() {
     }
   }
   g.globalAlpha = 1;
+  drawBeatTicks(g, w);
+}
+
+/* 拍が きまって いる ときは 秒ではなく 小節で かぞえる */
+function drawBarRuler(g, w) {
+  const b = beatSec(), per = S.beat.per || 4, barSec = b * per, off = S.beat.offset || 0;
+  const every = Math.max(1, Math.ceil(74 / (barSec * S.pps)));
+  let n = Math.ceil((0 - off) / b);
+  for (let t = off + n * b; t2x(t) < w; t += b, n++) {
+    if (t < 0) continue;
+    const x = Math.round(t2x(t)) + .5;
+    const inBar = ((n % per) + per) % per;
+    const bar = inBar === 0;
+    g.globalAlpha = bar ? .95 : .45;
+    g.lineWidth = bar ? 2 : 1.4;
+    g.beginPath(); g.moveTo(x, bar ? 14 : 22); g.lineTo(x, 30); g.stroke();
+    if (bar && (n / per) % every === 0) {
+      g.globalAlpha = 1;
+      g.fillText(String(Math.round(n / per) + 1), x + 4, 1);
+    }
+  }
+  g.globalAlpha = 1;
+}
+
+/* 定規の 上に 拍の つぶを ならべる。小節の あたまは 大きい つぶ */
+function drawBeatTicks(g, w) {
+  if (!beatOn() || S.pps * beatSec() < 10) return;
+  const b = beatSec(), off = S.beat.offset || 0;
+  const per = S.beat.per || 4;
+  let n = Math.max(0, Math.ceil((0 - off) / b));
+  for (let t = off + n * b; t2x(t) < w; t += b, n++) {
+    if (t < 0) continue;
+    const x = Math.round(t2x(t)) + .5;
+    const bar = ((n % per) + per) % per === 0;
+    g.fillStyle = bar ? '#1E1C14' : '#B8B43F';
+    if (bar) { g.fillRect(x - 1.5, 16, 3, 6); g.beginPath(); g.arc(x, 13, 3.4, 0, 7); g.fill(); }
+    else { g.beginPath(); g.arc(x, 14, 2.2, 0, 7); g.fill(); }
+  }
+}
+
+function drawLoopBand() {
+  const L = S.loop;
+  const n = el.loop;
+  if (!n) return;
+  if (!L || !L.on || L.b <= L.a) { n.style.display = 'none'; return; }
+  n.style.display = 'block';
+  n.style.left = t2x(L.a) + 'px';
+  n.style.width = Math.max(2, t2x(L.b - L.a)) + 'px';
+  n.style.height = el.lanes.scrollHeight + 'px';
 }
 
 export function movePlayhead() {
@@ -186,6 +268,7 @@ function grab(e) {
   const f = findClip(node.dataset.cid);
   if (!f) return;
   S.sel = f.c.id; S.selTrack = f.t.id;
+  if (f.t.lock) { bus.all(); toast('この段は かぎが かかって いる'); return; }
 
   if (S.tool === 'cut') {
     const r = el.scroll.getBoundingClientRect();
@@ -256,6 +339,7 @@ document.addEventListener('pointercancel', endDrag);
 function snapTo(t, self) {
   if (!S.snap) return t;
   const cand = [0, S.time];
+  if (beatOn()) cand.push(nearestStep(t));
   allClips().forEach(({ c }) => { if (c.id !== self) cand.push(c.start, c.start + c.dur); });
   const tol = 12 / S.pps;
   let best = null, bd = tol;
