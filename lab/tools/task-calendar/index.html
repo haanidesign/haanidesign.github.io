@@ -336,7 +336,10 @@ async function load(){
       const json = await res.json();
       notion = (json.tasks||[]).filter(t=>t.date).map(t=>({
         id: t.id, title: t.title, date: t.date, category: t.category,
-        url: t.url, source: "notion"
+        url: t.url, source: "notion",
+        time: t.time || "",
+        // 画像はリポジトリの根から数えた場所にあるので、ここから見た形に直す
+        image: t.image ? "../../../" + t.image : ""
       }));
     }
   }catch{ /* オフラインでも自分の予定は見られるようにする */ }
@@ -361,7 +364,7 @@ function itemsOf(y,m){
       title: o.title ?? t.title,
       date: o.date ?? t.date,
       type: o.type ?? guessType(t.category, t.title),
-      time: o.time || "", dur: o.dur || "", image: o.image || ""
+      time: o.time ?? t.time ?? "", dur: o.dur || "", image: o.image || t.image || ""
     });
   }
   for(const it of Object.values(mine)) put({...it, source:"mine"});
