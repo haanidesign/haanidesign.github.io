@@ -519,12 +519,9 @@ function render(){
       ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
       ${shown.map(t => t.image
         ? `<${t.url && t.bsky ? "a" : "div"} class="card${t.bsky ? " bsky" : ""}" data-id="${esc(t.id)}"${t.url && t.bsky ? ` href="${esc(t.url)}" target="_blank" rel="noopener"` : ""} ${t.title ? `title="${esc(t.title)}"` : ""}>
-             <div class="card-top">
-               ${t.category && !t.bsky ? `<span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
-               ${t.video ? `<span class="n">▶</span>` : ""}
-               ${t.count > 1 ? `<span class="n dot">${t.count}枚</span>` : ""}
-               ${t.time ? `<span class="at">${esc(t.time)}</span>` : ""}
-             </div>
+             ${t.category && !t.bsky
+               ? `<div class="card-top"><span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span></div>`
+               : ""}
              <img src="${esc(t.image)}" alt="" loading="lazy">
              ${t.title && !t.bsky ? `<span class="cap">${esc(t.title)}</span>` : ""}
            </${t.url && t.bsky ? "a" : "div"}>`
