@@ -5,6 +5,19 @@ import { analyse } from './beat.js';
 
 export const MEDIA = new Map();
 
+/* 音や 動画の もとは 画面の 外に 置いて おく。
+   ぶら下げずに 持って いるだけだと、端末に よっては 鳴らない。 */
+let yard = null;
+function stash(el) {
+  if (!yard) {
+    yard = document.createElement('div');
+    yard.id = 'mediayard';
+    yard.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;';
+    document.body.appendChild(yard);
+  }
+  yard.appendChild(el);
+}
+
 /* ---- 音の みち。書き出しの ときに ここから まとめて 取る ---- */
 let AC = null, recDest = null;
 const srcNodes = new Map();
@@ -28,6 +41,8 @@ export function audioCtx() {
   return AC;
 }
 export const recStream = () => recDest ? recDest.stream : null;
+/** 書き出しの ときに まとめて 取る ための つなぎ口 */
+export const recNode = () => recDest;
 
 export function hookAudio(m) {
   if (!m || m.kind === 'image' || srcNodes.has(m.id)) return;
@@ -71,15 +86,29 @@ export function importFiles(files, after) {
     } else {
       const el = document.createElement(kind === 'audio' ? 'audio' : 'video');
       el.src = url; el.preload = 'auto'; el.playsInline = true;
-      el.addEventListener('loadedmetadata', () => {
-        m.dur = isFinite(el.duration) && el.duration > 0 ? el.duration : 10;
-        if (kind === 'video') { m.w = el.videoWidth || S.W; m.h = el.videoHeight || S.H; makePoster(m); }
-        done();
-      }, { once: true });
-      el.addEventListener('error', done, { once: true });
-      el.addEventListener('seeked', () => { if (!S.playing) bus.stage(); });
+      el.setAttribute('playsinline', '');
       m.el = el;
-      makePeaks(m, file);      // 動画の 中の 音も 見る（はやさ さがし の ため）
+      stash(el);
+      let settled = false;
+      const settle = (ok) => {
+        if (settled) return;
+        settled = true;
+        m.elOk = ok;
+        if (ok) {
+          const d = el.duration;
+          if (isFinite(d) && d > 0) m.dur = d;
+          if (kind === 'video') { m.w = el.videoWidth || S.W; m.h = el.videoHeight || S.H; makePoster(m); }
+        }
+        bus.all();
+        done();
+      };
+      el.addEventListener('loadedmetadata', () => settle(true), { once: true });
+      el.addEventListener('error', () => settle(false), { once: true });
+      /* 端末に よっては どちらも 上がって こない ことが ある。
+         そのままだと とりこみが 終わらないので、待ちきれたら 先へ 進む。 */
+      setTimeout(() => settle(el.readyState >= 1), 6000);
+      el.addEventListener('seeked', () => { if (!S.playing) bus.stage(); });
+      analyse2(m, file);
     }
     MEDIA.set(m.id, m);
   });
@@ -105,29 +134,96 @@ function makePoster(m) {
   el.readyState >= 2 ? go() : el.addEventListener('loadeddata', go, { once: true });
 }
 
-/* 音の 波と、曲の はやさ。帯に えがく ため／拍に あわせる ため */
-async function makePeaks(m, file) {
+/* 音の 中身を 見る。
+     ・帯に えがく 波
+     ・曲の はやさ（BPM）
+     ・<audio> が 鳴らせない 音は、ここで 読んだ ものから 作り直して 差し替える
+   ここが 動くと、端末が そのままでは 鳴らせない WAV でも 鳴る ように なる。 */
+async function analyse2(m, file) {
+  let ab = null;
   try {
-    const buf = await file.arrayBuffer();
+    const bytes = await file.arrayBuffer();
     const oc = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 1, 44100);
-    const ab = await oc.decodeAudioData(buf);
-    if (m.kind === 'audio') {
-      const ch = ab.getChannelData(0);
-      const N = 1600, step = Math.max(1, Math.floor(ch.length / N));
-      const peaks = new Float32Array(N);
-      for (let i = 0; i < N; i++) {
-        let mx = 0;
-        for (let j = 0; j < step; j += 4) { const v = Math.abs(ch[i * step + j] || 0); if (v > mx) mx = v; }
-        peaks[i] = mx;
-      }
-      m.peaks = peaks;
-      m.dur = ab.duration;
+    // decodeAudioData は もらった 箱を からに する ことが あるので 写しを わたす
+    ab = await oc.decodeAudioData(bytes.slice(0));
+  } catch (e) {
+    m.decOk = false;
+    if (m.elOk === false) brokenMsg(m);
+    bus.all();
+    return;
+  }
+  m.decOk = true;
+
+  if (m.kind === 'audio') {
+    m.abuf = ab;                       // ← これを 鳴らす
+    if (isFinite(ab.duration) && ab.duration > 0) m.dur = ab.duration;
+    const ch = ab.getChannelData(0);
+    const N = 1600, step = Math.max(1, Math.floor(ch.length / N));
+    const peaks = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      let mx = 0;
+      for (let j = 0; j < step; j += 4) { const v = Math.abs(ch[i * step + j] || 0); if (v > mx) mx = v; }
+      peaks[i] = mx;
     }
+    m.peaks = peaks;
+  }
+
+  try {
     const a = analyse(ab);
     m.bpm = a.bpm; m.offset = a.offset;
     bus.beat(m);
-    bus.all();
-  } catch (e) { /* 読めない ときは 波も はやさも あきらめる */ }
+  } catch (e) { }
+
+  /* 鳴らせない ときの 立て直し。
+     読めた 音を 16ビットの WAV に し直して、そちらを 鳴らす。 */
+  if (m.elOk === false && m.kind === 'audio') {
+    try {
+      const blob = toWav(ab);
+      URL.revokeObjectURL(m.url);
+      m.url = URL.createObjectURL(blob);
+      m.file = new File([blob], m.name, { type: 'audio/wav' });
+      m.el.src = m.url;
+      m.el.load();
+      m.elOk = null;
+      m.el.addEventListener('loadedmetadata', () => {
+        m.elOk = true;
+        if (isFinite(m.el.duration) && m.el.duration > 0) m.dur = m.el.duration;
+        bus.all();
+      }, { once: true });
+      m.el.addEventListener('error', () => { brokenMsg(m); }, { once: true });
+      toast(m.name + ' を 読みなおしました', 2600);
+    } catch (e) { brokenMsg(m); }
+  }
+  bus.all();
+}
+
+function brokenMsg(m) {
+  m.broken = true;
+  toast(m.name + ' は この 端末で 鳴らせません', 3400);
+}
+
+/** AudioBuffer を 16ビットの WAV に する（どの 端末でも 鳴る かたち） */
+export function toWav(ab) {
+  const ch = Math.min(2, ab.numberOfChannels), rate = ab.sampleRate, n = ab.length;
+  const data = new ArrayBuffer(44 + n * ch * 2);
+  const v = new DataView(data);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); v.setUint32(4, 36 + n * ch * 2, true); ws(8, 'WAVEfmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * ch * 2, true);
+  v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
+  ws(36, 'data'); v.setUint32(40, n * ch * 2, true);
+  const chans = [];
+  for (let c = 0; c < ch; c++) chans.push(ab.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < ch; c++) {
+      let x = chans[c][i];
+      x = x < -1 ? -1 : x > 1 ? 1 : x;
+      v.setInt16(o, x * 32767, true); o += 2;
+    }
+  }
+  return new Blob([data], { type: 'audio/wav' });
 }
 
 /* だなの 札や 帯に はる 小さい絵 */

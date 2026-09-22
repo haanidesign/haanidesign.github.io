@@ -178,7 +178,11 @@ function binBody() {
     }
     const nm = el('div', 'nm', m.name); nm.title = m.name;
     d.appendChild(nm);
-    const sub = el('div', 'sub dot', mediaLabel(m) + (m.bpm ? ' / ' + m.bpm + 'BPM' : ''));
+    let state = '';
+    if (m.broken) state = ' ⚠ 鳴らせない';
+    else if (m.kind !== 'image' && m.elOk === false) state = ' … 読みなおし中';
+    const sub = el('div', 'sub dot', mediaLabel(m) + (m.bpm ? ' / ' + m.bpm + 'BPM' : '') + state);
+    if (m.broken) sub.style.color = '#b0446a';
     d.appendChild(sub);
     d.appendChild(btn('＋ おく', 'btn-sm btn-y', () => { addFromMedia(m, S.time); if (!docked()) close(); }));
     const ops = el('div', 'grid');
@@ -531,7 +535,11 @@ function masterBody() {
 /* --- さくひん --- */
 function fileBody() {
   const w = el('div');
-  const nm = el('input'); nm.type = 'text'; nm.value = 'douga';
+  const nm = el('input'); nm.type = 'text'; nm.value = (S.name && S.name !== 'むだい') ? S.name : 'douga';
+  w.appendChild(group('この さくひん', [
+    hint('さわる たびに じどうで ほぞんされます。<br>つぎに ひらいた とき「つづきから」で 出てきます。'),
+    grid(null, [btn('🏠 さくひん えらびへ', 'btn-sm', () => { close(); bus.home(); })])
+  ]));
   w.appendChild(group('ひとまとめ（素材ごと）', [
     row('名前', nm),
     grid(null, [
