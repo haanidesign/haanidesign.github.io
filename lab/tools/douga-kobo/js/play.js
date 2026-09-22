@@ -1,17 +1,67 @@
 /* さいせいと 書き出し。 */
-import { S, clamp, r2, toast, duration, $ } from './state.js';
-import { MEDIA, audioCtx, recStream, hookAudio, hookAll } from './media.js';
-import { activeClips, fadeAlpha, renderStage, canvas } from './render.js';
-import { bus } from './bus.js';
+import { S, clamp, r2, toast, duration, $ } from './state.js?v=6';
+import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=6';
+import { allClips } from './state.js?v=6';
+import { activeClips, fadeAlpha, renderStage, canvas } from './render.js?v=6';
+import { bus } from './bus.js?v=6';
 
 let raf = 0, t0 = 0, base = 0;
 
+/* ---------- 音（音だけの ふだ）は Web Audio で 鳴らす ----------
+   <audio> を そのまま 鳴らす やり方だと、端末に よっては
+   鳴らない・音の 大きさが 変えられない ことが ある。
+   読みこむ ときに もう 中身を 数字に して ある ので、それを 直に 鳴らす。 */
+let voices = [];
+export function stopVoices() {
+  voices.forEach(v => { try { v.src.stop(); } catch (e) { } });
+  voices = [];
+}
+export function startVoices(from) {
+  stopVoices();
+  const ac = audioCtx();
+  if (!ac) return;
+  const t0 = ac.currentTime + 0.06;       // 少し 先から ならべる
+  for (const { c, t: tr } of allClips()) {
+    if (c.kind !== 'audio' || !c.mid) continue;
+    if (tr.mute) continue;
+    const m = MEDIA.get(c.mid);
+    if (!m || !m.abuf) continue;
+    const end = c.start + c.dur;
+    if (end <= from) continue;
+    const src = ac.createBufferSource();
+    src.buffer = m.abuf;
+    src.playbackRate.value = c.speed || 1;
+    const g = ac.createGain();
+    const v = clamp(c.vol === undefined ? 1 : c.vol, 0, 2);
+    const startAt = Math.max(c.start, from);
+    const when = t0 + (startAt - from);
+    const offset = clamp(c.inp + (startAt - c.start) * (c.speed || 1), 0, Math.max(0, m.abuf.duration - .01));
+    const len = Math.max(0, (end - startAt) * (c.speed || 1));
+    // 入り・出の ぼかし
+    const fin = c.fin > 0 ? Math.max(0, c.start + c.fin - startAt) : 0;
+    const fout = c.fout > 0 ? c.fout : 0;
+    g.gain.setValueAtTime(fin > 0 ? 0.0001 : v, when);
+    if (fin > 0) g.gain.linearRampToValueAtTime(v, when + fin);
+    if (fout > 0) {
+      const outAt = when + Math.max(0, (end - fout - startAt));
+      g.gain.setValueAtTime(v, outAt);
+      g.gain.linearRampToValueAtTime(0.0001, when + (end - startAt));
+    }
+    src.connect(g);
+    g.connect(ac.destination);
+    const rd = recNode();                      // 通しで 録る ときにも 入る ように
+    if (rd) { try { g.connect(rd); } catch (e) { } }
+    try { src.start(when, offset, len); } catch (e) { continue; }
+    voices.push({ src, g });
+  }
+}
 export function syncMedia(t) {
   const on = new Set();
   for (const { c, tr } of activeClips(t)) {
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
     if (!m || m.kind === 'image') continue;
+    if (m.kind === 'audio' && m.abuf) continue;   // これは Web Audio で 鳴らす
     on.add(m.id);
     const want = clamp(c.inp + (t - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.02));
     m.el.volume = tr.mute ? 0 : clamp(c.vol * fadeAlpha(c, t - c.start), 0, 1);
@@ -31,6 +81,7 @@ export function syncMedia(t) {
 const stopAll = () => MEDIA.forEach(m => { if (m.kind !== 'image' && !m.el.paused) m.el.pause(); });
 
 export function seek(t) {
+  stopVoices();
   S.time = clamp(t, 0, duration());
   syncMedia(S.time);
   renderStage(S.time);
@@ -43,6 +94,7 @@ function loop(ts) {
   const L = S.loop;
   if (L && L.on && L.b > L.a && S.time >= L.b) {
     S.time = L.a; base = L.a; t0 = ts;          // くりかえし
+    startVoices(S.time);
   }
   if (S.time >= duration()) { S.time = duration(); pause(); bus.tick(); return; }
   syncMedia(S.time);
@@ -57,6 +109,7 @@ export function play() {
   else if (S.time >= duration() - 0.02) S.time = 0;
   audioCtx();
   S.playing = true; base = S.time; t0 = 0;
+  startVoices(S.time);
   bus.play();
   raf = requestAnimationFrame(loop);
 }
@@ -64,6 +117,7 @@ export function pause() {
   if (!S.playing) { stopAll(); return; }
   S.playing = false;
   cancelAnimationFrame(raf);
+  stopVoices();
   stopAll();
   bus.play();
   renderStage(S.time);

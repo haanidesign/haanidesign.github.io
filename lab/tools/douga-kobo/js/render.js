@@ -1,8 +1,8 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js';
-import { MEDIA } from './media.js';
-import { drawText as paintText, textBox } from './text.js';
-import { beatOn, beatAt } from './beat.js';
+import { S, clamp, findClip } from './state.js?v=6';
+import { MEDIA, animFrame } from './media.js?v=6';
+import { drawText as paintText, textBox } from './text.js?v=6';
+import { beatOn, beatAt } from './beat.js?v=6';
 
 let cv = null, G = null;
 export function useCanvas(el) { cv = el; G = el.getContext('2d'); }
@@ -191,6 +191,15 @@ function paintScene(G, t) {
     else {
       const m = MEDIA.get(c.mid);
       const el = m && m.el;
+      const bmp = m && m.anim ? animFrame(m, local * (c.speed || 1)) : null;
+      if (bmp) {
+        const { w, h } = fitSize(c, m);
+        G.filter = filterStr(c.fx);
+        try { G.drawImage(bmp, -w / 2, -h / 2, w, h); } catch (e) { }
+        G.filter = 'none';
+        G.restore();
+        continue;
+      }
       const ok = el && (c.kind === 'image' ? el.complete && el.naturalWidth : el.readyState >= 2);
       if (ok) {
         const { w, h } = fitSize(c, m);

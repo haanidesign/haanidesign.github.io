@@ -1,46 +1,46 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=265';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=267';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=265';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=265';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=267';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=267';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=265';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=267';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=265';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=265';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=265';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=265';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=267';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=267';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=267';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=267';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=265';
+         addTextLayer } from '../io/text.js?v=267';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=265';
-import { PATTERN_NAMES } from '../io/pattern.js?v=265';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=267';
+import { PATTERN_NAMES } from '../io/pattern.js?v=267';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=265';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=265';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=265';
+         PITCH_MAX } from '../engine/pano.js?v=267';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=267';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=267';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=265';
-import { readAsDataURL, loadImage } from '../io/image.js?v=265';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=267';
+import { readAsDataURL, loadImage } from '../io/image.js?v=267';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=265';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=265';
-import { newHand } from '../engine/hand.js?v=265';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=265';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=267';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=267';
+import { newHand } from '../engine/hand.js?v=267';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=267';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=265';
+  from './colorwheel.js?v=267';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=265';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=267';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=265';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=267';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -81,6 +81,12 @@ function setDock(on){
 
 export function createSheet(sheetEl, backEl){
   let builder = null;
+  /* いまの 見出し。
+     まえは 画面から 読み直して いたが、見出しには
+     せつめいの「?」ボタンが くっつく ことが ある ので、
+     読み直す たびに「?」が 1つずつ 増えて いた
+     （さわる たびに 見出しが ????? に なって いた）。 */
+  let titleNow = '';
 
   let pages = null;      // [{key,label,build}]
   let page = 0;
@@ -199,9 +205,11 @@ export function createSheet(sheetEl, backEl){
       return;
     }
 
+    titleNow = title || '';
     if(title){
       const t = document.createElement('h2');
       t.textContent = title;
+      t.dataset.title = '1';               // ここには「?」を つけない
       sheetEl.appendChild(t);
     }
     builder(sheetEl);
@@ -228,7 +236,7 @@ export function createSheet(sheetEl, backEl){
     page = n; render(currentTitle());
     return true;
   }
-  const currentTitle = () => sheetEl.querySelector('.sheettabs') ? '' : (sheetEl.querySelector('h2')?.textContent || '');
+  const currentTitle = () => sheetEl.querySelector('.sheettabs') ? '' : titleNow;
 
   backEl.addEventListener('click', close);
 
@@ -372,7 +380,7 @@ function foldNotes(host){
       if(h.dataset && h.dataset.fold) { h = null; break; }
       h = h.previousElementSibling;
     }
-    if(h && h.tagName === 'H2' && !h.querySelector('button')){
+    if(h && h.tagName === 'H2' && !h.dataset.title && !h.querySelector('button')){
       q.style.cssText = 'background:none;border:0;color:inherit;font:inherit;'
         + 'font-size:.8em;opacity:.75;padding:0 2px;margin-left:2px;'
         + 'cursor:pointer;vertical-align:baseline;line-height:1';

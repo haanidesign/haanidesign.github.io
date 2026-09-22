@@ -2,10 +2,10 @@
    本命 … WebCodecs で 1コマずつ 焼いて、mp4-muxer で MP4 の 箱に 詰める。
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
-import { S, clamp, duration, allClips, r2 } from './state.js';
-import { MEDIA } from './media.js';
-import { renderStage, activeClips } from './render.js';
-import { fadeAlpha } from './render.js';
+import { S, clamp, duration, allClips, r2 } from './state.js?v=6';
+import { MEDIA, animFrameAt } from './media.js?v=6';
+import { renderStage, activeClips } from './render.js?v=6';
+import { fadeAlpha } from './render.js?v=6';
 
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 
@@ -48,6 +48,7 @@ async function prepareFrame(t, fps) {
   for (const { c } of activeClips(t)) {
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
+    if (m && m.anim) { jobs.push(animFrameAt(m, (t - c.start) * (c.speed || 1))); continue; }
     if (!m || m.kind !== 'video') continue;
     if (!m.el.paused) m.el.pause();
     const want = clamp(c.inp + (t - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.03));
@@ -59,6 +60,7 @@ async function prepareFrame(t, fps) {
 /* ---------- 音を タイムラインの とおりに まぜる ---------- */
 const decCache = new Map();
 async function decode(m) {
+  if (m.abuf) return m.abuf;               // 音は もう 読んで ある
   if (decCache.has(m.id)) return decCache.get(m.id);
   if (!m.file) return null;
   try {

@@ -3,15 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js';
-import { MEDIA, paintPoster, mediaLabel, importFiles } from '../media.js';
-import { bus } from '../bus.js';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js';
+} from '../state.js?v=6';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=6';
+import { storeOk } from '../store.js?v=6';
+import { bus } from '../bus.js?v=6';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=6';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=6';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js';
+} from '../edit.js?v=6';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -178,7 +179,11 @@ function binBody() {
     }
     const nm = el('div', 'nm', m.name); nm.title = m.name;
     d.appendChild(nm);
-    const sub = el('div', 'sub dot', mediaLabel(m) + (m.bpm ? ' / ' + m.bpm + 'BPM' : ''));
+    let state = '';
+    if (m.broken) state = ' ⚠ 鳴らせない';
+    else if (m.kind !== 'image' && m.elOk === false) state = ' … 読みなおし中';
+    const sub = el('div', 'sub dot', mediaLabel(m) + (m.bpm ? ' / ' + m.bpm + 'BPM' : '') + state);
+    if (m.broken) sub.style.color = '#b0446a';
     d.appendChild(sub);
     d.appendChild(btn('＋ おく', 'btn-sm btn-y', () => { addFromMedia(m, S.time); if (!docked()) close(); }));
     const ops = el('div', 'grid');
@@ -501,6 +506,20 @@ function masterBody() {
   const w = el('div');
   const mr = (label, key, min, max, step, unit) =>
     range(label, M[key] === undefined ? 0 : M[key], min, max, step, unit, v => { M[key] = v; bus.stage(); });
+
+  w.appendChild(group('下じき（うしろの 色）', [
+    color('いろ', S.bg, v => { S.bg = v; bus.stage(); }),
+    grid('えらぶ', [
+      ['くろ', '#101010'], ['しろ', '#FFFEF7'], ['きなり', '#FBFAEC'],
+      ['はいいろ', '#5c5843'], ['みどり', '#00B140'], ['あお', '#0047BB']
+    ].map(([n, c]) => {
+      const b = btn(n, 'btn-sm', () => { S.bg = c; pushUndo(); bus.stage(); draw(); });
+      b.style.borderLeft = '10px solid ' + c;
+      return b;
+    })),
+    hint('みどり・あおは、あとで 人を くりぬく ときの 色。<br>' +
+      '時間で 色を かえたい ときは 🗂素材 の「いろの ふだ」を つかう。')
+  ]));
   w.appendChild(group('画づくり', [
     mr('あかるさ', 'br', 0, 200, 1, '%'),
     mr('こさ', 'ct', 0, 200, 1, '%'),
@@ -531,7 +550,11 @@ function masterBody() {
 /* --- さくひん --- */
 function fileBody() {
   const w = el('div');
-  const nm = el('input'); nm.type = 'text'; nm.value = 'douga';
+  const nm = el('input'); nm.type = 'text'; nm.value = (S.name && S.name !== 'むだい') ? S.name : 'douga';
+  w.appendChild(group('この さくひん', [
+    hint('さわる たびに じどうで ほぞんされます。<br>つぎに ひらいた とき「つづきから」で 出てきます。'),
+    grid(null, [btn('🏠 さくひん えらびへ', 'btn-sm', () => { close(); bus.home(); })])
+  ]));
   w.appendChild(group('ひとまとめ（素材ごと）', [
     row('名前', nm),
     grid(null, [
@@ -553,6 +576,15 @@ function fileBody() {
   const exk = el('select');
   [['mp4', 'MP4（ふつうは こっち）'], ['webm', 'WebM（通しで 録る）']]
     .forEach(([v, l]) => { const o = el('option', null, l); o.value = v; exk.appendChild(o); });
+  w.appendChild(group('ようす（うまく いかない とき）', [
+    stateBody(),
+    grid(null, [btn('📋 うつす', 'btn-sm', () => {
+      const t = stateText();
+      if (navigator.clipboard) navigator.clipboard.writeText(t).then(
+        () => toast('うつしました'), () => prompt('これを おくって ください', t));
+      else prompt('これを おくって ください', t);
+    })])
+  ]));
   w.appendChild(group('そのほか', [
     grid(null, [
       btn('📷 いまの 絵', 'btn-sm', () => { close(); $('#shot').click(); }),
@@ -572,6 +604,36 @@ function fileBody() {
       : 'この ブラウザは MP4 に できないので、<br>通しで 録って WebM に します。')
   ]));
   return w;
+}
+
+/* --- ようす --- */
+function stateText() {
+  const sw = navigator.serviceWorker && navigator.serviceWorker.controller ? 'あり' : 'なし';
+  const lines = [
+    '版: v' + (bus.version ? bus.version() : '?'),
+    'サービスワーカー: ' + sw,
+    'ほぞん: ' + (storeOk() === false ? 'つかえない' : storeOk() === true ? 'つかえる' : 'まだ'),
+    '素材: ' + MEDIA.size + ' こ',
+    'ふだ: ' + allClips().length + ' まい',
+    'MP4: ' + (bus.canMp4 && bus.canMp4() ? 'つくれる' : 'つくれない'),
+    '画面: ' + window.innerWidth + '×' + window.innerHeight
+  ];
+  if (LOG.at) {
+    lines.push('さいごの とりこみ: ' + LOG.at + ' / ' + LOG.count + ' こ');
+    if (LOG.note) lines.push('　' + LOG.note);
+    LOG.items.forEach(i => lines.push(
+      `　${i.name} / ${Math.round(i.size / 1024)}KB / ${i.type} / ${i.kind} → ${i.state}`));
+  } else {
+    lines.push('さいごの とりこみ: まだ');
+  }
+  return lines.join('\n');
+}
+function stateBody() {
+  const pre = el('div', 'hint');
+  pre.style.whiteSpace = 'pre-wrap';
+  pre.style.fontFamily = "'DotGothic16', monospace";
+  pre.textContent = stateText();
+  return pre;
 }
 
 /* --- せってい --- */
@@ -604,8 +666,14 @@ function helpBody() {
   w.innerHTML = `
   <p>ブラウザの 中だけで 動く。素材は どこにも 送られない。</p>
   <h3>1. 入れる</h3>
-  <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす</li>
-  <li><b>🗂素材</b> の 札を タイムラインへ 引っぱる（<b>＋おく</b>でも いい）</li>
+  <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす。
+  えらんだ ものは <b>そのまま タイムラインに ならびます</b>
+  （音は 音の段、絵と 動画は 映像の段）</li>
+  <li>PSD も 入ります。重ねた 絵を 1枚に して とりこみます</li>
+  <li><b>すける もの</b>（アニメ工房の「すける GIF」、すける WebM、すける PNG）は
+  すけた まま 重なります。うごく GIF は コマの まま うごきます</li>
+  <li>もう一度 おなじ ものを 置きたい ときは <b>🗂素材</b> から <b>＋おく</b>。
+  引っぱって 好きな ところに 置いても いい</li>
   <li>札の 下の ✏ ⇄ ⤓ 🗑 で 名前がえ・差し替え・取り出し・けす</li></ul>
   <h3>2. 曲の はやさに のせる</h3>
   <ul><li>音を 入れると <b>BPM を じどうで さがす</b>。🥁はやさ で 直せる</li>

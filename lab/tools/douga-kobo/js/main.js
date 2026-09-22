@@ -2,22 +2,24 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js';
-import { wire, bus } from './bus.js';
-import { MEDIA, importFiles, hookAll } from './media.js';
-import { useCanvas, renderStage } from './render.js';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js';
-import { beatOn, beatSec, beatAt } from './beat.js';
-import * as TL from './ui/timeline.js';
-import * as P from './ui/panel.js';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js';
+} from './state.js?v=6';
+import { wire, bus } from './bus.js?v=6';
+import { MEDIA, importFiles, hookAll } from './media.js?v=6';
+import { useCanvas, renderStage } from './render.js?v=6';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=6';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=6';
+import { beatOn, beatSec, beatAt } from './beat.js?v=6';
+import * as TL from './ui/timeline.js?v=6';
+import * as P from './ui/panel.js?v=6';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=6';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js';
-import { addFontFile } from './text.js';
-import { makePack, openPack } from './pack.js';
-import { trackOf } from './state.js';
+} from './edit.js?v=6';
+import { addFontFile } from './text.js?v=6';
+import { makePack, openPack } from './pack.js?v=6';
+import { showStart } from './ui/start.js?v=6';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=6';
+import { trackOf } from './state.js?v=6';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -39,6 +41,7 @@ function fitStage() {
 }
 function applySize() {
   cv.width = S.W; cv.height = S.H;
+  const dn = $('#docName'); if (dn) dn.textContent = S.name || 'むだい';
   $('#docSize').textContent = `${S.W}×${S.H} / ${S.fps}fps`;
   fitStage();
 }
@@ -74,7 +77,7 @@ function playUI() {
 }
 
 wire({
-  all: drawAll,
+  all: () => { drawAll(); auto.touch(); },
   tl: () => TL.drawAll(),
   stage: () => renderStage(S.time),
   panel: () => P.draw(),
@@ -86,6 +89,9 @@ wire({
   split: () => TL.splitHere(),
   export: doExport,
   canMp4: () => hasCodecs(),
+  version: () => VERSION,
+  home: backToStart,
+  rename: v => { S.name = v; auto.touch(); },
   replaceMedia: id => { swapId = id; $('#fileSwap').click(); },
   wip: startWip,
   pack: async name => {
@@ -104,6 +110,7 @@ wire({
     $('#busyFill').style.width = Math.round(p * 100) + '%';
     $('#busyPct').textContent = Math.round(p * 100) + '%';
   },
+  reveal: id => TL.reveal(id),
   beat: m => {
     // はじめての 音から、曲の はやさを もらって おく
     if (m && m.bpm && !S.beat.bpm) {
@@ -113,13 +120,20 @@ wire({
   },
   drop: (mid, t, tid, files) => {
     if (mid && MEDIA.get(mid)) addFromMedia(MEDIA.get(mid), t, tid ? trackOf(tid) : null);
-    else if (files && files.length) importFiles(files, relink);
+    else if (files && files.length) importFiles(files, made => { relink(); placeAll(made, t); });
   }
 });
 
 /* ---------- 上バー ---------- */
-$('#home').onclick = () => P.open('help');
+$('#home').onclick = backToStart;
 $('#docSize').onclick = () => P.open('setting');
+$('#docName').onclick = () => {
+  const v = prompt('さくひんの 名前', S.name || 'むだい');
+  if (v === null) return;
+  S.name = v.trim() || 'むだい';
+  $('#docName').textContent = S.name;
+  auto.touch();
+};
 $('#undo').onclick = undo;
 $('#redo').onclick = redo;
 $('#fit').onclick = () => TL.fit();
@@ -191,7 +205,19 @@ $('#tFile').onclick = () => P.open('file');
 $('#help').onclick = () => P.open('help');
 
 /* ---------- ファイル ---------- */
-$('#file').onchange = e => { importFiles(e.target.files, relink); e.target.value = ''; };
+/* とりこんだら そのまま タイムラインに ならべる。
+   だなに 入るだけだと、どこへ 行ったのか 分からない。 */
+function placeAll(made, at) {
+  if (!made || !made.length) return;
+  const where = at === undefined ? S.time : at;
+  let last = null;
+  made.forEach(m => { const c = addFromMedia(m, where); if (c) last = c.id; });
+  if (last) { drawAll(); TL.reveal(last); }
+}
+$('#file').onchange = e => {
+  importFiles(e.target.files, made => { relink(); placeAll(made); });
+  e.target.value = '';
+};
 $('#fileProj').onchange = e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
@@ -285,7 +311,7 @@ document.addEventListener('drop', e => {
   dragDepth = 0; $('#drop').classList.remove('on');
   if (e.target.closest && e.target.closest('#lanes')) return;   // タイムラインは 自分で うけとる
   e.preventDefault();
-  if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files, relink);
+  if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files, made => { relink(); placeAll(made); });
 });
 
 /* ---------- 書き出し ---------- */
@@ -391,6 +417,120 @@ window.addEventListener('beforeunload', e => {
   if (allClips().length) { e.preventDefault(); e.returnValue = ''; }
 });
 
+/* ---------- 版の ばんごう ----------
+   手で 書くと 直しわすれる ので、読みこんだ アドレスから 出す。 */
+export const VERSION = (() => {
+  const m = /[?&]v=([^&]+)/.exec(import.meta.url);
+  return m ? m[1] : '?';
+})();
+$('#ver').textContent = 'v' + VERSION;
+$('#ver').onclick = async () => {
+  /* ホーム画面や ブラウザが 古いものを つかんだ ままに なる ことが ある。
+     ここを おしたら ためこんだ ものを ぜんぶ 捨てて 取り直す。
+     ＝ いつでも きく 逃げ道。 */
+  $('#ver').textContent = 'かたづけ中…';
+  try { await auto.now(); } catch (e) { }
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { }
+  location.href = location.pathname + '?fresh=' + Date.now();
+};
+
+/* ---------- じどう ほぞん ---------- */
+function thumb() {
+  try {
+    const c = document.createElement('canvas');
+    const r = S.W / S.H;
+    c.width = 120; c.height = Math.max(1, Math.round(120 / r));
+    renderStage(S.time, false);
+    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+    renderStage(S.time);
+    return c.toDataURL('image/jpeg', .6);
+  } catch (e) { return null; }
+}
+const auto = autoSaver(() => ({
+  id: S.docId,
+  doc: {
+    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    beat: S.beat, master: S.master, tracks: S.tracks
+  },
+  media: [...MEDIA.values()],
+  thumb: thumb()
+}), {
+  onDone: (ok, err) => {
+    if (ok) return;
+    if (!auto._said) { auto._said = true; toast('ほぞんが いっぱいです。いらない さくひんを けして', 4000); }
+  }
+});
+
+/* ---------- はじめの 画面 ---------- */
+async function backToStart() {
+  pause();
+  await auto.now();
+  showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+}
+function startNew(size, fps) {
+  S.W = size.w; S.H = size.h; S.fps = fps || 30;
+  S.bg = '#101010';
+  S.beat = { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true };
+  S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 };
+  S.loop = { on: false, a: 0, b: 0 };
+  S.name = 'むだい';
+  S.docId = newId();
+  MEDIA.clear();
+  bootProject();
+  applySize(); resetHist(); appH(); drawAll(); TL.fit();
+}
+async function openDoc(id) {
+  $('#start').classList.remove('on');
+  busy(true, 'さくひんを ひらいて います'); prog(.15);
+  try {
+    const rec = await loadDoc(id);
+    if (!rec) { toast('見つからなかった'); busy(false); return; }
+    const o = rec.doc;
+    S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    if (o.beat) S.beat = Object.assign({ bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true }, o.beat);
+    if (o.master) S.master = Object.assign({}, S.master, o.master);
+    S.name = o.name || 'むだい';
+    S.docId = id;
+    MEDIA.clear();
+    // 素材を もどす
+    const files = [];
+    for (const m of rec.media || []) {
+      if (!m.blob) continue;
+      try {
+        const bl = await getBlob(m.blob);
+        if (bl) files.push({ file: new File([bl], m.name, { type: m.type || '' }), oldId: m.id });
+      } catch (e) { }
+    }
+    prog(.5, '素材を もどして います');
+    await new Promise(res => {
+      if (!files.length) { res(); return; }
+      importFiles(files.map(x => x.file), res);
+    });
+    const byName = new Map([...MEDIA.values()].map(m => [m.name, m]));
+    const remap = new Map();
+    files.forEach(({ file, oldId }) => {
+      const hit = byName.get(file.name);
+      if (hit) remap.set(oldId, hit.id);
+    });
+    S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;
+    allClips().forEach(({ c }) => { if (c.mid && remap.has(c.mid)) c.mid = remap.get(c.mid); });
+    applySize(); resetHist(); appH(); drawAll(); TL.fit();
+    const miss = allClips().filter(({ c }) => c.mid && !MEDIA.has(c.mid)).length;
+    toast(miss ? `ひらいた（素材 ${miss}こ たりない）` : 'つづきから はじめます', 2600);
+  } catch (e) {
+    toast('ひらけなかった');
+  } finally { busy(false); }
+}
+
 /* ---------- はじまり ---------- */
 TL.init();
 P.init();
@@ -402,6 +542,22 @@ drawAll();
 TL.setZoom(60, 0);
 playUI();
 setTool('select');
+
+/* さくひんが あれば はじめの 画面、なければ そのまま はじめる */
+(async () => {
+  if (!S.docId) S.docId = newId();
+  try {
+    const docs = await Promise.race([
+      listDocs(),
+      new Promise(r => setTimeout(() => r([]), 6000))   // 待ちすぎない
+    ]);
+    if (docs.length) await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+  } catch (e) {
+    $('#start').classList.remove('on');                  // 出しかけで 止めない
+  }
+})();
+
+if (window.__ready) window.__ready();      // 立ち上がった しるし
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(() => { });

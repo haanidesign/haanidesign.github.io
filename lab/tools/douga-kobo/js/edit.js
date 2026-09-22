@@ -3,22 +3,22 @@ import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
   freeSlot, laneFor, freeLane
-} from './state.js';
-import { MEDIA, hookAudio } from './media.js';
-import { bus } from './bus.js';
+} from './state.js?v=6';
+import { MEDIA, hookAudio } from './media.js?v=6';
+import { bus } from './bus.js?v=6';
 
 export function addFromMedia(m, at = 0, track = null) {
   if (!m) return null;
   const t = track && track.kind === (m.kind === 'audio' ? 'audio' : 'video') ? track : laneFor(m.kind);
   const c = newClip(m.kind, {
     mid: m.id, name: m.name,
-    dur: m.kind === 'image' ? 4 : Math.min(m.dur, 900), inp: 0
+    dur: m.kind === 'image' ? (m.anim ? Math.max(.3, m.anim.total) : 4) : Math.min(m.dur, 900), inp: 0
   });
   c.start = freeSlot(t, Math.max(0, at), c.dur);
   t.clips.push(c);
   S.sel = c.id; S.selTrack = t.id;
   hookAudio(m);
-  pushUndo(); bus.all();
+  pushUndo(); bus.all(); bus.reveal(c.id);
   return c;
 }
 export function addColor(at = S.time, col) {
@@ -28,7 +28,7 @@ export function addColor(at = S.time, col) {
   c.start = freeSlot(t, at, c.dur);
   t.clips.push(c);
   S.sel = c.id; S.selTrack = t.id;
-  pushUndo(); bus.all();
+  pushUndo(); bus.all(); bus.reveal(c.id);
   return c;
 }
 export function addText(at = S.time, str) {
@@ -38,7 +38,7 @@ export function addText(at = S.time, str) {
   c.start = freeSlot(t, at, c.dur);
   t.clips.push(c);
   S.sel = c.id; S.selTrack = t.id;
-  pushUndo(); bus.all();
+  pushUndo(); bus.all(); bus.reveal(c.id);
   return c;
 }
 export function addLyrics(text, { from = 0, each = 2.5, gap = 0, size = 64, y = null } = {}) {
@@ -63,7 +63,7 @@ export function addLyrics(text, { from = 0, each = 2.5, gap = 0, size = 64, y = 
   const t = freeLane('text', made);
   made.forEach(c => t.clips.push(c));
   S.sel = made[0].id; S.selTrack = t.id;
-  pushUndo(); bus.all();
+  pushUndo(); bus.all(); bus.reveal(made[0].id);
   return made.length;
 }
 export function delSel() {

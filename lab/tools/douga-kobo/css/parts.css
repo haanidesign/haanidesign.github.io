@@ -58,6 +58,10 @@
 .lane.text{ background-color:#fdf4f7; }
 .lane.off{ opacity:.45; }
 
+.laneempty{
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  font-size:.6rem; font-weight:400; color:var(--gray); pointer-events:none;
+}
 .clip{
   position:absolute; top:5px; height:calc(var(--lane-h) - 12px);
   background:var(--paper); border:var(--bd2); border-radius:9px;
@@ -138,3 +142,74 @@ kbd{
 .doc h3{ font-size:.78rem; margin:.7rem 0 .25rem; }
 .doc p, .doc li{ font-size:.7rem; font-weight:400; line-height:1.8; color:#3b3828; }
 .doc ul{ padding-left:1.2rem; }
+
+/* ---------- はじめの 画面 ---------- */
+#start{
+  position:fixed; inset:0; z-index:70; display:none;
+  background:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
+  overflow-y:auto;
+  padding:calc(1rem + var(--safe-t)) 1rem calc(1rem + var(--safe-b));
+}
+#start.on{ display:block; }
+.startcard{
+  max-width:620px; margin:0 auto;
+  background:var(--paper); border:var(--bd); border-radius:18px;
+  box-shadow:0 5px 0 var(--ink); padding:1rem 1.1rem 1.2rem;
+}
+.startcard h1{ font-size:1.05rem; margin:.6rem 0 .2rem; }
+.startcard h1:first-child{ margin-top:0; }
+.startcard .sub{ font-size:.68rem; font-weight:400; color:#5c5843; margin-bottom:.6rem; }
+.docs{ display:flex; flex-direction:column; gap:.45rem; margin-bottom:.9rem; }
+.docitem{ display:flex; gap:.45rem; align-items:stretch; }
+.docopen{
+  flex:1; display:flex; align-items:center; gap:.55rem;
+  background:var(--mint); border:var(--bd); border-radius:12px;
+  box-shadow:0 3px 0 var(--ink); padding:.4rem .5rem; min-height:60px;
+  text-align:left; justify-content:flex-start;
+}
+.docopen:hover{ background:#8fd4b2; }
+.docopen img{
+  width:48px; height:48px; flex:0 0 auto; object-fit:cover;
+  border:var(--bd2); border-radius:9px; background:var(--cream);
+}
+.doctext{ display:flex; flex-direction:column; min-width:0; }
+.doctext b{ font-size:.82rem; }
+.doctext i{ font-style:normal; font-size:.62rem; font-weight:400; color:#2c3b33; }
+.docdel{ flex:0 0 auto; min-width:52px; border-radius:12px; font-size:1rem; }
+.sizes{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.7rem; }
+.sizebtn{
+  flex:1 1 130px; display:flex; flex-direction:column; align-items:center; gap:.2rem;
+  padding:.6rem .4rem; border-radius:12px; min-height:110px; justify-content:center;
+}
+.sizebtn .shape{ background:var(--main-soft); border:var(--bd2); border-radius:6px; display:block; }
+.sizebtn.on .shape{ background:var(--paper); }
+.sizebtn b{ font-size:.8rem; }
+.sizebtn i{ font-style:normal; font-size:.58rem; font-weight:400; color:#5c5843; }
+.fpsrow{ display:flex; align-items:center; gap:.4rem; margin-bottom:.9rem; }
+.gobtn{ width:100%; min-height:54px; font-size:.95rem; font-weight:800; }
+
+/* ---------- 立ち上がらなかった ときの 知らせ ---------- */
+#deadman{
+  position:fixed; inset:0; z-index:200; display:none;
+  align-items:center; justify-content:center; padding:1rem;
+  background:rgba(251,250,236,.96);
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI',sans-serif; font-weight:700; color:#1E1C14;
+}
+#deadman > div{
+  background:#FFFEF7; border:2.5px solid #1E1C14; border-radius:16px;
+  box-shadow:0 5px 0 #1E1C14; padding:1rem 1.1rem; max-width:460px; width:100%;
+}
+#deadman b{ font-size:1rem; display:block; margin-bottom:.4rem; }
+#deadman p{
+  font-size:.68rem; font-weight:400; color:#5c5843; line-height:1.7;
+  margin:0 0 .7rem; word-break:break-all;
+}
+#deadman button{
+  min-height:48px; padding:0 1rem; margin-right:.4rem;
+  font:inherit; font-size:.85rem; cursor:pointer;
+  background:#E1DD60; border:2.5px solid #1E1C14; border-radius:12px;
+  box-shadow:0 3px 0 #1E1C14;
+}
+#deadman #deadhide{ background:#FFFEF7; font-size:.78rem; min-height:44px; }
