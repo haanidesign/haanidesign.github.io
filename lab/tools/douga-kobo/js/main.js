@@ -2,24 +2,24 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js?v=6';
-import { wire, bus } from './bus.js?v=6';
-import { MEDIA, importFiles, hookAll } from './media.js?v=6';
-import { useCanvas, renderStage } from './render.js?v=6';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=6';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=6';
-import { beatOn, beatSec, beatAt } from './beat.js?v=6';
-import * as TL from './ui/timeline.js?v=6';
-import * as P from './ui/panel.js?v=6';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=6';
+} from './state.js?v=7';
+import { wire, bus } from './bus.js?v=7';
+import { MEDIA, importFiles, hookAll } from './media.js?v=7';
+import { useCanvas, renderStage } from './render.js?v=7';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=7';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=7';
+import { beatOn, beatSec, beatAt } from './beat.js?v=7';
+import * as TL from './ui/timeline.js?v=7';
+import * as P from './ui/panel.js?v=7';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=7';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=6';
-import { addFontFile } from './text.js?v=6';
-import { makePack, openPack } from './pack.js?v=6';
-import { showStart } from './ui/start.js?v=6';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=6';
-import { trackOf } from './state.js?v=6';
+} from './edit.js?v=7';
+import { addFontFile } from './text.js?v=7';
+import { makePack, openPack } from './pack.js?v=7';
+import { showStart } from './ui/start.js?v=7';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=7';
+import { trackOf } from './state.js?v=7';
 
 const cv = $('#stageCv');
 useCanvas(cv);

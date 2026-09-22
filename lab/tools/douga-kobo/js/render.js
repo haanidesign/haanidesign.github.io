@@ -1,8 +1,8 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=6';
-import { MEDIA, animFrame } from './media.js?v=6';
-import { drawText as paintText, textBox } from './text.js?v=6';
-import { beatOn, beatAt } from './beat.js?v=6';
+import { S, clamp, findClip } from './state.js?v=7';
+import { MEDIA, animFrame } from './media.js?v=7';
+import { drawText as paintText, textBox } from './text.js?v=7';
+import { beatOn, beatAt } from './beat.js?v=7';
 
 let cv = null, G = null;
 export function useCanvas(el) { cv = el; G = el.getContext('2d'); }
