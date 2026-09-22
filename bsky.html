@@ -262,17 +262,24 @@
     }
   }
 
+  // その場で 流す 手だて。
+  // Android の Chrome は canPlayType に 「流せる」と 答えて おきながら
+  // じつは 流せない。なので hls.js が 使えるなら そちらを 先に 使う。
+  function nativeHls(){
+    return !!boxVid.canPlayType('application/vnd.apple.mpegurl');
+  }
+  function playNative(m){
+    boxVid.src = m.playlist;
+    boxVid.play().catch(function(){});
+  }
+
   function playVideo(m){
-    // Safari など HLS を そのまま 流せる ものは それで
-    var native = boxVid.canPlayType('application/vnd.apple.mpegurl');
-    if(native){
-      boxVid.src = m.playlist;
-      boxVid.play().catch(function(){});
-      return;
-    }
     loadHls().then(function(){
       if(!window.Hls) throw new Error('hls.js を 読めません');
-      if(!window.Hls.isSupported()) throw new Error('この ブラウザは 対応外');
+      if(!window.Hls.isSupported()){
+        if(nativeHls()){ playNative(m); return; }   // 本物の Safari・iOS
+        throw new Error('この ブラウザは 対応外');
+      }
 
       hls = new window.Hls({ enableWorker: true });
       hls.on(window.Hls.Events.ERROR, function(_e, d){
@@ -284,6 +291,8 @@
       hls.attachMedia(boxVid);
       boxVid.play().catch(function(){});
     }).catch(function(err){
+      // hls.js が 読めなかった ときの 最後の 手だて
+      if(nativeHls()){ playNative(m); return; }
       console.error('[bsky] video', err, m.playlist);
       caption(String(err.message || err), m);
     });
