@@ -3,16 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=7';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=7';
-import { storeOk } from '../store.js?v=7';
-import { bus } from '../bus.js?v=7';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=7';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=7';
+} from '../state.js?v=8';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=8';
+import { storeOk } from '../store.js?v=8';
+import { bus } from '../bus.js?v=8';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=8';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=8';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=7';
+} from '../edit.js?v=8';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -344,7 +344,7 @@ function clipBody(c) {
 
   if (c.kind === 'video' || c.kind === 'audio') {
     w.appendChild(group('おと', [
-      range('おおきさ', c.vol, 0, 2, .01, 'x', v => { c.vol = v; live(); })
+      range('おおきさ', c.vol, 0, 2, .01, 'x', v => { c.vol = v; bus.audio(); live(); })
     ]));
   }
   if (m && m.kind !== 'image') {
