@@ -1,6 +1,7 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
 import { S, uid, r2, toast, clamp } from './state.js';
 import { bus } from './bus.js';
+import { analyse } from './beat.js';
 
 export const MEDIA = new Map();
 
@@ -78,7 +79,7 @@ export function importFiles(files, after) {
       el.addEventListener('error', done, { once: true });
       el.addEventListener('seeked', () => { if (!S.playing) bus.stage(); });
       m.el = el;
-      if (kind === 'audio') makePeaks(m, file);
+      makePeaks(m, file);      // 動画の 中の 音も 見る（はやさ さがし の ため）
     }
     MEDIA.set(m.id, m);
   });
@@ -104,23 +105,29 @@ function makePoster(m) {
   el.readyState >= 2 ? go() : el.addEventListener('loadeddata', go, { once: true });
 }
 
-/* 音の 波。帯に えがく ため */
+/* 音の 波と、曲の はやさ。帯に えがく ため／拍に あわせる ため */
 async function makePeaks(m, file) {
   try {
     const buf = await file.arrayBuffer();
     const oc = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 1, 44100);
     const ab = await oc.decodeAudioData(buf);
-    const ch = ab.getChannelData(0);
-    const N = 1600, step = Math.max(1, Math.floor(ch.length / N));
-    const peaks = new Float32Array(N);
-    for (let i = 0; i < N; i++) {
-      let mx = 0;
-      for (let j = 0; j < step; j += 4) { const v = Math.abs(ch[i * step + j] || 0); if (v > mx) mx = v; }
-      peaks[i] = mx;
+    if (m.kind === 'audio') {
+      const ch = ab.getChannelData(0);
+      const N = 1600, step = Math.max(1, Math.floor(ch.length / N));
+      const peaks = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        let mx = 0;
+        for (let j = 0; j < step; j += 4) { const v = Math.abs(ch[i * step + j] || 0); if (v > mx) mx = v; }
+        peaks[i] = mx;
+      }
+      m.peaks = peaks;
+      m.dur = ab.duration;
     }
-    m.peaks = peaks; m.dur = ab.duration;
+    const a = analyse(ab);
+    m.bpm = a.bpm; m.offset = a.offset;
+    bus.beat(m);
     bus.all();
-  } catch (e) { /* 波は あきらめる */ }
+  } catch (e) { /* 読めない ときは 波も はやさも あきらめる */ }
 }
 
 /* だなの 札や 帯に はる 小さい絵 */
