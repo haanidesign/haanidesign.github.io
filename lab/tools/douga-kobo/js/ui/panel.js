@@ -3,16 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=5';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=5';
-import { storeOk } from '../store.js?v=5';
-import { bus } from '../bus.js?v=5';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=5';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=5';
+} from '../state.js?v=6';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=6';
+import { storeOk } from '../store.js?v=6';
+import { bus } from '../bus.js?v=6';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=6';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=6';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=5';
+} from '../edit.js?v=6';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -506,6 +506,20 @@ function masterBody() {
   const w = el('div');
   const mr = (label, key, min, max, step, unit) =>
     range(label, M[key] === undefined ? 0 : M[key], min, max, step, unit, v => { M[key] = v; bus.stage(); });
+
+  w.appendChild(group('下じき（うしろの 色）', [
+    color('いろ', S.bg, v => { S.bg = v; bus.stage(); }),
+    grid('えらぶ', [
+      ['くろ', '#101010'], ['しろ', '#FFFEF7'], ['きなり', '#FBFAEC'],
+      ['はいいろ', '#5c5843'], ['みどり', '#00B140'], ['あお', '#0047BB']
+    ].map(([n, c]) => {
+      const b = btn(n, 'btn-sm', () => { S.bg = c; pushUndo(); bus.stage(); draw(); });
+      b.style.borderLeft = '10px solid ' + c;
+      return b;
+    })),
+    hint('みどり・あおは、あとで 人を くりぬく ときの 色。<br>' +
+      '時間で 色を かえたい ときは 🗂素材 の「いろの ふだ」を つかう。')
+  ]));
   w.appendChild(group('画づくり', [
     mr('あかるさ', 'br', 0, 200, 1, '%'),
     mr('こさ', 'ct', 0, 200, 1, '%'),
@@ -652,8 +666,12 @@ function helpBody() {
   w.innerHTML = `
   <p>ブラウザの 中だけで 動く。素材は どこにも 送られない。</p>
   <h3>1. 入れる</h3>
-  <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす</li>
-  <li><b>🗂素材</b> の 札を タイムラインへ 引っぱる（<b>＋おく</b>でも いい）</li>
+  <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす。
+  えらんだ ものは <b>そのまま タイムラインに ならびます</b>
+  （音は 音の段、絵と 動画は 映像の段）</li>
+  <li>PSD も 入ります。重ねた 絵を 1枚に して とりこみます</li>
+  <li>もう一度 おなじ ものを 置きたい ときは <b>🗂素材</b> から <b>＋おく</b>。
+  引っぱって 好きな ところに 置いても いい</li>
   <li>札の 下の ✏ ⇄ ⤓ 🗑 で 名前がえ・差し替え・取り出し・けす</li></ul>
   <h3>2. 曲の はやさに のせる</h3>
   <ul><li>音を 入れると <b>BPM を じどうで さがす</b>。🥁はやさ で 直せる</li>

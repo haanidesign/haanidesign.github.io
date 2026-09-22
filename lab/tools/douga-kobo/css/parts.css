@@ -58,6 +58,10 @@
 .lane.text{ background-color:#fdf4f7; }
 .lane.off{ opacity:.45; }
 
+.laneempty{
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  font-size:.6rem; font-weight:400; color:var(--gray); pointer-events:none;
+}
 .clip{
   position:absolute; top:5px; height:calc(var(--lane-h) - 12px);
   background:var(--paper); border:var(--bd2); border-radius:9px;
