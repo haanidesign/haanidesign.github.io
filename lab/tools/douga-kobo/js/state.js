@@ -14,11 +14,15 @@ export const S = {
   sel: null, selTrack: null,
   tool: 'select',          // select | cut | hand
   snap: true,
+  loop: { on: false, a: 0, b: 0 },
+  timeMode: 'sec',
+  beat: { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true },
+  master: { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 },
   playing: false
 };
 
 export const newTrack = (kind, name) =>
-  ({ id: uid(), kind, name, mute: false, hidden: false, clips: [] });
+  ({ id: uid(), kind, name, mute: false, hidden: false, lock: false, clips: [] });
 
 export function newClip(kind, o = {}) {
   return Object.assign({
@@ -26,11 +30,16 @@ export function newClip(kind, o = {}) {
     start: 0, dur: 4, inp: 0, speed: 1,
     x: 0, y: 0, scale: 1, rot: 0, opacity: 1, fit: 'contain',
     vol: 1, fin: 0, fout: 0,
+    color: '#E1DD60', color2: '#F2A0B8', grad: false, gradDir: 0,
     fx: { br: 100, ct: 100, sa: 100, bl: 0, hue: 0, sepia: 0 },
     anim: 'none',
     text: {
       str: 'ここに もじ', size: 80, color: '#FFFEF7', stroke: '#1E1C14',
-      sw: 9, weight: 800, align: 'center', bgOn: false, bgColor: '#E1DD60'
+      sw: 9, weight: 800, align: 'center', bgOn: false, bgColor: '#E1DD60',
+      font: 'rounded', vertical: false, tsume: 0, lineGap: 1.32,
+      fxIn: 'pop', fxOut: 'fade', fxLoop: 'none',
+      unit: 'char', inDur: .45, outDur: .3, stagger: .04,
+      loopAmt: 1, loopSec: .5, loopLag: true, mblur: 0
     }
   }, o);
 }
@@ -83,7 +92,7 @@ export function freeLane(kind, items) {
 /* ---- もどす／やりなおし ---- */
 let HIST = [], HPOS = -1;
 export function snap() {
-  const s = JSON.stringify({ tracks: S.tracks, sel: S.sel });
+  const s = JSON.stringify({ tracks: S.tracks, sel: S.sel, beat: S.beat, master: S.master, loop: S.loop });
   if (HIST[HPOS] === s) return;
   HIST = HIST.slice(0, HPOS + 1);
   HIST.push(s); HPOS = HIST.length - 1;
@@ -95,6 +104,9 @@ function goto(i) {
   HPOS = i;
   const o = JSON.parse(HIST[i]);
   S.tracks = o.tracks; S.sel = o.sel;
+  if (o.beat) S.beat = o.beat;
+  if (o.master) S.master = o.master;
+  if (o.loop) S.loop = o.loop;
   bus.all();
   return true;
 }

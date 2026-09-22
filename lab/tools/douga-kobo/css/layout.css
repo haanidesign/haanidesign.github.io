@@ -199,11 +199,11 @@
     border-right:var(--bd); border-top:none;
     padding:.35rem .3rem calc(.35rem + var(--safe-b));
     padding-left:calc(.3rem + var(--safe-l));
-    gap:.25rem;
+    gap:.2rem;
   }
   /* 道具は ぜんぶ 見えて いて ほしい。
      たての すきまを 分けあって、はみ出す ときだけ ちぢむ。 */
-  #tools .tool{ flex:1 1 auto; width:100%; min-height:42px; max-height:64px; }
+  #tools .tool{ flex:1 1 auto; width:100%; min-height:40px; max-height:60px; }
   #list{ height:clamp(210px, 36vh, 380px); }
 }
 

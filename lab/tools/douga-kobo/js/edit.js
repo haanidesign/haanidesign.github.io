@@ -21,6 +21,16 @@ export function addFromMedia(m, at = 0, track = null) {
   pushUndo(); bus.all();
   return c;
 }
+export function addColor(at = S.time, col) {
+  const c = newClip('color', { name: 'いろ', dur: 4 });
+  if (col) c.color = col;
+  const t = freeLane('video', [{ start: at, dur: c.dur }]);
+  c.start = freeSlot(t, at, c.dur);
+  t.clips.push(c);
+  S.sel = c.id; S.selTrack = t.id;
+  pushUndo(); bus.all();
+  return c;
+}
 export function addText(at = S.time, str) {
   const c = newClip('text', { name: 'もじ', dur: 3 });
   if (str) c.text.str = str;
@@ -110,6 +120,7 @@ export function saveProject(name = 'douga') {
   const data = {
     app: 'douga-kobo', ver: 1,
     W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    beat: S.beat, master: S.master,
     media: [...MEDIA.values()].map(m => ({ id: m.id, name: m.name, kind: m.kind, dur: m.dur })),
     tracks: S.tracks
   };
@@ -125,6 +136,8 @@ export async function openProject(file) {
     const o = JSON.parse(await file.text());
     if (o.app !== 'douga-kobo' && o.app !== 'douga-hen') { toast('この台の ファイルじゃない'); return; }
     S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    if (o.beat) S.beat = Object.assign(S.beat, o.beat);
+    if (o.master) S.master = Object.assign(S.master, o.master);
     S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;
     const byName = new Map([...MEDIA.values()].map(m => [m.name, m]));
     const remap = new Map();

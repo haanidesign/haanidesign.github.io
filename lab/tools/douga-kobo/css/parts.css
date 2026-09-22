@@ -42,7 +42,7 @@
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .thead .tb{
-  flex:0 0 auto; min-height:30px; min-width:30px;
+  flex:0 0 auto; min-height:30px; min-width:28px;
   padding:0; font-size:.72rem; border-radius:8px; box-shadow:0 2px 0 var(--ink);
 }
 .thead .tb.off{ background:var(--pink); }
@@ -92,6 +92,16 @@
 .grip.r{ right:0; border-left:2px solid rgba(30,28,20,.25); }
 .clip.sel .grip{ background:rgba(30,28,20,.2); }
 
+#loopband{
+  position:absolute; top:0; background:rgba(122,196,160,.28);
+  border-left:3px solid var(--mint); border-right:3px solid var(--mint);
+  z-index:2; pointer-events:none; display:none;
+}
+#shot{
+  position:absolute; left:10px; bottom:10px; z-index:4;
+  min-width:44px; min-height:44px; padding:0; font-size:1.1rem; border-radius:12px;
+}
+#beatCv{ position:absolute; left:0; top:0; z-index:1; pointer-events:none; }
 #playhead{
   position:absolute; top:0; bottom:0; width:3px;
   background:var(--pink); z-index:8; pointer-events:none;
