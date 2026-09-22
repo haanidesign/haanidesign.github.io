@@ -22,11 +22,38 @@
 .sch-head{
   display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem;
 }
-.sch-month{
-  font-size:1.05rem; font-weight:800; letter-spacing:.02em;
-  background:var(--main-soft); border:var(--bd); border-radius:999px;
-  box-shadow:0 3px 0 var(--ink); padding:.25rem 1rem;
+/* 月の名前は大きく。色は変えず、黄色にベタ影 */
+.sch-en{
+  font-size:2.6rem; line-height:1; font-weight:800; letter-spacing:-.01em;
+  color:var(--main); text-shadow:0 3px 0 var(--ink);
+  margin-right:.1rem;
 }
+.sch-year{font-size:.56rem; letter-spacing:.24em; color:var(--gray); line-height:1.4;}
+.sch-year b{display:block; font-family:'DotGothic16',monospace; font-weight:400;
+  font-size:1.15rem; letter-spacing:.06em; color:var(--ink);}
+.sch-month{
+  font-size:.72rem; font-weight:800; letter-spacing:.02em;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  box-shadow:0 2.5px 0 var(--ink); padding:.1rem .75rem;
+}
+.btn-circ{
+  width:2.4rem; height:2.4rem; padding:0; border-radius:50%;
+  font-size:1rem; line-height:1;
+}
+/* 今月の中身を数えたピル */
+.sch-count{
+  display:flex; gap:.4rem; flex-wrap:wrap; align-items:center;
+  width:100%; margin:-.4rem 0 .9rem;
+}
+.cpill{
+  display:inline-flex; align-items:center; gap:.35rem;
+  font-size:.66rem; font-weight:700;
+  background:var(--paper); border:2px solid var(--ink); border-radius:999px;
+  box-shadow:0 2.5px 0 var(--ink); padding:.1rem .7rem;
+}
+.cpill b{font-family:'DotGothic16',monospace; font-weight:400; font-size:.86rem;}
+.cpill .sw{width:11px; height:11px; border-radius:4px; border:2px solid var(--ink);}
+.cpill.off{background:#F7EAEA; color:#B05C5C;}
 .sch-legend{
   display:flex; gap:.8rem; flex-wrap:wrap; align-items:center;
   margin-left:auto; font-size:.7rem; color:var(--gray);
@@ -47,11 +74,22 @@
 .cal .dow.sat{color:#5b8fc7;}
 .cal .dow.sun{color:#c76b6b;}
 .day{
-  min-height:118px; border:2px solid rgba(30,28,20,.16); border-radius:11px;
+  min-height:132px; border:2px solid var(--ink); border-radius:13px;
   background:var(--paper); padding:.3rem .35rem;
-  display:flex; flex-direction:column; gap:.18rem; overflow:hidden;
+  display:flex; flex-direction:column; gap:.2rem; overflow:hidden;
 }
-.day.out{opacity:.3;}
+/* 予定のある日は、ちょっと浮かせる */
+.day.filled{box-shadow:0 3px 0 var(--ink);}
+.day .top{display:flex; align-items:center; gap:.25rem;}
+.day .cnt{
+  margin-left:auto; font-family:'DotGothic16',monospace; font-weight:400;
+  font-size:.5rem; color:var(--gray); letter-spacing:.04em;
+}
+.day .tdy{
+  font-size:.5rem; font-weight:700; line-height:1.6;
+  background:var(--ink); color:var(--main); border-radius:999px; padding:0 .45rem;
+}
+.day.out{opacity:.28; border-style:dashed; box-shadow:none;}
 .day.past{background:#f4f2e6;}
 /* 土日祝はお休み。背景を変えて、ひと目で分かるようにする */
 .day.off{background:#F7EAEA; border-color:rgba(199,107,107,.45);}
@@ -65,7 +103,8 @@
   font-size:.58rem; font-weight:800; color:#B05C5C;
 }
 .day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
-.day .dnum{font-size:.74rem; font-weight:800; flex:none;}
+.day.today .dnum{color:var(--ink);}
+.day .dnum{font-family:'DotGothic16',monospace; font-weight:400; font-size:.94rem; flex:none; line-height:1.2;}
 .day.sun .dnum{color:#c76b6b;}
 .day.sat .dnum{color:#5b8fc7;}
 .day .dnum.is-today{
@@ -73,21 +112,22 @@
   width:21px; height:21px; border-radius:50%; background:var(--ink); color:var(--main);
 }
 .ev{
-  font-size:.62rem; font-weight:700; line-height:1.5;
-  border:2px solid var(--ink); border-radius:7px;
-  padding:.02rem .3rem;
+  font-size:.62rem; font-weight:700; line-height:1.6;
+  border:2px solid var(--ink); border-radius:999px;
+  box-shadow:0 2px 0 var(--ink);
+  padding:.02rem .45rem;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .more{font-size:.58rem; color:var(--gray);}
 
 /* --- 画像つきの予定（Notion に画像があるときだけ） --- */
 .card{
-  border:2px solid var(--ink); border-radius:8px; overflow:hidden;
+  border:2px solid var(--ink); border-radius:10px; overflow:hidden;
   background:var(--paper); box-shadow:0 2.5px 0 var(--ink);
 }
 .card-top{display:flex; align-items:center; gap:.2rem; padding:.05rem .25rem 0;}
 .card .cat-badge{
-  font-size:.5rem; font-weight:700; line-height:1.6;
+  font-size:.52rem; font-weight:700; line-height:1.6;
   border:2px solid var(--ink); border-radius:999px; padding:0 .4rem;
   max-width:5.5em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
@@ -96,7 +136,7 @@
   font-size:.56rem; color:var(--gray); margin-left:auto;
 }
 .card img{
-  width:100%; aspect-ratio:16/9; object-fit:cover; display:block;
+  width:100%; aspect-ratio:4/3; object-fit:cover; display:block;
   border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);
   margin-top:.08rem; background:var(--main-soft);
 }
@@ -144,7 +184,10 @@
 
 @media (max-width:640px){
   .cal{gap:.22rem;}
-  .day{min-height:64px; padding:.22rem .24rem; gap:.14rem;}
+  .day{min-height:72px; padding:.22rem .24rem; gap:.14rem; border-radius:9px;}
+  .day .cnt,.day .tdy{display:none;}
+  .sch-en{font-size:1.7rem;}
+  .cpill{font-size:.6rem;}
   /* 幅が40px台しかなく、文字を出しても読めないので色帯だけにする。
      予定の中身は下の「これからの予定」で読んでもらう。 */
   .ev{
@@ -195,12 +238,16 @@
   <div class="win-body">
 
     <div class="sch-head">
-      <button class="btn btn-sm" id="prev" aria-label="前の月">‹</button>
+      <span class="sch-en" id="monthEn">—</span>
+      <span class="sch-year">YEAR<b id="yearNum">—</b></span>
+      <button class="btn btn-sm btn-circ" id="prev" aria-label="前の月">‹</button>
+      <button class="btn btn-sm btn-circ" id="next" aria-label="次の月">›</button>
       <span class="sch-month" id="month">—</span>
-      <button class="btn btn-sm" id="next" aria-label="次の月">›</button>
       <button class="btn btn-sm" id="thisMonth">今月</button>
       <div class="sch-legend" id="legend"></div>
     </div>
+
+    <div class="sch-count" id="count"></div>
 
     <div class="cal" id="cal"></div>
 
@@ -325,6 +372,8 @@ const holidayName = d => holidaysOf(d.getFullYear())[ymd(d)] || null;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const WDAY = ["日","月","火","水","木","金","土"];
+const MONTH_EN = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
 
 let tasks = [];
 let syncedAt = null;
@@ -345,6 +394,8 @@ function onDay(key){
 function render(){
   const y = anchor.getFullYear(), m = anchor.getMonth();
   $("#month").textContent = `${y}年 ${m+1}月`;
+  $("#monthEn").textContent = MONTH_EN[m];
+  $("#yearNum").textContent = y;
 
   const first = new Date(y, m, 1);
   const start = new Date(first);
@@ -377,8 +428,12 @@ function render(){
     const hol = holidayName(d);
     const off = wd === 0 || wd === 6 || !!hol;
 
-    return `<div class="day${out?" out":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" ${hol?`title="${esc(hol)}"`:""}>
-      <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
+    return `<div class="day${out?" out":""}${list.length&&!out?" filled":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" ${hol?`title="${esc(hol)}"`:""}>
+      <div class="top">
+        <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
+        ${key===todayKey ? '<span class="tdy">TODAY</span>' : ""}
+        ${list.length && !out ? `<span class="cnt">${list.length} ITEM</span>` : ""}
+      </div>
       ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
       ${shown.map(t => t.image
         ? `<div class="card" title="${esc(t.title)}">
@@ -409,6 +464,25 @@ function render(){
   $("#legend").innerHTML =
     cats.map(c=>`<b><span class="lg-swatch" style="background:${colorOf(c)}"></span>${esc(c)}</b>`).join("") +
     '<b><span class="lg-off"></span>お休み（土日祝）</b>';
+
+  // 今月の中身を数えて、上に並べる
+  const ofMonth = tasks.filter(t => {
+    const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+    return d.getFullYear()===y && d.getMonth()===m;
+  });
+  const byCat = new Map();
+  for(const t of ofMonth){
+    const k = t.category || "その他";
+    byCat.set(k, (byCat.get(k)||0) + 1);
+  }
+  const days = new Set(ofMonth.map(t => t.date)).size;
+  const offDays = cells.filter(d => d.getMonth()===m &&
+    (d.getDay()===0 || d.getDay()===6 || holidayName(d))).length;
+  $("#count").innerHTML =
+    [...byCat.entries()].map(([k,n]) =>
+      `<span class="cpill"><span class="sw" style="background:${colorOf(k)}"></span>${esc(k)} <b>${n}</b> 件</span>`).join("") +
+    (ofMonth.length ? `<span class="cpill">予定のある日 <b>${days}</b> 日</span>` : "") +
+    `<span class="cpill off">お休み <b>${offDays}</b> 日</span>`;
 
   // 狭い画面ではセルに祝日名が入らないので、下にも並べておく
   const hs = holidaysOf(y);
