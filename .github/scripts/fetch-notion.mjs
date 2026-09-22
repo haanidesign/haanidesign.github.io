@@ -28,6 +28,8 @@ const OUTS = [
   path.join("data", "schedule.json"),
 ];
 const OUT = OUTS[0];
+// 画像の置き場。サイト本体からも ラボからも ここを見る。
+const IMG_DIR = path.join("images", "schedule");
 const API_VERSION = process.env.NOTION_VERSION ?? "2022-06-28";
 // テスト時にモックへ向けるための逃げ道。通常は設定しない。
 const API_BASE = process.env.NOTION_API_BASE ?? "https://api.notion.com";
@@ -128,6 +130,71 @@ function isPrivate(props) {
   return false;
 }
 
+/**
+ * その行の画像を1枚だけ選ぶ。
+ * 「画像」系のファイルプロパティ → 無ければページのカバー、の順。
+ */
+function pickImageUrl(page, props) {
+  const fileProp = pickByName(
+    props,
+    ["画像", "サムネ", "サムネイル", "写真", "image", "thumbnail", "cover"],
+    ["files"],
+  );
+  const f = fileProp?.files?.[0];
+  const fromProp = f?.file?.url ?? f?.external?.url ?? null;
+  if (fromProp) return fromProp;
+  const cover = page.cover;
+  return cover?.file?.url ?? cover?.external?.url ?? null;
+}
+
+const EXT_BY_TYPE = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+};
+
+/**
+ * 画像を落としてリポジトリに置き、サイトから見えるパスを返す。
+ *
+ * Notion が返すURLは しばらくすると切れるので、そのまま貼れない。
+ * ここで一度落として、リポジトリの中に置いてしまう。
+ * 中身が変わっていなければ落とし直さない（毎朝コミットが積み上がらないように）。
+ */
+async function fetchImage(task, before) {
+  if (!task.imageUrl) return null;
+  const id = task.id.replace(/-/g, "");
+  const old = before.get(task.id);
+  // 前と同じ行で、前に落とした画像がまだ手元にあるなら そのまま使う
+  if (old?.image && old.edited && old.edited === task.edited && fs.existsSync(old.image)) {
+    return old.image;
+  }
+  try {
+    const res = await fetch(task.imageUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+    const ext =
+      EXT_BY_TYPE[type] ??
+      (task.imageUrl.match(/\.(jpe?g|png|gif|webp)(?:\?|$)/i)?.[1] ?? "").toLowerCase().replace(/^jpeg$/, "jpg");
+    if (!ext) throw new Error(`画像ではありません (${type || "型なし"})`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    // 置き場をふさがないよう、大きすぎるものは載せない
+    if (buf.length > 4 * 1024 * 1024) throw new Error(`大きすぎます (${Math.round(buf.length / 1e6)}MB)`);
+    fs.mkdirSync(IMG_DIR, { recursive: true });
+    const out = path.join(IMG_DIR, id + (ext.startsWith(".") ? ext : "." + ext));
+    // 前に別の形式で落としていたら消しておく
+    for (const e of Object.values(EXT_BY_TYPE)) {
+      const other = path.join(IMG_DIR, id + e);
+      if (other !== out && fs.existsSync(other)) fs.rmSync(other);
+    }
+    fs.writeFileSync(out, buf);
+    return out.split(path.sep).join("/");
+  } catch (e) {
+    console.error(`  画像を落とせませんでした（${task.title}）: ${e.message}`);
+    return old?.image && fs.existsSync(old.image) ? old.image : null;
+  }
+}
+
 const DONE_WORDS = ["完了", "done", "済", "済み", "complete", "completed", "終了"];
 
 function mapPage(page) {
@@ -141,8 +208,10 @@ function mapPage(page) {
   if (!title) return null; // 空行は取り込まない
 
   const dateProp = pick(props, ["日付", "予定日", "期限", "date", "due"], ["date"]);
-  // カレンダーは日付単位なので、時刻がついていても日付だけ使う
-  const date = dateProp?.date?.start ? String(dateProp.date.start).slice(0, 10) : null;
+  const start = dateProp?.date?.start ? String(dateProp.date.start) : null;
+  const date = start ? start.slice(0, 10) : null;
+  // 時刻が入っているときだけ拾う（日付だけの予定は時刻なしのまま）
+  const time = start && start.length > 10 ? start.slice(11, 16) : null;
 
   const catProp = pick(
     props,
@@ -173,7 +242,17 @@ function mapPage(page) {
     }
   }
 
-  return { id: page.id, title, date, category, done, url: page.url ?? null };
+  return {
+    id: page.id,
+    title,
+    date,
+    time,
+    category,
+    done,
+    url: page.url ?? null,
+    edited: page.last_edited_time ?? null,
+    imageUrl: pickImageUrl(page, props),
+  };
 }
 
 // 失敗したときにスタックトレースが後ろに続くと、上に出した説明が埋もれる。
@@ -187,7 +266,33 @@ try {
   pages = null;
 }
 
-const tasks = pages === null ? null : pages.map(mapPage).filter(Boolean);
+let tasks = pages === null ? null : pages.map(mapPage).filter(Boolean);
+
+if (tasks !== null) {
+  // 前回の結果（画像を落とし直すか決めるのに使う）
+  const before = new Map();
+  if (fs.existsSync(OUT)) {
+    try {
+      for (const t of JSON.parse(fs.readFileSync(OUT, "utf8")).tasks ?? []) before.set(t.id, t);
+    } catch {
+      /* 壊れていたら ただ全部落とし直す */
+    }
+  }
+
+  for (const t of tasks) {
+    t.image = await fetchImage(t, before);
+    delete t.imageUrl; // 切れるURLは公開ファイルに書かない
+  }
+
+  // もう使っていない画像を片付ける
+  if (fs.existsSync(IMG_DIR)) {
+    const keep = new Set(tasks.map((t) => t.image).filter(Boolean).map((p) => path.basename(p)));
+    for (const name of fs.readdirSync(IMG_DIR)) {
+      if (!keep.has(name)) fs.rmSync(path.join(IMG_DIR, name));
+    }
+  }
+}
+
 if (tasks !== null) {
 
   // syncedAt は毎回変わるので、中身が同じなら書き換えない。

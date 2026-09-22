@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>動画工房</title>
+<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="icon" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css?v=3">
+<link rel="stylesheet" href="css/layout.css?v=3">
+<link rel="stylesheet" href="css/parts.css?v=3">
+</head>
+<body>
+
+<div id="app">
+
+  <div id="top">
+    <button class="name" id="home" title="さくひん えらびに もどる">動画工房</button>
+    <button class="size dot" id="docName" title="さくひんの 名前">むだい</button>
+    <button class="size dot" id="docSize" title="動画の 大きさと コマ数">—</button>
+    <span class="spacer"></span>
+    <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
+    <button id="redo" class="btn-sm" title="やりなおし（3本指で たたく）" aria-label="やりなおし" disabled>↷</button>
+    <button id="help" class="btn-sm" title="つかいかた" aria-label="つかいかた">？</button>
+    <button id="fit" class="btn-sm" title="タイムラインを 画面に あわせる" aria-label="画面にあわせる">⤢</button>
+    <button id="export" class="btn-sm btn-g" title="動画に して 書き出す">▶ 書き出す</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="stageCv" width="1280" height="720"></canvas>
+    <div id="drop"><span>ここに 動画・画像・音を おとす</span></div>
+    <button id="shot" title="いまの 絵を PNG で 出す" aria-label="いまの 絵を 出す">📷</button>
+    <div id="modebar" class="overbar" hidden>
+      <span class="dot" id="modeInfo"></span>
+      <button id="modeClose" class="btn-sm btn-g">おわり</button>
+    </div>
+  </div>
+
+  <div id="list">
+    <div id="playbar">
+      <button id="toStart" class="btn-sm" title="さいしょへ" aria-label="さいしょへ">⏮</button>
+      <button id="prevF" class="btn-sm" title="1コマ もどる" aria-label="1コマもどる">◂|</button>
+      <button id="play" class="btn-sm btn-y" title="さいせい" aria-label="さいせい">▶</button>
+      <button id="nextF" class="btn-sm" title="1コマ すすむ" aria-label="1コマすすむ">|▸</button>
+      <button id="toEnd" class="btn-sm" title="おわりへ" aria-label="おわりへ">⏭</button>
+      <button class="tnum dot" id="tnum" title="おして 秒と 小節を きりかえ"><span id="tnow">0.0</span>/<span id="tdur">0.0</span></button>
+      <button id="loop" class="btn-sm" title="えらんだ ところを くりかえす">🔁</button>
+      <span class="spacer"></span>
+      <button id="cut" class="btn-sm btn-y" title="いまの ところで 切る">✂ きる</button>
+      <button id="dup" class="btn-sm" title="ふだを ふやす">⧉</button>
+      <button id="del" class="btn-sm btn-p" title="ふだを けす">🗑</button>
+      <button id="snap" class="btn-sm on" title="ふだの はしに くっつく">🧲</button>
+      <button id="fold" class="btn-sm" title="タイムラインを たたむ" aria-label="たたむ">▾</button>
+    </div>
+
+    <div id="tlbody">
+      <div id="heads">
+        <div class="rhead">
+          <button id="tlOut" title="時間じくを ちぢめる" aria-label="ちぢめる">🔍－</button>
+          <button id="tlIn" title="時間じくを ひろげる" aria-label="ひろげる">🔍＋</button>
+        </div>
+        <div id="headsBody"></div>
+      </div>
+      <div id="scroll">
+        <div id="ruler"><canvas id="rulerCv" height="30"></canvas></div>
+        <div id="lanes">
+          <canvas id="beatCv"></canvas>
+          <div id="loopband"></div>
+          <div id="playhead"></div>
+          <div id="snapline"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tools">
+    <button class="tool" id="tAdd"><i>＋</i>ついか</button>
+    <button class="tool" id="tBin"><i>🗂</i>素材</button>
+    <button class="tool" id="tCut"><i>✂</i>きる</button>
+    <button class="tool" id="tText"><i>🅰</i>もじ</button>
+    <button class="tool" id="tLyric"><i>🎵</i>うた</button>
+    <button class="tool" id="tBeat"><i>🥁</i>はやさ</button>
+    <button class="tool" id="tForm"><i>⬛</i>ふだ</button>
+    <button class="tool" id="tMaster"><i>🎛</i>しあげ</button>
+    <button class="tool" id="tTrack"><i>⇳</i>だん</button>
+    <button class="tool" id="tFile"><i>📂</i>さくひん</button>
+  </div>
+
+  <div id="props">
+    <div id="propHead"><span class="title" id="propTtl">せってい</span><span class="spacer" style="flex:1"></span></div>
+    <div id="propBody"></div>
+  </div>
+</div>
+
+<div id="sheetBack"></div>
+<div id="sheet" role="dialog" aria-label="せってい"></div>
+
+<div id="busy"><div class="card">
+  <b id="busyMsg">書き出しています</b>
+  <div class="bar"><span id="busyFill"></span></div>
+  <span id="busyPct" class="dot">0%</span>
+  <button id="busyCancel" class="btn-sm">やめる</button>
+</div></div>
+
+<div id="start"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<input type="file" id="file" multiple hidden>
+<!-- Android の ファイル選びは accept の 拡張子を 見ない ことが ある ので しぼりこまない -->
+<input type="file" id="fileProj" hidden>
+<input type="file" id="fileSwap" hidden>
+<input type="file" id="filePack" hidden>
+<input type="file" id="fileFont" hidden>
+
+<script src="lib/mp4-muxer.js?v=3"></script>
+<script type="module" src="js/main.js?v=3"></script>
+</body>
+</html>
