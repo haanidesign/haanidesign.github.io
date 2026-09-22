@@ -2,24 +2,24 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js?v=4';
-import { wire, bus } from './bus.js?v=4';
-import { MEDIA, importFiles, hookAll } from './media.js?v=4';
-import { useCanvas, renderStage } from './render.js?v=4';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=4';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=4';
-import { beatOn, beatSec, beatAt } from './beat.js?v=4';
-import * as TL from './ui/timeline.js?v=4';
-import * as P from './ui/panel.js?v=4';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=4';
+} from './state.js?v=5';
+import { wire, bus } from './bus.js?v=5';
+import { MEDIA, importFiles, hookAll } from './media.js?v=5';
+import { useCanvas, renderStage } from './render.js?v=5';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=5';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=5';
+import { beatOn, beatSec, beatAt } from './beat.js?v=5';
+import * as TL from './ui/timeline.js?v=5';
+import * as P from './ui/panel.js?v=5';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=5';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=4';
-import { addFontFile } from './text.js?v=4';
-import { makePack, openPack } from './pack.js?v=4';
-import { showStart } from './ui/start.js?v=4';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=4';
-import { trackOf } from './state.js?v=4';
+} from './edit.js?v=5';
+import { addFontFile } from './text.js?v=5';
+import { makePack, openPack } from './pack.js?v=5';
+import { showStart } from './ui/start.js?v=5';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=5';
+import { trackOf } from './state.js?v=5';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -89,6 +89,7 @@ wire({
   split: () => TL.splitHere(),
   export: doExport,
   canMp4: () => hasCodecs(),
+  version: () => VERSION,
   home: backToStart,
   rename: v => { S.name = v; auto.touch(); },
   replaceMedia: id => { swapId = id; $('#fileSwap').click(); },
@@ -403,6 +404,32 @@ window.addEventListener('beforeunload', e => {
   if (allClips().length) { e.preventDefault(); e.returnValue = ''; }
 });
 
+/* ---------- 版の ばんごう ----------
+   手で 書くと 直しわすれる ので、読みこんだ アドレスから 出す。 */
+export const VERSION = (() => {
+  const m = /[?&]v=([^&]+)/.exec(import.meta.url);
+  return m ? m[1] : '?';
+})();
+$('#ver').textContent = 'v' + VERSION;
+$('#ver').onclick = async () => {
+  /* ホーム画面や ブラウザが 古いものを つかんだ ままに なる ことが ある。
+     ここを おしたら ためこんだ ものを ぜんぶ 捨てて 取り直す。
+     ＝ いつでも きく 逃げ道。 */
+  $('#ver').textContent = 'かたづけ中…';
+  try { await auto.now(); } catch (e) { }
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { }
+  location.href = location.pathname + '?fresh=' + Date.now();
+};
+
 /* ---------- じどう ほぞん ---------- */
 function thumb() {
   try {
@@ -505,14 +532,16 @@ setTool('select');
 
 /* さくひんが あれば はじめの 画面、なければ そのまま はじめる */
 (async () => {
+  if (!S.docId) S.docId = newId();
   try {
-    const docs = await listDocs();
-    if (docs.length) {
-      await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
-      return;
-    }
-  } catch (e) { }
-  S.docId = newId();
+    const docs = await Promise.race([
+      listDocs(),
+      new Promise(r => setTimeout(() => r([]), 6000))   // 待ちすぎない
+    ]);
+    if (docs.length) await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+  } catch (e) {
+    $('#start').classList.remove('on');                  // 出しかけで 止めない
+  }
 })();
 
 if (window.__ready) window.__ready();      // 立ち上がった しるし

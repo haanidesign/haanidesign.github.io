@@ -2,10 +2,10 @@
    本命 … WebCodecs で 1コマずつ 焼いて、mp4-muxer で MP4 の 箱に 詰める。
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
-import { S, clamp, duration, allClips, r2 } from './state.js?v=4';
-import { MEDIA } from './media.js?v=4';
-import { renderStage, activeClips } from './render.js?v=4';
-import { fadeAlpha } from './render.js?v=4';
+import { S, clamp, duration, allClips, r2 } from './state.js?v=5';
+import { MEDIA } from './media.js?v=5';
+import { renderStage, activeClips } from './render.js?v=5';
+import { fadeAlpha } from './render.js?v=5';
 
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 

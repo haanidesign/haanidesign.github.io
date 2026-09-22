@@ -3,15 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=4';
-import { MEDIA, paintPoster, mediaLabel, importFiles } from '../media.js?v=4';
-import { bus } from '../bus.js?v=4';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=4';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=4';
+} from '../state.js?v=5';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=5';
+import { storeOk } from '../store.js?v=5';
+import { bus } from '../bus.js?v=5';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=5';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=5';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=4';
+} from '../edit.js?v=5';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -561,6 +562,15 @@ function fileBody() {
   const exk = el('select');
   [['mp4', 'MP4（ふつうは こっち）'], ['webm', 'WebM（通しで 録る）']]
     .forEach(([v, l]) => { const o = el('option', null, l); o.value = v; exk.appendChild(o); });
+  w.appendChild(group('ようす（うまく いかない とき）', [
+    stateBody(),
+    grid(null, [btn('📋 うつす', 'btn-sm', () => {
+      const t = stateText();
+      if (navigator.clipboard) navigator.clipboard.writeText(t).then(
+        () => toast('うつしました'), () => prompt('これを おくって ください', t));
+      else prompt('これを おくって ください', t);
+    })])
+  ]));
   w.appendChild(group('そのほか', [
     grid(null, [
       btn('📷 いまの 絵', 'btn-sm', () => { close(); $('#shot').click(); }),
@@ -580,6 +590,36 @@ function fileBody() {
       : 'この ブラウザは MP4 に できないので、<br>通しで 録って WebM に します。')
   ]));
   return w;
+}
+
+/* --- ようす --- */
+function stateText() {
+  const sw = navigator.serviceWorker && navigator.serviceWorker.controller ? 'あり' : 'なし';
+  const lines = [
+    '版: v' + (bus.version ? bus.version() : '?'),
+    'サービスワーカー: ' + sw,
+    'ほぞん: ' + (storeOk() === false ? 'つかえない' : storeOk() === true ? 'つかえる' : 'まだ'),
+    '素材: ' + MEDIA.size + ' こ',
+    'ふだ: ' + allClips().length + ' まい',
+    'MP4: ' + (bus.canMp4 && bus.canMp4() ? 'つくれる' : 'つくれない'),
+    '画面: ' + window.innerWidth + '×' + window.innerHeight
+  ];
+  if (LOG.at) {
+    lines.push('さいごの とりこみ: ' + LOG.at + ' / ' + LOG.count + ' こ');
+    if (LOG.note) lines.push('　' + LOG.note);
+    LOG.items.forEach(i => lines.push(
+      `　${i.name} / ${Math.round(i.size / 1024)}KB / ${i.type} / ${i.kind} → ${i.state}`));
+  } else {
+    lines.push('さいごの とりこみ: まだ');
+  }
+  return lines.join('\n');
+}
+function stateBody() {
+  const pre = el('div', 'hint');
+  pre.style.whiteSpace = 'pre-wrap';
+  pre.style.fontFamily = "'DotGothic16', monospace";
+  pre.textContent = stateText();
+  return pre;
 }
 
 /* --- せってい --- */
