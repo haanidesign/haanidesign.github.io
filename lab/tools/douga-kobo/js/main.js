@@ -192,7 +192,12 @@ $('#help').onclick = () => P.open('help');
 
 /* ---------- ファイル ---------- */
 $('#file').onchange = e => { importFiles(e.target.files, relink); e.target.value = ''; };
-$('#fileProj').onchange = e => { if (e.target.files[0]) openProject(e.target.files[0]); e.target.value = ''; };
+$('#fileProj').onchange = e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (!/\.json$/i.test(f.name)) { toast('組み立ての ファイル（.json）を えらんで'); return; }
+  openProject(f);
+};
 /* 素材の 差し替え。ふだは そのままで 中身だけ 入れかえる */
 let swapId = null;
 $('#fileSwap').onchange = e => {
@@ -247,6 +252,7 @@ async function startWip() {
 $('#filePack').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
+  if (!/\.(zip|dkobo)$/i.test(f.name)) { toast('ひとまとめの ファイル（.zip）を えらんで'); return; }
   busy(true, 'ひとまとめを ひらいて います'); prog(.2);
   try { await openPack(f); } catch (err) { toast('ひらけなかった'); }
   finally { busy(false); drawAll(); }
@@ -254,6 +260,7 @@ $('#filePack').onchange = async e => {
 $('#fileFont').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
+  if (!/\.(ttf|otf|woff2?|ttc)$/i.test(f.name)) { toast('書たいの ファイル（ttf・otf）を えらんで'); return; }
   try {
     const key = await addFontFile(f);
     const sel = selected();

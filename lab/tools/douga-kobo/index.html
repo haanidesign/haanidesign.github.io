@@ -29,7 +29,7 @@
     <button id="redo" class="btn-sm" title="やりなおし（3本指で たたく）" aria-label="やりなおし" disabled>↷</button>
     <button id="help" class="btn-sm" title="つかいかた" aria-label="つかいかた">？</button>
     <button id="fit" class="btn-sm" title="タイムラインを 画面に あわせる" aria-label="画面にあわせる">⤢</button>
-    <button id="export" class="btn-sm btn-g" title="WebMで 書き出す">▶ 書き出す</button>
+    <button id="export" class="btn-sm btn-g" title="動画に して 書き出す">▶ 書き出す</button>
   </div>
 
   <div id="stage">
@@ -111,10 +111,11 @@
 <div id="toast" role="status" aria-live="polite"></div>
 
 <input type="file" id="file" multiple hidden>
-<input type="file" id="fileProj" accept=".json,application/json" hidden>
+<!-- Android の ファイル選びは accept の 拡張子を 見ない ことが ある ので しぼりこまない -->
+<input type="file" id="fileProj" hidden>
 <input type="file" id="fileSwap" hidden>
-<input type="file" id="filePack" accept=".zip,.dkobo,application/zip" hidden>
-<input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2,font/*" hidden>
+<input type="file" id="filePack" hidden>
+<input type="file" id="fileFont" hidden>
 
 <script src="lib/mp4-muxer.js?v=2"></script>
 <script type="module" src="js/main.js?v=2"></script>
