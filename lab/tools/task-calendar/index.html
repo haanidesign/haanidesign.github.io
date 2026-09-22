@@ -14,12 +14,14 @@
 .sch-head{
   display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem;
 }
-/* 月の名前は大きく。色は変えず、黄色にベタ影 */
+/* 月は数字で大きく。色は変えず、黄色にベタ影 */
 .sch-en{
-  font-size:2.6rem; line-height:1; font-weight:800; letter-spacing:-.01em;
+  display:inline-flex; align-items:baseline; gap:.1rem;
+  font-size:3rem; line-height:1; font-weight:800; letter-spacing:-.02em;
   color:var(--main); text-shadow:0 3px 0 var(--ink);
-  margin-right:.1rem;
+  margin-right:.15rem;
 }
+.sch-en i{font-style:normal; font-size:1.2rem;}
 .sch-year{font-size:.56rem; letter-spacing:.24em; color:var(--gray); line-height:1.4;}
 .sch-year b{display:block; font-family:'DotGothic16',monospace; font-weight:400;
   font-size:1.15rem; letter-spacing:.06em; color:var(--ink);}
@@ -279,11 +281,11 @@
 
     <div id="shot">
       <div class="sch-head">
-        <span class="sch-en" id="monthEn">—</span>
+        <span class="sch-en"><span id="monthEn">—</span><i>月</i></span>
         <span class="sch-year">YEAR<b id="yearNum">—</b></span>
         <button class="btn btn-sm btn-circ" id="prev" aria-label="前の月">‹</button>
         <button class="btn btn-sm btn-circ" id="next" aria-label="次の月">›</button>
-        <span class="sch-month" id="month">—</span>
+        <span class="sch-month" id="month" hidden>—</span>
         <button class="btn btn-sm" id="thisMonth">今月</button>
         <div class="sch-legend" id="legend"></div>
       </div>
@@ -438,8 +440,6 @@ const holidayName = d => holidaysOf(d.getFullYear())[ymd(d)] || null;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const WDAY = ["日","月","火","水","木","金","土"];
-const MONTH_EN = ["January","February","March","April","May","June",
-                  "July","August","September","October","November","December"];
 
 let tasks = [];        // 画面に出す分（下の merge() が作る）
 let fromNotion = [];   // Notion から来た分（読むだけ）
@@ -469,7 +469,7 @@ function onDay(key){
 function render(){
   const y = anchor.getFullYear(), m = anchor.getMonth();
   $("#month").textContent = `${y}年 ${m+1}月`;
-  $("#monthEn").textContent = MONTH_EN[m];
+  $("#monthEn").textContent = m + 1;
   $("#yearNum").textContent = y;
 
   const first = new Date(y, m, 1);
