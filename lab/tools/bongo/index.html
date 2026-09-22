@@ -174,19 +174,22 @@ body.solo .exit{display:block}
     <p class="note">透過PNG・GIF・WebP。ステージに直接ドロップしてもいい。<br>
       まとめて落とすときのファイル名の目印：<br>
       <code>base / body</code>（からだ）、<code>lhand-up / lhand-down</code>（左手）、
-      <code>rhand-up / rhand-down</code>（右手）、<code>pen</code>、<code>desk / key</code>。<br>
+      <code>rhand-up / rhand-down</code>（右手）、<code>pen</code>、<code>desk / key</code>（キーボード）、<code>tablet / 板</code>（タブレット）。<br>
       目印がない名前は、上から空いているパーツに順に入る。</p>
 
     <h2 class="sec">PSD から 取り込む</h2>
     <button class="btn sub" id="psdBtn">PSDをえらぶ</button>
     <input type="file" id="psdFile" accept=".psd,image/vnd.adobe.photoshop" hidden>
+    <a class="btn sub" id="tplBtn" href="template/bongo-template.psd" download
+       style="display:block;text-align:center;text-decoration:none;line-height:1.4">
+       ひな形のPSDを もらう</a>
     <div id="psdInfo" class="note"></div>
     <div class="layers" id="layers"></div>
     <button class="btn" id="psdGo" hidden>この わりあてで 作る</button>
     <p class="note">レイヤー名に <code>手 / hand / 손</code>、<code>ペン / pen / 펜</code>、
       <code>キーボード / desk / 키보드</code> などが入っていれば、自動でそこに入る。
       わりあてなしのレイヤーは、まとめて「からだ」1枚になる（重なり順そのまま）。<br>
-      フォルダは中身をばらして読む。非表示レイヤーは はじめから外してある。</p>
+      フォルダは中身をばらして読む。非表示レイヤーは はじめから外してある。<br>ひな形は 1920×1260（ステージの3倍）。名前と枠だけ合っていれば、大きさは自由。</p>
 
     <h2 class="sec">えらんだパーツを 合わせる</h2>
     <div class="row"><label>左右</label><input type="range" id="pX" min="-200" max="200" value="0"><span class="val" id="pXV">0</span></div>
@@ -221,7 +224,8 @@ const PARTS=[
   {k:'rhandUp',  nm:'右手（上）',  sub:'浮いている時',            re:/(r|right|右).*(up|上)|^rup/i},
   {k:'rhandDown',nm:'右手（下）',  sub:'打っている時',            re:/(r|right|右).*(down|下|press|打)|^rdown/i},
   {k:'pen',      nm:'ペン',        sub:'タブレットの時だけ',      re:/pen|ペン|stylus/i},
-  {k:'desk',     nm:'台',          sub:'キーボード・板',          re:/desk|keyb|keyboard|tablet|台|机|板/i}
+  {k:'desk',     nm:'台（キーボード）', sub:'キーボードモードの時', re:/desk|keyb|keyboard|キーボード|台|机/i},
+  {k:'deskPen',  nm:'台（タブレット）', sub:'タブレットモードの時', re:/tab|tablet|타블렛|板|下敷/i}
 ];
 // パーツの置き場所（合わせのもと）。x,y はステージ座標、w は入れる箱の幅
 const ANCHOR={
@@ -231,7 +235,8 @@ const ANCHOR={
   rhandUp:  {x:0,y:0,w:70,h:70,fit:'center'},
   rhandDown:{x:0,y:0,w:70,h:70,fit:'center'},
   pen:      {x:0,y:0,w:36,h:120,fit:'center'},
-  desk:     {x:320,y:344,w:380,h:110,fit:'center'}
+  desk:     {x:320,y:344,w:380,h:110,fit:'center'},
+  deskPen:  {x:320,y:344,w:380,h:110,fit:'center'}
 };
 const ADJ0={x:0,y:0,s:100,r:0,flip:false};
 
@@ -420,7 +425,8 @@ function drawEyes(){
 }
 function drawDesk(){
   const d=$('#desk'); d.innerHTML='';
-  if(art.desk){ d.appendChild(imgNode('desk')); posNode(d.firstChild,ANCHOR.desk.x,ANCHOR.desk.y); return; }
+  const dk = (cfg.mode==='pen' && art.deskPen) ? 'deskPen' : (art.desk ? 'desk' : (art.deskPen?'deskPen':null));
+  if(dk){ d.appendChild(imgNode(dk)); posNode(d.firstChild,ANCHOR[dk].x,ANCHOR[dk].y); return; }
   if(cfg.mode==='pen'){
     d.appendChild(el('rect',{x:140,y:336,width:360,height:26,rx:8,fill:'#1e1c14'}));
     d.appendChild(el('rect',{x:148,y:340,width:344,height:8,rx:4,fill:'#3a3730'}));
@@ -692,7 +698,8 @@ const KOR={base:/base|body|chara|몸|몸통|캐릭|얼굴|머리|からだ|あ�
            rhandUp:/(오른|right|r[-_ ]?|右).*(손|hand|手)(?!.*(down|아래|下|press))/i,
            rhandDown:/(오른|right|右).*(손|hand|手).*(down|아래|下|press|打)/i,
            pen:/pen|펜|ペン|stylus|붓/i,
-           desk:/desk|key|keyboard|키보드|타블렛|tablet|台|机|板|책상/i};
+           desk:/desk|key|keyboard|키보드|台|机|책상/i,
+           deskPen:/tab|tablet|타블렛|板|いた|下敷/i};
 let psdW=0,psdH=0,psdLayers=[];
 
 function loadAgPsd(){
@@ -720,7 +727,7 @@ function contentBox(c){
   return x1<0?null:[x0,y0,x1,y1];
 }
 function guessSlot(name){
-  for(const k of ['lhandDown','rhandDown','lhandUp','rhandUp','pen','desk'])
+  for(const k of ['lhandDown','rhandDown','lhandUp','rhandUp','pen','deskPen','desk'])
     if(KOR[k].test(name)) return k;
   return '';                    // からだ へ
 }
