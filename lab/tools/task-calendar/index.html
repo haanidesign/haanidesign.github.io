@@ -229,6 +229,18 @@
 .ev:hover{outline:2px solid var(--ink); outline-offset:1px;}
 .card:hover{background:var(--main-soft);}
 .day.mine-here{background:var(--main-soft);}
+/* 消すための ✕。指でも押せる大きさにする */
+.cal .ev,.cal .card{position:relative;}
+.xbtn{
+  position:absolute; top:2px; right:2px; z-index:2;
+  width:17px; height:17px; padding:0; line-height:1;
+  display:grid; place-items:center; font-size:.52rem; font-weight:700;
+  background:var(--pink); color:var(--ink);
+  border:2px solid var(--ink); border-radius:50%;
+  box-shadow:0 2px 0 var(--ink); cursor:pointer;
+}
+.xbtn:active{transform:translateY(2px); box-shadow:none;}
+.cal .ev .xbtn{top:1px; right:1px; width:15px; height:15px;}
 
 .veil{position:fixed; inset:0; background:rgba(30,28,20,.45); display:none; place-items:center; padding:1rem; z-index:40;}
 .veil.on{display:grid;}
@@ -783,7 +795,7 @@ let editing = null, pendingImage = "";
 
 function openNew(date){
   editing = { id:"m"+Date.now().toString(36), source:"mine", date, title:"", category:"", time:"", image:"" };
-  fillPanel("予定を書く", `${date} に足します。`);
+  fillPanel("予定を書く", `${date} に足します。書いたあとは 予定の右上の ✕ で消せます。`, true);
 }
 function openEdit(t){
   editing = { ...t };
@@ -792,7 +804,8 @@ function openEdit(t){
       ? "Notion から来た予定です。直した分は この端末にだけ残ります（Notion には書き戻しません）。"
       : "自分で足した予定です。この端末の中だけにあります。");
 }
-function fillPanel(title, note){
+function fillPanel(title, note, isNew){
+  $("#del").hidden = !!isNew;
   $("#pTitle").textContent = title;
   $("#pNote").textContent  = note;
   $("#fTitle").value = editing.title || "";
@@ -810,7 +823,7 @@ function drawDrop(){
 }
 function closePanel(){ $("#veil").classList.remove("on"); editing = null; }
 
-function redraw(){ merge(); render(); renderUpcoming(); }
+function redraw(){ merge(); render(); renderUpcoming(); putX(); }
 
 async function save(){
   if(!editing) return;
@@ -908,6 +921,29 @@ $("#cal").addEventListener("dblclick", (e)=>{
   const day = e.target.closest(".day");
   if(day?.dataset.date && !e.target.closest(".ev,.card")) openNew(day.dataset.date);
 });
+/* それぞれの予定に ✕ を付ける（Bluesky の絵には付けない）。
+   枡の空いている所を押すと「足す」パネルが開くので、
+   消すのは この ✕ だけ、と はっきりさせる。 */
+function putX(){
+  for(const el of $("#cal").querySelectorAll(".ev[data-id],.card[data-id]")){
+    if(el.classList.contains("bsky") || el.querySelector(".xbtn")) continue;
+    const b = document.createElement("button");
+    b.className = "xbtn"; b.type = "button";
+    b.textContent = "✕";
+    b.title = "この予定を消す";
+    b.addEventListener("click", async (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const t = findTask(el.dataset.id);
+      if(!t) return;
+      if(!confirm(`「${t.title}」を消します。よろしいですか。`)) return;
+      if(t.source === "mine"){ delete mine[t.id]; await kvSet("mine", mine); }
+      else { over[t.id] = { ...(over[t.id]||{}), hidden:true }; await kvSet("over", over); }
+      redraw();
+    });
+    el.appendChild(b);
+  }
+}
+
 /* スマホには右クリックが無いので、長押しで 同じことができるようにする。
    指を動かしたら（＝画面を送っているとき）取り消す。 */
 let pressTimer = null, pressed = false;
@@ -932,6 +968,11 @@ function movePress(e){
   if(!t || !from) return endPress();
   if(Math.abs(t.clientX-from.x) > 10 || Math.abs(t.clientY-from.y) > 10) endPress();
 }
+/* 読み込み直後と、月を送ったあとにも 配り直す */
+const baseRender2 = render;
+render = function(){ baseRender2(); putX(); };
+render();
+
 $("#cal").addEventListener("touchstart", startPress, {passive:true});
 $("#cal").addEventListener("touchmove", movePress, {passive:true});
 $("#cal").addEventListener("touchend", endPress);
