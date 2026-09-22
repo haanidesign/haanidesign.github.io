@@ -2,24 +2,24 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js';
-import { wire, bus } from './bus.js';
-import { MEDIA, importFiles, hookAll } from './media.js';
-import { useCanvas, renderStage } from './render.js';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js';
-import { beatOn, beatSec, beatAt } from './beat.js';
-import * as TL from './ui/timeline.js';
-import * as P from './ui/panel.js';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js';
+} from './state.js?v=4';
+import { wire, bus } from './bus.js?v=4';
+import { MEDIA, importFiles, hookAll } from './media.js?v=4';
+import { useCanvas, renderStage } from './render.js?v=4';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=4';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=4';
+import { beatOn, beatSec, beatAt } from './beat.js?v=4';
+import * as TL from './ui/timeline.js?v=4';
+import * as P from './ui/panel.js?v=4';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=4';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js';
-import { addFontFile } from './text.js';
-import { makePack, openPack } from './pack.js';
-import { showStart } from './ui/start.js';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js';
-import { trackOf } from './state.js';
+} from './edit.js?v=4';
+import { addFontFile } from './text.js?v=4';
+import { makePack, openPack } from './pack.js?v=4';
+import { showStart } from './ui/start.js?v=4';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=4';
+import { trackOf } from './state.js?v=4';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -514,6 +514,8 @@ setTool('select');
   } catch (e) { }
   S.docId = newId();
 })();
+
+if (window.__ready) window.__ready();      // 立ち上がった しるし
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(() => { });
