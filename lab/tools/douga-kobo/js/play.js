@@ -1,9 +1,9 @@
 /* さいせいと 書き出し。 */
-import { S, clamp, r2, toast, duration, $ } from './state.js?v=7';
-import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=7';
-import { allClips } from './state.js?v=7';
-import { activeClips, fadeAlpha, renderStage, canvas } from './render.js?v=7';
-import { bus } from './bus.js?v=7';
+import { S, clamp, r2, toast, duration, $ } from './state.js?v=8';
+import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=8';
+import { allClips, findClip, trackOf } from './state.js?v=8';
+import { activeClips, fadeAlpha, renderStage, canvas } from './render.js?v=8';
+import { bus } from './bus.js?v=8';
 
 let raf = 0, t0 = 0, base = 0;
 
@@ -23,7 +23,6 @@ export function startVoices(from) {
   const t0 = ac.currentTime + 0.06;       // 少し 先から ならべる
   for (const { c, t: tr } of allClips()) {
     if (c.kind !== 'audio' || !c.mid) continue;
-    if (tr.mute) continue;
     const m = MEDIA.get(c.mid);
     if (!m || !m.abuf) continue;
     const end = c.start + c.dur;
@@ -31,7 +30,13 @@ export function startVoices(from) {
     const src = ac.createBufferSource();
     src.buffer = m.abuf;
     src.playbackRate.value = c.speed || 1;
+    /* 2まいに 分ける。
+         g  … 入り・出の ぼかし（時間で うごく）
+         mg … 音けしと 大きさ（あとから 変えられる）
+       1まいに すると、ぼかしの 予約に 上書きされて
+       とちゅうで 音を けしても きかなく なる。 */
     const g = ac.createGain();
+    const mg = ac.createGain();
     const v = clamp(c.vol === undefined ? 1 : c.vol, 0, 2);
     const startAt = Math.max(c.start, from);
     const when = t0 + (startAt - from);
@@ -40,21 +45,33 @@ export function startVoices(from) {
     // 入り・出の ぼかし
     const fin = c.fin > 0 ? Math.max(0, c.start + c.fin - startAt) : 0;
     const fout = c.fout > 0 ? c.fout : 0;
-    g.gain.setValueAtTime(fin > 0 ? 0.0001 : v, when);
-    if (fin > 0) g.gain.linearRampToValueAtTime(v, when + fin);
+    g.gain.setValueAtTime(fin > 0 ? 0.0001 : 1, when);
+    if (fin > 0) g.gain.linearRampToValueAtTime(1, when + fin);
     if (fout > 0) {
       const outAt = when + Math.max(0, (end - fout - startAt));
-      g.gain.setValueAtTime(v, outAt);
+      g.gain.setValueAtTime(1, outAt);
       g.gain.linearRampToValueAtTime(0.0001, when + (end - startAt));
     }
+    mg.gain.value = tr.mute ? 0 : v;
     src.connect(g);
-    g.connect(ac.destination);
+    g.connect(mg);
+    mg.connect(ac.destination);
     const rd = recNode();                      // 通しで 録る ときにも 入る ように
-    if (rd) { try { g.connect(rd); } catch (e) { } }
+    if (rd) { try { mg.connect(rd); } catch (e) { } }
     try { src.start(when, offset, len); } catch (e) { continue; }
-    voices.push({ src, g });
+    voices.push({ src, g, mg, cid: c.id, tid: tr.id });
   }
 }
+/** 鳴らして いる とちゅうでも、音けしと 大きさを すぐ きかせる */
+export function refreshVoices() {
+  if (!voices.length) return;
+  voices.forEach(v => {
+    const f = findClip(v.cid), tr = trackOf(v.tid);
+    if (!f || !tr || !v.mg) return;
+    v.mg.gain.value = tr.mute ? 0 : clamp(f.c.vol === undefined ? 1 : f.c.vol, 0, 2);
+  });
+}
+
 export function syncMedia(t) {
   const on = new Set();
   for (const { c, tr } of activeClips(t)) {
