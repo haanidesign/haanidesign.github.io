@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=267';
+import { M } from './engine/math.js?v=268';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=267';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=268';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=267';
-import { createStage } from './ui/stage.js?v=267';
-import { createRenderer } from './render/renderer.js?v=267';
-import { createTimeline } from './ui/timeline.js?v=267';
-import { fmtTime, setPin } from './engine/anim.js?v=267';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=267';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=268';
+import { createStage } from './ui/stage.js?v=268';
+import { createRenderer } from './render/renderer.js?v=268';
+import { createTimeline } from './ui/timeline.js?v=268';
+import { fmtTime, setPin } from './engine/anim.js?v=268';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=268';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,24 +21,24 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=267';
+         setWarper } from './ui/sheet.js?v=268';
 
-import { showNewDoc } from './ui/newdoc.js?v=267';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=267';
-import { fitToCanvas, isBg } from './io/bg.js?v=267';
-import * as Audio from './io/audio.js?v=267';
-import { isTalk, blipTimes } from './engine/talk.js?v=267';
+import { showNewDoc } from './ui/newdoc.js?v=268';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=268';
+import { fitToCanvas, isBg } from './io/bg.js?v=268';
+import * as Audio from './io/audio.js?v=268';
+import { isTalk, blipTimes } from './engine/talk.js?v=268';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=267';
-import { importPsd } from './io/psd.js?v=267';
-import { splitTextChars } from './io/text.js?v=267';
-import { exportAE } from './io/ae.js?v=267';
-import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=267';
-import { pathKeys, pathLength } from './engine/path.js?v=267';
-import { paintDirty } from './engine/paint.js?v=267';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=268';
+import { importPsd } from './io/psd.js?v=268';
+import { splitTextChars } from './io/text.js?v=268';
+import { exportAE } from './io/ae.js?v=268';
+import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
+         canUseWebCodecs } from './io/export.js?v=268';
+import { pathKeys, pathLength } from './engine/path.js?v=268';
+import { paintDirty } from './engine/paint.js?v=268';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=267';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=268';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1245,7 +1245,9 @@ async function runExport(kind){
   S.proj.quality = 'fine';
   S.dragging = false;
   box.classList.add('on');
-  title.textContent = kind === 'gif'
+  title.textContent = kind === 'webm'
+    ? 'すける WebMを 録っています（実時間）'
+    : kind === 'gif'
     ? 'すける GIFを つくっています'
     : (kind === 'ae'
         ? 'AE用に 焼いています（レイヤーごと）'
@@ -1262,6 +1264,12 @@ async function runExport(kind){
     const g = S.proj.gif || {};
     const r = kind === 'ae'
       ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
+      : kind === 'webm'
+      ? await exportAlphaWebm(S.proj, {
+          fps: (S.proj.webm && S.proj.webm.fps) || 30,
+          seconds: S.proj.duration,
+          onProgress, shouldStop: () => cancelExport
+        })
       : kind === 'gif'
       ? await exportGif(S.proj, {
           fps: g.fps || 12,

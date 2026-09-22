@@ -1,7 +1,7 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp, allClips } from './state.js?v=6';
-import { bus } from './bus.js?v=6';
-import { analyse } from './beat.js?v=6';
+import { S, uid, r2, toast, clamp, allClips } from './state.js?v=7';
+import { bus } from './bus.js?v=7';
+import { analyse } from './beat.js?v=7';
 
 export const MEDIA = new Map();
 
@@ -215,6 +215,28 @@ async function psdIn(file, done) {
 }
 let psdMade = [];
 
+/* 画面を そのまま 録った 動画（MediaRecorder の WebM）は
+   長さが 書かれて いない ことが ある。
+   いちど うんと 先へ 送って みると、本当の 長さが 出る。 */
+function realDuration(el) {
+  return new Promise(res => {
+    let fin = false;
+    const end = (v) => {
+      if (fin) return;
+      fin = true;
+      el.removeEventListener('timeupdate', onT);
+      try { el.currentTime = 0; } catch (e) { }
+      res(v);
+    };
+    const onT = () => {
+      if (el.currentTime > 0) end(isFinite(el.duration) && el.duration > 0 ? el.duration : el.currentTime);
+    };
+    el.addEventListener('timeupdate', onT);
+    try { el.currentTime = 1e101; } catch (e) { end(0); }
+    setTimeout(() => end(isFinite(el.duration) && el.duration > 0 ? el.duration : el.currentTime || 0), 2500);
+  });
+}
+
 function mark(file, state) {
   const it = LOG.items.find(x => x.name === file.name && x.size === file.size);
   if (it) it.state = state;
@@ -281,13 +303,14 @@ export function importFiles(files, after) {
       m.el = el;
       stash(el);
       let settled = false;
-      const settle = (ok) => {
+      const settle = async (ok) => {
         if (settled) return;
         settled = true;
         m.elOk = ok;
         mark(file, ok ? 'よめた' : 'この 端末では ひらけない');
         if (ok) {
-          const d = el.duration;
+          let d = el.duration;
+          if (!isFinite(d) || d <= 0) d = await realDuration(el);   // 録った ものは 長さを 持って いない
           if (isFinite(d) && d > 0) m.dur = d;
           if (kind === 'video') { m.w = el.videoWidth || S.W; m.h = el.videoHeight || S.H; makePoster(m); }
         }
