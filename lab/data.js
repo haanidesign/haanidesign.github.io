@@ -221,6 +221,17 @@ const TOOLS = [
     thumb: "thumbs/blister-design.svg",
     url: "tools/blister-design/index.html",
     status: "live"
+  },
+  {
+    no: 21,
+    slug: "bongo",
+    title: "ぼんご",
+    desc: "打ったキーの横の位置に合わせて、左手と右手が動くキャラクターの台。からだ・左手（上下）・右手（上下）・ペン・台の7パーツを自分の絵に差し替えられる。PSDを落とすとレイヤー名を見て振り分け、余りはまとめて「からだ」1枚になる。PNGならファイル名で振り分かる。パーツごとに位置・大きさ・かたむきを合わせられる。打った時のはずみ、手のうごく幅も決められる。タブレットモードではペン先がマウスについてくる。背景を緑や青にして、配信の画面に重ねて使う。",
+    tags: ["配信", "オーバーレイ", "キーボード", "PSD", "差し替え"],
+    cat: "other",
+    thumb: "thumbs/bongo.svg",
+    url: "tools/bongo/index.html",
+    status: "live"
   }
 ];
 
