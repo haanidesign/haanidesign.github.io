@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=266';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=266';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=267';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=267';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=266';
+         nearestFolder, setParent } from '../engine/layer.js?v=267';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=266';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=266';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=266';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=266';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=267';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=267';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=267';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=267';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -485,6 +485,26 @@ export function createTimeline(root, opts = {}){
       band.style.width = Math.max(0, t2x(l.loop.to) - t2x(l.loop.from)) + 'px';
       band.title = l.loop.mode === 'pingpong' ? '往復ループ' : 'ループ';
       track.appendChild(band);
+
+      /* やめる ための 小さい ボタンを 帯の 先に つける。
+         ピンの えらびが 外れると 下の ボタンが 出ない ことが あり、
+         帯だけ のこって 消せなく 見えて いた。
+         帯じたいは すりぬける（ピンを つかむ じゃまに なる） ので、
+         この つまみ だけ さわれる ように する。 */
+      const off = document.createElement('button');
+      off.className = 'loopoff';
+      off.textContent = '✕';
+      off.title = 'くりかえしを やめる';
+      off.style.left = t2x(l.loop.from) + 'px';
+      off.addEventListener('pointerdown', e => e.stopPropagation());
+      off.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        edit('くりかえしをやめる', () => { l.loop = null; });
+        toast('くりかえしを やめました');
+        onChange();
+      });
+      track.appendChild(off);
       // 繰り返している先の目印
       const rest = document.createElement('div');
       rest.className = 'looprest';
@@ -675,11 +695,23 @@ export function createTimeline(root, opts = {}){
       ? 'いまは つぎのピンまで うごきません。おすと なめらかに つながります'
       : 'つぎのピンまで うごかさない。パラパラ（コマ切りかえ）に つかいます';
 
+    /* いま くりかえして いる ほうの ボタンは「〜中」に する。
+       どれを おせば やめられるか ひと目で わかる ように
+       （まえは ループ→往復→ループ と おして いくと
+         いつまでも 消えない ように 見えて いた）。 */
     const isLoop = !!l.loop;
-    pinbar.querySelector('#pinLoop').classList.toggle('on', isLoop && l.loop.mode === 'loop');
-    pinbar.querySelector('#pinPing').classList.toggle('on', isLoop && l.loop.mode === 'pingpong');
-    pinbar.querySelector('#pinLoop').disabled = n !== 2 && !isLoop;
-    pinbar.querySelector('#pinPing').disabled = n !== 2 && !isLoop;
+    const lb = pinbar.querySelector('#pinLoop');
+    const pb = pinbar.querySelector('#pinPing');
+    const onL = isLoop && l.loop.mode === 'loop';
+    const onP = isLoop && l.loop.mode === 'pingpong';
+    lb.classList.toggle('on', onL);
+    pb.classList.toggle('on', onP);
+    lb.textContent = onL ? '🔁 ループ中' : '🔁 ループ';
+    pb.textContent = onP ? '🔄 往復中' : '🔄 往復';
+    lb.title = onL ? 'おすと やめます' : 'えらんだ 2つの あいだを くりかえす';
+    pb.title = onP ? 'おすと やめます' : 'えらんだ 2つを 行って もどって くりかえす';
+    lb.disabled = n !== 2 && !isLoop;
+    pb.disabled = n !== 2 && !isLoop;
   }
 
   /* ---------- 秒数を 直に 打ちこんで うごかす ----------
@@ -1177,7 +1209,12 @@ export function createTimeline(root, opts = {}){
       const times = pinTimes(l).filter(t => t >= from - 1e-6 && t <= to + 1e-6);
       edit('ピンをけす', () => {
         times.forEach(t => removePin(l, t));
-        if(l.loop && !pinTimes(l).length) l.loop = null;
+        /* くりかえしの 中の ピンが 1つも 無くなったら、
+           くりかえしも やめる（帯だけ のこらない ように）。 */
+        const left = pinTimes(l);
+        if(l.loop && !left.some(t => t >= l.loop.from - 1e-6 && t <= l.loop.to + 1e-6)){
+          l.loop = null;
+        }
       });
       S.selPins = { layer:null, times:[] };
       toast(times.length + 'コの ピンを けしました');
@@ -1340,12 +1377,21 @@ export function createTimeline(root, opts = {}){
   }
 
   function setLoop(mode){
-    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
-    if(!l) return;
-    if(l.loop && l.loop.mode === mode){
+    /* ピンを えらんで いなくても、えらんで いる レイヤーで きく。
+       まえは「ピンを えらんだ レイヤー」だけ だったので、
+       えらびが 外れると くりかえしを やめられなく なって いた
+       （帯だけ のこって 消せない）。 */
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer)
+           || S.proj.layers.find(x => x.id === S.sel);
+    if(!l) return toast('レイヤーを えらんでね');
+    /* すでに くりかえして いる ときは、どちらの ボタンでも やめられる。
+       （ループ→往復→ループ と おして いくと、いつまでも
+         消えない ように 見えて いた） */
+    if(l.loop && (l.loop.mode === mode || S.selPins.layer !== l.id
+                  || S.selPins.times.length !== 2)){
       edit('くりかえしをやめる', () => { l.loop = null; });
       toast('くりかえしを やめました');
-    } else if(S.selPins.times.length === 2){
+    } else if(S.selPins.layer === l.id && S.selPins.times.length === 2){
       const [from, to] = S.selPins.times;
       edit(mode === 'pingpong' ? '往復ループ' : 'ループ', () => { l.loop = { from, to, mode }; });
       toast(mode === 'pingpong' ? '行ってもどってを くりかえします' : 'ここを くりかえします');
