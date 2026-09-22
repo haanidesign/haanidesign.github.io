@@ -1,25 +1,25 @@
 /* 全部を つなぐ ところ。 */
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
-  bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js?v=8';
-import { wire, bus } from './bus.js?v=8';
-import { MEDIA, importFiles, hookAll } from './media.js?v=8';
-import { useCanvas, renderStage } from './render.js?v=8';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=8';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=8';
-import { beatOn, beatSec, beatAt } from './beat.js?v=8';
-import * as TL from './ui/timeline.js?v=8';
-import * as P from './ui/panel.js?v=8';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=8';
+  bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
+} from './state.js?v=10';
+import { wire, bus } from './bus.js?v=10';
+import { MEDIA, importFiles, hookAll } from './media.js?v=10';
+import { useCanvas, renderStage, renderOut, outCanvas, fitView, view } from './render.js?v=10';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=10';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=10';
+import { beatOn, beatSec, beatAt } from './beat.js?v=10';
+import * as TL from './ui/timeline.js?v=10';
+import * as P from './ui/panel.js?v=10';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=10';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=8';
-import { addFontFile } from './text.js?v=8';
-import { makePack, openPack } from './pack.js?v=8';
-import { showStart } from './ui/start.js?v=8';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=8';
-import { trackOf } from './state.js?v=8';
+} from './edit.js?v=10';
+import { addFontFile } from './text.js?v=10';
+import { makePack, openPack } from './pack.js?v=10';
+import { showStart } from './ui/start.js?v=10';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=10';
+import { trackOf } from './state.js?v=10';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -31,16 +31,11 @@ function appH() {
   fitStage();
 }
 function fitStage() {
-  const box = $('#stage');
-  const pad = 16;
-  const bw = box.clientWidth - pad * 2, bh = box.clientHeight - pad * 2;
-  if (bw <= 0 || bh <= 0) return;
-  const s = Math.min(bw / S.W, bh / S.H);
-  cv.style.width = Math.max(40, Math.floor(S.W * s)) + 'px';
-  cv.style.height = Math.max(24, Math.floor(S.H * s)) + 'px';
+  fitView();
+  renderStage(S.time);
 }
 function applySize() {
-  cv.width = S.W; cv.height = S.H;
+  outCanvas();
   const dn = $('#docName'); if (dn) dn.textContent = S.name || 'むだい';
   $('#docSize').textContent = `${S.W}×${S.H} / ${S.fps}fps`;
   fitStage();
@@ -48,6 +43,7 @@ function applySize() {
 
 /* ---------- 画面の 描き直し ---------- */
 function drawAll() {
+  tidyTracks();
   refreshVoices();          // 音けし・大きさを すぐ きかせる
   TL.drawAll();
   renderStage(S.time);
@@ -138,7 +134,7 @@ $('#docName').onclick = () => {
 };
 $('#undo').onclick = undo;
 $('#redo').onclick = redo;
-$('#fit').onclick = () => TL.fit();
+$('#fit').onclick = () => { fitStage(); TL.fit(); };
 $('#export').onclick = () => P.open('file');
 
 /* ---------- さいせいバー ---------- */
@@ -174,8 +170,7 @@ $('#loop').onclick = e => {
   drawAll();
 };
 $('#shot').onclick = () => {
-  renderStage(S.time, false);
-  const cvs = cv;
+  const cvs = renderOut(S.time);
   cvs.toBlob(bl => {
     if (!bl) { toast('出せなかった'); return; }
     save(bl, 'koma_' + Math.round(S.time * S.fps) + 'f.png');
@@ -412,7 +407,7 @@ attachStage(cv);
 attachPinchZoom($('#scroll'), (pps, at) => TL.setZoom(pps, at), TL.x2t);
 
 /* ---------- 画面の 大きさ ---------- */
-window.addEventListener('resize', () => { appH(); TL.drawAll(); });
+window.addEventListener('resize', () => { appH(); fitStage(); TL.drawAll(); });
 window.addEventListener('orientationchange', () => setTimeout(() => { appH(); TL.drawAll(); }, 250));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', appH);
 window.addEventListener('beforeunload', e => {
@@ -451,9 +446,7 @@ function thumb() {
     const c = document.createElement('canvas');
     const r = S.W / S.H;
     c.width = 120; c.height = Math.max(1, Math.round(120 / r));
-    renderStage(S.time, false);
-    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
-    renderStage(S.time);
+    c.getContext('2d').drawImage(renderOut(S.time), 0, 0, c.width, c.height);
     return c.toDataURL('image/jpeg', .6);
   } catch (e) { return null; }
 }

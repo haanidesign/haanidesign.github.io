@@ -1,12 +1,63 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=8';
-import { MEDIA, animFrame } from './media.js?v=8';
-import { drawText as paintText, textBox } from './text.js?v=8';
-import { beatOn, beatAt } from './beat.js?v=8';
+import { S, clamp, findClip } from './state.js?v=10';
+import { MEDIA, animFrame } from './media.js?v=10';
+import { drawText as paintText, textBox } from './text.js?v=10';
+import { beatOn, beatAt } from './beat.js?v=10';
 
-let cv = null, G = null;
-export function useCanvas(el) { cv = el; G = el.getContext('2d'); }
-export const canvas = () => cv;
+/* えがく 先は 2つ。
+     out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
+     view … 画面に 出す ぶん。指で 動かした 分だけ ずらして えがく。
+             わくの 外も うっすら 見える ように する（アニメ工房と 同じ） */
+let out = null, O = null;
+let vcv = null, V = null;
+
+export function useCanvas(el) {
+  vcv = el;
+  V = el.getContext('2d');
+  outCanvas();
+}
+export function outCanvas() {
+  if (!out) { out = document.createElement('canvas'); O = out.getContext('2d'); }
+  if (out.width !== S.W || out.height !== S.H) { out.width = S.W; out.height = S.H; }
+  return out;
+}
+export const canvas = () => outCanvas();
+export const viewCanvas = () => vcv;
+
+/* ---- 見え方（指で 動かす ぶん） ---- */
+export const view = { x: 0, y: 0, z: 1 };
+/** 作品の 中の ところ → 画面の ところ */
+export function toScreen(px, py) {
+  const r = vcv.getBoundingClientRect();
+  return {
+    x: r.width / 2 + (px - S.W / 2) * view.z + view.x,
+    y: r.height / 2 + (py - S.H / 2) * view.z + view.y
+  };
+}
+/** 画面の ところ → 作品の 中の ところ */
+export function toProject(sx, sy) {
+  const r = vcv.getBoundingClientRect();
+  return {
+    x: (sx - r.left - r.width / 2 - view.x) / view.z + S.W / 2,
+    y: (sy - r.top - r.height / 2 - view.y) / view.z + S.H / 2
+  };
+}
+/** 画面に ちょうど おさまる 大きさに もどす */
+export function fitView(margin = 0.92) {
+  if (!vcv) return;
+  const r = vcv.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  view.z = Math.min(r.width / S.W, r.height / S.H) * margin;
+  view.x = 0; view.y = 0;
+}
+export function zoomAt(sx, sy, k) {
+  const before = toProject(sx, sy);
+  view.z = clamp(view.z * k, 0.03, 8);
+  const after = toProject(sx, sy);
+  view.x += (after.x - before.x) * view.z;
+  view.y += (after.y - before.y) * view.z;
+}
+export function panView(dx, dy) { view.x += dx; view.y += dy; }
 
 export function activeClips(t) {
   const out = [];
@@ -107,11 +158,69 @@ function masterOver(g, t) {
   }
 }
 
-export function renderStage(t = S.time, handles = true) {
+/** 作品そのもの（書き出し・録画・見本の絵） */
+export function renderOut(t = S.time) {
+  const G = O || (outCanvas(), O);
   if (!G) return;
+  paintFull(G, t);
+  return out;
+}
+
+/** 画面に 出す ぶん。わくの 外も うっすら 見せる */
+export function renderStage(t = S.time, handles = true) {
+  if (!V || !vcv) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const r = vcv.getBoundingClientRect();
+  const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+  if (vcv.width !== w || vcv.height !== h) { vcv.width = w; vcv.height = h; }
+
+  renderOut(t);                       // わくの 中は いつも これ
+
+  V.setTransform(1, 0, 0, 1, 0, 0);
+  V.globalAlpha = 1; V.filter = 'none';
+  V.clearRect(0, 0, w, h);
+
+  const z = view.z * dpr;
+  const cx = w / 2 + view.x * dpr, cy = h / 2 + view.y * dpr;
+  const bw = S.W * z, bh = S.H * z;
+  const bx = cx - bw / 2, by = cy - bh / 2;
+
+  // わくの 外が 見えて いる ときだけ、外の ぶんも えがく
+  const covers = bx <= 0 && by <= 0 && bx + bw >= w && by + bh >= h;
+  if (!covers) {
+    V.save();
+    V.translate(cx, cy);
+    V.scale(z, z);
+    V.translate(-S.W / 2, -S.H / 2);
+    paintScene(V, t);                 // はいけいを ぬらずに 中身だけ
+    V.restore();
+    // 外は うっすら。中に 目が いく ように
+    V.save();
+    V.fillStyle = 'rgba(251,250,236,.72)';
+    V.beginPath();
+    V.rect(0, 0, w, h);
+    V.rect(bx, by, bw, bh);
+    V.fill('evenodd');
+    V.restore();
+  }
+
+  V.drawImage(out, bx, by, bw, bh);
+
+  // わくの ふち
+  V.save();
+  V.strokeStyle = '#1E1C14';
+  V.lineWidth = Math.max(1.5, 2.5 * dpr);
+  V.strokeRect(bx - V.lineWidth / 2, by - V.lineWidth / 2, bw + V.lineWidth, bh + V.lineWidth);
+  V.restore();
+
+  if (handles && !S.playing) drawHandles(V, dpr);
+}
+
+function paintFull(G, t) {
   const m = M();
   const useBuf = needsBuf();
   const g = useBuf ? buffer() : G;
+  const W = S.W, H = S.H;
 
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalAlpha = 1; g.filter = 'none';
@@ -154,7 +263,6 @@ export function renderStage(t = S.time, handles = true) {
   masterOver(G, t);
   G.setTransform(1, 0, 0, 1, 0, 0);
   G.globalAlpha = 1; G.filter = 'none';
-  if (handles && !S.playing) drawHandles();
 }
 
 function paintScene(G, t) {
@@ -228,32 +336,51 @@ function fitSize(c, m) {
 
 /* えらんで いる ふだの わくと つまみ */
 export function clipBox(c) {
+  const g = O || (outCanvas(), O);
   const m = c.mid ? MEDIA.get(c.mid) : null;
   let w = S.W, h = S.H;
   if (c.kind === 'text') {
-    const bx = textBox(G, c.text);
+    const bx = textBox(g, c.text);
     w = Math.max(40, bx.w); h = bx.h;
   } else if (c.kind === 'color') {
     w = S.W; h = S.H;
   } else if (m) { const f = fitSize(c, m); w = f.w; h = f.h; }
   return { w: w * c.scale, h: h * c.scale };
 }
-function drawHandles() {
-  const f = findClip(S.sel); if (!f || f.c.kind === 'audio') return;
-  const c = f.c;
-  const t = S.time;
-  if (t < c.start || t >= c.start + c.dur) return;
+
+/** つまみ（四すみ）の 画面での ところ。指で つかむ ため */
+export function handlePoints(c) {
   const { w, h } = clipBox(c);
-  G.save();
-  G.translate(S.W / 2 + c.x, S.H / 2 + c.y);
-  G.rotate(c.rot * Math.PI / 180);
-  G.strokeStyle = '#E1DD60'; G.lineWidth = 5; G.setLineDash([16, 11]);
-  G.strokeRect(-w / 2, -h / 2, w, h);
-  G.setLineDash([]);
-  G.strokeStyle = '#1E1C14'; G.lineWidth = 2.5; G.strokeRect(-w / 2, -h / 2, w, h);
+  const a = c.rot * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([hx, hy], i) => {
+    const lx = hx * w / 2, ly = hy * h / 2;
+    const px = S.W / 2 + c.x + lx * co - ly * si;
+    const py = S.H / 2 + c.y + lx * si + ly * co;
+    const p = toScreen(px, py);
+    return { i, x: p.x, y: p.y, hx, hy };
+  });
+}
+
+function drawHandles(g, dpr) {
+  const f = findClip(S.sel);
+  if (!f || f.c.kind === 'audio') return;
+  const c = f.c;
+  if (S.time < c.start || S.time >= c.start + c.dur) return;
+  const { w, h } = clipBox(c);
+  const z = view.z * dpr;
+  const r = vcv.getBoundingClientRect();
+  g.save();
+  g.translate(r.width / 2 * dpr + view.x * dpr + c.x * z, r.height / 2 * dpr + view.y * dpr + c.y * z);
+  g.rotate(c.rot * Math.PI / 180);
+  const W = w * z, H = h * z;
+  g.strokeStyle = '#E1DD60'; g.lineWidth = 4 * dpr; g.setLineDash([14 * dpr, 10 * dpr]);
+  g.strokeRect(-W / 2, -H / 2, W, H);
+  g.setLineDash([]);
+  g.strokeStyle = '#1E1C14'; g.lineWidth = 2 * dpr;
+  g.strokeRect(-W / 2, -H / 2, W, H);
   for (const [hx, hy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-    G.fillStyle = '#E1DD60';
-    G.beginPath(); G.arc(hx * w / 2, hy * h / 2, 16, 0, 7); G.fill(); G.stroke();
+    g.fillStyle = '#E1DD60';
+    g.beginPath(); g.arc(hx * W / 2, hy * H / 2, 13 * dpr, 0, 7); g.fill(); g.stroke();
   }
-  G.restore();
+  g.restore();
 }

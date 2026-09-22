@@ -3,16 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=8';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=8';
-import { storeOk } from '../store.js?v=8';
-import { bus } from '../bus.js?v=8';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=8';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=8';
+} from '../state.js?v=10';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=10';
+import { storeOk } from '../store.js?v=10';
+import { bus } from '../bus.js?v=10';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=10';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=10';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=8';
+} from '../edit.js?v=10';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -685,7 +685,8 @@ function helpBody() {
   <li>上下の 段へ 引っぱると 段を うつれる（音は 音の段だけ）</li>
   <li><b>✂きる</b>を えらぶと、さわった ところで 切れる</li>
   <li>🔁 で えらんだ ふだの ところだけ くりかえし 見られる</li>
-  <li>段の 🔓 を おすと かぎが かかって うごかなく なる</li></ul>
+  <li>段の 🔓 を おすと かぎが かかって うごかなく なる</li>
+  <li>音を 止めたい ときは その段の <b>🔊</b>。映像の段は <b>👁</b> でも 音ごと 止まります</li></ul>
   <h3>4. もじ と うた</h3>
   <ul><li>🅰もじ で 1まい。<b>🎵うた</b> は 1行ずつ まとめて 流しこむ
   （拍で ならべられる。行の あたまに <b>0:12</b> と 書くと そこに 置く）</li>
@@ -698,7 +699,11 @@ function helpBody() {
   <li>ぴかっ・ゆれ・ズームは <b>拍ごと</b>に 出る</li>
   <li>🎨 いろの ふだ で 下じきの 色を 時間で かえられる</li></ul>
   <h3>6. 指の わざ</h3>
-  <ul><li>絵を じかに ドラッグ。<b>2本指</b>で 大きさと かたむき</li>
+  <ul><li>絵を じかに ドラッグ。四すみの <b>まる</b>で 大きさと かたむき</li>
+  <li><b>2本指</b>で 画面を ずらす・つまんで 大きく／小さく。
+  なにも 無い ところを 1本指で なぞっても ずらせます</li>
+  <li>わくの <b>外</b>も うっすら 見えます。はみ出した ところも つかめます</li>
+  <li>上の <b>⤢</b> で もとの 大きさに もどります</li>
   <li><b>2本指で トン</b> … もどす　<b>3本指で トン</b> … やりなおし</li>
   <li>タイムラインを <b>2本指で つまむ</b> … 時間じくの のびちぢみ</li></ul>
   <h3>7. 出す</h3>

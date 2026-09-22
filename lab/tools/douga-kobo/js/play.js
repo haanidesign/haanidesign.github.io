@@ -1,9 +1,9 @@
 /* さいせいと 書き出し。 */
-import { S, clamp, r2, toast, duration, $ } from './state.js?v=8';
-import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=8';
-import { allClips, findClip, trackOf } from './state.js?v=8';
-import { activeClips, fadeAlpha, renderStage, canvas } from './render.js?v=8';
-import { bus } from './bus.js?v=8';
+import { S, clamp, r2, toast, duration, $ } from './state.js?v=10';
+import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=10';
+import { allClips, findClip, trackOf } from './state.js?v=10';
+import { activeClips, fadeAlpha, renderStage, canvas } from './render.js?v=10';
+import { bus } from './bus.js?v=10';
 
 let raf = 0, t0 = 0, base = 0;
 
@@ -52,7 +52,7 @@ export function startVoices(from) {
       g.gain.setValueAtTime(1, outAt);
       g.gain.linearRampToValueAtTime(0.0001, when + (end - startAt));
     }
-    mg.gain.value = tr.mute ? 0 : v;
+    mg.gain.value = silent(tr) ? 0 : v;
     src.connect(g);
     g.connect(mg);
     mg.connect(ac.destination);
@@ -63,12 +63,17 @@ export function startVoices(from) {
   }
 }
 /** 鳴らして いる とちゅうでも、音けしと 大きさを すぐ きかせる */
+/* 音を 止めるのは 2つ。どちらでも 止まる ように する。
+     🔇 … 音けし
+     🚫 … その段を つかわない（アニメ工房の「目」と 同じ 考え） */
+const silent = tr => !!(tr.mute || tr.hidden);
+
 export function refreshVoices() {
   if (!voices.length) return;
   voices.forEach(v => {
     const f = findClip(v.cid), tr = trackOf(v.tid);
     if (!f || !tr || !v.mg) return;
-    v.mg.gain.value = tr.mute ? 0 : clamp(f.c.vol === undefined ? 1 : f.c.vol, 0, 2);
+    v.mg.gain.value = silent(tr) ? 0 : clamp(f.c.vol === undefined ? 1 : f.c.vol, 0, 2);
   });
 }
 
@@ -81,7 +86,7 @@ export function syncMedia(t) {
     if (m.kind === 'audio' && m.abuf) continue;   // これは Web Audio で 鳴らす
     on.add(m.id);
     const want = clamp(c.inp + (t - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.02));
-    m.el.volume = tr.mute ? 0 : clamp(c.vol * fadeAlpha(c, t - c.start), 0, 1);
+    m.el.volume = silent(tr) ? 0 : clamp(c.vol * fadeAlpha(c, t - c.start), 0, 1);
     m.el.playbackRate = c.speed || 1;
     if (S.playing) {
       if (Math.abs(m.el.currentTime - want) > 0.25) m.el.currentTime = want;
