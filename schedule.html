@@ -593,11 +593,51 @@ function picOpen(id){
   $("#pic").classList.add("on");
   document.body.style.overflow = "hidden";
 }
-/* この端末が そのまま HLS（Bluesky の動画）を 出せるか。
-   Safari は 出せる。出せない所では 表紙の絵と「投稿を見る」に する。 */
-function canHls(){
-  const v = document.createElement("video");
-  return !!v.canPlayType && !!v.canPlayType("application/vnd.apple.mpegurl");
+/* Bluesky の動画は HLS（.m3u8）。そのまま出せるのは Safari と iOS だけで、
+   Android の Chrome は「出せる」と答えておきながら じつは出せない。
+   ギャラリー（bsky.html）と同じく、hls.js があれば そちらを先に使う。 */
+const HLSJS = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js";
+let hls = null, hlsReady = null;
+function loadHls(){
+  if(hlsReady) return hlsReady;
+  hlsReady = new Promise((ok,ng)=>{
+    const sc = document.createElement("script");
+    sc.src = HLSJS;
+    sc.onload = ok;
+    sc.onerror = ()=> ng(new Error("hls.js を 読めません"));
+    document.head.appendChild(sc);
+  });
+  return hlsReady;
+}
+function nativeHls(){
+  return !!$("#picVid").canPlayType("application/vnd.apple.mpegurl");
+}
+function stopVideo(){
+  const vid = $("#picVid");
+  if(hls){ hls.destroy(); hls = null; }
+  vid.pause?.();
+  vid.removeAttribute("src");
+  vid.load?.();
+}
+function playVideo(t){
+  const vid = $("#picVid");
+  const native = ()=>{ vid.src = t.video; vid.play?.().catch(()=>{}); };
+  loadHls().then(()=>{
+    if(!window.Hls || !window.Hls.isSupported()){
+      if(nativeHls()) return native();
+      throw new Error("この ブラウザでは 流せません");
+    }
+    hls = new window.Hls({ enableWorker:true });
+    hls.loadSource(t.video);
+    hls.attachMedia(vid);
+    vid.play?.().catch(()=>{});
+  }).catch((err)=>{
+    if(nativeHls()) return native();
+    // 流せないときは 表紙の絵に戻して、投稿へ行ってもらう
+    console.error("[カレンダー] 動画: " + (err.message || err));
+    vid.hidden = true;
+    $("#picImg").hidden = false;
+  });
 }
 
 function picShow(){
@@ -606,15 +646,13 @@ function picShow(){
   const t = picList[picAt];
 
   const vid = $("#picVid");
-  const showVideo = !!t.video && canHls();
+  stopVideo();
+  const showVideo = !!t.video;
   vid.hidden = !showVideo;
   $("#picImg").hidden = showVideo;
   if(showVideo){
     vid.poster = t.image || "";
-    vid.src = t.video;
-    vid.load();
-  }else{
-    vid.removeAttribute("src");
+    playVideo(t);
   }
   $("#picImg").src = t.imageFull || t.image;
   $("#picImg").alt = t.title || "";
@@ -623,15 +661,13 @@ function picShow(){
     `${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})${t.time ? " " + t.time : ""}　${t.title || ""}`;
   $("#picRow").innerHTML = t.url
     ? `<a class="btn btn-sm btn-g" href="${esc(t.url)}" target="_blank" rel="noopener">${
-        t.bsky ? (t.video && !showVideo ? "動画を見る（Bluesky）" : "投稿を見る") : "Notion で見る"}</a>`
+        t.bsky ? (t.video ? "Bluesky で 見る" : "投稿を見る") : "Notion で見る"}</a>`
     : "";
   if(typeof picExtra === "function") picExtra(t);
 }
 function picClose(){
   $("#pic").classList.remove("on");
-  const vid = $("#picVid");
-  vid.pause?.();
-  vid.removeAttribute("src");
+  stopVideo();
   $("#picImg").src = "";
   document.body.style.overflow = "";
 }
