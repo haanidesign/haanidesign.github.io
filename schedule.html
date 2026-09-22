@@ -81,12 +81,12 @@
 .cal .dow.sat,.cal .dow.sun{background:var(--main);}
 .day{
   min-height:132px; border:2px solid var(--ink); border-radius:13px;
-  background:var(--paper); padding:.3rem .35rem;
-  display:flex; flex-direction:column; gap:.2rem; overflow:hidden;
+  background:var(--paper); padding:0;
+  display:flex; flex-direction:column; gap:0; overflow:hidden;
 }
 /* 予定のある日は、ちょっと浮かせる */
 .day.filled{box-shadow:0 3px 0 var(--ink); background:#FFFDEE;}
-.day .top{display:flex; align-items:center; gap:.25rem;}
+.day .top{display:flex; align-items:center; gap:.25rem; padding:.3rem .35rem .15rem;}
 .day .cnt{
   margin-left:auto; font-family:'DotGothic16',monospace; font-weight:400;
   font-size:.5rem; color:var(--gray); letter-spacing:.04em;
@@ -112,11 +112,12 @@
     rgba(30,28,20,.09) 0 3px, transparent 3px 10px);
 }
 .hol{
+  padding:0 .4rem .15rem;
   font-size:.56rem; font-weight:700; color:var(--gray);
   line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .off-mark{
-  margin-top:auto; align-self:flex-start;
+  margin:auto .4rem .3rem; align-self:flex-start;
   font-size:.52rem; font-weight:700; line-height:1.6; color:var(--ink);
   background:#F6F1D8; border:2px solid var(--ink); border-radius:999px;
   padding:0 .45rem;
@@ -131,20 +132,21 @@
   width:21px; height:21px; border-radius:50%; background:var(--ink); color:var(--main);
 }
 .ev{
+  margin:0 .35rem .2rem;
   font-size:.62rem; font-weight:700; line-height:1.6;
   border:2px solid var(--ink); border-radius:999px;
   box-shadow:0 2px 0 var(--ink);
   padding:.02rem .45rem;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.more{font-size:.58rem; color:var(--gray);}
+.more{font-size:.58rem; color:var(--gray); padding:0 .4rem .2rem;}
 
 /* --- 画像つきの予定（Notion に画像があるときだけ） --- */
 .card{
-  border:2px solid var(--ink); border-radius:10px; overflow:hidden;
-  background:var(--paper); box-shadow:0 2.5px 0 var(--ink);
+  border:0; border-radius:0; overflow:hidden; background:var(--paper);
+  box-shadow:none; display:flex; flex-direction:column; flex:1 1 auto; min-height:0;
 }
-.card-top{display:flex; align-items:center; gap:.2rem; padding:.05rem .25rem 0;}
+.card-top{display:flex; align-items:center; gap:.2rem; padding:0 .35rem .15rem;}
 .card .cat-badge{
   font-size:.52rem; font-weight:700; line-height:1.6;
   border:2px solid var(--ink); border-radius:999px; padding:0 .4rem;
@@ -155,9 +157,15 @@
   font-size:.56rem; color:var(--gray); margin-left:auto;
 }
 .card img{
-  width:100%; aspect-ratio:4/3; object-fit:cover; display:block;
-  border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);
-  margin-top:.08rem; background:var(--main-soft);
+  width:100%; flex:1 1 auto; min-height:64px; object-fit:cover; display:block;
+  border-top:2px solid var(--ink); border-bottom:0;
+  margin:0; background:var(--main-soft);
+}
+/* 絵が入っている日は、絵を 下まで 伸ばして、「休」は その上に 小さく 乗せる */
+.day{position:relative;}
+.day.filled .off-mark{
+  position:absolute; left:.25rem; bottom:.25rem; margin:0; z-index:2;
+  font-size:.48rem; padding:0 .35rem; background:rgba(255,254,247,.92);
 }
 .card{cursor:zoom-in;}
 .card:hover{background:var(--main-soft);}
@@ -247,7 +255,7 @@
   /* 枡いっぱいに 絵を出す。文字は 入らないので 出さない */
   .card{box-shadow:none; border-width:1.5px; border-radius:7px;}
   .card-top,.card .cap{display:none;}
-  .card img{aspect-ratio:1/1; border-top:0; border-bottom:0; margin-top:0;}
+  .card img{min-height:40px; border-top:1.5px solid var(--ink); border-bottom:0; margin:0;}
   .day{min-height:82px;}
   .pic{padding:.6rem;}
   .pic img,.pic video{max-height:68vh;}
