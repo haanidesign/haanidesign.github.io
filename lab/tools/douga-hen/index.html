@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>どうが編集台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ タイトルバー ============ -->
+  <div id="bar">
+    <div class="bar-title">🎬 どうが編集台</div>
+    <div class="bar-spec dot">TIMELINE / TRIM / TEXT / EXPORT</div>
+    <div class="bar-sp"></div>
+    <button id="btnPaneBin" class="btn btn-sm" title="素材だな">🗂</button>
+    <button id="btnPaneProp" class="btn btn-sm" title="設定">⚙</button>
+    <span class="bar-sep"></span>
+    <button id="btnUndo" class="btn btn-sm" title="もどす (Ctrl+Z)">↶</button>
+    <button id="btnRedo" class="btn btn-sm" title="やりなおし (Ctrl+Y)">↷</button>
+    <span class="bar-sep"></span>
+    <button id="btnAdd" class="btn btn-sm">📥 とりこむ</button>
+    <button id="btnSave" class="btn btn-sm">💾 保存</button>
+    <button id="btnOpen" class="btn btn-sm">📂 ひらく</button>
+    <button id="btnExport" class="btn btn-sm btn-g">⏏ 書き出し</button>
+    <button id="btnHelp" class="btn btn-sm btn-y">? つかいかた</button>
+    <input type="file" id="fileMedia" accept="video/*,image/*,audio/*" multiple hidden>
+    <input type="file" id="fileProj" accept=".json,application/json" hidden>
+  </div>
+
+  <!-- ============ 道具レール ============ -->
+  <div id="rail">
+    <div class="tool on" data-tool="select" title="えらぶ (V)">🖱<small>えらぶ</small></div>
+    <div class="tool" data-tool="cut" title="切る (C)">✂<small>切る</small></div>
+    <div class="tool" data-tool="hand" title="ずらす (H)">✋<small>ずらす</small></div>
+    <div class="sep" style="width:80%"></div>
+    <div class="tool" id="tAddText" title="文字を足す">🅣<small>文字</small></div>
+    <div class="tool" id="tAddLyric" title="歌詞を流しこむ">🎵<small>歌詞</small></div>
+    <div class="tool" id="tAddTrack" title="トラックを足す">➕<small>段</small></div>
+    <div class="sep" style="width:80%"></div>
+    <div class="tool" id="tFitView" title="全体を見る">🔍<small>全体</small></div>
+  </div>
+
+  <!-- ============ 素材だな ============ -->
+  <div id="bin">
+    <div class="pane-ttl"><span class="title">素材だな</span><span class="sp"></span><span id="binCount" class="chip dot">0</span></div>
+    <div id="binDrop">ここに 動画・画像・音を おとす</div>
+    <div id="binBody"></div>
+  </div>
+
+  <!-- ============ ビュー ============ -->
+  <div id="view">
+    <div id="stageWrap"><canvas id="stage" width="1280" height="720"></canvas></div>
+    <div id="transport">
+      <button id="btnHome" class="btn btn-sm" title="さいしょへ">⏮</button>
+      <button id="btnPrevF" class="btn btn-sm" title="1コマ もどる (←)">◀|</button>
+      <button id="btnPlay" class="btn btn-sm btn-y" title="さいせい (Space)">▶ さいせい</button>
+      <button id="btnNextF" class="btn btn-sm" title="1コマ すすむ (→)">|▶</button>
+      <button id="btnEnd" class="btn btn-sm" title="おわりへ">⏭</button>
+      <span class="bar-sep"></span>
+      <div id="tcode" class="dot">00:00:00.00</div>
+      <span id="durLabel" class="chip dot">/ 0.0s</span>
+      <div class="bar-sp" style="flex:1"></div>
+      <div id="recDot"><span>⏺</span><span id="recTime" class="dot">0.0s</span></div>
+      <span class="chip" id="sizeLabel">1280×720 / 30fps</span>
+    </div>
+  </div>
+
+  <!-- ============ プロパティ ============ -->
+  <div id="prop">
+    <div class="pane-ttl"><span class="title">せってい</span><span class="sp"></span><span id="propWhat" class="chip">なし</span></div>
+    <div id="propBody"><div class="empty">タイムラインの ふだを えらぶと<br>ここに 設定が 出ます</div></div>
+  </div>
+
+  <!-- ============ タイムライン ============ -->
+  <div id="tlwrap">
+    <div id="tlbar">
+      <span class="title">タイムライン</span>
+      <button id="btnSplit" class="btn btn-sm" title="再生位置で切る (S)">✂ 切る</button>
+      <button id="btnDup" class="btn btn-sm" title="ふやす (Ctrl+D)">⧉ 複製</button>
+      <button id="btnDel" class="btn btn-sm btn-p" title="けす (Delete)">🗑 けす</button>
+      <span class="bar-sep"></span>
+      <button id="btnSnap" class="btn btn-sm on" title="ふだの端に くっつく">🧲 吸着</button>
+      <button id="btnRipple" class="btn btn-sm" title="けした あとを つめる">↔ つめる</button>
+      <span class="bar-sep"></span>
+      <button id="btnZoomOut" class="btn btn-sm">−</button>
+      <span id="zoomLabel" class="chip dot">1.0x</span>
+      <button id="btnZoomIn" class="btn btn-sm">＋</button>
+      <div style="flex:1"></div>
+      <span class="chip" id="selLabel">えらんでいない</span>
+    </div>
+    <div id="tlbody">
+      <div id="heads">
+        <div class="head-ruler"></div>
+        <div id="headsBody"></div>
+      </div>
+      <div id="scroll">
+        <div id="ruler"><canvas id="rulerCv" height="24"></canvas></div>
+        <div id="lanes">
+          <div id="playhead"></div>
+          <div id="snapline"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ モーダル ============ -->
+<div id="veil"><div class="modal" id="modal"></div></div>
+<div id="toast"></div>
+
+<script src="editor.js"></script>
+</body>
+</html>

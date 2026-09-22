@@ -232,6 +232,17 @@ const TOOLS = [
     thumb: "thumbs/bongo.svg",
     url: "tools/bongo/index.html",
     status: "live"
+  },
+  {
+    no: 22,
+    slug: "douga-hen",
+    title: "どうが編集台",
+    desc: "ブラウザの中だけで動く動画編集の台。動画・画像・音を落として段のあるタイムラインに並べ、端をつかんでながさを変え、再生位置で切る。位置・大きさ・かたむき・すけ・色あい・音の大きさをふだごとに決められて、文字ふだと、歌詞を一行ずつ流しこむ台もある。組み立てはJSONで保存でき、最後は通しで録ってWebMに書き出す。",
+    tags: ["動画編集", "タイムライン", "字幕", "WebM書き出し"],
+    cat: "anime",
+    thumb: "thumbs/douga-hen.svg",
+    url: "tools/douga-hen/index.html",
+    status: "live"
   }
 ];
 
