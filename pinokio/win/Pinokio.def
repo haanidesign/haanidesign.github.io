@@ -1,0 +1,4 @@
+LIBRARY
+EXPORTS
+    PluginDataEntryFunction2 @1
+    EffectMain @2
