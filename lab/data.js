@@ -254,6 +254,17 @@ const TOOLS = [
     thumb: "thumbs/task-calendar.svg",
     url: "tools/task-calendar/index.html",
     status: "live"
+  },
+  {
+    no: 24,
+    slug: "gb-loop",
+    title: "GBループ切り抜き",
+    desc: "GB・BBの動画から背景を抜いて、素材ごとに分け、同じ絵に戻る区間をループにする。切り出す範囲とコマごとの表示時間も出す。APNG・連番PNG・スプライトシート・WebMで書き出せる。",
+    tags: ["GB素材", "クロマキー", "ループ素材", "APNG"],
+    cat: "anime",
+    thumb: "thumbs/gb-loop.svg",
+    url: "tools/gb-loop/index.html",
+    status: "live"
   }
 ];
 
