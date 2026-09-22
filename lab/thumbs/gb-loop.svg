@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs>
+    <pattern id="gl-dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/></pattern>
+    <pattern id="gl-chk" width="24" height="24" patternUnits="userSpaceOnUse">
+      <rect width="24" height="24" fill="#FFFEF7"/><rect width="12" height="12" fill="#E8E5CF"/><rect x="12" y="12" width="12" height="12" fill="#E8E5CF"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#gl-dots)"/>
+  <rect x="50" y="80" width="220" height="220" rx="14" fill="#3CC86A" stroke="#1E1C14" stroke-width="5"/>
+  <rect x="330" y="80" width="220" height="220" rx="14" fill="url(#gl-chk)" stroke="#1E1C14" stroke-width="5"/>
+  <g stroke="#1E1C14" stroke-width="5">
+    <ellipse cx="160" cy="190" rx="62" ry="58" fill="#fdeee4"/>
+    <ellipse cx="440" cy="190" rx="62" ry="58" fill="#fdeee4"/>
+  </g>
+  <g fill="#1E1C14">
+    <ellipse cx="138" cy="190" rx="8" ry="11"/><ellipse cx="182" cy="190" rx="8" ry="11"/>
+    <ellipse cx="418" cy="190" rx="8" ry="11"/><ellipse cx="462" cy="190" rx="8" ry="11"/>
+  </g>
+  <path d="M282 190 h32 m-12 -12 l12 12 l-12 12" fill="none" stroke="#1E1C14" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="352" y="312" width="176" height="40" rx="20" fill="#E1DD60" stroke="#1E1C14" stroke-width="4"/>
+  <path d="M390 332 a14 12 0 1 1 6 10" fill="none" stroke="#1E1C14" stroke-width="4" stroke-linecap="round"/>
+  <path d="M392 346 l4 -5 l5 5" fill="none" stroke="#1E1C14" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#1E1C14"><rect x="420" y="326" width="10" height="12" rx="2"/><rect x="436" y="326" width="10" height="12" rx="2"/><rect x="452" y="326" width="22" height="12" rx="2"/><rect x="480" y="326" width="10" height="12" rx="2"/></g>
+</svg>
