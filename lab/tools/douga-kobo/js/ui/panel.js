@@ -3,16 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=6';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=6';
-import { storeOk } from '../store.js?v=6';
-import { bus } from '../bus.js?v=6';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=6';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=6';
+} from '../state.js?v=7';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=7';
+import { storeOk } from '../store.js?v=7';
+import { bus } from '../bus.js?v=7';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=7';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=7';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=6';
+} from '../edit.js?v=7';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
