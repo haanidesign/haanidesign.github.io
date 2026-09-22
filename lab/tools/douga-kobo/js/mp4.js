@@ -2,10 +2,10 @@
    本命 … WebCodecs で 1コマずつ 焼いて、mp4-muxer で MP4 の 箱に 詰める。
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
-import { S, clamp, duration, allClips, r2 } from './state.js?v=8';
-import { MEDIA, animFrameAt } from './media.js?v=8';
-import { renderStage, activeClips } from './render.js?v=8';
-import { fadeAlpha } from './render.js?v=8';
+import { S, clamp, duration, allClips, r2 } from './state.js?v=9';
+import { MEDIA, animFrameAt } from './media.js?v=9';
+import { renderOut, outCanvas, activeClips } from './render.js?v=9';
+import { fadeAlpha } from './render.js?v=9';
 
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 
@@ -194,14 +194,14 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
   });
   enc.configure(cfg);
 
-  const cv = document.querySelector('#stageCv');
+  const cv = outCanvas();
   const usPer = 1e6 / fps;
   for (let i = 0; i < total; i++) {
     if (shouldStop()) { try { enc.close(); } catch (e) { } throw new Error('やめました'); }
     if (failed) throw failed;
     const t = i / fps;
     await prepareFrame(t, fps);
-    renderStage(t, false);
+    renderOut(t);
     const frame = new VideoFrame(cv, {
       timestamp: Math.round(i * usPer), duration: Math.round(usPer)
     });

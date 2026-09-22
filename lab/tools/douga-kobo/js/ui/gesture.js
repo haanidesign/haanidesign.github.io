@@ -2,9 +2,9 @@
    ・ステージ … 1本で うごかす、2本で 大きさと かたむき
    ・どこでも … 2本指トン＝もどす、3本指トン＝やりなおし
    ・タイムライン … 2本指で つまんで 時間じくを のばす／ちぢめる */
-import { S, clamp, findClip, selected, snap as pushUndo, buzz } from '../state.js?v=8';
-import { clipBox } from '../render.js?v=8';
-import { bus } from '../bus.js?v=8';
+import { S, clamp, findClip, selected, snap as pushUndo, buzz } from '../state.js?v=9';
+import { clipBox, handlePoints, toProject, panView, zoomAt } from '../render.js?v=9';
+import { bus } from '../bus.js?v=9';
 
 const TAP_MS = 360;     // これより 長く さわって いたら トンでは ない
 const TAP_SLOP = 18;    // これくらいの ずれなら 止まって いたと みなす
@@ -46,95 +46,148 @@ export function attachTaps(undo, redo) {
   document.addEventListener('pointercancel', up, true);
 }
 
-/* ---------- ステージの 中で じかに ---------- */
+/* ---------- ステージの 中で じかに ----------
+   アニメ工房と 同じ さわりごこち：
+     ・1本指 … ふだを えらぶ／うごかす。なにも 無い ところなら 画面ごと ずらす
+     ・四すみの つまみ … 大きさと かたむき
+     ・2本指 … 画面を ずらす・つまんで 大きく／小さく */
 export function attachStage(cv) {
   const pts = new Map();
-  let st = null;
+  let st = null, pinch = null;
 
-  const toStage = e => {
-    const r = cv.getBoundingClientRect();
-    return { x: (e.clientX - r.left) * (S.W / r.width), y: (e.clientY - r.top) * (S.H / r.height) };
-  };
-  const two = () => {
-    const [a, b] = [...pts.values()];
-    return {
-      d: Math.hypot(a.x - b.x, a.y - b.y),
-      a: Math.atan2(b.y - a.y, b.x - a.x),
-      cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2
-    };
-  };
   const target = () => {
     const f = selected();
     if (!f || f.c.kind === 'audio') return null;
     if (S.time < f.c.start || S.time >= f.c.start + f.c.dur) return null;
     return f.c;
   };
-  const hit = p => {
-    // 上の 段から さがして、さわった ところに ある ふだを えらぶ
-    for (const tr of S.tracks) {
-      if (tr.hidden || tr.kind === 'audio') continue;
-      for (const c of tr.clips) {
-        if (S.time < c.start || S.time >= c.start + c.dur) continue;
-        const { w, h } = clipBox(c);
-        const dx = p.x - (S.W / 2 + c.x), dy = p.y - (S.H / 2 + c.y);
-        const a = -c.rot * Math.PI / 180;
-        const rx = dx * Math.cos(a) - dy * Math.sin(a);
-        const ry = dx * Math.sin(a) + dy * Math.cos(a);
-        if (Math.abs(rx) <= w / 2 && Math.abs(ry) <= h / 2) return c;
-      }
-    }
-    return null;
-  };
-
-  cv.addEventListener('pointerdown', e => {
-    try { cv.setPointerCapture(e.pointerId); } catch (_) { }
-    pts.set(e.pointerId, toStage(e));
-    if (pts.size === 1) {
-      const p = [...pts.values()][0];
-      const c = target() && insideOf(target(), p) ? target() : hit(p);
-      if (c) { S.sel = c.id; bus.all(); }
-      st = c ? { c, p, x0: c.x, y0: c.y, s0: c.scale, r0: c.rot, moved: false } : null;
-    } else if (pts.size === 2 && st) {
-      const t = two();
-      st.pinch = { d: t.d, a: t.a, s0: st.c.scale, r0: st.c.rot };
-    }
-  });
-  function insideOf(c, p) {
+  const inside = (c, p) => {
     const { w, h } = clipBox(c);
     const dx = p.x - (S.W / 2 + c.x), dy = p.y - (S.H / 2 + c.y);
     const a = -c.rot * Math.PI / 180;
     const rx = dx * Math.cos(a) - dy * Math.sin(a);
     const ry = dx * Math.sin(a) + dy * Math.cos(a);
     return Math.abs(rx) <= w / 2 && Math.abs(ry) <= h / 2;
-  }
+  };
+  const hit = (p) => {
+    for (const tr of S.tracks) {
+      if (tr.hidden || tr.kind === 'audio') continue;
+      for (const c of tr.clips) {
+        if (S.time < c.start || S.time >= c.start + c.dur) continue;
+        if (inside(c, p)) return c;
+      }
+    }
+    return null;
+  };
+  const grabHandle = (e) => {
+    const c = target();
+    if (!c) return null;
+    const near = handlePoints(c).find(h =>
+      Math.hypot(h.x - (e.clientX - cv.getBoundingClientRect().left),
+                 h.y - (e.clientY - cv.getBoundingClientRect().top)) < 26);
+    return near || null;
+  };
+  const two = () => {
+    const [a, b] = [...pts.values()];
+    return {
+      cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2,
+      d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y))
+    };
+  };
+
+  cv.addEventListener('pointerdown', e => {
+    try { cv.setPointerCapture(e.pointerId); } catch (_) { }
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pts.size === 2) {
+      st = null;
+      const t = two();
+      pinch = { d: t.d, cx: t.cx, cy: t.cy };
+      return;
+    }
+    if (pts.size > 2) return;
+
+    const h = grabHandle(e);
+    if (h) {
+      const c = target();
+      const p = toProject(e.clientX, e.clientY);
+      const cxp = S.W / 2 + c.x, cyp = S.H / 2 + c.y;
+      st = {
+        mode: 'handle', c,
+        d0: Math.max(1, Math.hypot(p.x - cxp, p.y - cyp)),
+        a0: Math.atan2(p.y - cyp, p.x - cxp),
+        s0: c.scale, r0: c.rot, moved: false
+      };
+      return;
+    }
+    const p = toProject(e.clientX, e.clientY);
+    const c = (target() && inside(target(), p)) ? target() : hit(p);
+    if (c) {
+      if (S.sel !== c.id) { S.sel = c.id; bus.all(); }
+      st = { mode: 'move', c, p, x0: c.x, y0: c.y, moved: false };
+    } else {
+      st = { mode: 'pan', sx: e.clientX, sy: e.clientY, moved: false };
+    }
+  });
 
   cv.addEventListener('pointermove', e => {
     if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, toStage(e));
-    if (!st) return;
-    if (pts.size >= 2 && st.pinch) {
+    const prev = pts.get(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pts.size >= 2 && pinch) {
       const t = two();
-      st.c.scale = clamp(st.pinch.s0 * (t.d / (st.pinch.d || 1)), .05, 8);
-      st.c.rot = st.pinch.r0 + (t.a - st.pinch.a) * 180 / Math.PI;
-      st.moved = true;
-    } else {
-      const p = [...pts.values()][0];
-      st.c.x = st.x0 + (p.x - st.p.x);
-      st.c.y = st.y0 + (p.y - st.p.y);
-      if (Math.hypot(p.x - st.p.x, p.y - st.p.y) > 4) st.moved = true;
+      zoomAt(t.cx, t.cy, t.d / pinch.d);
+      panView(t.cx - pinch.cx, t.cy - pinch.cy);
+      pinch = { d: t.d, cx: t.cx, cy: t.cy };
+      bus.stage();
+      return;
     }
+    if (!st) return;
+
+    if (st.mode === 'pan') {
+      panView(e.clientX - st.sx, e.clientY - st.sy);
+      st.sx = e.clientX; st.sy = e.clientY;
+      st.moved = true;
+      bus.stage();
+      return;
+    }
+    if (st.mode === 'handle') {
+      const p = toProject(e.clientX, e.clientY);
+      const cxp = S.W / 2 + st.c.x, cyp = S.H / 2 + st.c.y;
+      const d = Math.max(1, Math.hypot(p.x - cxp, p.y - cyp));
+      const a = Math.atan2(p.y - cyp, p.x - cxp);
+      st.c.scale = clamp(st.s0 * (d / st.d0), .03, 12);
+      if (!e.shiftKey) st.c.rot = st.r0 + (a - st.a0) * 180 / Math.PI;
+      st.moved = true;
+      bus.stage();
+      return;
+    }
+    // うごかす
+    const p = toProject(e.clientX, e.clientY);
+    st.c.x = st.x0 + (p.x - st.p.x);
+    st.c.y = st.y0 + (p.y - st.p.y);
+    if (Math.abs(p.x - st.p.x) > 2 || Math.abs(p.y - st.p.y) > 2) st.moved = true;
     bus.stage();
   });
 
   const end = e => {
     pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
     if (pts.size === 0 && st) {
-      if (st.moved) { pushUndo(); bus.panel(); }
+      if (st.moved && st.mode !== 'pan') { pushUndo(); bus.panel(); }
       st = null;
-    } else if (st) { st.pinch = null; }
+    }
   };
   cv.addEventListener('pointerup', end);
   cv.addEventListener('pointercancel', end);
+
+  // マウスの ホイールでも 大きく／小さく
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    bus.stage();
+  }, { passive: false });
 }
 
 /* ---------- タイムラインの つまみズーム ---------- */
