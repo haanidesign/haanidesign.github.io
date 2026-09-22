@@ -59,6 +59,7 @@ async function prepareFrame(t, fps) {
 /* ---------- 音を タイムラインの とおりに まぜる ---------- */
 const decCache = new Map();
 async function decode(m) {
+  if (m.abuf) return m.abuf;               // 音は もう 読んで ある
   if (decCache.has(m.id)) return decCache.get(m.id);
   if (!m.file) return null;
   try {

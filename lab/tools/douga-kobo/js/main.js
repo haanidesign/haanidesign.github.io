@@ -17,6 +17,8 @@ import {
 } from './edit.js';
 import { addFontFile } from './text.js';
 import { makePack, openPack } from './pack.js';
+import { showStart } from './ui/start.js';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js';
 import { trackOf } from './state.js';
 
 const cv = $('#stageCv');
@@ -39,6 +41,7 @@ function fitStage() {
 }
 function applySize() {
   cv.width = S.W; cv.height = S.H;
+  const dn = $('#docName'); if (dn) dn.textContent = S.name || 'むだい';
   $('#docSize').textContent = `${S.W}×${S.H} / ${S.fps}fps`;
   fitStage();
 }
@@ -74,7 +77,7 @@ function playUI() {
 }
 
 wire({
-  all: drawAll,
+  all: () => { drawAll(); auto.touch(); },
   tl: () => TL.drawAll(),
   stage: () => renderStage(S.time),
   panel: () => P.draw(),
@@ -86,6 +89,8 @@ wire({
   split: () => TL.splitHere(),
   export: doExport,
   canMp4: () => hasCodecs(),
+  home: backToStart,
+  rename: v => { S.name = v; auto.touch(); },
   replaceMedia: id => { swapId = id; $('#fileSwap').click(); },
   wip: startWip,
   pack: async name => {
@@ -118,8 +123,15 @@ wire({
 });
 
 /* ---------- 上バー ---------- */
-$('#home').onclick = () => P.open('help');
+$('#home').onclick = backToStart;
 $('#docSize').onclick = () => P.open('setting');
+$('#docName').onclick = () => {
+  const v = prompt('さくひんの 名前', S.name || 'むだい');
+  if (v === null) return;
+  S.name = v.trim() || 'むだい';
+  $('#docName').textContent = S.name;
+  auto.touch();
+};
 $('#undo').onclick = undo;
 $('#redo').onclick = redo;
 $('#fit').onclick = () => TL.fit();
@@ -391,6 +403,94 @@ window.addEventListener('beforeunload', e => {
   if (allClips().length) { e.preventDefault(); e.returnValue = ''; }
 });
 
+/* ---------- じどう ほぞん ---------- */
+function thumb() {
+  try {
+    const c = document.createElement('canvas');
+    const r = S.W / S.H;
+    c.width = 120; c.height = Math.max(1, Math.round(120 / r));
+    renderStage(S.time, false);
+    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+    renderStage(S.time);
+    return c.toDataURL('image/jpeg', .6);
+  } catch (e) { return null; }
+}
+const auto = autoSaver(() => ({
+  id: S.docId,
+  doc: {
+    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    beat: S.beat, master: S.master, tracks: S.tracks
+  },
+  media: [...MEDIA.values()],
+  thumb: thumb()
+}), {
+  onDone: (ok, err) => {
+    if (ok) return;
+    if (!auto._said) { auto._said = true; toast('ほぞんが いっぱいです。いらない さくひんを けして', 4000); }
+  }
+});
+
+/* ---------- はじめの 画面 ---------- */
+async function backToStart() {
+  pause();
+  await auto.now();
+  showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+}
+function startNew(size, fps) {
+  S.W = size.w; S.H = size.h; S.fps = fps || 30;
+  S.bg = '#101010';
+  S.beat = { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true };
+  S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 };
+  S.loop = { on: false, a: 0, b: 0 };
+  S.name = 'むだい';
+  S.docId = newId();
+  MEDIA.clear();
+  bootProject();
+  applySize(); resetHist(); appH(); drawAll(); TL.fit();
+}
+async function openDoc(id) {
+  $('#start').classList.remove('on');
+  busy(true, 'さくひんを ひらいて います'); prog(.15);
+  try {
+    const rec = await loadDoc(id);
+    if (!rec) { toast('見つからなかった'); busy(false); return; }
+    const o = rec.doc;
+    S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    if (o.beat) S.beat = Object.assign({ bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true }, o.beat);
+    if (o.master) S.master = Object.assign({}, S.master, o.master);
+    S.name = o.name || 'むだい';
+    S.docId = id;
+    MEDIA.clear();
+    // 素材を もどす
+    const files = [];
+    for (const m of rec.media || []) {
+      if (!m.blob) continue;
+      try {
+        const bl = await getBlob(m.blob);
+        if (bl) files.push({ file: new File([bl], m.name, { type: m.type || '' }), oldId: m.id });
+      } catch (e) { }
+    }
+    prog(.5, '素材を もどして います');
+    await new Promise(res => {
+      if (!files.length) { res(); return; }
+      importFiles(files.map(x => x.file), res);
+    });
+    const byName = new Map([...MEDIA.values()].map(m => [m.name, m]));
+    const remap = new Map();
+    files.forEach(({ file, oldId }) => {
+      const hit = byName.get(file.name);
+      if (hit) remap.set(oldId, hit.id);
+    });
+    S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;
+    allClips().forEach(({ c }) => { if (c.mid && remap.has(c.mid)) c.mid = remap.get(c.mid); });
+    applySize(); resetHist(); appH(); drawAll(); TL.fit();
+    const miss = allClips().filter(({ c }) => c.mid && !MEDIA.has(c.mid)).length;
+    toast(miss ? `ひらいた（素材 ${miss}こ たりない）` : 'つづきから はじめます', 2600);
+  } catch (e) {
+    toast('ひらけなかった');
+  } finally { busy(false); }
+}
+
 /* ---------- はじまり ---------- */
 TL.init();
 P.init();
@@ -402,6 +502,18 @@ drawAll();
 TL.setZoom(60, 0);
 playUI();
 setTool('select');
+
+/* さくひんが あれば はじめの 画面、なければ そのまま はじめる */
+(async () => {
+  try {
+    const docs = await listDocs();
+    if (docs.length) {
+      await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+      return;
+    }
+  } catch (e) { }
+  S.docId = newId();
+})();
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(() => { });
