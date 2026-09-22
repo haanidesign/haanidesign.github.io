@@ -62,10 +62,7 @@
 .lg-swatch{width:12px; height:12px; border-radius:4px; border:2px solid var(--ink); display:inline-block;}
 .lg-off{
   width:12px; height:12px; border-radius:4px;
-  border:2px solid var(--ink); display:inline-block;
-  background:var(--cream);
-  background-image:repeating-linear-gradient(-45deg,
-    rgba(30,28,20,.14) 0 2px, transparent 2px 5px);
+  border:2px solid var(--ink); display:inline-block; background:#EFEBD2;
 }
 
 /* --- カレンダー --- */
@@ -74,7 +71,10 @@
   text-align:center; font-size:.68rem; color:var(--gray);
   letter-spacing:.1em; padding-bottom:.25rem;
 }
-.cal .dow.sat,.cal .dow.sun{color:var(--main-deep);}
+.cal .dow.sat,.cal .dow.sun{
+  color:var(--ink); background:#EFEBD2;
+  border:2px solid var(--ink); border-radius:999px;
+}
 .day{
   min-height:132px; border:2px solid var(--ink); border-radius:13px;
   background:var(--paper); padding:.3rem .35rem;
@@ -94,13 +94,9 @@
 .day.out{opacity:.28; border-style:dashed; box-shadow:none;}
 .day.past{background:#f4f2e6;}
 /* 土日祝はお休み。背景を変えて、ひと目で分かるようにする */
-/* お休み：色を足さず、斜線で「閉まっている」ことだけ伝える */
-.day.off{
-  background:var(--cream);
-  background-image:repeating-linear-gradient(-45deg,
-    rgba(30,28,20,.09) 0 3px, transparent 3px 9px);
-}
-.day.off.past{background:#F0EEDF;}
+/* お休み：平日（ほぼ白）より一段 沈めた 生成り。色は足さない */
+.day.off{background:#EFEBD2;}
+.day.off.past{background:#E6E2C9;}
 .hol{
   font-size:.56rem; font-weight:700; color:var(--gray);
   line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -114,7 +110,7 @@
 .day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
 .day.today .dnum{color:var(--ink);}
 .day .dnum{font-family:'DotGothic16',monospace; font-weight:400; font-size:.94rem; flex:none; line-height:1.2;}
-.day.sun .dnum,.day.sat .dnum{color:var(--main-deep);}
+.day.sun .dnum,.day.sat .dnum{color:var(--ink);}
 .day .dnum.is-today{
   display:inline-flex; align-items:center; justify-content:center;
   width:21px; height:21px; border-radius:50%; background:var(--ink); color:var(--main);
@@ -147,6 +143,12 @@
   width:100%; aspect-ratio:4/3; object-fit:cover; display:block;
   border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);
   margin-top:.08rem; background:var(--main-soft);
+}
+.card.bsky{cursor:pointer;}
+.card.bsky:hover{background:var(--main-soft);}
+.card .n{
+  font-size:.5rem; color:var(--gray); border:2px solid var(--ink);
+  border-radius:999px; padding:0 .3rem; background:var(--cream);
 }
 .card .cap{
   display:block; font-size:.56rem; font-weight:700; line-height:1.5;
@@ -301,6 +303,16 @@
    ========================================================================= */
 const FEED = "data/schedule.json";
 
+/* Bluesky に その日 出した 画像も 枡に 並べる。
+   ギャラリー（bsky.html）と同じ 公開APIで、誰でも 読める ぶんだけ。
+   取ってくるのは 画像つきの 投稿だけで、他人への 返信と ひろい上げは のぞく。 */
+const BSKY_HANDLE = "haanidesign.bsky.social";
+const BSKY_API = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed";
+const BSKY_PAGES = 6;          // 1回に さかのぼる 上限（1ページ100件）
+let bskyPosts = [];            // 画面に出す形にしたもの
+let bskyOldest = null;         // どこまで さかのぼったか
+let bskyCursor = null, bskyDone = false, bskyBusy = false;
+
 /* カテゴリーの色。決め打ちせず、名前から安定して選ぶ。
    Notion 側でカテゴリーを増やしても、勝手に色が付く。 */
 /* メインの黄色を軸に、濃さと温度だけ変えて並べる。
@@ -397,8 +409,14 @@ function today0(){
   return new Date(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
+/* 画面に出す一覧。Notion の予定＋Bluesky に出した絵。
+   同じ日に両方あれば、予定を先に、絵をあとに並べる。 */
+function allTasks(){
+  return tasks.concat(bskyPosts);
+}
+
 function onDay(key){
-  return tasks.filter(t => t.date === key);
+  return allTasks().filter(t => t.date === key);
 }
 
 function render(){
@@ -446,14 +464,15 @@ function render(){
       </div>
       ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
       ${shown.map(t => t.image
-        ? `<div class="card" title="${esc(t.title)}">
+        ? `<${t.url && t.bsky ? "a" : "div"} class="card${t.bsky ? " bsky" : ""}"${t.url && t.bsky ? ` href="${esc(t.url)}" target="_blank" rel="noopener"` : ""} title="${esc(t.title)}">
              <div class="card-top">
                ${t.category ? `<span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+               ${t.count > 1 ? `<span class="n dot">${t.count}枚</span>` : ""}
                ${t.time ? `<span class="at">${esc(t.time)}</span>` : ""}
              </div>
              <img src="${esc(t.image)}" alt="" loading="lazy">
              <span class="cap">${esc(t.title)}</span>
-           </div>`
+           </${t.url && t.bsky ? "a" : "div"}>`
         : `<div class="ev" style="background:${colorOf(t.category)}" title="${esc(t.title)}">${esc(t.title)}</div>`
       ).join("")}
       ${list.length>shown.length ? `<div class="more">ほか${list.length-shown.length}件</div>` : ""}
@@ -465,7 +484,7 @@ function render(){
 
   // 凡例（この月に出ているカテゴリーだけ）
   const cats = [...new Set(
-    tasks.filter(t=>{
+    allTasks().filter(t=>{
       if(!t.date) return false;
       const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
       return d.getFullYear()===y && d.getMonth()===m;
@@ -476,7 +495,7 @@ function render(){
     '<b><span class="lg-off"></span>お休み（土日祝）</b>';
 
   // 今月の中身を数えて、上に並べる
-  const ofMonth = tasks.filter(t => {
+  const ofMonth = allTasks().filter(t => {
     const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
     return d.getFullYear()===y && d.getMonth()===m;
   });
@@ -526,6 +545,76 @@ function renderUpcoming(){
   }).join("");
 }
 
+/* 埋め込みの 形が 何通りか あるので ならす（bsky.html と同じ） */
+function bskyImages(post){
+  const e = post && post.embed;
+  if(!e) return [];
+  if(e.$type === "app.bsky.embed.images#view") return e.images || [];
+  if(e.$type === "app.bsky.embed.recordWithMedia#view"){
+    const m = e.media;
+    if(m && m.$type === "app.bsky.embed.images#view") return m.images || [];
+  }
+  return [];
+}
+
+/* 日本時間の 日付と 時こくに 直す（投稿の 時刻は UTC で来る） */
+function jst(iso){
+  const d = new Date(iso);
+  const j = new Date(d.getTime() + 9*3600*1000);
+  return {
+    date: j.toISOString().slice(0,10),
+    time: j.toISOString().slice(11,16),
+  };
+}
+
+async function loadBsky(){
+  if(bskyBusy || bskyDone) return;
+  bskyBusy = true;
+  try{
+    for(let i=0; i<BSKY_PAGES && !bskyDone; i++){
+      const url = BSKY_API + "?actor=" + encodeURIComponent(BSKY_HANDLE)
+                + "&limit=100&filter=posts_with_media"
+                + (bskyCursor ? "&cursor=" + encodeURIComponent(bskyCursor) : "");
+      const res = await fetch(url);
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      bskyCursor = data.cursor || null;
+      if(!bskyCursor) bskyDone = true;
+
+      for(const item of (data.feed || [])){
+        if(item.reason) continue;                       // 他の人の 投稿の ひろい上げ
+        const post = item.post;
+        if(!post) continue;
+        if(item.reply){                                 // 他の人への 返信は のぞく
+          const pd = item.reply.parent?.author?.did;
+          if(!pd || pd !== post.author?.did) continue;
+        }
+        const imgs = bskyImages(post);
+        if(!imgs.length) continue;
+        const when = jst(post.record?.createdAt || post.indexedAt);
+        if(!bskyOldest || when.date < bskyOldest) bskyOldest = when.date;
+        const text = (post.record?.text || "").split("\n")[0].trim();
+        const rkey = String(post.uri || "").split("/").pop();
+        bskyPosts.push({
+          id: "bsky:" + post.cid,
+          date: when.date,
+          time: when.time,
+          title: text || "Bluesky に出した絵",
+          category: "投稿",
+          image: imgs[0].thumb || imgs[0].fullsize,
+          count: imgs.length,
+          url: `https://bsky.app/profile/${post.author?.handle || BSKY_HANDLE}/post/${rkey}`,
+          bsky: true,
+        });
+      }
+    }
+  }catch(e){
+    // 読めなくても カレンダーは 出す
+    console.error("Bluesky を 読めませんでした: " + e.message);
+  }
+  bskyBusy = false;
+}
+
 async function load(){
   try{
     const res = await fetch(FEED + "?t=" + Date.now(), {cache:"no-store"});
@@ -540,9 +629,13 @@ async function load(){
   render();
   renderUpcoming();
 
+  // 絵は あとから 足す（Bluesky が 重くても カレンダーは 先に 出す）
+  await loadBsky();
+  render();
+
   $("#note").innerHTML =
     '色の付いた帯はその日の予定です。画像のある予定はそのまま絵で出ます。灰色は過ぎた日。' +
-    '<br><b>斜線の日は土日祝のお休み</b>です。祝日は名前を添えています。' +
+    '<br><b>生成り色の日は土日祝のお休み</b>です。祝日は名前を添えています。' +
     (syncedAt ? `<br><span class="updated">最終更新: ${new Date(syncedAt).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>` : "");
 }
 
