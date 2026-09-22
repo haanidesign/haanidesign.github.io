@@ -1,8 +1,8 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=11';
-import { MEDIA, animFrame } from './media.js?v=11';
-import { drawText as paintText, textBox } from './text.js?v=11';
-import { beatOn, beatAt } from './beat.js?v=11';
+import { S, clamp, findClip } from './state.js?v=12';
+import { MEDIA, animFrame } from './media.js?v=12';
+import { drawText as paintText, textBox } from './text.js?v=12';
+import { beatOn, beatAt } from './beat.js?v=12';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -265,64 +265,79 @@ function paintFull(G, t) {
   G.globalAlpha = 1; G.filter = 'none';
 }
 
-function paintScene(G, t) {
+/** その 時こくの ふだの すがた（うごきの ぶんだけ ずれる） */
+function poseOf(c, local) {
+  let alpha = c.opacity * fadeAlpha(c, local);
+  let sc = 1, dy = 0;
+  const p = clamp(local / Math.min(0.5, c.dur), 0, 1);
+  if (c.anim === 'fade') alpha *= p;
+  if (c.anim === 'zoom') sc = 0.86 + 0.14 * p;
+  if (c.anim === 'up') dy = (1 - p) * S.H * 0.06;
+  if (c.anim === 'kenburns') sc = 1.06 + 0.10 * (local / c.dur);
+  return { alpha, sc, dy };
+}
 
+function paintScene(G, t) {
   for (const { c } of activeClips(t)) {
     if (c.kind === 'audio') continue;
     const local = t - c.start;
-    let alpha = c.opacity * fadeAlpha(c, local);
-    let sc = 1, dy = 0;
-    const p = clamp(local / Math.min(0.5, c.dur), 0, 1);
-    if (c.anim === 'fade') alpha *= p;
-    if (c.anim === 'zoom') sc = 0.86 + 0.14 * p;
-    if (c.anim === 'up') dy = (1 - p) * S.H * 0.06;
-    if (c.anim === 'kenburns') sc = 1.06 + 0.10 * (local / c.dur);
-    if (alpha <= 0.002) continue;
 
-    G.save();
-    G.globalAlpha = clamp(alpha, 0, 1);
-    G.translate(S.W / 2 + c.x, S.H / 2 + c.y + dy);
-    G.rotate(c.rot * Math.PI / 180);
-    G.scale(c.scale * sc, c.scale * sc);
+    /* うごきの あと（モーションブラー）。
+       すこし まえの すがたを うすく かさねて、ぶれて 見せる。 */
+    const mb = c.kind === 'text' ? 0 : clamp(c.mblur || 0, 0, 1);
+    const steps = mb > 0 ? 5 : 1;
 
-    if (c.kind === 'text') paintText(G, c, local, t);
-    else if (c.kind === 'color') {
-      if (c.grad) {
-        const a = (c.gradDir || 0) * Math.PI / 180;
-        const dx = Math.cos(a) * S.W / 2, dy = Math.sin(a) * S.H / 2;
-        const gr = G.createLinearGradient(-dx, -dy, dx, dy);
-        gr.addColorStop(0, c.color); gr.addColorStop(1, c.color2 || c.color);
-        G.fillStyle = gr;
-      } else G.fillStyle = c.color;
-      G.fillRect(-S.W / 2 - 2, -S.H / 2 - 2, S.W + 4, S.H + 4);
-    }
-    else {
-      const m = MEDIA.get(c.mid);
-      const el = m && m.el;
-      const bmp = m && m.anim ? animFrame(m, local * (c.speed || 1)) : null;
-      if (bmp) {
-        const { w, h } = fitSize(c, m);
-        G.filter = filterStr(c.fx);
-        try { G.drawImage(bmp, -w / 2, -h / 2, w, h); } catch (e) { }
-        G.filter = 'none';
-        G.restore();
-        continue;
+    for (let k = steps - 1; k >= 0; k--) {
+      const back = k * mb * 0.05;
+      const lt = local - back;
+      if (lt < 0) continue;
+      const pose = poseOf(c, lt);
+      const fade = k === 0 ? 1 : (1 - k / steps) * .5;
+      const alpha = pose.alpha * fade;
+      if (alpha <= 0.002) continue;
+
+      G.save();
+      G.globalAlpha = clamp(alpha, 0, 1);
+      G.translate(S.W / 2 + c.x, S.H / 2 + c.y + pose.dy);
+      G.rotate(c.rot * Math.PI / 180);
+      G.scale(c.scale * pose.sc, c.scale * pose.sc);
+
+      if (c.kind === 'text') paintText(G, c, local, t);
+      else if (c.kind === 'color') {
+        if (c.grad) {
+          const a = (c.gradDir || 0) * Math.PI / 180;
+          const dx = Math.cos(a) * S.W / 2, dyy = Math.sin(a) * S.H / 2;
+          const gr = G.createLinearGradient(-dx, -dyy, dx, dyy);
+          gr.addColorStop(0, c.color); gr.addColorStop(1, c.color2 || c.color);
+          G.fillStyle = gr;
+        } else G.fillStyle = c.color;
+        G.fillRect(-S.W / 2 - 2, -S.H / 2 - 2, S.W + 4, S.H + 4);
       }
-      const ok = el && (c.kind === 'image' ? el.complete && el.naturalWidth : el.readyState >= 2);
-      if (ok) {
-        const { w, h } = fitSize(c, m);
-        G.filter = filterStr(c.fx);
-        try { G.drawImage(el, -w / 2, -h / 2, w, h); } catch (e) { }
-        G.filter = 'none';
-      } else if (m) {
-        // まだ 絵が 出ない あいだは 見本の絵を 置いておく
-        if (m.poster) {
+      else {
+        const m = MEDIA.get(c.mid);
+        const el = m && m.el;
+        const bmp = m && m.anim ? animFrame(m, lt * (c.speed || 1)) : null;
+        if (bmp) {
+          const { w, h } = fitSize(c, m);
+          G.filter = filterStr(c.fx);
+          try { G.drawImage(bmp, -w / 2, -h / 2, w, h); } catch (e) { }
+          G.filter = 'none';
+          G.restore();
+          continue;
+        }
+        const ok = el && (c.kind === 'image' ? el.complete && el.naturalWidth : el.readyState >= 2);
+        if (ok) {
+          const { w, h } = fitSize(c, m);
+          G.filter = filterStr(c.fx);
+          try { G.drawImage(el, -w / 2, -h / 2, w, h); } catch (e) { }
+          G.filter = 'none';
+        } else if (m && m.poster) {
           const { w, h } = fitSize(c, m);
           try { G.drawImage(m.poster, -w / 2, -h / 2, w, h); } catch (e) { }
         }
       }
+      G.restore();
     }
-    G.restore();
   }
   G.globalAlpha = 1; G.filter = 'none';
 }

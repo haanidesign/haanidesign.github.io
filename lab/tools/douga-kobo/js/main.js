@@ -2,24 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=11';
-import { wire, bus } from './bus.js?v=11';
-import { MEDIA, importFiles, hookAll } from './media.js?v=11';
-import { useCanvas, renderStage, renderOut, outCanvas, fitView, view } from './render.js?v=11';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=11';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=11';
-import { beatOn, beatSec, beatAt } from './beat.js?v=11';
-import * as TL from './ui/timeline.js?v=11';
-import * as P from './ui/panel.js?v=11';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=11';
+} from './state.js?v=12';
+import { wire, bus } from './bus.js?v=12';
+import { MEDIA, importFiles, hookAll } from './media.js?v=12';
+import { useCanvas, renderStage, renderOut, outCanvas, fitView, view } from './render.js?v=12';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=12';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=12';
+import { beatOn, beatSec, beatAt } from './beat.js?v=12';
+import * as TL from './ui/timeline.js?v=12';
+import * as P from './ui/panel.js?v=12';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=12';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=11';
-import { addFontFile } from './text.js?v=11';
-import { makePack, openPack } from './pack.js?v=11';
-import { showStart } from './ui/start.js?v=11';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=11';
-import { trackOf } from './state.js?v=11';
+} from './edit.js?v=12';
+import { addFontFile } from './text.js?v=12';
+import { makePack, openPack } from './pack.js?v=12';
+import { showStart } from './ui/start.js?v=12';
+import { openDemo } from './demo.js?v=12';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=12';
+import { trackOf } from './state.js?v=12';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -88,6 +89,7 @@ wire({
   canMp4: () => hasCodecs(),
   version: () => VERSION,
   home: backToStart,
+  demo: runDemo,
   rename: v => { S.name = v; auto.touch(); },
   replaceMedia: id => { swapId = id; $('#fileSwap').click(); },
   wip: startWip,
@@ -421,6 +423,7 @@ export const VERSION = (() => {
   return m ? m[1] : '?';
 })();
 $('#ver').textContent = 'v' + VERSION;
+window.__v = VERSION;        // 版を 外からも 見られる ように（ようす・たしかめ 用）
 $('#ver').onclick = async () => {
   /* ホーム画面や ブラウザが 古いものを つかんだ ままに なる ことが ある。
      ここを おしたら ためこんだ ものを ぜんぶ 捨てて 取り直す。
@@ -469,7 +472,7 @@ const auto = autoSaver(() => ({
 async function backToStart() {
   pause();
   await auto.now();
-  showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+  showStart($('#start'), { onOpen: openDoc, onNew: startNew, onDemo: runDemo });
 }
 function startNew(size, fps) {
   S.W = size.w; S.H = size.h; S.fps = fps || 30;
@@ -482,6 +485,12 @@ function startNew(size, fps) {
   MEDIA.clear();
   bootProject();
   applySize(); resetHist(); appH(); drawAll(); TL.fit();
+}
+async function runDemo() {
+  $('#start').classList.remove('on');
+  busy(true, 'デモを つくって います'); prog(.3);
+  try { await openDemo(); } catch (e) { toast('デモを ひらけなかった'); }
+  finally { busy(false); drawAll(); }
 }
 async function openDoc(id) {
   $('#start').classList.remove('on');
@@ -542,11 +551,13 @@ setTool('select');
 (async () => {
   if (!S.docId) S.docId = newId();
   try {
-    const docs = await Promise.race([
+    /* はじめの 画面は いつも 出す。
+       はじめて の 人が デモに たどりつけない と 意味が ない。 */
+    await Promise.race([
       listDocs(),
       new Promise(r => setTimeout(() => r([]), 6000))   // 待ちすぎない
     ]);
-    if (docs.length) await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+    await showStart($('#start'), { onOpen: openDoc, onNew: startNew, onDemo: runDemo });
   } catch (e) {
     $('#start').classList.remove('on');                  // 出しかけで 止めない
   }
