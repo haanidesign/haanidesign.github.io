@@ -528,10 +528,10 @@ function allTasks(){
   return tasks.concat(bskyPosts);
 }
 
-/* 公開ページは 絵と動画だけを 枡に出すが、
-   ここは 直す道具なので、文字だけの予定も 出して つつけるようにする。 */
+/* 枡に並べるのは 絵と動画だけ。
+   文字だけの予定は 枡に出さず、下の「これからの予定」で読んでもらう。 */
 function onDay(key){
-  return allTasks().filter(t => t.date === key);
+  return allTasks().filter(t => t.date === key && t.image);
 }
 
 function render(){
@@ -1111,6 +1111,18 @@ function picExtra(t){
     if(cur) openEdit(cur);
   });
   $("#picRow").appendChild(b);
+
+  const x = document.createElement("button");
+  x.className = "btn btn-sm btn-p"; x.type = "button"; x.textContent = "けす";
+  x.addEventListener("click", async ()=>{
+    const cur = findTask(t.id);
+    if(!cur) return;
+    if(!confirm(`「${cur.title || "この予定"}」を消します。よろしいですか。`)) return;
+    if(cur.source === "mine"){ delete mine[cur.id]; await kvSet("mine", mine); }
+    else { over[cur.id] = { ...(over[cur.id]||{}), hidden:true }; await kvSet("over", over); }
+    picClose(); redraw();
+  });
+  $("#picRow").appendChild(x);
 }
 $("#cal").addEventListener("contextmenu", (e)=>{
   const day = e.target.closest(".day");
