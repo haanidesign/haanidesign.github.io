@@ -50,12 +50,12 @@
 .cpill{
   display:inline-flex; align-items:center; gap:.35rem;
   font-size:.66rem; font-weight:700;
-  background:var(--paper); border:2px solid var(--ink); border-radius:999px;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
   box-shadow:0 2.5px 0 var(--ink); padding:.1rem .7rem;
 }
 .cpill b{font-family:'DotGothic16',monospace; font-weight:400; font-size:.86rem;}
 .cpill .sw{width:11px; height:11px; border-radius:4px; border:2px solid var(--ink);}
-.cpill.off{background:var(--cream); color:var(--gray);}
+.cpill.off{background:#F6F1D8; color:var(--ink);}
 .sch-legend{
   display:flex; gap:.8rem; flex-wrap:wrap; align-items:center;
   margin-left:auto; font-size:.7rem; color:var(--gray);
@@ -65,36 +65,36 @@
 .lg-off{
   width:12px; height:12px; border-radius:4px;
   border:2px solid var(--ink); display:inline-block;
-  background:#EFEBD2;
+  background:#F6F1D8;
   background-image:repeating-linear-gradient(-45deg,
-    rgba(30,28,20,.16) 0 2px, transparent 2px 6px);
+    rgba(184,180,63,.55) 0 2px, transparent 2px 6px);
 }
 
 /* --- カレンダー --- */
 .cal{display:grid; grid-template-columns:repeat(7,1fr); gap:.4rem;}
 .cal .dow{
-  text-align:center; font-size:.68rem; color:var(--gray);
-  letter-spacing:.1em; padding-bottom:.25rem;
+  text-align:center; font-size:.66rem; font-weight:700; color:var(--ink);
+  letter-spacing:.1em; line-height:1.9;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  margin-bottom:.15rem;
 }
-.cal .dow.sat,.cal .dow.sun{
-  color:var(--ink); background:#EFEBD2;
-  border:2px solid var(--ink); border-radius:999px;
-}
+.cal .dow.sat,.cal .dow.sun{background:var(--main);}
 .day{
   min-height:132px; border:2px solid var(--ink); border-radius:13px;
   background:var(--paper); padding:.3rem .35rem;
   display:flex; flex-direction:column; gap:.2rem; overflow:hidden;
 }
 /* 予定のある日は、ちょっと浮かせる */
-.day.filled{box-shadow:0 3px 0 var(--ink);}
+.day.filled{box-shadow:0 3px 0 var(--ink); background:#FFFDEE;}
 .day .top{display:flex; align-items:center; gap:.25rem;}
 .day .cnt{
   margin-left:auto; font-family:'DotGothic16',monospace; font-weight:400;
   font-size:.5rem; color:var(--gray); letter-spacing:.04em;
 }
 .day .tdy{
-  font-size:.5rem; font-weight:700; line-height:1.6;
-  background:var(--ink); color:var(--main); border-radius:999px; padding:0 .45rem;
+  font-size:.5rem; font-weight:700; line-height:1.5;
+  background:var(--pink); color:var(--ink);
+  border:2px solid var(--ink); border-radius:999px; padding:0 .4rem;
 }
 .day.out{opacity:.28; border-style:dashed; box-shadow:none;}
 .day.past{background:#f4f2e6;}
@@ -102,14 +102,14 @@
 /* お休み：平日（ほぼ白）より一段 沈めた 生成りに、斜線を 重ねる。
    地の色で ひと目 分かり、斜線で「閉まっている」ことを 足す。 */
 .day.off{
-  background:#EFEBD2;
+  background:#F6F1D8;
   background-image:repeating-linear-gradient(-45deg,
-    rgba(30,28,20,.10) 0 3px, transparent 3px 10px);
+    rgba(184,180,63,.30) 0 3px, transparent 3px 10px);
 }
 .day.off.past{
-  background:#E6E2C9;
+  background:#EDE8CC;
   background-image:repeating-linear-gradient(-45deg,
-    rgba(30,28,20,.10) 0 3px, transparent 3px 10px);
+    rgba(30,28,20,.09) 0 3px, transparent 3px 10px);
 }
 .hol{
   font-size:.56rem; font-weight:700; color:var(--gray);
@@ -117,11 +117,12 @@
 }
 .off-mark{
   margin-top:auto; align-self:flex-start;
-  font-size:.52rem; font-weight:700; line-height:1.6; color:var(--gray);
-  background:var(--paper); border:2px solid var(--ink); border-radius:999px;
+  font-size:.52rem; font-weight:700; line-height:1.6; color:var(--ink);
+  background:#F6F1D8; border:2px solid var(--ink); border-radius:999px;
   padding:0 .45rem;
 }
 .day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
+.day.today.off{background:var(--main-soft); background-image:none;}
 .day.today .dnum{color:var(--ink);}
 .day .dnum{font-family:'DotGothic16',monospace; font-weight:400; font-size:.94rem; flex:none; line-height:1.2;}
 .day.sun .dnum,.day.sat .dnum{color:var(--ink);}
@@ -331,7 +332,7 @@ let bskyCursor = null, bskyDone = false, bskyBusy = false;
    Notion 側でカテゴリーを増やしても、勝手に色が付く。 */
 /* メインの黄色を軸に、濃さと温度だけ変えて並べる。
    差し色のピンクは1つだけ混ぜる（青系・紫系は使わない）。 */
-const PALETTE = ["#E1DD60","#B8B43F","#F2F0BE","#F2A0B8","#CFC97E","#EFE9BE","#C9B85A"];
+const PALETTE = ["#E1DD60","#F2A0B8","#F2F0BE","#F6D98C","#FBE0EA","#CFC97E","#EFE9BE"];
 function colorOf(name){
   if(!name) return "#EDEBDD";
   let h = 0;
