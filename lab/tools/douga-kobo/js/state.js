@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=12';
+import { bus } from './bus.js?v=13';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -11,7 +11,7 @@ export const S = {
   fps: 30, W: 1280, H: 720, bg: '#101010',
   tracks: [],
   time: 0, pps: 60,
-  sel: null, selTrack: null,
+  sel: null, selTrack: null, selChar: null,
   tool: 'select',          // select | cut | hand
   snap: true,
   loop: { on: false, a: 0, b: 0 },
@@ -43,6 +43,7 @@ export function newClip(kind, o = {}) {
       grad: false, color2: '#E1DD60', gradDir: 90,
       shadowOn: false, shadowColor: '#1E1C14', shadowX: 6, shadowY: 8, shadowBlur: 0,
       glowOn: false, glowColor: '#E1DD60', glowSize: 18,
+      charOn: false, off: {},
       fxIn: 'pop', fxOut: 'fade', fxLoop: 'none',
       unit: 'char', inDur: .45, outDur: .3, stagger: .04,
       inBeat: 0, outBeat: 0, order: 'fwd', ease: 'out', dist: 0, angle: 90,

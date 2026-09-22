@@ -3,16 +3,17 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=12';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=12';
-import { storeOk } from '../store.js?v=12';
-import { bus } from '../bus.js?v=12';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=12';
-import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile } from '../text.js?v=12';
+} from '../state.js?v=13';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=13';
+import { storeOk } from '../store.js?v=13';
+import { bus } from '../bus.js?v=13';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=13';
+import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
+  offOf, setOff, clearOff } from '../text.js?v=13';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=12';
+} from '../edit.js?v=13';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -324,6 +325,8 @@ function clipBody(c) {
       T.bgOn ? color('ふだ地の色', T.bgColor, v => { T.bgColor = v; live(); }) : null
     ]));
 
+    w.appendChild(charGroup(T));
+
     const beatUnits = [['0', '秒で きめる'], ['0.25', '16ぶん'], ['0.5', '8ぶん'],
     ['1', '1拍'], ['2', '2拍'], ['4', '1小節']];
     w.appendChild(group('もじの うごき', [
@@ -406,6 +409,51 @@ function clipBody(c) {
     w.appendChild(hint(`もとの 素材: ${m.name}<br>${r2(m.dur)}s の うち ${r2(c.inp)}s から つかって いる`));
   }
   return w;
+}
+
+/* --- 1文字ずつ --- */
+function charGroup(T) {
+  const nodes = [];
+  nodes.push(grid('つかう', [
+    btn(T.charOn ? 'いじる' : 'いじらない', 'btn-sm' + (T.charOn ? ' on' : ''),
+      () => { T.charOn = !T.charOn; if (!T.charOn) S.selChar = null; pushUndo(); bus.all(); draw(); })
+  ]));
+
+  if (T.charOn) {
+    const chars = [...String(T.str)].filter(ch => ch !== '\n');
+    const chipRow = el('div', 'row');
+    chipRow.appendChild(el('label', null, 'どの字'));
+    const box = el('div', 'grid chips');
+    chars.forEach((ch, i) => {
+      const o = offOf(T, i);
+      const moved = o.x || o.y || o.r || o.s !== 1;
+      const b = btn(ch === ' ' ? '␣' : ch, 'btn-sm chip1' + (S.selChar === i ? ' on' : '') + (moved ? ' moved' : ''),
+        () => { S.selChar = i; bus.all(); draw(); });
+      box.appendChild(b);
+    });
+    chipRow.appendChild(box);
+    nodes.push(chipRow);
+
+    const i = S.selChar;
+    if (i === null || i === undefined || i >= chars.length) {
+      nodes.push(hint('うごかしたい 字を えらぶか、<br>画面の 中で その字を じかに ドラッグ。'));
+    } else {
+      const o = offOf(T, i);
+      const put = part => { setOff(T, i, part); bus.stage(); bus.tl(); };
+      nodes.push(range('よこ', o.x, -3, 3, .01, 'em', v => put({ x: v })));
+      nodes.push(range('たて', o.y, -3, 3, .01, 'em', v => put({ y: v })));
+      nodes.push(range('大きさ', o.s, .1, 4, .01, 'x', v => put({ s: v })));
+      nodes.push(range('かたむき', o.r, -180, 180, 1, '°', v => put({ r: v })));
+      nodes.push(grid('もどす', [
+        btn('この字', 'btn-sm', () => { clearOff(T, i); pushUndo(); bus.all(); draw(); }),
+        btn('ぜんぶ', 'btn-sm btn-p', () => { clearOff(T); S.selChar = null; pushUndo(); bus.all(); draw(); })
+      ]));
+      nodes.push(hint('画面の 中の その字を じかに ドラッグしても うごきます。<br>ピンクの わくが いま えらんで いる 字。'));
+    }
+  } else {
+    nodes.push(hint('「いじる」に すると、1文字ずつ 位置・大きさ・かたむきを<br>手で 直せます。'));
+  }
+  return group('1文字ずつ', nodes);
 }
 
 /* --- だん --- */
@@ -756,6 +804,8 @@ function helpBody() {
   <b>うごきかた</b>（すっと止まる・いきすぎ・ばね など）を えらべる</li>
   <li><b>たて書き</b>・カーブ・文字づめ・字あき・行あき・かたむき・反転</li>
   <li><b>グラデーション</b>・ふち・<b>かげ</b>・<b>ひかり</b>（グロー）</li>
+  <li><b>1文字ずつ</b> 位置・大きさ・かたむきを 手で 直せます。
+  「いじる」に すると 字ごとに わくが 出るので、画面の 中で じかに ドラッグ</li>
   <li>歌詞に 合う 書たいが 20種。手もちの 書たい（ttf・otf）も 入れられる</li></ul>
   <h3>5. うごきの あと</h3>
   <ul><li>動画・画像・色の ふだにも <b>うごきの あと</b>（モーションブラー）が つけられます。
