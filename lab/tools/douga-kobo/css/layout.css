@@ -49,6 +49,14 @@
   border:none; border-radius:100px; padding:.15rem .7rem; min-height:0;
   box-shadow:none; white-space:nowrap; flex:0 0 auto;
 }
+#top .ver{
+  font-size:.58rem; color:#5c5843; font-weight:400;
+  flex:0 0 auto; white-space:nowrap;
+  background:transparent; border:none; box-shadow:none;
+  min-height:0; padding:.1rem .35rem; border-radius:6px;
+}
+#top .ver:hover{ background:var(--main-deep); }
+#top .ver:active{ transform:none; box-shadow:none; }
 #top .spacer{ flex:1; }
 #top button{ min-height:38px; }
 #top #export{ min-height:40px; font-weight:800; }

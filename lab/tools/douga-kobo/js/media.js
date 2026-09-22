@@ -1,9 +1,12 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp } from './state.js?v=4';
-import { bus } from './bus.js?v=4';
-import { analyse } from './beat.js?v=4';
+import { S, uid, r2, toast, clamp } from './state.js?v=5';
+import { bus } from './bus.js?v=5';
+import { analyse } from './beat.js?v=5';
 
 export const MEDIA = new Map();
+
+/* さいごの とりこみの きろく。うまく いかない ときに 見る ため */
+export const LOG = { at: null, count: 0, items: [], note: '' };
 
 /* 音や 動画の もとは 画面の 外に 置いて おく。
    ぶら下げずに 持って いるだけだと、端末に よっては 鳴らない。 */
@@ -56,6 +59,11 @@ export function hookAudio(m) {
 }
 export const hookAll = () => MEDIA.forEach(hookAudio);
 
+function mark(file, state) {
+  const it = LOG.items.find(x => x.name === file.name && x.size === file.size);
+  if (it) it.state = state;
+}
+
 /* ---- とりこみ ---- */
 function kindOf(file) {
   if (file.type.startsWith('video')) return 'video';
@@ -68,8 +76,26 @@ function kindOf(file) {
 }
 
 export function importFiles(files, after) {
-  const list = [...files].filter(f => f && f.size !== undefined);
-  if (!list.length) return;
+  const raw = files ? [...files] : [];
+  const list = raw.filter(f => f && f.size !== undefined);
+  LOG.at = new Date().toLocaleTimeString();
+  LOG.count = raw.length;
+  LOG.items = list.map(f => ({
+    name: f.name, size: f.size, type: f.type || '(なし)', kind: kindOf(f), state: 'まち'
+  }));
+  LOG.note = '';
+  if (!raw.length) {
+    LOG.note = 'ファイルが 1つも 来ませんでした';
+    toast('ファイルが えらばれて いません', 2600);
+    bus.all();
+    return;
+  }
+  if (!list.length) {
+    LOG.note = '来た ものが ファイルでは ありませんでした';
+    toast('この ファイルは つかえません', 2600);
+    bus.all();
+    return;
+  }
   let left = list.length;
   const done = () => { if (--left <= 0) { bus.all(); after && after(); } };
   list.forEach(file => {
@@ -79,9 +105,11 @@ export function importFiles(files, after) {
     if (kind === 'image') {
       const el = new Image();
       el.addEventListener('load', () => {
-        m.w = el.naturalWidth; m.h = el.naturalHeight; makePoster(m); done();
+        m.w = el.naturalWidth; m.h = el.naturalHeight; makePoster(m);
+        mark(file, 'よめた ' + m.w + '×' + m.h); done();
       }, { once: true });
-      el.addEventListener('error', done, { once: true });
+      el.addEventListener('error', () => { mark(file, 'よめない'); done(); }, { once: true });
+      setTimeout(() => { if (!el.complete) { mark(file, 'じかんぎれ'); done(); } }, 8000);
       el.src = url; m.el = el;
     } else {
       const el = document.createElement(kind === 'audio' ? 'audio' : 'video');
@@ -94,6 +122,7 @@ export function importFiles(files, after) {
         if (settled) return;
         settled = true;
         m.elOk = ok;
+        mark(file, ok ? 'よめた' : 'この 端末では ひらけない');
         if (ok) {
           const d = el.duration;
           if (isFinite(d) && d > 0) m.dur = d;
