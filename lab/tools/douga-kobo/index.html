@@ -7,15 +7,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>動画工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=3">
+<link rel="manifest" href="manifest.webmanifest?v=4">
 <link rel="icon" href="icons/icon.svg">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=3">
-<link rel="stylesheet" href="css/layout.css?v=3">
-<link rel="stylesheet" href="css/parts.css?v=3">
+<link rel="stylesheet" href="css/tokens.css?v=4">
+<link rel="stylesheet" href="css/layout.css?v=4">
+<link rel="stylesheet" href="css/parts.css?v=4">
 </head>
 <body>
 
@@ -110,6 +110,72 @@
 </div></div>
 
 <div id="start"></div>
+
+<!-- うまく 立ち上がらなかった ときの 知らせ。
+     中の ファイルが 新しいのと 古いので 混ざると ここに 出る。
+     「読みこみ直す」で ためこんだ ものを 捨てて 取り直す。 -->
+<div id="deadman"><div>
+  <b>うまく 読みこめませんでした</b>
+  <p id="deadwhy"></p>
+  <button id="deadfix" type="button">🔄 読みこみ直す</button>
+  <button id="deadhide" type="button">とじる</button>
+</div></div>
+<script>
+(function () {
+  var ok = false, shown = false;
+  window.__ready = function () {
+    ok = true;
+    var d = document.getElementById('deadman');
+    if (d) d.style.display = 'none';
+  };
+  function show(why) {
+    if (ok || shown) return;
+    shown = true;
+    var t = String(why || '').trim();
+    if (!t || t === 'Script error.') {
+      t = '中の ファイルが 前の ままに なって いる ようです。下の ボタンで 取り直すと 直ります。';
+    }
+    var d = document.getElementById('deadman');
+    var w = document.getElementById('deadwhy');
+    if (w) w.textContent = t.slice(0, 300);
+    if (d) d.style.display = 'flex';
+  }
+  window.addEventListener('error', function (e) {
+    var m = e && e.message;
+    if (!m && e && e.target && e.target.tagName === 'SCRIPT') {
+      m = '中の ファイルが 読めませんでした（' + String(e.target.src || '').split('/').pop() + '）';
+    }
+    show(m);
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) {
+    show(e && e.reason && (e.reason.message || e.reason));
+  });
+  setTimeout(function () { show('じかんが かかりすぎました'); }, 8000);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var fix = document.getElementById('deadfix');
+    var hide = document.getElementById('deadhide');
+    if (hide) hide.onclick = function () { document.getElementById('deadman').style.display = 'none'; };
+    if (fix) fix.onclick = function () {
+      fix.textContent = 'かたづけ中…';
+      var jobs = [];
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.unregister(); }));
+        }));
+      }
+      if (window.caches && caches.keys) {
+        jobs.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      Promise.all(jobs).catch(function () {}).then(function () {
+        location.replace(location.pathname + '?r=' + Date.now());
+      });
+    };
+  });
+})();
+</script>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <input type="file" id="file" multiple hidden>
@@ -119,7 +185,7 @@
 <input type="file" id="filePack" hidden>
 <input type="file" id="fileFont" hidden>
 
-<script src="lib/mp4-muxer.js?v=3"></script>
-<script type="module" src="js/main.js?v=3"></script>
+<script src="lib/mp4-muxer.js?v=4"></script>
+<script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

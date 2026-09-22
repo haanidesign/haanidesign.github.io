@@ -1,7 +1,7 @@
 /* ホーム画面から ひらく ための しくみ。
    つないで いる ときは かならず 新しいのを 取りに 行き、
    取れたら 手もとにも しまう。つながらない ときだけ 手もとの ものを 出す。 */
-const VER = 'v3';
+const VER = 'v4';
 const BOX = 'douga-kobo-' + VER;
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -22,8 +22,11 @@ self.addEventListener('fetch', e => {
   if (url.origin !== location.origin) return;
   e.respondWith((async () => {
     try {
+      /* 中の ファイルも ブラウザの ためこみを 通さずに 取る。
+         古いのと 新しいのが 混ざると、読みこみ そのものが こける。 */
       const fresh = req.mode === 'navigate' || url.pathname.endsWith('/')
-        || url.pathname.endsWith('.html') || url.pathname.endsWith('sw.js');
+        || url.pathname.endsWith('.html') || url.pathname.endsWith('sw.js')
+        || url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
       const res = await fetch(req, fresh ? { cache: 'reload' } : undefined);
       if (res && res.ok) { (await caches.open(BOX)).put(req, res.clone()); }
       return res;

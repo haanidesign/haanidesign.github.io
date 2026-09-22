@@ -1,7 +1,7 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp } from './state.js';
-import { bus } from './bus.js';
-import { analyse } from './beat.js';
+import { S, uid, r2, toast, clamp } from './state.js?v=4';
+import { bus } from './bus.js?v=4';
+import { analyse } from './beat.js?v=4';
 
 export const MEDIA = new Map();
 
@@ -108,7 +108,9 @@ export function importFiles(files, after) {
          そのままだと とりこみが 終わらないので、待ちきれたら 先へ 進む。 */
       setTimeout(() => settle(el.readyState >= 1), 6000);
       el.addEventListener('seeked', () => { if (!S.playing) bus.stage(); });
-      analyse2(m, file);
+      /* 音の 中身を 見るのは 音の ファイルと、小さめの 動画だけ。
+         大きい 動画を まるごと 読むと 端末の メモリが 足りなく なる。 */
+      if (kind === 'audio' || file.size < 80 * 1024 * 1024) analyse2(m, file);
     }
     MEDIA.set(m.id, m);
   });

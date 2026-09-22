@@ -185,3 +185,27 @@ kbd{
 .sizebtn i{ font-style:normal; font-size:.58rem; font-weight:400; color:#5c5843; }
 .fpsrow{ display:flex; align-items:center; gap:.4rem; margin-bottom:.9rem; }
 .gobtn{ width:100%; min-height:54px; font-size:.95rem; font-weight:800; }
+
+/* ---------- 立ち上がらなかった ときの 知らせ ---------- */
+#deadman{
+  position:fixed; inset:0; z-index:200; display:none;
+  align-items:center; justify-content:center; padding:1rem;
+  background:rgba(251,250,236,.96);
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI',sans-serif; font-weight:700; color:#1E1C14;
+}
+#deadman > div{
+  background:#FFFEF7; border:2.5px solid #1E1C14; border-radius:16px;
+  box-shadow:0 5px 0 #1E1C14; padding:1rem 1.1rem; max-width:460px; width:100%;
+}
+#deadman b{ font-size:1rem; display:block; margin-bottom:.4rem; }
+#deadman p{
+  font-size:.68rem; font-weight:400; color:#5c5843; line-height:1.7;
+  margin:0 0 .7rem; word-break:break-all;
+}
+#deadman button{
+  min-height:48px; padding:0 1rem; margin-right:.4rem;
+  font:inherit; font-size:.85rem; cursor:pointer;
+  background:#E1DD60; border:2.5px solid #1E1C14; border-radius:12px;
+  box-shadow:0 3px 0 #1E1C14;
+}
+#deadman #deadhide{ background:#FFFEF7; font-size:.78rem; min-height:44px; }
