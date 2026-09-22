@@ -7,139 +7,190 @@
 <title>予定カレンダー | HAANI LAB</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Pacifico&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <style>
 :root{
-  --pink:#FF7BB5; --pink-2:#FFA6CE; --pink-soft:#FFE6F1; --pink-line:#FFC4DE;
-  --ink:#5B3A4A; --ink-2:#8A6A78; --ink-3:#B79AA6;
-  --paper:#FFFFFF; --bg:#FFF4F8; --frame:#FFDCEB;
-  --mint:#5FD0C0; --lav:#B49BE3; --sun:#FFC55F;
-  --r-s:10px; --r-m:16px; --r-l:26px;
-  --font:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
-  --shadow:0 2px 0 rgba(255,123,181,.18), 0 10px 26px rgba(255,123,181,.16);
+  --main:      #E1DD60;
+  --main-deep: #B8B43F;
+  --main-soft: #F2F0BE;
+  --cream:     #FBFAEC;
+  --paper:     #FFFEF7;
+  --ink:       #1E1C14;
+  --gray:      #8A8470;
+  --pink:      #F2A0B8;
+  --bd: 2.5px solid var(--ink);
+  --r: 12px;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{
-  font-family:var(--font); color:var(--ink); font-size:15px; line-height:1.5;
-  background:var(--bg);
-  background-image:repeating-linear-gradient(90deg,#FFD3E5 0 26px,#FFF4F8 26px 52px);
+  font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif;
+  font-weight:700; color:var(--ink); line-height:1.8;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
   -webkit-font-smoothing:antialiased;
-  padding:18px;
+  padding:1rem .8rem 2rem;
 }
+.dot{font-family:'DotGothic16',monospace;font-weight:400;}
+img{display:block;max-width:100%}
+
+/* ===== アプリの窓 ===== */
 .sheet{
-  max-width:1100px; margin:0 auto; background:var(--paper);
-  border:3px solid var(--frame); border-radius:var(--r-l);
-  box-shadow:var(--shadow); padding:22px 24px 30px;
+  max-width:1240px; margin:0 auto;
+  border:var(--bd); border-radius:18px; background:var(--paper);
+  box-shadow:0 6px 0 var(--ink); overflow:hidden;
 }
 
-/* ===== 見出し ===== */
-.head{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
-.month-name{
-  font-family:"Pacifico",var(--font); font-size:44px; line-height:1;
-  color:var(--pink); text-shadow:0 3px 0 #fff, 0 5px 0 var(--pink-line);
-  margin:0 4px 0 0;
+/* ===== タイトルバー ===== */
+.head{
+  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+  background:var(--main); border-bottom:var(--bd); padding:.55rem .8rem;
 }
-.year{font-size:11px; letter-spacing:.24em; color:var(--ink-3)}
-.year b{display:block; font-size:22px; letter-spacing:.06em; color:var(--ink)}
+.month-name{font-size:1.15rem; letter-spacing:.02em}
+.year{font-size:.62rem; color:#5c5843; letter-spacing:.18em}
 .spacer{flex:1}
-.nav{display:flex; gap:8px}
-button,select{font-family:inherit; color:inherit}
-.rnd{
-  border:2px solid var(--pink-line); background:#fff; border-radius:999px;
-  padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer;
-  box-shadow:0 2px 0 var(--pink-line); transition:transform .08s, background .15s;
-}
-.rnd:hover{background:var(--pink-soft)}
-.rnd:active{transform:translateY(2px); box-shadow:none}
-.circ{width:42px; height:42px; padding:0; font-size:16px; display:grid; place-items:center}
-select.rnd{padding:9px 14px; -webkit-appearance:none; appearance:none}
-.rnd.go{border-color:var(--mint); box-shadow:0 2px 0 var(--mint); color:#2E8074}
 
-/* ===== まとめ ===== */
-.stats{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0 6px}
-.pill{
-  display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
-  border:2px solid var(--pink-line); border-radius:999px; padding:6px 14px; background:#fff;
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  background:var(--paper);color:var(--ink);
+  border:var(--bd);border-radius:var(--r);
+  padding:.6rem 1.1rem;font:inherit;font-size:.82rem;
+  box-shadow:0 3px 0 var(--ink);
+  cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s;
+  white-space:nowrap;
 }
-.pill b{font-size:14px}
-.pill .dot{width:9px; height:9px; border-radius:50%; background:var(--pink)}
-.pill.live{background:var(--pink); border-color:var(--pink); color:#fff}
-.pill.plan{border-style:dashed; color:var(--pink); border-color:var(--pink)}
+.btn:hover{background:var(--main)}
+.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.btn-g{background:var(--ink);color:var(--main)}
+.btn-g:hover{background:#000;color:var(--main)}
+.btn-sm{padding:.35rem .75rem;font-size:.72rem;box-shadow:0 2.5px 0 var(--ink)}
+.btn-sq{width:2rem;height:2rem;padding:0;font-size:.9rem;box-shadow:0 2.5px 0 var(--ink)}
+select.btn{-webkit-appearance:none;appearance:none;font-size:.72rem;padding:.35rem .75rem}
+
+/* ===== まとめの帯 ===== */
+.stats{
+  display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;
+  padding:.55rem .8rem; border-bottom:var(--bd); background:var(--cream);
+}
+.chip{
+  display:inline-flex; align-items:center; gap:.3rem;
+  font-size:.66rem; background:var(--paper);
+  border:2px solid var(--ink); border-radius:100px; padding:.12rem .65rem;
+}
+.chip b{font-family:'DotGothic16',monospace;font-weight:400;font-size:.82rem}
+.chip.y{background:var(--main)}
+.chip.p{background:var(--pink)}
+.chip.s{background:var(--main-soft)}
+.chip.plan{border-style:dashed;background:var(--paper)}
 .hint{
-  margin-left:auto; font-size:11px; color:var(--ink-2); background:#EFFBF8;
-  border:2px solid #BFEDE5; border-radius:999px; padding:6px 14px;
+  margin-left:auto;
+  background:var(--main-soft);border:2px dashed var(--ink);border-radius:10px;
+  padding:.2rem .55rem;font-size:.62rem;font-weight:400;color:#5c5843;
 }
 
 /* ===== カレンダー ===== */
-.dows,.grid{display:grid; grid-template-columns:repeat(7,1fr); gap:10px}
-.dows{margin-top:10px; border-bottom:2px solid #F0E6EB; padding-bottom:6px}
-.dow{text-align:center; font-size:11px; letter-spacing:.16em; color:var(--ink-3)}
-.dow.sat{color:#7FA8D8} .dow.sun{color:#F08AA8}
-.grid{margin-top:10px}
+.body{padding:.7rem .8rem 1rem}
+.dows,.grid{display:grid; grid-template-columns:repeat(7,1fr); gap:.4rem}
+.dows{padding-bottom:.3rem; border-bottom:2px solid var(--ink)}
+.dow{text-align:center; font-size:.6rem; letter-spacing:.14em; color:var(--gray)}
+.grid{margin-top:.4rem}
 .cell{
-  position:relative; min-height:128px; border:2px solid #F1E3E9; border-radius:var(--r-m);
-  background:#fff; padding:8px; display:flex; flex-direction:column; gap:6px;
+  min-height:118px; border:2px solid var(--ink); border-radius:var(--r);
+  background:var(--cream); padding:.3rem .35rem;
+  display:flex; flex-direction:column; gap:.25rem;
 }
-.cell.out{opacity:.35}
-.cell.has{border-color:var(--pink-line); background:#FFFAFC; box-shadow:0 2px 0 #FFE9F2}
-.cell.today{border-color:var(--pink); box-shadow:0 0 0 3px var(--pink-soft)}
-.cell-top{display:flex; align-items:center; gap:6px}
-.dnum{font-size:15px; font-weight:800}
-.cell.sat .dnum{color:#7FA8D8} .cell.sun .dnum{color:#F08AA8}
-.count{margin-left:auto; font-size:9px; color:var(--ink-3); letter-spacing:.06em}
-.today-tag{font-size:9px; font-weight:800; background:var(--pink); color:#fff; border-radius:999px; padding:2px 7px}
+.cell.out{opacity:.28; border-style:dashed}
+.cell.has{background:var(--paper); box-shadow:0 2.5px 0 var(--ink)}
+.cell.today{background:var(--main-soft); box-shadow:0 2.5px 0 var(--ink)}
+.cell-top{display:flex; align-items:center; gap:.3rem}
+.dnum{font-family:'DotGothic16',monospace;font-weight:400;font-size:.95rem;line-height:1.2}
+.cell.sat .dnum,.cell.sun .dnum{color:var(--main-deep)}
+.count{margin-left:auto; font-size:.55rem; font-weight:400; color:var(--gray)}
+.today-tag{
+  font-size:.55rem; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:0 .45rem; line-height:1.5;
+}
 
 .item{
-  border:2px solid var(--pink-line); border-radius:12px; overflow:hidden; background:#fff;
-  cursor:pointer; text-align:left; padding:0; width:100%; display:block;
+  display:block; width:100%; text-align:left; padding:0; font:inherit; color:inherit;
+  background:var(--paper); border:2px solid var(--ink); border-radius:9px;
+  box-shadow:0 2.5px 0 var(--ink); overflow:hidden; cursor:pointer;
+  transition:transform .08s,box-shadow .08s,background .15s;
 }
-.item:hover{border-color:var(--pink)}
+.item:hover{background:var(--main-soft)}
+.item:active{transform:translateY(2.5px);box-shadow:0 0 0 var(--ink)}
 .item.plan{border-style:dashed}
-.item-top{display:flex; align-items:center; gap:5px; padding:4px 6px 3px}
-.badge{font-size:9px; font-weight:800; letter-spacing:.06em; border-radius:999px; padding:2px 7px; color:#fff; background:var(--ink-3)}
-.badge.live{background:var(--pink)} .badge.short{background:var(--lav)}
-.badge.video{background:#FF5C8A} .badge.plan{background:#fff; color:var(--pink); border:1.5px dashed var(--pink)}
-.time{font-size:10px; font-weight:700; color:var(--ink-2); margin-left:auto}
-.thumb{display:block; width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--pink-soft)}
-.thumb.empty{display:grid; place-items:center; font-size:10px; color:var(--ink-3)}
-.item-bottom{display:flex; align-items:center; gap:4px; padding:3px 6px 5px; font-size:10px; color:var(--ink-2)}
-.item-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700}
-.item-bottom .more{margin-left:auto; color:var(--ink-3)}
+.item-top{display:flex; align-items:center; gap:.25rem; padding:.18rem .3rem 0}
+.badge{
+  font-size:.52rem; border-radius:100px; padding:0 .5rem; line-height:1.6;
+  border:2px solid var(--ink); background:var(--paper);
+}
+.badge.live{background:var(--ink); color:var(--main)}
+.badge.video{background:var(--main)}
+.badge.short{background:var(--main-soft)}
+.badge.plan{background:var(--pink); border-style:dashed}
+.time{
+  font-family:'DotGothic16',monospace;font-weight:400;
+  font-size:.58rem; color:var(--gray); margin-left:auto;
+}
+.thumb{
+  display:block; width:100%; aspect-ratio:16/9; object-fit:cover;
+  border:2px solid var(--ink); border-left:0; border-right:0;
+  background:var(--main-soft); margin-top:.18rem;
+}
+.thumb.empty{
+  display:grid; place-items:center; font-size:.55rem; font-weight:400; color:var(--gray);
+  border-style:dashed;
+}
+.item-bottom{display:flex; align-items:center; gap:.25rem; padding:.1rem .3rem .2rem; font-size:.58rem}
+.item-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.item-bottom .more{margin-left:auto; color:var(--gray); font-weight:400}
 
 /* ===== 編集パネル ===== */
-.veil{position:fixed; inset:0; background:rgba(91,58,74,.35); display:none; place-items:center; padding:18px; z-index:20}
+.veil{position:fixed; inset:0; background:rgba(30,28,20,.45); display:none; place-items:center; padding:1rem; z-index:20}
 .veil.on{display:grid}
 .panel{
-  width:min(420px,100%); background:#fff; border:3px solid var(--pink-line);
-  border-radius:var(--r-l); box-shadow:var(--shadow); padding:20px; max-height:90vh; overflow:auto;
+  width:min(420px,100%); background:var(--paper);
+  border:var(--bd); border-radius:18px; box-shadow:0 6px 0 var(--ink);
+  padding:1rem; max-height:90vh; overflow:auto;
 }
-.panel h2{margin:0 0 14px; font-size:16px}
-.panel label{display:block; font-size:11px; color:var(--ink-2); font-weight:700; margin:12px 0 4px}
-.panel input[type=text],.panel input[type=time],.panel select{
-  width:100%; font-family:inherit; font-size:14px; padding:9px 12px;
-  border:2px solid var(--pink-line); border-radius:12px; background:#FFFAFC; color:inherit;
+.panel h2{
+  display:inline-block; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.15rem .8rem; font-size:.66rem; margin-bottom:.6rem;
 }
-.types{display:flex; gap:6px; flex-wrap:wrap}
-.types button{border:2px solid var(--pink-line); background:#fff; border-radius:999px; padding:6px 13px; font-size:12px; font-weight:700; cursor:pointer}
-.types button[aria-pressed=true]{background:var(--pink); border-color:var(--pink); color:#fff}
+.panel label{display:block; font-size:.62rem; color:var(--gray); margin:.7rem 0 .2rem}
+.panel input[type=text],.panel input[type=time]{
+  width:100%; font:inherit; font-size:.82rem; padding:.45rem .6rem;
+  border:2px solid var(--ink); border-radius:9px; background:var(--cream); color:inherit;
+}
+.types{display:flex; gap:.3rem; flex-wrap:wrap}
+.types button{
+  font:inherit; font-size:.66rem; background:var(--paper); color:var(--ink);
+  border:2px solid var(--ink); border-radius:100px; padding:.1rem .7rem;
+  box-shadow:0 2.5px 0 var(--ink); cursor:pointer;
+  transition:transform .08s,box-shadow .08s,background .15s;
+}
+.types button:hover{background:var(--main-soft)}
+.types button[aria-pressed=true]{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px)}
 .drop{
-  margin-top:6px; border:2px dashed var(--pink-line); border-radius:14px; padding:12px;
-  text-align:center; font-size:12px; color:var(--ink-2); cursor:pointer; background:#FFFAFC;
+  margin-top:.2rem; border:2px dashed var(--ink); border-radius:10px; padding:.55rem;
+  text-align:center; font-size:.66rem; font-weight:400; color:#5c5843;
+  cursor:pointer; background:var(--main-soft);
 }
-.drop.over{background:var(--pink-soft); border-color:var(--pink)}
-.drop img{display:block; width:100%; border-radius:10px; margin-bottom:8px}
-.panel-btns{display:flex; gap:8px; margin-top:18px}
-.panel-btns .rnd{flex:1; text-align:center}
-.rnd.del{border-color:#F2B8C6; box-shadow:0 2px 0 #F2B8C6; color:#C0526F}
-.note{font-size:11px; color:var(--ink-3); margin-top:12px}
+.drop.over{background:var(--main)}
+.drop img{border:2px solid var(--ink); border-radius:8px; margin-bottom:.4rem}
+.panel-btns{display:flex; gap:.4rem; margin-top:1rem}
+.panel-btns .btn{flex:1}
+.btn-p{background:var(--pink)}
+.btn-p:hover{background:var(--pink)}
+.note{font-size:.62rem; font-weight:400; color:var(--gray); margin-top:.7rem; line-height:1.6}
+
 @media (max-width:760px){
-  body{padding:8px}
-  .sheet{padding:16px 12px 22px}
-  .month-name{font-size:32px}
-  .dows,.grid{gap:5px}
-  .cell{min-height:96px; padding:5px}
+  body{padding:.5rem .35rem 1.5rem}
+  .dows,.grid{gap:.25rem}
+  .cell{min-height:92px; padding:.22rem}
   .thumb{aspect-ratio:4/3}
+  .hint{display:none}
 }
 </style>
 </head>
@@ -147,24 +198,24 @@ select.rnd{padding:9px 14px; -webkit-appearance:none; appearance:none}
 <div class="sheet" id="sheet">
   <div class="head">
     <h1 class="month-name" id="monthName">September</h1>
-    <div class="year">YEAR<b id="yearNum">2026</b></div>
-    <div class="nav">
-      <button class="rnd circ" id="prev" title="前の月">‹</button>
-      <button class="rnd circ" id="next" title="次の月">›</button>
-    </div>
-    <select class="rnd" id="jump" title="月を選ぶ"></select>
+    <span class="year dot" id="yearNum">2026</span>
+    <button class="btn btn-sq" id="prev" title="前の月">◀</button>
+    <button class="btn btn-sq" id="next" title="次の月">▶</button>
+    <select class="btn" id="jump" title="月を選ぶ"></select>
     <div class="spacer"></div>
-    <button class="rnd go" id="export">画像を書き出し</button>
+    <button class="btn btn-sm btn-g" id="export">画像を書き出し</button>
   </div>
 
   <div class="stats" id="stats"></div>
 
-  <div class="dows">
-    <div class="dow">MON</div><div class="dow">TUE</div><div class="dow">WED</div>
-    <div class="dow">THU</div><div class="dow">FRI</div>
-    <div class="dow sat">SAT</div><div class="dow sun">SUN</div>
+  <div class="body">
+    <div class="dows">
+      <div class="dow">MON</div><div class="dow">TUE</div><div class="dow">WED</div>
+      <div class="dow">THU</div><div class="dow">FRI</div>
+      <div class="dow">SAT</div><div class="dow">SUN</div>
+    </div>
+    <div class="grid" id="grid"></div>
   </div>
-  <div class="grid" id="grid"></div>
 </div>
 
 <div class="veil" id="veil">
@@ -183,9 +234,9 @@ select.rnd{padding:9px 14px; -webkit-appearance:none; appearance:none}
       <div id="dropBody">ここにドロップ／クリックで選ぶ</div>
     </div>
     <div class="panel-btns">
-      <button class="rnd" id="save">ほぞん</button>
-      <button class="rnd del" id="del">けす</button>
-      <button class="rnd" id="cancel">やめる</button>
+      <button class="btn btn-sm" id="save">ほぞん</button>
+      <button class="btn btn-sm btn-p" id="del">けす</button>
+      <button class="btn btn-sm" id="cancel">やめる</button>
     </div>
     <p class="note" id="panelNote"></p>
   </div>
@@ -334,15 +385,15 @@ function render(){
   const liveSec = all.filter(i=>i.type==="live").reduce((s,i)=> s + durToSec(i.dur), 0);
   const stats = $("#stats");
   stats.innerHTML = "";
-  const pill = (cls, html)=>{
+  const chip = (cls, html)=>{
     const el = document.createElement("div");
-    el.className = "pill " + cls; el.innerHTML = html; stats.appendChild(el);
+    el.className = "chip " + cls; el.innerHTML = html; stats.appendChild(el);
   };
-  pill("", `<span class="dot" style="background:var(--lav)"></span>SHORT <b>${n("short")}</b> 本`);
-  pill("", `<span class="dot" style="background:#FF5C8A"></span>VIDEO <b>${n("video")}</b> 本`);
-  pill("live", `LIVE <b>${n("live")}</b> 本 / ${humanHours(liveSec)}`);
-  pill("", `出した日 <b>${Object.keys(byDate).length}</b> 日`);
-  if(n("plan")) pill("plan", `予定 <b>${n("plan")}</b> 本`);
+  chip("s", `SHORT <b>${n("short")}</b> 本`);
+  chip("y", `VIDEO <b>${n("video")}</b> 本`);
+  chip("p", `LIVE <b>${n("live")}</b> 本 / ${humanHours(liveSec)}`);
+  chip("", `出した日 <b>${Object.keys(byDate).length}</b> 日`);
+  if(n("plan")) chip("plan", `予定 <b>${n("plan")}</b> 本`);
   const hint = document.createElement("div");
   hint.className = "hint";
   hint.textContent = "日付を右クリックで予定を書けます";
