@@ -1,5 +1,5 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp } from './state.js?v=6';
+import { S, uid, r2, toast, clamp, allClips } from './state.js?v=6';
 import { bus } from './bus.js?v=6';
 import { analyse } from './beat.js?v=6';
 
@@ -58,6 +58,117 @@ export function hookAudio(m) {
   } catch (e) { /* つなげない ブラウザでは 素の音の まま */ }
 }
 export const hookAll = () => MEDIA.forEach(hookAudio);
+
+/* ---- うごく絵（すける GIF・WebP・APNG） ----
+   1枚の 絵として 置くと 止まって しまう ので、
+   コマに ほどいて タイムラインの 時間で めくる。
+   すけて いる ところは すけた まま のこる。
+
+   ぜんぶの コマを さきに ほどくと、長い GIF では
+   何百MB にも なって 端末が もたない。
+   だから「いま いる コマ」だけ その つど 取り出して、
+   すこしだけ 手もとに 置いて おく。 */
+const ANIM_KEEP = 10;             // 手もとに 置いて おく コマの 数
+
+async function animIn(m, file) {
+  if (typeof ImageDecoder === 'undefined') return;
+  const type = file.type || ({
+    gif: 'image/gif', webp: 'image/webp', png: 'image/png', apng: 'image/png'
+  })[(file.name.split('.').pop() || '').toLowerCase()];
+  if (!type) return;
+  try {
+    if (!(await ImageDecoder.isTypeSupported(type))) return;
+    const dec = new ImageDecoder({ data: await file.arrayBuffer(), type });
+    await dec.tracks.ready;
+    const track = dec.tracks.selectedTrack;
+    const count = track && track.frameCount ? track.frameCount : 1;
+    if (count < 2) { try { dec.close(); } catch (e) { } return; }
+
+    // 1コマぶんの ながさは さいしょの コマから もらう
+    const first = await dec.decode({ frameIndex: 0 });
+    const delay = Math.max(0.02, (first.image.duration || 100000) / 1e6);
+    const bmp0 = await createImageBitmap(first.image);
+    first.image.close && first.image.close();
+
+    m.anim = {
+      dec, count, delay, total: count * delay,
+      cache: new Map([[0, bmp0]]), order: [0], want: -1, busy: false, last: bmp0
+    };
+    m.w = bmp0.width; m.h = bmp0.height;
+    m.dur = m.anim.total;
+    /* もう 置いて あった ら、ながさを うごく絵に あわせる
+       （ほどく のは あとから なので、置いた ときは まだ 分からない） */
+    allClips().forEach(({ c }) => {
+      if (c.mid === m.id && c.kind === 'image' && Math.abs(c.dur - 4) < 1e-6) c.dur = m.dur;
+    });
+    mark(file, 'うごく絵 ' + count + 'コマ / ' + Math.round(m.dur * 100) / 100 + 's');
+    bus.all();
+  } catch (e) { /* ほどけない ときは 1枚の 絵の まま */ }
+}
+
+const animIndex = (a, t) => {
+  let x = a.total > 0 ? t % a.total : 0;
+  if (x < 0) x += a.total;
+  return Math.min(a.count - 1, Math.max(0, Math.floor(x / a.delay)));
+};
+
+/** その 時こくの コマ。まだ 出て いない ときは 直前の コマを かえす */
+export function animFrame(m, t) {
+  const a = m && m.anim;
+  if (!a) return null;
+  const i = animIndex(a, t);
+  const hit = a.cache.get(i);
+  if (hit) { a.last = hit; return hit; }
+  a.want = i;
+  pump(m);
+  return a.last || null;
+}
+
+/** 書き出しの ときは、ちゃんと その コマが 出るまで 待つ */
+export async function animFrameAt(m, t) {
+  const a = m && m.anim;
+  if (!a) return null;
+  const i = animIndex(a, t);
+  if (a.cache.has(i)) return a.cache.get(i);
+  try {
+    const r = await a.dec.decode({ frameIndex: i });
+    const bmp = await createImageBitmap(r.image);
+    r.image.close && r.image.close();
+    keep(a, i, bmp);
+    a.last = bmp;
+    return bmp;
+  } catch (e) { return a.last || null; }
+}
+
+function keep(a, i, bmp) {
+  a.cache.set(i, bmp);
+  a.order.push(i);
+  while (a.order.length > ANIM_KEEP) {
+    const old = a.order.shift();
+    if (old === i) continue;
+    const b = a.cache.get(old);
+    if (b && b !== a.last) { b.close && b.close(); a.cache.delete(old); }
+  }
+}
+
+async function pump(m) {
+  const a = m.anim;
+  if (a.busy) return;
+  a.busy = true;
+  try {
+    while (a.want >= 0 && !a.cache.has(a.want)) {
+      const i = a.want;
+      const r = await a.dec.decode({ frameIndex: i });
+      const bmp = await createImageBitmap(r.image);
+      r.image.close && r.image.close();
+      keep(a, i, bmp);
+      a.last = bmp;
+      if (a.want === i) a.want = -1;
+      bus.stage();
+    }
+  } catch (e) { a.want = -1; }
+  a.busy = false;
+}
 
 /* ---- PSD ----
    重い 部品なので、PSD が 来た ときだけ 読みこむ。
@@ -156,7 +267,9 @@ export function importFiles(files, after) {
       const el = new Image();
       el.addEventListener('load', () => {
         m.w = el.naturalWidth; m.h = el.naturalHeight; makePoster(m);
-        mark(file, 'よめた ' + m.w + '×' + m.h); done();
+        mark(file, 'よめた ' + m.w + '×' + m.h);
+        animIn(m, file);                    // うごく絵（GIF など）なら コマに ほどく
+        done();
       }, { once: true });
       el.addEventListener('error', () => { mark(file, 'よめない'); done(); }, { once: true });
       setTimeout(() => { if (!el.complete) { mark(file, 'じかんぎれ'); done(); } }, 8000);

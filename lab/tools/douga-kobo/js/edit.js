@@ -12,7 +12,7 @@ export function addFromMedia(m, at = 0, track = null) {
   const t = track && track.kind === (m.kind === 'audio' ? 'audio' : 'video') ? track : laneFor(m.kind);
   const c = newClip(m.kind, {
     mid: m.id, name: m.name,
-    dur: m.kind === 'image' ? 4 : Math.min(m.dur, 900), inp: 0
+    dur: m.kind === 'image' ? (m.anim ? Math.max(.3, m.anim.total) : 4) : Math.min(m.dur, 900), inp: 0
   });
   c.start = freeSlot(t, Math.max(0, at), c.dur);
   t.clips.push(c);
