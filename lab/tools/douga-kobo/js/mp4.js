@@ -3,7 +3,7 @@
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
 import { S, clamp, duration, allClips, r2 } from './state.js?v=6';
-import { MEDIA } from './media.js?v=6';
+import { MEDIA, animFrameAt } from './media.js?v=6';
 import { renderStage, activeClips } from './render.js?v=6';
 import { fadeAlpha } from './render.js?v=6';
 
@@ -48,6 +48,7 @@ async function prepareFrame(t, fps) {
   for (const { c } of activeClips(t)) {
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
+    if (m && m.anim) { jobs.push(animFrameAt(m, (t - c.start) * (c.speed || 1))); continue; }
     if (!m || m.kind !== 'video') continue;
     if (!m.el.paused) m.el.pause();
     const want = clamp(c.inp + (t - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.03));
