@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Notion の予定を月ごとに並べて、画像つきで見るカレンダー。">
+<title>予定カレンダー | HAANI LAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Pacifico&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pink:#FF7BB5; --pink-2:#FFA6CE; --pink-soft:#FFE6F1; --pink-line:#FFC4DE;
+  --ink:#5B3A4A; --ink-2:#8A6A78; --ink-3:#B79AA6;
+  --paper:#FFFFFF; --bg:#FFF4F8; --frame:#FFDCEB;
+  --mint:#5FD0C0; --lav:#B49BE3; --sun:#FFC55F;
+  --r-s:10px; --r-m:16px; --r-l:26px;
+  --font:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
+  --shadow:0 2px 0 rgba(255,123,181,.18), 0 10px 26px rgba(255,123,181,.16);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{
+  font-family:var(--font); color:var(--ink); font-size:15px; line-height:1.5;
+  background:var(--bg);
+  background-image:repeating-linear-gradient(90deg,#FFD3E5 0 26px,#FFF4F8 26px 52px);
+  -webkit-font-smoothing:antialiased;
+  padding:18px;
+}
+.sheet{
+  max-width:1100px; margin:0 auto; background:var(--paper);
+  border:3px solid var(--frame); border-radius:var(--r-l);
+  box-shadow:var(--shadow); padding:22px 24px 30px;
+}
+
+/* ===== 見出し ===== */
+.head{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.month-name{
+  font-family:"Pacifico",var(--font); font-size:44px; line-height:1;
+  color:var(--pink); text-shadow:0 3px 0 #fff, 0 5px 0 var(--pink-line);
+  margin:0 4px 0 0;
+}
+.year{font-size:11px; letter-spacing:.24em; color:var(--ink-3)}
+.year b{display:block; font-size:22px; letter-spacing:.06em; color:var(--ink)}
+.spacer{flex:1}
+.nav{display:flex; gap:8px}
+button,select{font-family:inherit; color:inherit}
+.rnd{
+  border:2px solid var(--pink-line); background:#fff; border-radius:999px;
+  padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer;
+  box-shadow:0 2px 0 var(--pink-line); transition:transform .08s, background .15s;
+}
+.rnd:hover{background:var(--pink-soft)}
+.rnd:active{transform:translateY(2px); box-shadow:none}
+.circ{width:42px; height:42px; padding:0; font-size:16px; display:grid; place-items:center}
+select.rnd{padding:9px 14px; -webkit-appearance:none; appearance:none}
+.rnd.go{border-color:var(--mint); box-shadow:0 2px 0 var(--mint); color:#2E8074}
+
+/* ===== まとめ ===== */
+.stats{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0 6px}
+.pill{
+  display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
+  border:2px solid var(--pink-line); border-radius:999px; padding:6px 14px; background:#fff;
+}
+.pill b{font-size:14px}
+.pill .dot{width:9px; height:9px; border-radius:50%; background:var(--pink)}
+.pill.live{background:var(--pink); border-color:var(--pink); color:#fff}
+.pill.plan{border-style:dashed; color:var(--pink); border-color:var(--pink)}
+.hint{
+  margin-left:auto; font-size:11px; color:var(--ink-2); background:#EFFBF8;
+  border:2px solid #BFEDE5; border-radius:999px; padding:6px 14px;
+}
+
+/* ===== カレンダー ===== */
+.dows,.grid{display:grid; grid-template-columns:repeat(7,1fr); gap:10px}
+.dows{margin-top:10px; border-bottom:2px solid #F0E6EB; padding-bottom:6px}
+.dow{text-align:center; font-size:11px; letter-spacing:.16em; color:var(--ink-3)}
+.dow.sat{color:#7FA8D8} .dow.sun{color:#F08AA8}
+.grid{margin-top:10px}
+.cell{
+  position:relative; min-height:128px; border:2px solid #F1E3E9; border-radius:var(--r-m);
+  background:#fff; padding:8px; display:flex; flex-direction:column; gap:6px;
+}
+.cell.out{opacity:.35}
+.cell.has{border-color:var(--pink-line); background:#FFFAFC; box-shadow:0 2px 0 #FFE9F2}
+.cell.today{border-color:var(--pink); box-shadow:0 0 0 3px var(--pink-soft)}
+.cell-top{display:flex; align-items:center; gap:6px}
+.dnum{font-size:15px; font-weight:800}
+.cell.sat .dnum{color:#7FA8D8} .cell.sun .dnum{color:#F08AA8}
+.count{margin-left:auto; font-size:9px; color:var(--ink-3); letter-spacing:.06em}
+.today-tag{font-size:9px; font-weight:800; background:var(--pink); color:#fff; border-radius:999px; padding:2px 7px}
+
+.item{
+  border:2px solid var(--pink-line); border-radius:12px; overflow:hidden; background:#fff;
+  cursor:pointer; text-align:left; padding:0; width:100%; display:block;
+}
+.item:hover{border-color:var(--pink)}
+.item.plan{border-style:dashed}
+.item-top{display:flex; align-items:center; gap:5px; padding:4px 6px 3px}
+.badge{font-size:9px; font-weight:800; letter-spacing:.06em; border-radius:999px; padding:2px 7px; color:#fff; background:var(--ink-3)}
+.badge.live{background:var(--pink)} .badge.short{background:var(--lav)}
+.badge.video{background:#FF5C8A} .badge.plan{background:#fff; color:var(--pink); border:1.5px dashed var(--pink)}
+.time{font-size:10px; font-weight:700; color:var(--ink-2); margin-left:auto}
+.thumb{display:block; width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--pink-soft)}
+.thumb.empty{display:grid; place-items:center; font-size:10px; color:var(--ink-3)}
+.item-bottom{display:flex; align-items:center; gap:4px; padding:3px 6px 5px; font-size:10px; color:var(--ink-2)}
+.item-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700}
+.item-bottom .more{margin-left:auto; color:var(--ink-3)}
+
+/* ===== 編集パネル ===== */
+.veil{position:fixed; inset:0; background:rgba(91,58,74,.35); display:none; place-items:center; padding:18px; z-index:20}
+.veil.on{display:grid}
+.panel{
+  width:min(420px,100%); background:#fff; border:3px solid var(--pink-line);
+  border-radius:var(--r-l); box-shadow:var(--shadow); padding:20px; max-height:90vh; overflow:auto;
+}
+.panel h2{margin:0 0 14px; font-size:16px}
+.panel label{display:block; font-size:11px; color:var(--ink-2); font-weight:700; margin:12px 0 4px}
+.panel input[type=text],.panel input[type=time],.panel select{
+  width:100%; font-family:inherit; font-size:14px; padding:9px 12px;
+  border:2px solid var(--pink-line); border-radius:12px; background:#FFFAFC; color:inherit;
+}
+.types{display:flex; gap:6px; flex-wrap:wrap}
+.types button{border:2px solid var(--pink-line); background:#fff; border-radius:999px; padding:6px 13px; font-size:12px; font-weight:700; cursor:pointer}
+.types button[aria-pressed=true]{background:var(--pink); border-color:var(--pink); color:#fff}
+.drop{
+  margin-top:6px; border:2px dashed var(--pink-line); border-radius:14px; padding:12px;
+  text-align:center; font-size:12px; color:var(--ink-2); cursor:pointer; background:#FFFAFC;
+}
+.drop.over{background:var(--pink-soft); border-color:var(--pink)}
+.drop img{display:block; width:100%; border-radius:10px; margin-bottom:8px}
+.panel-btns{display:flex; gap:8px; margin-top:18px}
+.panel-btns .rnd{flex:1; text-align:center}
+.rnd.del{border-color:#F2B8C6; box-shadow:0 2px 0 #F2B8C6; color:#C0526F}
+.note{font-size:11px; color:var(--ink-3); margin-top:12px}
+@media (max-width:760px){
+  body{padding:8px}
+  .sheet{padding:16px 12px 22px}
+  .month-name{font-size:32px}
+  .dows,.grid{gap:5px}
+  .cell{min-height:96px; padding:5px}
+  .thumb{aspect-ratio:4/3}
+}
+</style>
+</head>
+<body>
+<div class="sheet" id="sheet">
+  <div class="head">
+    <h1 class="month-name" id="monthName">September</h1>
+    <div class="year">YEAR<b id="yearNum">2026</b></div>
+    <div class="nav">
+      <button class="rnd circ" id="prev" title="前の月">‹</button>
+      <button class="rnd circ" id="next" title="次の月">›</button>
+    </div>
+    <select class="rnd" id="jump" title="月を選ぶ"></select>
+    <div class="spacer"></div>
+    <button class="rnd go" id="export">画像を書き出し</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="dows">
+    <div class="dow">MON</div><div class="dow">TUE</div><div class="dow">WED</div>
+    <div class="dow">THU</div><div class="dow">FRI</div>
+    <div class="dow sat">SAT</div><div class="dow sun">SUN</div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="veil" id="veil">
+  <div class="panel" role="dialog" aria-modal="true">
+    <h2 id="panelTitle">予定</h2>
+    <label>タイトル</label>
+    <input type="text" id="fTitle" placeholder="たとえば 雑談配信">
+    <label>しゅるい</label>
+    <div class="types" id="fTypes"></div>
+    <label>時こく</label>
+    <input type="time" id="fTime">
+    <label>長さ（1:23:45 のように）</label>
+    <input type="text" id="fDur" placeholder="1:23:45">
+    <label>画像</label>
+    <div class="drop" id="drop">
+      <div id="dropBody">ここにドロップ／クリックで選ぶ</div>
+    </div>
+    <div class="panel-btns">
+      <button class="rnd" id="save">ほぞん</button>
+      <button class="rnd del" id="del">けす</button>
+      <button class="rnd" id="cancel">やめる</button>
+    </div>
+    <p class="note" id="panelNote"></p>
+  </div>
+</div>
+
+<script>
+/* ===========================================================
+   予定カレンダー
+   ・Notion から同期した data/notion.json を読む（読み取りだけ）
+   ・時こく・長さ・画像・自分で足した予定は、この端末の中に持つ
+     （公開リポジトリに画像を置かないため。IndexedDB に入れる）
+   =========================================================== */
+
+const MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+const TYPES = [
+  {key:"live",  label:"LIVE"},
+  {key:"video", label:"VIDEO"},
+  {key:"short", label:"SHORT"},
+  {key:"plan",  label:"PLAN"},
+];
+
+/* ---------- 置き場（IndexedDB。画像があるので localStorage では足りない） ---------- */
+const DB_NAME = "haani-task-calendar", STORE = "kv";
+let dbp = null;
+function db(){
+  if(dbp) return dbp;
+  dbp = new Promise((ok,ng)=>{
+    const r = indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore(STORE);
+    r.onsuccess = ()=> ok(r.result);
+    r.onerror = ()=> ng(r.error);
+  });
+  return dbp;
+}
+async function kvGet(key){
+  try{
+    const d = await db();
+    return await new Promise((ok,ng)=>{
+      const q = d.transaction(STORE,"readonly").objectStore(STORE).get(key);
+      q.onsuccess = ()=> ok(q.result); q.onerror = ()=> ng(q.error);
+    });
+  }catch{ return undefined; }
+}
+async function kvSet(key,val){
+  try{
+    const d = await db();
+    await new Promise((ok,ng)=>{
+      const t = d.transaction(STORE,"readwrite");
+      t.objectStore(STORE).put(val,key);
+      t.oncomplete = ok; t.onerror = ()=> ng(t.error);
+    });
+  }catch(e){ alert("この端末に保存できませんでした。\n" + e.message); }
+}
+
+/* ---------- 状態 ---------- */
+const today = new Date();
+let view = {y: today.getFullYear(), m: today.getMonth()};
+let notion = [];     // Notion から来たもの（読むだけ）
+let mine = {};       // 自分で足した予定  id -> item
+let over = {};       // Notion のものへの上書き  id -> {time,dur,image,type,title,hidden}
+let editing = null;  // いま開いている編集対象
+
+const $ = (s)=> document.querySelector(s);
+const pad = (n)=> String(n).padStart(2,"0");
+const ymd = (y,m,d)=> `${y}-${pad(m+1)}-${pad(d)}`;
+
+/* Notion の「カテゴリー」を、見た目のしゅるいに寄せる */
+function guessType(cat, title){
+  const s = ((cat||"") + " " + (title||"")).toLowerCase();
+  if(/live|配信|生放送|歌枠|雑談/.test(s)) return "live";
+  if(/short|ショート|切り抜き/.test(s)) return "short";
+  if(/video|動画|投稿/.test(s)) return "video";
+  if(/予定|締切|plan|todo/.test(s)) return "plan";
+  return "plan";
+}
+
+/* 長さの文字（1:23:45 / 12:34）を秒に */
+function durToSec(s){
+  if(!s) return 0;
+  const p = String(s).split(":").map(n=>parseInt(n,10)||0);
+  if(p.length===3) return p[0]*3600 + p[1]*60 + p[2];
+  if(p.length===2) return p[0]*60 + p[1];
+  return p[0]||0;
+}
+function humanHours(sec){
+  const h = Math.floor(sec/3600), m = Math.round((sec%3600)/60);
+  if(!sec) return "0分";
+  return (h? h+"時間":"") + (m? m+"分":"");
+}
+
+/* ---------- 読み込み ---------- */
+async function load(){
+  try{
+    const res = await fetch("data/notion.json?t=" + Date.now(), {cache:"no-store"});
+    if(res.ok){
+      const json = await res.json();
+      notion = (json.tasks||[]).filter(t=>t.date).map(t=>({
+        id: t.id, title: t.title, date: t.date, category: t.category,
+        url: t.url, source: "notion"
+      }));
+    }
+  }catch{ /* オフラインでも自分の予定は見られるようにする */ }
+  mine = (await kvGet("mine")) || {};
+  over = (await kvGet("over")) || {};
+}
+
+/* その月のぶんを、日付ごとにまとめる */
+function itemsOf(y,m){
+  const out = {};
+  const put = (it)=>{
+    if(!it.date) return;
+    const [yy,mm] = it.date.split("-").map(Number);
+    if(yy!==y || mm!==m+1) return;
+    (out[it.date] ||= []).push(it);
+  };
+  for(const t of notion){
+    const o = over[t.id] || {};
+    if(o.hidden) continue;
+    put({
+      id:t.id, source:"notion", url:t.url,
+      title: o.title ?? t.title,
+      date: o.date ?? t.date,
+      type: o.type ?? guessType(t.category, t.title),
+      time: o.time || "", dur: o.dur || "", image: o.image || ""
+    });
+  }
+  for(const it of Object.values(mine)) put({...it, source:"mine"});
+  for(const k of Object.keys(out)){
+    out[k].sort((a,b)=> (a.time||"99:99").localeCompare(b.time||"99:99"));
+  }
+  return out;
+}
+
+/* ---------- 描く ---------- */
+function render(){
+  const {y,m} = view;
+  $("#monthName").textContent = MONTHS[m];
+  $("#yearNum").textContent = y;
+
+  const byDate = itemsOf(y,m);
+  const all = Object.values(byDate).flat();
+
+  // まとめ
+  const n = (t)=> all.filter(i=>i.type===t).length;
+  const liveSec = all.filter(i=>i.type==="live").reduce((s,i)=> s + durToSec(i.dur), 0);
+  const stats = $("#stats");
+  stats.innerHTML = "";
+  const pill = (cls, html)=>{
+    const el = document.createElement("div");
+    el.className = "pill " + cls; el.innerHTML = html; stats.appendChild(el);
+  };
+  pill("", `<span class="dot" style="background:var(--lav)"></span>SHORT <b>${n("short")}</b> 本`);
+  pill("", `<span class="dot" style="background:#FF5C8A"></span>VIDEO <b>${n("video")}</b> 本`);
+  pill("live", `LIVE <b>${n("live")}</b> 本 / ${humanHours(liveSec)}`);
+  pill("", `出した日 <b>${Object.keys(byDate).length}</b> 日`);
+  if(n("plan")) pill("plan", `予定 <b>${n("plan")}</b> 本`);
+  const hint = document.createElement("div");
+  hint.className = "hint";
+  hint.textContent = "日付を右クリックで予定を書けます";
+  stats.appendChild(hint);
+
+  // ます目（月曜はじまり）
+  const first = new Date(y,m,1);
+  const lead = (first.getDay() + 6) % 7;
+  const last = new Date(y,m+1,0).getDate();
+  const cells = Math.ceil((lead + last)/7)*7;
+  const grid = $("#grid");
+  grid.innerHTML = "";
+
+  for(let i=0;i<cells;i++){
+    const dnum = i - lead + 1;
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    if(dnum<1 || dnum>last){ cell.classList.add("out"); grid.appendChild(cell); continue; }
+
+    const date = ymd(y,m,dnum);
+    const dow = new Date(y,m,dnum).getDay();
+    if(dow===6) cell.classList.add("sat");
+    if(dow===0) cell.classList.add("sun");
+    const isToday = date === ymd(today.getFullYear(), today.getMonth(), today.getDate());
+    if(isToday) cell.classList.add("today");
+
+    const items = byDate[date] || [];
+    if(items.length) cell.classList.add("has");
+
+    const top = document.createElement("div");
+    top.className = "cell-top";
+    top.innerHTML = `<span class="dnum">${dnum}</span>` +
+      (isToday ? `<span class="today-tag">TODAY</span>` : "") +
+      (items.length ? `<span class="count">${items.length} ITEM</span>` : "");
+    cell.appendChild(top);
+
+    for(const it of items) cell.appendChild(itemNode(it));
+
+    cell.addEventListener("contextmenu", (e)=>{ e.preventDefault(); openNew(date); });
+    cell.addEventListener("dblclick", ()=> openNew(date));
+    grid.appendChild(cell);
+  }
+
+  // 月えらび
+  const jump = $("#jump");
+  const months = new Map();
+  for(const t of notion){ const k = t.date.slice(0,7); months.set(k,(months.get(k)||0)+1); }
+  for(const it of Object.values(mine)){ const k = it.date.slice(0,7); months.set(k,(months.get(k)||0)+1); }
+  const here = `${y}-${pad(m+1)}`;
+  if(!months.has(here)) months.set(here, 0);
+  jump.innerHTML = "";
+  [...months.keys()].sort().forEach(k=>{
+    const [yy,mm] = k.split("-").map(Number);
+    const op = document.createElement("option");
+    op.value = k;
+    op.textContent = `${yy}年${mm}月（${months.get(k)}本）`;
+    if(k===here) op.selected = true;
+    jump.appendChild(op);
+  });
+}
+
+function itemNode(it){
+  const b = document.createElement("button");
+  b.className = "item" + (it.type==="plan" ? " plan" : "");
+  b.type = "button";
+  const t = TYPES.find(t=>t.key===it.type) || TYPES[3];
+  const img = it.image
+    ? `<img class="thumb" src="${it.image}" alt="">`
+    : `<div class="thumb empty">画像なし</div>`;
+  b.innerHTML =
+    `<div class="item-top"><span class="badge ${t.key}">${t.label}</span>` +
+    (it.time ? `<span class="time">${it.time}</span>` : "") + `</div>` +
+    img +
+    `<div class="item-bottom"><span class="item-title">${it.dur || it.title}</span><span class="more">…</span></div>`;
+  b.title = it.title;
+  b.addEventListener("click", ()=> openEdit(it));
+  return b;
+}
+
+/* ---------- 編集 ---------- */
+let pendingImage = "";
+function openNew(date){
+  editing = {id:"m" + Date.now().toString(36), source:"mine", date, title:"", type:"plan", time:"", dur:"", image:""};
+  fillPanel("予定を書く", `${date} に足します`);
+}
+function openEdit(it){
+  editing = {...it};
+  fillPanel("予定をなおす", it.source==="notion" ? "Notion から来た予定です。なおした内容はこの端末にだけ残ります。" : "自分で足した予定です。");
+}
+function fillPanel(title, note){
+  $("#panelTitle").textContent = title;
+  $("#panelNote").textContent = note;
+  $("#fTitle").value = editing.title || "";
+  $("#fTime").value = editing.time || "";
+  $("#fDur").value = editing.dur || "";
+  pendingImage = editing.image || "";
+  drawDrop();
+  drawTypes();
+  $("#veil").classList.add("on");
+  $("#fTitle").focus();
+}
+function drawTypes(){
+  const box = $("#fTypes"); box.innerHTML = "";
+  for(const t of TYPES){
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = t.label;
+    b.setAttribute("aria-pressed", String(editing.type===t.key));
+    b.addEventListener("click", ()=>{ editing.type = t.key; drawTypes(); });
+    box.appendChild(b);
+  }
+}
+function drawDrop(){
+  $("#dropBody").innerHTML = pendingImage
+    ? `<img src="${pendingImage}" alt=""><span>クリックで えらびなおす</span>`
+    : "ここにドロップ／クリックで選ぶ";
+}
+function closePanel(){ $("#veil").classList.remove("on"); editing = null; }
+
+/* 画像は長い辺 640px まで縮めて持つ（端末の置き場をふさがないため） */
+function shrink(file){
+  return new Promise((ok,ng)=>{
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const max = 640, s = Math.min(1, max/Math.max(img.width,img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
+        c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+        ok(c.toDataURL("image/jpeg",0.82));
+      };
+      img.onerror = ()=> ng(new Error("画像を読めませんでした"));
+      img.src = fr.result;
+    };
+    fr.onerror = ()=> ng(new Error("画像を読めませんでした"));
+    fr.readAsDataURL(file);
+  });
+}
+
+async function save(){
+  if(!editing) return;
+  const v = {
+    title: $("#fTitle").value.trim(),
+    time: $("#fTime").value,
+    dur: $("#fDur").value.trim(),
+    image: pendingImage,
+    type: editing.type,
+  };
+  if(editing.source==="mine"){
+    if(!v.title) v.title = "予定";
+    mine[editing.id] = {id:editing.id, date:editing.date, ...v};
+    await kvSet("mine", mine);
+  }else{
+    over[editing.id] = {...(over[editing.id]||{}), ...v};
+    await kvSet("over", over);
+  }
+  closePanel(); render();
+}
+async function remove(){
+  if(!editing) return;
+  if(!confirm("この予定を消します。よろしいですか。")) return;
+  if(editing.source==="mine"){ delete mine[editing.id]; await kvSet("mine", mine); }
+  else { over[editing.id] = {...(over[editing.id]||{}), hidden:true}; await kvSet("over", over); }
+  closePanel(); render();
+}
+
+/* ---------- 画像に書き出し ---------- */
+async function exportPng(){
+  const node = $("#sheet");
+  const rect = node.getBoundingClientRect();
+  const w = Math.ceil(rect.width), h = Math.ceil(node.scrollHeight);
+  const css = [...document.querySelectorAll("style")].map(s=>s.textContent).join("\n");
+  const clone = node.cloneNode(true);
+  clone.style.margin = "0";
+  const html =
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;background:#fff">` +
+    `<style>${css}</style>${clone.outerHTML}</div>`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+    `<foreignObject x="0" y="0" width="${w}" height="${h}">${html}</foreignObject></svg>`;
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  try{
+    await img.decode();
+    const c = document.createElement("canvas");
+    const k = 2;
+    c.width = w*k; c.height = h*k;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0,0,c.width,c.height);
+    ctx.scale(k,k); ctx.drawImage(img,0,0);
+    const a = document.createElement("a");
+    a.download = `calendar-${view.y}-${pad(view.m+1)}.png`;
+    a.href = c.toDataURL("image/png");
+    a.click();
+  }catch(e){
+    alert("書き出せませんでした。画面をそのまま撮ってください。\n" + e.message);
+  }
+}
+
+/* ---------- 配線 ---------- */
+$("#prev").addEventListener("click", ()=>{ view.m--; if(view.m<0){view.m=11; view.y--;} render(); });
+$("#next").addEventListener("click", ()=>{ view.m++; if(view.m>11){view.m=0; view.y++;} render(); });
+$("#jump").addEventListener("change", (e)=>{
+  const [y,m] = e.target.value.split("-").map(Number);
+  view = {y, m:m-1}; render();
+});
+$("#export").addEventListener("click", exportPng);
+$("#save").addEventListener("click", save);
+$("#del").addEventListener("click", remove);
+$("#cancel").addEventListener("click", closePanel);
+$("#veil").addEventListener("click", (e)=>{ if(e.target===$("#veil")) closePanel(); });
+document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closePanel(); });
+
+const picker = document.createElement("input");
+picker.type = "file"; picker.accept = "image/*";
+picker.addEventListener("change", async ()=>{
+  const f = picker.files[0]; if(!f) return;
+  try{ pendingImage = await shrink(f); drawDrop(); }catch(err){ alert(err.message); }
+  picker.value = "";
+});
+const drop = $("#drop");
+drop.addEventListener("click", ()=> picker.click());
+drop.addEventListener("dragover", (e)=>{ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", ()=> drop.classList.remove("over"));
+drop.addEventListener("drop", async (e)=>{
+  e.preventDefault(); drop.classList.remove("over");
+  const f = [...e.dataTransfer.files].find(f=>f.type.startsWith("image/"));
+  if(!f) return;
+  try{ pendingImage = await shrink(f); drawDrop(); }catch(err){ alert(err.message); }
+});
+
+load().then(render);
+</script>
+</body>
+</html>
