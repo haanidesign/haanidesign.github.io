@@ -243,6 +243,17 @@ const TOOLS = [
     thumb: "thumbs/douga-kobo.svg",
     url: "tools/douga-kobo/index.html",
     status: "live"
+  },
+  {
+    no: 23,
+    slug: "task-calendar",
+    title: "予定カレンダー",
+    desc: "Notion のデータベースから毎朝取り込んだ予定を、月ごとの枡に並べて見る台。1件ずつに時こく・長さ・サムネ画像を足せて、枡の中に画像のまま並ぶ。しゅるい（LIVE・VIDEO・SHORT・予定）でバッジの色が変わり、上に本数と配信の合計時間が出る。日付を右クリックすればその場で予定を書き足せる。足した内容と画像はこの端末の中だけに持つ。月ごと1枚のPNGに書き出せる。",
+    tags: ["Notion", "予定", "カレンダー", "画像書き出し"],
+    cat: "other",
+    thumb: "thumbs/task-calendar.svg",
+    url: "tools/task-calendar/index.html",
+    status: "live"
   }
 ];
 
