@@ -1,24 +1,24 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=263';
-import { cleanPath } from '../engine/path.js?v=263';
+import { M, clamp } from '../engine/math.js?v=264';
+import { cleanPath } from '../engine/path.js?v=264';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=263';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=263';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=263';
+         keepChildren, cornersOf } from '../engine/layer.js?v=264';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=264';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=264';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=263';
-import { createRenderer } from '../render/renderer.js?v=263';
-import { attachInput } from './input.js?v=263';
-import { newStroke, paintDirty } from '../engine/paint.js?v=263';
+         bendChain } from '../engine/puppet.js?v=264';
+import { createRenderer } from '../render/renderer.js?v=264';
+import { attachInput } from './input.js?v=264';
+import { newStroke, paintDirty } from '../engine/paint.js?v=264';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=263';
+         copyPts, setPts } from '../engine/warp.js?v=264';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=263';
-import { inCamView } from '../render/camview.js?v=263';
-import { ORBIT_MAX } from '../engine/camera.js?v=263';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=264';
+import { inCamView } from '../render/camview.js?v=264';
+import { ORBIT_MAX } from '../engine/camera.js?v=264';
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);

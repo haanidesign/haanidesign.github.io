@@ -1,45 +1,45 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=263';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=264';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=263';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=264';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=263';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=264';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=263';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=263';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=263';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=263';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=264';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=264';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=264';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=264';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=263';
+         addTextLayer } from '../io/text.js?v=264';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=263';
-import { PATTERN_NAMES } from '../io/pattern.js?v=263';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=264';
+import { PATTERN_NAMES } from '../io/pattern.js?v=264';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=263';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=263';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=263';
+         PITCH_MAX } from '../engine/pano.js?v=264';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=264';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=264';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=263';
-import { readAsDataURL, loadImage } from '../io/image.js?v=263';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=264';
+import { readAsDataURL, loadImage } from '../io/image.js?v=264';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=263';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=263';
-import { newHand } from '../engine/hand.js?v=263';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=263';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=264';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=264';
+import { newHand } from '../engine/hand.js?v=264';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=264';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=263';
+  from './colorwheel.js?v=264';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=263';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=264';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=263';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=264';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -719,6 +719,12 @@ const SWAY_HINT = 'いまの時間から さいごまで、ゆれるピンを �
 let onAddFrames = async () => 0;
 export function setFrameAdder(fn){ onAddFrames = fn; }
 
+/* 絵だけ 入れかえる（AEの「フッテージを 置き換え」と 同じ かんがえ方） */
+let onReplaceImg = async () => 0;
+export function setImageReplacer(fn){ onReplaceImg = fn; }
+/* 入れかえた あとも 見た目の 大きさを そのままに するか（おぼえて おく） */
+let keepSizeOnSwap = true;
+
 let notify = () => {};
 export function setNotifier(fn){ notify = fn; }
 
@@ -995,6 +1001,59 @@ export function buildLayerSheet(box, closeFn){
       onChange();
     })
   ));
+
+  /* ---------- 絵だけ 入れかえる ----------
+     動き（ピン・親子・タイミング・エフェクト）は そのままで、
+     はって ある 絵 だけを すげかえる。
+     絵の 大きさが ちがっても、ピンは 同じ ところを さす ように
+     こちらで なおす。 */
+  const swapOne = document.createElement('input');
+  swapOne.type = 'file';
+  swapOne.accept = 'image/png,image/jpeg';
+  swapOne.hidden = true;
+  swapOne.addEventListener('change', async (e) => {
+    await onReplaceImg(e.target.files, l, { all: false, keepSize: keepSizeOnSwap });
+    e.target.value = '';
+    onChange();
+  });
+  box.appendChild(swapOne);
+
+  const swapAll = document.createElement('input');
+  swapAll.type = 'file';
+  swapAll.accept = 'image/png,image/jpeg';
+  swapAll.multiple = true;
+  swapAll.hidden = true;
+  swapAll.addEventListener('change', async (e) => {
+    await onReplaceImg(e.target.files, l, { all: true, keepSize: keepSizeOnSwap });
+    e.target.value = '';
+    onChange();
+  });
+  box.appendChild(swapAll);
+
+  const swapRow = btnRow(
+    button('🔁 この コマの 絵を 入れかえる', () => swapOne.click()),
+    button(l.frames.length > 1 ? '🔁 コマ ぜんぶ' : '🔁 べつの 絵に', () => swapAll.click())
+  );
+  box.appendChild(swapRow);
+
+  const keepBtn = button('', () => {
+    keepSizeOnSwap = !keepSizeOnSwap;
+    paintKeep();
+  });
+  const paintKeep = () => {
+    keepBtn.textContent = (keepSizeOnSwap ? '✅' : '⬜') + ' 前と 同じ 大きさに する';
+    keepBtn.classList.toggle('on', keepSizeOnSwap);
+  };
+  paintKeep();
+  box.appendChild(btnRow(keepBtn));
+
+  const swapNote = document.createElement('div');
+  swapNote.className = 'empty';
+  swapNote.style.textAlign = 'left';
+  swapNote.textContent = '絵だけ かえて、うごきは そのまま のこします。'
+    + NL + 'ピン・ゆがみ・マスクは 絵の 大きさに 合わせて なおします。'
+    + NL + '「コマ ぜんぶ」は、えらんだ まい数が そのまま コマに なります。';
+  box.appendChild(swapNote);
 
   if(l.frames.length > 1){
     const sp = document.createElement('div');
