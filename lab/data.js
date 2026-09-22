@@ -232,6 +232,17 @@ const TOOLS = [
     thumb: "thumbs/bongo.svg",
     url: "tools/bongo/index.html",
     status: "live"
+  },
+  {
+    no: 22,
+    slug: "douga-kobo",
+    title: "動画工房",
+    desc: "タブレットの よこ画面で つかう 動画の編集台。動画・画像・音を 落として、段のある タイムラインに ならべ、ふだの はしを つまんで ながさを 変え、さわった ところで 切る。位置・大きさ・かたむき・すけ・色あい・音の 大きさを ふだごとに 決められて、文字ふだと、歌詞を 一行ずつ 流しこむ 台も ある。絵は 指で じかに うごかせて、2本指で 大きさと かたむき、2本指トンで もどす。組み立ては JSONで しまえて、さいごは 通しで 録って WebMに する。ホーム画面に 置いて アプリのように ひらける。",
+    tags: ["動画編集", "タブレット", "タイムライン", "字幕", "WebM書き出し"],
+    cat: "anime",
+    thumb: "thumbs/douga-kobo.svg",
+    url: "tools/douga-kobo/index.html",
+    status: "live"
   }
 ];
 
