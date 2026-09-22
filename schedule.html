@@ -211,10 +211,11 @@
 }
 .pic.on{display:flex;}
 .pic figure{margin:0; max-width:100%; display:flex; flex-direction:column; align-items:center; gap:.6rem;}
-.pic img{
+.pic img,.pic video{
   max-width:100%; max-height:74vh; border:var(--bd); border-radius:var(--r);
   background:var(--paper);
 }
+.pic [hidden]{display:none;}
 .pic figcaption{
   color:var(--ink); background:var(--main); border:var(--bd); border-radius:999px;
   box-shadow:0 3px 0 var(--ink); padding:.15rem .9rem; font-size:.76rem;
@@ -249,7 +250,7 @@
   .card img{aspect-ratio:1/1; border-top:0; border-bottom:0; margin-top:0;}
   .day{min-height:82px;}
   .pic{padding:.6rem;}
-  .pic img{max-height:68vh;}
+  .pic img,.pic video{max-height:68vh;}
   .hol{display:none;}
   .off-mark{font-size:.54rem;}
   .sch-legend{margin-left:0; width:100%; font-size:.66rem;}
@@ -339,6 +340,7 @@
   <button class="btn btn-sm pic-arrow pic-next" data-act="next">›</button>
   <figure>
     <img id="picImg" alt="">
+    <video id="picVid" controls playsinline hidden></video>
     <figcaption id="picCap"></figcaption>
     <div class="row" id="picRow"></div>
   </figure>
@@ -506,7 +508,7 @@ function render(){
     const hol = holidayName(d);
     const off = wd === 0 || wd === 6 || !!hol;
 
-    return `<div class="day${out?" out":""}${list.length&&!out?" filled":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" ${hol?`title="${esc(hol)}"`:""}>
+    return `<div class="day${out?" out":""}${list.length&&!out?" filled":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" data-date="${key}" ${hol?`title="${esc(hol)}"`:""}>
       <div class="top">
         <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
         ${key===todayKey ? '<span class="tdy">TODAY</span>' : ""}
@@ -517,6 +519,7 @@ function render(){
         ? `<${t.url && t.bsky ? "a" : "div"} class="card${t.bsky ? " bsky" : ""}" data-id="${esc(t.id)}"${t.url && t.bsky ? ` href="${esc(t.url)}" target="_blank" rel="noopener"` : ""} title="${esc(t.title)}">
              <div class="card-top">
                ${t.category ? `<span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+               ${t.video ? `<span class="n">▶</span>` : ""}
                ${t.count > 1 ? `<span class="n dot">${t.count}枚</span>` : ""}
                ${t.time ? `<span class="at">${esc(t.time)}</span>` : ""}
              </div>
@@ -590,22 +593,45 @@ function picOpen(id){
   $("#pic").classList.add("on");
   document.body.style.overflow = "hidden";
 }
+/* この端末が そのまま HLS（Bluesky の動画）を 出せるか。
+   Safari は 出せる。出せない所では 表紙の絵と「投稿を見る」に する。 */
+function canHls(){
+  const v = document.createElement("video");
+  return !!v.canPlayType && !!v.canPlayType("application/vnd.apple.mpegurl");
+}
+
 function picShow(){
   if(!picList.length) return;
   picAt = (picAt + picList.length) % picList.length;
   const t = picList[picAt];
+
+  const vid = $("#picVid");
+  const showVideo = !!t.video && canHls();
+  vid.hidden = !showVideo;
+  $("#picImg").hidden = showVideo;
+  if(showVideo){
+    vid.poster = t.image || "";
+    vid.src = t.video;
+    vid.load();
+  }else{
+    vid.removeAttribute("src");
+  }
   $("#picImg").src = t.imageFull || t.image;
   $("#picImg").alt = t.title || "";
   const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
   $("#picCap").textContent =
     `${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})${t.time ? " " + t.time : ""}　${t.title || ""}`;
   $("#picRow").innerHTML = t.url
-    ? `<a class="btn btn-sm btn-g" href="${esc(t.url)}" target="_blank" rel="noopener">${t.bsky ? "投稿を見る" : "Notion で見る"}</a>`
+    ? `<a class="btn btn-sm btn-g" href="${esc(t.url)}" target="_blank" rel="noopener">${
+        t.bsky ? (t.video && !showVideo ? "動画を見る（Bluesky）" : "投稿を見る") : "Notion で見る"}</a>`
     : "";
   if(typeof picExtra === "function") picExtra(t);
 }
 function picClose(){
   $("#pic").classList.remove("on");
+  const vid = $("#picVid");
+  vid.pause?.();
+  vid.removeAttribute("src");
   $("#picImg").src = "";
   document.body.style.overflow = "";
 }
@@ -651,16 +677,34 @@ function renderUpcoming(){
   }).join("");
 }
 
-/* 埋め込みの 形が 何通りか あるので ならす（bsky.html と同じ） */
-function bskyImages(post){
-  const e = post && post.embed;
-  if(!e) return [];
-  if(e.$type === "app.bsky.embed.images#view") return e.images || [];
-  if(e.$type === "app.bsky.embed.recordWithMedia#view"){
-    const m = e.media;
-    if(m && m.$type === "app.bsky.embed.images#view") return m.images || [];
+/* 埋め込みの 形が 何通りか あるので ならす（bsky.html と同じ）。
+   写真は images#view、動画は video#view で 別の形で来る。
+   引用つきの投稿だと どちらも recordWithMedia#view の 中に 入っている。 */
+function bskyMedia(post){
+  let e = post && post.embed;
+  if(!e) return null;
+  if(e.$type === "app.bsky.embed.recordWithMedia#view") e = e.media;
+  if(!e) return null;
+  if(e.$type === "app.bsky.embed.images#view"){
+    const imgs = e.images || [];
+    if(!imgs.length) return null;
+    return {
+      kind: "image",
+      thumb: imgs[0].thumb || imgs[0].fullsize,
+      full: imgs[0].fullsize || imgs[0].thumb,
+      count: imgs.length,
+    };
   }
-  return [];
+  if(e.$type === "app.bsky.embed.video#view"){
+    return {
+      kind: "video",
+      thumb: e.thumbnail || null,
+      full: e.thumbnail || null,
+      video: e.playlist || null,   // HLS（.m3u8）
+      count: 1,
+    };
+  }
+  return null;
 }
 
 /* 日本時間の 日付と 時こくに 直す（投稿の 時刻は UTC で来る） */
@@ -695,8 +739,8 @@ async function loadBsky(){
           const pd = item.reply.parent?.author?.did;
           if(!pd || pd !== post.author?.did) continue;
         }
-        const imgs = bskyImages(post);
-        if(!imgs.length) continue;
+        const media = bskyMedia(post);
+        if(!media || !media.thumb) continue;
         const when = jst(post.record?.createdAt || post.indexedAt);
         if(!bskyOldest || when.date < bskyOldest) bskyOldest = when.date;
         const text = (post.record?.text || "").split("\n")[0].trim();
@@ -705,11 +749,12 @@ async function loadBsky(){
           id: "bsky:" + post.cid,
           date: when.date,
           time: when.time,
-          title: text || "Bluesky に出した絵",
+          title: text || (media.kind === "video" ? "Bluesky に出した動画" : "Bluesky に出した絵"),
           category: "投稿",
-          image: imgs[0].thumb || imgs[0].fullsize,
-          imageFull: imgs[0].fullsize || imgs[0].thumb,
-          count: imgs.length,
+          image: media.thumb,
+          imageFull: media.full,
+          video: media.video || null,
+          count: media.count,
           url: `https://bsky.app/profile/${post.author?.handle || BSKY_HANDLE}/post/${rkey}`,
           bsky: true,
         });
