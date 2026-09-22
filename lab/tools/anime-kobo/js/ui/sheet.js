@@ -1,45 +1,46 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=264';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=265';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
-         duplicateLayers, newPaintLayer, newSolidLayer,
+         duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=264';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=265';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=265';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=264';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=265';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=264';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=264';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=264';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=264';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=265';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=265';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=265';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=265';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=264';
+         addTextLayer } from '../io/text.js?v=265';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=264';
-import { PATTERN_NAMES } from '../io/pattern.js?v=264';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=265';
+import { PATTERN_NAMES } from '../io/pattern.js?v=265';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=264';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=264';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=264';
+         PITCH_MAX } from '../engine/pano.js?v=265';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=265';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=265';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=264';
-import { readAsDataURL, loadImage } from '../io/image.js?v=264';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=265';
+import { readAsDataURL, loadImage } from '../io/image.js?v=265';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=264';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=264';
-import { newHand } from '../engine/hand.js?v=264';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=264';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=265';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=265';
+import { newHand } from '../engine/hand.js?v=265';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=265';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=264';
+  from './colorwheel.js?v=265';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=264';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=265';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=264';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=265';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -820,6 +821,33 @@ export function buildLayerSheet(box, closeFn){
   const pct = v => Math.round(v * 100) + '%';
   box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
 
+  /* ---- トラックマット（AEと 同じ）----
+     すぐ 上の レイヤーの 形（か 明るさ）で、この レイヤーを ぬく。
+     ぬき型に なった レイヤーは 出なくなる。 */
+  if(l.kind !== 'adjust'){
+    box.appendChild(field('ぬき型（上の 1まい）', (() => {
+      const sel = document.createElement('select');
+      [['', 'つかわない'],
+       ['alpha',    '上の 形で ぬく'],
+       ['alphaInv', '上の 形を 消す（ぎゃく）'],
+       ['luma',     '上の 明るい ところを のこす'],
+       ['lumaInv',  '上の 暗い ところを のこす']
+      ].forEach(([v2, label]) => {
+        const o = document.createElement('option');
+        o.value = v2; o.textContent = label;
+        if((l.matte || '') === v2) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', () => {
+        edit('ぬき型', () => { l.matte = sel.value || null; });
+        notify(sel.value ? 'すぐ上の レイヤーで ぬきます（上は 出なくなります）'
+                         : 'ぬき型を やめました');
+        onChange();
+      });
+      return sel;
+    })()));
+  }
+
   /* ---- かさね方（フォトショップの 乗算 など）----
      下に ある 絵と どう まぜるか。「乗算」は かけ算 ＝ かげ用。
      PSD の レイヤーモードと 同じ 名前なので、
@@ -875,6 +903,7 @@ export function buildLayerSheet(box, closeFn){
     box.appendChild(note);
 
     spanRow(box, l, closeFn);
+    remapRow(box, l);
     warpRow(box, l, closeFn);
     ballRow(box, l);
     buildLook(box, l, { flip: false, close: closeFn });
@@ -943,6 +972,24 @@ export function buildLayerSheet(box, closeFn){
     spanRow(box, l, closeFn);
   warpRow(box, l, closeFn);
     buildLook(box, l, { flip: true, close: closeFn });
+    parentLink(box, l, closeFn);
+    otherRow(box, l, closeFn);
+    return;
+  }
+
+  if(l.kind === 'adjust'){
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = 'この かみ じたいは 見えません。' + NL
+      + '下に ある ものへ まとめて 色の 調整・ぼかしを かけます。' + NL
+      + '四角を 小さく すると、その ところ だけに かかります。' + NL
+      + '（✂ マスクを かこめば その 形の 中だけ）';
+    box.appendChild(n);
+    box.appendChild(clipRow(l));
+    spanRow(box, l, closeFn);
+    remapRow(box, l);
+    buildLook(box, l, { flip: false, close: closeFn });
     parentLink(box, l, closeFn);
     otherRow(box, l, closeFn);
     return;
@@ -1126,6 +1173,7 @@ export function buildLayerSheet(box, closeFn){
   depthRow(box, l);
   box.appendChild(clipRow(l));
   spanRow(box, l, closeFn);
+  remapRow(box, l);
   warpRow(box, l, closeFn);
   buildLook(box, l, { flip: true, close: closeFn });
 
@@ -3355,44 +3403,120 @@ export function buildLook(box, l, opts){
   /* ---- ✂ マスク ----
      クリップは「べつの レイヤーの 形」で ぬく。
      マスクは「自分に かいた 形」で ぬく。抜き型の 絵を
-     用意しなくて いい ぶん、その場で さっと できる。 */
+     用意しなくて いい ぶん、その場で さっと できる。
+     何まいでも かけられる（たす／ぬく）。形には ピンも うてる。 */
   box.appendChild(heading('✂ マスク（形で 切りぬく）'));
-  const hasMask = !!(l.mask && l.mask.pts && l.mask.pts.length >= 3);
+  const ms = masksOf(l);
   const mnote = document.createElement('div');
   mnote.className = 'empty';
   mnote.style.textAlign = 'left';
-  mnote.textContent = hasMask
-    ? ('かこんだ 形で 切りぬいて います。' + NL
+  mnote.textContent = ms.length
+    ? (ms.length + 'まい かかって います。' + NL
        + (isFolder(l)
           ? 'フォルダの マスクは 画面に すわった まま です。'
-          : 'マスクは 絵に くっついて いる ので、動かしても' + NL
-            + 'まわしても ついて まわります。'))
+          : 'マスクは 絵に くっついて いるので、動かしても ついて まわります。'))
     : ('絵の 上を 指で ぐるっと かこむと、その 中だけ 出ます。' + NL
-       + 'かこんだ 形は ' + (isFolder(l) ? '画面に すわります。' : '絵に くっつきます。'));
+       + 'かこんだ 形は ' + (isFolder(l) ? '画面に すわります。' : '絵に くっつきます。') + NL
+       + '何まいでも 足せます（たす／ぬく）。');
   box.appendChild(mnote);
 
   box.appendChild(btnRow(
-    button(hasMask ? '✂ かこみ直す' : '✂ 形を かこむ', () => {
+    button('✂ 形を かこむ（たす）', () => {
       if(closeLook) closeLook();
-      onMask(l);
+      onMask(l, { mode: 'add' });
+    }),
+    button('✂ ぬく 形を かこむ', () => {
+      if(closeLook) closeLook();
+      onMask(l, { mode: 'sub' });
     })
   ));
 
-  if(hasMask){
+  ms.forEach((m, mi) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'empty';
+    wrap.style.textAlign = 'left';
+    wrap.textContent = (mi + 1) + 'まいめ … ' + (m.mode === 'sub' ? 'ぬく' : 'たす')
+      + (m.invert ? '（うら返し）' : '')
+      + '・点 ' + (m.pts ? m.pts.length : 0) + 'コ';
+    box.appendChild(wrap);
+
     box.appendChild(btnRow(
-      button(l.mask.invert ? '✅ うら返す（中を かくす）' : '⬜ うら返す（中を かくす）', () => {
-        edit('マスクを うら返す', () => { l.mask.invert = !l.mask.invert; });
+      button(m.mode === 'sub' ? '➖ ぬく' : '➕ たす', () => {
+        edit('マスクの きき方', () => {
+          const list = toMasks(l);
+          list[mi].mode = list[mi].mode === 'sub' ? 'add' : 'sub';
+          l._maskKey = null;
+        });
         onChange();
+        if(closeLook) closeLook();
+        openLayer();
       }),
-      button('🗑 マスクを けす', () => {
-        edit('マスクを けす', () => { l.mask = null; });
+      button(m.invert ? '✅ うら返す' : '⬜ うら返す', () => {
+        edit('マスクを うら返す', () => {
+          const list = toMasks(l);
+          list[mi].invert = !list[mi].invert;
+          l._maskKey = null;
+        });
+        onChange();
+        if(closeLook) closeLook();
+        openLayer();
+      }),
+      button('🗑 けす', () => {
+        edit('マスクを けす', () => {
+          const list = toMasks(l);
+          list.splice(mi, 1);
+          clearMaskKeys(l, mi);
+          l._maskKey = null;
+        });
         notify('マスクを けしました');
+        onChange();
+        if(closeLook) closeLook();
+        openLayer();
+      })
+    ));
+
+    box.appendChild(slider('ふちを ぼかす',
+      () => (m.feather || 0),
+      v => { const list = toMasks(l); list[mi].feather = v; l._maskKey = null; },
+      0, 80, 1, v => v < 0.5 ? 'くっきり' : Math.round(v) + 'px'));
+
+    box.appendChild(btnRow(
+      button('✂ かこみ直す', () => {
+        if(closeLook) closeLook();
+        onMask(l, { mode: m.mode, at: mi });
+      }),
+      button('◆ いまの 形に ピンを うつ', () => {
+        edit('マスクに ピン', () => {
+          const list = toMasks(l);
+          const now = (valuesAt(l, S.time).maskPts || [])[mi] || list[mi].pts;
+          setMaskKeys(l, mi, S.time, now, setPin);
+        });
+        notify('この 時こくの 形を おぼえました');
         onChange();
       })
     ));
-    box.appendChild(slider('ふちを ぼかす',
-      () => (l.mask.feather || 0), v => { l.mask.feather = v; l._maskKey = null; },
-      0, 80, 1, v => v < 0.5 ? 'くっきり' : Math.round(v) + 'px'));
+
+    if(maskAnimated(l)){
+      box.appendChild(btnRow(
+        button('🗑 この マスクの ピンを けす', () => {
+          edit('マスクの ピンを けす', () => { clearMaskKeys(l, mi); l._maskKey = null; });
+          notify('形が 止まりました');
+          onChange();
+          if(closeLook) closeLook();
+          openLayer();
+        })
+      ));
+    }
+  });
+
+  if(ms.length){
+    const mk = document.createElement('div');
+    mk.className = 'empty';
+    mk.style.textAlign = 'left';
+    mk.textContent = '形を 動かすには … 時間を すすめて「◆ いまの 形に ピンを うつ」、' + NL
+      + 'そのあと べつの 時こくで「✂ かこみ直す」。' + NL
+      + '点の 数は こちらで そろえるので、かこみ方は 気に しなくて いいです。';
+    box.appendChild(mk);
   }
 
   /* ---- ✨ ひかり（グロー）と 🌑 かげ ----
@@ -5471,6 +5595,17 @@ export function buildPaintSheet(box, closeFn){
       if(closeFn) closeFn();
       onPaint();
     }),
+    button('🎚 ちょうせいの かみ', () => {
+      const made = {};
+      edit('ちょうせいの かみ', () => {
+        made.l = newAdjustLayer('ちょうせい', S.proj.w, S.proj.h);
+        S.proj.layers.unshift(made.l);
+        S.sel = made.l.id;
+      });
+      notify('下の ものに まとめて 効果を かける かみです');
+      onChange();
+      if(closeFn) closeFn();
+    }),
     button('🟪 いろの かみ', () => {
       const made = {};
       edit('いろの かみ', () => {
@@ -5774,6 +5909,97 @@ export function warpRow(box, l, closeFn){
   box.appendChild(btnRow(
     button('🫳 ゆがみ・自由変形', () => { if(closeFn) closeFn(); onWarp(l); })
   ));
+}
+
+/* ---------- ⏳ 時間を いじる（AEの タイムリマップ） ----------
+   「その 時こくに、中みの 何秒めを 見せるか」を ピンで きめる。
+   おそく する・止める・ぎゃくに 流す が できる。
+   フォルダに かけると 中身も いっしょに その 時間で 動く。 */
+export function remapRow(box, l){
+  const NL = String.fromCharCode(10);
+  const dur = S.proj.duration;
+  const on = () => !!(l.remap && l.tracks && l.tracks.time && l.tracks.time.length);
+
+  box.appendChild(heading('⏳ 時間を いじる'));
+
+  const sw = button('', () => {
+    edit('時間いじり', () => {
+      if(on()){ l.remap = false; }
+      else {
+        l.remap = true;
+        if(!l.tracks || !l.tracks.time || !l.tracks.time.length){
+          // はじめは そのまま（1秒＝1秒）
+          setPin(l, 'time', 0, 0, 'linear');
+          setPin(l, 'time', dur, dur, 'linear');
+        }
+      }
+    });
+    notify(on() ? 'この レイヤーの 時間を いじれます' : '時間いじりを やめました');
+    onChange();
+    openLayer();
+  });
+  sw.textContent = (on() ? '✅' : '⬜') + ' 時間を いじる';
+  sw.classList.toggle('on', on());
+  box.appendChild(btnRow(sw));
+
+  if(!on()){
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = 'オンに すると「いま 中みの 何秒めを 見せるか」を' + NL
+      + 'ピンで きめられます。止める・ゆっくり・ぎゃく回し が できます。';
+    box.appendChild(n);
+    return;
+  }
+
+  /* いまの 時こくで 見せて いる「中みの 時こく」 */
+  const now = () => {
+    const k = (l.tracks || {}).time;
+    return k && k.length ? channelValue(l, 'time', S.time) : S.time;
+  };
+  const sl = document.createElement('input');
+  sl.type = 'range'; sl.min = 0; sl.max = dur; sl.step = 0.01; sl.value = now();
+  const val = document.createElement('span');
+  val.className = 'val';
+  const show = () => { val.textContent = (+sl.value).toFixed(2) + '秒めを 見せる'; };
+  show();
+  sl.addEventListener('pointerdown', () => { holdSheet(true); beginEdit('見せる 時こく'); });
+  guardSlide(sl, () => {
+    setPin(l, 'time', S.time, +sl.value, 'linear');
+    show();
+    onChange();
+  });
+  sl.addEventListener('change', () => { holdSheet(false); commitEdit(); });
+  box.appendChild(field('いま 見せる ところ', sl, val));
+
+  const setKeys = (label, pairs, msg) => button(label, () => {
+    edit(label, () => {
+      if(l.tracks) delete l.tracks.time;
+      pairs.forEach(([t, v]) => setPin(l, 'time', t, v, 'linear'));
+    });
+    notify(msg);
+    onChange();
+    openLayer();
+  });
+
+  box.appendChild(btnRow(
+    setKeys('⏸ ここから 止める', [[0, 0], [S.time, S.time], [dur, S.time]],
+            'この あと 絵が 止まります'),
+    setKeys('↩ ぎゃく回し', [[0, dur], [dur, 0]], 'うしろから 流れます')
+  ));
+  box.appendChild(btnRow(
+    setKeys('🐢 半分の はやさ', [[0, 0], [dur, dur / 2]], 'ゆっくりに なります'),
+    setKeys('🐇 2ばいの はやさ', [[0, 0], [dur, dur * 2]], 'はやくなります'),
+    setKeys('もとに もどす', [[0, 0], [dur, dur]], 'そのままの はやさに もどしました')
+  ));
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = 'ピンは タイムラインに 出る ので、あとから 引っぱって' + NL
+    + '早さを 変えられます。コマ（パラパラ）にも かかります。' + NL
+    + 'フォルダに かけると、中身 ぜんぶが その 時間で 動きます。';
+  box.appendChild(note);
 }
 
 export function spanRow(box, l, closeFn){
