@@ -2,24 +2,24 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js?v=7';
-import { wire, bus } from './bus.js?v=7';
-import { MEDIA, importFiles, hookAll } from './media.js?v=7';
-import { useCanvas, renderStage } from './render.js?v=7';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=7';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=7';
-import { beatOn, beatSec, beatAt } from './beat.js?v=7';
-import * as TL from './ui/timeline.js?v=7';
-import * as P from './ui/panel.js?v=7';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=7';
+} from './state.js?v=8';
+import { wire, bus } from './bus.js?v=8';
+import { MEDIA, importFiles, hookAll } from './media.js?v=8';
+import { useCanvas, renderStage } from './render.js?v=8';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=8';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=8';
+import { beatOn, beatSec, beatAt } from './beat.js?v=8';
+import * as TL from './ui/timeline.js?v=8';
+import * as P from './ui/panel.js?v=8';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=8';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=7';
-import { addFontFile } from './text.js?v=7';
-import { makePack, openPack } from './pack.js?v=7';
-import { showStart } from './ui/start.js?v=7';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=7';
-import { trackOf } from './state.js?v=7';
+} from './edit.js?v=8';
+import { addFontFile } from './text.js?v=8';
+import { makePack, openPack } from './pack.js?v=8';
+import { showStart } from './ui/start.js?v=8';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=8';
+import { trackOf } from './state.js?v=8';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -48,6 +48,7 @@ function applySize() {
 
 /* ---------- 画面の 描き直し ---------- */
 function drawAll() {
+  refreshVoices();          // 音けし・大きさを すぐ きかせる
   TL.drawAll();
   renderStage(S.time);
   P.draw();
@@ -111,6 +112,7 @@ wire({
     $('#busyPct').textContent = Math.round(p * 100) + '%';
   },
   reveal: id => TL.reveal(id),
+  audio: refreshVoices,
   beat: m => {
     // はじめての 音から、曲の はやさを もらって おく
     if (m && m.bpm && !S.beat.bpm) {
