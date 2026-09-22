@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=264';
-import { valuesAt as evalAt, setPin, shiftTrack } from './anim.js?v=264';
+import { M, uid, ptInQuad } from './math.js?v=265';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=265';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=264';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=264';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=264';
-import { handTime } from './hand.js?v=264';
-import { WORK_KEYS } from '../state.js?v=264';
+         withShake } from './camera.js?v=265';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=265';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=265';
+import { handTime } from './hand.js?v=265';
+import { WORK_KEYS } from '../state.js?v=265';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -189,11 +189,25 @@ export function computeAll(project, time){
   const showing = (f) => {
     if(flipShow[f.id] === undefined){
       const mem = membersOf(project, f);
-      const i = flipIndex(f.flip, mem.length, time);
+      const i = flipIndex(f.flip, mem.length, srcTime(f));
       flipShow[f.id] = mem.length ? mem[i].id : null;
     }
     return flipShow[f.id];
   };
+
+  /* ---------- 時間を いじる（タイムリマップ） ----------
+     フォルダの 時間を いじったら、中身も いっしょに その 時間で 動く
+     （AEの プリコンポと 同じ）。
+     baseTime … その レイヤーに とどく 時こく（親ごしの ぶん）
+     srcTime  … その レイヤーが 自分の 中で つかう 時こく */
+  const tMemo = {};
+  const baseTime = (l) => {
+    if(tMemo[l.id] !== undefined) return tMemo[l.id];
+    tMemo[l.id] = time;                       // ぐるぐる よけ
+    const f = nearestFolder(project, l);
+    return tMemo[l.id] = f ? srcTime(f) : time;
+  };
+  const srcTime = (l) => remapTime(l, baseTime(l));
 
   const solve = (l) => {
     if(out[l.id]) return out[l.id];
@@ -202,7 +216,10 @@ export function computeAll(project, time){
 
     /* 手がき風で「うごきも コマ落とし」に していたら、
        このレイヤーだけ 時こくを コマの きざみに そろえる。 */
-    const v = evalAt(l, handTime(l, time));
+    /* 親（フォルダ）が 時間を いじって いれば、その 時こくで 読む。
+       自分の 時間いじりは evalAt の 中で かかる。 */
+    const lt = baseTime(l);
+    const v = evalAt(l, handTime(l, lt));
 
     /* ゆれ（かみのゆれ など）。
        ピンを 打たずに その場で 出すので、なめらかで、
@@ -210,11 +227,11 @@ export function computeAll(project, time){
     if(l.sway && l.sway.on){
       if((l.pins || []).length > 1){
         // 骨が あるとき … 根元から 毛先へ しなる
-        const sp = swayPose(l.pins, l.sway, time);
+        const sp = swayPose(l.pins, l.sway, srcTime(l));
         if(sp) v.pins = sp;
       } else {
         // 骨が ないとき … じくを 中心に かたむける
-        v.rot += swayTilt(l.sway, time);
+        v.rot += swayTilt(l.sway, srcTime(l));
       }
     }
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
@@ -675,6 +692,25 @@ export function newSolidLayer(name, w, h, color){
   l.x = w / 2; l.y = h / 2;
   return l;
 }
+
+/* ちょうせいの かみ（AEの 調整レイヤー）。
+   自分は 見えない。下に ある ものへ まとめて
+   色の調整・ぼかしを かける ための 紙。
+   四角を 小さく すれば、その ところ だけに かかる。 */
+export function newAdjustLayer(name, w, h){
+  const l = newLayer(name || 'ちょうせい', []);
+  l.kind = 'adjust';
+  l.pw = w; l.ph = h;
+  l.x = w / 2; l.y = h / 2;
+  l.bright = 1; l.contrast = 1; l.sat = 1; l.hue = 0;
+  /* 画面ぜんたいに ひろがって いる ので、絵の上では さわれない ように
+     して おく（下の 絵が えらべなく なって しまう）。
+     場所や 大きさを 変えたい ときは カギを はずす。 */
+  l.locked = true;
+  return l;
+}
+
+export const isAdjust = (l) => !!l && l.kind === 'adjust';
 
 export function newFolder(name){
   const f = newLayer(name || 'フォルダ', []);
