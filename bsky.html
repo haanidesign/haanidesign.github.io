@@ -233,36 +233,59 @@
     return hlsReady;
   }
 
+  function onVidError(){
+    var m = shots[at];
+    var e = boxVid.error;
+    console.error('[bsky] video element error', e, m && m.playlist);
+    caption('動画を 流せません（code ' + (e ? e.code : '?') + '）', m);
+  }
+
   function stopVideo(){
+    boxVid.removeEventListener('error', onVidError);
     if(hls){ hls.destroy(); hls = null; }
     boxVid.pause();
     boxVid.removeAttribute('src');
     boxVid.load();
   }
 
+  // 拡大の 下に 出す 字。うまく いかない ときは わけと 逃げ道も
+  function caption(text, m){
+    cap.textContent = (at + 1) + ' / ' + shots.length;
+    if(text){
+      cap.appendChild(document.createTextNode('　' + text));
+    }
+    if(m && m.kind === 'video' && m.post){
+      var a = document.createElement('a');
+      a.href = m.post; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = 'Bluesky で 見る';
+      cap.appendChild(a);
+    }
+  }
+
   function playVideo(m){
     // Safari など HLS を そのまま 流せる ものは それで
-    if(boxVid.canPlayType('application/vnd.apple.mpegurl')){
+    var native = boxVid.canPlayType('application/vnd.apple.mpegurl');
+    if(native){
       boxVid.src = m.playlist;
       boxVid.play().catch(function(){});
       return;
     }
     loadHls().then(function(){
-      if(!window.Hls || !window.Hls.isSupported()) throw new Error('未対応');
-      hls = new window.Hls();
+      if(!window.Hls) throw new Error('hls.js を 読めません');
+      if(!window.Hls.isSupported()) throw new Error('この ブラウザは 対応外');
+
+      hls = new window.Hls({ enableWorker: true });
+      hls.on(window.Hls.Events.ERROR, function(_e, d){
+        if(!d || !d.fatal) return;
+        console.error('[bsky] hls error', d);
+        caption('動画を 流せません（' + (d.details || d.type) + '）', m);
+      });
       hls.loadSource(m.playlist);
       hls.attachMedia(boxVid);
       boxVid.play().catch(function(){});
-    }).catch(function(){
-      // 流せない ときは 投稿へ 案内する
-      cap.innerHTML = '';
-      cap.appendChild(document.createTextNode('この ブラウザでは 動画を 流せません'));
-      if(m.post){
-        var a = document.createElement('a');
-        a.href = m.post; a.target = '_blank'; a.rel = 'noopener';
-        a.textContent = 'Bluesky で 見る';
-        cap.appendChild(a);
-      }
+    }).catch(function(err){
+      console.error('[bsky] video', err, m.playlist);
+      caption(String(err.message || err), m);
     });
   }
 
@@ -277,14 +300,15 @@
     at = (at + shots.length) % shots.length;
     var m = shots[at];
 
-    cap.textContent = (at + 1) + ' / ' + shots.length;
-
     if(m.kind === 'video' && m.playlist){
+      caption('', m);
       boxImg.hidden = true;
       boxVid.hidden = false;
       boxVid.poster = m.thumb || '';
+      boxVid.addEventListener('error', onVidError);
       playVideo(m);
     }else{
+      caption('', m);
       boxVid.hidden = true;
       boxImg.hidden = false;
       boxImg.src = m.full || m.thumb;
