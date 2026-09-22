@@ -215,3 +215,12 @@ kbd{
   box-shadow:0 3px 0 #1E1C14;
 }
 #deadman #deadhide{ background:#FFFEF7; font-size:.78rem; min-height:44px; }
+
+/* 1文字ずつ えらぶ 札 */
+.row .grid.chips{ gap:.2rem; }
+.chip1{
+  min-width:34px; min-height:34px; padding:0 .3rem;
+  font-size:.8rem; box-shadow:0 2px 0 var(--ink);
+}
+.chip1.moved{ background:var(--main-soft); }
+.chip1.moved.on{ background:var(--main); }

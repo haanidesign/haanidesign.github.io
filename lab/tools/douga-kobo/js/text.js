@@ -1,8 +1,8 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
-import { S, clamp } from './state.js?v=12';
-import { beatOn, beatSec, beatAt } from './beat.js?v=12';
-import { bus } from './bus.js?v=12';
+import { S, clamp } from './state.js?v=13';
+import { beatOn, beatSec, beatAt } from './beat.js?v=13';
+import { bus } from './bus.js?v=13';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -401,12 +401,14 @@ export function drawText(G, c, local, absT) {
       const st = glyphState(T, g, local - back, c.dur, total, absT - back);
       if (st.a <= .004) continue;
       const fade = k === 0 ? 1 : (1 - k / steps) * .45;
+      const o = offOf(T, g.idx);
       G.save();
       G.globalAlpha = clamp(st.a * fade, 0, 1);
-      G.translate(g.x + st.dx, g.y + st.dy);
+      G.translate(g.x + st.dx + o.x * size, g.y + st.dy + o.y * size);
       if (g.rot) G.rotate(g.rot * Math.PI / 180);
       if (st.rot) G.rotate(st.rot * Math.PI / 180);
-      G.scale(st.sx, st.sy);
+      if (o.r) G.rotate(o.r * Math.PI / 180);
+      G.scale(st.sx * o.s, st.sy * o.s);
       if (st.blur > .05) G.filter = `blur(${st.blur.toFixed(2)}px)`;
 
       const col = st.hue ? shiftHue(T.color, st.hue) : T.color;
@@ -444,6 +446,47 @@ export function drawText(G, c, local, absT) {
     }
   }
   G.restore();
+}
+
+/* ---------- 1文字ずつの ずらし ----------
+   Lyrica の Character Offset と 同じ 考え。
+   よこ・たては 文字の 大きさを 1 と した 目もり（em）で 持つ ので、
+   あとで 大きさを 変えても くずれない。 */
+export const OFF0 = { x: 0, y: 0, s: 1, r: 0 };
+export function offOf(T, idx) {
+  const o = T.off && T.off[idx];
+  if (!o) return OFF0;
+  return { x: o.x || 0, y: o.y || 0, s: o.s === undefined ? 1 : o.s, r: o.r || 0 };
+}
+export function setOff(T, idx, part) {
+  if (!T.off) T.off = {};
+  const cur = T.off[idx] || { x: 0, y: 0, s: 1, r: 0 };
+  T.off[idx] = Object.assign(cur, part);
+  const o = T.off[idx];
+  if (!o.x && !o.y && !o.r && (o.s === 1 || o.s === undefined)) delete T.off[idx];
+}
+export const clearOff = (T, idx) => {
+  if (!T.off) return;
+  if (idx === undefined) T.off = {}; else delete T.off[idx];
+};
+
+/** 1文字ずつの 置き場（ずらしこみ）。えらぶ ため・わくを 出す ため */
+export function glyphSpots(G, T) {
+  const lay = layout(G, T);
+  const size = T.size;
+  G.font = `${T.weight} ${size}px ${fontFamily(T.font || 'rounded')}`;
+  return lay.glyphs
+    .filter(g => g.ch !== ' ' && g.ch !== '　')
+    .map(g => {
+      const o = offOf(T, g.idx);
+      const m = G.measureText(g.ch);
+      return {
+        idx: g.idx, ch: g.ch,
+        x: g.x + o.x * size, y: g.y + o.y * size,
+        w: Math.max(size * .4, m.width) * o.s, h: size * 1.05 * o.s,
+        rot: (g.rot || 0) + o.r
+      };
+    });
 }
 
 /** 文字ぜんたいに かかる グラデーション。

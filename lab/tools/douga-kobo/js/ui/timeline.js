@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=12';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=12';
-import { bus } from '../bus.js?v=12';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=12';
+} from '../state.js?v=13';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=13';
+import { bus } from '../bus.js?v=13';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=13';
 
 const el = {};
 export function init() {
@@ -298,11 +298,12 @@ function grab(e) {
   const node = e.target.closest ? e.target.closest('.clip') : null;
   if (!node) {
     const lane = e.target.closest && e.target.closest('.lane');
-    if (lane) { S.selTrack = lane.dataset.tid; S.sel = null; bus.all(); }
+    if (lane) { S.selTrack = lane.dataset.tid; S.sel = null; S.selChar = null; bus.all(); }
     return;
   }
   const f = findClip(node.dataset.cid);
   if (!f) return;
+  if (S.sel !== f.c.id) S.selChar = null;
   S.sel = f.c.id; S.selTrack = f.t.id;
   if (f.t.lock) { bus.all(); toast('この段は かぎが かかって いる'); return; }
 

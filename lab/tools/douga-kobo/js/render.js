@@ -1,8 +1,8 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=12';
-import { MEDIA, animFrame } from './media.js?v=12';
-import { drawText as paintText, textBox } from './text.js?v=12';
-import { beatOn, beatAt } from './beat.js?v=12';
+import { S, clamp, findClip } from './state.js?v=13';
+import { MEDIA, animFrame } from './media.js?v=13';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=13';
+import { beatOn, beatAt } from './beat.js?v=13';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -363,6 +363,26 @@ export function clipBox(c) {
   return { w: w * c.scale, h: h * c.scale };
 }
 
+/** 1文字ずつの わくを 画面の ところに なおす（えらぶ・つかむ ため） */
+export function charSpots(c) {
+  if (!c || c.kind !== 'text' || !vcv) return [];
+  const g = O || (outCanvas(), O);
+  const spots = glyphSpots(g, c.text);
+  const a = c.rot * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  return spots.map(sp => {
+    const lx = sp.x * c.scale, ly = sp.y * c.scale;
+    const px = S.W / 2 + c.x + lx * co - ly * si;
+    const py = S.H / 2 + c.y + lx * si + ly * co;
+    const p = toScreen(px, py);
+    return {
+      idx: sp.idx, ch: sp.ch,
+      sx: p.x, sy: p.y,
+      sw: sp.w * c.scale * view.z, sh: sp.h * c.scale * view.z,
+      srot: (sp.rot || 0) + c.rot
+    };
+  });
+}
+
 /** つまみ（四すみ）の 画面での ところ。指で つかむ ため */
 export function handlePoints(c) {
   const { w, h } = clipBox(c);
@@ -381,6 +401,28 @@ function drawHandles(g, dpr) {
   if (!f || f.c.kind === 'audio') return;
   const c = f.c;
   if (S.time < c.start || S.time >= c.start + c.dur) return;
+
+  // 1文字ずつ いじる ときは、字ごとの わくを 出す
+  if (c.kind === 'text' && c.text.charOn) {
+    charSpots(c).forEach(sp => {
+      const on = S.selChar === sp.idx;
+      g.save();
+      g.translate(sp.sx * dpr, sp.sy * dpr);
+      if (sp.srot) g.rotate(sp.srot * Math.PI / 180);
+      const w = Math.max(14, sp.sw) * dpr, h = Math.max(14, sp.sh) * dpr;
+      g.lineWidth = (on ? 3 : 1.6) * dpr;
+      g.strokeStyle = on ? '#F2A0B8' : 'rgba(255,254,247,.85)';
+      g.setLineDash(on ? [] : [6 * dpr, 5 * dpr]);
+      g.strokeRect(-w / 2, -h / 2, w, h);
+      if (on) {
+        g.setLineDash([]);
+        g.strokeStyle = '#1E1C14'; g.lineWidth = 1.5 * dpr;
+        g.strokeRect(-w / 2, -h / 2, w, h);
+      }
+      g.restore();
+    });
+    g.setLineDash([]);
+  }
   const { w, h } = clipBox(c);
   const z = view.z * dpr;
   const r = vcv.getBoundingClientRect();
