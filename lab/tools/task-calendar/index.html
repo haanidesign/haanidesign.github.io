@@ -390,6 +390,7 @@
     <input type="time" id="fTime">
     <label>画像</label>
     <div class="drop" id="drop"><div id="dropBody">ここにドロップ／クリックで選ぶ</div></div>
+    <button class="btn btn-sm btn-p" id="dropX" style="margin-top:.4rem" hidden>画像をはずす</button>
     <div class="panel-btns">
       <button class="btn btn-sm" id="save">ほぞん</button>
       <button class="btn btn-sm btn-p" id="del">けす</button>
@@ -911,8 +912,10 @@ function fillPanel(title, note, isNew){
 }
 function drawDrop(){
   $("#dropBody").innerHTML = pendingImage
-    ? `<img src="${pendingImage}" alt=""><span>クリックで えらびなおす</span>`
-    : "ここにドロップ／クリックで選ぶ";
+    ? `<img src="${pendingImage}" alt=""><span>押すと えらびなおし</span>`
+    : "ここにドロップ／押して 選ぶ";
+  // 画像が入っているときだけ「はずす」を出す
+  $("#dropX").hidden = !pendingImage;
 }
 function closePanel(){ $("#veil").classList.remove("on"); editing = null; }
 
@@ -930,6 +933,7 @@ async function save(){
     mine[editing.id] = { id:editing.id, date:editing.date, ...v };
     await kvSet("mine", mine);
   }else{
+    // Notion から来た絵を はずしたときも、上書きとして そのまま残す
     over[editing.id] = { ...(over[editing.id]||{}), ...v };
     await kvSet("over", over);
   }
@@ -1109,6 +1113,11 @@ picker.addEventListener("change", async ()=>{
   try{ pendingImage = await shrink(f); drawDrop(); }catch(err){ alert(err.message); }
   picker.value = "";
 });
+$("#dropX").addEventListener("click", ()=>{
+  pendingImage = "";
+  drawDrop();
+});
+
 const drop = $("#drop");
 drop.addEventListener("click", ()=> picker.click());
 drop.addEventListener("dragover", (e)=>{ e.preventDefault(); drop.classList.add("over"); });
