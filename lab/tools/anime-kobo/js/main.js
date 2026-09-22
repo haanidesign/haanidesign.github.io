@@ -1,43 +1,43 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=263';
+import { M } from './engine/math.js?v=264';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=263';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=264';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=263';
-import { createStage } from './ui/stage.js?v=263';
-import { createRenderer } from './render/renderer.js?v=263';
-import { createTimeline } from './ui/timeline.js?v=263';
-import { fmtTime } from './engine/anim.js?v=263';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=264';
+import { createStage } from './ui/stage.js?v=264';
+import { createRenderer } from './render/renderer.js?v=264';
+import { createTimeline } from './ui/timeline.js?v=264';
+import { fmtTime } from './engine/anim.js?v=264';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
          buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
          buildExportSheet, buildEaseSheet, buildDoneSheet,
          setParentOpener, setBgPicker,
-         setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder,
+         setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder, setImageReplacer,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=263';
+         setWarper } from './ui/sheet.js?v=264';
 
-import { showNewDoc } from './ui/newdoc.js?v=263';
-import { addImageFiles, addFramesToLayer, loadImage } from './io/image.js?v=263';
-import { fitToCanvas, isBg } from './io/bg.js?v=263';
-import * as Audio from './io/audio.js?v=263';
-import { isTalk, blipTimes } from './engine/talk.js?v=263';
+import { showNewDoc } from './ui/newdoc.js?v=264';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=264';
+import { fitToCanvas, isBg } from './io/bg.js?v=264';
+import * as Audio from './io/audio.js?v=264';
+import { isTalk, blipTimes } from './engine/talk.js?v=264';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=263';
-import { importPsd } from './io/psd.js?v=263';
-import { splitTextChars } from './io/text.js?v=263';
-import { exportAE } from './io/ae.js?v=263';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=264';
+import { importPsd } from './io/psd.js?v=264';
+import { splitTextChars } from './io/text.js?v=264';
+import { exportAE } from './io/ae.js?v=264';
 import { exportVideo, exportGif, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=263';
-import { pathKeys, pathLength } from './engine/path.js?v=263';
-import { paintDirty } from './engine/paint.js?v=263';
+         canUseWebCodecs } from './io/export.js?v=264';
+import { pathKeys, pathLength } from './engine/path.js?v=264';
+import { paintDirty } from './engine/paint.js?v=264';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=263';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=264';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1286,6 +1286,24 @@ setPlayer((on) => {
   if(S.playing){ if(S.time >= S.proj.duration - 0.01) S.time = 0; startSound(); }
   else stopSound();
   refresh();
+});
+
+/* 設定シートの「🔁 絵を 入れかえる」から呼ばれる */
+setImageReplacer(async (files, layer, opt) => {
+  try{
+    busy(true, '絵を 入れかえ中…');
+    const n = await replaceLayerImages(files, layer, opt);
+    if(n) toast(opt && opt.all ? (n > 1 ? n + 'まいに 入れかえました' : '絵を 入れかえました')
+                               : 'この コマの 絵を 入れかえました');
+    else toast('PNG・JPEG を えらんでね');
+    return n;
+  }catch(err){
+    toast(err.message || '入れかえられませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
 });
 
 /* 設定シートの「＋コマを足す」から呼ばれる */

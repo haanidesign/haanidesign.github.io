@@ -1,8 +1,9 @@
 /* JPEG / PNG の読み込み。
    PNG を複数枚まとめて選んだときは、名前順に並べて1レイヤーのコマ列にする。 */
 
-import { S, addAsset, edit } from '../state.js?v=263';
-import { newLayer } from '../engine/layer.js?v=263';
+import { S, addAsset, edit, WORK_KEYS } from '../state.js?v=264';
+import { newLayer } from '../engine/layer.js?v=264';
+import { pinChX, pinChY, warpChX, warpChY, valuesAt } from '../engine/anim.js?v=264';
 
 /** File を dataURL にする */
 export function readAsDataURL(file){
@@ -122,4 +123,113 @@ export function fitIntoCanvas(layer, img){
   const h = img.naturalHeight || img.height;
   const k = Math.min(1, (S.proj.w * 0.9) / w, (S.proj.h * 0.9) / h);
   layer.scaleX = k; layer.scaleY = k;
+}
+
+
+/* ================= 絵だけ 入れかえる =================
+
+   アフターエフェクトの「フッテージを 置き換え」と 同じ かんがえ方。
+   動き（ピン・親子・タイミング・エフェクト）は そのままで、
+   はっている 絵 だけを すげかえる。
+
+   絵の 大きさが かわった ときは、
+     ・ピン と ゆがみ と マスク … 絵の 中の ざひょう なので、
+       同じ ところを さす ように 大きさの 比で なおす
+     ・見た目の 大きさ … 前と 同じに なる ように 拡大率を 直す
+   ここを やらないと、入れかえた とたん 骨が 絵の そとに 出て しまう。 */
+
+/** 絵の 大きさが かわった ぶん、絵の中の ざひょうを なおす */
+function rescaleInside(l, ow, oh, nw, nh, keepSize){
+  const sx = ow ? nw / ow : 1, sy = oh ? nh / oh : 1;
+  if(Math.abs(sx - 1) < 1e-9 && Math.abs(sy - 1) < 1e-9) return;
+  const tr = l.tracks || {};
+
+  (l.pins || []).forEach(p => {
+    p.u *= sx; p.v *= sy;
+    p.dx = (p.dx || 0) * sx; p.dy = (p.dy || 0) * sy;
+    const kx = tr[pinChX(p.id)], ky = tr[pinChY(p.id)];
+    if(kx) kx.forEach(k => { k.v *= sx; });
+    if(ky) ky.forEach(k => { k.v *= sy; });
+  });
+
+  if(l.cage && l.cage.pts){
+    l.cage.w *= sx; l.cage.h *= sy;
+    l.cage.pts.forEach((p, i) => {
+      p.x *= sx; p.y *= sy;
+      const kx = tr[warpChX(i)], ky = tr[warpChY(i)];
+      if(kx) kx.forEach(k => { k.v *= sx; });
+      if(ky) ky.forEach(k => { k.v *= sy; });
+    });
+  }
+
+  if(l.mask && l.mask.pts) l.mask.pts.forEach(p => { p.x *= sx; p.y *= sy; });
+
+  if(keepSize){
+    // 見た目の 大きさを 前と そろえる（絵の ドット数が かわった ぶんを 打ち消す）
+    l.scaleX = (l.scaleX == null ? 1 : l.scaleX) / sx;
+    l.scaleY = (l.scaleY == null ? 1 : l.scaleY) / sy;
+    if(tr.scaleX) tr.scaleX.forEach(k => { k.v /= sx; });
+    if(tr.scaleY) tr.scaleY.forEach(k => { k.v /= sy; });
+  }
+}
+
+/** あみ など、絵から 作り直す ものを 捨てる（次に 描くとき 張り直す） */
+function dropWork(l){
+  WORK_KEYS.forEach(k => { if(k in l) delete l[k]; });
+  l._maskKey = null;
+  l._meshN = null;
+}
+
+/**
+ * レイヤーの 絵だけ 入れかえる。
+ *   files … えらんだ 画像
+ *   layer … 入れかえる レイヤー
+ *   opt.all    … true なら コマ ぜんぶ、false なら いまの コマ だけ
+ *   opt.keepSize … 見た目の 大きさを そのままに する（はじめは する）
+ * かえりは 入れかえた まい数。
+ */
+export async function replaceLayerImages(files, layer, opt = {}){
+  const list = [...files].filter(f => /^image\//.test(f.type)).sort(byNumberThenName);
+  if(!list.length) return 0;
+  if(!layer || !layer.frames || !layer.frames.length) return 0;
+
+  const loaded = [];
+  for(const f of list){
+    const src = await readAsDataURL(f);
+    const im = await loadImage(src);
+    loaded.push({ name: f.name.replace(/\.[a-z0-9]+$/i, ''), src, im });
+  }
+
+  const at = Math.max(0, Math.min(layer.frames.length - 1,
+                                  opt.frame == null ? valuesAt(layer, S.time).frame : opt.frame));
+  const before = S.proj.assets[layer.frames[at]];
+  const ow = before ? before.w : loaded[0].im.naturalWidth;
+  const oh = before ? before.h : loaded[0].im.naturalHeight;
+  const nw = loaded[0].im.naturalWidth, nh = loaded[0].im.naturalHeight;
+
+  edit('絵を 入れかえる', () => {
+    const ids = loaded.map(o => addAsset(o.name, o.src,
+                                         o.im.naturalWidth, o.im.naturalHeight, o.im));
+    if(!opt.all){
+      layer.frames[at] = ids[0];
+    } else if(ids.length === 1){
+      layer.frames = layer.frames.map(() => ids[0]);
+    } else {
+      /* えらんだ まい数が コマ数に なる（足りない ぶんは 消える・ふえる） */
+      layer.frames = ids;
+    }
+    rescaleInside(layer, ow, oh, nw, nh, opt.keepSize !== false);
+    dropWork(layer);
+
+    /* どこからも つかわれなく なった 絵は 捨てる。
+       のこすと ほぞんする ファイルが どんどん ふくらむ
+       （入れかえる たびに 古い 絵が たまる）。 */
+    const used = new Set();
+    S.proj.layers.forEach(x => (x.frames || []).forEach(id => used.add(id)));
+    Object.keys(S.proj.assets).forEach(id => {
+      if(!used.has(id)) delete S.proj.assets[id];
+    });
+  });
+
+  return loaded.length;
 }
