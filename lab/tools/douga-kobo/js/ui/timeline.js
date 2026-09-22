@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=13';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=13';
-import { bus } from '../bus.js?v=13';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=13';
+} from '../state.js?v=14';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=14';
+import { bus } from '../bus.js?v=14';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=14';
 
 const el = {};
 export function init() {
