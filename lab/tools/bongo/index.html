@@ -65,6 +65,17 @@ select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
 .part .x{background:none;border:1px solid var(--line);color:var(--dim);border-radius:5px;
   padding:1px 6px;font-size:11px;cursor:pointer}
 
+/* PSD レイヤー一覧 */
+.layers{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto;margin:8px 0}
+.layers:empty{display:none}
+.lay{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:6px;padding:3px 5px;font-size:11px}
+.lay .pv{width:26px;height:26px;flex:0 0 26px;background:#15161e;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.lay .pv img{max-width:100%;max-height:100%}
+.lay .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+.lay select{width:104px;flex:0 0 104px;padding:2px 3px;font-size:10.5px}
+
 /* ---- ステージ ---- */
 .stagebox{border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;background:#2b2d3a}
 #stage{display:block;width:100%;height:auto;touch-action:none}
@@ -116,6 +127,7 @@ body.solo .exit{display:block}
     <div class="row"><label>はずむ強さ</label><input type="range" id="bAmt" min="0" max="30" value="12"><span class="val" id="bAmtV">12</span></div>
     <div class="row"><label>もどる速さ</label><input type="range" id="bSpd" min="4" max="30" value="14"><span class="val" id="bSpdV">14</span></div>
     <div class="row"><label>手の下がり</label><input type="range" id="press" min="0" max="40" value="14"><span class="val" id="pressV">14</span></div>
+    <div class="row"><label>打つ絵の長さ</label><input type="range" id="hold" min="50" max="400" step="10" value="120"><span class="val" id="holdV">120</span></div>
 
     <h2 class="sec">全体の 大きさ</h2>
     <div class="row"><label>大きさ</label><input type="range" id="scale" min="40" max="200" value="100"><span class="val" id="scaleV">100%</span></div>
@@ -146,7 +158,8 @@ body.solo .exit{display:block}
       <svg id="stage" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
     <div class="keylog" id="keylog">キーを打つと、その位置に手が行く。</div>
-    <p class="hint"><b>キーボードモード</b>＝押したキーの横の位置で、左手・右手の行き先が決まる。左半分は左手、右半分は右手。<br>
+    <p class="hint"><b>PSD</b>＝そのままステージにドロップすると、レイヤーを見て振り分ける。<br>
+      <b>キーボードモード</b>＝押したキーの横の位置で、左手・右手の行き先が決まる。左半分は左手、右半分は右手。<br>
       <b>タブレットモード</b>＝ステージの上でマウスを動かすとペン先がついてくる。押している間は下がる。<br>
       <b>自分の絵</b>＝ステージに画像をドロップ。まとめて落とすと、ファイル名でパーツに振り分ける。</p>
     <button class="btn exit" id="exit">もどる</button>
@@ -163,6 +176,17 @@ body.solo .exit{display:block}
       <code>base / body</code>（からだ）、<code>lhand-up / lhand-down</code>（左手）、
       <code>rhand-up / rhand-down</code>（右手）、<code>pen</code>、<code>desk / key</code>。<br>
       目印がない名前は、上から空いているパーツに順に入る。</p>
+
+    <h2 class="sec">PSD から 取り込む</h2>
+    <button class="btn sub" id="psdBtn">PSDをえらぶ</button>
+    <input type="file" id="psdFile" accept=".psd,image/vnd.adobe.photoshop" hidden>
+    <div id="psdInfo" class="note"></div>
+    <div class="layers" id="layers"></div>
+    <button class="btn" id="psdGo" hidden>この わりあてで 作る</button>
+    <p class="note">レイヤー名に <code>手 / hand / 손</code>、<code>ペン / pen / 펜</code>、
+      <code>キーボード / desk / 키보드</code> などが入っていれば、自動でそこに入る。
+      わりあてなしのレイヤーは、まとめて「からだ」1枚になる（重なり順そのまま）。<br>
+      フォルダは中身をばらして読む。非表示レイヤーは はじめから外してある。</p>
 
     <h2 class="sec">えらんだパーツを 合わせる</h2>
     <div class="row"><label>左右</label><input type="range" id="pX" min="-200" max="200" value="0"><span class="val" id="pXV">0</span></div>
@@ -214,7 +238,7 @@ const ADJ0={x:0,y:0,s:100,r:0,flip:false};
 /* ============================================================
    設定
    ============================================================ */
-const DEF={mode:'key',bounce:true,blink:true,arm:true,bAmt:12,bSpd:14,press:14,
+const DEF={mode:'key',bounce:true,blink:true,arm:true,bAmt:12,bSpd:14,press:14,hold:120,
            scale:100,offX:0,offY:0,rMin:12,rMax:88,hSpd:22,handY:306,penLen:70,bg:'clear'};
 let cfg=Object.assign({},DEF);
 let adj={};                    // パーツごとの合わせ
@@ -305,7 +329,7 @@ async function takeFiles(files){
    うごきの状態
    ============================================================ */
 const S={lx:.30,ly:0,lxT:.30,lyT:0, rx:.70,ry:0,rxT:.70,ryT:0,
-         bob:0,bobV:0, penX:.5,penY:.5,penDown:false,
+         bob:0,bobV:0, penX:.5,penY:.5,penDown:false, lHit:-9e9,rHit:-9e9,
          blinkT:0,blinkOn:false, tilt:0,tiltT:0};
 let lastHand='r';
 
@@ -445,9 +469,10 @@ function penTip(){
   return {x:Math.max(xOf(.02),Math.min(xOf(.98),S.penX*W)), y:334+(S.penDown?5:0)};
 }
 function tick(){
-  const k=cfg.hSpd/100*3;
+  const k=Math.min(.85,cfg.hSpd/100*3);
   S.lx+=(S.lxT-S.lx)*k; S.rx+=(S.rxT-S.rx)*k;
-  S.ly+=(S.lyT-S.ly)*(k*1.8); S.ry+=(S.ryT-S.ry)*(k*1.8);
+  const kd=Math.min(.9,k*1.8);
+  S.ly+=(S.lyT-S.ly)*kd; S.ry+=(S.ryT-S.ry)*kd;
   S.lyT*=.80; S.ryT*=.80;
   S.tilt+=(S.tiltT-S.tilt)*.12; S.tiltT*=.90;
   S.bobV+=(0-S.bob)*(cfg.bSpd/100*2.2); S.bobV*=.78; S.bob+=S.bobV;
@@ -472,7 +497,10 @@ function tick(){
     lx=xOf(S.lx); ly=base+S.ly;
     rx=xOf(S.rx); ry=base+S.ry;
   }
-  hand('L',lx,ly,S.ly); hand('R',rx,ry,cfg.mode==='pen'?(S.penDown?9:0):S.ry);
+  const now=performance.now(), HOLD=+cfg.hold;
+  const lDown = cfg.mode==='pen' ? false : (now-S.lHit<HOLD);
+  const rDown = cfg.mode==='pen' ? S.penDown : (now-S.rHit<HOLD);
+  hand('L',lx,ly,lDown); hand('R',rx,ry,rDown);
   arm('armL',262,300,lx,ly,-1); arm('armR',378,300,rx,ry,1);
 
   if(cfg.mode==='pen'){
@@ -495,11 +523,10 @@ function tick(){
   }
   requestAnimationFrame(tick);
 }
-function hand(side,x,y,down){
+function hand(side,x,y,pressed){
   const up=$('#h'+side+'Up'), dn=$('#h'+side+'Down');
   if(!up) return;
   const key=(side==='L'?'lhand':'rhand');
-  const pressed = down > cfg.press*.35;
   const hasDown = !!art[key+'Down'];
   up.style.display = (pressed&&hasDown)?'none':'';
   dn.style.display = (pressed&&hasDown)?'':'none';
@@ -527,7 +554,8 @@ function hit(code){
   const t=keyToX(code);
   let h = t<.42?'l' : t>.58?'r' : (lastHand==='l'?'r':'l');
   lastHand=h;
-  if(h==='l'){ S.lxT=t; S.lyT=+cfg.press; } else { S.rxT=t; S.ryT=+cfg.press; }
+  const now=performance.now();
+  if(h==='l'){ S.lxT=t; S.lyT=+cfg.press; S.lHit=now; } else { S.rxT=t; S.ryT=+cfg.press; S.rHit=now; }
   if(cfg.bounce){ S.bobV-=cfg.bAmt*.55; S.tiltT=(h==='l'?2.2:-2.2); }
   $('#keylog').textContent=(NAME[code]||code.replace(/^Key|^Digit/,''))+'  →  '+(h==='l'?'左手':'右手')+'  '+Math.round(t*100)+'%';
 }
@@ -556,7 +584,10 @@ addEventListener('pointerup',()=>{S.penDown=false;});
 ['dragenter','dragover'].forEach(t=>box.addEventListener(t,e=>{e.preventDefault();box.classList.add('drop');}));
 ['dragleave','drop'].forEach(t=>box.addEventListener(t,e=>{e.preventDefault();box.classList.remove('drop');}));
 box.addEventListener('drop',e=>{
-  const fs=[...(e.dataTransfer.files||[])].filter(f=>/^image\//.test(f.type));
+  const all=[...(e.dataTransfer.files||[])];
+  const psd=all.find(f=>/\.psd$/i.test(f.name));
+  if(psd){ readPsdFile(psd); return; }
+  const fs=all.filter(f=>/^image\//.test(f.type));
   if(fs.length) takeFiles(fs);
 });
 
@@ -598,7 +629,7 @@ function syncAdj(){
 $('#pF').addEventListener('change',e=>{ const a=A(sel); a.flip=e.target.checked; adj[sel]=a; saveCfg(); build(); });
 $('#pReset').addEventListener('click',()=>{ delete adj[sel]; saveCfg(); syncAdj(); build(); });
 
-const SLID=['bAmt','bSpd','press','scale','offX','offY','rMin','rMax','hSpd','handY','penLen'];
+const SLID=['bAmt','bSpd','press','hold','scale','offX','offY','rMin','rMax','hSpd','handY','penLen'];
 const UNIT={scale:'%',rMin:'%',rMax:'%'};
 function syncUI(){
   SLID.forEach(k=>{ $('#'+k).value=cfg[k]; $('#'+k+'V').textContent=cfg[k]+(UNIT[k]||''); });
@@ -649,6 +680,118 @@ $('#loadFile').addEventListener('change',async e=>{
   build(); renderParts(); syncAdj();
   $('#keylog').textContent='読みこんだ。';
 });
+
+
+/* ============================================================
+   PSD から 取り込む（ag-psd は psd-avatar-studio のものを借りる）
+   ============================================================ */
+const SLOTS=[{k:'',nm:'からだへ'},...PARTS.map(p=>({k:p.k,nm:p.nm})),{k:'skip',nm:'使わない'}];
+const KOR={base:/base|body|chara|몸|몸통|캐릭|얼굴|머리|からだ|あたま|体|顔|胴/i,
+           lhandUp:/(왼|left|l[-_ ]?|左).*(손|hand|手)(?!.*(down|아래|下|press))/i,
+           lhandDown:/(왼|left|left|左).*(손|hand|手).*(down|아래|下|press|打)/i,
+           rhandUp:/(오른|right|r[-_ ]?|右).*(손|hand|手)(?!.*(down|아래|下|press))/i,
+           rhandDown:/(오른|right|右).*(손|hand|手).*(down|아래|下|press|打)/i,
+           pen:/pen|펜|ペン|stylus|붓/i,
+           desk:/desk|key|keyboard|키보드|타블렛|tablet|台|机|板|책상/i};
+let psdW=0,psdH=0,psdLayers=[];
+
+function loadAgPsd(){
+  if(window.agPsd) return Promise.resolve(true);
+  return new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='../psd-avatar-studio/lib/ag-psd.js';
+    sc.onload=()=>res(!!window.agPsd);
+    sc.onerror=()=>res(false);
+    document.head.appendChild(sc);
+  });
+}
+function flattenPsd(node,out){
+  (node.children||[]).forEach(c=>{
+    if(c.children&&c.children.length) flattenPsd(c,out);
+    else if(c.canvas&&!c.hidden) out.push(c);
+  });
+}
+function contentBox(c){
+  const d=c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height).data;
+  let x0=c.width,y0=c.height,x1=-1,y1=-1;
+  for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){
+    if(d[(y*c.width+x)*4+3]>8){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  }
+  return x1<0?null:[x0,y0,x1,y1];
+}
+function guessSlot(name){
+  for(const k of ['lhandDown','rhandDown','lhandUp','rhandUp','pen','desk'])
+    if(KOR[k].test(name)) return k;
+  return '';                    // からだ へ
+}
+async function readPsdFile(f){
+  $('#psdInfo').textContent='PSDを読んでいる…';
+  const ok=await loadAgPsd();
+  if(!ok){ $('#psdInfo').textContent='PSDを読む部品が見つからなかった。PNGで入れてほしい。'; return; }
+  let psd;
+  try{ psd=agPsd.readPsd(await f.arrayBuffer(),{skipCompositeImageData:true,skipThumbnail:true}); }
+  catch(err){ $('#psdInfo').textContent='このPSDは読めなかった（'+err.message+'）'; return; }
+  psdW=psd.width; psdH=psd.height;
+  const flat=[]; flattenPsd(psd,flat);
+  psdLayers=flat.map(l=>({
+    name:l.name||'?', canvas:l.canvas,
+    left:l.left||0, top:l.top||0,
+    w:(l.right||0)-(l.left||0), h:(l.bottom||0)-(l.top||0),
+    slot:guessSlot(l.name||'')
+  })).filter(l=>l.w>0&&l.h>0);
+  $('#psdInfo').textContent=`${f.name} — ${psdLayers.length}レイヤー（${psdW}×${psdH}）`;
+  renderLayers();
+  $('#psdGo').hidden=psdLayers.length===0;
+}
+function renderLayers(){
+  const host=$('#layers'); host.innerHTML='';
+  psdLayers.forEach((l,i)=>{
+    const d=document.createElement('div'); d.className='lay';
+    const pv=document.createElement('div'); pv.className='pv';
+    try{
+      const th=document.createElement('canvas'); th.width=th.height=26;
+      const r=Math.min(26/l.canvas.width,26/l.canvas.height);
+      th.getContext('2d').drawImage(l.canvas,0,0,l.canvas.width*r,l.canvas.height*r);
+      pv.appendChild(th);
+    }catch(e){}
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=l.name; nm.title=l.name;
+    const sl=document.createElement('select');
+    SLOTS.forEach(o=>{
+      const op=document.createElement('option'); op.value=o.k; op.textContent=o.nm;
+      if(o.k===l.slot) op.selected=true; sl.appendChild(op);
+    });
+    sl.onchange=()=>{ psdLayers[i].slot=sl.value; };
+    d.append(pv,nm,sl); host.appendChild(d);
+  });
+}
+function compositeSlot(list){
+  if(!list.length) return null;
+  const c=document.createElement('canvas'); c.width=psdW; c.height=psdH;
+  const g=c.getContext('2d',{willReadFrequently:true});
+  list.forEach(l=>g.drawImage(l.canvas,l.left,l.top));
+  const box=contentBox(c); if(!box) return null;
+  const [x0,y0,x1,y1]=box, w=x1-x0+1, h=y1-y0+1;
+  const o=document.createElement('canvas'); o.width=w; o.height=h;
+  o.getContext('2d').drawImage(c,x0,y0,w,h,0,0,w,h);
+  return o;
+}
+function canvasBlob(c){ return new Promise(r=>c.toBlob(r,'image/png')); }
+async function applyPsdAssign(){
+  const groups={base:[]};
+  PARTS.forEach(p=>groups[p.k]=[]);
+  psdLayers.forEach(l=>{ if(l.slot==='skip')return; (groups[l.slot||'base']).push(l); });
+  let n=0;
+  for(const k in groups){
+    const c=compositeSlot(groups[k]);
+    if(!c) continue;
+    await setArt(k,await canvasBlob(c)); n++;
+  }
+  $('#psdInfo').textContent=`${n}パーツを作った。ずれていたら「合わせる」で直す。`;
+  $('#keylog').textContent='PSDから'+n+'パーツ入れた。';
+}
+$('#psdBtn').addEventListener('click',()=>$('#psdFile').click());
+$('#psdFile').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) readPsdFile(f); });
+$('#psdGo').addEventListener('click',applyPsdAssign);
 
 /* はじめ */
 (async()=>{
