@@ -3,263 +3,534 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Notion の予定を月ごとに並べて、画像つきで見るカレンダー。">
+<meta name="description" content="Notion の予定を月ごとに見て、時こくと画像を足せるカレンダー。">
 <title>予定カレンダー | HAANI LAB</title>
+<link rel="icon" type="image/png" href="../../../favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../style.css?v=8">
 <style>
-:root{
-  --main:      #E1DD60;
-  --main-deep: #B8B43F;
-  --main-soft: #F2F0BE;
-  --cream:     #FBFAEC;
-  --paper:     #FFFEF7;
-  --ink:       #1E1C14;
-  --gray:      #8A8470;
-  --pink:      #F2A0B8;
-  --bd: 2.5px solid var(--ink);
-  --r: 12px;
+/* ============ スケジュール専用（見た目は style.css に合わせる） ============ */
+.sch-head{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{
-  font-family:'M PLUS Rounded 1c','Noto Sans JP',sans-serif;
-  font-weight:700; color:var(--ink); line-height:1.8;
-  background-color:var(--cream);
-  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
-  background-size:16px 16px;
-  -webkit-font-smoothing:antialiased;
-  padding:1rem .8rem 2rem;
+.sch-month{
+  font-size:1.05rem; font-weight:800; letter-spacing:.02em;
+  background:var(--main-soft); border:var(--bd); border-radius:999px;
+  box-shadow:0 3px 0 var(--ink); padding:.25rem 1rem;
 }
-.dot{font-family:'DotGothic16',monospace;font-weight:400;}
-img{display:block;max-width:100%}
-
-/* ===== アプリの窓 ===== */
-.sheet{
-  max-width:1240px; margin:0 auto;
-  border:var(--bd); border-radius:18px; background:var(--paper);
-  box-shadow:0 6px 0 var(--ink); overflow:hidden;
+.sch-legend{
+  display:flex; gap:.8rem; flex-wrap:wrap; align-items:center;
+  margin-left:auto; font-size:.7rem; color:var(--gray);
+}
+.sch-legend b{display:inline-flex; align-items:center; gap:.3rem; font-weight:700; color:var(--ink);}
+.lg-swatch{width:12px; height:12px; border-radius:4px; border:2px solid var(--ink); display:inline-block;}
+.lg-off{
+  width:12px; height:12px; border-radius:4px;
+  border:2px solid var(--ink); background:#F1DFDF; display:inline-block;
 }
 
-/* ===== タイトルバー ===== */
-.head{
-  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
-  background:var(--main); border-bottom:var(--bd); padding:.55rem .8rem;
+/* --- カレンダー --- */
+.cal{display:grid; grid-template-columns:repeat(7,1fr); gap:.4rem;}
+.cal .dow{
+  text-align:center; font-size:.68rem; color:var(--gray);
+  letter-spacing:.1em; padding-bottom:.25rem;
 }
-.month-name{font-size:1.15rem; letter-spacing:.02em}
-.year{font-size:.62rem; color:#5c5843; letter-spacing:.18em}
-.spacer{flex:1}
+.cal .dow.sat{color:#5b8fc7;}
+.cal .dow.sun{color:#c76b6b;}
+.day{
+  min-height:118px; border:2px solid rgba(30,28,20,.16); border-radius:11px;
+  background:var(--paper); padding:.3rem .35rem;
+  display:flex; flex-direction:column; gap:.18rem; overflow:hidden;
+}
+.day.out{opacity:.3;}
+.day.past{background:#f4f2e6;}
+/* 土日祝はお休み。背景を変えて、ひと目で分かるようにする */
+.day.off{background:#F7EAEA; border-color:rgba(199,107,107,.45);}
+.day.off.past{background:#EFE3E3;}
+.hol{
+  font-size:.56rem; font-weight:700; color:#B05C5C;
+  line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.off-mark{
+  margin-top:auto; align-self:flex-start;
+  font-size:.58rem; font-weight:800; color:#B05C5C;
+}
+.day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
+.day .dnum{font-size:.74rem; font-weight:800; flex:none;}
+.day.sun .dnum{color:#c76b6b;}
+.day.sat .dnum{color:#5b8fc7;}
+.day .dnum.is-today{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:21px; height:21px; border-radius:50%; background:var(--ink); color:var(--main);
+}
+.ev{
+  font-size:.62rem; font-weight:700; line-height:1.5;
+  border:2px solid var(--ink); border-radius:7px;
+  padding:.02rem .3rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.more{font-size:.58rem; color:var(--gray);}
 
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
-  background:var(--paper);color:var(--ink);
-  border:var(--bd);border-radius:var(--r);
-  padding:.6rem 1.1rem;font:inherit;font-size:.82rem;
+/* --- 画像つきの予定（Notion に画像があるときだけ） --- */
+.card{
+  border:2px solid var(--ink); border-radius:8px; overflow:hidden;
+  background:var(--paper); box-shadow:0 2.5px 0 var(--ink);
+}
+.card-top{display:flex; align-items:center; gap:.2rem; padding:.05rem .25rem 0;}
+.card .cat-badge{
+  font-size:.5rem; font-weight:700; line-height:1.6;
+  border:2px solid var(--ink); border-radius:999px; padding:0 .4rem;
+  max-width:5.5em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.card .at{
+  font-family:'DotGothic16',monospace; font-weight:400;
+  font-size:.56rem; color:var(--gray); margin-left:auto;
+}
+.card img{
+  width:100%; aspect-ratio:16/9; object-fit:cover; display:block;
+  border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);
+  margin-top:.08rem; background:var(--main-soft);
+}
+.card .cap{
+  display:block; font-size:.56rem; font-weight:700; line-height:1.5;
+  padding:.05rem .25rem .1rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* --- 直近の予定リスト --- */
+.up{list-style:none; margin:.4rem 0 0; padding:0;}
+.up li{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
   box-shadow:0 3px 0 var(--ink);
-  cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s;
-  white-space:nowrap;
+  padding:.5rem .8rem; margin-bottom:.5rem;
 }
-.btn:hover{background:var(--main)}
-.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
-.btn-g{background:var(--ink);color:var(--main)}
-.btn-g:hover{background:#000;color:var(--main)}
-.btn-sm{padding:.35rem .75rem;font-size:.72rem;box-shadow:0 2.5px 0 var(--ink)}
-.btn-sq{width:2rem;height:2rem;padding:0;font-size:.9rem;box-shadow:0 2.5px 0 var(--ink)}
-select.btn{-webkit-appearance:none;appearance:none;font-size:.72rem;padding:.35rem .75rem}
+.up .when{
+  font-size:.78rem; font-weight:800; min-width:5.2em;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:8px;
+  padding:.05rem .5rem; text-align:center;
+}
+.up .what{flex:1 1 12rem; min-width:0; font-size:.86rem;}
+.up .upthumb{
+  width:76px; aspect-ratio:16/9; object-fit:cover; flex:none;
+  border:2px solid var(--ink); border-radius:8px; background:var(--main-soft);
+}
+.up .uptime{font-size:.7rem; color:var(--gray);}
+.up .cat{
+  font-size:.66rem; border:2px solid var(--ink); border-radius:999px;
+  padding:.02rem .6rem;
+}
+.holbar{
+  margin-top:.8rem; font-size:.72rem; font-weight:700; color:#B05C5C;
+  display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;
+}
+.holbar:empty{display:none;}
+.holbar .hb-item{
+  background:#F7EAEA; border:2px solid rgba(199,107,107,.55); border-radius:999px;
+  padding:.02rem .6rem;
+}
+.note{font-size:.76rem; color:var(--gray); font-weight:500; line-height:1.9;}
+.sch-empty{text-align:center; color:var(--gray); font-size:.82rem; padding:2rem 0;}
+.updated{font-size:.66rem; color:var(--gray); font-weight:500;}
 
-/* ===== まとめの帯 ===== */
-.stats{
-  display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;
-  padding:.55rem .8rem; border-bottom:var(--bd); background:var(--cream);
-}
-.chip{
-  display:inline-flex; align-items:center; gap:.3rem;
-  font-size:.66rem; background:var(--paper);
-  border:2px solid var(--ink); border-radius:100px; padding:.12rem .65rem;
-}
-.chip b{font-family:'DotGothic16',monospace;font-weight:400;font-size:.82rem}
-.chip.y{background:var(--main)}
-.chip.p{background:var(--pink)}
-.chip.s{background:var(--main-soft)}
-.chip.plan{border-style:dashed;background:var(--paper)}
-.hint{
-  margin-left:auto;
-  background:var(--main-soft);border:2px dashed var(--ink);border-radius:10px;
-  padding:.2rem .55rem;font-size:.62rem;font-weight:400;color:#5c5843;
-}
-
-/* ===== カレンダー ===== */
-.body{padding:.7rem .8rem 1rem}
-.dows,.grid{display:grid; grid-template-columns:repeat(7,1fr); gap:.4rem}
-.dows{padding-bottom:.3rem; border-bottom:2px solid var(--ink)}
-.dow{text-align:center; font-size:.6rem; letter-spacing:.14em; color:var(--gray)}
-.grid{margin-top:.4rem}
-.cell{
-  min-height:118px; border:2px solid var(--ink); border-radius:var(--r);
-  background:var(--cream); padding:.3rem .35rem;
-  display:flex; flex-direction:column; gap:.25rem;
-}
-.cell.out{opacity:.28; border-style:dashed}
-.cell.has{background:var(--paper); box-shadow:0 2.5px 0 var(--ink)}
-.cell.today{background:var(--main-soft); box-shadow:0 2.5px 0 var(--ink)}
-.cell-top{display:flex; align-items:center; gap:.3rem}
-.dnum{font-family:'DotGothic16',monospace;font-weight:400;font-size:.95rem;line-height:1.2}
-.cell.sat .dnum,.cell.sun .dnum{color:var(--main-deep)}
-.count{margin-left:auto; font-size:.55rem; font-weight:400; color:var(--gray)}
-.today-tag{
-  font-size:.55rem; background:var(--ink); color:var(--main);
-  border-radius:100px; padding:0 .45rem; line-height:1.5;
+@media (max-width:640px){
+  .cal{gap:.22rem;}
+  .day{min-height:64px; padding:.22rem .24rem; gap:.14rem;}
+  /* 幅が40px台しかなく、文字を出しても読めないので色帯だけにする。
+     予定の中身は下の「これからの予定」で読んでもらう。 */
+  .ev{
+    font-size:0; line-height:0; height:7px; padding:0;
+    border-width:1.5px; border-radius:4px;
+  }
+  .more{font-size:0; line-height:0; height:7px;}
+  /* 幅が足りないので、画像だけ見せて文字は下のリストで読んでもらう */
+  .card{box-shadow:none;}
+  .card-top,.card .cap{display:none;}
+  .card img{border-top:0; border-bottom:0; margin-top:0;}
+  .hol{display:none;}
+  .off-mark{font-size:.54rem;}
+  .sch-legend{margin-left:0; width:100%; font-size:.66rem;}
+  .up .when{min-width:4.6em; font-size:.74rem;}
 }
 
-.item{
-  display:block; width:100%; text-align:left; padding:0; font:inherit; color:inherit;
-  background:var(--paper); border:2px solid var(--ink); border-radius:9px;
-  box-shadow:0 2.5px 0 var(--ink); overflow:hidden; cursor:pointer;
-  transition:transform .08s,box-shadow .08s,background .15s;
-}
-.item:hover{background:var(--main-soft)}
-.item:active{transform:translateY(2.5px);box-shadow:0 0 0 var(--ink)}
-.item.plan{border-style:dashed}
-.item-top{display:flex; align-items:center; gap:.25rem; padding:.18rem .3rem 0}
-.badge{
-  font-size:.52rem; border-radius:100px; padding:0 .5rem; line-height:1.6;
-  border:2px solid var(--ink); background:var(--paper);
-}
-.badge.live{background:var(--ink); color:var(--main)}
-.badge.video{background:var(--main)}
-.badge.short{background:var(--main-soft)}
-.badge.plan{background:var(--pink); border-style:dashed}
-.time{
-  font-family:'DotGothic16',monospace;font-weight:400;
-  font-size:.58rem; color:var(--gray); margin-left:auto;
-}
-.thumb{
-  display:block; width:100%; aspect-ratio:16/9; object-fit:cover;
-  border:2px solid var(--ink); border-left:0; border-right:0;
-  background:var(--main-soft); margin-top:.18rem;
-}
-.thumb.empty{
-  display:grid; place-items:center; font-size:.55rem; font-weight:400; color:var(--gray);
-  border-style:dashed;
-}
-.item-bottom{display:flex; align-items:center; gap:.25rem; padding:.1rem .3rem .2rem; font-size:.58rem}
-.item-title{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.item-bottom .more{margin-left:auto; color:var(--gray); font-weight:400}
+/* ============ ラボ版で足したところ ============ */
+.lab-head{display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.8rem;}
+.day{cursor:context-menu;}
+.ev,.card{cursor:pointer;}
+.ev:hover{outline:2px solid var(--ink); outline-offset:1px;}
+.card:hover{background:var(--main-soft);}
+.day.mine-here{background:var(--main-soft);}
 
-/* ===== 編集パネル ===== */
-.veil{position:fixed; inset:0; background:rgba(30,28,20,.45); display:none; place-items:center; padding:1rem; z-index:20}
-.veil.on{display:grid}
+.veil{position:fixed; inset:0; background:rgba(30,28,20,.45); display:none; place-items:center; padding:1rem; z-index:40;}
+.veil.on{display:grid;}
 .panel{
-  width:min(420px,100%); background:var(--paper);
-  border:var(--bd); border-radius:18px; box-shadow:0 6px 0 var(--ink);
+  width:min(400px,100%); background:var(--paper);
+  border:var(--bd); border-radius:16px; box-shadow:0 6px 0 var(--ink);
   padding:1rem; max-height:90vh; overflow:auto;
 }
-.panel h2{
+.panel h3{
   display:inline-block; background:var(--ink); color:var(--main);
-  border-radius:100px; padding:.15rem .8rem; font-size:.66rem; margin-bottom:.6rem;
+  border-radius:100px; padding:.15rem .8rem; font-size:.66rem; margin-bottom:.5rem;
 }
-.panel label{display:block; font-size:.62rem; color:var(--gray); margin:.7rem 0 .2rem}
-.panel input[type=text],.panel input[type=time]{
-  width:100%; font:inherit; font-size:.82rem; padding:.45rem .6rem;
-  border:2px solid var(--ink); border-radius:9px; background:var(--cream); color:inherit;
+.panel label{display:block; font-size:.62rem; color:var(--gray); margin:.7rem 0 .2rem;}
+.panel input{
+  width:100%; font:inherit; font-weight:700; font-size:.82rem; padding:.45rem .6rem;
+  border:2px solid var(--ink); border-radius:9px; background:var(--cream); color:var(--ink);
 }
-.types{display:flex; gap:.3rem; flex-wrap:wrap}
-.types button{
-  font:inherit; font-size:.66rem; background:var(--paper); color:var(--ink);
-  border:2px solid var(--ink); border-radius:100px; padding:.1rem .7rem;
-  box-shadow:0 2.5px 0 var(--ink); cursor:pointer;
-  transition:transform .08s,box-shadow .08s,background .15s;
-}
-.types button:hover{background:var(--main-soft)}
-.types button[aria-pressed=true]{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px)}
 .drop{
-  margin-top:.2rem; border:2px dashed var(--ink); border-radius:10px; padding:.55rem;
+  margin-top:.2rem; border:2px dashed var(--ink); border-radius:10px; padding:.5rem;
   text-align:center; font-size:.66rem; font-weight:400; color:#5c5843;
   cursor:pointer; background:var(--main-soft);
 }
-.drop.over{background:var(--main)}
-.drop img{border:2px solid var(--ink); border-radius:8px; margin-bottom:.4rem}
-.panel-btns{display:flex; gap:.4rem; margin-top:1rem}
-.panel-btns .btn{flex:1}
-.btn-p{background:var(--pink)}
-.btn-p:hover{background:var(--pink)}
-.note{font-size:.62rem; font-weight:400; color:var(--gray); margin-top:.7rem; line-height:1.6}
+.drop.over{background:var(--main);}
+.drop img{width:100%; border:2px solid var(--ink); border-radius:8px; margin-bottom:.4rem;}
+.panel-btns{display:flex; gap:.4rem; margin-top:1rem;}
+.panel-btns .btn{flex:1;}
+.btn-p{background:var(--pink);}
+.panel .note{font-size:.62rem; margin-top:.7rem;}
 
-@media (max-width:760px){
-  body{padding:.5rem .35rem 1.5rem}
-  .dows,.grid{gap:.25rem}
-  .cell{min-height:92px; padding:.22rem}
-  .thumb{aspect-ratio:4/3}
-  .hint{display:none}
-}
 </style>
 </head>
 <body>
-<div class="sheet" id="sheet">
-  <div class="head">
-    <h1 class="month-name" id="monthName">September</h1>
-    <span class="year dot" id="yearNum">2026</span>
-    <button class="btn btn-sq" id="prev" title="前の月">◀</button>
-    <button class="btn btn-sq" id="next" title="次の月">▶</button>
-    <select class="btn" id="jump" title="月を選ぶ"></select>
-    <div class="spacer"></div>
-    <button class="btn btn-sm btn-g" id="export">画像を書き出し</button>
-  </div>
 
-  <div class="stats" id="stats"></div>
-
-  <div class="body">
-    <div class="dows">
-      <div class="dow">MON</div><div class="dow">TUE</div><div class="dow">WED</div>
-      <div class="dow">THU</div><div class="dow">FRI</div>
-      <div class="dow">SAT</div><div class="dow">SUN</div>
+<div class="app">
+  <div class="titlebar">
+    <div class="tb-title">予定カレンダー</div>
+    <span class="tb-spec dot">SCHEDULE　／　Notion と 手元の予定</span>
+    <div class="tb-actions">
+      <a href="../../index.html" class="btn btn-sm">← ラボ</a>
+      <a href="../../../schedule.html" class="btn btn-sm btn-g">公開ページ</a>
     </div>
-    <div class="grid" id="grid"></div>
   </div>
 </div>
 
+<section class="win">
+  <div class="win-bar">
+    <h2>📅 カレンダー</h2>
+    <span class="tb-spec dot">土日祝はお休み</span>
+  </div>
+  <div class="win-body">
+
+    <div class="lab-head">
+      <button class="btn btn-sm" id="prev" aria-label="前の月">‹</button>
+      <span class="sch-month" id="month">—</span>
+      <button class="btn btn-sm" id="next" aria-label="次の月">›</button>
+      <button class="btn btn-sm" id="thisMonth">今月</button>
+      <button class="btn btn-sm" id="add">＋ 予定を足す</button>
+      <button class="btn btn-sm btn-g" id="shoot">画像を書き出し</button>
+    </div>
+
+    <div id="shot">
+      <div class="sch-head" style="margin-bottom:.5rem">
+        <span class="sch-month" id="monthShot"></span>
+        <div class="sch-legend" id="legend"></div>
+      </div>
+      <div class="cal" id="cal"></div>
+    </div>
+
+    <p class="holbar" id="holbar"></p>
+    <p class="note" id="note" style="margin-top:.9rem"></p>
+  </div>
+</section>
+
+<section class="win">
+  <div class="win-bar">
+    <h2>🗒 これからの予定</h2>
+    <span class="tb-spec dot">直近8件</span>
+  </div>
+  <div class="win-body">
+    <ul class="up" id="upcoming"></ul>
+  </div>
+</section>
+
+<button class="totop" id="toTop" aria-label="ページ上部へ戻る">↑</button>
+
 <div class="veil" id="veil">
   <div class="panel" role="dialog" aria-modal="true">
-    <h2 id="panelTitle">予定</h2>
+    <h3 id="pTitle">予定</h3>
     <label>タイトル</label>
     <input type="text" id="fTitle" placeholder="たとえば 雑談配信">
-    <label>しゅるい</label>
-    <div class="types" id="fTypes"></div>
+    <label>カテゴリー（色は名前から決まります）</label>
+    <input type="text" id="fCat" placeholder="配信 / 締切 など">
     <label>時こく</label>
     <input type="time" id="fTime">
-    <label>長さ（1:23:45 のように）</label>
-    <input type="text" id="fDur" placeholder="1:23:45">
     <label>画像</label>
-    <div class="drop" id="drop">
-      <div id="dropBody">ここにドロップ／クリックで選ぶ</div>
-    </div>
+    <div class="drop" id="drop"><div id="dropBody">ここにドロップ／クリックで選ぶ</div></div>
     <div class="panel-btns">
       <button class="btn btn-sm" id="save">ほぞん</button>
       <button class="btn btn-sm btn-p" id="del">けす</button>
       <button class="btn btn-sm" id="cancel">やめる</button>
     </div>
-    <p class="note" id="panelNote"></p>
+    <p class="note" id="pNote"></p>
   </div>
 </div>
 
 <script>
-/* ===========================================================
-   予定カレンダー
-   ・Notion から同期した data/notion.json を読む（読み取りだけ）
-   ・時こく・長さ・画像・自分で足した予定は、この端末の中に持つ
-     （公開リポジトリに画像を置かないため。IndexedDB に入れる）
-   =========================================================== */
 
-const MONTHS = ["January","February","March","April","May","June",
-                "July","August","September","October","November","December"];
-const TYPES = [
-  {key:"live",  label:"LIVE"},
-  {key:"video", label:"VIDEO"},
-  {key:"short", label:"SHORT"},
-  {key:"plan",  label:"PLAN"},
-];
+/* =========================================================================
+   ラボ版のカレンダー。並びと見た目は /schedule.html と同じ。
+   ちがうのは3つだけ:
+     ・予定を自分で足せる（日付を右クリック）
+     ・予定をつついて 時こく・画像を差し替えられる
+     ・月ごと1枚のPNGに書き出せる
+   足した分と直した分は この端末の中だけに持つ（IndexedDB）。
+   Notion から来た分は data/notion.json を読むだけで、書き戻さない。
+   ========================================================================= */
+const FEED = "data/notion.json";
 
-/* ---------- 置き場（IndexedDB。画像があるので localStorage では足りない） ---------- */
+/* カテゴリーの色。決め打ちせず、名前から安定して選ぶ。
+   Notion 側でカテゴリーを増やしても、勝手に色が付く。 */
+const PALETTE = ["#E1DD60","#F0A35E","#E8798B","#7CC4A4","#8AA9E0","#B79AE0","#EFCB68"];
+function colorOf(name){
+  if(!name) return "#EDEBDD";
+  let h = 0;
+  for(const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 100000;
+  return PALETTE[h % PALETTE.length];
+}
+
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+/* =========================================================================
+   日本の祝日。毎年書き換えなくていいよう計算で出す。
+   振替休日（日曜と重なったら次の平日）と、
+   祝日に挟まれた平日の国民の休日（シルバーウィーク）まで見ている。
+   ※ 法改正や五輪のような一度きりの移動は反映されない。
+      その年だけずれるときは Notion に予定として書いて上書きしてください。
+   ========================================================================= */
+function nthMonday(y, m, n){
+  const first = new Date(y, m-1, 1).getDay();   // 0=日
+  return 1 + ((8 - first) % 7) + (n-1)*7;
+}
+function equinox(y, spring){
+  // 1900〜2099 で使える近似式
+  const base = spring ? 20.8431 : 23.2488;
+  return Math.floor(base + 0.242194*(y-1980) - Math.floor((y-1980)/4));
+}
+const holidayCache = {};
+function holidaysOf(y){
+  if(holidayCache[y]) return holidayCache[y];
+  const h = {};
+  const k = (m,d) => y+"-"+pad(m)+"-"+pad(d);
+  const put = (m,d,name) => { h[k(m,d)] = name; };
+
+  put(1, 1, "元日");
+  put(1, nthMonday(y,1,2), "成人の日");
+  put(2, 11, "建国記念の日");
+  put(2, 23, "天皇誕生日");
+  put(3, equinox(y,true), "春分の日");
+  put(4, 29, "昭和の日");
+  put(5, 3, "憲法記念日");
+  put(5, 4, "みどりの日");
+  put(5, 5, "こどもの日");
+  put(7, nthMonday(y,7,3), "海の日");
+  put(8, 11, "山の日");
+  put(9, nthMonday(y,9,3), "敬老の日");
+  put(9, equinox(y,false), "秋分の日");
+  put(10, nthMonday(y,10,2), "スポーツの日");
+  put(11, 3, "文化の日");
+  put(11, 23, "勤労感謝の日");
+
+  // 振替休日
+  for(const key of Object.keys(h)){
+    const [yy,mm,dd] = key.split("-").map(Number);
+    if(new Date(yy,mm-1,dd).getDay() !== 0) continue;
+    const n = new Date(yy,mm-1,dd);
+    do { n.setDate(n.getDate()+1); }
+    while(h[ymd(n)]);
+    h[ymd(n)] = "振替休日";
+  }
+
+  // 国民の休日（祝日に挟まれた平日）
+  for(const key of Object.keys({...h})){
+    const [yy,mm,dd] = key.split("-").map(Number);
+    const mid  = new Date(yy,mm-1,dd+1);
+    const next = new Date(yy,mm-1,dd+2);
+    if(h[ymd(next)] && !h[ymd(mid)] && mid.getDay()!==0 && mid.getDay()!==6){
+      h[ymd(mid)] = "国民の休日";
+    }
+  }
+
+  holidayCache[y] = h;
+  return h;
+}
+const holidayName = d => holidaysOf(d.getFullYear())[ymd(d)] || null;
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const WDAY = ["日","月","火","水","木","金","土"];
+
+let tasks = [];        // 画面に出す分（下の merge() が作る）
+let fromNotion = [];   // Notion から来た分（読むだけ）
+let mine = {};         // 自分で足した分
+let over = {};         // Notion の分への上書き
+let syncedAt = null;
+let anchor = new Date();
+
+const $ = s => document.querySelector(s);
+
+/* 今日（時刻を落として比較用に） */
+function today0(){
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+function onDay(key){
+  return tasks.filter(t => t.date === key);
+}
+
+function render(){
+  const y = anchor.getFullYear(), m = anchor.getMonth();
+  $("#month").textContent = `${y}年 ${m+1}月`;
+
+  const first = new Date(y, m, 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());          // 日曜はじまり（サイトの読者向け）
+
+  const cells = [];
+  for(let i=0;i<42;i++){
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+    if(i>=35 && d.getMonth()!==m) break;
+    cells.push(d);
+  }
+
+  const t0 = today0();
+  const todayKey = ymd(t0);
+
+  const dow = WDAY.map((w,i)=>
+    `<div class="dow${i===0?" sun":i===6?" sat":""}">${w}</div>`).join("");
+
+  const body = cells.map(d => {
+    const key = ymd(d);
+    const out = d.getMonth() !== m;
+    const past = d < t0;
+    const list = onDay(key);
+    // 画像つきは背が高いので、その日に画像があるときは2件までにする
+    const shown = list.slice(0, list.some(t => t.image) ? 2 : 3);
+    const wd = d.getDay();
+
+    // 土日と祝日はお休み
+    const hol = holidayName(d);
+    const off = wd === 0 || wd === 6 || !!hol;
+
+    return `<div class="day${out?" out":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" data-date="${key}" ${hol?`title="${esc(hol)}"`:""}>
+      <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
+      ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
+      ${shown.map(t => t.image
+        ? `<div class="card" data-id="${esc(t.id)}" title="${esc(t.title)}">
+             <div class="card-top">
+               ${t.category ? `<span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+               ${t.time ? `<span class="at">${esc(t.time)}</span>` : ""}
+             </div>
+             <img src="${esc(t.image)}" alt="" loading="lazy">
+             <span class="cap">${esc(t.title)}</span>
+           </div>`
+        : `<div class="ev" data-id="${esc(t.id)}" style="background:${colorOf(t.category)}" title="${esc(t.title)}">${esc(t.title)}</div>`
+      ).join("")}
+      ${list.length>shown.length ? `<div class="more">ほか${list.length-shown.length}件</div>` : ""}
+      ${off && !out ? '<span class="off-mark">休</span>' : ""}
+    </div>`;
+  }).join("");
+
+  $("#cal").innerHTML = dow + body;
+
+  // 凡例（この月に出ているカテゴリーだけ）
+  const cats = [...new Set(
+    tasks.filter(t=>{
+      if(!t.date) return false;
+      const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+      return d.getFullYear()===y && d.getMonth()===m;
+    }).map(t=>t.category).filter(Boolean)
+  )];
+  $("#legend").innerHTML =
+    cats.map(c=>`<b><span class="lg-swatch" style="background:${colorOf(c)}"></span>${esc(c)}</b>`).join("") +
+    '<b><span class="lg-off"></span>お休み（土日祝）</b>';
+
+  // 狭い画面ではセルに祝日名が入らないので、下にも並べておく
+  const hs = holidaysOf(y);
+  const items = Object.keys(hs)
+    .filter(k => Number(k.slice(5,7)) === m+1)
+    .sort()
+    .map(k => `<span class="hb-item">${Number(k.slice(5,7))}/${Number(k.slice(8,10))} ${esc(hs[k])}</span>`);
+  $("#holbar").innerHTML = items.length ? "今月の祝日　" + items.join("") : "";
+}
+
+function renderUpcoming(){
+  const t0 = today0();
+  const list = tasks
+    .filter(t => t.date && new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10)) >= t0)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .slice(0,8);
+
+  if(list.length === 0){
+    $("#upcoming").innerHTML = '<li style="justify-content:center; color:var(--gray)">これからの予定はまだありません</li>';
+    return;
+  }
+
+  $("#upcoming").innerHTML = list.map(t => {
+    const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+    return `<li>
+      <span class="when">${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})</span>
+      ${t.image ? `<img class="upthumb" src="${esc(t.image)}" alt="" loading="lazy">` : ""}
+      <span class="what">${esc(t.title)}${t.time ? ` <span class="uptime dot">${esc(t.time)}</span>` : ""}</span>
+      ${t.category ? `<span class="cat" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+    </li>`;
+  }).join("");
+}
+
+async function load(){
+  try{
+    const res = await fetch(FEED + "?t=" + Date.now(), {cache:"no-store"});
+    if(!res.ok) throw new Error(String(res.status));
+    const feed = await res.json();
+    fromNotion = (feed.tasks || []).filter(t => t.date).map(t => ({
+      ...t,
+      // 画像はリポジトリの根から数えた場所にあるので、ここから見た形に直す
+      image: t.image ? "../../../" + t.image : null,
+    }));
+    syncedAt = feed.syncedAt || null;
+  }catch(e){
+    fromNotion = [];
+  }
+
+  mine = (await kvGet("mine")) || {};
+  over = (await kvGet("over")) || {};
+  merge();
+
+  render();
+  renderUpcoming();
+
+  $("#note").innerHTML =
+    '予定をつつくと 時こく・画像を直せます。日付を右クリックすると その日に足せます。' +
+    '<br>色の付いた帯はその日の予定です。画像のある予定はそのまま絵で出ます。灰色は過ぎた日。' +
+    '<br><b style="color:#B05C5C">赤みがかった日は土日祝のお休み</b>です。祝日は名前を添えています。' +
+    (syncedAt ? `<br><span class="updated">最終更新: ${new Date(syncedAt).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>` : "");
+}
+
+$("#prev").addEventListener("click", () => {
+  anchor = new Date(anchor.getFullYear(), anchor.getMonth()-1, 1); render();
+});
+$("#next").addEventListener("click", () => {
+  anchor = new Date(anchor.getFullYear(), anchor.getMonth()+1, 1); render();
+});
+$("#thisMonth").addEventListener("click", () => { anchor = new Date(); render(); });
+
+load();
+
+/* ページ上部へ戻る（他ページと同じ挙動） */
+const toTop = document.getElementById('toTop');
+const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
+window.addEventListener('scroll', onScroll, {passive:true});
+onScroll();
+toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+
+
+/* =========================================================================
+   ここから下が ラボ版だけの足しもの。
+   ・置き場（IndexedDB）… 画像を持つので localStorage では足りない
+   ・合成 … Notion の分 ＋ 自分で足した分 ＋ 上書き
+   ・編集と 画像の書き出し
+   ========================================================================= */
 const DB_NAME = "haani-task-calendar", STORE = "kv";
 let dbp = null;
 function db(){
@@ -268,7 +539,7 @@ function db(){
     const r = indexedDB.open(DB_NAME,1);
     r.onupgradeneeded = ()=> r.result.createObjectStore(STORE);
     r.onsuccess = ()=> ok(r.result);
-    r.onerror = ()=> ng(r.error);
+    r.onerror   = ()=> ng(r.error);
   });
   return dbp;
 }
@@ -292,221 +563,43 @@ async function kvSet(key,val){
   }catch(e){ alert("この端末に保存できませんでした。\n" + e.message); }
 }
 
-/* ---------- 状態 ---------- */
-const today = new Date();
-let view = {y: today.getFullYear(), m: today.getMonth()};
-let notion = [];     // Notion から来たもの（読むだけ）
-let mine = {};       // 自分で足した予定  id -> item
-let over = {};       // Notion のものへの上書き  id -> {time,dur,image,type,title,hidden}
-let editing = null;  // いま開いている編集対象
-
-const $ = (s)=> document.querySelector(s);
-const pad = (n)=> String(n).padStart(2,"0");
-const ymd = (y,m,d)=> `${y}-${pad(m+1)}-${pad(d)}`;
-
-/* Notion の「カテゴリー」を、見た目のしゅるいに寄せる */
-function guessType(cat, title){
-  const s = ((cat||"") + " " + (title||"")).toLowerCase();
-  if(/live|配信|生放送|歌枠|雑談/.test(s)) return "live";
-  if(/short|ショート|切り抜き/.test(s)) return "short";
-  if(/video|動画|投稿/.test(s)) return "video";
-  if(/予定|締切|plan|todo/.test(s)) return "plan";
-  return "plan";
-}
-
-/* 長さの文字（1:23:45 / 12:34）を秒に */
-function durToSec(s){
-  if(!s) return 0;
-  const p = String(s).split(":").map(n=>parseInt(n,10)||0);
-  if(p.length===3) return p[0]*3600 + p[1]*60 + p[2];
-  if(p.length===2) return p[0]*60 + p[1];
-  return p[0]||0;
-}
-function humanHours(sec){
-  const h = Math.floor(sec/3600), m = Math.round((sec%3600)/60);
-  if(!sec) return "0分";
-  return (h? h+"時間":"") + (m? m+"分":"");
-}
-
-/* ---------- 読み込み ---------- */
-async function load(){
-  try{
-    const res = await fetch("data/notion.json?t=" + Date.now(), {cache:"no-store"});
-    if(res.ok){
-      const json = await res.json();
-      notion = (json.tasks||[]).filter(t=>t.date).map(t=>({
-        id: t.id, title: t.title, date: t.date, category: t.category,
-        url: t.url, source: "notion",
-        time: t.time || "",
-        // 画像はリポジトリの根から数えた場所にあるので、ここから見た形に直す
-        image: t.image ? "../../../" + t.image : ""
-      }));
-    }
-  }catch{ /* オフラインでも自分の予定は見られるようにする */ }
-  mine = (await kvGet("mine")) || {};
-  over = (await kvGet("over")) || {};
-}
-
-/* その月のぶんを、日付ごとにまとめる */
-function itemsOf(y,m){
-  const out = {};
-  const put = (it)=>{
-    if(!it.date) return;
-    const [yy,mm] = it.date.split("-").map(Number);
-    if(yy!==y || mm!==m+1) return;
-    (out[it.date] ||= []).push(it);
-  };
-  for(const t of notion){
-    const o = over[t.id] || {};
-    if(o.hidden) continue;
-    put({
-      id:t.id, source:"notion", url:t.url,
-      title: o.title ?? t.title,
-      date: o.date ?? t.date,
-      type: o.type ?? guessType(t.category, t.title),
-      time: o.time ?? t.time ?? "", dur: o.dur || "", image: o.image || t.image || ""
-    });
+/* Notion の分に 手元の直しを重ねて、画面に出す一覧を作る */
+function merge(){
+  const out = [];
+  for(const t of fromNotion){
+    const o = over[t.id];
+    if(o?.hidden) continue;
+    out.push({ ...t, ...(o||{}), source:"notion" });
   }
-  for(const it of Object.values(mine)) put({...it, source:"mine"});
-  for(const k of Object.keys(out)){
-    out[k].sort((a,b)=> (a.time||"99:99").localeCompare(b.time||"99:99"));
-  }
-  return out;
+  for(const m of Object.values(mine)) out.push({ ...m, source:"mine" });
+  tasks = out.filter(t => t.date);
 }
+function findTask(id){ return tasks.find(t => t.id === id) || null; }
 
-/* ---------- 描く ---------- */
-function render(){
-  const {y,m} = view;
-  $("#monthName").textContent = MONTHS[m];
-  $("#yearNum").textContent = y;
+/* ---- 編集 ---- */
+let editing = null, pendingImage = "";
 
-  const byDate = itemsOf(y,m);
-  const all = Object.values(byDate).flat();
-
-  // まとめ
-  const n = (t)=> all.filter(i=>i.type===t).length;
-  const liveSec = all.filter(i=>i.type==="live").reduce((s,i)=> s + durToSec(i.dur), 0);
-  const stats = $("#stats");
-  stats.innerHTML = "";
-  const chip = (cls, html)=>{
-    const el = document.createElement("div");
-    el.className = "chip " + cls; el.innerHTML = html; stats.appendChild(el);
-  };
-  chip("s", `SHORT <b>${n("short")}</b> 本`);
-  chip("y", `VIDEO <b>${n("video")}</b> 本`);
-  chip("p", `LIVE <b>${n("live")}</b> 本 / ${humanHours(liveSec)}`);
-  chip("", `出した日 <b>${Object.keys(byDate).length}</b> 日`);
-  if(n("plan")) chip("plan", `予定 <b>${n("plan")}</b> 本`);
-  const hint = document.createElement("div");
-  hint.className = "hint";
-  hint.textContent = "日付を右クリックで予定を書けます";
-  stats.appendChild(hint);
-
-  // ます目（月曜はじまり）
-  const first = new Date(y,m,1);
-  const lead = (first.getDay() + 6) % 7;
-  const last = new Date(y,m+1,0).getDate();
-  const cells = Math.ceil((lead + last)/7)*7;
-  const grid = $("#grid");
-  grid.innerHTML = "";
-
-  for(let i=0;i<cells;i++){
-    const dnum = i - lead + 1;
-    const cell = document.createElement("div");
-    cell.className = "cell";
-    if(dnum<1 || dnum>last){ cell.classList.add("out"); grid.appendChild(cell); continue; }
-
-    const date = ymd(y,m,dnum);
-    const dow = new Date(y,m,dnum).getDay();
-    if(dow===6) cell.classList.add("sat");
-    if(dow===0) cell.classList.add("sun");
-    const isToday = date === ymd(today.getFullYear(), today.getMonth(), today.getDate());
-    if(isToday) cell.classList.add("today");
-
-    const items = byDate[date] || [];
-    if(items.length) cell.classList.add("has");
-
-    const top = document.createElement("div");
-    top.className = "cell-top";
-    top.innerHTML = `<span class="dnum">${dnum}</span>` +
-      (isToday ? `<span class="today-tag">TODAY</span>` : "") +
-      (items.length ? `<span class="count">${items.length} ITEM</span>` : "");
-    cell.appendChild(top);
-
-    for(const it of items) cell.appendChild(itemNode(it));
-
-    cell.addEventListener("contextmenu", (e)=>{ e.preventDefault(); openNew(date); });
-    cell.addEventListener("dblclick", ()=> openNew(date));
-    grid.appendChild(cell);
-  }
-
-  // 月えらび
-  const jump = $("#jump");
-  const months = new Map();
-  for(const t of notion){ const k = t.date.slice(0,7); months.set(k,(months.get(k)||0)+1); }
-  for(const it of Object.values(mine)){ const k = it.date.slice(0,7); months.set(k,(months.get(k)||0)+1); }
-  const here = `${y}-${pad(m+1)}`;
-  if(!months.has(here)) months.set(here, 0);
-  jump.innerHTML = "";
-  [...months.keys()].sort().forEach(k=>{
-    const [yy,mm] = k.split("-").map(Number);
-    const op = document.createElement("option");
-    op.value = k;
-    op.textContent = `${yy}年${mm}月（${months.get(k)}本）`;
-    if(k===here) op.selected = true;
-    jump.appendChild(op);
-  });
-}
-
-function itemNode(it){
-  const b = document.createElement("button");
-  b.className = "item" + (it.type==="plan" ? " plan" : "");
-  b.type = "button";
-  const t = TYPES.find(t=>t.key===it.type) || TYPES[3];
-  const img = it.image
-    ? `<img class="thumb" src="${it.image}" alt="">`
-    : `<div class="thumb empty">画像なし</div>`;
-  b.innerHTML =
-    `<div class="item-top"><span class="badge ${t.key}">${t.label}</span>` +
-    (it.time ? `<span class="time">${it.time}</span>` : "") + `</div>` +
-    img +
-    `<div class="item-bottom"><span class="item-title">${it.dur || it.title}</span><span class="more">…</span></div>`;
-  b.title = it.title;
-  b.addEventListener("click", ()=> openEdit(it));
-  return b;
-}
-
-/* ---------- 編集 ---------- */
-let pendingImage = "";
 function openNew(date){
-  editing = {id:"m" + Date.now().toString(36), source:"mine", date, title:"", type:"plan", time:"", dur:"", image:""};
-  fillPanel("予定を書く", `${date} に足します`);
+  editing = { id:"m"+Date.now().toString(36), source:"mine", date, title:"", category:"", time:"", image:"" };
+  fillPanel("予定を書く", `${date} に足します。`);
 }
-function openEdit(it){
-  editing = {...it};
-  fillPanel("予定をなおす", it.source==="notion" ? "Notion から来た予定です。なおした内容はこの端末にだけ残ります。" : "自分で足した予定です。");
+function openEdit(t){
+  editing = { ...t };
+  fillPanel("予定をなおす",
+    t.source === "notion"
+      ? "Notion から来た予定です。直した分は この端末にだけ残ります（Notion には書き戻しません）。"
+      : "自分で足した予定です。この端末の中だけにあります。");
 }
 function fillPanel(title, note){
-  $("#panelTitle").textContent = title;
-  $("#panelNote").textContent = note;
+  $("#pTitle").textContent = title;
+  $("#pNote").textContent  = note;
   $("#fTitle").value = editing.title || "";
-  $("#fTime").value = editing.time || "";
-  $("#fDur").value = editing.dur || "";
+  $("#fCat").value   = editing.category || "";
+  $("#fTime").value  = editing.time || "";
   pendingImage = editing.image || "";
   drawDrop();
-  drawTypes();
   $("#veil").classList.add("on");
   $("#fTitle").focus();
-}
-function drawTypes(){
-  const box = $("#fTypes"); box.innerHTML = "";
-  for(const t of TYPES){
-    const b = document.createElement("button");
-    b.type = "button"; b.textContent = t.label;
-    b.setAttribute("aria-pressed", String(editing.type===t.key));
-    b.addEventListener("click", ()=>{ editing.type = t.key; drawTypes(); });
-    box.appendChild(b);
-  }
 }
 function drawDrop(){
   $("#dropBody").innerHTML = pendingImage
@@ -515,6 +608,33 @@ function drawDrop(){
 }
 function closePanel(){ $("#veil").classList.remove("on"); editing = null; }
 
+function redraw(){ merge(); render(); renderUpcoming(); }
+
+async function save(){
+  if(!editing) return;
+  const v = {
+    title: $("#fTitle").value.trim() || "予定",
+    category: $("#fCat").value.trim() || null,
+    time: $("#fTime").value || null,
+    image: pendingImage || null,
+  };
+  if(editing.source === "mine"){
+    mine[editing.id] = { id:editing.id, date:editing.date, ...v };
+    await kvSet("mine", mine);
+  }else{
+    over[editing.id] = { ...(over[editing.id]||{}), ...v };
+    await kvSet("over", over);
+  }
+  closePanel(); redraw();
+}
+async function remove(){
+  if(!editing) return;
+  if(!confirm("この予定を消します。よろしいですか。")) return;
+  if(editing.source === "mine"){ delete mine[editing.id]; await kvSet("mine", mine); }
+  else { over[editing.id] = { ...(over[editing.id]||{}), hidden:true }; await kvSet("over", over); }
+  closePanel(); redraw();
+}
+
 /* 画像は長い辺 640px まで縮めて持つ（端末の置き場をふさがないため） */
 function shrink(file){
   return new Promise((ok,ng)=>{
@@ -522,9 +642,9 @@ function shrink(file){
     fr.onload = ()=>{
       const img = new Image();
       img.onload = ()=>{
-        const max = 640, s = Math.min(1, max/Math.max(img.width,img.height));
+        const max = 640, k = Math.min(1, max/Math.max(img.width,img.height));
         const c = document.createElement("canvas");
-        c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
+        c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
         c.getContext("2d").drawImage(img,0,0,c.width,c.height);
         ok(c.toDataURL("image/jpeg",0.82));
       };
@@ -536,44 +656,14 @@ function shrink(file){
   });
 }
 
-async function save(){
-  if(!editing) return;
-  const v = {
-    title: $("#fTitle").value.trim(),
-    time: $("#fTime").value,
-    dur: $("#fDur").value.trim(),
-    image: pendingImage,
-    type: editing.type,
-  };
-  if(editing.source==="mine"){
-    if(!v.title) v.title = "予定";
-    mine[editing.id] = {id:editing.id, date:editing.date, ...v};
-    await kvSet("mine", mine);
-  }else{
-    over[editing.id] = {...(over[editing.id]||{}), ...v};
-    await kvSet("over", over);
-  }
-  closePanel(); render();
-}
-async function remove(){
-  if(!editing) return;
-  if(!confirm("この予定を消します。よろしいですか。")) return;
-  if(editing.source==="mine"){ delete mine[editing.id]; await kvSet("mine", mine); }
-  else { over[editing.id] = {...(over[editing.id]||{}), hidden:true}; await kvSet("over", over); }
-  closePanel(); render();
-}
-
-/* ---------- 画像に書き出し ---------- */
+/* ---- 画像に書き出し ---- */
 async function exportPng(){
-  const node = $("#sheet");
-  const rect = node.getBoundingClientRect();
-  const w = Math.ceil(rect.width), h = Math.ceil(node.scrollHeight);
+  const node = $("#shot");
+  const w = Math.ceil(node.getBoundingClientRect().width), h = Math.ceil(node.scrollHeight);
   const css = [...document.querySelectorAll("style")].map(s=>s.textContent).join("\n");
-  const clone = node.cloneNode(true);
-  clone.style.margin = "0";
   const html =
-    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;background:#fff">` +
-    `<style>${css}</style>${clone.outerHTML}</div>`;
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;background:#FFFEF7">` +
+    `<style>${css}</style>${node.outerHTML}</div>`;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
     `<foreignObject x="0" y="0" width="${w}" height="${h}">${html}</foreignObject></svg>`;
@@ -585,10 +675,10 @@ async function exportPng(){
     const k = 2;
     c.width = w*k; c.height = h*k;
     const ctx = c.getContext("2d");
-    ctx.fillStyle = "#fff"; ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle = "#FFFEF7"; ctx.fillRect(0,0,c.width,c.height);
     ctx.scale(k,k); ctx.drawImage(img,0,0);
     const a = document.createElement("a");
-    a.download = `calendar-${view.y}-${pad(view.m+1)}.png`;
+    a.download = `calendar-${anchor.getFullYear()}-${pad(anchor.getMonth()+1)}.png`;
     a.href = c.toDataURL("image/png");
     a.click();
   }catch(e){
@@ -596,19 +686,40 @@ async function exportPng(){
   }
 }
 
-/* ---------- 配線 ---------- */
-$("#prev").addEventListener("click", ()=>{ view.m--; if(view.m<0){view.m=11; view.y--;} render(); });
-$("#next").addEventListener("click", ()=>{ view.m++; if(view.m>11){view.m=0; view.y++;} render(); });
-$("#jump").addEventListener("change", (e)=>{
-  const [y,m] = e.target.value.split("-").map(Number);
-  view = {y, m:m-1}; render();
+/* 書き出す絵にも 月の名前を入れる（画面の上のボタン列は写らないため） */
+const baseRender = render;
+render = function(){
+  baseRender();
+  $("#monthShot").textContent = $("#month").textContent;
+};
+render();
+
+/* ---- 配線 ---- */
+$("#cal").addEventListener("click", (e)=>{
+  const hit = e.target.closest(".ev,.card");
+  if(!hit) return;
+  const t = findTask(hit.dataset.id);
+  if(t) openEdit(t);
 });
-$("#export").addEventListener("click", exportPng);
+$("#cal").addEventListener("contextmenu", (e)=>{
+  const day = e.target.closest(".day");
+  if(!day || !day.dataset.date) return;
+  e.preventDefault();
+  const hit = e.target.closest(".ev,.card");
+  const t = hit ? findTask(hit.dataset.id) : null;
+  if(t) openEdit(t); else openNew(day.dataset.date);
+});
+$("#cal").addEventListener("dblclick", (e)=>{
+  const day = e.target.closest(".day");
+  if(day?.dataset.date && !e.target.closest(".ev,.card")) openNew(day.dataset.date);
+});
+$("#add").addEventListener("click", ()=> openNew(ymd(today0())));
+$("#shoot").addEventListener("click", exportPng);
 $("#save").addEventListener("click", save);
 $("#del").addEventListener("click", remove);
 $("#cancel").addEventListener("click", closePanel);
-$("#veil").addEventListener("click", (e)=>{ if(e.target===$("#veil")) closePanel(); });
-document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closePanel(); });
+$("#veil").addEventListener("click", (e)=>{ if(e.target === $("#veil")) closePanel(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePanel(); });
 
 const picker = document.createElement("input");
 picker.type = "file"; picker.accept = "image/*";
@@ -623,12 +734,11 @@ drop.addEventListener("dragover", (e)=>{ e.preventDefault(); drop.classList.add(
 drop.addEventListener("dragleave", ()=> drop.classList.remove("over"));
 drop.addEventListener("drop", async (e)=>{
   e.preventDefault(); drop.classList.remove("over");
-  const f = [...e.dataTransfer.files].find(f=>f.type.startsWith("image/"));
+  const f = [...e.dataTransfer.files].find(x => x.type.startsWith("image/"));
   if(!f) return;
   try{ pendingImage = await shrink(f); drawDrop(); }catch(err){ alert(err.message); }
 });
 
-load().then(render);
 </script>
 </body>
 </html>
