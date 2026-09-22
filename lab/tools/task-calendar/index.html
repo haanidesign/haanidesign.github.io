@@ -258,6 +258,19 @@
 .btn-p{background:var(--pink);}
 .panel .note{font-size:.62rem; margin-top:.7rem;}
 
+/* スマホ：公開ページは「見るだけ」なので細くしているが、
+   こちらは つついて直す道具なので、指で押せる大きさに戻す */
+@media (max-width:640px){
+  .day{min-height:92px;}
+  .ev{
+    font-size:.5rem; line-height:1.7; height:auto; padding:0 .35rem;
+    border-width:2px; border-radius:999px;
+  }
+  .card .cap{display:block; font-size:.5rem;}
+  .card-top{display:flex;}
+  .lab-head .btn{flex:1;}
+}
+
 </style>
 </head>
 <body>
@@ -690,7 +703,8 @@ async function load(){
   render();
 
   $("#note").innerHTML =
-    '予定をつつくと 時こく・画像を直せます。日付を右クリックすると その日に足せます。' +
+    '予定をつつくと 時こく・画像を直せます。' +
+    '<br>日付を長押し（パソコンは右クリック）すると その日に足せます。' +
     '<br>色の付いた帯はその日の予定です。画像のある予定はそのまま絵で出ます。灰色は過ぎた日。' +
     '<br><b>斜線の日は土日祝のお休み</b>です。祝日は名前を添えています。' +
     (syncedAt ? `<br><span class="updated">最終更新: ${new Date(syncedAt).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>` : "");
@@ -894,7 +908,46 @@ $("#cal").addEventListener("dblclick", (e)=>{
   const day = e.target.closest(".day");
   if(day?.dataset.date && !e.target.closest(".ev,.card")) openNew(day.dataset.date);
 });
-$("#add").addEventListener("click", ()=> openNew(ymd(today0())));
+/* スマホには右クリックが無いので、長押しで 同じことができるようにする。
+   指を動かしたら（＝画面を送っているとき）取り消す。 */
+let pressTimer = null, pressed = false;
+function startPress(e){
+  const touch = e.touches?.[0];
+  const day = e.target.closest(".day");
+  if(!day || !day.dataset.date) return;
+  pressed = false;
+  clearTimeout(pressTimer);
+  pressTimer = setTimeout(()=>{
+    pressed = true;
+    if(navigator.vibrate) navigator.vibrate(12);
+    const hit = e.target.closest(".ev,.card");
+    const t = hit && !hit.classList.contains("bsky") ? findTask(hit.dataset.id) : null;
+    if(t) openEdit(t); else openNew(day.dataset.date);
+  }, 500);
+  startPress.from = touch ? {x:touch.clientX, y:touch.clientY} : null;
+}
+function endPress(){ clearTimeout(pressTimer); }
+function movePress(e){
+  const t = e.touches?.[0], from = startPress.from;
+  if(!t || !from) return endPress();
+  if(Math.abs(t.clientX-from.x) > 10 || Math.abs(t.clientY-from.y) > 10) endPress();
+}
+$("#cal").addEventListener("touchstart", startPress, {passive:true});
+$("#cal").addEventListener("touchmove", movePress, {passive:true});
+$("#cal").addEventListener("touchend", endPress);
+$("#cal").addEventListener("touchcancel", endPress);
+// 長押しで開いたあとに 指を離すと click も飛んでくるので、その1回は捨てる
+$("#cal").addEventListener("click", (e)=>{
+  if(pressed){ e.stopPropagation(); e.preventDefault(); pressed = false; }
+}, true);
+
+$("#add").addEventListener("click", ()=>{
+  // 押した日を 選んでから 足せるようにする（スマホはこちらが早い）
+  const d = prompt("何日に足しますか（2026-09-21 のように）", ymd(today0()));
+  if(!d) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return alert("日付の形が ちがいます。2026-09-21 のように書いてください。");
+  openNew(d);
+});
 $("#shoot").addEventListener("click", exportPng);
 $("#save").addEventListener("click", save);
 $("#del").addEventListener("click", remove);
