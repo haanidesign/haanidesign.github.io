@@ -1,7 +1,7 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp } from './state.js?v=5';
-import { bus } from './bus.js?v=5';
-import { analyse } from './beat.js?v=5';
+import { S, uid, r2, toast, clamp } from './state.js?v=6';
+import { bus } from './bus.js?v=6';
+import { analyse } from './beat.js?v=6';
 
 export const MEDIA = new Map();
 
@@ -59,6 +59,51 @@ export function hookAudio(m) {
 }
 export const hookAll = () => MEDIA.forEach(hookAudio);
 
+/* ---- PSD ----
+   重い 部品なので、PSD が 来た ときだけ 読みこむ。
+   重ねた 絵を 1枚に して、ふつうの 画像として あつかう。 */
+let psdLib = null;
+function loadPsdLib() {
+  if (psdLib) return psdLib;
+  psdLib = new Promise((ok, ng) => {
+    if (typeof window.agPsd !== 'undefined') return ok(window.agPsd);
+    const s = document.createElement('script');
+    s.src = new URL('../lib/ag-psd.js', import.meta.url).href;
+    s.onload = () => (typeof window.agPsd !== 'undefined') ? ok(window.agPsd) : ng(new Error('よめない'));
+    s.onerror = () => ng(new Error('よみこめない'));
+    document.head.appendChild(s);
+  });
+  return psdLib;
+}
+async function psdIn(file, done) {
+  try {
+    const lib = await loadPsdLib();
+    const buf = await file.arrayBuffer();
+    const psd = lib.readPsd(buf, { skipLayerImageData: true, skipThumbnail: true });
+    const cv = psd.canvas;
+    if (!cv) throw new Error('絵が 入って いない');
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    if (!blob) throw new Error('絵に できない');
+    const png = new File([blob], file.name.replace(/\.psb?d?$/i, '') + '.png', { type: 'image/png' });
+    const url = URL.createObjectURL(png);
+    const m = {
+      id: uid(), name: file.name, kind: 'image', url,
+      dur: 5, w: cv.width, h: cv.height, poster: null, file: png
+    };
+    const el = new Image();
+    el.addEventListener('load', () => { makePoster(m); mark(file, 'よめた ' + m.w + '×' + m.h); }, { once: true });
+    el.src = url; m.el = el;
+    MEDIA.set(m.id, m);
+    psdMade.push(m);
+    bus.all();
+  } catch (e) {
+    mark(file, 'PSD を ひらけません');
+    toast(file.name + ' を ひらけませんでした', 3200);
+  }
+  done();
+}
+let psdMade = [];
+
 function mark(file, state) {
   const it = LOG.items.find(x => x.name === file.name && x.size === file.size);
   if (it) it.state = state;
@@ -66,10 +111,12 @@ function mark(file, state) {
 
 /* ---- とりこみ ---- */
 function kindOf(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'psd' || ext === 'psb') return 'psd';
   if (file.type.startsWith('video')) return 'video';
   if (file.type.startsWith('audio')) return 'audio';
   if (file.type.startsWith('image')) return 'image';
-  const e = (file.name.split('.').pop() || '').toLowerCase();
+  const e = ext;
   if (['mp4', 'webm', 'mov', 'mkv', 'm4v', '3gp'].includes(e)) return 'video';
   if (['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac', 'opus'].includes(e)) return 'audio';
   return 'image';
@@ -97,9 +144,12 @@ export function importFiles(files, after) {
     return;
   }
   let left = list.length;
-  const done = () => { if (--left <= 0) { bus.all(); after && after(); } };
+  const made = [];
+  psdMade = made;
+  const done = () => { if (--left <= 0) { bus.all(); after && after(made); } };
   list.forEach(file => {
-    const kind = kindOf(file);
+    let kind = kindOf(file);
+    if (kind === 'psd') { psdIn(file, done); return; }     // ひらいてから 絵として 入れる
     const url = URL.createObjectURL(file);
     const m = { id: uid(), name: file.name, kind, url, dur: 5, w: S.W, h: S.H, poster: null, file };
     if (kind === 'image') {
@@ -142,6 +192,7 @@ export function importFiles(files, after) {
       if (kind === 'audio' || file.size < 80 * 1024 * 1024) analyse2(m, file);
     }
     MEDIA.set(m.id, m);
+    made.push(m);
   });
   toast(list.length + ' こ とりこんだ');
   bus.all();

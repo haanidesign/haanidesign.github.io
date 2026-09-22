@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=5';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=5';
-import { bus } from '../bus.js?v=5';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=5';
+} from '../state.js?v=6';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=6';
+import { bus } from '../bus.js?v=6';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=6';
 
 const el = {};
 export function init() {
@@ -29,7 +29,8 @@ export function init() {
 
 export const x2t = x => x / S.pps;
 export const t2x = t => t * S.pps;
-const width = () => Math.max(el.scroll.clientWidth + 160, t2x(duration()) + 360);
+const MAXW = 30000;   // これより 大きい 絵は ブラウザが えがけない
+const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(duration()) + 360));
 
 /* ---------- えがく ---------- */
 export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); }
@@ -67,7 +68,8 @@ function drawBeatGrid(w, h) {
   const st = stepSec(), off = S.beat.offset || 0;
   const perBar = (S.beat.per || 4) * (S.beat.div || 1);
   let n = Math.ceil((0 - off) / st);
-  for (let t = off + n * st; t2x(t) < w; t += st, n++) {
+  let guard = 4000;
+  for (let t = off + n * st; t2x(t) < w && guard-- > 0; t += st, n++) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const bar = perBar > 0 && ((n % perBar) + perBar) % perBar === 0;
@@ -87,6 +89,13 @@ function drawLanes() {
     L.dataset.tid = tr.id;
     L.style.width = w + 'px';
     tr.clips.forEach(c => L.appendChild(clipEl(c)));
+    if (!tr.clips.length) {
+      const e = document.createElement('div');
+      e.className = 'laneempty';
+      e.textContent = tr.kind === 'audio' ? 'ここに 音を ならべます'
+        : tr.kind === 'text' ? 'ここに もじを ならべます' : 'ここに 動画や 画像を ならべます';
+      L.appendChild(e);
+    }
     el.lanes.appendChild(L);
   });
   drawBeatGrid(w, S.tracks.length * 64);
@@ -164,7 +173,8 @@ function drawBarRuler(g, w) {
   const b = beatSec(), per = S.beat.per || 4, barSec = b * per, off = S.beat.offset || 0;
   const every = Math.max(1, Math.ceil(74 / (barSec * S.pps)));
   let n = Math.ceil((0 - off) / b);
-  for (let t = off + n * b; t2x(t) < w; t += b, n++) {
+  let guard = 4000;                       // こまかすぎる ときに 止まらなく ならない ように
+  for (let t = off + n * b; t2x(t) < w && guard-- > 0; t += b, n++) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const inBar = ((n % per) + per) % per;
@@ -186,7 +196,8 @@ function drawBeatTicks(g, w) {
   const b = beatSec(), off = S.beat.offset || 0;
   const per = S.beat.per || 4;
   let n = Math.max(0, Math.ceil((0 - off) / b));
-  for (let t = off + n * b; t2x(t) < w; t += b, n++) {
+  let guard = 4000;
+  for (let t = off + n * b; t2x(t) < w && guard-- > 0; t += b, n++) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const bar = ((n % per) + per) % per === 0;
@@ -205,6 +216,29 @@ function drawLoopBand() {
   n.style.left = t2x(L.a) + 'px';
   n.style.width = Math.max(2, t2x(L.b - L.a)) + 'px';
   n.style.height = el.lanes.scrollHeight + 'px';
+}
+
+/** 置いた ふだの ところまで 画面を 動かす。
+    たてに かくれて いると「消えた」ように 見える ので、
+    その段を かならず 出す。 */
+export function reveal(cid) {
+  const f = cid && findClip(cid);
+  if (!f) return;
+  const i = S.tracks.indexOf(f.t);
+  if (i < 0) return;
+  const laneH = 64;
+  const top = i * laneH, bottom = top + laneH;
+  const vh = el.scroll.clientHeight - 30;                 // 定規の ぶん
+  if (top < el.scroll.scrollTop) el.scroll.scrollTop = Math.max(0, top - 4);
+  else if (bottom > el.scroll.scrollTop + vh) el.scroll.scrollTop = bottom - vh + 4;
+
+  // よこも。ふだが 小さすぎる／はみ出る ときは 全体に あわせる
+  const w = t2x(f.c.dur), view = el.scroll.clientWidth;
+  if (w < 30 || w > view * 3) { fit(); return; }
+  const x = t2x(f.c.start);
+  if (x < el.scroll.scrollLeft || x > el.scroll.scrollLeft + view - 60) {
+    el.scroll.scrollLeft = Math.max(0, x - 40);
+  }
 }
 
 export function movePlayhead() {

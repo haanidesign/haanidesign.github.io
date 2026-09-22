@@ -2,24 +2,24 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js?v=5';
-import { wire, bus } from './bus.js?v=5';
-import { MEDIA, importFiles, hookAll } from './media.js?v=5';
-import { useCanvas, renderStage } from './render.js?v=5';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=5';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=5';
-import { beatOn, beatSec, beatAt } from './beat.js?v=5';
-import * as TL from './ui/timeline.js?v=5';
-import * as P from './ui/panel.js?v=5';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=5';
+} from './state.js?v=6';
+import { wire, bus } from './bus.js?v=6';
+import { MEDIA, importFiles, hookAll } from './media.js?v=6';
+import { useCanvas, renderStage } from './render.js?v=6';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=6';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=6';
+import { beatOn, beatSec, beatAt } from './beat.js?v=6';
+import * as TL from './ui/timeline.js?v=6';
+import * as P from './ui/panel.js?v=6';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=6';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=5';
-import { addFontFile } from './text.js?v=5';
-import { makePack, openPack } from './pack.js?v=5';
-import { showStart } from './ui/start.js?v=5';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=5';
-import { trackOf } from './state.js?v=5';
+} from './edit.js?v=6';
+import { addFontFile } from './text.js?v=6';
+import { makePack, openPack } from './pack.js?v=6';
+import { showStart } from './ui/start.js?v=6';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=6';
+import { trackOf } from './state.js?v=6';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -110,6 +110,7 @@ wire({
     $('#busyFill').style.width = Math.round(p * 100) + '%';
     $('#busyPct').textContent = Math.round(p * 100) + '%';
   },
+  reveal: id => TL.reveal(id),
   beat: m => {
     // はじめての 音から、曲の はやさを もらって おく
     if (m && m.bpm && !S.beat.bpm) {
@@ -119,7 +120,7 @@ wire({
   },
   drop: (mid, t, tid, files) => {
     if (mid && MEDIA.get(mid)) addFromMedia(MEDIA.get(mid), t, tid ? trackOf(tid) : null);
-    else if (files && files.length) importFiles(files, relink);
+    else if (files && files.length) importFiles(files, made => { relink(); placeAll(made, t); });
   }
 });
 
@@ -204,7 +205,19 @@ $('#tFile').onclick = () => P.open('file');
 $('#help').onclick = () => P.open('help');
 
 /* ---------- ファイル ---------- */
-$('#file').onchange = e => { importFiles(e.target.files, relink); e.target.value = ''; };
+/* とりこんだら そのまま タイムラインに ならべる。
+   だなに 入るだけだと、どこへ 行ったのか 分からない。 */
+function placeAll(made, at) {
+  if (!made || !made.length) return;
+  const where = at === undefined ? S.time : at;
+  let last = null;
+  made.forEach(m => { const c = addFromMedia(m, where); if (c) last = c.id; });
+  if (last) { drawAll(); TL.reveal(last); }
+}
+$('#file').onchange = e => {
+  importFiles(e.target.files, made => { relink(); placeAll(made); });
+  e.target.value = '';
+};
 $('#fileProj').onchange = e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
@@ -298,7 +311,7 @@ document.addEventListener('drop', e => {
   dragDepth = 0; $('#drop').classList.remove('on');
   if (e.target.closest && e.target.closest('#lanes')) return;   // タイムラインは 自分で うけとる
   e.preventDefault();
-  if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files, relink);
+  if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files, made => { relink(); placeAll(made); });
 });
 
 /* ---------- 書き出し ---------- */
