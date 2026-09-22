@@ -1,8 +1,8 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=9';
-import { MEDIA, animFrame } from './media.js?v=9';
-import { drawText as paintText, textBox } from './text.js?v=9';
-import { beatOn, beatAt } from './beat.js?v=9';
+import { S, clamp, findClip } from './state.js?v=10';
+import { MEDIA, animFrame } from './media.js?v=10';
+import { drawText as paintText, textBox } from './text.js?v=10';
+import { beatOn, beatAt } from './beat.js?v=10';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう

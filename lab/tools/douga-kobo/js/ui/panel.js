@@ -3,16 +3,16 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=9';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=9';
-import { storeOk } from '../store.js?v=9';
-import { bus } from '../bus.js?v=9';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=9';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=9';
+} from '../state.js?v=10';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=10';
+import { storeOk } from '../store.js?v=10';
+import { bus } from '../bus.js?v=10';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=10';
+import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=10';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=9';
+} from '../edit.js?v=10';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -685,7 +685,8 @@ function helpBody() {
   <li>上下の 段へ 引っぱると 段を うつれる（音は 音の段だけ）</li>
   <li><b>✂きる</b>を えらぶと、さわった ところで 切れる</li>
   <li>🔁 で えらんだ ふだの ところだけ くりかえし 見られる</li>
-  <li>段の 🔓 を おすと かぎが かかって うごかなく なる</li></ul>
+  <li>段の 🔓 を おすと かぎが かかって うごかなく なる</li>
+  <li>音を 止めたい ときは その段の <b>🔊</b>。映像の段は <b>👁</b> でも 音ごと 止まります</li></ul>
   <h3>4. もじ と うた</h3>
   <ul><li>🅰もじ で 1まい。<b>🎵うた</b> は 1行ずつ まとめて 流しこむ
   （拍で ならべられる。行の あたまに <b>0:12</b> と 書くと そこに 置く）</li>

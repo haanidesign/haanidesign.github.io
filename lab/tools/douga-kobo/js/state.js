@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=9';
+import { bus } from './bus.js?v=10';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -45,6 +45,12 @@ export function newClip(kind, o = {}) {
   }, o);
 }
 
+/** 音の段は「目」を つかわない。前の さくひんは 音けしに ふり替える */
+export function tidyTracks() {
+  S.tracks.forEach(t => {
+    if (t.kind === 'audio' && t.hidden) { t.mute = true; t.hidden = false; }
+  });
+}
 export const allClips = () => S.tracks.flatMap(t => t.clips.map(c => ({ c, t })));
 export const findClip = id => {
   for (const t of S.tracks) { const c = t.clips.find(c => c.id === id); if (c) return { c, t }; }
