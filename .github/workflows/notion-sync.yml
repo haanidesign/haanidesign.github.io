@@ -64,12 +64,28 @@ jobs:
 
       - name: Commit if changed
         run: |
-          if [ -z "$(git status --porcelain lab/tools/task-calendar/data data images/schedule)" ]; then
+          # 画像の置き場は、画像つきの予定が1件も無いと作られない。
+          # 無いまま git add に渡すと pathspec で落ちるので、先に作っておく。
+          mkdir -p images/schedule
+
+          TARGETS="lab/tools/task-calendar/data data images/schedule"
+          if [ -z "$(git status --porcelain $TARGETS)" ]; then
             echo "変更なし"
             exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A lab/tools/task-calendar/data data images/schedule
+          git add -A $TARGETS
           git commit -m "Sync tasks from Notion"
-          git push
+
+          # 同期の最中に main が進んでいることがある。
+          # そのままだと push が弾かれるので、取り込んでから やり直す。
+          for i in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "push が弾かれました。取り込んでから やり直します（$i 回目）"
+            git pull --rebase origin main || exit 1
+          done
+          echo "3回やって push できませんでした"
+          exit 1
