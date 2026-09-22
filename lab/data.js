@@ -221,6 +221,17 @@ const TOOLS = [
     thumb: "thumbs/blister-design.svg",
     url: "tools/blister-design/index.html",
     status: "live"
+  },
+  {
+    no: 21,
+    slug: "bongo",
+    title: "ぼんご",
+    desc: "打ったキーの横の位置に合わせて、左手と右手が動くキャラクターの台。打った時のはずみ、大きさ、手のうごく幅を決められる。タブレットモードにすると、ペン先がマウスについてくる。あたま・手・台は自分の透過PNGやGIFに差し替えられる。背景を緑や青にして、配信の画面に重ねて使う。",
+    tags: ["配信", "オーバーレイ", "キーボード", "透過PNG"],
+    cat: "other",
+    thumb: "thumbs/bongo.svg",
+    url: "tools/bongo/index.html",
+    status: "live"
   }
 ];
 
