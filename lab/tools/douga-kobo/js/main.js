@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=13';
-import { wire, bus } from './bus.js?v=13';
-import { MEDIA, importFiles, hookAll } from './media.js?v=13';
-import { useCanvas, renderStage, renderOut, outCanvas, fitView, view } from './render.js?v=13';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=13';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=13';
-import { beatOn, beatSec, beatAt } from './beat.js?v=13';
-import * as TL from './ui/timeline.js?v=13';
-import * as P from './ui/panel.js?v=13';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=13';
+} from './state.js?v=14';
+import { wire, bus } from './bus.js?v=14';
+import { MEDIA, importFiles, hookAll } from './media.js?v=14';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality } from './render.js?v=14';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=14';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=14';
+import { beatOn, beatSec, beatAt } from './beat.js?v=14';
+import * as TL from './ui/timeline.js?v=14';
+import * as P from './ui/panel.js?v=14';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=14';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=13';
-import { addFontFile } from './text.js?v=13';
-import { makePack, openPack } from './pack.js?v=13';
-import { showStart } from './ui/start.js?v=13';
-import { openDemo } from './demo.js?v=13';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=13';
-import { trackOf } from './state.js?v=13';
+} from './edit.js?v=14';
+import { addFontFile } from './text.js?v=14';
+import { makePack, openPack } from './pack.js?v=14';
+import { showStart } from './ui/start.js?v=14';
+import { openDemo } from './demo.js?v=14';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=14';
+import { trackOf } from './state.js?v=14';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -88,6 +88,8 @@ wire({
   export: doExport,
   canMp4: () => hasCodecs(),
   version: () => VERSION,
+  qual: setQual,
+  qualList: () => QUAL,
   home: backToStart,
   demo: runDemo,
   rename: v => { S.name = v; auto.touch(); },
@@ -127,6 +129,33 @@ wire({
 /* ---------- 上バー ---------- */
 $('#home').onclick = backToStart;
 $('#docSize').onclick = () => P.open('setting');
+
+/* ---------- 作業中の 画質 ----------
+   動画を のせると 毎コマ 原寸で 描き直すのが おもい。
+   ここを おすと 小さく 描いて 画面で ひきのばす ＝ なめらかに なる。
+   書き出す ときは かならず 原寸に もどる。 */
+export const QUAL = [
+  [1, 'きれい'], [0.66, 'ふつう'], [0.5, 'かるい'], [0.33, 'とても かるい']
+];
+export function showQual() {
+  const cur = S.quality || 1;
+  const hit = QUAL.find(x => Math.abs(x[0] - cur) < .02) || QUAL[0];
+  const b = $('#qBtn');
+  b.textContent = '画質 ' + hit[1];
+  b.classList.toggle('low', hit[0] < 1);
+}
+export function setQual(v) {
+  setQuality(v);
+  showQual();
+  drawAll();
+  const hit = QUAL.find(x => Math.abs(x[0] - v) < .02);
+  toast('画質を「' + (hit ? hit[1] : v) + '」に した（書き出しは いつも きれい）', 2600);
+}
+$('#qBtn').onclick = () => {
+  const cur = S.quality || 1;
+  const i = QUAL.findIndex(x => Math.abs(x[0] - cur) < .02);
+  setQual(QUAL[(i + 1 + QUAL.length) % QUAL.length][0]);
+};
 $('#docName').onclick = () => {
   const v = prompt('さくひんの 名前', S.name || 'むだい');
   if (v === null) return;
@@ -172,7 +201,7 @@ $('#loop').onclick = e => {
   drawAll();
 };
 $('#shot').onclick = () => {
-  const cvs = renderOut(S.time);
+  const cvs = renderFull(S.time);
   cvs.toBlob(bl => {
     if (!bl) { toast('出せなかった'); return; }
     save(bl, 'koma_' + Math.round(S.time * S.fps) + 'f.png');
@@ -540,6 +569,7 @@ TL.init();
 P.init();
 bootProject();
 applySize();
+showQual();
 resetHist();
 appH();
 drawAll();

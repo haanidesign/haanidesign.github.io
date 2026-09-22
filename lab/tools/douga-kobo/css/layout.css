@@ -49,6 +49,8 @@
   border:none; border-radius:100px; padding:.15rem .7rem; min-height:0;
   box-shadow:none; white-space:nowrap; flex:0 0 auto;
 }
+#top #qBtn{ background:var(--paper); color:var(--ink); border:var(--bd2); box-shadow:0 2px 0 var(--ink); }
+#top #qBtn.low{ background:var(--pink); }
 #top .ver{
   font-size:.58rem; color:#5c5843; font-weight:400;
   flex:0 0 auto; white-space:nowrap;

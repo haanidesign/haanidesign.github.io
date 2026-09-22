@@ -3,17 +3,17 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=13';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=13';
-import { storeOk } from '../store.js?v=13';
-import { bus } from '../bus.js?v=13';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=13';
+} from '../state.js?v=14';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=14';
+import { storeOk } from '../store.js?v=14';
+import { bus } from '../bus.js?v=14';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=14';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=13';
+  offOf, setOff, clearOff } from '../text.js?v=14';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=13';
+} from '../edit.js?v=14';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -757,6 +757,15 @@ function settingBody() {
     pick('コマ数', [['24', '24 fps'], ['30', '30 fps'], ['60', '60 fps']], S.fps, v => { S.fps = +v; bus.all(); }),
     color('下じき', S.bg, v => { S.bg = v; bus.stage(); })
   ]));
+  w.appendChild(group('作業中の 画質', [
+    grid('えらぶ', (bus.qualList ? bus.qualList() : [[1, 'きれい']]).map(([v, n]) =>
+      btn(n, 'btn-sm' + (Math.abs((S.quality || 1) - v) < .02 ? ' on' : ''), () => { bus.qual(v); draw(); }))),
+    hint('動画を のせると カクつく ときは かるく する。<br>' +
+      '画面の 出かたが あらく なるだけで、<b>書き出す ときは いつも きれい</b>。<br>' +
+      'かるく して いる あいだは、<b>さいせい中だけ</b> ざらざらと 色ずれを 休みます' +
+      '（止めれば ちゃんと 見えます）。<br>' +
+      '上の バーの「画質」を おしても かえられます。')
+  ]));
   w.appendChild(group('タイムライン', [
     grid('くっつき', [
       btn(S.snap ? '🧲 あり' : '🧲 なし', 'btn-sm' + (S.snap ? ' on' : ''), () => { S.snap = !S.snap; bus.all(); draw(); })
@@ -822,7 +831,12 @@ function helpBody() {
   <li>上の <b>⤢</b> で もとの 大きさに もどります</li>
   <li><b>2本指で トン</b> … もどす　<b>3本指で トン</b> … やりなおし</li>
   <li>タイムラインを <b>2本指で つまむ</b> … 時間じくの のびちぢみ</li></ul>
-  <h3>8. 出す</h3>
+  <h3>8. カクカク する とき</h3>
+  <ul><li>上の バーの <b>画質</b> を おして かるく する。
+  きれい → ふつう → かるい → とても かるい の じゅんに 切りかわります</li>
+  <li>画面が あらく なるだけで、<b>書き出す ものは いつも きれい</b></li>
+  <li>かるく して いる あいだは、さいせい中だけ ざらざらと 色ずれを 休みます</li></ul>
+  <h3>9. 出す</h3>
   <ul><li>右上の <b>▶書き出す</b> → <b>MP4</b>（1コマずつ 焼く。コマ落ちしない）</li>
   <li>できない ブラウザでは 通しで 録って WebM に なる</li>
   <li>📷 で いまの 絵を PNG に</li>

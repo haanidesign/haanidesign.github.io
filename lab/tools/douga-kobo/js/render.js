@@ -1,8 +1,8 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=13';
-import { MEDIA, animFrame } from './media.js?v=13';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=13';
-import { beatOn, beatAt } from './beat.js?v=13';
+import { S, clamp, findClip } from './state.js?v=14';
+import { MEDIA, animFrame } from './media.js?v=14';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=14';
+import { beatOn, beatAt } from './beat.js?v=14';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -11,6 +11,17 @@ import { beatOn, beatAt } from './beat.js?v=13';
 let out = null, O = null;
 let vcv = null, V = null;
 
+/* ---- 作業中の 画質 ----
+   動画を のせると、毎コマ 原寸で 描き直すのが おもい。
+   作って いる あいだだけ 小さく 描いて、画面で ひきのばす。
+   書き出す ときは かならず 原寸に もどす。 */
+export const quality = () => clamp(S.quality || 1, .2, 1);
+export function setQuality(v) {
+  S.quality = clamp(+v || 1, .2, 1);
+}
+const ow = () => Math.max(2, Math.round(S.W * quality()));
+const oh = () => Math.max(2, Math.round(S.H * quality()));
+
 export function useCanvas(el) {
   vcv = el;
   V = el.getContext('2d');
@@ -18,7 +29,7 @@ export function useCanvas(el) {
 }
 export function outCanvas() {
   if (!out) { out = document.createElement('canvas'); O = out.getContext('2d'); }
-  if (out.width !== S.W || out.height !== S.H) { out.width = S.W; out.height = S.H; }
+  if (out.width !== ow() || out.height !== oh()) { out.width = ow(); out.height = oh(); }
   return out;
 }
 export const canvas = () => outCanvas();
@@ -85,29 +96,36 @@ const filterStr = f =>
 let buf = null, bufG = null, grainTile = null, buf2 = null, buf2G = null;
 function buffer() {
   if (!buf) { buf = document.createElement('canvas'); bufG = buf.getContext('2d'); }
-  if (buf.width !== S.W || buf.height !== S.H) { buf.width = S.W; buf.height = S.H; }
+  if (buf.width !== ow() || buf.height !== oh()) { buf.width = ow(); buf.height = oh(); }
   return bufG;
 }
 /** 色の ひとつの すじ だけ 取り出す（色ずれ 用） */
 function channel(src, color) {
   if (!buf2) { buf2 = document.createElement('canvas'); buf2G = buf2.getContext('2d'); }
-  if (buf2.width !== S.W || buf2.height !== S.H) { buf2.width = S.W; buf2.height = S.H; }
+  if (buf2.width !== ow() || buf2.height !== oh()) { buf2.width = ow(); buf2.height = oh(); }
   const g = buf2G;
+  g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'source-over';
-  g.clearRect(0, 0, S.W, S.H);
+  g.clearRect(0, 0, buf2.width, buf2.height);
   g.drawImage(src, 0, 0);
   g.globalCompositeOperation = 'multiply';
-  g.fillStyle = color; g.fillRect(0, 0, S.W, S.H);
+  g.fillStyle = color; g.fillRect(0, 0, buf2.width, buf2.height);
   g.globalCompositeOperation = 'destination-in';
   g.drawImage(src, 0, 0);
   g.globalCompositeOperation = 'source-over';
   return buf2;
 }
 const M = () => S.master || {};
+/* かるく して いる あいだ、さいせい中だけ おもい しあげを 休む。
+   ざらざら（グレイン）と 色ずれは 1コマに 何回も 全面を ぬる ので いちばん おもい。
+   止めて いる あいだは ちゃんと 見える。書き出しは もちろん そのまま。 */
+const cheapFx = () => S.playing && quality() < 1;
+const rgbNow = () => cheapFx() ? 0 : (M().rgb || 0);
+const grainNow = () => cheapFx() ? 0 : (M().grain || 0);
 const needsBuf = () => {
   const m = M();
   return (m.br !== undefined && m.br !== 100) || (m.ct !== undefined && m.ct !== 100)
-    || (m.sa !== undefined && m.sa !== 100) || m.rgb > 0;
+    || (m.sa !== undefined && m.sa !== 100) || rgbNow() > 0;
 };
 const anyMaster = () => {
   const m = M();
@@ -146,10 +164,10 @@ function masterOver(g, t) {
     gr.addColorStop(1, `rgba(0,0,0,${Math.min(.92, m.vignette)})`);
     g.fillStyle = gr; g.fillRect(0, 0, S.W, S.H);
   }
-  if (m.grain > 0) {
+  if (grainNow() > 0) {
     if (!grainTile) grainTile = makeGrain();
     g.save();
-    g.globalAlpha = Math.min(.5, m.grain * .5);
+    g.globalAlpha = Math.min(.5, grainNow() * .5);
     g.globalCompositeOperation = 'overlay';
     const p = g.createPattern(grainTile, 'repeat');
     g.translate((Math.random() * 40) | 0, (Math.random() * 40) | 0);
@@ -160,10 +178,19 @@ function masterOver(g, t) {
 
 /** 作品そのもの（書き出し・録画・見本の絵） */
 export function renderOut(t = S.time) {
-  const G = O || (outCanvas(), O);
-  if (!G) return;
-  paintFull(G, t);
+  outCanvas();
+  if (!O) return;
+  paintFull(O, t);
   return out;
+}
+/** 原寸で 1枚 焼く（書き出し・写真 用）。画質は そのあと もとに もどす */
+export function renderFull(t = S.time) {
+  const keep = quality();
+  setQuality(1);
+  const c = renderOut(t);
+  setQuality(keep);
+  outCanvas();
+  return c;
 }
 
 /** 画面に 出す ぶん。わくの 外も うっすら 見せる */
@@ -187,7 +214,8 @@ export function renderStage(t = S.time, handles = true) {
 
   // わくの 外が 見えて いる ときだけ、外の ぶんも えがく
   const covers = bx <= 0 && by <= 0 && bx + bw >= w && by + bh >= h;
-  if (!covers) {
+  const cheap = S.playing && quality() < 1;    // さいせい中は 外まで 描かない
+  if (!covers && !cheap) {
     V.save();
     V.translate(cx, cy);
     V.scale(z, z);
@@ -222,7 +250,8 @@ function paintFull(G, t) {
   const g = useBuf ? buffer() : G;
   const W = S.W, H = S.H;
 
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  const q = quality();
+  g.setTransform(q, 0, 0, q, 0, 0);
   g.globalAlpha = 1; g.filter = 'none';
   g.fillStyle = S.bg; g.fillRect(0, 0, S.W, S.H);
 
@@ -244,11 +273,11 @@ function paintFull(G, t) {
     G.setTransform(1, 0, 0, 1, 0, 0);
     G.globalAlpha = 1;
     G.globalCompositeOperation = 'source-over';
-    G.fillStyle = '#000'; G.fillRect(0, 0, S.W, S.H);
+    G.fillStyle = '#000'; G.fillRect(0, 0, ow(), oh());
     G.filter = `brightness(${m.br === undefined ? 100 : m.br}%) contrast(${m.ct === undefined ? 100 : m.ct}%) saturate(${m.sa === undefined ? 100 : m.sa}%)`;
-    if (m.rgb > 0) {
+    if (rgbNow() > 0) {
       // 赤と 水いろに 分けて、左右に ずらして かさねる＝色ずれ
-      const d = m.rgb * S.W * .01;
+      const d = rgbNow() * S.W * .01 * quality();
       const red = channel(buf, '#ff0000');
       G.drawImage(red, -d, 0);
       const cyan = channel(buf, '#00ffff');
@@ -260,6 +289,7 @@ function paintFull(G, t) {
     }
     G.filter = 'none';
   }
+  G.setTransform(q, 0, 0, q, 0, 0);
   masterOver(G, t);
   G.setTransform(1, 0, 0, 1, 0, 0);
   G.globalAlpha = 1; G.filter = 'none';
@@ -285,7 +315,7 @@ function paintScene(G, t) {
     /* うごきの あと（モーションブラー）。
        すこし まえの すがたを うすく かさねて、ぶれて 見せる。 */
     const mb = c.kind === 'text' ? 0 : clamp(c.mblur || 0, 0, 1);
-    const steps = mb > 0 ? 5 : 1;
+    const steps = mb > 0 ? (quality() < 1 ? 2 : 5) : 1;
 
     for (let k = steps - 1; k >= 0; k--) {
       const back = k * mb * 0.05;

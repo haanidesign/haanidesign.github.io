@@ -7,15 +7,15 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>動画工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=13">
+<link rel="manifest" href="manifest.webmanifest?v=14">
 <link rel="icon" href="icons/icon.svg">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=13">
-<link rel="stylesheet" href="css/layout.css?v=13">
-<link rel="stylesheet" href="css/parts.css?v=13">
+<link rel="stylesheet" href="css/tokens.css?v=14">
+<link rel="stylesheet" href="css/layout.css?v=14">
+<link rel="stylesheet" href="css/parts.css?v=14">
 </head>
 <body>
 
@@ -26,6 +26,7 @@
     <button class="size dot" id="docName" title="さくひんの 名前">むだい</button>
     <button class="ver dot" id="ver" title="この版の ばんごう。おすと さいしんに します">v?</button>
     <button class="size dot" id="docSize" title="動画の 大きさと コマ数">—</button>
+    <button class="size dot" id="qBtn" title="作業中の 画質。おすと かるく なります（書き出しは いつも きれい）">画質</button>
     <span class="spacer"></span>
     <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
     <button id="redo" class="btn-sm" title="やりなおし（3本指で たたく）" aria-label="やりなおし" disabled>↷</button>
@@ -186,7 +187,7 @@
 <input type="file" id="filePack" hidden>
 <input type="file" id="fileFont" hidden>
 
-<script src="lib/mp4-muxer.js?v=13"></script>
-<script type="module" src="js/main.js?v=13"></script>
+<script src="lib/mp4-muxer.js?v=14"></script>
+<script type="module" src="js/main.js?v=14"></script>
 </body>
 </html>

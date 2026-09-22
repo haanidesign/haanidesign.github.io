@@ -1,9 +1,9 @@
 /* さくひんを 素材ごと 1つの ファイルに まとめる（ZIP）。
    中身は そのまま 入れる（動画も 画像も もう 縮んで いる ので 縮めない）。
    だから 書くのも 読むのも みじかい コードで すむ。 */
-import { S, allClips, toast, resetHist } from './state.js?v=13';
-import { MEDIA, importFiles } from './media.js?v=13';
-import { bus } from './bus.js?v=13';
+import { S, allClips, toast, resetHist } from './state.js?v=14';
+import { MEDIA, importFiles } from './media.js?v=14';
+import { bus } from './bus.js?v=14';
 
 /* ---------- CRC32 ---------- */
 let TBL = null;
