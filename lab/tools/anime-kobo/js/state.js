@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=267';
+import { uid } from './engine/math.js?v=268';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -20,6 +20,9 @@ export function newProject(w, h, seconds){
     fps: 30,
     duration: seconds || 15,
     bg: '#FFFEF7',
+    /* 曲の 拍。音を 読みこむと じどうで 入る。
+       タイムラインの めもりと「拍に すいつく」に つかう。 */
+    beat: { bpm: 0, offset: 0, snap: true },
     layers: [],      // [0] が一番手前
     assets: {}       // id -> { id, name, src, w, h }
   };

@@ -368,10 +368,30 @@ export function guessBpm(){
   }
   if(!best.lag) return null;
 
-  let bpm = 60 / (best.lag * slot);
+  /* 山の 前後を 見て、もっと こまかい ところを 当てる（放物線あて）。
+     ここを しないと きざみ（slot）ぶんの ずれが のこり、
+     長い 曲では だんだん 拍から はなれて いく。 */
+  const sc = (lag) => {
+    if(lag < 1 || lag >= on.length) return -Infinity;
+    let sum = 0;
+    for(let i = 0; i + lag < on.length; i++) sum += on[i] * on[i + lag];
+    return sum / (on.length - lag);
+  };
+  let lag = best.lag;
+  const y0 = sc(lag - 1), y1 = best.score, y2 = sc(lag + 1);
+  if(isFinite(y0) && isFinite(y2)){
+    const den = (y0 - 2 * y1 + y2);
+    if(Math.abs(den) > 1e-12) lag += 0.5 * (y0 - y2) / den;
+  }
+
+  let bpm = 60 / (lag * slot);
   // はやすぎ・おそすぎは 倍・半分に して 90〜180 に よせる
   while(bpm < 70) bpm *= 2;
   while(bpm > 190) bpm /= 2;
+  /* たいていの 曲は きりの いい 数（120 など）。
+     すぐ 近くなら その 数に そろえる（ずれが たまらない ように）。 */
+  const near = Math.round(bpm);
+  if(Math.abs(bpm - near) < 0.45) bpm = near;
   return Math.round(bpm * 10) / 10;
 }
 

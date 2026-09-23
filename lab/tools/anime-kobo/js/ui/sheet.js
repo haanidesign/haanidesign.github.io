@@ -1,46 +1,46 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=267';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=268';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=267';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=267';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=268';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=268';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=267';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=268';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=267';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=267';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=267';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=267';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=268';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=268';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=268';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=268';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=267';
+         addTextLayer } from '../io/text.js?v=268';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=267';
-import { PATTERN_NAMES } from '../io/pattern.js?v=267';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=268';
+import { PATTERN_NAMES } from '../io/pattern.js?v=268';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=267';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=267';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=267';
+         PITCH_MAX } from '../engine/pano.js?v=268';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=268';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=268';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=267';
-import { readAsDataURL, loadImage } from '../io/image.js?v=267';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=268';
+import { readAsDataURL, loadImage } from '../io/image.js?v=268';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=267';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=267';
-import { newHand } from '../engine/hand.js?v=267';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=267';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=268';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=268';
+import { newHand } from '../engine/hand.js?v=268';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=268';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=267';
+  from './colorwheel.js?v=268';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=267';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=268';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=267';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=268';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2034,11 +2034,92 @@ function buildRhythm(box, l){
   const NL = String.fromCharCode(10);
   box.appendChild(heading('🥁 リズム（BPM）'));
 
+  /* 曲の 拍（音を 読みこむと じどうで 入る）を はじめの 数に する */
+  const PB = (S.proj.beat && S.proj.beat.bpm > 0) ? S.proj.beat : null;
   l.beat = l.beat || {
-    bpm: 120, every: 1, kind: 'omote', motion: 'ぽにょん',
-    power: 0.35, offset: 0, bars: 8
+    bpm: PB ? PB.bpm : 120, every: 1, kind: 'omote', motion: 'ぽにょん',
+    power: 0.35, offset: PB ? PB.offset || 0 : 0, bars: 8
   };
   const B = l.beat;
+
+  /* ---- 曲から きた はやさ ----
+     音を 読みこむと BPM を その場で さがして おぼえて ある。
+     ここから ひと おしで つかえる。 */
+  if(PB){
+    const sb = document.createElement('div');
+    sb.className = 'empty';
+    sb.style.textAlign = 'left';
+    sb.textContent = 'この 曲は だいたい ' + PB.bpm + ' BPM'
+      + '（はじまり ' + (PB.offset || 0).toFixed(2) + '秒）。' + NL
+      + 'タイムラインの あおい めもりが 拍です。';
+    box.appendChild(sb);
+
+    box.appendChild(btnRow(
+      button('🎵 曲の ' + PB.bpm + ' BPM に 合わせる', () => {
+        B.bpm = PB.bpm; B.offset = PB.offset || 0;
+        notify('曲の はやさに しました');
+        onChange();
+        openLayer();
+      }),
+      (() => {
+        const on = PB.snap !== false;
+        const b = button((on ? '✅' : '⬜') + ' 拍に すいつく', () => {
+          S.proj.beat.snap = !on;
+          notify(on ? 'すいつきを やめました' : 'ピンが 拍に すいつきます');
+          onChange();
+          openLayer();
+        });
+        b.classList.toggle('on', on);
+        return b;
+      })()
+    ));
+  }
+
+  /* ---- ひと おしで 曲に のせる ----
+     1小節ぶん（4拍）だけ うごきを 作って、そこを くり返す。
+     ピンを 曲ぜんぶに ばらまくより 軽いし、
+     あとから 1か所 直すと ぜんぶに 効く。 */
+  const putLoopBar = (beats, label) => {
+    const bl = beatSec(B.bpm);
+    /* はじまりは「いまの 時こく」から いちばん 近い 拍。
+       曲の あたま（offset）から 数えて そろえる。 */
+    const off = B.offset || 0;
+    let start = off + Math.round((S.time - off) / bl) * bl;
+    if(start < 0) start = off;
+    const end = start + bl * beats;
+    if(end > S.proj.duration + 1e-6){
+      return notify('のこり時間が たりません（' + (bl * beats).toFixed(2) + '秒 いります）');
+    }
+    const pose = valuesAt(l, start);
+    const r = { n: 0 };
+    edit(label, () => {
+      r.n = rhythmKeys(l, {
+        bpm: B.bpm, every: B.every, kind: B.kind, motion: B.motion,
+        power: B.power, start, end: end - bl * 0.001, offset: 0, pose
+      });
+      // さいごの 拍の あとまで を くり返しに する
+      l.loop = { from: +start.toFixed(3), to: +end.toFixed(3), mode: 'loop' };
+    });
+    if(!r.n) return notify('うてませんでした');
+    notify(beats + '拍ぶん つくって くり返しに しました（' + r.n + 'コの ピン）');
+    onChange();
+  };
+
+  box.appendChild(btnRow(
+    button('🥁 1小節（4拍）ぶん つくって くり返す',
+           () => putLoopBar(4, '曲に 合わせて うごかす'))
+  ));
+  box.appendChild(btnRow(
+    button('2拍ぶん', () => putLoopBar(2, '曲に 合わせて うごかす')),
+    button('8拍ぶん', () => putLoopBar(8, '曲に 合わせて うごかす'))
+  ));
+  const lnote = document.createElement('div');
+  lnote.className = 'empty';
+  lnote.style.textAlign = 'left';
+  lnote.textContent = 'いまの 時こくに いちばん 近い 拍から はじめます。' + NL
+    + 'その ぶんだけ ピンを うって、あとは くり返すので 軽いです。' + NL
+    + 'うごきの 種類と つよさは 下で えらべます（あとから 変えて 打ち直せます）。';
+  box.appendChild(lnote);
 
   const info = document.createElement('div');
   info.className = 'empty';
@@ -2095,8 +2176,13 @@ function buildRhythm(box, l){
     if(!bpm) return notify('見つかりませんでした。トントンで きめてね');
     B.bpm = Math.max(60, Math.min(200, bpm));
     B.offset = firstOnset();
+    /* 作品ぜんたいにも おぼえる。
+       タイムラインの めもりと「拍に すいつく」が これを 見る。 */
+    S.proj.beat = { bpm: B.bpm, offset: B.offset,
+                    snap: S.proj.beat ? S.proj.beat.snap !== false : true };
     notify('だいたい ' + B.bpm + ' BPM。はじまり ' + B.offset.toFixed(2) + '秒');
     onChange();
+    openLayer();
   }));
 
   let taps = [];
@@ -2110,8 +2196,11 @@ function buildRhythm(box, l){
     const avg = sum / (taps.length - 1);
     const bpm = Math.max(60, Math.min(200, 60 / avg));
     B.bpm = Math.round(bpm);
+    S.proj.beat = { bpm: B.bpm, offset: B.offset || 0,
+                    snap: S.proj.beat ? S.proj.beat.snap !== false : true };
     tapB.textContent = '👆 ' + B.bpm + ' BPM（' + taps.length + '回）';
     showInfo();
+    onChange();
   });
   find.appendChild(tapB);
   box.appendChild(field('BPMを きめる', find));
