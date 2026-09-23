@@ -968,6 +968,20 @@ function flatMesh(w, h){
     return l._maskC;
   }
 
+  /* 枠の そとの まくの 色（css から 1回だけ もらう） */
+  let veilCol = null;
+  function outsideVeil(){
+    if(veilCol == null){
+      let v = '';
+      try{
+        v = getComputedStyle(document.documentElement)
+              .getPropertyValue('--outside').trim();
+      }catch(_){}
+      veilCol = v || 'rgba(255,254,247,.72)';
+    }
+    return veilCol;
+  }
+
   /* ---------- 魚眼の 紙と 貼り直し ---------- */
   let lensCanvas = null;
   function lensSheet(){
@@ -2087,7 +2101,11 @@ function flatMesh(w, h){
       const x0 = (0 - view.x) / view.z, y0 = (0 - view.y) / view.z;
       const x1 = (W - view.x) / view.z, y1 = (H - view.y) / view.z;
       ctx.save();
-      ctx.fillStyle = 'rgba(255,254,247,.72)';
+      /* 枠の そとに かける まく。
+         見た目（css）の --outside が あれば その色を つかう
+         ―― 見た目を さしかえた ときに ここだけ 前の 色で
+         のこって しまわない ように。 */
+      ctx.fillStyle = outsideVeil();
       const band = (a, b, c, d) => {
         if(c > a && d > b) ctx.fillRect(a, b, c - a, d - b);
       };

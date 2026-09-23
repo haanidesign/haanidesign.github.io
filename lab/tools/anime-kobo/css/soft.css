@@ -1,31 +1,44 @@
 /* ================= やわらかい 見た目（ためし） =================
 
-   いまの 見た目は「厚い 黒ぶち＋かたい かげ」の レトロ。
-   これは その 上から かぶせる、白い カード中心の やわらかい 見た目。
+   見本（いただいた スクショ）に 色を 合わせた もの。
 
-   ・下じきは うすい グレー、部品は 白い カード（まるみ 大きめ）
-   ・ふちは ほぼ 無し。うすい かげで 浮かせる
-   ・目立たせたい ところだけ ライム（黄緑）か 黒の まるピル
-   ・文字は 黒に 近い グレー、そえ書きは うすい グレー
+   ・下じき  … ひんやりした うすいグレー
+   ・部品    … 白い カード。まるみ 大きめ、かげは ほんの少し
+   ・強調    … 黒の まるピル（えらんで いる もの）と ライム（黄緑）
+   ・文字    … ほぼ黒／そえ書きは グレー
+   ・しるし  … 赤（あぶない）・オレンジ（ちゅうい）も 見本に 合わせた
 
-   さしかえは この 1まいを 読むか 読まないか だけ。
-   もとの css は さわって いない ので、いつでも もどせる。 */
+   もとの css は さわって いない。この 1まいを 読むのを やめれば
+   いつでも レトロな 見た目に もどる。 */
 
 :root{
-  --paper:     #FFFFFF;
-  --cream:     #EDEDEF;   /* 下じき */
-  --ink:       #14161A;
-  --gray:      #8B9099;
-  --main:      #D6F94C;   /* ライム */
-  --main-deep: #C3E93A;
-  --main-soft: #F1FBD0;
-  --pink:      #FF7A6B;
+  /* ---- 下じき・面 ---- */
+  --paper:     #FFFFFF;   /* カード */
+  --cream:     #E9E9EB;   /* いちばん 下の 下じき */
+  --fill:      #F1F2F4;   /* うすい 面（ボタン・入力） */
+  --fill2:     #E7E9ED;   /* その 上を なぞった とき */
+  --line:      #ECEDF0;   /* うすい しきり */
+
+  /* ---- 文字 ---- */
+  --ink:       #101114;   /* ほぼ黒 */
+  --ink2:      #5E646E;   /* 本文の そえ書き */
+  --gray:      #9AA0A8;   /* うすい そえ書き */
+
+  /* ---- 強調 ---- */
+  --main:      #D4F84C;   /* ライム */
+  --main-deep: #C6EE3C;
+  --main-soft: #F2FDCB;
+  --pink:      #F05B4A;   /* あぶない（見本の High） */
+  --pink-soft: #FFE5E0;
+  --warn:      #F5A623;   /* ちゅうい（見本の Under review） */
+  --warn-soft: #FDEEDA;
   --mint:      #7AC4A0;
 
-  --line:      #E6E7EB;   /* うすい しきり */
-  --fill:      #F3F4F6;   /* うすい 面 */
-  --shadow:    0 1px 2px rgba(20,22,26,.05), 0 10px 28px rgba(20,22,26,.07);
-  --shadow-sm: 0 1px 2px rgba(20,22,26,.06);
+  /* 枠の そとに かける うすい まく（描画が 読む） */
+  --outside:   rgba(233,233,235,.88);
+
+  --shadow:    0 1px 2px rgba(16,17,20,.05), 0 10px 30px rgba(16,17,20,.07);
+  --shadow-sm: 0 1px 2px rgba(16,17,20,.05);
 
   --bd:  none;
   --bd2: none;
@@ -34,93 +47,102 @@
 
 body{
   background:var(--cream);
+  color:var(--ink);
   font-weight:600;
-  letter-spacing:-.01em;
+  letter-spacing:-.012em;
 }
 
 /* ---------- ボタン ---------- */
 button{
   background:var(--fill);
   color:var(--ink);
-  border:0;
+  border:1px solid transparent;
   border-radius:999px;
   box-shadow:none;
   padding:.45rem .9rem;
   font-weight:700;
-  transition:background .15s, color .15s, transform .08s;
+  transition:background .15s, color .15s, border-color .15s, transform .08s;
 }
-button:hover{ background:#E8EAEE; }
+button:hover{ background:var(--fill2); }
 button:active{ transform:scale(.97); box-shadow:none; }
-button.on{
-  background:var(--ink); color:#fff;
-  transform:none; box-shadow:none;
+button.on{ background:var(--ink); color:#fff; border-color:var(--ink); transform:none; }
+/* 白い ところに おいた ボタンが 消えない ように、うすい ふちを 足す */
+#top button,#playbar button,#pinbar button,#sheet button,.tool,#ruler .rhead button{
+  border-color:var(--line);
 }
-button:disabled{ opacity:.4; box-shadow:none; }
-button:disabled:hover{ background:var(--fill); }
+#top button.on,#playbar button.on,#pinbar button.on,#sheet button.on,.tool.on{
+  border-color:var(--ink);
+}
+/* 押せない ボタンは 白ぬけ＋うすい 字（すけさせるだけ だと 分かりにくい） */
+button:disabled{
+  opacity:1; background:var(--paper); color:#C2C6CD;
+  border-color:var(--line); box-shadow:none;
+}
+button:disabled:hover{ background:var(--paper); }
 button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
 
-.btn-y{ background:var(--main); }
-.btn-y:hover{ background:var(--main-deep); }
-.btn-g{ background:var(--ink); color:#fff; }
+.btn-y{ background:var(--main); border-color:var(--main); }
+.btn-y:hover{ background:var(--main-deep); border-color:var(--main-deep); }
+.btn-g{ background:var(--ink); color:#fff; border-color:var(--ink); }
 .btn-g:hover{ background:#000; color:#fff; }
-.btn-p{ background:#FFE1DD; }
+.btn-p{ background:var(--pink-soft); border-color:var(--pink-soft); color:#8E2A1C; }
 .btn-sm{ padding:.3rem .7rem; font-size:.72rem; box-shadow:none; }
 
 /* ---------- 入れもの ---------- */
 input,select{
   background:var(--fill);
-  border:0; border-radius:12px;
-  font-weight:700;
+  border:1px solid transparent; border-radius:12px;
+  font-weight:700; color:var(--ink);
   box-shadow:none;
 }
+input:focus,select:focus{ border-color:#D9DCE1; }
 input[type=range]{ background:transparent; accent-color:var(--ink); }
 
 ::-webkit-scrollbar-track{ background:transparent; }
-::-webkit-scrollbar-thumb{ background:#CFD2D8; border:2px solid transparent; background-clip:padding-box; }
+::-webkit-scrollbar-thumb{ background:#D2D5DB; border:2px solid transparent; background-clip:padding-box; }
 
 /* ---------- 上のバー ---------- */
 #app{ background:var(--cream); }
 #top{
   background:var(--paper);
   border-bottom:1px solid var(--line);
-  padding:.5rem .8rem;
+  padding:.5rem .85rem;
   min-height:58px;
 }
-#top .name{ font-size:1.02rem; font-weight:800; letter-spacing:-.02em; }
+#top .name{ font-size:1.04rem; font-weight:800; letter-spacing:-.025em; border-color:transparent; }
 #top .name:hover{ background:var(--fill); }
 #top .size{
-  background:var(--fill); color:var(--gray);
-  font-weight:700; padding:.15rem .7rem;
+  background:var(--fill); color:var(--ink2);
+  font-weight:700; padding:.15rem .7rem; border-color:transparent;
 }
-#top .ver{ color:#B4B8C0; }
+#top .ver{ color:#BFC3CA; border-color:transparent; }
 #top .ver:hover{ background:var(--fill); }
 #top button{ border-radius:999px; }
 #top #export{
-  background:var(--ink); color:#fff;
-  padding-left:1.1rem; padding-right:1.1rem;
+  background:var(--ink); color:#fff; border-color:var(--ink);
+  padding-left:1.15rem; padding-right:1.15rem;
 }
 #top #export:hover{ background:#000; }
 
 /* ---------- ステージ ---------- */
 #stage{
   background-color:var(--cream);
-  background-image:radial-gradient(circle, rgba(20,22,26,.07) 1.4px, transparent 1.5px);
-  background-size:16px 16px;
+  background-image:radial-gradient(circle, rgba(16,17,20,.06) 1.3px, transparent 1.4px);
+  background-size:18px 18px;
 }
 
-/* ---------- 道具（サイドの ボタン） ---------- */
+/* ---------- 道具 ---------- */
 #tools{
   background:var(--cream);
   border-top:0; border-right:0;
-  gap:.4rem;
+  gap:.42rem;
   padding:.6rem .5rem calc(.6rem + var(--safe-b));
 }
 .tool{
   background:var(--paper);
-  border:0; border-radius:18px;
+  border:1px solid var(--line); border-radius:18px;
   box-shadow:var(--shadow-sm);
-  color:var(--ink);
-  font-weight:700;
+  color:var(--ink); font-weight:700;
 }
 .tool:hover{ background:#fff; box-shadow:var(--shadow); }
 .tool.on{ background:var(--ink); color:#fff; }
@@ -129,26 +151,27 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 #list{
   background:var(--paper);
   border-top:0;
-  border-radius:20px 20px 0 0;
-  box-shadow:0 -2px 24px rgba(20,22,26,.06);
+  border-radius:22px 22px 0 0;
+  box-shadow:0 -2px 26px rgba(16,17,20,.06);
 }
-#tracks{ gap:.3rem; padding:.4rem .45rem .5rem; }
-#playbar{ border-bottom:1px solid var(--line); background:var(--paper); border-radius:20px 20px 0 0; }
+#tracks{ gap:.3rem; padding:.4rem .5rem .55rem; }
+#playbar{
+  background:var(--paper); border-bottom:1px solid var(--line);
+  border-radius:22px 22px 0 0;
+}
 #playbar button{ background:var(--fill); }
 #playbar .tnum{ color:var(--gray); font-weight:700; }
 #pinbar{ background:var(--paper); border-bottom:1px solid var(--line); }
-#pininfo{ background:var(--ink); color:#fff; }
+#pininfo{ background:var(--ink); color:#fff; border-color:var(--ink); }
 
 #ruler{ background:var(--paper); }
-#ruler .rtrack{
-  background:var(--fill);
-  border:0; border-radius:12px 12px 0 0;
-}
+#ruler .rtrack{ background:var(--fill); border:0; border-radius:12px 12px 0 0; }
 #ruler .rlab{ color:var(--gray); }
-#ruler .rtick{ background:rgba(20,22,26,.25); }
-#ruler .rtick.big{ background:rgba(20,22,26,.55); }
-#ruler .btick{ background:rgba(90,120,255,.45); }
-#ruler .btick.bar{ background:#5A78FF; }
+#ruler .rtick{ background:rgba(16,17,20,.22); }
+#ruler .rtick.big{ background:rgba(16,17,20,.5); }
+/* 拍は ライム。小節の あたまだけ 黒で 強く */
+#ruler .btick{ background:#B9D93E; }
+#ruler .btick.bar{ background:var(--ink); }
 
 .thead{
   background:var(--paper);
@@ -158,41 +181,63 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .thead:hover{ background:var(--fill); }
 .trow.sel .thead{
   background:var(--ink); color:#fff;
-  box-shadow:none; transform:none;
-  border-color:var(--ink);
+  border-color:var(--ink); box-shadow:none; transform:none;
 }
 .trow.sel .thead .nm{ color:#fff; }
 .trow.folder .thead{ background:#FAFBFC; }
 .trow.folder.sel .thead{ background:var(--ink); }
-.thead .pick{ border:1px solid var(--line); border-radius:8px; background:var(--paper); }
+.thead .pick{ border:1px solid var(--line); border-radius:8px; background:var(--paper); box-shadow:none; }
 .thead .pick.on{ background:var(--main); border-color:var(--main); }
-.thead .eye{ background:transparent; box-shadow:none; }
-.thead .thumb{ border-radius:8px; border:1px solid var(--line); }
+.thead .eye{ background:transparent; border-color:transparent; box-shadow:none; }
+.thead .thumb{ border-radius:9px; border:1px solid var(--line); }
 
-.track{
-  background:var(--fill);
-  border:0; border-radius:12px;
-}
-.trow.sel .track{ background:#EFF1F4; }
-.tick{ background:rgba(20,22,26,.07); }
-.tick.big{ background:rgba(20,22,26,.16); }
-.pinline{ background:var(--ink); opacity:.18; }
+.track{ background:var(--fill); border:0; border-radius:12px; }
+.trow.sel .track{ background:#EBEDF1; }
+.tick{ background:rgba(16,17,20,.06); }
+.tick.big{ background:rgba(16,17,20,.14); }
+.pinline{ background:var(--ink); opacity:.16; }
 
+/* くりかえしの 帯・のばす 帯・出すところ */
 .loopband{
-  background:rgba(214,249,76,.55);
+  background:rgba(212,248,76,.5);
   border-left:2px solid var(--ink); border-right:2px solid var(--ink);
   border-radius:8px;
 }
-.loopband.ping{ background:rgba(255,122,107,.35); }
-.loopoff{
-  border:0; background:var(--ink); color:#fff;
+.loopband.ping{ background:rgba(240,91,74,.22); }
+.loopoff{ border:0; background:var(--ink); color:#fff; box-shadow:var(--shadow-sm); }
+.looprest{
+  background:repeating-linear-gradient(45deg,
+    rgba(16,17,20,.06) 0 5px, transparent 5px 10px);
+}
+.stretch{
+  background:rgba(16,17,20,.06);
+  border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);
+  border-radius:6px;
+}
+.sgrip{
+  border:0; border-radius:10px;
+  background:var(--ink); color:#fff;
   box-shadow:var(--shadow-sm);
+}
+.span{ background:rgba(16,17,20,.08); border-radius:5px; }
+.span.on{ background:var(--main); box-shadow:none; }
+.spgrip{
+  border:0; border-radius:8px;
+  background:var(--paper); color:var(--ink);
+  box-shadow:var(--shadow-sm);
+}
+.spgrip.on{ background:var(--ink); color:#fff; }
+
+.playhead{
+  background:var(--ink);
+  width:2px; border-radius:2px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.7);
 }
 
 .pin{
   border:0; border-radius:5px;
   background:var(--main);
-  box-shadow:0 1px 2px rgba(20,22,26,.18);
+  box-shadow:0 1px 3px rgba(16,17,20,.2);
 }
 .pin:hover{ background:#fff; }
 .pin.on{ background:var(--ink); }
@@ -202,50 +247,50 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 /* ---------- シート（せってい） ---------- */
 #sheet{
   background:var(--paper);
-  border:0;
-  border-radius:24px 24px 0 0;
-  box-shadow:0 -8px 40px rgba(20,22,26,.12);
+  border:0; border-radius:26px 26px 0 0;
+  box-shadow:0 -10px 44px rgba(16,17,20,.13);
 }
+#sheet .handle{ background:#D8DBE1; opacity:1; }
+/* 見出しは 黒ピルを やめて、ライムの 点＋太字（見本の 小見出しに 近い） */
 #sheet h2{
-  font-size:.74rem; font-weight:800; letter-spacing:.02em;
-  background:var(--ink); color:#fff;
-  border:0; border-radius:999px;
-  box-shadow:none;
-  padding:.3rem .9rem;
-  display:inline-block;
+  background:transparent; color:var(--ink);
+  font-size:.82rem; font-weight:800; letter-spacing:-.01em;
+  border-radius:0; padding:.2rem 0 .1rem;
+  display:flex; align-items:center; gap:.4rem;
+  margin:.85rem 0 .35rem;
 }
+#sheet h2::before{
+  content:''; width:8px; height:8px; border-radius:3px;
+  background:var(--main); flex:0 0 auto;
+}
+#sheet h2:first-of-type{ margin-top:.2rem; }
 #sheet .field label{ color:var(--gray); font-weight:700; }
-.field .val{ color:var(--gray); font-weight:700; }
-.subhead{ color:var(--gray); }
+.field .val{ color:var(--ink2); font-weight:700; }
+.subhead{ color:var(--gray); letter-spacing:.04em; }
 .textin{ background:var(--fill); border:0; border-radius:12px; }
 #sheet .empty,.empty{
-  background:var(--fill);
+  background:#F7F8FA;
   border:0; border-radius:14px;
-  color:#5D636E; font-weight:600;
+  color:var(--ink2); font-weight:600;
   box-shadow:none;
 }
-#sheet .handle{ background:#D5D8DE; opacity:1; }
 .sheettabs button{ border-radius:999px; }
 
-/* しきり線 */
 hr,.sep{ border-color:var(--line); }
 
-/* 色えらび・見本の 四角も まるく */
 .swatch,.frameitem{ border-radius:12px; }
 .frameitem{ border:1px solid var(--line); box-shadow:none; }
 .frameitem.on{ border-color:var(--ink); box-shadow:0 0 0 2px var(--ink); }
 
-/* 出したままの 小さい ふきだし（トースト） */
 #toast{ background:var(--ink); color:#fff; box-shadow:var(--shadow); }
 
-/* 書き出し中の 帯 */
 #exFill{ background:var(--main); }
 #newdoc .card,#exporting .card{
   background:var(--paper);
-  border:0; border-radius:24px;
+  border:0; border-radius:26px;
   box-shadow:var(--shadow);
 }
 #newdoc{
   background:var(--cream);
-  background-image:radial-gradient(circle, rgba(20,22,26,.06) 1.4px, transparent 1.5px);
+  background-image:radial-gradient(circle, rgba(16,17,20,.055) 1.3px, transparent 1.4px);
 }
