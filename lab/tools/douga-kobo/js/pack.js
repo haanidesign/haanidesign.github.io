@@ -1,9 +1,9 @@
 /* さくひんを 素材ごと 1つの ファイルに まとめる（ZIP）。
    中身は そのまま 入れる（動画も 画像も もう 縮んで いる ので 縮めない）。
    だから 書くのも 読むのも みじかい コードで すむ。 */
-import { S, allClips, toast, resetHist } from './state.js?v=20';
-import { MEDIA, importFiles } from './media.js?v=20';
-import { bus } from './bus.js?v=20';
+import { S, allClips, toast, resetHist } from './state.js?v=22';
+import { MEDIA, importFiles } from './media.js?v=22';
+import { bus } from './bus.js?v=22';
 
 /* ---------- CRC32 ---------- */
 let TBL = null;
@@ -118,7 +118,7 @@ export async function makePack(name = 'douga') {
   }
   const proj = {
     app: 'douga-kobo', ver: 2, pack: true,
-    W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur,
     beat: S.beat, master: S.master,
     media: list, tracks: S.tracks
   };
@@ -155,6 +155,7 @@ export async function openPack(file) {
   });
 
   S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    S.dur = +o.dur > 0 ? +o.dur : 0;
   if (o.beat) S.beat = Object.assign(S.beat, o.beat);
   if (o.master) S.master = Object.assign(S.master, o.master);
   S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;

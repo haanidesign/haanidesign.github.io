@@ -1,11 +1,11 @@
 /* 下の タイムライン。ふだを つかむ・はしを のばす・段を うつる。 */
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
-  allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=20';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=20';
-import { bus } from '../bus.js?v=20';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=20';
+  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot
+} from '../state.js?v=22';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=22';
+import { bus } from '../bus.js?v=22';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=22';
 
 const el = {};
 export function init() {
@@ -30,7 +30,7 @@ export function init() {
 export const x2t = x => x / S.pps;
 export const t2x = t => t * S.pps;
 const MAXW = 30000;   // これより 大きい 絵は ブラウザが えがけない
-const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(duration()) + 360));
+const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(Math.max(duration(), clipEnd())) + 360));
 
 /* ---------- えがく ---------- */
 export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); }

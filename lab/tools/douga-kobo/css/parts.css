@@ -224,3 +224,19 @@ kbd{
 }
 .chip1.moved{ background:var(--main-soft); }
 .chip1.moved.on{ background:var(--main); }
+
+/* つまみ：長おし中は「きりの いい 数字」だけを 通る。その あいだ めもりを 出す */
+input[type=range].coarse{
+  background-image:repeating-linear-gradient(90deg,
+    var(--ink) 0 2px, transparent 2px 12.5%);
+  background-repeat:no-repeat;
+  background-size:100% 6px;
+  background-position:0 50%;
+}
+/* 数の ところは おせる（打ちこみ・もどす） */
+button.val{ flex:0 0 54px;
+  border:var(--bd2); border-radius:7px; background:var(--paper);
+  padding:.1rem .25rem; min-height:26px; cursor:pointer;
+  font-weight:700; line-height:1.1;
+}
+button.val:active{ transform:translateY(1px); }

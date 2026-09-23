@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=20';
+import { bus } from './bus.js?v=22';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -9,6 +9,7 @@ export const r2 = v => Math.round(v * 100) / 100;
 
 export const S = {
   fps: 30, W: 1280, H: 720, bg: '#101010',
+  dur: 0,                // 作品の ながさ（0 なら ふだに 合わせる）
   tracks: [],
   time: 0, pps: 60,
   sel: null, selTrack: null, selChar: null,
@@ -66,7 +67,10 @@ export const findClip = id => {
 };
 export const trackOf = id => S.tracks.find(t => t.id === id);
 export const selected = () => S.sel ? findClip(S.sel) : null;
-export const duration = () => Math.max(0.5, ...allClips().map(({ c }) => c.start + c.dur));
+/** ふだが おわる ところ */
+export const clipEnd = () => Math.max(0.5, ...allClips().map(({ c }) => c.start + c.dur));
+/** 作品の ながさ。きめて あれば その ながさ、なければ ふだに 合わせる */
+export const duration = () => (S.dur > 0 ? S.dur : clipEnd());
 
 export function bootProject() {
   S.tracks = [

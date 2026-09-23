@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=20';
-import { wire, bus } from './bus.js?v=20';
-import { MEDIA, importFiles, hookAll } from './media.js?v=20';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality } from './render.js?v=20';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=20';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=20';
-import { beatOn, beatSec, beatAt } from './beat.js?v=20';
-import * as TL from './ui/timeline.js?v=20';
-import * as P from './ui/panel.js?v=20';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=20';
+} from './state.js?v=22';
+import { wire, bus } from './bus.js?v=22';
+import { MEDIA, importFiles, hookAll } from './media.js?v=22';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality } from './render.js?v=22';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=22';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=22';
+import { beatOn, beatSec, beatAt } from './beat.js?v=22';
+import * as TL from './ui/timeline.js?v=22';
+import * as P from './ui/panel.js?v=22';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=22';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=20';
-import { addFontFile } from './text.js?v=20';
-import { makePack, openPack } from './pack.js?v=20';
-import { showStart } from './ui/start.js?v=20';
-import { openDemo } from './demo.js?v=20';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=20';
-import { trackOf } from './state.js?v=20';
+} from './edit.js?v=22';
+import { addFontFile } from './text.js?v=22';
+import { makePack, openPack } from './pack.js?v=22';
+import { showStart } from './ui/start.js?v=22';
+import { openDemo } from './demo.js?v=22';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=22';
+import { trackOf } from './state.js?v=22';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -38,7 +38,8 @@ function fitStage() {
 function applySize() {
   outCanvas();
   const dn = $('#docName'); if (dn) dn.textContent = S.name || 'むだい';
-  $('#docSize').textContent = `${S.W}×${S.H} / ${S.fps}fps`;
+  $('#docSize').textContent =
+    `${S.W}×${S.H} / ${S.fps}fps / ${r2(duration())}s${S.dur > 0 ? ' きめた' : ''}`;
   fitStage();
 }
 
@@ -485,7 +486,7 @@ function thumb() {
 const auto = autoSaver(() => ({
   id: S.docId,
   doc: {
-    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur,
     beat: S.beat, master: S.master, tracks: S.tracks
   },
   media: [...MEDIA.values()],
@@ -506,6 +507,7 @@ async function backToStart() {
 function startNew(size, fps) {
   S.W = size.w; S.H = size.h; S.fps = fps || 30;
   S.bg = '#101010';
+  S.dur = 0;
   S.beat = { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true };
   S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 };
   S.loop = { on: false, a: 0, b: 0 };
@@ -529,6 +531,7 @@ async function openDoc(id) {
     if (!rec) { toast('見つからなかった'); busy(false); return; }
     const o = rec.doc;
     S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    S.dur = +o.dur > 0 ? +o.dur : 0;
     if (o.beat) S.beat = Object.assign({ bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true }, o.beat);
     if (o.master) S.master = Object.assign({}, S.master, o.master);
     S.name = o.name || 'むだい';

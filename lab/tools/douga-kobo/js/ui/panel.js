@@ -1,20 +1,20 @@
 /* せってい。ひろい よこ画面では 右に つけっぱなし、
    せまい ときは 下から 出る 幕に 入る。中身は 同じ もの。 */
 import {
-  S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
+  S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=20';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=20';
-import { storeOk } from '../store.js?v=20';
-import { bus } from '../bus.js?v=20';
-import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=20';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=20';
+} from '../state.js?v=22';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=22';
+import { storeOk } from '../store.js?v=22';
+import { bus } from '../bus.js?v=22';
+import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=22';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=22';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=20';
+  offOf, setOff, clearOff } from '../text.js?v=22';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=20';
+} from '../edit.js?v=22';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -98,12 +98,94 @@ function row(label, node, valNode) {
   if (valNode) r.appendChild(valNode);
   return r;
 }
+/* つまみの まちがい防止（アニメ工房と 同じ 考えかた）
+
+   ・指で さわった だけでは 動かない。よこに 8px 動かして はじめて 効く
+   ・はし と 0 には 吸いつく
+   ・400ms 長おしすると「きりの いい 数字」だけを 通る
+   ・数字の ところを おすと 打ちこめる（もとに もどすのも ここから） */
+const NICE = [.01, .02, .05, .1, .2, .25, .5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
+function niceStep(span) {
+  const want = span / 10;
+  return NICE.find(v => v >= want) || span;
+}
+function stopsFor(min, max) {
+  const span = max - min;
+  if (!(span > 0)) return [];
+  const st = niceStep(span);
+  const out = [];
+  for (let v = Math.ceil(min / st) * st; v <= max + 1e-9; v += st) out.push(+v.toFixed(6));
+  [min, max].forEach(q => { if (!out.some(v => Math.abs(v - q) < 1e-9)) out.push(q); });
+  if (min < 0 && max > 0 && !out.some(v => Math.abs(v) < 1e-9)) out.push(0);
+  if (span >= 180) [-180, -90, 90, 180].forEach(q => {
+    if (q >= min && q <= max && !out.some(v => Math.abs(v - q) < 1e-9)) out.push(q);
+  });
+  return out.sort((a, b) => a - b);
+}
+let coarseTold = false;
+function guardSlide(i, apply) {
+  let x0 = 0, y0 = 0, v0 = null, armed = false, coarse = false, holdT = null;
+  const PULL_PX = 7;
+  const snapNear = () => {
+    const min = +i.min, max = +i.max, step = +i.step || .001;
+    const stops = coarse ? stopsFor(min, max)
+      : [min, max].concat(min < 0 && max > 0 ? [0] : []);
+    if (!stops.length) return;
+    const w = i.getBoundingClientRect().width || 200;
+    const tol = coarse ? Infinity : PULL_PX * ((max - min) / Math.max(1, w));
+    const val = +i.value;
+    let best = null, bd = Infinity;
+    stops.forEach(st => { const d = Math.abs(val - st); if (d < bd) { bd = d; best = st; } });
+    if (best === null || bd > tol) return;
+    const fixed = +(Math.round(best / step) * step).toFixed(6);
+    if (+i.value !== fixed) i.value = fixed;
+  };
+  i.addEventListener('pointerdown', e => {
+    x0 = e.clientX; y0 = e.clientY; v0 = i.value;
+    coarse = false; clearTimeout(holdT);
+    holdT = setTimeout(() => {
+      coarse = true; i.classList.add('coarse');
+      if (!coarseTold) { coarseTold = true; toast('きりの いい 数字だけに なります'); }
+    }, 400);
+    armed = e.pointerType === 'mouse';
+    if (armed) apply();
+  });
+  i.addEventListener('pointermove', e => {
+    const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+    if (!coarse && (dx > 10 || dy > 10)) clearTimeout(holdT);
+    if (armed || v0 === null) return;
+    if (dx >= 8 && dx > dy) { armed = true; apply(); }
+  });
+  i.addEventListener('input', () => {
+    if (armed) { snapNear(); return apply(); }
+    i.value = v0;                     // まだ その気が ないので もどす
+  });
+  const end = () => {
+    armed = false; v0 = null; coarse = false;
+    clearTimeout(holdT); i.classList.remove('coarse');
+  };
+  ['pointerup', 'pointercancel', 'blur'].forEach(ev => i.addEventListener(ev, end));
+}
+
 function range(label, val, min, max, step, unit, fn) {
   const i = el('input'); i.type = 'range';
   i.min = min; i.max = max; i.step = step; i.value = val;
-  const v = el('span', 'val dot', r2(val) + (unit || ''));
-  i.addEventListener('input', () => { v.textContent = r2(+i.value) + (unit || ''); fn(+i.value, false); });
-  i.addEventListener('change', () => { fn(+i.value, true); pushUndo(); });
+  const start = val;                   // さわる まえの 数（もどす とき に つかう）
+  const v = el('button', 'val dot', r2(val) + (unit || ''));
+  v.type = 'button';
+  v.title = 'おすと 数を 打ちこめる';
+  const show = () => { v.textContent = r2(+i.value) + (unit || ''); };
+  guardSlide(i, () => { show(); fn(+i.value, false); });
+  i.addEventListener('change', () => { show(); fn(+i.value, true); pushUndo(); });
+  // 数字を おす → 打ちこむ。から のまま OK すると さわる まえに もどる
+  v.addEventListener('click', () => {
+    const a = prompt(`${label}（${min}〜${max}）\nからのまま OK で さわる まえの ${r2(start)} に もどります`, r2(+i.value));
+    if (a === null) return;
+    const n = a.trim() === '' ? start : +a;
+    if (!isFinite(n)) { toast('数字を 入れて'); return; }
+    i.value = clamp(n, +min, +max);
+    show(); fn(+i.value, true); pushUndo();
+  });
   return row(label, i, v);
 }
 function pick(label, opts, val, fn) {
@@ -966,6 +1048,7 @@ function settingBody() {
     pick('コマ数', [['24', '24 fps'], ['30', '30 fps'], ['60', '60 fps']], S.fps, v => { S.fps = +v; bus.all(); }),
     color('下じき', S.bg, v => { S.bg = v; bus.stage(); })
   ]));
+  w.appendChild(durGroup());
   w.appendChild(group('作業中の 画質', [
     grid('えらぶ', (bus.qualList ? bus.qualList() : [[1, 'きれい']]).map(([v, n]) =>
       btn(n, 'btn-sm' + (Math.abs((S.quality || 1) - v) < .02 ? ' on' : ''), () => { bus.qual(v); draw(); }))),
@@ -982,6 +1065,42 @@ function settingBody() {
     grid('見わたす', [btn('⤢ 全体を 出す', 'btn-sm', () => bus.fit())])
   ]));
   return w;
+}
+
+/* --- 作品の ながさ --- */
+function durGroup() {
+  const fixed = S.dur > 0;
+  const end = r2(clipEnd());
+  const items = [
+    grid('きめかた', [
+      btn('ふだに 合わせる', 'btn-sm' + (fixed ? '' : ' on'), () => {
+        S.dur = 0; pushUndo(); bus.all(); draw();
+      }),
+      btn('秒数を きめる', 'btn-sm' + (fixed ? ' on' : ''), () => {
+        S.dur = S.dur > 0 ? S.dur : end; pushUndo(); bus.all(); draw();
+      })
+    ])
+  ];
+  if (fixed) {
+    items.push(num('ながさ（秒）', r2(S.dur), .1, v => {
+      S.dur = Math.max(.1, +v || .1); bus.all(); draw();
+    }));
+    items.push(grid(null, [
+      btn('ふだの おわりに 合わせる', 'btn-sm', () => { S.dur = end; pushUndo(); bus.all(); draw(); }),
+      btn('いまの ところまで', 'btn-sm', () => {
+        S.dur = Math.max(.1, r2(S.time)); pushUndo(); bus.all(); draw();
+      })
+    ]));
+    items.push(hint(`いまの きまり： <b>${r2(S.dur)}秒</b>。` +
+      (end > S.dur + .01
+        ? `<br>ふだは ${end}秒まで あるので、<b>${r2(end - S.dur)}秒ぶんは 書き出されません</b>。`
+        : '')));
+  } else {
+    items.push(hint(`ふだの おわり（いま <b>${end}秒</b>）が そのまま ながさに なります。`));
+  }
+  items.push(hint('ここで きめた ながさで <b>書き出し・さいせい</b>が おわります。<br>' +
+    'みじかく きめても ふだは 消えません。もどせば また 出ます。'));
+  return group('作品の ながさ', items);
 }
 
 /* --- つかいかた --- */
