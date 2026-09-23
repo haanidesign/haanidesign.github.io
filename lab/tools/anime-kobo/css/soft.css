@@ -126,20 +126,21 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 /* ---------- 上のバー ---------- */
 #app{ background:var(--cream); }
 #top{
-  background:var(--paper);
-  border-bottom:1px solid var(--line);
+  background:var(--main);
+  border-bottom:1px solid rgba(16,17,20,.12);
   padding:.5rem .9rem;
   min-height:56px;
 }
 #top .name{ font-size:.96rem; font-weight:700; letter-spacing:-.01em; border-color:transparent; }
-#top .name:hover{ background:var(--fill); }
+#top .name:hover{ background:rgba(255,255,255,.55); }
 #top .size{
-  background:var(--fill); color:var(--ink2);
+  background:rgba(255,255,255,.6); color:var(--ink);
   font-weight:700; padding:.15rem .7rem; border-color:transparent;
 }
-#top .ver{ color:#BFC3CA; border-color:transparent; }
-#top .ver:hover{ background:var(--fill); }
-#top button{ border-radius:999px; }
+#top .ver{ color:rgba(16,17,20,.4); border-color:transparent; }
+#top .ver:hover{ background:rgba(255,255,255,.55); }
+#top button{ border-radius:999px; background:rgba(255,255,255,.72); border-color:transparent; }
+#top button:hover{ background:#fff; }
 #top #export{
   background:var(--ink); color:#fff; border-color:var(--ink);
   border-radius:10px; font-weight:600;
@@ -147,7 +148,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 }
 #top #export:hover{ background:#000; }
 
-/* ---------- ステージ（黒い 作業面） ---------- */
+/* ---------- ステージ（作業面） ---------- */
 #stage{
   background-color:var(--work);
   background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px);
@@ -335,3 +336,27 @@ hr,.sep{ border-color:var(--line); }
 }
 
 
+
+/* ---------- はじめの 画面（つづきから／あたらしく つくる） ---------- */
+#newdoc .docopen{
+  background:var(--paper) !important;
+  border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow-sm);
+}
+#newdoc .docopen:hover{ background:var(--fill) !important; }
+#newdoc .docopen img{ border:1px solid var(--line); border-radius:9px; }
+#newdoc .doctext i{ color:var(--gray); }
+#newdoc .docdel{
+  background:var(--fill); border:0; border-radius:14px;
+  color:var(--ink2); box-shadow:none;
+}
+#newdoc .docdel:hover{ background:#FBE3E0; color:#C0392B; }
+.sizepick{ background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+.sizepick .box{ border:2px solid var(--ink2); background:var(--fill); }
+.sizepick:hover{ background:var(--fill); }
+.sizepick.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.sizepick.on .box{ background:#fff; border-color:#fff; }
+.sizepick.on .d{ color:rgba(255,255,255,.7); }
+.lenrow button{ background:var(--fill); border:0; border-radius:12px; box-shadow:none; }
+.lenrow button.on{ background:var(--ink); color:#fff; }
+#newdoc .go{ border-radius:14px; font-weight:700; padding:.85rem 1rem; }

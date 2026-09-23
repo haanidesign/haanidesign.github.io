@@ -23,7 +23,7 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
          setWarper } from './ui/sheet.js?v=269';
 
-import { showNewDoc } from './ui/newdoc.js?v=269';
+import { showNewDoc } from './ui/newdoc.js?v=273';
 import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=269';
 import { fitToCanvas, isBg } from './io/bg.js?v=269';
 import * as Audio from './io/audio.js?v=269';

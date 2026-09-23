@@ -297,3 +297,48 @@ button.on,.btn.on,a.btn.on,.tool.on,.mode.on,.tab.on{
   box-shadow:none !important;
 }
 input,select,textarea{ color:var(--ink) !important; }
+
+/* ================= 目立つ ところは ライム =================
+   いちばん上の バーは ライム。中の 字は 黒。
+   ボタンは 白ぬき、えらんで いる ものだけ 黒ピル。 */
+#titlebar,#topbar,#top,.titlebar,.topbar,.appbar,header,#tb{
+  background:var(--main) !important;
+  color:var(--ink) !important;
+  border-bottom:1px solid rgba(16,17,20,.12) !important;
+}
+#titlebar *,#topbar *,#top *,.titlebar *,.topbar *,.appbar *,header *,#tb *{ color:var(--ink); }
+#head .crumb,.crumb{ color:rgba(16,17,20,.55) !important; }
+#titlebar button,#topbar button,#top button,.titlebar button,.topbar button,.appbar button,
+header button,#tb button,header a.btn,#tb a.btn,
+#titlebar a.btn,#topbar a.btn,#top a.btn,.titlebar a.btn,.topbar a.btn{
+  background:rgba(255,255,255,.72) !important;
+  color:var(--ink) !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+}
+#titlebar button:hover,#topbar button:hover,#top button:hover,
+.titlebar button:hover,.topbar button:hover,header button:hover,#tb button:hover{ background:#fff !important; }
+#titlebar button.on,#topbar button.on,#top button.on,.titlebar button.on,.topbar button.on,
+#titlebar .btn-y,#topbar .btn-y,#top .btn-y,.titlebar .btn-y,.topbar .btn-y,
+#titlebar .btn-g,#topbar .btn-g,#top .btn-g,.titlebar .btn-g,.topbar .btn-g,
+#titlebar .primary,#topbar .primary,#top .primary,#top #export,
+header button.on,header .btn-y,header .btn-g,#tb button.on,#tb .btn-y,#tb .btn-g{
+  background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important;
+}
+#titlebar .chip,#topbar .chip,#top .chip,.titlebar .chip,.topbar .chip,header .chip,#tb .chip{
+  background:rgba(255,255,255,.6) !important; border-color:transparent !important; color:var(--ink) !important;
+}
+#titlebar input,#topbar input,#top input,.titlebar input,.topbar input,
+#titlebar select,#topbar select,#top select,.titlebar select,.topbar select,
+header input,header select,#tb input,#tb select{
+  background:rgba(255,255,255,.8) !important; color:var(--ink) !important; border-color:transparent !important;
+}
+/* まどの 見出しも ライム */
+.modal .head,.modal header,.dlg .head,.sheet .head,#helpHead,.modal h2:first-child{
+  background:var(--main) !important; color:var(--ink) !important;
+}
+
+/* 白い パネルの 中の ライムの 字は 黒に（読みにくい ので） */
+.card .v,.card .val,.card .num,.card summary,.card .lab .v,
+#head + * .v,.panel .v,.panel summary,#props .v,#props summary,
+.card .dot,.panel .dot{ color:var(--ink2) !important; }

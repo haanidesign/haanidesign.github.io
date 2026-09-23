@@ -129,7 +129,8 @@ export function showNewDoc(el, onStart, resume){
   /* ---- 長さ ---- */
   const lh = document.createElement('h2');
   lh.textContent = 'ながさ';
-  lh.style.cssText = 'font-size:.72rem;background:#1E1C14;color:#E1DD60;border-radius:100px;padding:.1rem .8rem;display:inline-block;margin-top:.4rem';
+  lh.className = 'subhead';
+  lh.style.cssText = 'font-size:.78rem;font-weight:700;margin-top:.5rem';
   card.appendChild(lh);
 
   const lens = document.createElement('div');
