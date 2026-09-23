@@ -36,7 +36,7 @@ export function attachInput(el, handlers){
       cx: (a.x + b.x) / 2,
       cy: (a.y + b.y) / 2,
       d: Math.hypot(a.x - b.x, a.y - b.y),
-      // 2本の 指を むすんだ 線の かたむき（くいっと まわす ため）
+      // 2本の 指を むすんだ 線の 回転（くいっと まわす ため）
       a: Math.atan2(b.y - a.y, b.x - a.x)
     };
   };

@@ -79,7 +79,7 @@ function refresh(){
 onChange(refresh);
 onRestore(() => refresh());
 
-/* せっていを 右に つけた／はずした ぶん、絵の 場所を ずらす。
+/* 設定を 右に つけた／はずした ぶん、絵の 場所を ずらす。
    ずらさないと、見えて いた ところが 幕の 下に 入って しまう。
    ズームは そのまま に する（つけるたび に 大きさが 変わると 目が つかれる）。 */
 setDockHook((on) => {
@@ -175,7 +175,7 @@ function blipBetween(a, b){
   requestAnimationFrame(loop);
 })();
 
-/* さくひんの 見本の絵。さいしょの画面の ならびに つかう。
+/* 作品の 見本の絵。さいしょの画面の ならびに つかう。
    小さく描くだけなので 重くない。 */
 let thumbCv = null;
 function makeThumb(){
@@ -309,7 +309,7 @@ $('#clip').addEventListener('click', () => {
 /* ---- なぞって うごかす ----
    ① みちを なぞる（絵の上）
    ② 何秒で 通るかを きめる
-   ③ 道のりで 等分に ピンを うつ */
+   ③ 道のりで 等分に キーフレームを うつ */
 function setTraceMode(on){
   if(on && S.paintMode) setPaintMode(false);
   S.traceMode = !!on;
@@ -389,9 +389,9 @@ function onTraced(){
       } else {
         const old = ms[at];
         if(maskAnimated(l) && old.pts && old.pts.length >= 3){
-          /* ピンが うって あるなら、点の 数を そろえて
-             いまの 時こくの 形として ピンに する
-             （数が ずれると ピンと 形が 合わなく なる） */
+          /* キーフレームが うって あるなら、点の 数を そろえて
+             いまの 時こくの 形として キーフレームに する
+             （数が ずれると キーフレームと 形が 合わなく なる） */
           const fit = resamplePoly(pts, old.pts.length);
           setMaskKeys(l, at, S.time, fit, setPin);
         } else {
@@ -437,13 +437,13 @@ function onTraced(){
                                   to: +(start + opt.dur).toFixed(2) };
           else delete c.span;
           /* 文字は 読めないと 意味が ない ので、
-             ざんぞうは えらんだ ぶんだけ。0 なら カメラの ぶんも うけない。 */
+             残像は えらんだ ぶんだけ。0 なら カメラの ぶんも うけない。 */
           c.mblur = opt.mb || 0;
           c.noMB = !(opt.mb > 0.001);
         });
         /* まとめた フォルダにも 同じ きまりを かける。
-           フォルダに カメラの ざんぞうが かかると、
-           中の 字の せっていは 通りこされて しまう。 */
+           フォルダに カメラの 残像が かかると、
+           中の 字の 設定は 通りこされて しまう。 */
         if(train.folder){
           train.folder.mblur = opt.mb || 0;
           train.folder.noMB = !(opt.mb > 0.001);
@@ -463,7 +463,7 @@ function onTraced(){
       });
     });
     toast(n.v ? (opt.orient ? '進む むきに 頭を むけて うごきます'
-                            : Math.round(n.v / 2) + 'コの ピンで うごきます')
+                            : Math.round(n.v / 2) + 'コの キーフレームで うごきます')
               : 'うてませんでした');
     setTraceMode(false);
   }));
@@ -496,7 +496,7 @@ setTracer(() => {
 });
 $('#trClose').addEventListener('click', () => setTraceMode(false));
 
-/* ---- お絵かき ----
+/* ---- ペイント ----
    ペンで 書いている あいだは、絵の上の さわりを ぜんぶ ペンに する。
    （うっかり レイヤーを 動かして しまわない ように） */
 function setPaintMode(on){
@@ -520,21 +520,21 @@ function paintUI(){
 setPainter(() => {
   const l = selected();
   if(!l || l.kind !== 'paint'){
-    return toast('おえかきの かみを えらんでね');
+    return toast('ペイントの かみを えらんでね');
   }
   sheet.close();
   setPaintMode(true);
 });
 $('#paint').addEventListener('click', () => {
   if(S.paintMode) return setPaintMode(false);
-  sheet.open('お絵かき', (box) => buildPaintSheet(box, () => sheet.close()));
+  sheet.open('ペイント', (box) => buildPaintSheet(box, () => sheet.close()));
 });
 $('#pnClose').addEventListener('click', () => setPaintMode(false));
 
-/* ---- ゆがみ・自由変形 ----
+/* ---- ワープ・自由変形 ----
    絵の上に あみの目（かご）を かぶせて 引っぱる。
    ・自由変形 … 赤い 四すみだけ。中は 自動で ついてくる
-   ・ゆがみ   … むらさきの あみの目を 1つずつ */
+   ・ワープ   … むらさきの あみの目を 1つずつ */
 const SOFTS = [['かたい', 0], ['やわ 小', 0.8], ['やわ 中', 1.2], ['やわ 大', 2]];
 const BRUSHES = [['筆 細', 0.10], ['筆 中', 0.18], ['筆 太', 0.30]];
 let brushI = 1;
@@ -568,11 +568,11 @@ function setWarpMode(mode){
 }
 setWarper((l) => {
   /* フォルダは 中身を 1まいに まとめてから ゆがめるので、
-     かごは キャンバスの 大きさで 作る（ピンのときと 同じ）。 */
+     かごは キャンバスの 大きさで 作る（キーフレームのときと 同じ）。 */
   const a = isFolder(l) ? { w: S.proj.w, h: S.proj.h } : frameAsset(l, 0);
   if(!a) return toast('絵の ない レイヤーには つかえません');
   if(!l.cage){
-    edit('ゆがみを はじめる', () => {
+    edit('ワープを はじめる', () => {
       l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]);
     });
   }
@@ -606,7 +606,7 @@ $('#wpLock').addEventListener('click', () => {
   S.lockErase = false;
   warpUI();
   toast('まとめて 動かしたい ところを 筆で なぞってね' + String.fromCharCode(10)
-    + 'そのあと「🫳 ゆがみ」で つまむと まるごと 持ち上がります');
+    + 'そのあと「🫳 ワープ」で つまむと まるごと 持ち上がります');
 });
 $('#wpBrush').addEventListener('click', () => {
   brushI = (brushI + 1) % BRUSHES.length;
@@ -623,24 +623,24 @@ $('#wpSoft').addEventListener('click', () => {
 $('#wpGrid').addEventListener('click', () => {
   const l = selected();
   if(!l || !l.cage) return;
-  if(!cageFlat(l.cage) && !confirm('あみの こまかさを 変えると、いまの ゆがみは 消えます。いいですか？')) return;
+  if(!cageFlat(l.cage) && !confirm('あみの こまかさを 変えると、いまの ワープは 消えます。いいですか？')) return;
   gridI = (gridI + 1) % GRIDS.length;
   const a = isFolder(l) ? { w: S.proj.w, h: S.proj.h } : frameAsset(l, 0);
   edit('あみの こまかさ', () => { l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]); });
   warpUI();
   refresh();
 });
-/* いまの 形を、その 時こくの ピンに する。
-   1回 うつと、あとは 引っぱるたび に その時間の ピンが
-   書きかわるので、そのまま ゆがみの アニメに なる。 */
+/* いまの 形を、その 時こくの キーフレームに する。
+   1回 うつと、あとは 引っぱるたび に その時間の キーフレームが
+   書きかわるので、そのまま ワープの アニメに なる。 */
 $('#wpKey').addEventListener('click', () => {
   const l = selected();
   if(!l || !l.cage) return;
-  /* おすたび に、いまの 形を その 時こくの ピンに する。
+  /* おすたび に、いまの 形を その 時こくの キーフレームに する。
      （とじる ボタンでは ない。けす ときは タイムラインで
-       その ピンを えらんで 🗑 けす） */
-  edit('ゆがみに ピンをうつ', () => { cageKeys(l, S.time); });
-  toast(S.time.toFixed(2) + '秒に ピンを うちました' + String.fromCharCode(10)
+       その キーフレームを えらんで 🗑 けす） */
+  edit('ワープに キーフレームをうつ', () => { cageKeys(l, S.time); });
+  toast(S.time.toFixed(2) + '秒に キーフレームを うちました' + String.fromCharCode(10)
     + '時間を うごかして 形を 変えると アニメに なります');
   warpUI();
   refresh();
@@ -655,7 +655,7 @@ $('#wpReset').addEventListener('click', () => {
     toast('ぜんぶ とかしました');
     return refresh();
   }
-  edit('ゆがみを もどす', () => { resetCage(l.cage); });
+  edit('ワープを もどす', () => { resetCage(l.cage); });
   toast('もとの 形に もどしました');
   refresh();
 });
@@ -738,14 +738,14 @@ $('#pnUndo').addEventListener('click', () => {
 });
 $('#trUndo').addEventListener('click', () => { S.tracePts = null; refresh(); });
 
-/* ---- パペットピン ---- *//* ---- パペットピン ---- */
+/* ---- パペットピン ---- */
 function setPinMode(on){
   if(on && S.paintMode) setPaintMode(false);
   S.pinMode = on;
   S.pinSel = -1;
   $('#pinmode').hidden = !on;
   $('#pivot').classList.toggle('on', on);
-  if(on) toast('絵の上をおして ピンをさそう');
+  if(on) toast('絵の上をおして パペットピンを さそう');
   refresh();
 }
 $('#pivot').addEventListener('click', () => {
@@ -758,10 +758,10 @@ PIN_KINDS.forEach(([id, kind]) => {
   $('#' + id).addEventListener('click', () => {
     S.pinKind = kind;
     PIN_KINDS.forEach(([x]) => $('#' + x).classList.toggle('on', x === id));
-    toast(kind === 'move'  ? 'おした所に うごかすピン'
-        : kind === 'fix'   ? 'おした所に とめるピン'
-        : kind === 'joint' ? 'ひじ・ゆびの ように カクッと 折れるピン（ピンをおすと 切りかえ）'
-        : 'ピンをおすと けせます');
+    toast(kind === 'move'  ? 'おした所に うごかすキーフレーム'
+        : kind === 'fix'   ? 'おした所に とめるキーフレーム'
+        : kind === 'joint' ? 'ひじ・ゆびの ように カクッと 折れるキーフレーム（キーフレームをおすと 切りかえ）'
+        : 'キーフレームをおすと けせます');
   });
 });
 
@@ -787,7 +787,7 @@ $('#toStart').addEventListener('click', () => {
 });
 $('#ripple').addEventListener('click', () => {
   S.ripple = !S.ripple;
-  toast(S.ripple ? 'ピンをずらすと 後ろも ついてきます' : '1つだけ ずらします');
+  toast(S.ripple ? 'キーフレームをずらすと 後ろも ついてきます' : '1つだけ ずらします');
   refresh();
 });
 $('#key').addEventListener('click', () => timeline.putPin());
@@ -801,7 +801,7 @@ $('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));
 $('#tlOut').addEventListener('click', () => timeline.zoomTime(1 / 1.8));
 $('#pinHold').addEventListener('click', () => timeline.toggleHold());
 $('#pinEase').addEventListener('click', () => {
-  if(!S.selPins.times.length) return toast('ピンを えらんでね');
+  if(!S.selPins.times.length) return toast('キーフレームを えらんでね');
   sheet.open('つなぎ方', (box) => buildEaseSheet(box, () => sheet.close(),
     timeline.currentEase(),
     (mode, ease) => timeline.setEase(mode, ease),
@@ -820,7 +820,7 @@ const MOVE_PAGES = {
   path:   ['👆 みちを なぞる', buildTraceSheet],
   beat:   ['🥁 リズム（BPM）', buildBeatSheet],
   flip:   ['🎞 パラパラ',      buildFlipSheet],
-  finish: ['💨 しあげ',        buildFinishSheet]
+  finish: ['💨 仕上げ',        buildFinishSheet]
 };
 
 /* イン・ループ・アウトは 1つの画面の タブに する。
@@ -835,7 +835,7 @@ const ANIM_TABS = [
 function openAnim(startKey){
   const l = selected();
   if(!l) return toast('レイヤーをえらんでね');
-  sheet.openPages('うごき（' + l.name + '）',
+  sheet.openPages('モーション — ' + l.name,
     ANIM_TABS.map(([key, label]) => ({
       key, label,
       build: (box) => buildEnterSheet(box, () => openMove(), key)
@@ -848,7 +848,7 @@ function openMove(key){
   if(!l) return toast('レイヤーをえらんでね');
 
   if(!key){
-    return sheet.open('うごき（' + l.name + '）',
+    return sheet.open('モーション — ' + l.name,
       (box) => buildMotionSheet(box, (k) => openMove(k)));
   }
   if(key === 'anim' || key === 'form') return openAnim('in');
@@ -870,15 +870,15 @@ function openSheet(key){
   if(key === 'face'){
     if(l.kind === 'text')   return toast('文字には つかえません');
     if(l.kind === 'folder') return toast('フォルダには つかえません');
-    return sheet.open('かお（' + l.name + '）', (box) => buildFaceSheet(box));
+    return sheet.open('表情 — ' + l.name, (box) => buildFaceSheet(box));
   }
-  sheet.open('かたち（' + l.name + '）', (box) => buildLayerSheet(box, () => sheet.close()));
+  sheet.open('レイヤー — ' + l.name, (box) => buildLayerSheet(box, () => sheet.close()));
 }
 
 /* ---- 🎥 カメラ ----
    カメラの ことは ぜんぶ ここに あつめる（左の 🎥 から）。
    レイヤーを えらんで いなくても ひらける ―― カメラは
-   さくひん ぜんたいの もので、どれか 1まいの もちものでは ない。 */
+   作品 ぜんたいの もので、どれか 1まいの もちものでは ない。 */
 function openCamSheet(){
   sheet.open('🎥 カメラ', (box) => buildCamSheet(box, null));
 }
@@ -886,19 +886,19 @@ $('#cam').addEventListener('click', openCamSheet);
 setCamOpener(openCamSheet);
 setLayerOpener(() => openSheet('form'));
 
-/* おやこ ＝ 親をえらぶ画面。ほかの設定は まざらない。
+/* 親子付け ＝ 親をえらぶ画面。ほかの設定は まざらない。
    ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
 function openParentSheet(){
   if(!S.pick.length && !selected()) return toast('レイヤーを えらんでね');
-  sheet.open('おやこ', (box) => buildParentSheet(box, () => sheet.close()));
+  sheet.open('親子付け', (box) => buildParentSheet(box, () => sheet.close()));
 }
 $('#parent').addEventListener('click', openParentSheet);
 setParentOpener(openParentSheet);
 
-/* 作品ぜんたいの せってい（なまえ・長さ・音）。
-   上の「1080×1920／15秒」の札からも、下の ⚙せってい からも ひらける。 */
+/* 作品ぜんたいの 設定（なまえ・長さ・音）。
+   上の「1080×1920／15秒」の札からも、下の ⚙設定 からも ひらける。 */
 function openDocSheet(){
-  sheet.open('どうがの せってい', (box) => buildDocSheet(box, () => sheet.close()));
+  sheet.open('作品の設定', (box) => buildDocSheet(box, () => sheet.close()));
 }
 $('#docSize').addEventListener('click', openDocSheet);
 
@@ -936,7 +936,7 @@ $('#ver').addEventListener('click', async () => {
   location.href = location.pathname + '?fresh=' + Date.now();
 });
 
-/* 「アニメ工房」を おすと さくひん えらびへ もどる。
+/* 「アニメ工房」を おすと 作品 えらびへ もどる。
    じどう保存ずみなので、そのまま つづきから ひらける。 */
 $('#home').addEventListener('click', async () => {
   if(exporting) return;
@@ -989,7 +989,7 @@ setAudioPicker(async (files) => {
       msg = '音に合わせて 長さを ' + S.proj.duration + '秒に しました';
     }
     /* 曲の はやさ（BPM）を その場で さがして おく。
-       タイムラインに 拍の めもりが 出て、ピンが 拍に すいつく。
+       タイムラインに 拍の めもりが 出て、キーフレームが 拍に すいつく。
        リズムの 画面も この はやさから はじまる。 */
     const bpm = Audio.guessBpm();
     if(bpm){
@@ -1008,7 +1008,7 @@ setAudioPicker(async (files) => {
   }
 });
 
-/* はいけいに 写真を えらんだとき */
+/* 背景に 写真を えらんだとき */
 setBgPicker(async (files, layer) => {
   const f = files && files[0];
   if(!f || !/^image\//.test(f.type || '')) { toast('PNG・JPEG を えらんでね'); return 0; }
@@ -1016,12 +1016,12 @@ setBgPicker(async (files, layer) => {
     busy(true, '写真を よみこみ中…');
     const n = await addFramesToLayer([f], layer);
     if(n){
-      edit('はいけいの写真', () => {
+      edit('背景の写真', () => {
         layer.frames = [layer.frames[layer.frames.length - 1]];
         layer.bgColor = null;
         fitToCanvas(layer);
       });
-      toast('はいけいを 写真に しました');
+      toast('背景を 写真に しました');
     }
     return n;
   }catch(err){
@@ -1086,15 +1086,15 @@ $('#fold').addEventListener('click', () => {
   setTimeout(() => { stage.resize(); stage.fit(); refresh(); }, 40);
 });
 
-/* はいけい。まだ無ければ すぐ足して、あれば その設定をひらく */
+/* 背景。まだ無ければ すぐ足して、あれば その設定をひらく */
 $('#bg').addEventListener('click', () => {
-  sheet.open('はいけい', (box) => buildBgSheet(box, () => sheet.close()));
+  sheet.open('背景', (box) => buildBgSheet(box, () => sheet.close()));
 });
 
 /* ================= 2本指タップで もどす =================
-   せってい の 画面を ひらいた まま、数字を いじって
+   設定 の 画面を ひらいた まま、数字を いじって
    「あ、しっぱいした」と なった ときに、その場で もどせる ように する。
-   ボタン（↶）は 画面の 上に あって、せってい を とじないと 押せない。
+   ボタン（↶）は 画面の 上に あって、設定 を とじないと 押せない。
 
    ・2本指で ちょんと たたく … もどす
    ・3本指で ちょんと たたく … やりなおし
@@ -1384,9 +1384,9 @@ function guardBack(){
       history.pushState({ kobo: 1 }, '');
       backAt = 0;
       toast(S.traceMode  ? 'なぞり中です（「おわり」で とじられます）'
-          : S.paintMode  ? 'おえかき中です（「おわり」で とじられます）'
+          : S.paintMode  ? 'ペイント中です（「おわり」で とじられます）'
           : S.spanEdit   ? '長さを 調節中です（「おわり」で とじられます）'
-                         : 'ピン中です（「おわり」で とじられます）');
+                         : 'キーフレーム中です（「おわり」で とじられます）');
       return;
     }
 
@@ -1403,9 +1403,9 @@ function guardBack(){
 function startNew(resume){
   showNewDoc($('#newdoc'), (w, h, seconds) => {
     S.proj = newProject(w, h, seconds);
-    S.docId = newId();                  // あたらしい さくひんの ばんごう
-    resetUndo();                        // 前の さくひんへ もどらない ように
-    /* 音は さくひんごと。まえの こえを 持ちこさない。
+    S.docId = newId();                  // あたらしい 作品の ばんごう
+    resetUndo();                        // 前の 作品へ もどらない ように
+    /* 音は 作品ごと。まえの こえを 持ちこさない。
        音は プロジェクトの 外（Audio.A）に 持って いる ので、
        ここで 消さないと まえの こえが そのまま 鳴り、
        🔊 の 行も 出て、ほぞんにも 入って しまう。 */
@@ -1421,15 +1421,15 @@ function startNew(resume){
   }, resume);
 }
 
-/** しまってあった さくひんを ひらく。絵は src から 作りなおす */
+/** しまってあった 作品を ひらく。絵は src から 作りなおす */
 async function openDoc(id){
-  busy(true, 'さくひんを ひらいています…');
+  busy(true, '作品を ひらいています…');
   try{
     const rec = await loadDoc(id);
     if(!rec || !rec.proj) throw new Error('ひらけませんでした');
     S.proj = rec.proj;
     S.docId = rec.id;
-    resetUndo();                        // 前の さくひんへ もどらない ように
+    resetUndo();                        // 前の 作品へ もどらない ように
     if(rec.audio && rec.audio.bytes){
       try{ await Audio.loadAudio(rec.audio.bytes, rec.audio.name); }catch(_){}
       syncAudioLayer();
@@ -1458,12 +1458,12 @@ async function openDoc(id){
 }
 
 /* ファイルから 読みこんだ 作品を ひらく。
-   もとの さくひんは そのまま のこして、あたらしい 1つ として 入れる。 */
+   もとの 作品は そのまま のこして、あたらしい 1つ として 入れる。 */
 async function openFromFile(pj){
   busy(true, 'ファイルを ひらいています…');
   try{
     S.proj = pj;
-    S.docId = newId();                  // べつの さくひん として 入れる
+    S.docId = newId();                  // べつの 作品 として 入れる
     resetUndo();
     Audio.stop();
     Audio.clearAudio();
