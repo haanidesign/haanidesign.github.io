@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=16';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=16';
-import { storeOk } from '../store.js?v=16';
-import { bus } from '../bus.js?v=16';
-import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS } from '../auto.js?v=16';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=16';
+} from '../state.js?v=18';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=18';
+import { storeOk } from '../store.js?v=18';
+import { bus } from '../bus.js?v=18';
+import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=18';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=18';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=16';
+  offOf, setOff, clearOff } from '../text.js?v=18';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=16';
+} from '../edit.js?v=18';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -489,6 +489,8 @@ let lyUnit = 'beat';
 let lyMode = 'auto';
 let lySeed = Math.floor(Math.random() * 9999) + 1;
 let lyMood = 'all';
+let lyFix = {};           // きめうち（指定）した ところ
+let lyOpen = false;       // 「ここは きめる」を ひらいて いるか
 let lyHist = [];          // ためした たねの ならび
 let lyAt = -1;            // いま どこを 見て いるか
 let lyText = '';
@@ -519,7 +521,8 @@ function autoBody(w) {
     lyText = ta.value;
     const res = autoCompose({
       text: lyText, from: +from.value || 0,
-      beats: Math.max(1, +beats.value || 4), seed: lySeed, mood: lyMood
+      beats: Math.max(1, +beats.value || 4), seed: lySeed, mood: lyMood,
+      fix: lyFix
     });
     if (res) {
       toast(`${res.cuts}カット つくった（たね ${lySeed}・${res.palette}）`, 3000);
@@ -567,6 +570,78 @@ function autoBody(w) {
       ? hint(`BPM ${r2(S.beat.bpm)} の 拍に のせます。`)
       : hint('BPM が きまって いないと 1拍＝0.5秒 で 組みます。<br>ひだりの 🥁 はやさ で さきに きめると きれいに 合います。')
   ]));
+  /* --- ここは きめる（指定）--- */
+  let fixBtn = null;
+  const reCount = () => {
+    const n = Object.keys(lyFix).length;
+    if (!fixBtn) return;
+    fixBtn.textContent = (lyOpen ? '▼' : '▶') + ' ここは きめる' + (n ? `（${n}）` : '');
+    fixBtn.classList.toggle('on', !!n);
+  };
+  const fsel = (label, opts, key, autoLabel) => {
+    const s2 = el('select');
+    const o0 = el('option', null, autoLabel || '🎲 おまかせ'); o0.value = 'auto';
+    s2.appendChild(o0);
+    opts.forEach(([v, l]) => { const o = el('option', null, l); o.value = v; s2.appendChild(o); });
+    s2.value = lyFix[key] === undefined ? 'auto' : String(lyFix[key]);
+    s2.addEventListener('change', () => {
+      if (s2.value === 'auto') delete lyFix[key]; else lyFix[key] = s2.value;
+      reCount();
+    });
+    return row(label, s2);
+  };
+  const fnum = (label, key, ph) => {
+    const i = el('input'); i.type = 'number'; i.placeholder = ph || 'おまかせ';
+    i.value = lyFix[key] === undefined ? '' : lyFix[key];
+    i.addEventListener('change', () => {
+      if (i.value === '') delete lyFix[key]; else lyFix[key] = +i.value;
+      reCount();
+    });
+    return row(label, i);
+  };
+  const names = list => list.map(x => [x[0], x[1]]);
+  const fixed = Object.keys(lyFix).length;
+
+  const fixWrap = el('div');
+  fixBtn = btn((lyOpen ? '▼' : '▶') + ' ここは きめる' + (fixed ? `（${fixed}）` : ''),
+    'btn-sm' + (fixed ? ' on' : ''), () => { lyOpen = !lyOpen; draw(); });
+  fixWrap.appendChild(grid(null, [
+    fixBtn,
+    btn('ぜんぶ おまかせに もどす', 'btn-sm', () => { lyFix = {}; draw(); })
+  ]));
+  if (lyOpen) {
+    fixWrap.appendChild(hint('えらんだ ところは ぜんぶの カットで その とおりに なります。<br>' +
+      '「🎲 おまかせ」の ままの ところだけ くじを ひきます。'));
+    fixWrap.appendChild(group('いろ・字', [
+      fsel('配色', PALETTES.map(x => [x[0], x[0]]), 'palette'),
+      fsel('フォント', fontList(), 'font'),
+      fnum('字の 大きさ', 'size', 'おまかせ'),
+      fsel('ふとさ', [['400', 'ほそい'], ['700', 'ふつう'], ['800', 'ふとい'], ['900', 'いちばん ふとい']], 'weight'),
+      fsel('たて書き', [['no', 'よこ書き'], ['yes', 'たて書き']], 'vertical')
+    ]));
+    fixWrap.appendChild(group('ならべ方・かざり', [
+      fsel('ならべ方', names(LAYOUTS), 'layout'),
+      fsel('かざり', names(DECOR), 'decor'),
+      fsel('うしろ', names(BGS), 'bg'),
+      fsel('カメラ', CAM_OPTS, 'cam')
+    ]));
+    fixWrap.appendChild(group('うごき', [
+      fsel('出かた', FX_IN, 'fxIn'),
+      fsel('ずっと', FX_LOOP, 'fxLoop'),
+      fsel('消えかた', FX_OUT, 'fxOut'),
+      fsel('まとまり', UNIT_OPTS, 'unit'),
+      fsel('じゅんばん', ORDERS, 'order'),
+      fsel('うごきかた', EASES, 'ease'),
+      fnum('ずらし（秒）', 'stagger', 'おまかせ'),
+      fsel('出る 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1'], ['2', '2']], 'inBeat'),
+      fsel('消える 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1']], 'outBeat')
+    ]));
+    fixWrap.appendChild(group('しあげ', [
+      fsel('画面ぜんたい', MOODS.filter(m => m[0] !== 'all'), 'look')
+    ]));
+  }
+  w.appendChild(group('きめうち', [fixWrap]));
+
   w.appendChild(group('ふんいき', [
     grid(null, MOODS.map(([k, label]) =>
       btn(label, 'btn-sm' + (lyMood === k ? ' on' : ''), () => { lyMood = k; draw(); }))),

@@ -8,10 +8,10 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, snap as pushUndo, toast
-} from './state.js?v=16';
-import { beatOn, beatSec } from './beat.js?v=16';
-import { GFONTS, setOff } from './text.js?v=16';
-import { bus } from './bus.js?v=16';
+} from './state.js?v=18';
+import { beatOn, beatSec } from './beat.js?v=18';
+import { GFONTS, setOff } from './text.js?v=18';
+import { bus } from './bus.js?v=18';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
@@ -137,6 +137,15 @@ export const BGS = [
 
 /** ⑩ カメラ（うしろの うごき） */
 const CAMS = ['none', 'none', 'kenburns', 'zoom', 'up', 'fade'];
+/** 画面で えらぶ ときの ならび */
+export const CAM_OPTS = [
+  ['none', 'なし'], ['kenburns', 'ゆっくり 寄る'], ['zoom', '寄る'],
+  ['up', '上へ'], ['fade', 'じわっ']
+];
+/** 出る じゅんばん・まとまり・うごきかた を 画面で えらぶ ため */
+export const UNIT_OPTS = [
+  ['char', '1文字ずつ'], ['word', 'ことばごと'], ['line', '行ごと'], ['all', 'まとめて']
+];
 
 /* 配色（たねで えらぶ） */
 export const PALETTES = [
@@ -218,6 +227,17 @@ export function autoCompose(opt = {}) {
 
   const seed = opt.seed === undefined ? 1 : (opt.seed | 0);
   const mood = opt.mood || 'all';
+  /* きめうち（指定）。空っぽ／'auto' の ところだけ くじを ひく */
+  const fx = opt.fix || {};
+  const has = k => { const v = fx[k]; return v !== undefined && v !== '' && v !== 'auto'; };
+  /** 指定が あれば それ、なければ くじ */
+  const F = (k, fallback) => has(k) ? fx[k] : fallback();
+  /** たなの 中から 名まえで 引く（無ければ くじ） */
+  const FT = (k, list, fallback) => {
+    if (!has(k)) return fallback();
+    const hit = list.find(x => x[0] === fx[k]);
+    return hit || fallback();
+  };
   const r = rng(seed * 2654435761 + 12345);
   const b = beatOn() ? beatSec() : .5;
   const beats = Math.max(1, opt.beats || 4);
@@ -235,9 +255,9 @@ export function autoCompose(opt = {}) {
   });
   const durOf = i => Math.max(.12, (i + 1 < starts.length ? starts[i + 1] : starts[i] + step) - starts[i]);
 
-  const [palName, P] = pick(r, PALETTES);
+  const [palName, P] = FT('palette', PALETTES, () => pick(r, PALETTES));
   const fonts = GFONTS.map(f => f[0]);
-  const baseFont = pick(r, fonts);
+  const baseFont = has('font') ? fx.font : pick(r, fonts);
 
   // まえに つくった ぶんを どける
   S.tracks = S.tracks.filter(t2 => !/^おまかせ/.test(t2.name));
@@ -251,18 +271,18 @@ export function autoCompose(opt = {}) {
     const at = starts[i], dur = durOf(i);
 
     /* --- うしろの いろを さきに きめる（文字の 色を そこから 決める） --- */
-    const [, , bgf] = pickM(r, BGS, mood);
+    const [, , bgf] = FT('bg', BGS, () => pickM(r, BGS, mood));
     const [c1, c2, dir] = bgf(P);
     const bg = newClip('color', { name: 'いろ', start: at, dur });
     bg.color = c1; bg.color2 = c2; bg.grad = c1 !== c2; bg.gradDir = dir;
-    bg.anim = pickM(r, CAMS, mood);
+    bg.anim = F('cam', () => pickM(r, CAMS, mood));
     if (bg.anim === 'kenburns' || bg.anim === 'zoom') bg.scale = 1.04;
     bg.fin = .05; bg.fout = .05;
     tBg.clips.push(bg);
 
     // うしろの 明るさを 見て、読める 色を つくる
     const back = lum(c1) < lum(c2) ? c1 : c2;   // 暗い ほうに 合わせて おく
-    const txt = readable(P, back);
+    const txt = has('color') ? fx.color : readable(P, back);
     const ink2 = ratio(P.ink, txt) >= ratio(P.paper, txt) ? P.ink : P.paper;
     const P2 = Object.assign({}, P, {
       text: txt, ink: ink2,
@@ -279,27 +299,29 @@ export function autoCompose(opt = {}) {
     T.color = txt;
     T.stroke = ink2;
     T.bgColor = P2.accent;
-    T.weight = chance(r, .75) ? 800 : 700;
-    T.font = chance(r, .7) ? baseFont : pick(r, fonts);
-    T.fxIn = pickM(r, INS, mood);
-    T.fxOut = pickM(r, OUTS, mood);
-    T.fxLoop = pickM(r, LOOPS, mood);
-    T.order = pick(r, ORDER);
-    T.ease = pick(r, EASE);
-    T.unit = pick(r, UNITS);
-    T.stagger = [0, .02, .03, .04, .06][Math.floor(r() * 5)];
-    T.inBeat = pick(r, [.25, .5, .5, 1]);
-    T.outBeat = pick(r, [.25, .5, .5]);
+    T.weight = has('weight') ? (+fx.weight || 700) : (chance(r, .75) ? 800 : 700);
+    T.font = has('font') ? fx.font : (chance(r, .7) ? baseFont : pick(r, fonts));
+    T.fxIn = F('fxIn', () => pickM(r, INS, mood));
+    T.fxOut = F('fxOut', () => pickM(r, OUTS, mood));
+    T.fxLoop = F('fxLoop', () => pickM(r, LOOPS, mood));
+    T.order = F('order', () => pick(r, ORDER));
+    T.ease = F('ease', () => pick(r, EASE));
+    T.unit = F('unit', () => pick(r, UNITS));
+    T.stagger = has('stagger') ? +fx.stagger : [0, .02, .03, .04, .06][Math.floor(r() * 5)];
+    T.inBeat = has('inBeat') ? +fx.inBeat : pick(r, [.25, .5, .5, 1]);
+    T.outBeat = has('outBeat') ? +fx.outBeat : pick(r, [.25, .5, .5]);
     if (T.fxIn === 'slide') { T.dist = 200 + Math.floor(r() * 700); T.angle = pick(r, [0, 45, 90, 135, 180, -90]); }
     if (chance(r, .25)) T.mblur = .4 + r() * .5;
 
-    const [, , layout] = pickM(r, LAYOUTS, mood);
+    const [, , layout] = FT('layout', LAYOUTS, () => pickM(r, LAYOUTS, mood));
     layout(c, W, H);
-    const [, , decor] = pickM(r, DECOR, mood);
+    const [, , decor] = FT('decor', DECOR, () => pickM(r, DECOR, mood));
     decor(c, P2);
+    if (has('size')) T.size = +fx.size;
     // 地じきを 敷いた ときは その 上で 読める 色に しなおす
     if (T.bgOn) { T.color = readable(P, T.bgColor); T.stroke = T.color === P.ink ? P.paper : P.ink; }
-    if (chance(r, .18)) T.vertical = !T.vertical;
+    if (has('vertical')) T.vertical = fx.vertical === 'yes';
+    else if (chance(r, .18)) T.vertical = !T.vertical;
     if (chance(r, .2)) T.tsume = .5 + r() * .5;
 
     // *つよく* の ところを 1文字ずつ 大きく
@@ -350,7 +372,7 @@ export function autoCompose(opt = {}) {
     editorial: { vignette: .3, grain: .3, rgb: 0, flash: 0, shake: 0, zoom: .06, br: 103, ct: 96, sa: 78 },
     emo: { vignette: .5, grain: .2, rgb: .04, flash: .1, shake: .04, zoom: .16, br: 101, ct: 100, sa: 88 }
   };
-  const look = LOOKS[mood] || pick(r, Object.values(LOOKS));
+  const look = LOOKS[has('look') ? fx.look : mood] || pick(r, Object.values(LOOKS));
   S.master = Object.assign({}, S.master, look);
 
   S.sel = tText.clips[0] ? tText.clips[0].id : null;
