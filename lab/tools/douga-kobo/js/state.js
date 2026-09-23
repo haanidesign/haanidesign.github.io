@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=4';
+import { bus } from './bus.js?v=14';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -11,11 +11,12 @@ export const S = {
   fps: 30, W: 1280, H: 720, bg: '#101010',
   tracks: [],
   time: 0, pps: 60,
-  sel: null, selTrack: null,
+  sel: null, selTrack: null, selChar: null,
   tool: 'select',          // select | cut | hand
   snap: true,
   loop: { on: false, a: 0, b: 0 },
   timeMode: 'sec',
+  quality: 1,            // 作業中の 画質（1=きれい、小さいほど かるい）
   docId: null, name: 'むだい',
   beat: { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true },
   master: { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 },
@@ -33,18 +34,31 @@ export function newClip(kind, o = {}) {
     vol: 1, fin: 0, fout: 0,
     color: '#E1DD60', color2: '#F2A0B8', grad: false, gradDir: 0,
     fx: { br: 100, ct: 100, sa: 100, bl: 0, hue: 0, sepia: 0 },
-    anim: 'none',
+    anim: 'none', mblur: 0,
     text: {
       str: 'ここに もじ', size: 80, color: '#FFFEF7', stroke: '#1E1C14',
       sw: 9, weight: 800, align: 'center', bgOn: false, bgColor: '#E1DD60',
       font: 'rounded', vertical: false, tsume: 0, lineGap: 1.32,
+      tracking: 0, kerning: 0, curve: 0,
+      skewH: 0, skewV: 0, flipH: false, flipV: false,
+      grad: false, color2: '#E1DD60', gradDir: 90,
+      shadowOn: false, shadowColor: '#1E1C14', shadowX: 6, shadowY: 8, shadowBlur: 0,
+      glowOn: false, glowColor: '#E1DD60', glowSize: 18,
+      charOn: false, off: {},
       fxIn: 'pop', fxOut: 'fade', fxLoop: 'none',
       unit: 'char', inDur: .45, outDur: .3, stagger: .04,
+      inBeat: 0, outBeat: 0, order: 'fwd', ease: 'out', dist: 0, angle: 90,
       loopAmt: 1, loopSec: .5, loopLag: true, mblur: 0
     }
   }, o);
 }
 
+/** 音の段は「目」を つかわない。前の さくひんは 音けしに ふり替える */
+export function tidyTracks() {
+  S.tracks.forEach(t => {
+    if (t.kind === 'audio' && t.hidden) { t.mute = true; t.hidden = false; }
+  });
+}
 export const allClips = () => S.tracks.flatMap(t => t.clips.map(c => ({ c, t })));
 export const findClip = id => {
   for (const t of S.tracks) { const c = t.clips.find(c => c.id === id); if (c) return { c, t }; }

@@ -4878,6 +4878,19 @@ export function buildExportSheet(box, closeFn, run){
     button('めやすを 見なおす', () => { guess(); })
   ));
 
+  box.appendChild(heading('💎 すける WebM（きれい）'));
+  const wmNote = document.createElement('div');
+  wmNote.className = 'empty';
+  wmNote.style.textAlign = 'left';
+  wmNote.textContent = 'GIF より ずっと きれい。色も すけぐあいも そのまま。' + NL
+    + '動画工房に そのまま 置けます。' + NL
+    + '画面を 実時間で 録るので、動画の ながさだけ 時間が かかります。' + NL
+    + 'そのあいだ この画面を ほかに かえないでください。';
+  box.appendChild(wmNote);
+  box.appendChild(btnRow(
+    button('💎 すけるWebMで 書き出す', () => { if(closeFn) closeFn(); run('webm'); })
+  ));
+
   const w = document.createElement('div');
   w.className = 'empty';
   w.style.textAlign = 'left';

@@ -3,15 +3,17 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=4';
-import { MEDIA, paintPoster, mediaLabel, importFiles } from '../media.js?v=4';
-import { bus } from '../bus.js?v=4';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=4';
-import { FX_IN, FX_OUT, FX_LOOP, fontList, addFontFile } from '../text.js?v=4';
+} from '../state.js?v=14';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=14';
+import { storeOk } from '../store.js?v=14';
+import { bus } from '../bus.js?v=14';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=14';
+import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
+  offOf, setOff, clearOff } from '../text.js?v=14';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=4';
+} from '../edit.js?v=14';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -249,6 +251,9 @@ function clipBody(c) {
             c.fit, v => { c.fit = v; live(); }) : null,
         pick('出かた', [['none', 'そのまま'], ['fade', 'じわっ'], ['up', '下から'],
         ['zoom', 'ズーム'], ['kenburns', 'ゆっくり寄る']], c.anim, v => { c.anim = v; live(); }),
+      c.kind !== 'text'
+        ? range('うごきの あと', c.mblur || 0, 0, 1, .05, '', v => { c.mblur = v; live(); })
+        : null,
         grid('まん中へ', [
           btn('↔ よこ', 'btn-sm', () => { c.x = 0; pushUndo(); live(); }),
           btn('↕ たて', 'btn-sm', () => { c.y = 0; pushUndo(); live(); }),
@@ -263,6 +268,7 @@ function clipBody(c) {
     const ta = el('textarea'); ta.rows = 3; ta.value = T.str;
     ta.addEventListener('input', () => { T.str = ta.value; live(); });
     ta.addEventListener('change', pushUndo);
+
     w.appendChild(group('もじ', [
       row(null, ta),
       range('大きさ', T.size, 12, 320, 1, 'px', v => { T.size = v; live(); }),
@@ -272,40 +278,93 @@ function clipBody(c) {
           () => { T.vertical = !T.vertical; pushUndo(); live(); draw(); }),
         btn('＋ 書たいを 入れる', 'btn-sm', () => $('#fileFont').click())
       ]),
+      T.vertical ? null : pick('よせ', [['center', 'まんなか'], ['left', 'ひだり'], ['right', 'みぎ']], T.align, v => { T.align = v; live(); }),
+      pick('ふとさ', [['400', 'ほそい'], ['700', 'ふつう'], ['800', 'ふとい']], T.weight, v => { T.weight = +v; live(); })
+    ]));
+
+    w.appendChild(group('字くばり', [
       range('文字づめ', T.tsume || 0, 0, 1, .05, '', v => { T.tsume = v; live(); }),
+      range('字あき', T.tracking || 0, -.3, 1, .01, 'em', v => { T.tracking = v; live(); }),
       range('行あき', T.lineGap || 1.32, .9, 2.4, .02, '', v => { T.lineGap = v; live(); }),
-      color('色', T.color, v => { T.color = v; live(); }),
+      T.vertical ? null : range('カーブ', T.curve || 0, -100, 100, 1, '', v => { T.curve = v; live(); }),
+      range('かたむき よこ', T.skewH || 0, -45, 45, 1, '°', v => { T.skewH = v; live(); }),
+      range('かたむき たて', T.skewV || 0, -45, 45, 1, '°', v => { T.skewV = v; live(); }),
+      grid('反転', [
+        btn('よこ', 'btn-sm' + (T.flipH ? ' on' : ''), () => { T.flipH = !T.flipH; pushUndo(); live(); draw(); }),
+        btn('たて', 'btn-sm' + (T.flipV ? ' on' : ''), () => { T.flipV = !T.flipV; pushUndo(); live(); draw(); })
+      ])
+    ]));
+
+    w.appendChild(group('いろ と かざり', [
+      color('いろ', T.color, v => { T.color = v; live(); }),
+      grid('グラデ', [
+        btn(T.grad ? 'あり' : 'なし', 'btn-sm' + (T.grad ? ' on' : ''),
+          () => { T.grad = !T.grad; pushUndo(); live(); draw(); })
+      ]),
+      T.grad ? color('もう ひとつ', T.color2 || '#E1DD60', v => { T.color2 = v; live(); }) : null,
+      T.grad ? range('むき', T.gradDir === undefined ? 90 : T.gradDir, -180, 180, 5, '°', v => { T.gradDir = v; live(); }) : null,
       color('ふち色', T.stroke, v => { T.stroke = v; live(); }),
       range('ふち', T.sw, 0, 36, 1, 'px', v => { T.sw = v; live(); }),
-      T.vertical ? null : pick('よせ', [['center', 'まんなか'], ['left', 'ひだり'], ['right', 'みぎ']], T.align, v => { T.align = v; live(); }),
-      pick('ふとさ', [['400', 'ほそい'], ['700', 'ふつう'], ['800', 'ふとい']], T.weight, v => { T.weight = +v; live(); }),
+      grid('かげ', [
+        btn(T.shadowOn ? 'あり' : 'なし', 'btn-sm' + (T.shadowOn ? ' on' : ''),
+          () => { T.shadowOn = !T.shadowOn; pushUndo(); live(); draw(); })
+      ]),
+      T.shadowOn ? color('かげの 色', T.shadowColor || '#1E1C14', v => { T.shadowColor = v; live(); }) : null,
+      T.shadowOn ? range('かげ よこ', T.shadowX === undefined ? 6 : T.shadowX, -60, 60, 1, 'px', v => { T.shadowX = v; live(); }) : null,
+      T.shadowOn ? range('かげ たて', T.shadowY === undefined ? 8 : T.shadowY, -60, 60, 1, 'px', v => { T.shadowY = v; live(); }) : null,
+      T.shadowOn ? range('かげ ぼかし', T.shadowBlur || 0, 0, 60, 1, 'px', v => { T.shadowBlur = v; live(); }) : null,
+      grid('ひかり', [
+        btn(T.glowOn ? 'あり' : 'なし', 'btn-sm' + (T.glowOn ? ' on' : ''),
+          () => { T.glowOn = !T.glowOn; pushUndo(); live(); draw(); })
+      ]),
+      T.glowOn ? color('ひかりの 色', T.glowColor || '#E1DD60', v => { T.glowColor = v; live(); }) : null,
+      T.glowOn ? range('ひかりの 強さ', T.glowSize || 18, 0, 80, 1, 'px', v => { T.glowSize = v; live(); }) : null,
       grid('ふだ地', [
         btn(T.bgOn ? 'あり' : 'なし', 'btn-sm' + (T.bgOn ? ' on' : ''), () => { T.bgOn = !T.bgOn; pushUndo(); live(); draw(); })
       ]),
       T.bgOn ? color('ふだ地の色', T.bgColor, v => { T.bgColor = v; live(); }) : null
     ]));
 
+    w.appendChild(charGroup(T));
+
+    const beatUnits = [['0', '秒で きめる'], ['0.25', '16ぶん'], ['0.5', '8ぶん'],
+    ['1', '1拍'], ['2', '2拍'], ['4', '1小節']];
     w.appendChild(group('もじの うごき', [
       pick('出かた', FX_IN, T.fxIn || 'none', v => { T.fxIn = v; live(); }),
-      range('出る ま', T.inDur === undefined ? .45 : T.inDur, .05, 2, .05, 's', v => { T.inDur = v; live(); }),
+      pick('出る 尺', beatUnits, String(T.inBeat || 0), v => { T.inBeat = +v; live(); draw(); }),
+      +(T.inBeat || 0) === 0
+        ? range('出る ま', T.inDur === undefined ? .45 : T.inDur, .05, 2, .05, 's', v => { T.inDur = v; live(); })
+        : null,
       pick('消えかた', FX_OUT, T.fxOut || 'none', v => { T.fxOut = v; live(); }),
-      range('消える ま', T.outDur === undefined ? .3 : T.outDur, .05, 2, .05, 's', v => { T.outDur = v; live(); }),
+      pick('消える 尺', beatUnits, String(T.outBeat || 0), v => { T.outBeat = +v; live(); draw(); }),
+      +(T.outBeat || 0) === 0
+        ? range('消える ま', T.outDur === undefined ? .3 : T.outDur, .05, 2, .05, 's', v => { T.outDur = v; live(); })
+        : null,
       pick('ずっと', FX_LOOP, T.fxLoop || 'none', v => { T.fxLoop = v; live(); }),
-      range('つよさ', T.loopAmt === undefined ? 1 : T.loopAmt, 0, 3, .05, 'x', v => { T.loopAmt = v; live(); }),
+      range('つよさ', T.loopAmt === undefined ? 1 : T.loopAmt, 0, 3, .05, 'x', v => { T.loopAmt = v; live(); })
+    ]));
+
+    w.appendChild(group('出る 順番', [
       pick('どの まとまりで', [['char', '1文字ずつ'], ['word', 'ことばごと'], ['line', '行ごと'], ['all', 'まとめて']],
         T.unit || 'char', v => { T.unit = v; live(); }),
+      pick('じゅんばん', ORDERS, T.order || 'fwd', v => { T.order = v; live(); }),
       range('ずらし', T.stagger === undefined ? .04 : T.stagger, 0, .4, .01, 's', v => { T.stagger = v; live(); }),
+      pick('うごきかた', EASES, T.ease || 'auto', v => { T.ease = v; live(); }),
+      range('きょり', T.dist || 0, 0, 1200, 10, 'px', v => { T.dist = v; live(); }),
+      (T.dist || 0) > 0 ? range('むき', T.angle === undefined ? 90 : T.angle, -180, 180, 5, '°', v => { T.angle = v; live(); }) : null,
       range('うごきの あと', T.mblur || 0, 0, 1, .05, '', v => { T.mblur = v; live(); }),
       beatOn()
-        ? hint(`「ずっと」の うごきは 拍（BPM ${r2(S.beat.bpm)}）に のって います。`)
-        : hint('BPM を きめると「ずっと」の うごきが 拍に のります。<br>ひだりの 🥁 はやさ から。'),
+        ? hint(`「ずっと」の うごきと 拍の 尺は BPM ${r2(S.beat.bpm)} に のって います。`)
+        : hint('BPM を きめると、尺を 拍で きめられます。<br>ひだりの 🥁 はやさ から。'),
       grid('きまり', [
-        ['うたの 字幕', { fxIn: 'up', fxOut: 'fade', fxLoop: 'none', unit: 'char', stagger: .03, inDur: .35, outDur: .25 }],
-        ['拍で はずむ', { fxIn: 'pop', fxOut: 'fade', fxLoop: 'bounce', unit: 'char', stagger: .04, loopAmt: 1 }],
-        ['どんと 出す', { fxIn: 'zoomout', fxOut: 'zoomin', fxLoop: 'zoombeat', unit: 'all', stagger: 0, inDur: .25 }],
-        ['タイプ', { fxIn: 'type', fxOut: 'fade', fxLoop: 'none', unit: 'char', stagger: .07 }],
-        ['ちらばる', { fxIn: 'scatter', fxOut: 'scatter', fxLoop: 'none', unit: 'char', stagger: .02, inDur: .6 }],
-        ['ゆらゆら', { fxIn: 'fade', fxOut: 'fade', fxLoop: 'wave', unit: 'char', stagger: .03, loopAmt: 1 }]
+        ['うたの 字幕', { fxIn: 'up', fxOut: 'fade', fxLoop: 'none', unit: 'char', order: 'fwd', stagger: .03, inBeat: 0, inDur: .35, outDur: .25, ease: 'out', dist: 0 }],
+        ['拍で はずむ', { fxIn: 'pop', fxOut: 'fade', fxLoop: 'bounce', unit: 'char', order: 'fwd', stagger: .04, loopAmt: 1, inBeat: .5, ease: 'auto' }],
+        ['どんと 出す', { fxIn: 'zoomout', fxOut: 'zoomin', fxLoop: 'zoombeat', unit: 'all', stagger: 0, inBeat: .25, ease: 'back' }],
+        ['タイプ', { fxIn: 'type', fxOut: 'fade', fxLoop: 'none', unit: 'char', order: 'fwd', stagger: .07 }],
+        ['ちらばる', { fxIn: 'scatter', fxOut: 'scatter', fxLoop: 'none', unit: 'char', order: 'random', stagger: .02, inBeat: 1 }],
+        ['ゆらゆら', { fxIn: 'fade', fxOut: 'fade', fxLoop: 'wave', unit: 'char', order: 'fwd', stagger: .03, loopAmt: 1 }],
+        ['まん中から', { fxIn: 'slide', fxOut: 'fade', fxLoop: 'none', unit: 'char', order: 'center', stagger: .03, dist: 300, angle: 90, ease: 'out' }],
+        ['よこに ながれる', { fxIn: 'slide', fxOut: 'fade', fxLoop: 'none', unit: 'char', order: 'fwd', stagger: .025, dist: 500, angle: 0, ease: 'out' }]
       ].map(([n, pr]) => btn(n, 'btn-sm', () => { Object.assign(T, pr); pushUndo(); live(); draw(); })))
     ]));
   }
@@ -343,13 +402,58 @@ function clipBody(c) {
 
   if (c.kind === 'video' || c.kind === 'audio') {
     w.appendChild(group('おと', [
-      range('おおきさ', c.vol, 0, 2, .01, 'x', v => { c.vol = v; live(); })
+      range('おおきさ', c.vol, 0, 2, .01, 'x', v => { c.vol = v; bus.audio(); live(); })
     ]));
   }
   if (m && m.kind !== 'image') {
     w.appendChild(hint(`もとの 素材: ${m.name}<br>${r2(m.dur)}s の うち ${r2(c.inp)}s から つかって いる`));
   }
   return w;
+}
+
+/* --- 1文字ずつ --- */
+function charGroup(T) {
+  const nodes = [];
+  nodes.push(grid('つかう', [
+    btn(T.charOn ? 'いじる' : 'いじらない', 'btn-sm' + (T.charOn ? ' on' : ''),
+      () => { T.charOn = !T.charOn; if (!T.charOn) S.selChar = null; pushUndo(); bus.all(); draw(); })
+  ]));
+
+  if (T.charOn) {
+    const chars = [...String(T.str)].filter(ch => ch !== '\n');
+    const chipRow = el('div', 'row');
+    chipRow.appendChild(el('label', null, 'どの字'));
+    const box = el('div', 'grid chips');
+    chars.forEach((ch, i) => {
+      const o = offOf(T, i);
+      const moved = o.x || o.y || o.r || o.s !== 1;
+      const b = btn(ch === ' ' ? '␣' : ch, 'btn-sm chip1' + (S.selChar === i ? ' on' : '') + (moved ? ' moved' : ''),
+        () => { S.selChar = i; bus.all(); draw(); });
+      box.appendChild(b);
+    });
+    chipRow.appendChild(box);
+    nodes.push(chipRow);
+
+    const i = S.selChar;
+    if (i === null || i === undefined || i >= chars.length) {
+      nodes.push(hint('うごかしたい 字を えらぶか、<br>画面の 中で その字を じかに ドラッグ。'));
+    } else {
+      const o = offOf(T, i);
+      const put = part => { setOff(T, i, part); bus.stage(); bus.tl(); };
+      nodes.push(range('よこ', o.x, -3, 3, .01, 'em', v => put({ x: v })));
+      nodes.push(range('たて', o.y, -3, 3, .01, 'em', v => put({ y: v })));
+      nodes.push(range('大きさ', o.s, .1, 4, .01, 'x', v => put({ s: v })));
+      nodes.push(range('かたむき', o.r, -180, 180, 1, '°', v => put({ r: v })));
+      nodes.push(grid('もどす', [
+        btn('この字', 'btn-sm', () => { clearOff(T, i); pushUndo(); bus.all(); draw(); }),
+        btn('ぜんぶ', 'btn-sm btn-p', () => { clearOff(T); S.selChar = null; pushUndo(); bus.all(); draw(); })
+      ]));
+      nodes.push(hint('画面の 中の その字を じかに ドラッグしても うごきます。<br>ピンクの わくが いま えらんで いる 字。'));
+    }
+  } else {
+    nodes.push(hint('「いじる」に すると、1文字ずつ 位置・大きさ・かたむきを<br>手で 直せます。'));
+  }
+  return group('1文字ずつ', nodes);
 }
 
 /* --- だん --- */
@@ -505,6 +609,20 @@ function masterBody() {
   const w = el('div');
   const mr = (label, key, min, max, step, unit) =>
     range(label, M[key] === undefined ? 0 : M[key], min, max, step, unit, v => { M[key] = v; bus.stage(); });
+
+  w.appendChild(group('下じき（うしろの 色）', [
+    color('いろ', S.bg, v => { S.bg = v; bus.stage(); }),
+    grid('えらぶ', [
+      ['くろ', '#101010'], ['しろ', '#FFFEF7'], ['きなり', '#FBFAEC'],
+      ['はいいろ', '#5c5843'], ['みどり', '#00B140'], ['あお', '#0047BB']
+    ].map(([n, c]) => {
+      const b = btn(n, 'btn-sm', () => { S.bg = c; pushUndo(); bus.stage(); draw(); });
+      b.style.borderLeft = '10px solid ' + c;
+      return b;
+    })),
+    hint('みどり・あおは、あとで 人を くりぬく ときの 色。<br>' +
+      '時間で 色を かえたい ときは 🗂素材 の「いろの ふだ」を つかう。')
+  ]));
   w.appendChild(group('画づくり', [
     mr('あかるさ', 'br', 0, 200, 1, '%'),
     mr('こさ', 'ct', 0, 200, 1, '%'),
@@ -538,7 +656,10 @@ function fileBody() {
   const nm = el('input'); nm.type = 'text'; nm.value = (S.name && S.name !== 'むだい') ? S.name : 'douga';
   w.appendChild(group('この さくひん', [
     hint('さわる たびに じどうで ほぞんされます。<br>つぎに ひらいた とき「つづきから」で 出てきます。'),
-    grid(null, [btn('🏠 さくひん えらびへ', 'btn-sm', () => { close(); bus.home(); })])
+    grid(null, [
+      btn('🏠 さくひん えらびへ', 'btn-sm', () => { close(); bus.home(); }),
+      btn('▶ デモを ひらく', 'btn-sm', () => { close(); bus.demo(); })
+    ])
   ]));
   w.appendChild(group('ひとまとめ（素材ごと）', [
     row('名前', nm),
@@ -561,6 +682,15 @@ function fileBody() {
   const exk = el('select');
   [['mp4', 'MP4（ふつうは こっち）'], ['webm', 'WebM（通しで 録る）']]
     .forEach(([v, l]) => { const o = el('option', null, l); o.value = v; exk.appendChild(o); });
+  w.appendChild(group('ようす（うまく いかない とき）', [
+    stateBody(),
+    grid(null, [btn('📋 うつす', 'btn-sm', () => {
+      const t = stateText();
+      if (navigator.clipboard) navigator.clipboard.writeText(t).then(
+        () => toast('うつしました'), () => prompt('これを おくって ください', t));
+      else prompt('これを おくって ください', t);
+    })])
+  ]));
   w.appendChild(group('そのほか', [
     grid(null, [
       btn('📷 いまの 絵', 'btn-sm', () => { close(); $('#shot').click(); }),
@@ -582,6 +712,36 @@ function fileBody() {
   return w;
 }
 
+/* --- ようす --- */
+function stateText() {
+  const sw = navigator.serviceWorker && navigator.serviceWorker.controller ? 'あり' : 'なし';
+  const lines = [
+    '版: v' + (bus.version ? bus.version() : '?'),
+    'サービスワーカー: ' + sw,
+    'ほぞん: ' + (storeOk() === false ? 'つかえない' : storeOk() === true ? 'つかえる' : 'まだ'),
+    '素材: ' + MEDIA.size + ' こ',
+    'ふだ: ' + allClips().length + ' まい',
+    'MP4: ' + (bus.canMp4 && bus.canMp4() ? 'つくれる' : 'つくれない'),
+    '画面: ' + window.innerWidth + '×' + window.innerHeight
+  ];
+  if (LOG.at) {
+    lines.push('さいごの とりこみ: ' + LOG.at + ' / ' + LOG.count + ' こ');
+    if (LOG.note) lines.push('　' + LOG.note);
+    LOG.items.forEach(i => lines.push(
+      `　${i.name} / ${Math.round(i.size / 1024)}KB / ${i.type} / ${i.kind} → ${i.state}`));
+  } else {
+    lines.push('さいごの とりこみ: まだ');
+  }
+  return lines.join('\n');
+}
+function stateBody() {
+  const pre = el('div', 'hint');
+  pre.style.whiteSpace = 'pre-wrap';
+  pre.style.fontFamily = "'DotGothic16', monospace";
+  pre.textContent = stateText();
+  return pre;
+}
+
 /* --- せってい --- */
 function settingBody() {
   const w = el('div');
@@ -597,6 +757,15 @@ function settingBody() {
     pick('コマ数', [['24', '24 fps'], ['30', '30 fps'], ['60', '60 fps']], S.fps, v => { S.fps = +v; bus.all(); }),
     color('下じき', S.bg, v => { S.bg = v; bus.stage(); })
   ]));
+  w.appendChild(group('作業中の 画質', [
+    grid('えらぶ', (bus.qualList ? bus.qualList() : [[1, 'きれい']]).map(([v, n]) =>
+      btn(n, 'btn-sm' + (Math.abs((S.quality || 1) - v) < .02 ? ' on' : ''), () => { bus.qual(v); draw(); }))),
+    hint('動画を のせると カクつく ときは かるく する。<br>' +
+      '画面の 出かたが あらく なるだけで、<b>書き出す ときは いつも きれい</b>。<br>' +
+      'かるく して いる あいだは、<b>さいせい中だけ</b> ざらざらと 色ずれを 休みます' +
+      '（止めれば ちゃんと 見えます）。<br>' +
+      '上の バーの「画質」を おしても かえられます。')
+  ]));
   w.appendChild(group('タイムライン', [
     grid('くっつき', [
       btn(S.snap ? '🧲 あり' : '🧲 なし', 'btn-sm' + (S.snap ? ' on' : ''), () => { S.snap = !S.snap; bus.all(); draw(); })
@@ -611,9 +780,17 @@ function helpBody() {
   const w = el('div', 'doc');
   w.innerHTML = `
   <p>ブラウザの 中だけで 動く。素材は どこにも 送られない。</p>
+  <p><b>はじめての ときは デモから。</b> 上の「動画工房」を おして
+  「▶ デモを ひらく」。曲も 歌詞も 入って いるので、▶ を おすだけで 見られます。</p>
   <h3>1. 入れる</h3>
-  <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす</li>
-  <li><b>🗂素材</b> の 札を タイムラインへ 引っぱる（<b>＋おく</b>でも いい）</li>
+  <ul><li>左の <b>＋ついか</b>、または 画面に そのまま おとす。
+  えらんだ ものは <b>そのまま タイムラインに ならびます</b>
+  （音は 音の段、絵と 動画は 映像の段）</li>
+  <li>PSD も 入ります。重ねた 絵を 1枚に して とりこみます</li>
+  <li><b>すける もの</b>（アニメ工房の「すける GIF」、すける WebM、すける PNG）は
+  すけた まま 重なります。うごく GIF は コマの まま うごきます</li>
+  <li>もう一度 おなじ ものを 置きたい ときは <b>🗂素材</b> から <b>＋おく</b>。
+  引っぱって 好きな ところに 置いても いい</li>
   <li>札の 下の ✏ ⇄ ⤓ 🗑 で 名前がえ・差し替え・取り出し・けす</li></ul>
   <h3>2. 曲の はやさに のせる</h3>
   <ul><li>音を 入れると <b>BPM を じどうで さがす</b>。🥁はやさ で 直せる</li>
@@ -625,23 +802,41 @@ function helpBody() {
   <li>上下の 段へ 引っぱると 段を うつれる（音は 音の段だけ）</li>
   <li><b>✂きる</b>を えらぶと、さわった ところで 切れる</li>
   <li>🔁 で えらんだ ふだの ところだけ くりかえし 見られる</li>
-  <li>段の 🔓 を おすと かぎが かかって うごかなく なる</li></ul>
+  <li>段の 🔓 を おすと かぎが かかって うごかなく なる</li>
+  <li>音を 止めたい ときは その段の <b>🔊</b>。映像の段は <b>👁</b> でも 音ごと 止まります</li></ul>
   <h3>4. もじ と うた</h3>
   <ul><li>🅰もじ で 1まい。<b>🎵うた</b> は 1行ずつ まとめて 流しこむ
   （拍で ならべられる。行の あたまに <b>0:12</b> と 書くと そこに 置く）</li>
-  <li>出かた 22種・ずっと つづく うごき 12種・消えかた 9種。
-  「ずっと」は <b>拍に のる</b></li>
-  <li><b>たて書き</b>・文字づめ・行あき・うごきの あと（ぶれ）も ある</li>
-  <li>手もちの 書たい（ttf・otf）を 入れて つかえる</li></ul>
-  <h3>5. しあげ</h3>
+  <li>出かた 23種・ずっと つづく うごき 12種・消えかた 9種。
+  「ずっと」も 出る 尺も <b>拍に のる</b></li>
+  <li>出る <b>じゅんばん</b>（あたまから・おしりから・まん中から・外から・ばらばら）と
+  <b>うごきかた</b>（すっと止まる・いきすぎ・ばね など）を えらべる</li>
+  <li><b>たて書き</b>・カーブ・文字づめ・字あき・行あき・かたむき・反転</li>
+  <li><b>グラデーション</b>・ふち・<b>かげ</b>・<b>ひかり</b>（グロー）</li>
+  <li><b>1文字ずつ</b> 位置・大きさ・かたむきを 手で 直せます。
+  「いじる」に すると 字ごとに わくが 出るので、画面の 中で じかに ドラッグ</li>
+  <li>歌詞に 合う 書たいが 20種。手もちの 書たい（ttf・otf）も 入れられる</li></ul>
+  <h3>5. うごきの あと</h3>
+  <ul><li>動画・画像・色の ふだにも <b>うごきの あと</b>（モーションブラー）が つけられます。
+  ズームや 下から 出す ときに かけると、はやい うごきが なめらかに 見えます</li></ul>
+  <h3>6. しあげ</h3>
   <ul><li>🎛しあげ は 画ぜんたいに かける。まわり暗く・ざらざら・色ずれ</li>
   <li>ぴかっ・ゆれ・ズームは <b>拍ごと</b>に 出る</li>
   <li>🎨 いろの ふだ で 下じきの 色を 時間で かえられる</li></ul>
-  <h3>6. 指の わざ</h3>
-  <ul><li>絵を じかに ドラッグ。<b>2本指</b>で 大きさと かたむき</li>
+  <h3>7. 指の わざ</h3>
+  <ul><li>絵を じかに ドラッグ。四すみの <b>まる</b>で 大きさと かたむき</li>
+  <li><b>2本指</b>で 画面を ずらす・つまんで 大きく／小さく。
+  なにも 無い ところを 1本指で なぞっても ずらせます</li>
+  <li>わくの <b>外</b>も うっすら 見えます。はみ出した ところも つかめます</li>
+  <li>上の <b>⤢</b> で もとの 大きさに もどります</li>
   <li><b>2本指で トン</b> … もどす　<b>3本指で トン</b> … やりなおし</li>
   <li>タイムラインを <b>2本指で つまむ</b> … 時間じくの のびちぢみ</li></ul>
-  <h3>7. 出す</h3>
+  <h3>8. カクカク する とき</h3>
+  <ul><li>上の バーの <b>画質</b> を おして かるく する。
+  きれい → ふつう → かるい → とても かるい の じゅんに 切りかわります</li>
+  <li>画面が あらく なるだけで、<b>書き出す ものは いつも きれい</b></li>
+  <li>かるく して いる あいだは、さいせい中だけ ざらざらと 色ずれを 休みます</li></ul>
+  <h3>9. 出す</h3>
   <ul><li>右上の <b>▶書き出す</b> → <b>MP4</b>（1コマずつ 焼く。コマ落ちしない）</li>
   <li>できない ブラウザでは 通しで 録って WebM に なる</li>
   <li>📷 で いまの 絵を PNG に</li>

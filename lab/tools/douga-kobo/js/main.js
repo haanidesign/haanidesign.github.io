@@ -1,25 +1,26 @@
 /* 全部を つなぐ ところ。 */
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
-  bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo
-} from './state.js?v=4';
-import { wire, bus } from './bus.js?v=4';
-import { MEDIA, importFiles, hookAll } from './media.js?v=4';
-import { useCanvas, renderStage } from './render.js?v=4';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport } from './play.js?v=4';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=4';
-import { beatOn, beatSec, beatAt } from './beat.js?v=4';
-import * as TL from './ui/timeline.js?v=4';
-import * as P from './ui/panel.js?v=4';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=4';
+  bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
+} from './state.js?v=14';
+import { wire, bus } from './bus.js?v=14';
+import { MEDIA, importFiles, hookAll } from './media.js?v=14';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality } from './render.js?v=14';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=14';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=14';
+import { beatOn, beatSec, beatAt } from './beat.js?v=14';
+import * as TL from './ui/timeline.js?v=14';
+import * as P from './ui/panel.js?v=14';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=14';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=4';
-import { addFontFile } from './text.js?v=4';
-import { makePack, openPack } from './pack.js?v=4';
-import { showStart } from './ui/start.js?v=4';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=4';
-import { trackOf } from './state.js?v=4';
+} from './edit.js?v=14';
+import { addFontFile } from './text.js?v=14';
+import { makePack, openPack } from './pack.js?v=14';
+import { showStart } from './ui/start.js?v=14';
+import { openDemo } from './demo.js?v=14';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=14';
+import { trackOf } from './state.js?v=14';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -31,16 +32,11 @@ function appH() {
   fitStage();
 }
 function fitStage() {
-  const box = $('#stage');
-  const pad = 16;
-  const bw = box.clientWidth - pad * 2, bh = box.clientHeight - pad * 2;
-  if (bw <= 0 || bh <= 0) return;
-  const s = Math.min(bw / S.W, bh / S.H);
-  cv.style.width = Math.max(40, Math.floor(S.W * s)) + 'px';
-  cv.style.height = Math.max(24, Math.floor(S.H * s)) + 'px';
+  fitView();
+  renderStage(S.time);
 }
 function applySize() {
-  cv.width = S.W; cv.height = S.H;
+  outCanvas();
   const dn = $('#docName'); if (dn) dn.textContent = S.name || 'むだい';
   $('#docSize').textContent = `${S.W}×${S.H} / ${S.fps}fps`;
   fitStage();
@@ -48,6 +44,8 @@ function applySize() {
 
 /* ---------- 画面の 描き直し ---------- */
 function drawAll() {
+  tidyTracks();
+  refreshVoices();          // 音けし・大きさを すぐ きかせる
   TL.drawAll();
   renderStage(S.time);
   P.draw();
@@ -89,7 +87,11 @@ wire({
   split: () => TL.splitHere(),
   export: doExport,
   canMp4: () => hasCodecs(),
+  version: () => VERSION,
+  qual: setQual,
+  qualList: () => QUAL,
   home: backToStart,
+  demo: runDemo,
   rename: v => { S.name = v; auto.touch(); },
   replaceMedia: id => { swapId = id; $('#fileSwap').click(); },
   wip: startWip,
@@ -109,6 +111,8 @@ wire({
     $('#busyFill').style.width = Math.round(p * 100) + '%';
     $('#busyPct').textContent = Math.round(p * 100) + '%';
   },
+  reveal: id => TL.reveal(id),
+  audio: refreshVoices,
   beat: m => {
     // はじめての 音から、曲の はやさを もらって おく
     if (m && m.bpm && !S.beat.bpm) {
@@ -118,13 +122,40 @@ wire({
   },
   drop: (mid, t, tid, files) => {
     if (mid && MEDIA.get(mid)) addFromMedia(MEDIA.get(mid), t, tid ? trackOf(tid) : null);
-    else if (files && files.length) importFiles(files, relink);
+    else if (files && files.length) importFiles(files, made => { relink(); placeAll(made, t); });
   }
 });
 
 /* ---------- 上バー ---------- */
 $('#home').onclick = backToStart;
 $('#docSize').onclick = () => P.open('setting');
+
+/* ---------- 作業中の 画質 ----------
+   動画を のせると 毎コマ 原寸で 描き直すのが おもい。
+   ここを おすと 小さく 描いて 画面で ひきのばす ＝ なめらかに なる。
+   書き出す ときは かならず 原寸に もどる。 */
+export const QUAL = [
+  [1, 'きれい'], [0.66, 'ふつう'], [0.5, 'かるい'], [0.33, 'とても かるい']
+];
+export function showQual() {
+  const cur = S.quality || 1;
+  const hit = QUAL.find(x => Math.abs(x[0] - cur) < .02) || QUAL[0];
+  const b = $('#qBtn');
+  b.textContent = '画質 ' + hit[1];
+  b.classList.toggle('low', hit[0] < 1);
+}
+export function setQual(v) {
+  setQuality(v);
+  showQual();
+  drawAll();
+  const hit = QUAL.find(x => Math.abs(x[0] - v) < .02);
+  toast('画質を「' + (hit ? hit[1] : v) + '」に した（書き出しは いつも きれい）', 2600);
+}
+$('#qBtn').onclick = () => {
+  const cur = S.quality || 1;
+  const i = QUAL.findIndex(x => Math.abs(x[0] - cur) < .02);
+  setQual(QUAL[(i + 1 + QUAL.length) % QUAL.length][0]);
+};
 $('#docName').onclick = () => {
   const v = prompt('さくひんの 名前', S.name || 'むだい');
   if (v === null) return;
@@ -134,7 +165,7 @@ $('#docName').onclick = () => {
 };
 $('#undo').onclick = undo;
 $('#redo').onclick = redo;
-$('#fit').onclick = () => TL.fit();
+$('#fit').onclick = () => { fitStage(); TL.fit(); };
 $('#export').onclick = () => P.open('file');
 
 /* ---------- さいせいバー ---------- */
@@ -170,8 +201,7 @@ $('#loop').onclick = e => {
   drawAll();
 };
 $('#shot').onclick = () => {
-  renderStage(S.time, false);
-  const cvs = cv;
+  const cvs = renderFull(S.time);
   cvs.toBlob(bl => {
     if (!bl) { toast('出せなかった'); return; }
     save(bl, 'koma_' + Math.round(S.time * S.fps) + 'f.png');
@@ -203,7 +233,19 @@ $('#tFile').onclick = () => P.open('file');
 $('#help').onclick = () => P.open('help');
 
 /* ---------- ファイル ---------- */
-$('#file').onchange = e => { importFiles(e.target.files, relink); e.target.value = ''; };
+/* とりこんだら そのまま タイムラインに ならべる。
+   だなに 入るだけだと、どこへ 行ったのか 分からない。 */
+function placeAll(made, at) {
+  if (!made || !made.length) return;
+  const where = at === undefined ? S.time : at;
+  let last = null;
+  made.forEach(m => { const c = addFromMedia(m, where); if (c) last = c.id; });
+  if (last) { drawAll(); TL.reveal(last); }
+}
+$('#file').onchange = e => {
+  importFiles(e.target.files, made => { relink(); placeAll(made); });
+  e.target.value = '';
+};
 $('#fileProj').onchange = e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
@@ -297,7 +339,7 @@ document.addEventListener('drop', e => {
   dragDepth = 0; $('#drop').classList.remove('on');
   if (e.target.closest && e.target.closest('#lanes')) return;   // タイムラインは 自分で うけとる
   e.preventDefault();
-  if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files, relink);
+  if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files, made => { relink(); placeAll(made); });
 });
 
 /* ---------- 書き出し ---------- */
@@ -396,12 +438,39 @@ attachStage(cv);
 attachPinchZoom($('#scroll'), (pps, at) => TL.setZoom(pps, at), TL.x2t);
 
 /* ---------- 画面の 大きさ ---------- */
-window.addEventListener('resize', () => { appH(); TL.drawAll(); });
+window.addEventListener('resize', () => { appH(); fitStage(); TL.drawAll(); });
 window.addEventListener('orientationchange', () => setTimeout(() => { appH(); TL.drawAll(); }, 250));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', appH);
 window.addEventListener('beforeunload', e => {
   if (allClips().length) { e.preventDefault(); e.returnValue = ''; }
 });
+
+/* ---------- 版の ばんごう ----------
+   手で 書くと 直しわすれる ので、読みこんだ アドレスから 出す。 */
+export const VERSION = (() => {
+  const m = /[?&]v=([^&]+)/.exec(import.meta.url);
+  return m ? m[1] : '?';
+})();
+$('#ver').textContent = 'v' + VERSION;
+window.__v = VERSION;        // 版を 外からも 見られる ように（ようす・たしかめ 用）
+$('#ver').onclick = async () => {
+  /* ホーム画面や ブラウザが 古いものを つかんだ ままに なる ことが ある。
+     ここを おしたら ためこんだ ものを ぜんぶ 捨てて 取り直す。
+     ＝ いつでも きく 逃げ道。 */
+  $('#ver').textContent = 'かたづけ中…';
+  try { await auto.now(); } catch (e) { }
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) { }
+  location.href = location.pathname + '?fresh=' + Date.now();
+};
 
 /* ---------- じどう ほぞん ---------- */
 function thumb() {
@@ -409,9 +478,7 @@ function thumb() {
     const c = document.createElement('canvas');
     const r = S.W / S.H;
     c.width = 120; c.height = Math.max(1, Math.round(120 / r));
-    renderStage(S.time, false);
-    c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
-    renderStage(S.time);
+    c.getContext('2d').drawImage(renderOut(S.time), 0, 0, c.width, c.height);
     return c.toDataURL('image/jpeg', .6);
   } catch (e) { return null; }
 }
@@ -434,7 +501,7 @@ const auto = autoSaver(() => ({
 async function backToStart() {
   pause();
   await auto.now();
-  showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+  showStart($('#start'), { onOpen: openDoc, onNew: startNew, onDemo: runDemo });
 }
 function startNew(size, fps) {
   S.W = size.w; S.H = size.h; S.fps = fps || 30;
@@ -447,6 +514,12 @@ function startNew(size, fps) {
   MEDIA.clear();
   bootProject();
   applySize(); resetHist(); appH(); drawAll(); TL.fit();
+}
+async function runDemo() {
+  $('#start').classList.remove('on');
+  busy(true, 'デモを つくって います'); prog(.3);
+  try { await openDemo(); } catch (e) { toast('デモを ひらけなかった'); }
+  finally { busy(false); drawAll(); }
 }
 async function openDoc(id) {
   $('#start').classList.remove('on');
@@ -496,6 +569,7 @@ TL.init();
 P.init();
 bootProject();
 applySize();
+showQual();
 resetHist();
 appH();
 drawAll();
@@ -505,14 +579,18 @@ setTool('select');
 
 /* さくひんが あれば はじめの 画面、なければ そのまま はじめる */
 (async () => {
+  if (!S.docId) S.docId = newId();
   try {
-    const docs = await listDocs();
-    if (docs.length) {
-      await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
-      return;
-    }
-  } catch (e) { }
-  S.docId = newId();
+    /* はじめの 画面は いつも 出す。
+       はじめて の 人が デモに たどりつけない と 意味が ない。 */
+    await Promise.race([
+      listDocs(),
+      new Promise(r => setTimeout(() => r([]), 6000))   // 待ちすぎない
+    ]);
+    await showStart($('#start'), { onOpen: openDoc, onNew: startNew, onDemo: runDemo });
+  } catch (e) {
+    $('#start').classList.remove('on');                  // 出しかけで 止めない
+  }
 })();
 
 if (window.__ready) window.__ready();      // 立ち上がった しるし

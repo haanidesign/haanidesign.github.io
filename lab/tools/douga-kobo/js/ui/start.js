@@ -1,6 +1,6 @@
 /* いちばん さいしょの 画面。
    つづきから えらぶか、あたらしく つくるか。 */
-import { listDocs, deleteDoc, whenText, MAX_DOCS } from '../store.js?v=4';
+import { listDocs, deleteDoc, whenText, MAX_DOCS } from '../store.js?v=14';
 
 export const SIZES = [
   { key: '1080x1920', w: 1080, h: 1920, label: 'たて', note: 'TikTok / Reels / Shorts' },
@@ -9,7 +9,7 @@ export const SIZES = [
   { key: '1280x720', w: 1280, h: 720, label: 'よこ かるめ', note: 'うごきが かるい' }
 ];
 
-export async function showStart(el, { onOpen, onNew }) {
+export async function showStart(el, { onOpen, onNew, onDemo }) {
   const docs = await listDocs();
   el.innerHTML = '';
   el.classList.add('on');
@@ -30,6 +30,14 @@ export async function showStart(el, { onOpen, onNew }) {
       card.appendChild(warn);
     }
   }
+
+  card.appendChild(h('h1', 'はじめての ひとへ'));
+  card.appendChild(h('p', '曲も 歌詞も 入った おためしが あります。ひらいて ▶ を おすだけ。', 'sub'));
+  const demo = document.createElement('button');
+  demo.className = 'btn-y gobtn demobtn';
+  demo.textContent = '▶ デモを ひらく（さわって みる）';
+  demo.addEventListener('click', () => { el.classList.remove('on'); onDemo(); });
+  card.appendChild(demo);
 
   card.appendChild(h('h1', 'あたらしく つくる'));
   card.appendChild(h('p', 'あとから 変えられます。まよったら「たて」で だいじょうぶ。', 'sub'));

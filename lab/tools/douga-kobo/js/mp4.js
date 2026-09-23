@@ -2,10 +2,10 @@
    本命 … WebCodecs で 1コマずつ 焼いて、mp4-muxer で MP4 の 箱に 詰める。
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
-import { S, clamp, duration, allClips, r2 } from './state.js?v=4';
-import { MEDIA } from './media.js?v=4';
-import { renderStage, activeClips } from './render.js?v=4';
-import { fadeAlpha } from './render.js?v=4';
+import { S, clamp, duration, allClips, r2 } from './state.js?v=14';
+import { MEDIA, animFrameAt } from './media.js?v=14';
+import { renderOut, outCanvas, activeClips, setQuality, quality } from './render.js?v=14';
+import { fadeAlpha } from './render.js?v=14';
 
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 
@@ -48,6 +48,7 @@ async function prepareFrame(t, fps) {
   for (const { c } of activeClips(t)) {
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
+    if (m && m.anim) { jobs.push(animFrameAt(m, (t - c.start) * (c.speed || 1))); continue; }
     if (!m || m.kind !== 'video') continue;
     if (!m.el.paused) m.el.pause();
     const want = clamp(c.inp + (t - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.03));
@@ -76,7 +77,7 @@ export async function mixAudio(dur, onProgress) {
   const rate = 48000;
   const jobs = [];
   for (const { c, t: tr } of allClips()) {
-    if (tr.mute || tr.hidden && tr.kind === 'audio') continue;
+    if (tr.mute || tr.hidden) continue;        // 🔇 でも 🚫 でも 音は 入らない
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
     if (!m || m.kind === 'image') continue;
@@ -169,6 +170,8 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
 
   const dur = duration();
   const total = Math.max(1, Math.ceil(dur * fps));
+  const keepQ = quality();
+  setQuality(1);                       // 書き出しは いつも 原寸
 
   onProgress(0, '音を まぜています');
   let abuf = null, a = null;
@@ -193,14 +196,14 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
   });
   enc.configure(cfg);
 
-  const cv = document.querySelector('#stageCv');
+  const cv = outCanvas();
   const usPer = 1e6 / fps;
   for (let i = 0; i < total; i++) {
-    if (shouldStop()) { try { enc.close(); } catch (e) { } throw new Error('やめました'); }
+    if (shouldStop()) { setQuality(keepQ); try { enc.close(); } catch (e) { } throw new Error('やめました'); }
     if (failed) throw failed;
     const t = i / fps;
     await prepareFrame(t, fps);
-    renderStage(t, false);
+    renderOut(t);
     const frame = new VideoFrame(cv, {
       timestamp: Math.round(i * usPer), duration: Math.round(usPer)
     });
@@ -220,6 +223,7 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
     await encodeAudio(muxer, acfg, abuf, dur);
   }
   muxer.finalize();
+  setQuality(keepQ);
   onProgress(1, 'できました');
   return {
     blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }),

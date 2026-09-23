@@ -14,16 +14,25 @@ const BLOBS = 'blobs';
 export const MAX_BYTES = 700 * 1024 * 1024;
 export const MAX_DOCS = 8;
 
+let dbOk = null;
+export const storeOk = () => dbOk;
+
 function open() {
   return new Promise((ok, ng) => {
-    if (!self.indexedDB) return ng(new Error('この端末では ほぞんできません'));
+    if (!self.indexedDB) { dbOk = false; return ng(new Error('この端末では ほぞんできません')); }
+    /* ひらくのを ずっと 待たされる ことが ある（ほかの タブが つかんで いる など）。
+       待ちきれたら あきらめる。ここで 止まると さいしょの 画面が 出なく なる。 */
+    const guard = setTimeout(() => { dbOk = false; ng(new Error('ほぞんが ひらけません')); }, 8000);
+    const fin = (f) => (...a) => { clearTimeout(guard); f(...a); };
+    ok = fin(ok); ng = fin(ng);
     const r = indexedDB.open(DB, 1);
+    r.onblocked = () => { dbOk = false; ng(new Error('ほぞんが つかわれて います')); };
     r.onupgradeneeded = () => {
       const db = r.result;
       if (!db.objectStoreNames.contains(DOCS)) db.createObjectStore(DOCS, { keyPath: 'id' });
       if (!db.objectStoreNames.contains(BLOBS)) db.createObjectStore(BLOBS);
     };
-    r.onsuccess = () => ok(r.result);
+    r.onsuccess = () => { dbOk = true; ok(r.result); };
     r.onerror = () => ng(r.error || new Error('ひらけませんでした'));
   });
 }

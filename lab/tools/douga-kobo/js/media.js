@@ -1,9 +1,12 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp } from './state.js?v=4';
-import { bus } from './bus.js?v=4';
-import { analyse } from './beat.js?v=4';
+import { S, uid, r2, toast, clamp, allClips } from './state.js?v=14';
+import { bus } from './bus.js?v=14';
+import { analyse } from './beat.js?v=14';
 
 export const MEDIA = new Map();
+
+/* さいごの とりこみの きろく。うまく いかない ときに 見る ため */
+export const LOG = { at: null, count: 0, items: [], note: '' };
 
 /* 音や 動画の もとは 画面の 外に 置いて おく。
    ぶら下げずに 持って いるだけだと、端末に よっては 鳴らない。 */
@@ -56,32 +59,242 @@ export function hookAudio(m) {
 }
 export const hookAll = () => MEDIA.forEach(hookAudio);
 
+/* ---- うごく絵（すける GIF・WebP・APNG） ----
+   1枚の 絵として 置くと 止まって しまう ので、
+   コマに ほどいて タイムラインの 時間で めくる。
+   すけて いる ところは すけた まま のこる。
+
+   ぜんぶの コマを さきに ほどくと、長い GIF では
+   何百MB にも なって 端末が もたない。
+   だから「いま いる コマ」だけ その つど 取り出して、
+   すこしだけ 手もとに 置いて おく。 */
+const ANIM_KEEP = 10;             // 手もとに 置いて おく コマの 数
+
+async function animIn(m, file) {
+  if (typeof ImageDecoder === 'undefined') return;
+  const type = file.type || ({
+    gif: 'image/gif', webp: 'image/webp', png: 'image/png', apng: 'image/png'
+  })[(file.name.split('.').pop() || '').toLowerCase()];
+  if (!type) return;
+  try {
+    if (!(await ImageDecoder.isTypeSupported(type))) return;
+    const dec = new ImageDecoder({ data: await file.arrayBuffer(), type });
+    await dec.tracks.ready;
+    const track = dec.tracks.selectedTrack;
+    const count = track && track.frameCount ? track.frameCount : 1;
+    if (count < 2) { try { dec.close(); } catch (e) { } return; }
+
+    // 1コマぶんの ながさは さいしょの コマから もらう
+    const first = await dec.decode({ frameIndex: 0 });
+    const delay = Math.max(0.02, (first.image.duration || 100000) / 1e6);
+    const bmp0 = await createImageBitmap(first.image);
+    first.image.close && first.image.close();
+
+    m.anim = {
+      dec, count, delay, total: count * delay,
+      cache: new Map([[0, bmp0]]), order: [0], want: -1, busy: false, last: bmp0
+    };
+    m.w = bmp0.width; m.h = bmp0.height;
+    m.dur = m.anim.total;
+    /* もう 置いて あった ら、ながさを うごく絵に あわせる
+       （ほどく のは あとから なので、置いた ときは まだ 分からない） */
+    allClips().forEach(({ c }) => {
+      if (c.mid === m.id && c.kind === 'image' && Math.abs(c.dur - 4) < 1e-6) c.dur = m.dur;
+    });
+    mark(file, 'うごく絵 ' + count + 'コマ / ' + Math.round(m.dur * 100) / 100 + 's');
+    bus.all();
+  } catch (e) { /* ほどけない ときは 1枚の 絵の まま */ }
+}
+
+const animIndex = (a, t) => {
+  let x = a.total > 0 ? t % a.total : 0;
+  if (x < 0) x += a.total;
+  return Math.min(a.count - 1, Math.max(0, Math.floor(x / a.delay)));
+};
+
+/** その 時こくの コマ。まだ 出て いない ときは 直前の コマを かえす */
+export function animFrame(m, t) {
+  const a = m && m.anim;
+  if (!a) return null;
+  const i = animIndex(a, t);
+  const hit = a.cache.get(i);
+  if (hit) { a.last = hit; return hit; }
+  a.want = i;
+  pump(m);
+  return a.last || null;
+}
+
+/** 書き出しの ときは、ちゃんと その コマが 出るまで 待つ */
+export async function animFrameAt(m, t) {
+  const a = m && m.anim;
+  if (!a) return null;
+  const i = animIndex(a, t);
+  if (a.cache.has(i)) return a.cache.get(i);
+  try {
+    const r = await a.dec.decode({ frameIndex: i });
+    const bmp = await createImageBitmap(r.image);
+    r.image.close && r.image.close();
+    keep(a, i, bmp);
+    a.last = bmp;
+    return bmp;
+  } catch (e) { return a.last || null; }
+}
+
+function keep(a, i, bmp) {
+  a.cache.set(i, bmp);
+  a.order.push(i);
+  while (a.order.length > ANIM_KEEP) {
+    const old = a.order.shift();
+    if (old === i) continue;
+    const b = a.cache.get(old);
+    if (b && b !== a.last) { b.close && b.close(); a.cache.delete(old); }
+  }
+}
+
+async function pump(m) {
+  const a = m.anim;
+  if (a.busy) return;
+  a.busy = true;
+  try {
+    while (a.want >= 0 && !a.cache.has(a.want)) {
+      const i = a.want;
+      const r = await a.dec.decode({ frameIndex: i });
+      const bmp = await createImageBitmap(r.image);
+      r.image.close && r.image.close();
+      keep(a, i, bmp);
+      a.last = bmp;
+      if (a.want === i) a.want = -1;
+      bus.stage();
+    }
+  } catch (e) { a.want = -1; }
+  a.busy = false;
+}
+
+/* ---- PSD ----
+   重い 部品なので、PSD が 来た ときだけ 読みこむ。
+   重ねた 絵を 1枚に して、ふつうの 画像として あつかう。 */
+let psdLib = null;
+function loadPsdLib() {
+  if (psdLib) return psdLib;
+  psdLib = new Promise((ok, ng) => {
+    if (typeof window.agPsd !== 'undefined') return ok(window.agPsd);
+    const s = document.createElement('script');
+    s.src = new URL('../lib/ag-psd.js', import.meta.url).href;
+    s.onload = () => (typeof window.agPsd !== 'undefined') ? ok(window.agPsd) : ng(new Error('よめない'));
+    s.onerror = () => ng(new Error('よみこめない'));
+    document.head.appendChild(s);
+  });
+  return psdLib;
+}
+async function psdIn(file, done) {
+  try {
+    const lib = await loadPsdLib();
+    const buf = await file.arrayBuffer();
+    const psd = lib.readPsd(buf, { skipLayerImageData: true, skipThumbnail: true });
+    const cv = psd.canvas;
+    if (!cv) throw new Error('絵が 入って いない');
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    if (!blob) throw new Error('絵に できない');
+    const png = new File([blob], file.name.replace(/\.psb?d?$/i, '') + '.png', { type: 'image/png' });
+    const url = URL.createObjectURL(png);
+    const m = {
+      id: uid(), name: file.name, kind: 'image', url,
+      dur: 5, w: cv.width, h: cv.height, poster: null, file: png
+    };
+    const el = new Image();
+    el.addEventListener('load', () => { makePoster(m); mark(file, 'よめた ' + m.w + '×' + m.h); }, { once: true });
+    el.src = url; m.el = el;
+    MEDIA.set(m.id, m);
+    psdMade.push(m);
+    bus.all();
+  } catch (e) {
+    mark(file, 'PSD を ひらけません');
+    toast(file.name + ' を ひらけませんでした', 3200);
+  }
+  done();
+}
+let psdMade = [];
+
+/* 画面を そのまま 録った 動画（MediaRecorder の WebM）は
+   長さが 書かれて いない ことが ある。
+   いちど うんと 先へ 送って みると、本当の 長さが 出る。 */
+function realDuration(el) {
+  return new Promise(res => {
+    let fin = false;
+    const end = (v) => {
+      if (fin) return;
+      fin = true;
+      el.removeEventListener('timeupdate', onT);
+      try { el.currentTime = 0; } catch (e) { }
+      res(v);
+    };
+    const onT = () => {
+      if (el.currentTime > 0) end(isFinite(el.duration) && el.duration > 0 ? el.duration : el.currentTime);
+    };
+    el.addEventListener('timeupdate', onT);
+    try { el.currentTime = 1e101; } catch (e) { end(0); }
+    setTimeout(() => end(isFinite(el.duration) && el.duration > 0 ? el.duration : el.currentTime || 0), 2500);
+  });
+}
+
+function mark(file, state) {
+  const it = LOG.items.find(x => x.name === file.name && x.size === file.size);
+  if (it) it.state = state;
+}
+
 /* ---- とりこみ ---- */
 function kindOf(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'psd' || ext === 'psb') return 'psd';
   if (file.type.startsWith('video')) return 'video';
   if (file.type.startsWith('audio')) return 'audio';
   if (file.type.startsWith('image')) return 'image';
-  const e = (file.name.split('.').pop() || '').toLowerCase();
+  const e = ext;
   if (['mp4', 'webm', 'mov', 'mkv', 'm4v', '3gp'].includes(e)) return 'video';
   if (['mp3', 'wav', 'm4a', 'ogg', 'aac', 'flac', 'opus'].includes(e)) return 'audio';
   return 'image';
 }
 
 export function importFiles(files, after) {
-  const list = [...files].filter(f => f && f.size !== undefined);
-  if (!list.length) return;
+  const raw = files ? [...files] : [];
+  const list = raw.filter(f => f && f.size !== undefined);
+  LOG.at = new Date().toLocaleTimeString();
+  LOG.count = raw.length;
+  LOG.items = list.map(f => ({
+    name: f.name, size: f.size, type: f.type || '(なし)', kind: kindOf(f), state: 'まち'
+  }));
+  LOG.note = '';
+  if (!raw.length) {
+    LOG.note = 'ファイルが 1つも 来ませんでした';
+    toast('ファイルが えらばれて いません', 2600);
+    bus.all();
+    return;
+  }
+  if (!list.length) {
+    LOG.note = '来た ものが ファイルでは ありませんでした';
+    toast('この ファイルは つかえません', 2600);
+    bus.all();
+    return;
+  }
   let left = list.length;
-  const done = () => { if (--left <= 0) { bus.all(); after && after(); } };
+  const made = [];
+  psdMade = made;
+  const done = () => { if (--left <= 0) { bus.all(); after && after(made); } };
   list.forEach(file => {
-    const kind = kindOf(file);
+    let kind = kindOf(file);
+    if (kind === 'psd') { psdIn(file, done); return; }     // ひらいてから 絵として 入れる
     const url = URL.createObjectURL(file);
     const m = { id: uid(), name: file.name, kind, url, dur: 5, w: S.W, h: S.H, poster: null, file };
     if (kind === 'image') {
       const el = new Image();
       el.addEventListener('load', () => {
-        m.w = el.naturalWidth; m.h = el.naturalHeight; makePoster(m); done();
+        m.w = el.naturalWidth; m.h = el.naturalHeight; makePoster(m);
+        mark(file, 'よめた ' + m.w + '×' + m.h);
+        animIn(m, file);                    // うごく絵（GIF など）なら コマに ほどく
+        done();
       }, { once: true });
-      el.addEventListener('error', done, { once: true });
+      el.addEventListener('error', () => { mark(file, 'よめない'); done(); }, { once: true });
+      setTimeout(() => { if (!el.complete) { mark(file, 'じかんぎれ'); done(); } }, 8000);
       el.src = url; m.el = el;
     } else {
       const el = document.createElement(kind === 'audio' ? 'audio' : 'video');
@@ -90,12 +303,14 @@ export function importFiles(files, after) {
       m.el = el;
       stash(el);
       let settled = false;
-      const settle = (ok) => {
+      const settle = async (ok) => {
         if (settled) return;
         settled = true;
         m.elOk = ok;
+        mark(file, ok ? 'よめた' : 'この 端末では ひらけない');
         if (ok) {
-          const d = el.duration;
+          let d = el.duration;
+          if (!isFinite(d) || d <= 0) d = await realDuration(el);   // 録った ものは 長さを 持って いない
           if (isFinite(d) && d > 0) m.dur = d;
           if (kind === 'video') { m.w = el.videoWidth || S.W; m.h = el.videoHeight || S.H; makePoster(m); }
         }
@@ -113,6 +328,7 @@ export function importFiles(files, after) {
       if (kind === 'audio' || file.size < 80 * 1024 * 1024) analyse2(m, file);
     }
     MEDIA.set(m.id, m);
+    made.push(m);
   });
   toast(list.length + ' こ とりこんだ');
   bus.all();

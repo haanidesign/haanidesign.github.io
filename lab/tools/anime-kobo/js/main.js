@@ -33,7 +33,7 @@ import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
 import { importPsd } from './io/psd.js?v=268';
 import { splitTextChars } from './io/text.js?v=268';
 import { exportAE } from './io/ae.js?v=268';
-import { exportVideo, exportGif, saveVideo, canShareFile,
+import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
          canUseWebCodecs } from './io/export.js?v=268';
 import { pathKeys, pathLength } from './engine/path.js?v=268';
 import { paintDirty } from './engine/paint.js?v=268';
@@ -1253,7 +1253,9 @@ async function runExport(kind){
   S.proj.quality = 'fine';
   S.dragging = false;
   box.classList.add('on');
-  title.textContent = kind === 'gif'
+  title.textContent = kind === 'webm'
+    ? 'すける WebMを 録っています（実時間）'
+    : kind === 'gif'
     ? 'すける GIFを つくっています'
     : (kind === 'ae'
         ? 'AE用に 焼いています（レイヤーごと）'
@@ -1270,6 +1272,12 @@ async function runExport(kind){
     const g = S.proj.gif || {};
     const r = kind === 'ae'
       ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
+      : kind === 'webm'
+      ? await exportAlphaWebm(S.proj, {
+          fps: (S.proj.webm && S.proj.webm.fps) || 30,
+          seconds: S.proj.duration,
+          onProgress, shouldStop: () => cancelExport
+        })
       : kind === 'gif'
       ? await exportGif(S.proj, {
           fps: g.fps || 12,

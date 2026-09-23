@@ -1,7 +1,8 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
-import { S, clamp } from './state.js?v=4';
-import { beatOn, beatSec, beatAt } from './beat.js?v=4';
+import { S, clamp } from './state.js?v=14';
+import { beatOn, beatSec, beatAt } from './beat.js?v=14';
+import { bus } from './bus.js?v=14';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -11,15 +12,65 @@ export const FONTS = [
   ['gothic', 'ゴシック', "'Hiragino Sans','Yu Gothic','Meiryo', sans-serif"],
   ['maru', 'まるゴ（端末）', "'Hiragino Maru Gothic ProN','Yu Gothic', sans-serif"]
 ];
+
+/* 歌詞に よく 合う 書たい。えらんだ ときに だけ 取りに 行く ので、
+   ふだんは 重く ならない。 */
+export const GFONTS = [
+  ['g-notosans', 'ノトサン', 'Noto Sans JP'],
+  ['g-notoserif', 'ノトめいちょう', 'Noto Serif JP'],
+  ['g-dela', 'デラ（ふとい）', 'Dela Gothic One'],
+  ['g-reggae', 'レゲエ', 'Reggae One'],
+  ['g-rocknroll', 'ロックンロール', 'RocknRoll One'],
+  ['g-hachi', 'はちまるポップ', 'Hachi Maru Pop'],
+  ['g-yusei', 'ゆうせいマジック', 'Yusei Magic'],
+  ['g-zenmaru', 'ぜんまるゴ', 'Zen Maru Gothic'],
+  ['g-zenkaku', 'ぜんかくゴ', 'Zen Kaku Gothic New'],
+  ['g-zenantique', 'ぜんアンティーク', 'Zen Antique'],
+  ['g-kaisei', 'かいせいデコル', 'Kaisei Decol'],
+  ['g-potta', 'ポッタ', 'Potta One'],
+  ['g-train', 'トレイン', 'Train One'],
+  ['g-stick', 'スティック', 'Stick'],
+  ['g-shippori', 'しっぽりめいちょう', 'Shippori Mincho'],
+  ['g-klee', 'クレー（手書き風）', 'Klee One'],
+  ['g-yomogi', 'よもぎ', 'Yomogi'],
+  ['g-kiwi', 'キウイ丸', 'Kiwi Maru'],
+  ['g-tegomin', 'てごみん', 'New Tegomin'],
+  ['g-mplus1', 'M PLUS 1p', 'M PLUS 1p']
+];
+const gLoaded = new Set();
+/** えらばれた 書たいを 取りに 行く（1回だけ） */
+export function ensureFont(key) {
+  const f = GFONTS.find(x => x[0] === key);
+  if (!f || gLoaded.has(key)) return;
+  gLoaded.add(key);
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=' +
+    f[2].replace(/ /g, '+') + ':wght@400;700;900&display=swap';
+  document.head.appendChild(l);
+  /* 取れたら 描き直す。取れなければ その ままの 書たいで 出る */
+  if (document.fonts && document.fonts.load) {
+    const fam = `"${f[2]}"`;
+    Promise.all([400, 700, 900].map(w =>
+      document.fonts.load(`${w} 100px ${fam}`).catch(() => { })
+    )).then(() => { bus.stage(); bus.panel(); });
+  }
+}
 export const userFonts = [];      // {key,label,family}
 export function fontFamily(key) {
   const u = userFonts.find(f => f.key === key);
   if (u) return `'${u.family}', sans-serif`;
+  const g = GFONTS.find(f => f[0] === key);
+  if (g) { ensureFont(key); return `'${g[2]}', sans-serif`; }
   const f = FONTS.find(f => f[0] === key);
   return f ? f[2] : FONTS[0][2];
 }
 export function fontList() {
-  return [...FONTS.map(f => [f[0], f[1]]), ...userFonts.map(f => [f.key, f.label])];
+  return [
+    ...FONTS.map(f => [f[0], f[1]]),
+    ...GFONTS.map(f => [f[0], f[1]]),
+    ...userFonts.map(f => [f.key, f.label])
+  ];
 }
 export async function addFontFile(file) {
   const buf = await file.arrayBuffer();
@@ -75,22 +126,35 @@ export function layout(G, T) {
   }
 
   // よこ書き
+  const track = (T.tracking || 0) * size;      // 字と 字の あいだ（em）
   let maxW = 0;
   const rows = lines.map(ln => {
     const chars = [...ln];
-    const ws = chars.map(ch => advance(G, ch, size, tsume));
+    const ws = chars.map(ch => advance(G, ch, size, tsume) + track);
     const w = ws.reduce((a, b) => a + b, 0);
     maxW = Math.max(maxW, w);
     return { chars, ws, w };
   });
   const y0 = -(lines.length - 1) * lh / 2;
+  const curve = clamp(T.curve || 0, -100, 100) / 100;
   rows.forEach((r, li) => {
     const ax = T.align === 'left' ? -S.W / 2 + 70
       : T.align === 'right' ? S.W / 2 - 70 - r.w : -r.w / 2;
     let x = ax, wordN = 0;
     r.chars.forEach((ch, ci) => {
       if (ch === ' ') wordN++;
-      glyphs.push({ ch, x: x + r.ws[ci] / 2, y: y0 + li * lh, rot: 0, line: li, idx: idx++, word: wordN });
+      const cx = x + r.ws[ci] / 2;
+      let gy = y0 + li * lh, grot = 0;
+      if (curve !== 0 && r.w > 1) {
+        /* 円の ふちに ならべる。curve が 大きいほど よく 曲がる。
+           半径は 行の はばから 出す ので、字が ふえても 形が くずれない。 */
+        const rad = (r.w / Math.abs(curve)) * 0.8;
+        const a = (cx - (ax + r.w / 2)) / rad;            // まん中からの 角
+        const sgn = curve > 0 ? 1 : -1;
+        gy += sgn * (rad - rad * Math.cos(a)) * -1 * 1;
+        grot = sgn * a * 180 / Math.PI;
+      }
+      glyphs.push({ ch, x: cx, y: gy, rot: grot, line: li, idx: idx++, word: wordN });
       x += r.ws[ci];
     });
   });
@@ -114,6 +178,33 @@ function advance(G, ch, size, tsume) {
 
 /* ---------- うごき ---------- */
 const easeOut = p => 1 - Math.pow(1 - p, 3);
+export const EASES = [
+  ['auto', 'おまかせ'], ['linear', 'まっすぐ'], ['out', 'すっと止まる'],
+  ['in', 'じわっと出る'], ['inout', 'なめらか'], ['back', 'いきすぎ'], ['spring', 'ばね']
+];
+const EASE_FN = {
+  linear: p => p,
+  out: p => 1 - Math.pow(1 - p, 3),
+  in: p => p * p * p,
+  inout: p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2,
+  back: p => { const c = 1.9; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); },
+  spring: p => p >= 1 ? 1 : 1 - Math.pow(2, -9 * p) * Math.cos(p * 13)
+};
+export const ORDERS = [
+  ['fwd', 'あたまから'], ['rev', 'おしりから'], ['center', 'まん中から'],
+  ['edges', '外から'], ['random', 'ばらばら']
+];
+/** 何ばんめに 出るか */
+function orderKey(key, total, mode) {
+  const n = Math.max(1, total);
+  switch (mode) {
+    case 'rev': return n - 1 - key;
+    case 'center': return Math.abs(key - (n - 1) / 2);
+    case 'edges': return (n - 1) / 2 - Math.abs(key - (n - 1) / 2);
+    case 'random': return Math.floor(rnd(key, 7) * n);
+    default: return key;
+  }
+}
 const easeIn = p => p * p * p;
 const back = p => { const c = 1.9; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
 const spring = p => p >= 1 ? 1 : 1 - Math.pow(2, -9 * p) * Math.cos(p * 13);
@@ -125,7 +216,7 @@ export const FX_IN = [
   ['pop', 'ぽん'], ['spring', 'ばね'], ['rotate', 'くるっ'], ['flipx', 'よこ回転'],
   ['flipy', 'たて回転'], ['blur', 'ぼけから'], ['type', 'タイプ'], ['wipe', 'ワイプ'],
   ['scatter', 'ちらばり'], ['drop', 'おちる'], ['stretch', 'のびる'], ['glitch', 'がたつき'],
-  ['spiral', 'うずまき'], ['wavein', 'なみで']
+  ['spiral', 'うずまき'], ['wavein', 'なみで'], ['slide', '好きな むきから']
 ];
 export const FX_LOOP = [
   ['none', 'なし'], ['bounce', 'はずむ'], ['pulse', 'どくどく'], ['shake', 'ゆれる'],
@@ -139,10 +230,19 @@ export const FX_OUT = [
 ];
 
 /** 出かた。p は 0→1 */
-function inAt(kind, p, g, size) {
+function inAt(kind, p, g, size, opt = {}) {
   const t = { dx: 0, dy: 0, sx: 1, sy: 1, rot: 0, a: 1, blur: 0, hue: 0 };
   if (kind === 'none' || p >= 1) return t;
-  const e = easeOut(p);
+  const fn = opt.ease && EASE_FN[opt.ease];
+  const e = fn ? fn(p) : easeOut(p);
+  const D = opt.dist || 0;
+  if (D > 0 && ['up', 'down', 'left', 'right', 'slide'].includes(kind)) {
+    const a = (opt.angle === undefined ? 90 : opt.angle) * Math.PI / 180;
+    t.dx = Math.cos(a) * D * (1 - e);
+    t.dy = Math.sin(a) * D * (1 - e);
+    t.a = p;
+    return t;
+  }
   switch (kind) {
     case 'fade': t.a = p; break;
     case 'up': t.dy = (1 - e) * size * 1.1; t.a = p; break;
@@ -182,11 +282,12 @@ function inAt(kind, p, g, size) {
   return t;
 }
 /** 出て いく ところ。p は 1→0（のこり） */
-function outAt(kind, p, g, size) {
+function outAt(kind, p, g, size, opt = {}) {
   const t = { dx: 0, dy: 0, sx: 1, sy: 1, rot: 0, a: 1, blur: 0, hue: 0 };
   if (kind === 'none' || p >= 1) return t;
   const q = 1 - p;                 // 0→1 で 消えて いく
-  const e = easeIn(q);
+  const fn = opt.ease && EASE_FN[opt.ease];
+  const e = fn ? fn(q) : easeIn(q);
   switch (kind) {
     case 'fade': t.a = p; break;
     case 'up': t.dy = -e * size * 1.4; t.a = p; break;
@@ -233,30 +334,34 @@ function loopAt(kind, b, g, size, amt) {
 export function glyphState(T, g, local, dur, total, absT) {
   const size = T.size;
   const unit = T.unit || 'char';
-  const key = unit === 'line' ? g.line : unit === 'word' ? g.word : unit === 'all' ? 0 : g.idx;
+  const raw = unit === 'line' ? g.line : unit === 'word' ? g.word : unit === 'all' ? 0 : g.idx;
+  const key = orderKey(raw, total, T.order || 'fwd');
   const lag = (T.stagger || 0) * key;
-  const inD = Math.max(.001, T.inDur || .4);
-  const outD = Math.max(.001, T.outDur || .3);
+  /* 尺は 秒でも 拍でも きめられる。拍なら 曲が はやいほど みじかくなる */
+  const b = beatOn() ? beatSec() : .5;
+  const inD = Math.max(.001, T.inBeat > 0 ? b * T.inBeat : (T.inDur || .4));
+  const outD = Math.max(.001, T.outBeat > 0 ? b * T.outBeat : (T.outDur || .3));
+  const opt = { ease: T.ease && T.ease !== 'auto' ? T.ease : null, dist: T.dist || 0, angle: T.angle };
 
   let pIn = clamp((local - lag) / inD, 0, 1);
   if ((T.fxIn || 'none') === 'type') pIn = (local - lag) >= 0 ? 1 : 0;
   const outStart = dur - outD - (T.outStagger ? lag : 0);
   let pOut = clamp((dur - local - (T.fxOut === 'type' ? lag : 0)) / outD, 0, 1);
 
-  const a = inAt(T.fxIn || 'none', pIn, g, size);
-  const b = outAt(T.fxOut || 'none', pOut, g, size);
+  const a = inAt(T.fxIn || 'none', pIn, g, size, opt);
+  const bb = outAt(T.fxOut || 'none', pOut, g, size, opt);
   const beat = beatOn() ? beatAt(absT) : absT / (T.loopSec || .5);
   const l = loopAt(T.fxLoop || 'none', beat + (T.loopLag ? key * .12 : 0), g, size, T.loopAmt === undefined ? 1 : T.loopAmt);
 
   return {
-    dx: a.dx + b.dx + l.dx,
-    dy: a.dy + b.dy + l.dy,
-    sx: a.sx * b.sx * l.sx,
-    sy: a.sy * b.sy * l.sy,
-    rot: a.rot + b.rot + l.rot,
-    a: a.a * b.a * l.a,
-    blur: a.blur + b.blur + l.blur,
-    hue: a.hue + b.hue + l.hue
+    dx: a.dx + bb.dx + l.dx,
+    dy: a.dy + bb.dy + l.dy,
+    sx: a.sx * bb.sx * l.sx,
+    sy: a.sy * bb.sy * l.sy,
+    rot: a.rot + bb.rot + l.rot,
+    a: a.a * bb.a * l.a,
+    blur: a.blur + bb.blur + l.blur,
+    hue: a.hue + bb.hue + l.hue
   };
 }
 
@@ -266,52 +371,155 @@ export function drawText(G, c, local, absT) {
   const lay = layout(G, T);
   const size = T.size;
   const fam = fontFamily(T.font || 'rounded');
+
+  G.save();
+  // かたむき（スキュー）と 反転
+  const kh = Math.tan(clamp(T.skewH || 0, -60, 60) * Math.PI / 180);
+  const kv = Math.tan(clamp(T.skewV || 0, -60, 60) * Math.PI / 180);
+  if (kh || kv) G.transform(1, kv, kh, 1, 0, 0);
+  if (T.flipH || T.flipV) G.scale(T.flipH ? -1 : 1, T.flipV ? -1 : 1);
+
   G.font = `${T.weight} ${size}px ${fam}`;
   G.textAlign = 'center'; G.textBaseline = 'middle';
   G.lineJoin = 'round'; G.miterLimit = 2;
 
-  if (T.bgOn) {
-    const pad = size * .36;
-    const bw = (lay.vertical ? lay.w : lay.w) + pad * 2;
-    const bh = lay.h + pad;
-    G.fillStyle = T.bgColor;
-    G.strokeStyle = '#1E1C14'; G.lineWidth = Math.max(3, size * .07);
-    let bx = -bw / 2;
-    if (!lay.vertical) {
-      if (T.align === 'left') bx = -S.W / 2 + 70 - pad;
-      else if (T.align === 'right') bx = S.W / 2 - 70 - lay.w - pad;
-    }
-    const by = -bh / 2 - (lay.vertical ? 0 : size * .06);
-    G.beginPath();
-    if (G.roundRect) G.roundRect(bx, by, bw, bh, size * .22); else G.rect(bx, by, bw, bh);
-    G.fill(); G.stroke();
-  }
+  if (T.bgOn) drawPill(G, T, lay, size);
 
-  const mb = T.mblur || 0;            // 0〜1 うごきの あと
-  const steps = mb > 0 ? 4 : 1;
+  /* いくつ ぶん で 出るか（順番の ものさし） */
+  const unit = T.unit || 'char';
+  const total = unit === 'line' ? Math.max(1, lay.glyphs.reduce((n, g) => Math.max(n, g.line + 1), 1))
+    : unit === 'word' ? Math.max(1, lay.glyphs.reduce((n, g) => Math.max(n, g.word + 1), 1))
+      : unit === 'all' ? 1 : lay.glyphs.length;
+
+  const mb = T.mblur || 0;
+  const steps = mb > 0 ? ((S.quality || 1) < 1 ? 2 : 4) : 1;
 
   for (const g of lay.glyphs) {
     if (g.ch === ' ' || g.ch === '　') continue;
     for (let k = steps - 1; k >= 0; k--) {
-      const back = k * (mb * 0.06);   // 何秒 まえの すがたか
-      const st = glyphState(T, g, local - back, c.dur, lay.glyphs.length, absT - back);
+      const back = k * (mb * 0.06);
+      const st = glyphState(T, g, local - back, c.dur, total, absT - back);
       if (st.a <= .004) continue;
       const fade = k === 0 ? 1 : (1 - k / steps) * .45;
+      const o = offOf(T, g.idx);
       G.save();
       G.globalAlpha = clamp(st.a * fade, 0, 1);
-      G.translate(g.x + st.dx, g.y + st.dy);
+      G.translate(g.x + st.dx + o.x * size, g.y + st.dy + o.y * size);
       if (g.rot) G.rotate(g.rot * Math.PI / 180);
       if (st.rot) G.rotate(st.rot * Math.PI / 180);
-      G.scale(st.sx, st.sy);
+      if (o.r) G.rotate(o.r * Math.PI / 180);
+      G.scale(st.sx * o.s, st.sy * o.s);
       if (st.blur > .05) G.filter = `blur(${st.blur.toFixed(2)}px)`;
+
       const col = st.hue ? shiftHue(T.color, st.hue) : T.color;
+      const fill = T.grad ? gradFor(G, T, g, lay, size) : col;
+
+      // ① ひかり（グロー）
+      if (T.glowOn && k === 0) {
+        G.save();
+        G.shadowColor = T.glowColor || '#E1DD60';
+        G.shadowBlur = Math.max(1, T.glowSize || 18);
+        G.shadowOffsetX = 0; G.shadowOffsetY = 0;
+        G.fillStyle = fill;
+        G.fillText(g.ch, 0, 0);
+        G.fillText(g.ch, 0, 0);          // 2回 かさねて しっかり 光らせる
+        G.restore();
+      }
+      // ② かげ
+      if (T.shadowOn && k === 0) {
+        G.save();
+        G.shadowColor = T.shadowColor || '#1E1C14';
+        G.shadowBlur = Math.max(0, T.shadowBlur || 0);
+        G.shadowOffsetX = T.shadowX === undefined ? 6 : T.shadowX;
+        G.shadowOffsetY = T.shadowY === undefined ? 8 : T.shadowY;
+        G.fillStyle = fill;
+        G.fillText(g.ch, 0, 0);
+        G.restore();
+      }
+      // ③ 本体
       if (T.sw > 0) { G.strokeStyle = T.stroke; G.lineWidth = T.sw; G.strokeText(g.ch, 0, 0); }
-      G.fillStyle = col;
+      G.fillStyle = fill;
       G.fillText(g.ch, 0, 0);
+
       G.filter = 'none';
       G.restore();
     }
   }
+  G.restore();
+}
+
+/* ---------- 1文字ずつの ずらし ----------
+   Lyrica の Character Offset と 同じ 考え。
+   よこ・たては 文字の 大きさを 1 と した 目もり（em）で 持つ ので、
+   あとで 大きさを 変えても くずれない。 */
+export const OFF0 = { x: 0, y: 0, s: 1, r: 0 };
+export function offOf(T, idx) {
+  const o = T.off && T.off[idx];
+  if (!o) return OFF0;
+  return { x: o.x || 0, y: o.y || 0, s: o.s === undefined ? 1 : o.s, r: o.r || 0 };
+}
+export function setOff(T, idx, part) {
+  if (!T.off) T.off = {};
+  const cur = T.off[idx] || { x: 0, y: 0, s: 1, r: 0 };
+  T.off[idx] = Object.assign(cur, part);
+  const o = T.off[idx];
+  if (!o.x && !o.y && !o.r && (o.s === 1 || o.s === undefined)) delete T.off[idx];
+}
+export const clearOff = (T, idx) => {
+  if (!T.off) return;
+  if (idx === undefined) T.off = {}; else delete T.off[idx];
+};
+
+/** 1文字ずつの 置き場（ずらしこみ）。えらぶ ため・わくを 出す ため */
+export function glyphSpots(G, T) {
+  const lay = layout(G, T);
+  const size = T.size;
+  G.font = `${T.weight} ${size}px ${fontFamily(T.font || 'rounded')}`;
+  return lay.glyphs
+    .filter(g => g.ch !== ' ' && g.ch !== '　')
+    .map(g => {
+      const o = offOf(T, g.idx);
+      const m = G.measureText(g.ch);
+      return {
+        idx: g.idx, ch: g.ch,
+        x: g.x + o.x * size, y: g.y + o.y * size,
+        w: Math.max(size * .4, m.width) * o.s, h: size * 1.05 * o.s,
+        rot: (g.rot || 0) + o.r
+      };
+    });
+}
+
+/** 文字ぜんたいに かかる グラデーション。
+    1字ずつ 動かして いる ので、その字の ぶんだけ ずらして 作る */
+function gradFor(G, T, g, lay, size) {
+  const a = (T.gradDir === undefined ? 90 : T.gradDir) * Math.PI / 180;
+  const ex = Math.cos(a), ey = Math.sin(a);
+  // 文字ぜんたいを またぐ ように 長さを とる
+  const R = Math.max(lay.w, lay.h, size) / 2;
+  const gr = G.createLinearGradient(
+    -ex * R - g.x, -ey * R - g.y,
+    ex * R - g.x, ey * R - g.y
+  );
+  gr.addColorStop(0, T.color);
+  gr.addColorStop(1, T.color2 || T.color);
+  return gr;
+}
+
+function drawPill(G, T, lay, size) {
+  const pad = size * .36;
+  const bw = lay.w + pad * 2;
+  const bh = lay.h + pad;
+  G.fillStyle = T.bgColor;
+  G.strokeStyle = '#1E1C14'; G.lineWidth = Math.max(3, size * .07);
+  let bx = -bw / 2;
+  if (!lay.vertical) {
+    if (T.align === 'left') bx = -S.W / 2 + 70 - pad;
+    else if (T.align === 'right') bx = S.W / 2 - 70 - lay.w - pad;
+  }
+  const by = -bh / 2 - (lay.vertical ? 0 : size * .06);
+  G.beginPath();
+  if (G.roundRect) G.roundRect(bx, by, bw, bh, size * .22); else G.rect(bx, by, bw, bh);
+  G.fill(); G.stroke();
 }
 
 /** 文字の 色を 少し まわす（にじ色 用） */
