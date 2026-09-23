@@ -25,7 +25,7 @@
   --gray:      #9AA0A8;   /* うすい そえ書き */
 
   /* ---- 強調 ---- */
-  --main:      #D4F84C;   /* ライム */
+  --main:      #E1DD60;   /* ライム */
   --main-deep: #C6EE3C;
   --main-soft: #F2FDCB;
   --pink:      #F05B4A;   /* あぶない（見本の High） */
@@ -203,8 +203,8 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 #ruler .rtick{ background:rgba(16,17,20,.22); }
 #ruler .rtick.big{ background:rgba(16,17,20,.45); }
 /* 拍は ライム。小節の あたまは 白で 強く */
-#ruler .btick{ background:rgba(154,190,30,.55); }
-#ruler .btick.bar{ background:#9ABE1E; }
+#ruler .btick{ background:rgba(168,163,60,.55); }
+#ruler .btick.bar{ background:#A8A33C; }
 
 .thead{
   background:var(--paper);
@@ -233,8 +233,8 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 
 /* くりかえしの 帯・のばす 帯・出すところ */
 .loopband{
-  background:rgba(212,248,76,.22);
-  border-left:2px solid #D4F84C; border-right:2px solid #D4F84C;
+  background:rgba(225,221,96,.22);
+  border-left:2px solid #E1DD60; border-right:2px solid #E1DD60;
   border-radius:8px;
 }
 .loopband.ping{ background:rgba(240,91,74,.25); border-color:#F05B4A; }
@@ -254,7 +254,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
   box-shadow:var(--shadow-sm);
 }
 .span{ background:rgba(16,17,20,.12); border-radius:5px; }
-.span.on{ background:rgba(212,248,76,.85); box-shadow:none; }
+.span.on{ background:rgba(225,221,96,.85); box-shadow:none; }
 .spgrip{
   border:0; border-radius:8px;
   background:var(--paper); color:var(--ink);
