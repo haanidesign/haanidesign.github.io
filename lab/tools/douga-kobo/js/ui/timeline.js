@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot
-} from '../state.js?v=25';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=25';
-import { bus } from '../bus.js?v=25';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=25';
+} from '../state.js?v=30';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=30';
+import { bus } from '../bus.js?v=30';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=30';
 
 const el = {};
 export function init() {
@@ -150,22 +150,22 @@ function drawRuler() {
   const w = width();
   el.rcv.width = w; el.rcv.style.width = w + 'px';
   const g = el.rcv.getContext('2d');
-  g.fillStyle = '#F2F0BE'; g.fillRect(0, 0, w, 30);
-  g.strokeStyle = '#1E1C14'; g.fillStyle = '#1E1C14';
-  g.font = "12px 'DotGothic16', monospace"; g.textBaseline = 'top';
+  g.fillStyle = '#FFFEF7'; g.fillRect(0, 0, w, 30);
+  g.strokeStyle = '#1E1C14'; g.fillStyle = '#5c5843';
+  g.font = "11px 'DotGothic16', monospace"; g.textBaseline = 'top';
   if (beatOn() && S.beat.grid) { drawBarRuler(g, w); return; }
   const steps = [1 / S.fps, .1, .5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
   const step = steps.find(s => s * S.pps > 74) || 900;
   for (let t = 0; t2x(t) < w; t += step) {
     const x = Math.round(t2x(t)) + .5;
-    g.globalAlpha = .9; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(x, 17); g.lineTo(x, 30); g.stroke();
+    g.globalAlpha = .45; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x, 18); g.lineTo(x, 30); g.stroke();
     const lab = t >= 60 ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : r2(t) + 's';
     g.fillText(lab, x + 4, 2);
     const sub = step / (step * S.pps > 160 ? 4 : 2);
     for (let k = 1; k * sub < step - 1e-9; k++) {
       const sx = Math.round(t2x(t + k * sub)) + .5;
-      g.globalAlpha = .35; g.lineWidth = 1.5;
+      g.globalAlpha = .2; g.lineWidth = 1;
       g.beginPath(); g.moveTo(sx, 23); g.lineTo(sx, 30); g.stroke();
     }
   }
@@ -184,8 +184,8 @@ function drawBarRuler(g, w) {
     const x = Math.round(t2x(t)) + .5;
     const inBar = ((n % per) + per) % per;
     const bar = inBar === 0;
-    g.globalAlpha = bar ? .95 : .45;
-    g.lineWidth = bar ? 2 : 1.4;
+    g.globalAlpha = bar ? .5 : .22;
+    g.lineWidth = bar ? 1.5 : 1;
     g.beginPath(); g.moveTo(x, bar ? 14 : 22); g.lineTo(x, 30); g.stroke();
     if (bar && (n / per) % every === 0) {
       g.globalAlpha = 1;
@@ -206,7 +206,7 @@ function drawBeatTicks(g, w) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const bar = ((n % per) + per) % per === 0;
-    g.fillStyle = bar ? '#1E1C14' : '#B8B43F';
+    g.fillStyle = bar ? '#A8A33C' : 'rgba(168,163,60,.55)';
     if (bar) { g.fillRect(x - 1.5, 16, 3, 6); g.beginPath(); g.arc(x, 13, 3.4, 0, 7); g.fill(); }
     else { g.beginPath(); g.arc(x, 14, 2.2, 0, 7); g.fill(); }
   }

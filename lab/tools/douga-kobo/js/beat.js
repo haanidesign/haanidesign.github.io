@@ -3,7 +3,7 @@
      ① みじかい きざみ ごとに 音の 大きさを 出す
      ② 大きく なった ところ（たたいた ところ）だけ のこす
      ③ ずらしながら くらべて、いちばん よく かさなる ずれを さがす */
-import { S, clamp, r2 } from './state.js?v=25';
+import { S, clamp, r2 } from './state.js?v=30';
 
 const SLOT = 0.02;
 
