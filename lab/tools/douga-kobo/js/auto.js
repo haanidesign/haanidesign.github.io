@@ -7,11 +7,11 @@
    おなじ たねの ばんごう（シード）なら いつも おなじ ものが 出る ので、
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
-  S, uid, clamp, newTrack, newClip, snap as pushUndo, toast
-} from './state.js?v=22';
-import { beatOn, beatSec } from './beat.js?v=22';
-import { GFONTS, setOff } from './text.js?v=22';
-import { bus } from './bus.js?v=22';
+  S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
+} from './state.js?v=24';
+import { beatOn, beatSec } from './beat.js?v=24';
+import { GFONTS, setOff } from './text.js?v=24';
+import { bus } from './bus.js?v=24';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
@@ -220,11 +220,8 @@ function emphasis(str) {
   return { str: out, marks };
 }
 
-/* ---------- 組み立て ---------- */
-export function autoCompose(opt = {}) {
-  const cuts = cutsOf(opt.text || '');
-  if (!cuts.length) { toast('歌詞を 入れて'); return 0; }
-
+/* ---------- くじ引きの 道具ひとそろい ---------- */
+function makeCtx(opt) {
   const seed = opt.seed === undefined ? 1 : (opt.seed | 0);
   const mood = opt.mood || 'all';
   /* きめうち（指定）。空っぽ／'auto' の ところだけ くじを ひく */
@@ -239,6 +236,144 @@ export function autoCompose(opt = {}) {
     return hit || fallback();
   };
   const r = rng(seed * 2654435761 + 12345);
+  const [palName, P] = FT('palette', PALETTES, () => pick(r, PALETTES));
+  const fonts = GFONTS.map(f => f[0]);
+  const baseFont = has('font') ? fx.font : pick(r, fonts);
+  return { seed, mood, fx, has, F, FT, r, P, palName, fonts, baseFont, W: S.W, H: S.H };
+}
+
+/* ---------- 1まいの 文字ふだに 着せる ----------
+   c.text.str は もう 入って いる もの を つかう。
+   back は うしろの いろ（読める 文字色を きめる ため）。 */
+function dressText(c, ctx, back, opt = {}) {
+  const { r, mood, has, fx, F, FT, P, fonts, baseFont, W, H } = ctx;
+  const T = c.text;
+  const { str, marks } = emphasis(T.str);
+  T.str = str;
+
+  const keepColor = !!opt.keepColor;
+  const txt = has('color') ? fx.color : readable(P, back);
+  const ink2 = ratio(P.ink, txt) >= ratio(P.paper, txt) ? P.ink : P.paper;
+  const P2 = Object.assign({}, P, {
+    text: txt, ink: ink2,
+    accent: accentOn(P, back, ink2),
+    accent2: accentOn(P, txt, ink2)
+  });
+  const col0 = { color: T.color, stroke: T.stroke, bgColor: T.bgColor };
+  T.color = txt; T.stroke = ink2; T.bgColor = P2.accent;
+
+  T.weight = has('weight') ? (+fx.weight || 700) : (chance(r, .75) ? 800 : 700);
+  T.font = has('font') ? fx.font : (chance(r, .7) ? baseFont : pick(r, fonts));
+  T.fxIn = F('fxIn', () => pickM(r, INS, mood));
+  T.fxOut = F('fxOut', () => pickM(r, OUTS, mood));
+  T.fxLoop = F('fxLoop', () => pickM(r, LOOPS, mood));
+  T.order = F('order', () => pick(r, ORDER));
+  T.ease = F('ease', () => pick(r, EASE));
+  T.unit = F('unit', () => pick(r, UNITS));
+  T.stagger = has('stagger') ? +fx.stagger : [0, .02, .03, .04, .06][Math.floor(r() * 5)];
+  T.inBeat = has('inBeat') ? +fx.inBeat : pick(r, [.25, .5, .5, 1]);
+  T.outBeat = has('outBeat') ? +fx.outBeat : pick(r, [.25, .5, .5]);
+  if (T.fxIn === 'slide') { T.dist = 200 + Math.floor(r() * 700); T.angle = pick(r, [0, 45, 90, 135, 180, -90]); }
+  if (chance(r, .25)) T.mblur = .4 + r() * .5;
+
+  // いちを そのままに する ときは、ならべ方の ぶんを あとで もどす
+  const pos0 = { x: c.x, y: c.y, rot: c.rot, size: T.size, align: T.align, vertical: T.vertical };
+  const [, , layout] = FT('layout', LAYOUTS, () => pickM(r, LAYOUTS, mood));
+  layout(c, W, H);
+  const [, , decor] = FT('decor', DECOR, () => pickM(r, DECOR, mood));
+  decor(c, P2);
+  if (has('size')) T.size = +fx.size;
+  // 地じきを 敷いた ときは その 上で 読める 色に しなおす
+  if (T.bgOn) { T.color = readable(P, T.bgColor); T.stroke = T.color === P.ink ? P.paper : P.ink; }
+  if (has('vertical')) T.vertical = fx.vertical === 'yes';
+  else if (chance(r, .18)) T.vertical = !T.vertical;
+  if (chance(r, .2)) T.tsume = .5 + r() * .5;
+
+  if (opt.keepPos) {
+    c.x = pos0.x; c.y = pos0.y; c.rot = pos0.rot;
+    T.size = pos0.size; T.align = pos0.align; T.vertical = pos0.vertical;
+  }
+  if (keepColor) Object.assign(T, col0);
+
+  // *つよく* の ところを 1文字ずつ 大きく
+  marks.forEach(([a2, b2]) => {
+    for (let k = a2; k < b2; k++) setOff(T, k, { s: 1.35 + r() * .35, y: -.04 });
+  });
+  // たまに 1文字だけ はねる
+  if (chance(r, .22) && str.length > 2) {
+    const k = Math.floor(r() * str.length);
+    setOff(T, k, { y: (r() - .5) * .4, r: (r() - .5) * 26, s: 1 + r() * .5 });
+  }
+  return { txt: T.color, ink2, P2 };
+}
+
+/* ---------- いま ある 文字に かける ----------
+   ふだの 字・いつ・ながさ は さわらず、うごきと かざりだけ かけ直す。
+   target: 'sel'（えらんだ ふだ）/ 'track'（その 段ぜんぶ）/ 'all'（文字 ぜんぶ） */
+export function autoApply(opt = {}) {
+  const target = opt.target || 'all';
+  let list = [];
+  if (target === 'sel') {
+    const f = S.sel ? findClip(S.sel) : null;
+    if (f && f.c.kind === 'text') list = [f.c];
+  } else if (target === 'track') {
+    const t = S.tracks.find(t2 => t2.id === S.selTrack);
+    if (t) list = t.clips.filter(c => c.kind === 'text');
+  } else {
+    list = S.tracks.filter(t => t.kind === 'text')
+      .flatMap(t => t.clips.filter(c => c.kind === 'text'));
+  }
+  if (!list.length) { toast('かける 文字が ない'); return 0; }
+
+  const ctx = makeCtx(opt);
+  list.sort((a, b) => a.start - b.start);
+  list.forEach(c => {
+    dressText(c, ctx, backAt(c.start), { keepPos: !!opt.keepPos, keepColor: !!opt.keepColor });
+  });
+
+  const LOOKS2 = looksFor();
+  if (opt.look !== false) {
+    const look = LOOKS2[ctx.has('look') ? ctx.fx.look : ctx.mood];
+    if (look) S.master = Object.assign({}, S.master, look);
+  }
+  pushUndo(); bus.all();
+  return { cuts: list.length, palette: ctx.palName, seed: ctx.seed, mood: ctx.mood };
+}
+
+/** その 時こくの うしろの いろ。色ふだが あれば その 色、なければ 下じき */
+function backAt(t) {
+  let hit = null;
+  S.tracks.forEach(tr => {
+    if (tr.kind === 'text' || tr.hidden) return;
+    tr.clips.forEach(c => {
+      if (c.kind === 'color' && t >= c.start && t < c.start + c.dur) hit = c;
+    });
+  });
+  if (!hit) return S.bg || '#101010';
+  const a = hit.color, b = hit.color2 || hit.color;
+  return lum(a) < lum(b) ? a : b;
+}
+
+/* ---------- 画面ぜんたいの しあげ ---------- */
+function looksFor() {
+  return {
+    glitch: { vignette: .25, grain: .08, rgb: .3, flash: .35, shake: .2, zoom: .25, br: 104, ct: 114, sa: 120 },
+    calm: { vignette: .4, grain: .12, rgb: 0, flash: 0, shake: 0, zoom: .08, br: 102, ct: 98, sa: 92 },
+    pop: { vignette: .18, grain: .05, rgb: .06, flash: .3, shake: .14, zoom: .22, br: 104, ct: 110, sa: 122 },
+    graphic: { vignette: .12, grain: .04, rgb: 0, flash: .15, shake: .06, zoom: .1, br: 100, ct: 106, sa: 104 },
+    editorial: { vignette: .3, grain: .3, rgb: 0, flash: 0, shake: 0, zoom: .06, br: 103, ct: 96, sa: 78 },
+    emo: { vignette: .5, grain: .2, rgb: .04, flash: .1, shake: .04, zoom: .16, br: 101, ct: 100, sa: 88 }
+  };
+}
+
+/* ---------- 組み立て ---------- */
+export function autoCompose(opt = {}) {
+  const cuts = cutsOf(opt.text || '');
+  if (!cuts.length) { toast('歌詞を 入れて'); return 0; }
+
+  const ctx = makeCtx(opt);
+  const { r, mood, P, palName, has, fx, F, FT } = ctx;
+  const seed = ctx.seed;
   const b = beatOn() ? beatSec() : .5;
   const beats = Math.max(1, opt.beats || 4);
   const step = b * beats;
@@ -254,10 +389,6 @@ export function autoCompose(opt = {}) {
     t += step;
   });
   const durOf = i => Math.max(.12, (i + 1 < starts.length ? starts[i + 1] : starts[i] + step) - starts[i]);
-
-  const [palName, P] = FT('palette', PALETTES, () => pick(r, PALETTES));
-  const fonts = GFONTS.map(f => f[0]);
-  const baseFont = has('font') ? fx.font : pick(r, fonts);
 
   // まえに つくった ぶんを どける
   S.tracks = S.tracks.filter(t2 => !/^おまかせ/.test(t2.name));
@@ -282,57 +413,12 @@ export function autoCompose(opt = {}) {
 
     // うしろの 明るさを 見て、読める 色を つくる
     const back = lum(c1) < lum(c2) ? c1 : c2;   // 暗い ほうに 合わせて おく
-    const txt = has('color') ? fx.color : readable(P, back);
-    const ink2 = ratio(P.ink, txt) >= ratio(P.paper, txt) ? P.ink : P.paper;
-    const P2 = Object.assign({}, P, {
-      text: txt, ink: ink2,
-      accent: accentOn(P, back, ink2),
-      accent2: accentOn(P, txt, ink2)
-    });
-
-    const { str, marks } = emphasis(cut.str);
 
     /* --- 文字の ふだ --- */
     const c = newClip('text', { name: 'うた', start: at, dur });
+    c.text.str = cut.str;
+    const { txt } = dressText(c, ctx, back);
     const T = c.text;
-    T.str = str;
-    T.color = txt;
-    T.stroke = ink2;
-    T.bgColor = P2.accent;
-    T.weight = has('weight') ? (+fx.weight || 700) : (chance(r, .75) ? 800 : 700);
-    T.font = has('font') ? fx.font : (chance(r, .7) ? baseFont : pick(r, fonts));
-    T.fxIn = F('fxIn', () => pickM(r, INS, mood));
-    T.fxOut = F('fxOut', () => pickM(r, OUTS, mood));
-    T.fxLoop = F('fxLoop', () => pickM(r, LOOPS, mood));
-    T.order = F('order', () => pick(r, ORDER));
-    T.ease = F('ease', () => pick(r, EASE));
-    T.unit = F('unit', () => pick(r, UNITS));
-    T.stagger = has('stagger') ? +fx.stagger : [0, .02, .03, .04, .06][Math.floor(r() * 5)];
-    T.inBeat = has('inBeat') ? +fx.inBeat : pick(r, [.25, .5, .5, 1]);
-    T.outBeat = has('outBeat') ? +fx.outBeat : pick(r, [.25, .5, .5]);
-    if (T.fxIn === 'slide') { T.dist = 200 + Math.floor(r() * 700); T.angle = pick(r, [0, 45, 90, 135, 180, -90]); }
-    if (chance(r, .25)) T.mblur = .4 + r() * .5;
-
-    const [, , layout] = FT('layout', LAYOUTS, () => pickM(r, LAYOUTS, mood));
-    layout(c, W, H);
-    const [, , decor] = FT('decor', DECOR, () => pickM(r, DECOR, mood));
-    decor(c, P2);
-    if (has('size')) T.size = +fx.size;
-    // 地じきを 敷いた ときは その 上で 読める 色に しなおす
-    if (T.bgOn) { T.color = readable(P, T.bgColor); T.stroke = T.color === P.ink ? P.paper : P.ink; }
-    if (has('vertical')) T.vertical = fx.vertical === 'yes';
-    else if (chance(r, .18)) T.vertical = !T.vertical;
-    if (chance(r, .2)) T.tsume = .5 + r() * .5;
-
-    // *つよく* の ところを 1文字ずつ 大きく
-    marks.forEach(([a2, b2]) => {
-      for (let k = a2; k < b2; k++) setOff(T, k, { s: 1.35 + r() * .35, y: -.04 });
-    });
-    // たまに 1文字だけ はねる
-    if (chance(r, .22) && str.length > 2) {
-      const k = Math.floor(r() * str.length);
-      setOff(T, k, { y: (r() - .5) * .4, r: (r() - .5) * 26, s: 1 + r() * .5 });
-    }
     tText.clips.push(c);
 
     /* --- 行の おわりの ! は ひと めくり --- */
@@ -364,14 +450,7 @@ export function autoCompose(opt = {}) {
   });
 
   /* --- 画面ぜんたいの しあげ --- */
-  const LOOKS = {
-    glitch: { vignette: .25, grain: .08, rgb: .3, flash: .35, shake: .2, zoom: .25, br: 104, ct: 114, sa: 120 },
-    calm: { vignette: .4, grain: .12, rgb: 0, flash: 0, shake: 0, zoom: .08, br: 102, ct: 98, sa: 92 },
-    pop: { vignette: .18, grain: .05, rgb: .06, flash: .3, shake: .14, zoom: .22, br: 104, ct: 110, sa: 122 },
-    graphic: { vignette: .12, grain: .04, rgb: 0, flash: .15, shake: .06, zoom: .1, br: 100, ct: 106, sa: 104 },
-    editorial: { vignette: .3, grain: .3, rgb: 0, flash: 0, shake: 0, zoom: .06, br: 103, ct: 96, sa: 78 },
-    emo: { vignette: .5, grain: .2, rgb: .04, flash: .1, shake: .04, zoom: .16, br: 101, ct: 100, sa: 88 }
-  };
+  const LOOKS = looksFor();
   const look = LOOKS[has('look') ? fx.look : mood] || pick(r, Object.values(LOOKS));
   S.master = Object.assign({}, S.master, look);
 

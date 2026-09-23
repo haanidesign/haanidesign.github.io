@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=22';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=22';
-import { storeOk } from '../store.js?v=22';
-import { bus } from '../bus.js?v=22';
-import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=22';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=22';
+} from '../state.js?v=24';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=24';
+import { storeOk } from '../store.js?v=24';
+import { bus } from '../bus.js?v=24';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=24';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=24';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=22';
+  offOf, setOff, clearOff } from '../text.js?v=24';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=22';
+} from '../edit.js?v=24';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -609,6 +609,9 @@ let lyMode = 'auto';
 let lySeed = Math.floor(Math.random() * 9999) + 1;
 let lyMood = 'all';
 let lyFix = {};           // きめうち（指定）した ところ
+let lyTarget = 'all';     // いま ある 文字に かける とき、どれに
+let lyKeepPos = true;     // いちは そのまま
+let lyKeepColor = false;  // 色は そのまま
 let lyOpen = false;       // 「ここは きめる」を ひらいて いるか
 let lyHist = [];          // ためした たねの ならび
 let lyAt = -1;            // いま どこを 見て いるか
@@ -658,6 +661,17 @@ function autoBody(w) {
       if (lyHist.length > 30) { lyHist.shift(); lyAt--; }
     }
     return run();
+  };
+  const applyNow = (newSeed) => {
+    if (newSeed) { lySeed = Math.floor(Math.random() * 9999) + 1; seed.value = lySeed; }
+    const res = autoApply({
+      target: lyTarget, seed: lySeed, mood: lyMood, fix: lyFix,
+      keepPos: lyKeepPos, keepColor: lyKeepColor
+    });
+    if (res) {
+      toast(`${res.cuts}まいに かけた（たね ${lySeed}・${res.palette}）`, 3000);
+      if (!docked()) close(); else draw();
+    }
   };
   const step2 = (d) => {
     const n = lyAt + d;
@@ -760,6 +774,30 @@ function autoBody(w) {
     ]));
   }
   w.appendChild(group('きめうち', [fixWrap]));
+
+  /* --- いま ある 文字に かける --- */
+  const nText = S.tracks.filter(t => t.kind === 'text')
+    .reduce((n, t) => n + t.clips.filter(c => c.kind === 'text').length, 0);
+  const selT = S.tracks.find(t => t.id === S.selTrack);
+  w.appendChild(group('いま ある 文字に かける', [
+    hint('じぶんで 置いた 文字にも、おなじ うごきと かざりを かけられます。<br>' +
+      '<b>字・いつ出る・ながさ は そのまま</b>。うごきと 見た目だけ かけ直します。'),
+    grid('どれに', [
+      btn('えらんだ ふだ', 'btn-sm' + (lyTarget === 'sel' ? ' on' : ''), () => { lyTarget = 'sel'; draw(); }),
+      btn(selT ? `${selT.name} ぜんぶ` : 'この 段ぜんぶ', 'btn-sm' + (lyTarget === 'track' ? ' on' : ''), () => { lyTarget = 'track'; draw(); }),
+      btn(`文字 ぜんぶ（${nText}まい）`, 'btn-sm' + (lyTarget === 'all' ? ' on' : ''), () => { lyTarget = 'all'; draw(); })
+    ]),
+    grid('のこす もの', [
+      btn('いちは そのまま', 'btn-sm' + (lyKeepPos ? ' on' : ''), () => { lyKeepPos = !lyKeepPos; draw(); }),
+      btn('色は そのまま', 'btn-sm' + (lyKeepColor ? ' on' : ''), () => { lyKeepColor = !lyKeepColor; draw(); })
+    ]),
+    grid(null, [
+      btn('🎲 ひきなおして かける', 'btn-sm', () => applyNow(true)),
+      btn('▶ かける', 'btn-y', () => applyNow(false))
+    ]),
+    hint('「いちは そのまま」を きると、ならべ方（まん中・たて書き・ななめ…）も かかります。<br>' +
+      'かけた あとに <b>↩</b> で もとに もどせます。')
+  ]));
 
   w.appendChild(group('ふんいき', [
     grid(null, MOODS.map(([k, label]) =>
