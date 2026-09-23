@@ -8,12 +8,12 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
-} from './state.js?v=38';
-import { beatOn, beatSec } from './beat.js?v=38';
-import { GFONTS, setOff } from './text.js?v=38';
-import { bus } from './bus.js?v=38';
-import { PATS, DECOS } from './pattern.js?v=38';
-import { TRANS, TRANS_LIST } from './trans.js?v=38';
+} from './state.js?v=45';
+import { beatOn, beatSec } from './beat.js?v=45';
+import { GFONTS, setOff } from './text.js?v=45';
+import { bus } from './bus.js?v=45';
+import { PATS, DECOS } from './pattern.js?v=45';
+import { TRANS, TRANS_LIST } from './trans.js?v=45';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
@@ -36,13 +36,24 @@ export const MOODS = [
 ];
 /* 部品ごとの 雰囲気の ふだ。書いて ない ものは どの 雰囲気でも つかう。 */
 const TAGS = {
-  // 出かた
-  glitch: ['glitch', 'flipx', 'flipy', 'stretch', 'scatter', 'jitter', 'shake', 'flash'],
-  calm: ['fade', 'blur', 'up', 'down', 'wavein', 'swing', 'wave', 'none', 'kenburns'],
-  pop: ['pop', 'spring', 'zoomin', 'drop', 'bounce', 'pulse', 'zoombeat', 'zoom'],
-  graphic: ['wipe', 'slide', 'left', 'right', 'rotate', 'none', 'updown', 'zoom'],
-  editorial: ['type', 'fade', 'wipe', 'none', 'up', 'blur'],
-  emo: ['blur', 'fade', 'zoomout', 'spiral', 'wavein', 'pulse', 'swing', 'kenburns']
+  glitch: ['glitch', 'flipx', 'flipy', 'stretch', 'scatter', 'jitter', 'shake', 'flash',
+    'crt', 'loading', 'crack', 'slicein', 'datafall', 'koma',
+    'glitchout', 'tvoff', 'sliceout', 'shred', 'explode', 'cut1', 'shock'],
+  calm: ['fade', 'blur', 'up', 'down', 'wavein', 'swing', 'wave', 'none', 'kenburns',
+    'iris', 'unfold', 'rise', 'inkdrop', 'brush', 'pend',
+    'mist', 'sink', 'melt', 'flutter', 'drain', 'shrink'],
+  pop: ['pop', 'spring', 'zoomin', 'drop', 'bounce', 'pulse', 'zoombeat', 'zoom',
+    'bound', 'stamp', 'squash', 'pushin', 'sheet', 'countin', 'magnify',
+    'balloon', 'fly', 'roll', 'shock', 'explode'],
+  graphic: ['wipe', 'slide', 'left', 'right', 'rotate', 'none', 'updown', 'zoom',
+    'blind', 'shutter', 'zip', 'domino', 'fan', 'cylinder', 'drum', 'tilt',
+    'wipeout', 'door', 'sliceout', 'suck', 'shrink'],
+  editorial: ['type', 'fade', 'wipe', 'none', 'up', 'blur',
+    'stroke1', 'loading', 'rise', 'iris',
+    'backspace', 'erase', 'wipeout', 'mist'],
+  emo: ['blur', 'fade', 'zoomout', 'spiral', 'wavein', 'pulse', 'swing', 'kenburns',
+    'gather', 'neon', 'datafall', 'magnify', 'unfold',
+    'mist', 'sand', 'tornado', 'balloon', 'flutter', 'burn', 'sink']
 };
 /* がら と かざり の 雰囲気ふだ */
 const PAT_TAGS = {
@@ -92,33 +103,158 @@ const pickM = (r, list, mood) => pick(r, chance(r, .7) ? byMood(list, mood) : li
 
 /** ① ならべ方（どこに どう 置くか） */
 export const LAYOUTS = [
-  ['mid-big', 'まん中 おおきく', (c, S2) => { c.text.size = 190; c.text.align = 'center'; }],
+  ['mid-big', 'まん中 おおきく', (c, W, H) => { c.text.size = 190; c.text.align = 'center'; }],
   ['mid', 'まん中', (c) => { c.text.size = 130; c.text.align = 'center'; }],
   ['mid-small', 'まん中 ちいさく', (c) => { c.text.size = 86; c.text.align = 'center'; }],
   ['low-left', '左下', (c, W, H) => { c.text.size = 120; c.text.align = 'left'; c.y = H * .28; }],
   ['up-right', '右上', (c, W, H) => { c.text.size = 120; c.text.align = 'right'; c.y = -H * .28; }],
   ['band-low', '下の 帯', (c, W, H) => { c.text.size = 96; c.text.align = 'center'; c.y = H * .33; c.text.bgOn = true; }],
   ['band-up', '上の 帯', (c, W, H) => { c.text.size = 96; c.text.align = 'center'; c.y = -H * .33; c.text.bgOn = true; }],
-  ['tate-right', 'たて書き 右', (c, W, H) => { c.text.vertical = true; c.text.size = 116; c.x = W * .3; }],
-  ['tate-left', 'たて書き 左', (c, W, H) => { c.text.vertical = true; c.text.size = 116; c.x = -W * .3; }],
+  ['tate-right', 'たて書き 右', (c, W, H) => { c.text.vertical = true; c.text.size = 100; c.x = W * .3; }],
+  ['tate-left', 'たて書き 左', (c, W, H) => { c.text.vertical = true; c.text.size = 100; c.x = -W * .3; }],
   ['slant', 'ななめ', (c) => { c.text.size = 140; c.text.skewH = 12; c.rot = -6; }],
   ['wide', 'よこに のばす', (c) => { c.text.size = 104; c.text.tracking = .38; }],
   ['tight', 'つめて おおきく', (c) => { c.text.size = 176; c.text.tsume = .8; c.text.tracking = -.04; }],
   ['arc', 'カーブ', (c) => { c.text.size = 128; c.text.curve = 34; }],
   ['arc-down', 'カーブ 下', (c) => { c.text.size = 128; c.text.curve = -34; }],
-  ['corner', 'すみに よせる', (c, W, H) => { c.text.size = 108; c.text.align = 'left'; c.x = -W * .06; c.y = -H * .3; }],
-  ['off-mid', 'ずらして おおきく', (c, W, H) => { c.text.size = 168; c.x = W * .12; c.y = H * .06; }]
+  ['corner', 'すみに よせる', (c, W, H) => { c.text.size = 108; c.text.align = 'left'; c.y = -H * .3; }],
+  ['off-mid', 'ずらして おおきく', (c, W, H) => { c.text.size = 168; c.x = W * .12; c.y = H * .06; }],
+
+  /* ---- ここから 足した ぶん ---- */
+  ['huge', '画面 いっぱい', (c, W, H) => { c.text.size = 215; c.text.tsume = .9; c.text.tracking = -.06; }],
+  ['break', 'はみ出す', (c, W, H) => { c.text.size = 270; c.text.tsume = .95; c.text.tracking = -.08; c.x = -W * .06; }],
+  ['telop', '下部テロップ', (c, W, H) => {
+    c.text.size = 68; c.text.align = 'center'; c.y = H * .38;
+    c.text.bgOn = true; c.text.tracking = .06;
+  }],
+  ['telop-left', '下部テロップ 左', (c, W, H) => {
+    c.text.size = 64; c.text.align = 'left'; c.y = H * .38;
+    c.text.bgOn = true;
+  }],
+  ['subtitle', '字幕', (c, W, H) => { c.text.size = 58; c.text.align = 'center'; c.y = H * .4; c.text.sw = 8; }],
+  ['title-up', '大見出し 上', (c, W, H) => { c.text.size = 150; c.y = -H * .18; c.text.tracking = .02; }],
+  ['title-low', '大見出し 下', (c, W, H) => { c.text.size = 150; c.y = H * .18; }],
+  ['label', 'ラベル はり', (c, W, H) => {
+    c.text.size = 74; c.text.bgOn = true; c.rot = -4;
+    c.x = -W * .16; c.y = -H * .14;
+  }],
+  ['stamp-r', 'はんこ 右下', (c, W, H) => {
+    c.text.size = 88; c.rot = -12; c.x = W * .24; c.y = H * .28; c.text.bgOn = true;
+  }],
+  ['tall', 'たて長 つぶし', (c, W, H) => {
+    c.text.size = 210; c.text.tsume = 1; c.text.tracking = -.12;
+    for (let i = 0; i < 40; i++) setOff(c.text, i, { s: 1 });
+    c.text.skewV = 0; c.text.lineGap = 1;
+  }],
+  ['ring', '円環', (c, W, H) => { c.text.size = 96; c.text.curve = 120; }],
+  ['ring-in', '円環 うち', (c, W, H) => { c.text.size = 96; c.text.curve = -120; }],
+  ['wavepath', 'なみの 道', (c, W, H) => { c.text.size = 110; c.text.curve = 18; c.text.tracking = .12; }],
+  ['note', '注釈', (c, W, H) => {
+    c.text.size = 46; c.text.align = 'left'; c.y = H * .3;
+    c.text.tracking = .2; c.text.weight = 500;
+  }],
+  ['typing', 'タイプ 左上', (c, W, H) => {
+    c.text.size = 72; c.text.align = 'left'; c.y = -H * .26;
+    c.text.font = 'dot'; c.text.tracking = .1;
+  }],
+  ['slantband', 'ななめ帯', (c, W, H) => {
+    c.text.size = 112; c.rot = -14; c.text.bgOn = true; c.text.tracking = .08;
+  }],
+  ['slantband-r', 'ななめ帯 右上がり', (c, W, H) => {
+    c.text.size = 112; c.rot = 14; c.text.bgOn = true; c.text.tracking = .08;
+  }],
+  ['capsule', 'カプセル', (c, W, H) => { c.text.size = 92; c.text.bgOn = true; c.text.tracking = .14; }],
+  ['stack', '残像スタック', (c, W, H) => { c.text.size = 150; c.text.mblur = 1.2; c.y = -H * .04; }],
+  ['scatterfit', '散らし', (c, W, H) => {
+    c.text.size = 110; c.text.tracking = .26; c.text.unit = 'char'; c.text.stagger = .07;
+    for (let i = 0; i < 40; i++) {
+      const a = Math.sin(i * 12.9898) * 43758.5453;
+      const r1 = a - Math.floor(a);
+      const b2 = Math.sin(i * 78.233) * 43758.5453;
+      const r2 = b2 - Math.floor(b2);
+      setOff(c.text, i, { x: (r1 - .5) * .5, y: (r2 - .5) * .9, r: (r1 - .5) * 34 });
+    }
+  }],
+  ['mixsize', '大小ミックス', (c, W, H) => {
+    c.text.size = 130; c.text.tracking = .06;
+    for (let i = 0; i < 40; i++) {
+      const a = Math.sin(i * 33.77) * 43758.5453;
+      const r1 = a - Math.floor(a);
+      setOff(c.text, i, { s: r1 < .35 ? 1.7 : (r1 < .7 ? .62 : 1) });
+    }
+  }],
+  ['genkou', '原稿用紙', (c, W, H) => {
+    c.text.vertical = true; c.text.size = 78; c.text.tracking = .2; c.x = W * .18;
+  }],
+  ['tanzaku', '短冊', (c, W, H) => {
+    c.text.vertical = true; c.text.size = 86; c.text.bgOn = true; c.x = W * .22;
+  }],
+  ['kakejiku', '掛け軸', (c, W, H) => {
+    c.text.vertical = true; c.text.size = 96; c.text.tracking = .06; c.x = 0;
+  }],
+  ['norendown', 'のれん', (c, W, H) => {
+    c.text.vertical = true; c.text.size = 90; c.y = -H * .04; c.text.bgOn = true;
+  }],
+  ['ekimei', '駅名標', (c, W, H) => {
+    c.text.size = 100; c.text.bgOn = true; c.text.tracking = .22; c.y = 0;
+  }],
+  ['sign', '看板', (c, W, H) => { c.text.size = 128; c.text.bgOn = true; c.text.sw = 10; }],
+  ['neonsign', 'ネオン看板', (c, W, H) => {
+    c.text.size = 138; c.text.glowOn = true; c.text.glowSize = 40; c.text.sw = 3;
+  }],
+  ['board', '電光けいじ板', (c, W, H) => {
+    c.text.size = 92; c.text.font = 'dot'; c.text.tracking = .18; c.text.glowOn = true; c.text.glowSize = 22;
+  }],
+  ['endroll', 'エンドロール', (c, W, H) => {
+    c.text.size = 62; c.text.align = 'center'; c.text.tracking = .3; c.text.weight = 500;
+  }],
+  ['index', '目次', (c, W, H) => {
+    c.text.size = 58; c.text.align = 'left'; c.text.tracking = .16; c.text.weight = 500;
+  }],
+  ['news', '新聞', (c, W, H) => {
+    c.text.size = 84; c.text.align = 'left'; c.y = -H * .2;
+    c.text.font = 'g-shippori'; c.text.tracking = .04;
+  }],
+  ['magazine', '雑誌の 見ひらき', (c, W, H) => {
+    c.text.size = 150; c.text.align = 'left'; c.y = -H * .12;
+    c.text.tsume = .85; c.text.tracking = -.05;
+  }],
+  ['polaroid', 'ポラロイド', (c, W, H) => {
+    c.text.size = 70; c.text.bgOn = true; c.rot = -3; c.y = H * .04;
+  }],
+  ['ticket', '切手シート', (c, W, H) => { c.text.size = 82; c.text.bgOn = true; c.text.tracking = .1; c.rot = 2; }],
+  ['balloon', '吹き出し', (c, W, H) => {
+    c.text.size = 88; c.text.bgOn = true; c.x = -W * .12; c.y = -H * .16;
+  }],
+  ['tunnel', 'トンネル', (c, W, H) => { c.text.size = 190; c.text.tsume = .9; c.text.mblur = 1.4; }],
+  ['rain', '文字の 雨', (c, W, H) => {
+    c.text.vertical = true; c.text.size = 68; c.text.tracking = .28; c.x = W * .1; c.y = 0;
+  }],
+  ['flag', 'はためく はた', (c, W, H) => { c.text.size = 124; c.text.curve = 26; c.text.skewV = 6; }],
+  ['mirror', '鏡文字', (c, W, H) => { c.text.size = 140; c.text.flipH = true; }],
+  ['upside', 'さかさま', (c, W, H) => { c.text.size = 130; c.rot = 180; }],
+  ['tiny-corner', 'すみに 小さく', (c, W, H) => {
+    c.text.size = 44; c.text.align = 'right'; c.y = H * .38; c.text.tracking = .24;
+  }]
 ];
 
 /** ② 出かた（登場） */
 const INS = ['up', 'down', 'left', 'right', 'zoomin', 'zoomout', 'pop', 'spring',
   'rotate', 'flipx', 'flipy', 'blur', 'type', 'wipe', 'scatter', 'drop',
-  'stretch', 'glitch', 'spiral', 'wavein', 'slide', 'fade'];
+  'stretch', 'glitch', 'spiral', 'wavein', 'slide', 'fade',
+  'domino', 'slicein', 'iris', 'blind', 'neon', 'stamp', 'bound', 'fan',
+  'cylinder', 'koma', 'crt', 'loading', 'drum', 'datafall', 'brush', 'inkdrop',
+  'countin', 'stroke1', 'shutter', 'pend', 'zip', 'pushin', 'tilt', 'squash',
+  'crack', 'magnify', 'sheet', 'unfold', 'gather', 'rise'];
 /** ③ ずっと（保持） */
 const LOOPS = ['none', 'none', 'bounce', 'pulse', 'shake', 'swing', 'wave',
   'flash', 'jitter', 'updown', 'zoombeat'];
 /** ④ 消えかた（退場） */
-const OUTS = ['fade', 'fade', 'up', 'down', 'zoomin', 'zoomout', 'blur', 'scatter', 'type'];
+const OUTS = ['fade', 'fade', 'up', 'down', 'zoomin', 'zoomout', 'blur', 'scatter', 'type',
+  'explode', 'collapse', 'mist', 'sliceout', 'wipeout', 'shrink', 'stretchout', 'fly',
+  'glitchout', 'door', 'tvoff', 'suck', 'melt', 'backspace', 'peel', 'roll',
+  'tear', 'burn', 'erase', 'sand', 'shred', 'balloon', 'glass', 'tornado',
+  'flutter', 'shock', 'sink', 'cut1', 'blow', 'drain'];
 /** ⑤ 出る じゅんばん */
 const ORDER = ['fwd', 'fwd', 'rev', 'center', 'edges', 'random'];
 /** ⑥ うごきかた */
@@ -126,7 +262,7 @@ const EASE = ['auto', 'out', 'out', 'back', 'spring', 'inout'];
 /** ⑦ どの まとまりで */
 const UNITS = ['char', 'char', 'char', 'word', 'line', 'all'];
 
-/** ⑧ かざり（ふち・かげ・ひかり・グラデ） */
+/** ⑧ 文字の 加工（ふち・かげ・ひかり・グラデ・地じき） */
 export const DECOR = [
   ['plain', 'すっぴん', (c, P) => { c.text.sw = 0; }],
   ['edge', 'ふとい ふち', (c, P) => { c.text.sw = 14; c.text.stroke = P.ink; }],
@@ -155,6 +291,125 @@ export const DECOR = [
   }],
   ['pill', 'ふだ地', (c, P) => {
     c.text.bgOn = true; c.text.bgColor = P.accent; c.text.color = P.ink; c.text.sw = 0;
+  }],
+
+  /* ---- ここから 足した ぶん ---- */
+  ['fukuro', '袋文字', (c, P) => {
+    c.text.sw = 26; c.text.stroke = P.ink; c.text.shadowOn = false;
+  }],
+  ['fukuro-paper', '白い 袋文字', (c, P) => {
+    c.text.sw = 22; c.text.stroke = P.paper; c.text.color = P.ink;
+  }],
+  ['nuki', '白ぬき', (c, P) => {
+    c.text.color = P.paper; c.text.sw = 16; c.text.stroke = P.ink;
+  }],
+  ['longshadow', '長い かげ', (c, P) => {
+    c.text.sw = 0; c.text.shadowOn = true; c.text.shadowColor = P.ink;
+    c.text.shadowX = 34; c.text.shadowY = 34; c.text.shadowBlur = 0;
+  }],
+  ['longshadow-acc', '長い かげ（さし色）', (c, P) => {
+    c.text.sw = 6; c.text.stroke = P.ink;
+    c.text.shadowOn = true; c.text.shadowColor = P.accent;
+    c.text.shadowX = 26; c.text.shadowY = 26; c.text.shadowBlur = 0;
+  }],
+  ['solid3d', '立体', (c, P) => {
+    c.text.sw = 4; c.text.stroke = P.ink;
+    c.text.shadowOn = true; c.text.shadowColor = P.accent2;
+    c.text.shadowX = 10; c.text.shadowY = 10; c.text.shadowBlur = 0;
+  }],
+  ['dropfar', 'うきあがり', (c, P) => {
+    c.text.sw = 0; c.text.shadowOn = true; c.text.shadowColor = 'rgba(0,0,0,.55)';
+    c.text.shadowX = 0; c.text.shadowY = 26; c.text.shadowBlur = 40;
+  }],
+  ['marker', 'マーカー', (c, P) => {
+    c.text.bgOn = true; c.text.bgColor = P.accent; c.text.color = P.ink;
+    c.text.sw = 0; c.text.tracking = Math.max(c.text.tracking || 0, .04);
+  }],
+  ['marker2', 'マーカー（さし色2）', (c, P) => {
+    c.text.bgOn = true; c.text.bgColor = P.accent2; c.text.color = P.ink; c.text.sw = 0;
+  }],
+  ['neontube', 'ネオン管', (c, P) => {
+    c.text.color = P.paper; c.text.sw = 3; c.text.stroke = P.accent;
+    c.text.glowOn = true; c.text.glowColor = P.accent; c.text.glowSize = 52;
+  }],
+  ['neontube2', 'ネオン管（2色）', (c, P) => {
+    c.text.color = P.accent; c.text.sw = 2; c.text.stroke = P.paper;
+    c.text.glowOn = true; c.text.glowColor = P.accent2; c.text.glowSize = 44;
+  }],
+  ['chrome', 'クローム', (c, P) => {
+    c.text.grad = true; c.text.color = '#FFFFFF'; c.text.color2 = '#7a8496';
+    c.text.gradDir = 90; c.text.sw = 8; c.text.stroke = P.ink;
+  }],
+  ['gold', '金', (c, P) => {
+    c.text.grad = true; c.text.color = '#FFE9A8'; c.text.color2 = '#B8860B';
+    c.text.gradDir = 90; c.text.sw = 6; c.text.stroke = P.ink;
+    c.text.glowOn = true; c.text.glowColor = '#FFD76A'; c.text.glowSize = 20;
+  }],
+  ['rainbow', 'にじ色', (c, P) => {
+    c.text.grad = true; c.text.color = '#FF5C6C'; c.text.color2 = '#00E5FF';
+    c.text.gradDir = 30; c.text.sw = 8; c.text.stroke = P.ink;
+  }],
+  ['grad-tate', 'グラデ たて', (c, P) => {
+    c.text.grad = true; c.text.color2 = P.accent; c.text.gradDir = 90; c.text.sw = 0;
+  }],
+  ['grad-naname', 'グラデ ななめ', (c, P) => {
+    c.text.grad = true; c.text.color2 = P.accent2; c.text.gradDir = 45; c.text.sw = 10; c.text.stroke = P.ink;
+  }],
+  ['glow-soft', 'ぼんやり 発光', (c, P) => {
+    c.text.sw = 0; c.text.glowOn = true; c.text.glowColor = P.paper; c.text.glowSize = 64;
+  }],
+  ['glow-hard', 'つよい 発光', (c, P) => {
+    c.text.sw = 0; c.text.glowOn = true; c.text.glowColor = P.accent; c.text.glowSize = 90;
+  }],
+  ['edge-acc', 'さし色の ふち', (c, P) => {
+    c.text.sw = 14; c.text.stroke = P.accent;
+  }],
+  ['edge-double', '二重ふち ふう', (c, P) => {
+    c.text.sw = 18; c.text.stroke = P.accent;
+    c.text.shadowOn = true; c.text.shadowColor = P.ink;
+    c.text.shadowX = 0; c.text.shadowY = 0; c.text.shadowBlur = 0;
+  }],
+  ['sticker', 'シールぶち', (c, P) => {
+    c.text.sw = 20; c.text.stroke = P.paper;
+    c.text.shadowOn = true; c.text.shadowColor = 'rgba(0,0,0,.35)';
+    c.text.shadowX = 6; c.text.shadowY = 8; c.text.shadowBlur = 10;
+  }],
+  ['pill-ink', 'くろ地', (c, P) => {
+    c.text.bgOn = true; c.text.bgColor = P.ink; c.text.color = P.paper; c.text.sw = 0;
+  }],
+  ['pill-paper', 'しろ地', (c, P) => {
+    c.text.bgOn = true; c.text.bgColor = P.paper; c.text.color = P.ink; c.text.sw = 0;
+  }],
+  ['skew', 'かたむけ', (c, P) => {
+    c.text.skewH = 14; c.text.sw = 10; c.text.stroke = P.ink;
+  }],
+  ['skew-back', 'ぎゃくかたむけ', (c, P) => {
+    c.text.skewH = -12; c.text.sw = 10; c.text.stroke = P.ink;
+  }],
+  ['spaced', 'すかし', (c, P) => {
+    c.text.sw = 0; c.text.tracking = .42; c.text.weight = 400;
+  }],
+  ['squeeze', 'ぎゅうづめ', (c, P) => {
+    c.text.tsume = .92; c.text.tracking = -.08; c.text.sw = 12; c.text.stroke = P.ink;
+  }],
+  ['glow-edge-ink', 'くろふち＋発光', (c, P) => {
+    c.text.sw = 16; c.text.stroke = P.ink;
+    c.text.glowOn = true; c.text.glowColor = P.accent2; c.text.glowSize = 34;
+  }],
+  ['shadow-acc', 'さし色の かげ', (c, P) => {
+    c.text.sw = 0; c.text.shadowOn = true; c.text.shadowColor = P.accent;
+    c.text.shadowX = 8; c.text.shadowY = 8; c.text.shadowBlur = 0;
+  }],
+  ['shadow-split', 'ずらし かげ', (c, P) => {
+    c.text.sw = 4; c.text.stroke = P.ink;
+    c.text.shadowOn = true; c.text.shadowColor = P.accent;
+    c.text.shadowX = -12; c.text.shadowY = 12; c.text.shadowBlur = 0;
+  }],
+  ['thin', 'ほそ字', (c, P) => {
+    c.text.weight = 400; c.text.sw = 0; c.text.tracking = .12;
+  }],
+  ['fat', 'ふと字', (c, P) => {
+    c.text.weight = 900; c.text.sw = 6; c.text.stroke = P.ink;
   }]
 ];
 
@@ -226,6 +481,18 @@ function accentOn(P, bgHex, fallback) {
   for (const c of [P.accent, P.accent2]) if (ratio(c, bgHex) >= 3) return c;
   return fallback;
 }
+/** ふち・かげの 色。
+    字とも うしろとも 差が ある ものを えらぶ。
+    字だけ 見て きめると、くろい うしろに くろい ふち を 引いて しまう。 */
+function edgeOn(P, txtHex, bgHex) {
+  const cands = [P.ink, P.paper, P.accent, P.accent2];
+  let best = P.ink, bestScore = -1;
+  cands.forEach(c => {
+    const sc = Math.min(ratio(c, txtHex), ratio(c, bgHex));
+    if (sc > bestScore) { bestScore = sc; best = c; }
+  });
+  return best;
+}
 
 /* ---------- 歌詞を カットに わける ---------- */
 export function cutsOf(text) {
@@ -293,10 +560,13 @@ function dressText(c, ctx, back, opt = {}) {
   const T = c.text;
   const { str, marks } = emphasis(T.str);
   T.str = str;
+  /* 前に かけた ぶんの 1文字ずつの ずらしを 消してから かけ直す。
+     のこすと ひきなおす たびに どんどん ずれて いく。 */
+  T.off = {};
 
   const keepColor = !!opt.keepColor;
   const txt = has('color') ? fx.color : readable(P, back);
-  const ink2 = ratio(P.ink, txt) >= ratio(P.paper, txt) ? P.ink : P.paper;
+  const ink2 = edgeOn(P, txt, back);
   const P2 = Object.assign({}, P, {
     text: txt, ink: ink2,
     accent: accentOn(P, back, ink2),

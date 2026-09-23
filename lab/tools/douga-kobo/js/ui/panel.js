@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=38';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=38';
-import { storeOk } from '../store.js?v=38';
-import { bus } from '../bus.js?v=38';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=38';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=38';
+} from '../state.js?v=45';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=45';
+import { storeOk } from '../store.js?v=45';
+import { bus } from '../bus.js?v=45';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=45';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=45';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=38';
+  offOf, setOff, clearOff } from '../text.js?v=45';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=38';
+} from '../edit.js?v=45';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -818,11 +818,12 @@ function autoBody(w) {
   ]));
   w.appendChild(group('なかみ', [
     hint(`1カット ごとに、下の たなから 1つずつ くじを ひきます。<br>` +
-      `ならべ方 ${LAYOUTS.length}・出かた 22・ずっと 11・消えかた 9・字のかざり ${DECOR.length}・` +
+      `ならべ方 ${LAYOUTS.length}・出かた ${FX_IN.length - 1}・ずっと ${FX_LOOP.length - 1}・` +
+      `消えかた ${FX_OUT.length - 1}・字のかざり ${DECOR.length}・` +
       `うしろの色 ${BGS.length}・うしろのがら ${PAT_LIST.length - 1}・のせるかざり ${DECO_LIST.length - 1}・` +
-      `配色 ${PALETTES.length}。<br>` +
+      `つなぎ ${TRANS_OPTS.length - 1}・配色 ${PALETTES.length}。<br>` +
       `<b>たね</b>が 同じなら いつも 同じ ものが 出ます。気に入ったら ばんごうを ひかえて。`),
-    hint('「おまかせ 文字」「おまかせ 背景」の 2段に 入ります。<br>' +
+    hint('「おまかせ 文字」「おまかせ 背景」「おまかせ かざり」の 3段に 入ります。<br>' +
       'ひきなおすと その 2段だけ 作り直します（音や ほかの 段は そのまま）。')
   ]));
   return w;

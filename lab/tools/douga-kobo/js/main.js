@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=38';
-import { wire, bus } from './bus.js?v=38';
-import { MEDIA, importFiles, hookAll } from './media.js?v=38';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=38';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=38';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=38';
-import { beatOn, beatSec, beatAt } from './beat.js?v=38';
-import * as TL from './ui/timeline.js?v=38';
-import * as P from './ui/panel.js?v=38';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=38';
+} from './state.js?v=45';
+import { wire, bus } from './bus.js?v=45';
+import { MEDIA, importFiles, hookAll } from './media.js?v=45';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=45';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=45';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=45';
+import { beatOn, beatSec, beatAt } from './beat.js?v=45';
+import * as TL from './ui/timeline.js?v=45';
+import * as P from './ui/panel.js?v=45';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=45';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=38';
-import { addFontFile } from './text.js?v=38';
-import { makePack, openPack } from './pack.js?v=38';
-import { showStart } from './ui/start.js?v=38';
-import { openDemo } from './demo.js?v=38';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=38';
-import { trackOf } from './state.js?v=38';
+} from './edit.js?v=45';
+import { addFontFile } from './text.js?v=45';
+import { makePack, openPack } from './pack.js?v=45';
+import { showStart } from './ui/start.js?v=45';
+import { openDemo } from './demo.js?v=45';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=45';
+import { trackOf } from './state.js?v=45';
 
 const cv = $('#stageCv');
 useCanvas(cv);

@@ -1,10 +1,10 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=38';
-import { MEDIA, animFrame } from './media.js?v=38';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=38';
-import { beatOn, beatAt } from './beat.js?v=38';
-import { drawPat, drawDeco } from './pattern.js?v=38';
-import { drawTrans } from './trans.js?v=38';
+import { S, clamp, findClip } from './state.js?v=45';
+import { MEDIA, animFrame } from './media.js?v=45';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=45';
+import { beatOn, beatAt } from './beat.js?v=45';
+import { drawPat, drawDeco } from './pattern.js?v=45';
+import { drawTrans } from './trans.js?v=45';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
