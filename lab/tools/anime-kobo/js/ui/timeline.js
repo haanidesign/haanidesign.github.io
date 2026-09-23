@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にピンが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=267';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=267';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=268';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=268';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=267';
+         nearestFolder, setParent } from '../engine/layer.js?v=268';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=267';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=267';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=267';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=267';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=268';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=268';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=268';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=268';
 
 const HIT = 14;   // ピンをつかめる範囲（px）
 
@@ -55,7 +55,37 @@ export function createTimeline(root, opts = {}){
     if(pxPerSec > 60)  return 0.05;
     return 0.1;
   }
-  const snap = (t) => Math.round(t / step()) * step();
+  /* ---------- 曲の 拍 ----------
+     音を 読みこむと BPM が 入る（S.proj.beat）。
+     めもりを 出して、ピンを 拍に すいつかせる。 */
+  const beatOf = () => {
+    const b = S.proj.beat;
+    return (b && b.bpm > 0) ? b : null;
+  };
+  /** 1拍の 長さ（秒）。拍が 無ければ 0 */
+  const beatLen = () => { const b = beatOf(); return b ? 60 / b.bpm : 0; };
+
+  const snap = (t) => {
+    /* 拍が あれば 半拍に すいつく（近い ときだけ）。
+       ぴったり 合って いないと リズムに のらない ので、
+       ここが いちばん きく ところ。 */
+    const b = beatOf();
+    if(b && b.snap !== false){
+      const sub = beatLen() / 2;
+      const pxPerSec = contentWidth() / Math.max(0.001, S.proj.duration);
+      const gap = sub * pxPerSec;                 // 半拍の はば（ドット）
+      /* 拍が こまかすぎる（画面で つまって いる）ときは すいつかない。
+         どこにも 置けなく なって しまう ので。 */
+      if(sub > 0.001 && gap >= 18){
+        const off = b.offset || 0;
+        const bt = off + Math.round((t - off) / sub) * sub;
+        if(bt >= 0 && Math.abs(bt - t) * pxPerSec < Math.min(10, gap * 0.35)){
+          return +bt.toFixed(3);
+        }
+      }
+    }
+    return Math.round(t / step()) * step();
+  };
 
   /** 時間じくをひろげる・ちぢめる */
   function zoomTime(k){
@@ -183,6 +213,26 @@ export function createTimeline(root, opts = {}){
     // 数字を出す間隔。狭いときは間引く
     const labelGap = pxPerSec > 300 ? 0.5 : pxPerSec > 120 ? 1 : pxPerSec > 40 ? 2 : 5;
     const tickGap  = pxPerSec > 300 ? 0.1 : pxPerSec > 120 ? 0.5 : 1;
+
+    /* 拍の めもり。4拍ごとに ふとく する（小節の あたま）。
+       多すぎる ときは 間引く（1拍が 6ドットより せまい なら 出さない）。 */
+    const bt = beatOf();
+    if(bt){
+      const bl = 60 / bt.bpm;
+      const off = bt.offset || 0;
+      if(bl * pxPerSec > 6){
+        let i = Math.ceil((0 - off) / bl);
+        for(let t = off + i * bl; t <= dur + 1e-6; t += bl, i++){
+          if(t < -1e-6) continue;
+          const x = t2x(t);
+          if(x < -4 || x > w + 4) continue;
+          const m = document.createElement('div');
+          m.className = 'btick' + (((i % 4) + 4) % 4 === 0 ? ' bar' : '');
+          m.style.left = x + 'px';
+          ruler.appendChild(m);
+        }
+      }
+    }
 
     for(let t = 0; t <= dur + 1e-6; t += tickGap){
       const x = t2x(t);
@@ -440,6 +490,21 @@ export function createTimeline(root, opts = {}){
     /* --- 右：トラック --- */
     const track = document.createElement('div');
     track.className = 'track';
+
+    /* 拍の すじ（うすい たて線）。
+       1本ずつ 部品に すると 数が 多く なるので、もようで 出す。 */
+    const btr = beatOf();
+    if(btr){
+      const bl = 60 / btr.bpm;
+      const pps = contentWidth() / Math.max(0.001, S.proj.duration);
+      const px = bl * pps;
+      if(px > 6){
+        track.style.backgroundImage =
+          'repeating-linear-gradient(90deg, rgba(30,28,20,.16) 0 1px, transparent 1px '
+          + px.toFixed(3) + 'px)';
+        track.style.backgroundPosition = t2x(btr.offset || 0).toFixed(2) + 'px 0';
+      }
+    }
 
     /* おとの 行は 波形を 出す。
        どこで しゃべって いるかが 目で 分かる ように。
