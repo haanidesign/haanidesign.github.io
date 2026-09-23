@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=24';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=24';
-import { storeOk } from '../store.js?v=24';
-import { bus } from '../bus.js?v=24';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=24';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=24';
+} from '../state.js?v=25';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=25';
+import { storeOk } from '../store.js?v=25';
+import { bus } from '../bus.js?v=25';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=25';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=25';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=24';
+  offOf, setOff, clearOff } from '../text.js?v=25';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=24';
+} from '../edit.js?v=25';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -248,7 +248,10 @@ function clipPicker() {
   S.tracks.forEach(t => {
     if (!t.clips.length) return;
     const cs = t.clips.slice().sort((a, b) => a.start - b.start);
-    items.push(el('div', 'hint', `<b>${t.name}</b>`));
+    const ttl = el('div', 'hint');
+    const tb = el('b'); tb.textContent = t.name;   // 名前は そのまま 出す（タグに しない）
+    ttl.appendChild(tb);
+    items.push(ttl);
     const g = el('div', 'grid');
     cs.slice(0, 60).forEach(c => {
       const label = c.kind === 'text' ? (String(c.text && c.text.str || '').split('\n')[0] || 'もじ')

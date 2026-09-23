@@ -420,3 +420,40 @@ hr,.sep{ border-color:var(--line); }
 }
 .tool.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--ink) !important; }
 .tool.on .ico{ color:var(--ink) !important; }
+
+
+/* ---------- タイムラインを すっきり させる ----------
+   もとは ふち 2px＋かたい かげ＋こい つぶつぶ で、
+   ふだが たくさん ならぶと ちらちら して 見づらかった。 */
+.lane{
+  background-image:none !important;
+  border-bottom:1px solid var(--line) !important;
+}
+.lane.audio{ background-color:#FAF8E8 !important; }
+.lane.text{ background-color:#FCF6F8 !important; }
+.thead{ border-bottom:1px solid var(--line) !important; }
+.thead.sel{ background:#FBFAEC !important; box-shadow:inset 3px 0 0 var(--main); }
+
+.clip{
+  border:1px solid rgba(30,28,20,.16) !important;
+  border-radius:8px !important;
+  box-shadow:0 1px 2px rgba(30,28,20,.07) !important;
+}
+.clip.sel{
+  background:var(--main) !important;
+  border-color:var(--ink) !important;
+  box-shadow:0 0 0 1px var(--ink) !important;
+  transform:none !important;
+}
+.clip .nm{
+  border-bottom:1px solid rgba(30,28,20,.10) !important;
+  background:rgba(255,254,247,.8) !important;
+  color:var(--ink2);
+}
+/* つまみは 細く、うすく。ふだが 短い ときに 中身を つぶさない */
+.grip{ width:12px !important; background:rgba(30,28,20,.05) !important; }
+.grip.l{ border-right:1px solid rgba(30,28,20,.12) !important; }
+.grip.r{ border-left:1px solid rgba(30,28,20,.12) !important; }
+.grip::before{ width:2px !important; opacity:.35 !important; }
+.clip.sel .grip{ background:rgba(30,28,20,.12) !important; }
+.clip .fade{ background:rgba(30,28,20,.14) !important; }

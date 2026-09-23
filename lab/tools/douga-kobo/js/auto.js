@@ -8,10 +8,10 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
-} from './state.js?v=24';
-import { beatOn, beatSec } from './beat.js?v=24';
-import { GFONTS, setOff } from './text.js?v=24';
-import { bus } from './bus.js?v=24';
+} from './state.js?v=25';
+import { beatOn, beatSec } from './beat.js?v=25';
+import { GFONTS, setOff } from './text.js?v=25';
+import { bus } from './bus.js?v=25';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
