@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=35';
+import { bus } from './bus.js?v=38';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21,6 +21,7 @@ export const S = {
   docId: null, name: 'むだい',
   beat: { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true },
   step: 0,               // コマ打ち（0=フル / 12=2コマ / 8=3コマ）
+  trans: [],             // カット間の つなぎ [{at,dur,kind,seed}]
   master: {
     vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
     slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0,

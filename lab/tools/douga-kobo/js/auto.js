@@ -8,11 +8,12 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
-} from './state.js?v=35';
-import { beatOn, beatSec } from './beat.js?v=35';
-import { GFONTS, setOff } from './text.js?v=35';
-import { bus } from './bus.js?v=35';
-import { PATS, DECOS } from './pattern.js?v=35';
+} from './state.js?v=38';
+import { beatOn, beatSec } from './beat.js?v=38';
+import { GFONTS, setOff } from './text.js?v=38';
+import { bus } from './bus.js?v=38';
+import { PATS, DECOS } from './pattern.js?v=38';
+import { TRANS, TRANS_LIST } from './trans.js?v=38';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
@@ -51,6 +52,14 @@ const PAT_TAGS = {
   graphic: ['grid', 'stripe', 'slant', 'check', 'rings', 'bigchar', 'window'],
   editorial: ['none', 'halftone', 'contour', 'window', 'bigchar', 'stripe'],
   emo: ['mesh', 'aurora', 'stars', 'spot', 'wave', 'rays', 'seigaiha']
+};
+const TRANS_TAGS = {
+  glitch: ['glitchcut', 'blocks', 'flash', 'whip', 'check'],
+  calm: ['fade', 'iris', 'ink', 'wipeU', 'clock'],
+  pop: ['zoom', 'flash', 'whip', 'doors', 'check', 'tiles'],
+  graphic: ['wipeL', 'wipeR', 'slant', 'blinds', 'doors', 'check'],
+  editorial: ['fade', 'wipeL', 'wipeU', 'iris', 'clock'],
+  emo: ['fade', 'iris', 'ink', 'zoom', 'blinds']
 };
 const DECO_TAGS = {
   glitch: ['barcode', 'tc', 'bars', 'slash', 'scanbar', 'bignum'],
@@ -164,6 +173,8 @@ export const BGS = [
 /** ⑪ がら（うしろの もよう）と ⑫ かざり（上に のせる 絵） */
 export const PAT_LIST = PATS.map(x => [x[0], x[1]]);
 export const DECO_LIST = DECOS.map(x => [x[0], x[1]]);
+/** ⑬ カット間の つなぎ */
+export const TRANS_OPTS = TRANS_LIST;
 /** コマ打ち */
 export const STEPS = [['0', 'フル（なめらか）'], ['12', '2コマ打ち'], ['8', '3コマ打ち']];
 
@@ -437,6 +448,23 @@ export function autoCompose(opt = {}) {
   S.tracks.unshift(tText);
   const aIdx = S.tracks.findIndex(t2 => t2.kind === 'audio');
   S.tracks.splice(aIdx < 0 ? S.tracks.length : aIdx, 0, tBg);
+
+  /* --- カット間の つなぎ --- */
+  S.trans = [];
+  const trAmt = has('transAmt') ? +fx.transAmt : .5;
+  for (let i = 1; i < starts.length; i++) {
+    const gap = starts[i] - starts[i - 1];
+    if (gap < .2) continue;                          // みじかすぎる ところは 入れない
+    const kind = has('trans') ? fx.trans
+      : (chance(r, trAmt) ? pick(r, moodList(TRANS_TAGS, mood, TRANS_OPTS)) : 'none');
+    if (!kind || kind === 'none') continue;
+    S.trans.push({
+      at: starts[i],
+      dur: Math.min(.5, Math.max(.1, gap * .22)),
+      kind,
+      seed: Math.floor(r() * 99999) + 1
+    });
+  }
 
   cuts.forEach((cut, i) => {
     const at = starts[i], dur = durOf(i);

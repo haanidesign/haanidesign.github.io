@@ -1,9 +1,10 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=35';
-import { MEDIA, animFrame } from './media.js?v=35';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=35';
-import { beatOn, beatAt } from './beat.js?v=35';
-import { drawPat, drawDeco } from './pattern.js?v=35';
+import { S, clamp, findClip } from './state.js?v=38';
+import { MEDIA, animFrame } from './media.js?v=38';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=38';
+import { beatOn, beatAt } from './beat.js?v=38';
+import { drawPat, drawDeco } from './pattern.js?v=38';
+import { drawTrans } from './trans.js?v=38';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -363,7 +364,37 @@ export function renderStage(t = S.time, handles = true) {
   if (handles && !S.playing) drawHandles(V, dpr);
 }
 
-function paintFull(G, t) {
+/* ---------- カット間の つなぎ ----------
+   前の カットの「さいごの 1枚」を 1まいだけ 焼いて とっておき、
+   つなぎの あいだ ずっと それを つかう（毎コマ 2度 えがかない ため）。 */
+let trCv = null, trG = null, trKey = '';
+export function clearTrans() { trKey = ''; }
+function transAt(t) {
+  const list = S.trans;
+  if (!Array.isArray(list)) return null;
+  for (const x of list) {
+    if (!x || !x.kind || x.kind === 'none') continue;
+    const d = Math.max(.02, x.dur || .25);
+    if (t >= x.at && t < x.at + d) return { x, p: (t - x.at) / d };
+  }
+  return null;
+}
+/** 前の カットの さいごの 1枚（とっておき） */
+function outgoing(at) {
+  const key = `${at}|${ow()}x${oh()}|${quality()}|${S.W}x${S.H}`;
+  if (trKey === key && trCv) return trCv;
+  if (!trCv) { trCv = document.createElement('canvas'); trG = trCv.getContext('2d'); }
+  if (trCv.width !== ow() || trCv.height !== oh()) { trCv.width = ow(); trCv.height = oh(); }
+  trG.setTransform(1, 0, 0, 1, 0, 0);
+  trG.globalAlpha = 1; trG.filter = 'none';
+  trG.globalCompositeOperation = 'source-over';
+  trG.clearRect(0, 0, trCv.width, trCv.height);
+  paintFull(trG, Math.max(0, at - 1 / Math.max(1, S.fps)), true);
+  trKey = key;
+  return trCv;
+}
+
+function paintFull(G, t, noTrans) {
   t = stepTime(t);
   const m = M();
   const useBuf = needsBuf();
@@ -411,6 +442,15 @@ function paintFull(G, t) {
   }
   G.setTransform(q, 0, 0, q, 0, 0);
   masterOver(G, t);
+
+  if (!noTrans) {
+    const tr = transAt(t);
+    if (tr) {
+      const img = outgoing(tr.x.at);
+      G.setTransform(q, 0, 0, q, 0, 0);
+      drawTrans(G, tr.x.kind, S.W, S.H, tr.p, { img, seed: tr.x.seed || 1 });
+    }
+  }
   G.setTransform(1, 0, 0, 1, 0, 0);
   G.globalAlpha = 1; G.filter = 'none';
 }

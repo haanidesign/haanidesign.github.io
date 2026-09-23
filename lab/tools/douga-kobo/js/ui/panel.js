@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=35';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=35';
-import { storeOk } from '../store.js?v=35';
-import { bus } from '../bus.js?v=35';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS } from '../auto.js?v=35';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=35';
+} from '../state.js?v=38';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=38';
+import { storeOk } from '../store.js?v=38';
+import { bus } from '../bus.js?v=38';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=38';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=38';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=35';
+  offOf, setOff, clearOff } from '../text.js?v=38';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=35';
+} from '../edit.js?v=38';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -776,6 +776,10 @@ function autoBody(w) {
       fsel('出る 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1'], ['2', '2']], 'inBeat'),
       fsel('消える 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1']], 'outBeat')
     ]));
+    fixWrap.appendChild(group('カット間の つなぎ', [
+      fsel('つなぎ', TRANS_OPTS, 'trans'),
+      fnum('入る わりあい', 'transAmt', 'おまかせ（0.5）')
+    ]));
     fixWrap.appendChild(group('しあげ', [
       fsel('画面ぜんたい', MOODS.filter(m => m[0] !== 'all'), 'look'),
       fsel('コマ打ち', STEPS, 'step')
@@ -977,6 +981,7 @@ function masterBody() {
     hint('「よこ ずれ」「ブロック ずれ」は 拍ではなく 1/24秒 ごとに 出ます。<br>' +
       'コマ数を 上げても チラつきの はやさは 変わりません。')
   ]));
+  w.appendChild(transGroup());
   w.appendChild(group('コマ打ち', [
     grid('うごきの きざみ', STEPS.map(([v, n]) =>
       btn(n, 'btn-sm' + (String(S.step || 0) === v ? ' on' : ''), () => {
@@ -1134,6 +1139,38 @@ function settingBody() {
   return w;
 }
 
+/* --- カット間の つなぎ --- */
+function transGroup() {
+  const list = Array.isArray(S.trans) ? S.trans : [];
+  const items = [];
+  if (!list.length) {
+    items.push(hint('いまは つなぎが ありません。<br>' +
+      '🎵うた の「おまかせ 組み立て」で カットを 組むと、切れ目に 入ります。'));
+  } else {
+    items.push(hint(`${list.length}か所 に 入って います。おすと その 切れ目に とびます。`));
+    const g = el('div', 'grid');
+    list.slice()
+      .sort((a, b) => a.at - b.at)
+      .forEach(x => {
+        const nm = (TRANS_OPTS.find(o => o[0] === x.kind) || [x.kind, x.kind])[1];
+        g.appendChild(btn(`${r2(x.at)}s ${nm}`, 'btn-sm', () => { bus.seek(x.at); }));
+      });
+    items.push(g);
+    items.push(grid('まとめて', [
+      btn('みじかく', 'btn-sm', () => {
+        list.forEach(x => x.dur = Math.max(.06, (x.dur || .25) * .7));
+        pushUndo(); bus.all(); draw();
+      }),
+      btn('ながく', 'btn-sm', () => {
+        list.forEach(x => x.dur = Math.min(1.2, (x.dur || .25) * 1.4));
+        pushUndo(); bus.all(); draw();
+      }),
+      btn('ぜんぶ けす', 'btn-sm btn-p', () => { S.trans = []; pushUndo(); bus.all(); draw(); })
+    ]));
+  }
+  return group('カット間の つなぎ', items);
+}
+
 /* --- 作品の ながさ --- */
 function durGroup() {
   const fixed = S.dur > 0;
@@ -1216,7 +1253,12 @@ function helpBody() {
   ズームや 下から 出す ときに かけると、はやい うごきが なめらかに 見えます</li></ul>
   <h3>6. しあげ</h3>
   <ul><li>🎛しあげ は 画ぜんたいに かける。まわり暗く・ざらざら・色ずれ</li>
-  <li>ぴかっ・ゆれ・ズームは <b>拍ごと</b>に 出る</li>
+  <li>よこずれ・ブロックずれ・走査線・ひかりにじみ で こわせる</li>
+  <li>ぴかっ・ゆれ・ズーム・集中線・反転は <b>拍ごと</b>に 出る</li>
+  <li><b>コマ打ち</b>：2コマ打ちに すると 文字PV らしい カクッと した 動きに なる。
+  書き出す コマ数とは 別ばら</li>
+  <li><b>カット間の つなぎ</b>：ワイプ・アイリス・市松 など 18種。
+  🎵うた で 組み立てると 切れ目に 入る</li>
   <li>🎨 いろの ふだ で 下じきの 色を 時間で かえられる</li></ul>
   <h3>7. 指の わざ</h3>
   <ul><li>絵を じかに ドラッグ。四すみの <b>まる</b>で 大きさと かたむき</li>

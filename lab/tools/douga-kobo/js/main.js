@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=35';
-import { wire, bus } from './bus.js?v=35';
-import { MEDIA, importFiles, hookAll } from './media.js?v=35';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality } from './render.js?v=35';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=35';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=35';
-import { beatOn, beatSec, beatAt } from './beat.js?v=35';
-import * as TL from './ui/timeline.js?v=35';
-import * as P from './ui/panel.js?v=35';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=35';
+} from './state.js?v=38';
+import { wire, bus } from './bus.js?v=38';
+import { MEDIA, importFiles, hookAll } from './media.js?v=38';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=38';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=38';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=38';
+import { beatOn, beatSec, beatAt } from './beat.js?v=38';
+import * as TL from './ui/timeline.js?v=38';
+import * as P from './ui/panel.js?v=38';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=38';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=35';
-import { addFontFile } from './text.js?v=35';
-import { makePack, openPack } from './pack.js?v=35';
-import { showStart } from './ui/start.js?v=35';
-import { openDemo } from './demo.js?v=35';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=35';
-import { trackOf } from './state.js?v=35';
+} from './edit.js?v=38';
+import { addFontFile } from './text.js?v=38';
+import { makePack, openPack } from './pack.js?v=38';
+import { showStart } from './ui/start.js?v=38';
+import { openDemo } from './demo.js?v=38';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=38';
+import { trackOf } from './state.js?v=38';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -76,7 +76,7 @@ function playUI() {
 }
 
 wire({
-  all: () => { drawAll(); auto.touch(); },
+  all: () => { clearTrans(); drawAll(); auto.touch(); },
   tl: () => TL.drawAll(),
   stage: () => renderStage(S.time),
   panel: () => P.draw(),
@@ -486,7 +486,7 @@ function thumb() {
 const auto = autoSaver(() => ({
   id: S.docId,
   doc: {
-    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step,
+    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans,
     beat: S.beat, master: S.master, tracks: S.tracks
   },
   media: [...MEDIA.values()],
@@ -507,7 +507,7 @@ async function backToStart() {
 function startNew(size, fps) {
   S.W = size.w; S.H = size.h; S.fps = fps || 30;
   S.bg = '#101010';
-  S.dur = 0; S.step = 0;
+  S.dur = 0; S.step = 0; S.trans = [];
   S.beat = { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true };
   S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
     slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0, br: 100, ct: 100, sa: 100 };
@@ -534,6 +534,7 @@ async function openDoc(id) {
     S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
     S.dur = +o.dur > 0 ? +o.dur : 0;
     S.step = +o.step > 0 ? +o.step : 0;
+    S.trans = Array.isArray(o.trans) ? o.trans : [];
     if (o.beat) S.beat = Object.assign({ bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true }, o.beat);
     if (o.master) S.master = Object.assign({}, S.master, o.master);
     S.name = o.name || 'むだい';
