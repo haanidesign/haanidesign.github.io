@@ -333,3 +333,99 @@ hr,.sep{ border-color:var(--line); }
   background:var(--cream);
   background-image:radial-gradient(circle, rgba(16,17,20,.055) 1.3px, transparent 1.4px);
 }
+
+
+/* ================= 黒を 骨組みに する =================
+
+   白と ライムだけ だと ぼんやり する ので、
+   まわり（上のバー・道具の はしら・タイムライン・シート）を
+   黒に して、白い 紙は「絵」と「入力の 面」だけに する。
+   ＝ 見本（LYRICA）と 同じ 組み立て。 */
+
+body{ background:#0B0C0E; }
+#app{ background:#0B0C0E; }
+
+/* ---- 上の バー ---- */
+#top{
+  background:#101114 !important;
+  border-bottom:1px solid rgba(255,255,255,.08) !important;
+  color:#fff;
+}
+#top .name{ color:#fff; }
+#top .name:hover{ background:rgba(255,255,255,.08); }
+#top .size{
+  background:rgba(255,255,255,.08) !important;
+  color:#C9CDD4 !important; border-color:transparent !important;
+}
+#top .ver{ color:rgba(255,255,255,.35); }
+#top button{
+  background:rgba(255,255,255,.08); color:#fff; border-color:transparent;
+}
+#top button:hover{ background:rgba(255,255,255,.14); }
+#top button:disabled{ background:rgba(255,255,255,.04); color:rgba(255,255,255,.25); }
+#top #export{ background:var(--main); color:#101114; border-color:var(--main); }
+#top #export:hover{ background:#E2FF63; }
+
+/* ---- 道具の はしら ---- */
+#tools{ background:#101114; }
+.tool{
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.07);
+  color:#D8DBE1;
+  box-shadow:none;
+}
+.tool:hover{ background:rgba(255,255,255,.1); color:#fff; box-shadow:none; }
+.tool.on{ background:var(--main); color:#101114; border-color:var(--main); }
+.tool i{ filter:grayscale(1) brightness(1.7); opacity:.8; }
+.tool.on i{ filter:grayscale(1) brightness(.2); opacity:.9; }
+
+/* ---- タイムライン ---- */
+#list{ background:#101114; box-shadow:none; }
+#playbar,#pinbar,#ruler{
+  background:#101114 !important;
+  border-bottom:1px solid rgba(255,255,255,.07) !important;
+}
+#playbar button,#pinbar button{
+  background:rgba(255,255,255,.08); color:#fff; border-color:transparent;
+}
+#playbar button:hover,#pinbar button:hover{ background:rgba(255,255,255,.14); }
+#playbar button:disabled,#pinbar button:disabled{
+  background:rgba(255,255,255,.04); color:rgba(255,255,255,.25);
+}
+#playbar button.on,#pinbar button.on{ background:var(--main); color:#101114; }
+#playbar .tnum{ color:rgba(255,255,255,.55); }
+#pininfo{ background:rgba(255,255,255,.12) !important; color:#fff !important; }
+#ruler .rtrack{ background:#0B0C0E; }
+
+.thead{
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.07);
+  color:#E4E7EC;
+}
+.thead:hover{ background:rgba(255,255,255,.1); }
+.thead .nm{ color:#E4E7EC; }
+.trow.sel .thead{ background:var(--main); border-color:var(--main); }
+.trow.sel .thead .nm{ color:#101114; }
+.trow.folder .thead{ background:rgba(255,255,255,.035); }
+.trow.folder.sel .thead{ background:var(--main); }
+.thead .pick{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.14); }
+.thead .pick.on{ background:var(--main); border-color:var(--main); }
+.thead .thumb{ background:#fff; border-color:rgba(255,255,255,.14); }
+.track{ background:#191B21; }
+.trow.sel .track{ background:#22252C; }
+
+/* ---- せっての シート（ここだけ 白い 紙） ---- */
+#sheet{
+  background:var(--paper);
+  border-radius:18px 18px 0 0;
+  box-shadow:0 -10px 44px rgba(0,0,0,.45);
+}
+
+/* ルーラーの 左の ズームボタンも 黒に そろえる */
+#ruler .rhead button{
+  background:rgba(255,255,255,.08) !important;
+  color:#fff !important; border-color:transparent !important;
+}
+#ruler .rhead button:hover{ background:rgba(255,255,255,.14) !important; }
+/* 「出す ところ」の 帯は 黒い 面の 上なので しっかり ライムに */
+.span.on{ background:rgba(212,248,76,.9) !important; }
