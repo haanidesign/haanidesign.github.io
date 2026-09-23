@@ -6,7 +6,7 @@ import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=269';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
          copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=269';
-import { createStage } from './ui/stage.js?v=269';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=275';
 import { createRenderer } from './render/renderer.js?v=269';
 import { createTimeline } from './ui/timeline.js?v=269';
 import { fmtTime, setPin } from './engine/anim.js?v=269';
@@ -48,6 +48,24 @@ const listHost = $('#list');
 const fileInput = $('#file');
 
 const stage = createStage(canvas, stageHost, toast, () => onTraced(), (n) => multiTap(n));
+
+/* ---------- 作業中の 画質 ----------
+   小さく 描いて 画面で ひきのばす ぶん、指の うごきが なめらかに なる。
+   書き出しは 作品の 大きさで 焼くので、ここを 下げても きれいなまま。 */
+function showQual(){
+  const b = document.getElementById('qBtn');
+  if(!b) return;
+  b.textContent = '画質 ' + qualName();
+  b.classList.toggle('low', quality() < 1);
+}
+document.getElementById('qBtn').onclick = () => {
+  setQuality(nextQuality());
+  showQual();
+  stage.resize();
+  stage.draw();
+  toast('画質を「' + qualName() + '」に した（書き出しは いつも きれい）', 2600);
+};
+showQual();
 
 /* 2本指トン＝もどす / 3本指トン＝やりなおし。
    ボタンと おなじ ことを する（絵から 手を はなさずに やりなおせる）。 */

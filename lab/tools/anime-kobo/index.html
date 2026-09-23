@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>アニメ工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=269">
+<link rel="manifest" href="manifest.webmanifest?v=275">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,11 +15,11 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <!-- ためしの 見た目（soft.css）で つかう、まるくない 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=269">
-<link rel="stylesheet" href="css/layout.css?v=269">
-<link rel="stylesheet" href="css/parts.css?v=269">
-<link rel="stylesheet" href="css/soft.css?v=275">
-<script type="module" src="../_skin/icons.js?v=4"></script>
+<link rel="stylesheet" href="css/tokens.css?v=275">
+<link rel="stylesheet" href="css/layout.css?v=275">
+<link rel="stylesheet" href="css/parts.css?v=275">
+<link rel="stylesheet" href="css/soft.css?v=277">
+<script type="module" src="../_skin/icons.js?v=5"></script>
 </head>
 <body>
 
@@ -28,6 +28,7 @@
   <div id="top">
     <button class="name" id="home" title="作品 えらびに もどる">アニメ工房</button>
     <button class="size dot" id="docSize" title="動画の長さと 背景">—</button>
+    <button class="size dot" id="qBtn" title="作業中の 画質。おすと かるく なります（書き出しは いつも きれい）">画質</button>
     <button class="ver dot" id="ver" title="この版のばんごう。おすと さいしんに します">v?</button>
     <span class="spacer"></span>
     <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
@@ -160,8 +161,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=269"></script>
-<script src="lib/mp4-muxer.js?v=269"></script>
-<script type="module" src="js/main.js?v=269"></script>
+<script src="lib/ag-psd.js?v=275"></script>
+<script src="lib/mp4-muxer.js?v=275"></script>
+<script type="module" src="js/main.js?v=275"></script>
 </body>
 </html>

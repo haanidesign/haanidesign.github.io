@@ -21,6 +21,33 @@ import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.j
 import { inCamView } from '../render/camview.js?v=269';
 import { ORBIT_MAX } from '../engine/camera.js?v=269';
 
+/* ---- 作業中の 画質 ----
+   絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
+   作って いる あいだだけ 小さく 描いて、画面で ひきのばす。
+   書き出す ときは 作品の 大きさで 焼くので、ここは 関係ない。 */
+export const QUAL = [
+  [1, 'きれい'], [0.75, 'ふつう'], [0.55, 'かるい'], [0.4, 'とても かるい']
+];
+const QKEY = 'anime-kobo.quality';
+let qual = 1;
+try{
+  const v = parseFloat(localStorage.getItem(QKEY));
+  if(v > 0.2 && v <= 1) qual = v;
+}catch(e){}
+export const quality = () => qual;
+export function setQuality(v){
+  qual = Math.min(1, Math.max(0.3, +v || 1));
+  try{ localStorage.setItem(QKEY, String(qual)); }catch(e){}
+}
+export function qualName(){
+  const hit = QUAL.find(x => Math.abs(x[0] - qual) < .02);
+  return hit ? hit[1] : 'きれい';
+}
+export function nextQuality(){
+  const i = QUAL.findIndex(x => Math.abs(x[0] - qual) < .02);
+  return QUAL[(i + 1 + QUAL.length) % QUAL.length][0];
+}
+
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
   let poses = {};
@@ -44,7 +71,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   /* ---- 画面と座標 ---- */
   function resize(){
     const r = host.getBoundingClientRect();
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, 2) * quality();
     canvas.width = Math.max(1, Math.round(r.width * dpr));
     canvas.height = Math.max(1, Math.round(r.height * dpr));
     canvas.style.width = r.width + 'px';

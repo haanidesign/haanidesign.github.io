@@ -216,21 +216,21 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 }
 .thead .nm{ font-weight:600; font-size:.76rem; }
 .thead:hover{ background:var(--fill); }
-.trow.sel .thead{
+.lane.sel .thead{
   background:#FBFAEC; color:var(--ink);
   border:1px solid #DED8A4; box-shadow:inset 3px 0 0 var(--main);
   transform:none;
 }
-.trow.sel .thead .nm{ color:var(--ink); font-weight:700; }
-.trow.folder .thead{ background:#FAFBFC; }
-.trow.folder.sel .thead{ background:#F4F1C8; }
+.lane.sel .thead .nm{ color:#fff; }
+.lane.folder .thead{ background:#FAFBFC; }
+.lane.folder.sel .thead{ background:#F4F1C8; }
 .thead .pick{ border:1px solid var(--line); border-radius:8px; background:var(--paper); box-shadow:none; }
 .thead .pick.on{ background:var(--main); border-color:var(--main); }
 .thead .eye{ background:transparent; border-color:transparent; box-shadow:none; }
 .thead .thumb{ border-radius:9px; border:1px solid var(--line); }
 
 .track{ background:var(--work2); border:0; border-radius:10px; }
-.trow.sel .track{ background:#E4E6EB; }
+.lane.sel .track{ background:#E4E6EB; }
 .tick{ background:rgba(16,17,20,.06); }
 .tick.big{ background:rgba(16,17,20,.14); }
 .pinline{ background:var(--ink); opacity:.16; }
@@ -375,4 +375,34 @@ hr,.sep{ border-color:var(--line); }
 .tool i{ filter:none; opacity:1; }
 
 /* 画質を 下げて いる あいだは ひと目で わかるように */
-#top #qBtn.low{ background:#fff !important; color:var(--ink) !important; font-weight:700; }
+#top #qBtn.low{ background:var(--ink) !important; color:#fff !important; }
+
+
+/* ---------- 動画工房 だけの ところ ---------- */
+#lanes,#heads,#tlbody{ background:var(--paper); }
+.lane{ background:var(--work2); border:0; border-radius:10px; }
+.lane.sel{ background:#E4E6EB; }
+.laneempty{ color:var(--gray); font-weight:500; }
+.clip{
+  border:1px solid var(--line); border-radius:10px;
+  box-shadow:var(--shadow-sm); background:var(--paper);
+}
+.clip.sel{ border-color:var(--ink); box-shadow:0 0 0 2px var(--ink); }
+#modebar,.overbar{
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:14px; box-shadow:var(--shadow-sm);
+}
+#tnum,.tnum{ color:var(--gray); font-weight:700; }
+#loopband{
+  background:rgba(225,221,96,.22);
+  border-left:2px solid var(--main); border-right:2px solid var(--main);
+  border-radius:8px;
+}
+#playhead{ background:var(--ink); width:2px; border-radius:2px; box-shadow:0 0 6px rgba(16,17,20,.25); }
+.startcard{ background:var(--paper); border:0; border-radius:26px; box-shadow:var(--shadow); }
+.sizebtn{ background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-sm); border-radius:14px; }
+.sizebtn.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.fpsrow button{ background:var(--fill); border:0; border-radius:12px; box-shadow:none; }
+.fpsrow button.on{ background:var(--ink); color:#fff; }
+#busy .card{ background:var(--paper); border:0; border-radius:26px; box-shadow:var(--shadow); }
+#busyFill{ background:var(--main); }
