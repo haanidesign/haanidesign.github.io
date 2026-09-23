@@ -342,19 +342,19 @@ hr,.sep{ border-color:var(--line); }
 
 
 /* ---------- はじめの 画面（つづきから／あたらしく つくる） ---------- */
-#newdoc .docopen{
+.docopen{
   background:#FBFAEC !important;
-  border:1px solid #E9E5BD; border-radius:14px;
-  box-shadow:none;
+  border:1px solid #E9E5BD !important; border-radius:14px;
+  box-shadow:none !important;
 }
-#newdoc .docopen:hover{ background:#F4F1C8 !important; border-color:#DED8A4; }
-#newdoc .docopen img{ border:1px solid #E9E5BD; border-radius:9px; background:#fff; }
-#newdoc .doctext i{ color:#8A8567; }
-#newdoc .docdel{
-  background:#FBFAEC; border:1px solid #E9E5BD; border-radius:14px;
-  color:#8A8567; box-shadow:none;
+.docopen:hover{ background:#F4F1C8 !important; border-color:#DED8A4; }
+.docopen img{ border:1px solid #E9E5BD !important; border-radius:9px; background:#fff; }
+.doctext i{ color:#8A8567; }
+.docdel{
+  background:#FBFAEC !important; border:1px solid #E9E5BD !important; border-radius:14px;
+  color:#8A8567; box-shadow:none !important;
 }
-#newdoc .docdel:hover{ background:#FBE3E0; border-color:#F0C9C3; color:#C0392B; }
+.docdel:hover{ background:#FBE3E0; border-color:#F0C9C3; color:#C0392B; }
 .sizepick{ background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-sm); }
 .sizepick .box{ border:2px solid var(--ink2); background:#FBFAEC; }
 .sizepick:hover{ background:var(--fill); }
@@ -406,3 +406,17 @@ hr,.sep{ border-color:var(--line); }
 .fpsrow button.on{ background:var(--ink); color:#fff; }
 #busy .card{ background:var(--paper); border:0; border-radius:26px; box-shadow:var(--shadow); }
 #busyFill{ background:var(--main); }
+
+/* えらんで いる 大きい ふだは 黄色（黒は 小さい ところだけ） */
+.sizepick.on,.sizebtn.on{
+  background:var(--main) !important; color:var(--ink) !important;
+  border:2px solid var(--ink) !important;
+}
+.sizepick.on .box,.sizebtn.on .box{ background:#fff !important; border-color:var(--ink) !important; }
+.sizepick.on .d,.sizebtn.on .d{ color:#5c5843 !important; }
+.lenrow button.on,.fpsrow button.on{
+  background:var(--main) !important; color:var(--ink) !important;
+  border:1px solid var(--ink) !important;
+}
+.tool.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--ink) !important; }
+.tool.on .ico{ color:var(--ink) !important; }

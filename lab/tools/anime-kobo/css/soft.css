@@ -376,3 +376,17 @@ hr,.sep{ border-color:var(--line); }
 
 /* 画質を 下げて いる あいだは ひと目で わかるように */
 #top #qBtn.low{ background:#fff !important; color:var(--ink) !important; font-weight:700; }
+
+/* えらんで いる 大きい ふだは 黄色（黒は 小さい ところだけ） */
+.sizepick.on,.sizebtn.on{
+  background:var(--main) !important; color:var(--ink) !important;
+  border:2px solid var(--ink) !important;
+}
+.sizepick.on .box,.sizebtn.on .box{ background:#fff !important; border-color:var(--ink) !important; }
+.sizepick.on .d,.sizebtn.on .d{ color:#5c5843 !important; }
+.lenrow button.on,.fpsrow button.on{
+  background:var(--main) !important; color:var(--ink) !important;
+  border:1px solid var(--ink) !important;
+}
+.tool.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--ink) !important; }
+.tool.on .ico{ color:var(--ink) !important; }
