@@ -265,7 +265,7 @@
   const MSGB = { x: 10, y: 262, w: 620, h: 92 };
   const pillRects = () => [{ id: 'log', x: 470, y: 247 }, { id: 'auto', x: 522, y: 247 }, { id: 'skip', x: 574, y: 247 }].map(r => Object.assign(r, { w: 48, h: 16 }));
   function drawMsg(c) {
-    MSG.alpha += (MSG.target - MSG.alpha) * 0.25;
+    MSG.alpha += (MSG.target - MSG.alpha) * 0.4;
     if (MSG.alpha < 0.02 || !MSG.tw) return;
     const a = MSG.alpha, oy = Math.round((1 - a) * 16);
     c.globalAlpha = a;
@@ -516,7 +516,7 @@
     art.icon(c, 'health', x, y, 16); C.text(c, '体調', x + 18, y + 2, { size: 12 });
     gHp.draw(c, x + 52, y + 5, w - 80, 7); C.text(c, String(Math.round(gHp.value)), x + w - 2, y + 2, { size: 12, align: 'right' });
     art.icon(c, 'stress', x, y + 20, 16); C.text(c, 'ストレス', x + 18, y + 22, { size: 12 });
-    gSt.draw(c, x + 64, y + 25, w - 92, 7); C.text(c, String(Math.round(gSt.value)), x + w - 2, y + 22, { size: 12, align: 'right' });
+    gSt.draw(c, x + 72, y + 25, w - 100, 7); C.text(c, String(Math.round(gSt.value)), x + w - 2, y + 22, { size: 12, align: 'right' });
   }
   function drawStamp(c, text, x, y, color, scale, rot) {
     c.save(); c.translate(x, y); c.rotate(rot || -0.18); c.scale(scale, scale);
@@ -663,12 +663,12 @@
       this.pg = {}; params().forEach(p => { this.pg[p.id] = new UI.Gauge(S.params[p.id], 200, PARAM_COLOR[p.id] || P.lilac); });
       this.ghp = new UI.Gauge(S.hp, 100, P.green); this.gst = new UI.Gauge(S.stress, 100, P.red);
       const cmds = commands();
-      const bw = 112, bh = 34;
+      const bw = 106, bh = 34;
       this.btns = cmds.map((cm, i) => {
         const col = i % 4, row = Math.floor(i / 4);
-        return new UI.Button({ x: 168 + col * (bw + 5), y: 168 + row * (bh + 8), w: bw, h: bh, label: cm.name, icon: CMD_ICON[cm.id] || cm.icon || cm.id, iconSize: 16, desc: cm.desc, cmd: cm, color: P.cream, hoverColor: P.mintL, onClick: b => this.pick(b.cmd) });
+        return new UI.Button({ x: 166 + col * (bw + 5), y: 166 + row * (bh + 6), w: bw, h: bh, label: cm.name, icon: CMD_ICON[cm.id] || cm.icon || cm.id, iconSize: 16, desc: cm.desc, cmd: cm, color: P.cream, hoverColor: P.mintL, onClick: b => this.pick(b.cmd) });
       });
-      this.gear = new UI.Button({ x: 602, y: 212, w: 26, h: 34, icon: 'gear', label: '', onClick: () => { snd.se('decide'); openSettings(); }, desc: '音量と 文字の速さを 変える', cmd: null, color: P.cream, hoverColor: P.lemon });
+      this.gear = new UI.Button({ x: 166 + 3 * 111, y: 206, w: 106, h: 34, icon: 'gear', label: '設定', onClick: () => { snd.se('decide'); openSettings(); }, desc: '音量と 文字の速さを 変える', cmd: null, color: P.cream, hoverColor: P.lemon });
       this.btns.push(this.gear);
       this.group = new UI.Group(this.btns);
       this.group.onFocus = b => { this.hl = b; this.hlT = 0; };
@@ -702,14 +702,14 @@
       c.fillStyle = '#e8f4ff'; c.fillRect(16, 132, 128, 58);
       c.fillStyle = '#cfe6ff'; c.fillRect(16, 176, 128, 14);
       const ch = S.hp < 30 ? 'sick' : S.stress > 70 ? 'fail' : 'walk';
-      scaled(c, 2, 80, 188, () => art.chibi(c, ch, Math.floor(t * 5) % art.chibiFrames(ch), 0, 0));
+      scaled(c, 1, 80, 188, () => art.chibi(c, ch, Math.floor(t * 5) % art.chibiFrames(ch), 0, 0));
       statBars(c, 16, 196, 128, this.ghp, this.gst);
       c.restore();
       /* params */
       c.save(); c.translate(0, Math.round((1 - e) * -40));
-      panel(c, 158, 10, 236, 150, 'パラメータ', P.mint2);
+      panel(c, 158, 10, 236, 128, 'パラメータ', P.mint2);
       params().forEach((p, i) => {
-        const y = 32 + i * 25;
+        const y = 30 + i * 21;
         art.icon(c, p.id, 166, y, 16);
         C.text(c, p.name, 186, y + 2, { size: 12 });
         this.pg[p.id].draw(c, 222, y + 5, 124, 8);
@@ -718,28 +718,28 @@
       c.restore();
       /* boys */
       c.save(); c.translate(Math.round((1 - e) * 60), 0);
-      panel(c, 402, 10, 228, 150, 'ときめき', P.pink2);
+      panel(c, 402, 10, 228, 128, 'ときめき', P.pink2);
       boys().forEach((id, i) => {
-        const y = 30 + i * 32;
+        const y = 32 + i * 26;
         if (!S.met[id]) {
-          c.fillStyle = '#d8ccb2'; c.fillRect(410, y, 28, 28); C.text(c, '?', 424, y + 7, { size: 16, align: 'center', color: P.white });
-          C.text(c, '？？？', 446, y + 8, { size: 12, color: P.grey });
+          c.fillStyle = '#d8ccb2'; c.fillRect(410, y, 24, 24); C.text(c, '?', 422, y + 5, { size: 16, align: 'center', color: P.white });
+          C.text(c, '？？？', 442, y + 6, { size: 12, color: P.grey });
           return;
         }
-        c.fillStyle = P.ink; c.fillRect(409, y - 1, 30, 30);
-        art.face(c, id, S.lit[id] ? 'sad' : tierIdx(S.aff[id]) >= 3 ? 'smile' : 'normal', 410, y, 28);
-        C.text(c, givenName(id), 446, y, { size: 12 });
-        C.text(c, tierName(S.aff[id]), 446, y + 14, { size: 12, color: P.pink2 });
-        hearts(c, 530, y + 4, tierIdx(S.aff[id]) + 1);
+        c.fillStyle = P.ink; c.fillRect(409, y - 1, 26, 26);
+        art.face(c, id, S.lit[id] ? 'sad' : tierIdx(S.aff[id]) >= 3 ? 'smile' : 'normal', 410, y, 24);
+        C.text(c, givenName(id), 442, y - 1, { size: 12 });
+        C.text(c, tierName(S.aff[id]), 442, y + 12, { size: 12, color: P.pink2 });
+        hearts(c, 530, y + 7, tierIdx(S.aff[id]) + 1);
         if (S.lit[id]) {
           const fl = Math.sin(t * 14) > 0;
-          art.icon(c, fl ? 'bomb_lit' : 'bomb', 600, y + 12, 16);
+          art.icon(c, fl ? 'bomb_lit' : 'bomb', 606, y + 4, 16);
         }
       });
       c.restore();
       /* commands */
       c.save(); c.translate(0, Math.round((1 - e) * 60));
-      panel(c, 158, 146 + 2, 472, 104, '今週の行動を えらぶ', P.lilac2);
+      panel(c, 158, 144, 472, 106, '今週の行動を えらぶ', P.lilac2);
       this.group.draw(c);
       /* desc */
       const b = this.hl || this.btns[0];
@@ -879,7 +879,7 @@
         if (p.res) {
           const st = p.res === 'great' ? ['大成功', P.lemon2] : p.res === 'fail' ? ['失敗…', P.grey] : [this.cmd.id === 'rest' ? 'すやすや' : '成功', P.pink2];
           const sk = 1 + (1 - p.stampK) * 2;
-          if (p.stampK > 0) drawStamp(c, st[0], x + 58, y + 58, st[1], sk, -0.2);
+          if (p.stampK > 0) drawStamp(c, st[0], x + 58, y + 112, st[1], sk, -0.2);
           p.gains.slice(0, 3).forEach((g, j) => {
             const good = g[0] === 'stress' ? g[1] < 0 : g[1] > 0;
             C.text(c, `${paramName(g[0])} ${g[1] > 0 ? '+' : ''}${g[1]}`, x + 58, y + 138 + j * 15, { size: 12, align: 'center', color: good ? P.mint2 : P.pink2 });
@@ -1087,8 +1087,9 @@
         render: (c, x, y) => {
           c.fillStyle = P.ink; c.fillRect(x + 5, y + 5, 82, 48);
           c.drawImage(thumb(p.bg || p.id), 0, 0, 128, 72, x + 6, y + 6, 80, 46);
-          C.text(c, p.name, x + 94, y + 8, { size: 16 });
-          C.text(c, p.tag || p.short || (p.desc ? p.desc.slice(0, 7) : ''), x + 94, y + 30, { size: 12, color: P.ink2 });
+          const big = C.measure(c, p.name, 16) <= 96;
+          C.text(c, p.name, x + 94, y + (big ? 12 : 14), { size: big ? 16 : 12 });
+          C.text(c, p.cost ? '¥'.repeat(Math.min(3, p.cost)) : 'おこづかい 0', x + 94, y + 34, { size: 12, color: P.ink2 });
         },
         onClick: b => this.pick(b.place.id)
       }));
@@ -1439,8 +1440,7 @@
     S.flags[`${kind}_top`] = rank <= 10; S.flags[`${kind}_good`] = rank <= 60; S.flags[`${kind}_bad`] = rank > 150;
     G.phase = 'rank';
     const sc = new RankScene(kind, rank);
-    await C.transition('diamond', () => { C.push(sc); sc.run(); }, 0.7);
-    await new Promise(res => { const cl = sc.close; sc.close = v => { cl(v); res(); }; });
+    await runTrans(sc, 'diamond', 0.7);
     if (rank <= 10) applyEffect({ stress: -10 }, true); else if (rank > 150) applyEffect({ stress: 10 }, true);
     await runEventPart(evName, rank <= 30 ? 'good' : rank <= 120 ? 'normal' : 'bad');
     await runEventPart(evName, 'post');
@@ -1499,7 +1499,7 @@
       /* track & runner */
       c.fillStyle = '#d9824f'; c.fillRect(0, 238, W, 30); c.fillStyle = '#fff'; for (let x = 0; x < W; x += 40) c.fillRect(x + Math.floor(-this.t * 80 % 40), 252, 20, 2);
       const rx = 80 + (this.round + (this.state === 'judged' ? 1 : this.runner * 0.6)) * 130;
-      scaled(c, 2, Math.min(560, rx), 262, () => art.chibi(c, 'sport', Math.floor(this.t * 10) % art.chibiFrames('sport'), 0, 0));
+      scaled(c, 1, Math.min(560, rx), 266, () => art.chibi(c, 'sport', Math.floor(this.t * 10) % art.chibiFrames('sport'), 0, 0));
       /* gauge */
       const gx = 120, gy = 190, gw = 400;
       UI.frame(c, gx - 10, gy - 30, gw + 20, 56, { fill: P.cream });
@@ -1540,8 +1540,7 @@
     await runEventPart(evName, 'pre');
     msgHide(); clearActors();
     const sc = new SportsScene(); G.phase = 'sports';
-    await C.transition('blinds', () => { C.push(sc); sc.run(); }, 0.7);
-    await new Promise(res => { const cl = sc.close; sc.close = v => { cl(v); res(); }; });
+    await runTrans(sc, 'blinds', 0.7);
     S.sports = { place: sc.place, pts: sc.results.reduce((a, b) => a + b, 0) };
     S.flags.sports_win = sc.place === 1; S.flags.sports_good = sc.place <= 2; S.flags.sports_lose = sc.place >= 3;
     applyEffect({ sport: sc.place === 1 ? 6 : 3, stress: sc.place === 1 ? -10 : -3 }, true);
@@ -1743,6 +1742,11 @@
     }
   }
 
+  async function runTrans(sc, type, dur, color, clear) {
+    let p;
+    await C.transition(type, () => { if (clear === true || color === true) C.clearStack(StageScene); p = C.run(sc); if (sc.run) sc.run(); }, dur, typeof color === 'string' ? color : undefined);
+    return p;
+  }
   /* ================= main flow ================= */
   async function titleFlow() {
     for (;;) {
@@ -1781,8 +1785,7 @@
         const cmd = await C.run(new MenuScene());
         G.phase = 'exec';
         const ex = new ExecScene(cmd);
-        await C.transition('wipe', () => { C.push(ex); ex.run(); }, 0.5);
-        await new Promise(res => { const cl = ex.close; ex.close = v => { cl(v); res(); }; });
+        await runTrans(ex, 'wipe', 0.5);
         if (boys().some(b => !S.met[b])) { STAGE.bg = null; await paramMeets(); STAGE.bg = null; }
         await weekendFlow();
       }
@@ -1823,13 +1826,11 @@
     G.curBoy = null;
     G.phase = 'report';
     const rs = new ReportScene();
-    await C.transition('blinds', () => { C.push(rs); rs.run(); }, 0.8);
-    await new Promise(res => { const cl = rs.close; rs.close = v => { cl(v); res(); }; });
+    await runTrans(rs, 'blinds', 0.8);
     G.phase = 'end';
     snd.bgm('summer');
     const ec = new EndCard();
-    await C.transition('fade', () => { C.clearStack(StageScene); C.push(ec); }, 1.0, '#fff');
-    await new Promise(res => { const cl = ec.close; ec.close = v => { cl(v); res(); }; });
+    await runTrans(ec, 'fade', 1.0, '#fff', true);
     clearSave();
     await C.transition('iris', () => { C.clearStack(StageScene); }, 0.8);
   }
@@ -1840,7 +1841,7 @@
     loadSettings();
     C.onFirstInput(() => { if (window.SND) { try { SND.init(); applySettings(); } catch (e) { /* ignore */ } } });
     C.onOverlay = drawMsg;
-    try { if (window.ART && ART.init) ART.init(); } catch (e) { warnOnce('ART.init', e); }
+    try { if (window.ART && ART.init) ART.init(); if (window.ART && ART.preload) ART.preload(); } catch (e) { warnOnce('ART.init', e); }
     const bootScene = { name: 'boot', t: 0, update(dt) { this.t += dt; }, draw(c) { c.fillStyle = P.ink; c.fillRect(0, 0, W, H); C.text(c, 'Now Loading' + '.'.repeat(1 + Math.floor(this.t * 3) % 3), 320, 172, { size: 16, align: 'center', color: P.cream }); } };
     C.push(bootScene);
     try { if (document.fonts) await Promise.race([Promise.all([document.fonts.load('16px "DotGothic16"'), document.fonts.load('800 22px "M PLUS Rounded 1c"')]), new Promise(r => setTimeout(r, 2500))]); } catch (e) { /* ignore */ }
