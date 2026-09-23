@@ -264,138 +264,37 @@ header,.head{
 #log,.log{ background:#F7F8FA !important; color:var(--ink2) !important; border:0 !important; }
 
 
-/* ================= 黒を 骨組みに する（道具ぜんぶ） =================
 
-   白と ライムだけ だと しまらない ので、
-   まわり（下じき・上のバー・帯）を 黒に して、
-   白い パネルを その上に 浮かせる。 */
-body{ background:#0B0C0E !important; color:var(--ink); }
+/* ================= 黒は さし色 =================
 
-/* 上の バー・帯は 黒 */
+   まわりは 白いまま。黒は
+     ・えらんで いる ボタン
+     ・小見出しの ピル
+     ・作業面（絵を 置く ところ）
+   だけに つかう。 */
+
+/* えらんで いる もの＝黒ピル */
+button.on,.btn.on,a.btn.on,.tool.on,.mode.on,.tab.on{
+  background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important;
+  box-shadow:none !important;
+}
+/* いちばん したい こと＝ライム */
+.btn-y,.btn-y.on,.primary,.go,#export{
+  background:var(--main) !important; color:var(--ink) !important; border-color:var(--main) !important;
+}
+/* 小見出しの ピル */
+.title{ background:var(--ink) !important; color:#fff !important; }
+
+/* 白い バーの 中は 黒い 字 */
 #titlebar,#topbar,#top,.titlebar,.topbar,.appbar,#bar,.bar,
 .viewbar,.tabbar,.tabs,#tabs,#tb,#helpBar,.modebar,.segbar,.toolbar{
-  background:#101114 !important;
-  color:#fff !important;
-  border-bottom:1px solid rgba(255,255,255,.08) !important;
-}
-#titlebar *,#topbar *,#top *,.titlebar *,.topbar *,.appbar *,#bar *,.bar *,
-.viewbar *,.tabbar *,#tabs *,#tb *,#helpBar *{ color:#fff; }
-/* 黒い バーの 中の チップ・小さい 札 */
-#titlebar .chip,.bar .chip,.topbar .chip,#tb .chip,.titlebar .chip{
-  background:rgba(255,255,255,.1) !important; border-color:transparent !important; color:#fff !important;
-}
-#titlebar button,#topbar button,#top button,.titlebar button,.topbar button,
-.appbar button,#bar button,.bar button,.viewbar button,.tabbar button,#tabs button,#tb button,#helpBar button{
-  background:rgba(255,255,255,.08) !important;
-  color:#fff !important;
-  border-color:transparent !important;
-}
-#titlebar button:hover,#topbar button:hover,#top button:hover,.titlebar button:hover,
-.topbar button:hover,#bar button:hover,.viewbar button:hover,#tb button:hover{
-  background:rgba(255,255,255,.15) !important;
-}
-#titlebar button.on,#topbar button.on,#top button.on,.titlebar button.on,.topbar button.on,
-#bar button.on,.viewbar button.on,.tabbar button.on,#tabs button.on,#tb button.on{
-  background:var(--main) !important; color:#101114 !important; border-color:var(--main) !important;
-}
-/* いちばん 目立たせたい ボタンは ライム */
-#titlebar .btn-y,#topbar .btn-y,#top .btn-y,.titlebar .btn-y,.topbar .btn-y,#bar .btn-y,
-#titlebar .btn-g,#topbar .btn-g,#top .btn-g,.titlebar .btn-g,.topbar .btn-g,#bar .btn-g{
-  background:var(--main) !important; color:#101114 !important; border-color:var(--main) !important;
-}
-
-/* 白い パネルは そのまま（中の 字が 読める ように 黒） */
-.card,.panel,.pane,#sheet,#tree,#props,#side,#left,#right,#empty,.dock,.side,.props,.tree{
   color:var(--ink) !important;
 }
-
-
-/* ---------- 押されて いる ボタンは 黒、いちばんの ボタンだけ ライム ---------- */
-button.on,.btn.on,a.btn.on{
-  background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important;
+#bar .grp,.bar .grp,.topbar .grp,#tb .grp,.viewbar .grp{
+  background:var(--fill) !important; border-color:transparent !important; box-shadow:none !important;
 }
-.btn-y,.btn-y.on,.primary,.go{
-  background:var(--main) !important; color:#101114 !important; border-color:var(--main) !important;
-}
-/* 黒い バーの 中の <a> も ボタンと 同じ 見た目に */
-#titlebar a.btn,#topbar a.btn,#top a.btn,.titlebar a.btn,.topbar a.btn,#bar a.btn,
-.viewbar a.btn,.tabbar a.btn,#tb a.btn{
-  background:rgba(255,255,255,.08) !important;
-  color:#fff !important; border-color:transparent !important;
-}
-
-/* ---------- 黒い 下じきの 上の 見出しは 白 ---------- */
-body > h1,body > h2,body > h3,body > .head,body > header h1,main > h1,main > h2{
-  color:#fff !important;
-}
-body > .crumb,body > .breadcrumb,.crumb{ color:rgba(255,255,255,.55) !important; }
-.card h1,.card h2,.card h3,.panel h1,.panel h2,.panel h3,#sheet h1,#sheet h2,#sheet h3{
-  color:var(--ink) !important;
-}
-
-/* ---------- 黒い バーの 中の 入力ぶひん ---------- */
-#titlebar input,#topbar input,#top input,.titlebar input,.topbar input,.appbar input,
-#bar input,.bar input,.viewbar input,.tabbar input,#tabs input,#tb input,#helpBar input,
-.modebar input,.segbar input,.toolbar input,
-#titlebar select,#topbar select,#top select,.titlebar select,.topbar select,.appbar select,
-#bar select,.bar select,.viewbar select,.tabbar select,#tabs select,#tb select,#helpBar select,
-.modebar select,.segbar select,.toolbar select,
-#bar textarea,.bar textarea,.topbar textarea{
-  background:rgba(255,255,255,.08) !important;
-  color:#fff !important;
-  border:1px solid rgba(255,255,255,.12) !important;
-}
-#bar select option,.bar select option,.topbar select option,#tb select option{
-  background:#191B21; color:#fff;
-}
-#bar input::placeholder,.bar input::placeholder,.topbar input::placeholder{ color:rgba(255,255,255,.45) !important; }
-/* すうじ・ラベルの たぐい */
-#titlebar label,#topbar label,#top label,.titlebar label,.topbar label,#bar label,.bar label,
-.viewbar label,#tb label,#helpBar label,
-#bar .val,.bar .val,.topbar .val,#tb .val,#bar .num,.bar .num,#bar small,.bar small,
-#bar .lbl,.bar .lbl,.topbar .lbl,#tb .lbl{ color:#fff !important; }
-/* すべりだい */
-#bar input[type=range],.bar input[type=range],.topbar input[type=range],#tb input[type=range],
-.viewbar input[type=range]{
-  background:transparent !important; border:0 !important; accent-color:var(--main);
-}
-/* 色えらびは わくだけ */
-#bar input[type=color],.bar input[type=color],.topbar input[type=color],#tb input[type=color]{
-  background:transparent !important; padding:0 !important;
-}
-
-/* ---------- 黒い バーの 中の 小さな かたまり（.grp など） ---------- */
-#titlebar .grp,#topbar .grp,#top .grp,.titlebar .grp,.topbar .grp,.appbar .grp,
-#bar .grp,.bar .grp,.viewbar .grp,.tabbar .grp,#tabs .grp,#tb .grp,#helpBar .grp,
-.modebar .grp,.segbar .grp,.toolbar .grp,
-#bar .box,.bar .box,.topbar .box,#tb .box,#bar .item,.bar .item{
-  background:rgba(255,255,255,.06) !important;
-  border-color:rgba(255,255,255,.08) !important;
-  box-shadow:none !important;
-  color:#fff !important;
-}
-#bar .grp *,.bar .grp *,.topbar .grp *,#tb .grp *,.viewbar .grp *{ color:#fff; }
-#bar output,.bar output,.topbar output,#tb output,.viewbar output,
-#bar .grp label,.bar .grp label{ color:#fff !important; }
-#bar output,.bar output,.topbar output,#tb output,.viewbar output,#titlebar output{
-  background:rgba(255,255,255,.1) !important;
-  border-color:transparent !important;
+#bar output,.bar output,.topbar output,#tb output{
+  background:#fff !important; color:var(--ink) !important; border:1px solid var(--line) !important;
   box-shadow:none !important;
 }
-
-/* ---------- 下の 帯（ドープシートの 操作れつ など） ---------- */
-#tlbar,#timeline .tlbar,#playbar,.playbar,#tlHead{
-  background:#101114 !important; color:#fff !important;
-  border-top:1px solid rgba(255,255,255,.08) !important;
-}
-#tlbar *,#playbar *,.playbar *{ color:#fff; }
-#tlbar button,#playbar button,.playbar button{
-  background:rgba(255,255,255,.08) !important; color:#fff !important; border-color:transparent !important;
-}
-#tlbar button.on,#playbar button.on,.playbar button.on,#tlbar .btn-y,#playbar .btn-y{
-  background:var(--main) !important; color:#101114 !important; border-color:var(--main) !important;
-}
-#tlbar input,#tlbar select,#playbar input,#playbar select{
-  background:rgba(255,255,255,.08) !important; color:#fff !important; border-color:rgba(255,255,255,.12) !important;
-}
-#tlbar select option,#playbar select option{ background:#191B21; color:#fff; }
+input,select,textarea{ color:var(--ink) !important; }
