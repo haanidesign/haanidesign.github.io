@@ -248,7 +248,10 @@ function clipPicker() {
   S.tracks.forEach(t => {
     if (!t.clips.length) return;
     const cs = t.clips.slice().sort((a, b) => a.start - b.start);
-    items.push(el('div', 'hint', `<b>${t.name}</b>`));
+    const ttl = el('div', 'hint');
+    const tb = el('b'); tb.textContent = t.name;   // 名前は そのまま 出す（タグに しない）
+    ttl.appendChild(tb);
+    items.push(ttl);
     const g = el('div', 'grid');
     cs.slice(0, 60).forEach(c => {
       const label = c.kind === 'text' ? (String(c.text && c.text.str || '').split('\n')[0] || 'もじ')

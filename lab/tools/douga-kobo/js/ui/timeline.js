@@ -69,14 +69,17 @@ function drawBeatGrid(w, h) {
   const g = cv.getContext('2d');
   const st = stepSec(), off = S.beat.offset || 0;
   const perBar = (S.beat.per || 4) * (S.beat.div || 1);
+  /* 線が つまって くると 目が ちらつく。せまい ときは 小節の 線だけ 引く */
+  const barsOnly = S.pps * st < 14;
   let n = Math.ceil((0 - off) / st);
   let guard = 4000;
   for (let t = off + n * st; t2x(t) < w && guard-- > 0; t += st, n++) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const bar = perBar > 0 && ((n % perBar) + perBar) % perBar === 0;
-    g.strokeStyle = bar ? 'rgba(30,28,20,.34)' : 'rgba(30,28,20,.13)';
-    g.lineWidth = bar ? 2 : 1;
+    if (barsOnly && !bar) continue;
+    g.strokeStyle = bar ? 'rgba(30,28,20,.16)' : 'rgba(30,28,20,.06)';
+    g.lineWidth = 1;
     g.beginPath(); g.moveTo(x, 0); g.lineTo(x, cv.height); g.stroke();
   }
 }
