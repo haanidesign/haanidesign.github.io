@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=19';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=19';
-import { bus } from '../bus.js?v=19';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=19';
+} from '../state.js?v=20';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=20';
+import { bus } from '../bus.js?v=20';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=20';
 
 const el = {};
 export function init() {
@@ -294,8 +294,31 @@ export function cancelDrag() {
   hideSnap(); bus.all();
 }
 
+/** さわった ところの ふだを さがす。
+    上に なにかが かぶさって いて つかめない ことが あるので、
+    見つからない ときは 同じ ところに ある ものを 下まで 見に いく。 */
+function clipUnder(e) {
+  let node = e.target.closest ? e.target.closest('.clip') : null;
+  if (node) return node;
+  const list = document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY) : [];
+  for (const n of list) {
+    const hit = n.closest && n.closest('.clip');
+    if (hit) return hit;
+  }
+  // それでも だめなら 場しょで さがす（ふだの わく と くらべる）
+  for (const lane of $$('.lane', el.lanes)) {
+    const lr = lane.getBoundingClientRect();
+    if (e.clientY < lr.top || e.clientY > lr.bottom) continue;
+    for (const n of $$('.clip', lane)) {
+      const r = n.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right) return n;
+    }
+  }
+  return null;
+}
+
 function grab(e) {
-  const node = e.target.closest ? e.target.closest('.clip') : null;
+  const node = clipUnder(e);
   if (!node) {
     const lane = e.target.closest && e.target.closest('.lane');
     if (lane) { S.selTrack = lane.dataset.tid; S.sel = null; S.selChar = null; bus.all(); }
@@ -312,7 +335,7 @@ function grab(e) {
     splitAt(f, x2t(e.clientX - r.left + el.scroll.scrollLeft));
     return;
   }
-  const g = e.target.closest('.grip');
+  const g = e.target.closest && e.target.closest('.grip');
   const mode = g ? (g.classList.contains('l') ? 'l' : 'r') : 'move';
   drag = {
     f, mode, x0: e.clientX, y0: e.clientY,

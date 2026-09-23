@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=19';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=19';
-import { storeOk } from '../store.js?v=19';
-import { bus } from '../bus.js?v=19';
-import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=19';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=19';
+} from '../state.js?v=20';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=20';
+import { storeOk } from '../store.js?v=20';
+import { bus } from '../bus.js?v=20';
+import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=20';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=20';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=19';
+  offOf, setOff, clearOff } from '../text.js?v=20';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=19';
+} from '../edit.js?v=20';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -24,6 +24,13 @@ let sheetOn = false;
 
 export function open(k) {
   kind = k || 'auto';
+  // 「ふだ」を ひらいた のに 何も えらんで いない ときは、いまの ところの ふだを えらぶ
+  if (kind === 'form' && !selected()) {
+    const hit = allClips()
+      .filter(({ c }) => S.time >= c.start && S.time < c.start + c.dur)
+      .pop();
+    if (hit) { S.sel = hit.c.id; S.selTrack = hit.t.id; S.selChar = null; bus.tl(); }
+  }
   if (docked()) { draw(); return; }
   sheetOn = true;
   $('#sheet').classList.add('on');
@@ -145,8 +152,38 @@ function body() {
 function noSel() {
   const w = el('div');
   w.appendChild(el('div', 'empty', 'タイムラインの ふだを さわると\nここに 設定が 出ます'));
+  const list = clipPicker();
+  if (list) w.appendChild(list);
   w.appendChild(settingBody());
   return w;
+}
+
+/** ふだが さわれない ときの ための 一覧。ここから えらんでも 設定が 出る */
+function clipPicker() {
+  const all = allClips();
+  if (!all.length) return null;
+  const items = [];
+  S.tracks.forEach(t => {
+    if (!t.clips.length) return;
+    const cs = t.clips.slice().sort((a, b) => a.start - b.start);
+    items.push(el('div', 'hint', `<b>${t.name}</b>`));
+    const g = el('div', 'grid');
+    cs.slice(0, 60).forEach(c => {
+      const label = c.kind === 'text' ? (String(c.text && c.text.str || '').split('\n')[0] || 'もじ')
+        : c.kind === 'color' ? 'いろ' : (c.name || '素材');
+      g.appendChild(btn(r2(c.start) + 's ' + label, 'btn-sm' + (S.sel === c.id ? ' on' : ''), () => {
+        S.sel = c.id; S.selTrack = t.id; S.selChar = null;
+        kind = 'form';
+        bus.all();
+      }));
+    });
+    if (cs.length > 60) items.push(el('div', 'hint', `…ほかに ${cs.length - 60}まい`));
+    items.push(g);
+  });
+  return group('ふだを えらぶ', [
+    hint('ここから えらんでも おなじ 設定が 出ます。<br>タイムラインで さわれない ときに どうぞ。'),
+    ...items
+  ]);
 }
 
 /* --- 素材だな --- */
