@@ -183,21 +183,21 @@ header,.head{
 /* ================= 黒い 作業面 =================
 
    絵を あつかう ところ（キャンバスの まわり・プレビュー）は 黒に する。
-   白い パネルの 中に 黒い 作業面が ある かたち。
+   白い パネルの 中に うすい 灰色の 作業面が ある かたち。
    絵が しまって 見えるし、道具の あいだで 見た目も そろう。 */
 :root{
-  --work:      #0F1013;
-  --work2:     #16181D;
-  --work-line: rgba(255,255,255,.10);
+  --work:      #EDEEF1;
+  --work2:     #F4F5F7;
+  --work-line: rgba(16,17,20,.10);
 }
 #stage,.stage,.viewport,.view,.canvaswrap,.canvas-wrap,.preview,.board,.workspace{
   background-color:var(--work) !important;
-  background-image:radial-gradient(circle, rgba(255,255,255,.07) 1.3px, transparent 1.4px);
+  background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px);
   background-size:18px 18px;
 }
 /* 作業面の 中に 置く 小さい 札は 白ぬき */
 #stage .chip,.stage .chip,#stage .hint,.stage .hint{
-  background:rgba(255,255,255,.1) !important; color:#fff !important;
+  background:#fff !important; color:var(--ink) !important; border:1px solid var(--line) !important;
 }
 
 
@@ -214,19 +214,19 @@ header,.head{
   background:var(--paper) !important;
   border-color:var(--line) !important;
 }
-/* 絵を あつかう ところ … 黒い 作業面 */
+/* 絵を あつかう ところ … うすい 灰色の 作業面 */
 #view,#viewport,#canvasWrap,#canvaswrap,.viewport,.canvaswrap{
   background-color:var(--work) !important;
-  background-image:radial-gradient(circle, rgba(255,255,255,.07) 1.3px, transparent 1.4px) !important;
+  background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px) !important;
   background-size:18px 18px !important;
 }
-/* タイムライン … すこし 明るい 黒 */
+/* タイムライン … もっと うすい 灰色 */
 #timeline,.timeline,#tl,.tl{
   background:var(--work2) !important;
   border-color:var(--work-line) !important;
-  color:#E8EAEE;
+  color:var(--ink) !important;
 }
-#timeline .lab,#timeline .name,.timeline .lab,.timeline .name{ color:#C9CDD4; }
+#timeline .lab,#timeline .name,.timeline .lab,.timeline .name{ color:var(--gray); }
 
 
 /* ---------- ライムの 文字を 読めるように ----------
@@ -249,7 +249,7 @@ header,.head{
 /* 黒い ところ（作業面・黒ピル）の 中は 白い 字 */
 /* 小見出しの 黒い ピルは どこでも 黒地に 白 */
 .title{ background:var(--ink) !important; color:#fff !important; }
-.timeline .lbl,#timeline .lbl{ color:#fff !important; }
+.timeline .lbl,#timeline .lbl{ color:var(--ink) !important; }
 
 
 /* ---------- ライムで ぬられて いた 帯を 白に ----------
@@ -270,8 +270,7 @@ header,.head{
    まわりは 白いまま。黒は
      ・えらんで いる ボタン
      ・小見出しの ピル
-     ・作業面（絵を 置く ところ）
-   だけに つかう。 */
+   だけ。下じきや 作業面には つかわない。 */
 
 /* えらんで いる もの＝黒ピル */
 button.on,.btn.on,a.btn.on,.tool.on,.mode.on,.tab.on{

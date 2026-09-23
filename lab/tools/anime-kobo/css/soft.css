@@ -34,15 +34,15 @@
   --warn-soft: #FDEEDA;
   --mint:      #7AC4A0;
 
-  /* ---- 黒い 作業面（絵と タイムラインの 下じき）----
-     見本（LYRICA）と 同じ 考え。白い パネルの 中に
-     黒い「作業する ところ」を 置くと、絵が しまって 見える。 */
-  --work:      #0F1013;
-  --work2:     #16181D;   /* 作業面の 中の 帯（トラックなど） */
-  --work-line: rgba(255,255,255,.10);
+  /* ---- 作業面（絵と タイムラインの 下じき）----
+     白より すこし だけ 暗い 灰色。絵の ふちが わかる ていど。
+     黒は 下じきに つかわない（えらんだ ボタンなどの さし色だけ）。 */
+  --work:      #EDEEF1;
+  --work2:     #F4F5F7;   /* 作業面の 中の 帯（トラックなど） */
+  --work-line: rgba(16,17,20,.10);
 
   /* 枠の そとに かける まく（描画が 読む）。作業面と 同じ 黒 */
-  --outside:   rgba(15,16,19,.82);
+  --outside:   rgba(237,238,241,.86);
 
   --shadow:    0 1px 2px rgba(16,17,20,.05), 0 10px 30px rgba(16,17,20,.07);
   --shadow-sm: 0 1px 2px rgba(16,17,20,.05);
@@ -150,7 +150,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 /* ---------- ステージ（黒い 作業面） ---------- */
 #stage{
   background-color:var(--work);
-  background-image:radial-gradient(circle, rgba(255,255,255,.07) 1.3px, transparent 1.4px);
+  background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px);
   background-size:18px 18px;
 }
 
@@ -195,15 +195,15 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 #pininfo{ background:var(--ink); color:#fff; border-color:var(--ink); font-size:.72rem; }
 #pininfo:empty{ display:none; }   /* 中身が ない ときの 黒い かたまりを 出さない */
 
-/* ---------- タイムラインも 黒い 作業面 ---------- */
+/* ---------- タイムラインも うすい 作業面 ---------- */
 #ruler{ background:var(--paper); }
 #ruler .rtrack{ background:var(--work); border:0; border-radius:10px 10px 0 0; }
-#ruler .rlab{ color:rgba(255,255,255,.55); }
-#ruler .rtick{ background:rgba(255,255,255,.28); }
-#ruler .rtick.big{ background:rgba(255,255,255,.6); }
+#ruler .rlab{ color:var(--gray); }
+#ruler .rtick{ background:rgba(16,17,20,.22); }
+#ruler .rtick.big{ background:rgba(16,17,20,.45); }
 /* 拍は ライム。小節の あたまは 白で 強く */
-#ruler .btick{ background:rgba(212,248,76,.55); }
-#ruler .btick.bar{ background:#D4F84C; }
+#ruler .btick{ background:rgba(154,190,30,.55); }
+#ruler .btick.bar{ background:#9ABE1E; }
 
 .thead{
   background:var(--paper);
@@ -225,12 +225,12 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .thead .thumb{ border-radius:9px; border:1px solid var(--line); }
 
 .track{ background:var(--work2); border:0; border-radius:10px; }
-.trow.sel .track{ background:#1E2128; }
-.tick{ background:rgba(255,255,255,.07); }
-.tick.big{ background:rgba(255,255,255,.16); }
-.pinline{ background:#fff; opacity:.22; }
+.trow.sel .track{ background:#E4E6EB; }
+.tick{ background:rgba(16,17,20,.06); }
+.tick.big{ background:rgba(16,17,20,.14); }
+.pinline{ background:var(--ink); opacity:.16; }
 
-/* くりかえしの 帯・のばす 帯・出すところ（黒い 面の 上） */
+/* くりかえしの 帯・のばす 帯・出すところ */
 .loopband{
   background:rgba(212,248,76,.22);
   border-left:2px solid #D4F84C; border-right:2px solid #D4F84C;
@@ -240,11 +240,11 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .loopoff{ border:0; background:var(--ink); color:#fff; box-shadow:var(--shadow-sm); }
 .looprest{
   background:repeating-linear-gradient(45deg,
-    rgba(255,255,255,.07) 0 5px, transparent 5px 10px);
+    rgba(16,17,20,.06) 0 5px, transparent 5px 10px);
 }
 .stretch{
-  background:rgba(255,255,255,.08);
-  border-top:2px solid rgba(255,255,255,.6); border-bottom:2px solid rgba(255,255,255,.6);
+  background:rgba(16,17,20,.06);
+  border-top:2px solid rgba(16,17,20,.45); border-bottom:2px solid rgba(16,17,20,.45);
   border-radius:6px;
 }
 .sgrip{
@@ -252,7 +252,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
   background:var(--ink); color:#fff;
   box-shadow:var(--shadow-sm);
 }
-.span{ background:rgba(255,255,255,.14); border-radius:5px; }
+.span{ background:rgba(16,17,20,.12); border-radius:5px; }
 .span.on{ background:rgba(212,248,76,.85); box-shadow:none; }
 .spgrip{
   border:0; border-radius:8px;
@@ -262,9 +262,9 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .spgrip.on{ background:var(--ink); color:#fff; }
 
 .playhead{
-  background:#fff;
+  background:var(--ink);
   width:2px; border-radius:2px;
-  box-shadow:0 0 6px rgba(255,255,255,.5);
+  box-shadow:0 0 6px rgba(16,17,20,.25);
 }
 
 .pin{
@@ -272,9 +272,9 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
   background:var(--main);
   box-shadow:0 1px 3px rgba(16,17,20,.2);
 }
-.pin:hover{ background:#fff; }
-.pin.on{ background:#fff; }
-.pin.hold{ background:#fff; }
+.pin:hover{ background:var(--ink); }
+.pin.on{ background:var(--ink); }
+.pin.hold{ background:var(--ink); }
 .pin.hold.on{ background:var(--pink); }
 
 /* ---------- シート（せってい） ---------- */
