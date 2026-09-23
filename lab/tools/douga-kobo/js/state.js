@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=14';
+import { bus } from './bus.js?v=16';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
