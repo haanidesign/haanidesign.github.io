@@ -13,21 +13,21 @@
 
 :root{
   /* ---- 下じき・面 ---- */
-  --paper:     #FFFFFF;   /* カード */
-  --cream:     #E9E9EB;   /* いちばん 下の 下じき */
-  --fill:      #F1F2F4;   /* うすい 面（ボタン・入力） */
-  --fill2:     #E7E9ED;   /* その 上を なぞった とき */
-  --line:      #ECEDF0;   /* うすい しきり */
+  --paper:     #FFFEF7;   /* カード（動画工房と 同じ 生成り） */
+  --cream:     #FBFAEC;   /* いちばん 下の 下じき */
+  --fill:      #F3F1E2;   /* うすい 面（ボタン・入力） */
+  --fill2:     #EAE7D2;   /* その 上を なぞった とき */
+  --line:      #E8E5D0;   /* うすい しきり */
 
   /* ---- 文字 ---- */
-  --ink:       #101114;   /* ほぼ黒 */
-  --ink2:      #5E646E;   /* 本文の そえ書き */
-  --gray:      #9AA0A8;   /* うすい そえ書き */
+  --ink:       #1E1C14;   /* ほぼ黒（動画工房と 同じ） */
+  --ink2:      #5C5843;   /* 本文の そえ書き */
+  --gray:      #8A8470;   /* うすい そえ書き */
 
   /* ---- 強調 ---- */
   --main:      #E1DD60;   /* ライム */
-  --main-deep: #C6EE3C;
-  --main-soft: #F2FDCB;
+  --main-deep: #B8B43F;
+  --main-soft: #F2F0BE;
   --pink:      #F05B4A;   /* あぶない（見本の High） */
   --pink-soft: #FFE5E0;
   --warn:      #F5A623;   /* ちゅうい（見本の Under review） */
@@ -37,15 +37,15 @@
   /* ---- 作業面（絵と タイムラインの 下じき）----
      白より すこし だけ 暗い 灰色。絵の ふちが わかる ていど。
      黒は 下じきに つかわない（えらんだ ボタンなどの さし色だけ）。 */
-  --work:      #EDEEF1;
-  --work2:     #F4F5F7;   /* 作業面の 中の 帯（トラックなど） */
-  --work-line: rgba(16,17,20,.10);
+  --work:      #F4F2E4;
+  --work2:     #FBFAEC;   /* 作業面の 中の 帯（トラックなど） */
+  --work-line: rgba(30,28,20,.10);
 
   /* 枠の そとに かける まく（描画が 読む）。作業面と 同じ 黒 */
-  --outside:   rgba(237,238,241,.86);
+  --outside:   rgba(244,242,228,.86);
 
-  --shadow:    0 1px 2px rgba(16,17,20,.05), 0 10px 30px rgba(16,17,20,.07);
-  --shadow-sm: 0 1px 2px rgba(16,17,20,.05);
+  --shadow:    0 1px 2px rgba(30,28,20,.05), 0 10px 30px rgba(30,28,20,.07);
+  --shadow-sm: 0 1px 2px rgba(30,28,20,.06);
 
   --bd:  none;
   --bd2: none;
@@ -137,7 +137,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
   background:rgba(255,255,255,.6); color:var(--ink);
   font-weight:700; padding:.15rem .7rem; border-color:transparent;
 }
-#top .ver{ color:rgba(16,17,20,.4); border-color:transparent; }
+#top .ver{ color:rgba(30,28,20,.4); border-color:transparent; }
 #top .ver:hover{ background:rgba(255,255,255,.55); }
 #top button{ border-radius:999px; background:rgba(255,255,255,.72); border-color:transparent; }
 #top button:hover{ background:#fff; }
@@ -150,9 +150,9 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 
 /* ---------- ステージ（作業面） ---------- */
 #stage{
-  background-color:var(--work);
-  background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px);
-  background-size:18px 18px;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:14px 14px;
 }
 
 /* ---------- 道具 ---------- */
@@ -222,7 +222,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
   transform:none;
 }
 .trow.sel .thead .nm{ color:var(--ink); font-weight:700; }
-.trow.folder .thead{ background:#FAFBFC; }
+.trow.folder .thead{ background:#FDFCF3; }
 .trow.folder.sel .thead{ background:#F4F1C8; }
 .thead .pick{ border:1px solid var(--line); border-radius:8px; background:var(--paper); box-shadow:none; }
 .thead .pick.on{ background:var(--main); border-color:var(--main); }
@@ -230,7 +230,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .thead .thumb{ border-radius:9px; border:1px solid var(--line); }
 
 .track{ background:var(--work2); border:0; border-radius:10px; }
-.trow.sel .track{ background:#E4E6EB; }
+.trow.sel .track{ background:#EFEDDC; }
 .tick{ background:rgba(16,17,20,.06); }
 .tick.big{ background:rgba(16,17,20,.14); }
 .pinline{ background:var(--ink); opacity:.16; }
@@ -288,21 +288,17 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
   border:0; border-radius:18px 18px 0 0;
   box-shadow:0 -10px 44px rgba(16,17,20,.13);
 }
-#sheet .handle{ background:#D8DBE1; opacity:1; }
+#sheet .handle{ background:#DCD8C2; opacity:1; }
 /* 見出しは 黒ピルを やめて、ライムの 点＋太字（見本の 小見出しに 近い） */
 /* 見出しは 「ライムの たて線＋太字」。
    上に うすい しきり線を 引いて、まとまりを 目で 分ける。 */
 #sheet h2{
-  background:transparent; color:var(--ink);
-  font-size:.78rem; font-weight:700; letter-spacing:.01em;
-  border-radius:0; padding:.7rem 0 .1rem;
-  display:flex; align-items:center; gap:.45rem;
-  margin:.7rem 0 .4rem;
-  border-top:1px solid var(--line);
-}
-#sheet h2::before{
-  content:''; width:3px; height:14px; border-radius:2px;
-  background:var(--main); flex:0 0 auto;
+  background:var(--ink); color:#fff;
+  font-size:.66rem; font-weight:700; letter-spacing:.02em;
+  border-radius:100px; padding:.15rem .8rem;
+  display:inline-flex; align-items:center; gap:.4rem;
+  margin:.9rem 0 .45rem;
+  border-top:0;
 }
 #sheet h2:first-of-type{ border-top:0; padding-top:.2rem; }
 #sheet h2:first-of-type{ margin-top:.2rem; }
@@ -312,7 +308,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .subhead{ color:var(--gray); letter-spacing:.04em; }
 .textin{ background:var(--fill); border:0; border-radius:12px; }
 #sheet .empty,.empty{
-  background:#F7F8FA;
+  background:#F7F5E9;
   border:0; border-radius:10px;
   color:var(--ink2); font-weight:500;
   font-size:.76rem; line-height:1.62;
