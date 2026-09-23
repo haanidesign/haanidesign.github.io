@@ -1,8 +1,8 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
-import { S, clamp } from './state.js?v=30';
-import { beatOn, beatSec, beatAt } from './beat.js?v=30';
-import { bus } from './bus.js?v=30';
+import { S, clamp } from './state.js?v=35';
+import { beatOn, beatSec, beatAt } from './beat.js?v=35';
+import { bus } from './bus.js?v=35';
 
 /* ---------- フォント ---------- */
 export const FONTS = [

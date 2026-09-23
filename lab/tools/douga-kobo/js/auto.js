@@ -8,10 +8,11 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
-} from './state.js?v=30';
-import { beatOn, beatSec } from './beat.js?v=30';
-import { GFONTS, setOff } from './text.js?v=30';
-import { bus } from './bus.js?v=30';
+} from './state.js?v=35';
+import { beatOn, beatSec } from './beat.js?v=35';
+import { GFONTS, setOff } from './text.js?v=35';
+import { bus } from './bus.js?v=35';
+import { PATS, DECOS } from './pattern.js?v=35';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
@@ -42,6 +43,23 @@ const TAGS = {
   editorial: ['type', 'fade', 'wipe', 'none', 'up', 'blur'],
   emo: ['blur', 'fade', 'zoomout', 'spiral', 'wavein', 'pulse', 'swing', 'kenburns']
 };
+/* がら と かざり の 雰囲気ふだ */
+const PAT_TAGS = {
+  glitch: ['vhs', 'grid', 'speed', 'check', 'stripe', 'halftone'],
+  calm: ['mesh', 'aurora', 'contour', 'wave', 'stars', 'none', 'spot'],
+  pop: ['dots', 'check', 'rays', 'stripe', 'halftone', 'rings'],
+  graphic: ['grid', 'stripe', 'slant', 'check', 'rings', 'bigchar', 'window'],
+  editorial: ['none', 'halftone', 'contour', 'window', 'bigchar', 'stripe'],
+  emo: ['mesh', 'aurora', 'stars', 'spot', 'wave', 'rays', 'seigaiha']
+};
+const DECO_TAGS = {
+  glitch: ['barcode', 'tc', 'bars', 'slash', 'scanbar', 'bignum'],
+  calm: ['none', 'petal', 'leader', 'dim', 'corner'],
+  pop: ['confetti', 'bignum', 'slash', 'wavebar', 'corner'],
+  graphic: ['cross', 'tombo', 'bars', 'dim', 'corner', 'bignum'],
+  editorial: ['tombo', 'dim', 'leader', 'bignum', 'none'],
+  emo: ['petal', 'scanbar', 'none', 'corner', 'leader']
+};
 /** 雰囲気で しぼる。合う ものが 無ければ ぜんぶから */
 function byMood(list, mood) {
   const t = TAGS[mood];
@@ -49,6 +67,14 @@ function byMood(list, mood) {
   const key = x => (Array.isArray(x) ? x[0] : x);
   const hit = list.filter(x => t.includes(key(x)));
   return hit.length ? hit : list;
+}
+/** 雰囲気の ふだ から 名まえの ならびを 作る（無ければ ぜんぶ） */
+function moodList(tags, mood, all) {
+  const t = tags[mood];
+  const names = all.map(x => x[0]).filter(n => n !== 'none');
+  if (!t) return names;
+  const hit = t.filter(n => names.includes(n));
+  return hit.length ? hit : names;
 }
 /** 雰囲気を 見て くじを ひく（7割は 合う もの、3割は 自由に） */
 const pickM = (r, list, mood) => pick(r, chance(r, .7) ? byMood(list, mood) : list);
@@ -134,6 +160,12 @@ export const BGS = [
   ['grad4', 'グラデ ふかい', P => [P.bg1, P.ink, 120]],
   ['accent2', 'さし色 2', P => [P.accent2, P.accent2, 0]]
 ];
+
+/** ⑪ がら（うしろの もよう）と ⑫ かざり（上に のせる 絵） */
+export const PAT_LIST = PATS.map(x => [x[0], x[1]]);
+export const DECO_LIST = DECOS.map(x => [x[0], x[1]]);
+/** コマ打ち */
+export const STEPS = [['0', 'フル（なめらか）'], ['12', '2コマ打ち'], ['8', '3コマ打ち']];
 
 /** ⑩ カメラ（うしろの うごき） */
 const CAMS = ['none', 'none', 'kenburns', 'zoom', 'up', 'fade'];
@@ -357,12 +389,18 @@ function backAt(t) {
 /* ---------- 画面ぜんたいの しあげ ---------- */
 function looksFor() {
   return {
-    glitch: { vignette: .25, grain: .08, rgb: .3, flash: .35, shake: .2, zoom: .25, br: 104, ct: 114, sa: 120 },
-    calm: { vignette: .4, grain: .12, rgb: 0, flash: 0, shake: 0, zoom: .08, br: 102, ct: 98, sa: 92 },
-    pop: { vignette: .18, grain: .05, rgb: .06, flash: .3, shake: .14, zoom: .22, br: 104, ct: 110, sa: 122 },
-    graphic: { vignette: .12, grain: .04, rgb: 0, flash: .15, shake: .06, zoom: .1, br: 100, ct: 106, sa: 104 },
-    editorial: { vignette: .3, grain: .3, rgb: 0, flash: 0, shake: 0, zoom: .06, br: 103, ct: 96, sa: 78 },
-    emo: { vignette: .5, grain: .2, rgb: .04, flash: .1, shake: .04, zoom: .16, br: 101, ct: 100, sa: 88 }
+    glitch: { vignette: .25, grain: .08, rgb: .3, flash: .35, shake: .2, zoom: .25,
+      slice: .45, block: .3, scan: .2, invert: .25, bloom: 0, lines: 0, br: 104, ct: 114, sa: 120 },
+    calm: { vignette: .4, grain: .12, rgb: 0, flash: 0, shake: 0, zoom: .08,
+      slice: 0, block: 0, scan: 0, invert: 0, bloom: .3, lines: 0, br: 102, ct: 98, sa: 92 },
+    pop: { vignette: .18, grain: .05, rgb: .06, flash: .3, shake: .14, zoom: .22,
+      slice: 0, block: .2, scan: 0, invert: 0, bloom: .25, lines: .5, br: 104, ct: 110, sa: 122 },
+    graphic: { vignette: .12, grain: .04, rgb: 0, flash: .15, shake: .06, zoom: .1,
+      slice: 0, block: 0, scan: .15, invert: 0, bloom: 0, lines: .25, br: 100, ct: 106, sa: 104 },
+    editorial: { vignette: .3, grain: .3, rgb: 0, flash: 0, shake: 0, zoom: .06,
+      slice: 0, block: 0, scan: .1, invert: 0, bloom: 0, lines: 0, br: 103, ct: 96, sa: 78 },
+    emo: { vignette: .5, grain: .2, rgb: .04, flash: .1, shake: .04, zoom: .16,
+      slice: 0, block: 0, scan: 0, invert: 0, bloom: .45, lines: 0, br: 101, ct: 100, sa: 88 }
   };
 }
 
@@ -394,6 +432,8 @@ export function autoCompose(opt = {}) {
   S.tracks = S.tracks.filter(t2 => !/^おまかせ/.test(t2.name));
   const tText = newTrack('text', 'おまかせ 文字');
   const tBg = newTrack('video', 'おまかせ 背景');
+  const tDeco = newTrack('video', 'おまかせ かざり');
+  S.tracks.unshift(tDeco);
   S.tracks.unshift(tText);
   const aIdx = S.tracks.findIndex(t2 => t2.kind === 'audio');
   S.tracks.splice(aIdx < 0 ? S.tracks.length : aIdx, 0, tBg);
@@ -409,7 +449,31 @@ export function autoCompose(opt = {}) {
     bg.anim = F('cam', () => pickM(r, CAMS, mood));
     if (bg.anim === 'kenburns' || bg.anim === 'zoom') bg.scale = 1.04;
     bg.fin = .05; bg.fout = .05;
+    // うしろの もよう
+    const pat = has('pat') ? fx.pat
+      : (chance(r, .78) ? pick(r, moodList(PAT_TAGS, mood, PAT_LIST)) : 'none');
+    if (pat && pat !== 'none') {
+      bg.pat = pat;
+      bg.patColor = chance(r, .5) ? P.accent : P.paper;
+      bg.patColor2 = P.accent2;
+      bg.patAmt = has('patAmt') ? +fx.patAmt : .26 + r() * .34;
+      bg.patIdx = i;
+      bg.patBig = (cut.str || '音').slice(0, 1);
+    }
     tBg.clips.push(bg);
+
+    // 上に のせる かざり（別の 段に）
+    const deco = has('deco') ? fx.deco
+      : (chance(r, .6) ? pick(r, moodList(DECO_TAGS, mood, DECO_LIST)) : 'none');
+    if (deco && deco !== 'none') {
+      const d = newClip('color', { name: 'かざり', start: at, dur });
+      d.fillOn = false; d.color = '#000'; d.grad = false;
+      d.deco = deco;
+      d.decoAmt = has('decoAmt') ? +fx.decoAmt : .5 + r() * .4;
+      d.patIdx = i;
+      d.fin = .06; d.fout = .06;
+      tDeco.clips.push(d);
+    }
 
     // うしろの 明るさを 見て、読める 色を つくる
     const back = lum(c1) < lum(c2) ? c1 : c2;   // 暗い ほうに 合わせて おく
@@ -453,6 +517,8 @@ export function autoCompose(opt = {}) {
   const LOOKS = looksFor();
   const look = LOOKS[has('look') ? fx.look : mood] || pick(r, Object.values(LOOKS));
   S.master = Object.assign({}, S.master, look);
+  // 文字PV らしい カクッと した 動きを 既定に（フルに したい ときは しあげで）
+  S.step = has('step') ? (+fx.step || 0) : 12;
 
   S.sel = tText.clips[0] ? tText.clips[0].id : null;
   S.selTrack = tText.id;

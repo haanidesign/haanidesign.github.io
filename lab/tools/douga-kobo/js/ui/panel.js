@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=30';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=30';
-import { storeOk } from '../store.js?v=30';
-import { bus } from '../bus.js?v=30';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=30';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=30';
+} from '../state.js?v=35';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=35';
+import { storeOk } from '../store.js?v=35';
+import { bus } from '../bus.js?v=35';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS } from '../auto.js?v=35';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=35';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=30';
+  offOf, setOff, clearOff } from '../text.js?v=35';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=30';
+} from '../edit.js?v=35';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -757,8 +757,12 @@ function autoBody(w) {
     ]));
     fixWrap.appendChild(group('ならべ方・かざり', [
       fsel('ならべ方', names(LAYOUTS), 'layout'),
-      fsel('かざり', names(DECOR), 'decor'),
-      fsel('うしろ', names(BGS), 'bg'),
+      fsel('字の かざり', names(DECOR), 'decor'),
+      fsel('うしろの 色', names(BGS), 'bg'),
+      fsel('うしろの がら', PAT_LIST, 'pat'),
+      fnum('がらの こさ', 'patAmt', 'おまかせ'),
+      fsel('上に のせる かざり', DECO_LIST, 'deco'),
+      fnum('かざりの こさ', 'decoAmt', 'おまかせ'),
       fsel('カメラ', CAM_OPTS, 'cam')
     ]));
     fixWrap.appendChild(group('うごき', [
@@ -773,7 +777,8 @@ function autoBody(w) {
       fsel('消える 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1']], 'outBeat')
     ]));
     fixWrap.appendChild(group('しあげ', [
-      fsel('画面ぜんたい', MOODS.filter(m => m[0] !== 'all'), 'look')
+      fsel('画面ぜんたい', MOODS.filter(m => m[0] !== 'all'), 'look'),
+      fsel('コマ打ち', STEPS, 'step')
     ]));
   }
   w.appendChild(group('きめうち', [fixWrap]));
@@ -809,8 +814,9 @@ function autoBody(w) {
   ]));
   w.appendChild(group('なかみ', [
     hint(`1カット ごとに、下の たなから 1つずつ くじを ひきます。<br>` +
-      `ならべ方 ${LAYOUTS.length}・出かた 22・ずっと 11・消えかた 9・かざり ${DECOR.length}・` +
-      `うしろ ${BGS.length}・配色 ${PALETTES.length}。<br>` +
+      `ならべ方 ${LAYOUTS.length}・出かた 22・ずっと 11・消えかた 9・字のかざり ${DECOR.length}・` +
+      `うしろの色 ${BGS.length}・うしろのがら ${PAT_LIST.length - 1}・のせるかざり ${DECO_LIST.length - 1}・` +
+      `配色 ${PALETTES.length}。<br>` +
       `<b>たね</b>が 同じなら いつも 同じ ものが 出ます。気に入ったら ばんごうを ひかえて。`),
     hint('「おまかせ 文字」「おまかせ 背景」の 2段に 入ります。<br>' +
       'ひきなおすと その 2段だけ 作り直します（音や ほかの 段は そのまま）。')
@@ -963,10 +969,30 @@ function masterBody() {
     mr('ざらざら', 'grain', 0, 1, .02, ''),
     mr('色ずれ', 'rgb', 0, 1, .02, '')
   ]));
+  w.appendChild(group('こわす（グリッチ）', [
+    mr('よこ ずれ', 'slice', 0, 1, .02, ''),
+    mr('ブロック ずれ', 'block', 0, 1, .02, ''),
+    mr('走査線', 'scan', 0, 1, .02, ''),
+    mr('ひかり にじみ', 'bloom', 0, 1, .02, ''),
+    hint('「よこ ずれ」「ブロック ずれ」は 拍ではなく 1/24秒 ごとに 出ます。<br>' +
+      'コマ数を 上げても チラつきの はやさは 変わりません。')
+  ]));
+  w.appendChild(group('コマ打ち', [
+    grid('うごきの きざみ', STEPS.map(([v, n]) =>
+      btn(n, 'btn-sm' + (String(S.step || 0) === v ? ' on' : ''), () => {
+        S.step = +v; pushUndo(); bus.stage(); draw();
+      }))),
+    hint('<b>2コマ打ち</b>は 1秒に 12枚ぶんだけ 動かす。文字PV らしい カクッと した 動きに なります。<br>' +
+      '<b>3コマ打ち</b>は 8枚ぶん。もっと 止め気味。<br>' +
+      '書き出す コマ数（fps）とは 別ばらで、どの コマ数で 出しても 同じ 見た目に なります。<br>' +
+      '音は きざまれません。')
+  ]));
   w.appendChild(group('拍に のせる', [
     mr('ぴかっ', 'flash', 0, 1, .02, ''),
     mr('ゆれ', 'shake', 0, 1, .02, ''),
     mr('ズーム', 'zoom', 0, 1, .02, ''),
+    mr('集中線', 'lines', 0, 1, .02, ''),
+    mr('反転', 'invert', 0, 1, .02, ''),
     beatOn() ? hint(`BPM ${r2(S.beat.bpm)} の 拍ごとに 出ます。`)
       : hint('BPM を きめると 拍ごとに 出ます。<br>いまは 1秒に 2回。')
   ]));
