@@ -650,7 +650,7 @@
       const wk = this.cal.label ? this.cal.label.replace(/^\d+月\s*/, '') : `第${this.cal.week}週`;
       C.text(c, wk, 320, 140, { size: 44, head: true, align: 'center', color: P.pink2, outline: P.white, ow: 2 });
       const ev = eventTitle(this.cal);
-      C.text(c, ev ? `今週: ${ev}` : `あと ${WEEKS() - this.cal.week + 1} 週で 夏休み`, 320, 212, { size: 16, align: 'center', color: P.ink2 });
+      C.text(c, ev ? `今週: ${ev}` : this.cal.note ? this.cal.note : `あと ${WEEKS() - this.cal.week + 1} 週で 夏休み`, 320, 212, { size: 16, align: 'center', color: P.ink2 });
       c.restore();
     }
   }
@@ -1144,7 +1144,10 @@
     let p = 0.42 + S.aff[id] / 100 * 0.5;
     if (likes.includes(place)) p += 0.25;
     if (hates.includes && hates.includes(place)) p -= 0.25;
-    if (S.hurt[id] >= 50) p += 0.15;
+    if (S.hurt[id] >= 50) p -= 0.15;
+    const lp = ch.likes && ch.likes.param;
+    const pv = lp === 'balance' ? Object.values(S.params).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(S.params).length) : (lp ? S.params[lp] || 0 : 0);
+    if (lp && pv >= 40) p += 0.1;
     if (!S.dates[id]) p += 0.1;
     if (S.lastDate[id] === S.week - 1 && S.dates[id]) p -= 0.15;
     return C.clamp(p, 0.12, 0.96);
@@ -1164,13 +1167,14 @@
     const ph = (D().phone && D().phone[id]) || {};
     let booked = false;
     if (id === FRIEND) {
-      await runLine(ph.first && !S.flags.called_friend ? ph.first : (ph.hello || ph.accept), [{ say: FRIEND, text: 'もしもし〜？ ひよりだよ。なになに、情報ほしいの？' }]);
+      await runLine(ph.open || ph.first, [{ say: FRIEND, text: 'もしもし〜？ ひよりだよ。なになに、情報ほしいの？' }]);
       S.flags.called_friend = true;
       await friendReport();
     } else {
       const firstTime = !S.flags['called_' + id];
       S.flags['called_' + id] = true;
-      await runLine(firstTime ? (ph.first || ph.hello) : (ph.hello || null), [{ say: id, text: `もしもし、${givenName(id)}だけど。……どうしたの？` }]);
+      if (S.hurt[id] >= 50 && ph.hurt) { G.callExpr = 'sad'; await runLine(ph.hurt); }
+      else await runLine(firstTime ? (ph.first || ph.hello) : (ph.hello || null), [{ say: id, text: `もしもし、${givenName(id)}だけど。……どうしたの？` }]);
       const busyChance = 0.12 + (S.aff[id] < 20 ? 0.1 : 0);
       if (!firstTime && Math.random() < busyChance && ph.busy) {
         G.callExpr = 'think';
@@ -1187,7 +1191,8 @@
           if (!G.fast) { await C.wait(0.35); }
           if (ok) {
             G.callExpr = 'smile'; snd.se('heart'); C.burst('heart', 450, 120, 12, { w: 40 });
-            await runLine(ph.accept, [{ say: id, text: `${placeOf(place).name}か。いいよ、行こう。` }]);
+            const at = ph.acceptTier && ph.acceptTier[tierIdx(S.aff[id])];
+            await runLine(at || ph.accept, [{ say: id, text: `${placeOf(place).name}か。いいよ、行こう。` }]);
             S.date = { id, place }; booked = true;
             C.toast(`日曜日: ${givenName(id)}と ${placeOf(place).name}`, { icon: 'heart', color: P.pinkL });
           } else {
@@ -1210,38 +1215,38 @@
     return booked;
   }
   async function friendReport() {
-    const met = boys().filter(id => S.met[id]);
-    const tpl = (D().friendInfo || {});
-    for (const id of met) {
-      const tn = tierName(S.aff[id]);
-      const custom = tpl[tierIdx(S.aff[id])];
-      G.callExpr = S.lit[id] ? 'think' : 'smile';
-      await say(FRIEND, custom ? fmt(custom).replace(/\{boy\}/g, givenName(id)) : `${givenName(id)}くんはね〜、今は「${tn}」って感じかな。`);
-      if (S.lit[id]) {
-        G.callExpr = 'angry';
-        await runLine(bombLine(id, 'warn'), [{ say: FRIEND, text: `…でも ${givenName(id)}くん、最近 ほったらかしでしょ。ちょっと 寂しそうだったよ。` }]);
+    const bt = D().bombTalk || {};
+    if (bt.intro) await say(FRIEND, C.pick(bt.intro));
+    const opts = boys().map(id => ({ id, text: S.met[id] ? `${givenName(id)}のこと` : `${(chars()[id].title || chars()[id].grade || '')}のこと` }));
+    opts.push({ id: null, text: '今日は いいや' });
+    const i = await choose(opts);
+    const id = opts[i].id;
+    if (id) {
+      G.callExpr = 'smile';
+      if (S.met[id]) {
+        const f = bt.feelings && bt.feelings[id];
+        await say(FRIEND, f ? f[tierIdx(S.aff[id])] : `${givenName(id)}くんは 今「${tierName(S.aff[id])}」って感じかな。`);
+        C.toast(`${givenName(id)}: ${tierName(S.aff[id])}`, { icon: 'heart', color: P.pinkL });
+      } else {
+        const u = bt.unmet && bt.unmet[id];
+        await say(FRIEND, u ? C.pick(u) : 'その人とは まだ 会ってないでしょ？');
       }
     }
-    if (!met.length) await say(FRIEND, 'まだ 気になる人 いないの？ もったいな〜い。');
-    const unmet = boys().filter(id => !S.met[id]);
-    if (unmet.length) {
-      const id = C.pick(unmet), m = chars()[id].meet || {};
-      const hint = m.param ? `${paramName(m.param)}を がんばってると、会えるかもよ？` : 'そのうち 会えるかもよ？';
-      await say(FRIEND, `そうそう、${chars()[id].grade || ''}に かっこいい人が いるんだって。${hint}`);
-    }
+    const lit = boys().filter(b => S.met[b] && S.lit[b]);
+    if (lit.length) { G.callExpr = 'think'; await runLine(bombLine(lit[0], 'warn'), [{ say: FRIEND, text: `${givenName(lit[0])}くん、最近 ほったらかしでしょ。危ないよ。` }]); }
+    else if (bt.calm) await say(FRIEND, C.pick(bt.calm));
+    const ph = (D().phone && D().phone[FRIEND]) || {};
+    G.callExpr = 'wink';
+    if (ph.close) await say(FRIEND, C.pick(ph.close));
   }
   function bombLine(id, kind) {
-    const b = D().bombTalk;
-    if (!b) return null;
-    if (Array.isArray(b)) return kind === 'warn' ? b.map(s => typeof s === 'string' ? fmt(s).replace(/\{boy\}/g, givenName(id)) : s) : null;
-    const v = (b[id] && (b[id][kind] || (kind === 'warn' && b[id]))) || b[kind] || null;
+    const b = D().bombTalk || {};
+    const src = kind === 'warn' ? b.warn : kind === 'boom' ? (b.explode || b.boom) : b[kind];
+    let v = src && (Array.isArray(src) ? src : src[id]);
     if (!v) return null;
-    const conv = x => typeof x === 'string' ? { say: FRIEND, text: x.replace(/\{boy\}/g, givenName(id)) } : x;
-    if (typeof v === 'string') return [conv(v)];
-    if (Array.isArray(v)) return typeof v[0] === 'string' ? [conv(C.pick(v))] : v.map(conv);
-    return null;
+    if (typeof v === 'string') v = [v];
+    return v.length && typeof v[0] === 'string' ? [{ say: FRIEND, text: C.pick(v).replace(/\{boy\}/g, givenName(id)) }] : v;
   }
-
   /* ================= date ================= */
   function getDate(id, place) {
     const all = D().dates || {};
@@ -1302,7 +1307,7 @@
       const dv = o.delta != null ? o.delta : (o.effect && o.effect[id]) || 0;
       sumDelta += dv;
       setExpr(id, o.expr || (dv >= 3 ? 'laugh' : dv > 0 ? 'smile' : dv < 0 ? 'annoyed' : 'think'));
-      ex = C.clamp(ex + dv * 7 + (dv > 0 ? 4 : 0), 0, 100); hud.ex.set(ex); hud.pulse = 1;
+      ex = C.clamp(ex + dv * 5 + (dv > 0 ? 2 : -4), 0, 100); hud.ex.set(ex); hud.pulse = 1;
       if (dv > 0) { snd.se('heart'); C.burst('heart', 320, 140, 6 + dv * 4, { w: 50, h: 30 }); if (dv >= 3) C.flash('#ffe0ea', 0.3); }
       else if (dv < 0) { snd.se('heart_break'); C.shake(5, 0.3); const a = STAGE.actors[id]; if (a) { C.tween(a, { dy: 6 }, 0.1).then(() => C.tween(a, { dy: 0 }, 0.2)); } }
       else snd.se('pop_down');
@@ -1315,7 +1320,7 @@
     if (closer && closer.length) await runScript(closer);
     else await say(id, good ? '今日は すごく 楽しかった。……また 誘って。' : '…今日は ありがと。じゃあ、また 学校で。');
     msgHide();
-    let gain = Math.round(sumDelta + (liked ? 3 : 0) + (good ? 4 : -2) + (ex >= 80 ? 3 : 0));
+    let gain = Math.round(sumDelta * 0.7 + (liked ? 3 : 0) + (good ? 3 : -2) + (ex >= 80 ? 2 : 0));
     S.aff[id] += gain; S.hurt[id] = Math.max(0, S.hurt[id] - 45); if (S.hurt[id] < 50) S.lit[id] = false;
     S.lastDate[id] = S.week; S.dates[id] = (S.dates[id] || 0) + 1; S.stress -= good ? 10 : 2;
     clampS();
@@ -1418,9 +1423,10 @@
         C.text(c, `${this.rank}位`, 0, -20, { size: 44, align: 'center', head: true, color: P.pink2, outline: P.white, ow: 2 });
         c.restore();
         if (k >= 1) {
-          const cm = this.rank <= 10 ? 'トップ10入り！ すごい！' : this.rank <= 60 ? '上位に 入った！' : this.rank <= 150 ? 'まあまあ…かな' : 'もっと 勉強しなきゃ…';
-          UI.frame(c, 190, 310, 260, 30, { fill: P.cream });
-          C.text(c, cm, 320, 317, { size: 16, align: 'center', color: this.rank <= 60 ? P.pink2 : P.ink2 });
+          const rc = (D().rankComments || []).find(x => this.rank <= x.max);
+          const cm = rc ? rc.text : this.rank <= 10 ? 'トップ10入り！ すごい！' : this.rank <= 60 ? '上位に 入った！' : this.rank <= 150 ? 'まあまあ…かな' : 'もっと 勉強しなきゃ…';
+          UI.frame(c, 60, 310, 520, 30, { fill: P.cream });
+          C.text(c, cm, 320, 318, { size: 12, align: 'center', color: this.rank <= 60 ? P.pink2 : P.ink2 });
         }
       }
     }
@@ -1582,10 +1588,9 @@
       let trigger = false;
       if ((m.type === 'param' || m.param) && S.params[m.param] >= (m.value || 25)) trigger = true;
       if (m.type === 'event' && m.week != null && S.week >= m.week) trigger = true;
-      if (m.type === 'event' && m.week == null && S.week >= (m.fallbackWeek || 3) && !calendar().some(c => c.event === (m.id || 'meet_' + id) && c.week >= S.week)) trigger = true;
-      if (m.type === 'week' && S.week >= m.value) trigger = true;
+      if (m.type === 'event' && m.week == null && !calendar().some(c => c.event === m.id) && S.week >= 3) trigger = true;
       if (!trigger) continue;
-      const sc = (m.id && (resolveSteps(m.id) || resolveSteps(eventRef(m.id)))) || resolveSteps('meet_' + id);
+      const sc = resolveSteps(m.scene) || (m.type !== 'event' || !calendar().some(c => c.event === m.id) ? resolveSteps(m.id) : null) || resolveSteps('meet_' + id);
       snd.bgm('school');
       if (sc) { G.phase = 'event'; await runScript(sc); }
       if (!S.met[id]) await meet(id);
@@ -1655,7 +1660,7 @@
   function grade(v) { return v >= 90 ? 5 : v >= 60 ? 4 : v >= 35 ? 3 : v >= 18 ? 2 : 1; }
   function feelLine(id) {
     const ch = chars()[id] || {}; const ti = tierIdx(S.aff[id]);
-    const src = ch.feel || ch.report || (D().report && D().report[id]);
+    const src = (D().reportCard && D().reportCard[id]) || ch.feel || ch.report;
     if (Array.isArray(src)) return fmt(src[Math.min(ti, src.length - 1)]);
     if (src && typeof src === 'object') return fmt(src[TIERS[ti]] || src[ti] || '');
     return ['ただの クラスメイト、かな。', '話しやすい 友達だと 思ってる。', '一緒に いると 楽しい。夏休みも 会えたら いいな。', '……最近、つい 目で 追ってしまう。', '夏休み、ふたりで 出かけたい。……言えるかな。'][ti];
@@ -1745,7 +1750,7 @@
       C.clearStack(StageScene); STAGE.bg = null; clearActors(); msgHide();
       snd.bgm('title');
       const r = await C.run(new TitleScene());
-      if (r === 'new') { S = newState(); G.log = []; await C.transition('diamond', () => { }, 0.8); await gameFlow(false); }
+      if (r === 'new') { S = newState(); G.log = []; await C.transition('diamond', () => { }, 0.8); if (eventRef('prologue') != null) { G.phase = 'event'; await runEventPart('prologue', 'pre'); msgHide(); await hideActor('all'); } await gameFlow(false); }
       else if (r === 'continue') { const s = readSave(); if (!s) continue; S = Object.assign(newState(), s); await C.transition('iris', () => { }, 0.8); await gameFlow(true); }
     }
   }
@@ -1757,12 +1762,11 @@
         await C.run(new WeekCard(cal));
         S.calledThisWeek = false; S.restedThisWeek = false;
         STAGE.bg = null;
-        C.push(StageScene_ensure());
+
         await bombWarnings();
         const isClosing = cal.event === 'closing' || S.week === WEEKS();
         if (isClosing) { await closingFlow(cal); return; }
         if (cal.event) await playEvent(cal.event);
-        await paramMeets();
         if (!cal.event) await randomEvent();
         S.eventsDone = S.week;
       }
@@ -1779,13 +1783,13 @@
         const ex = new ExecScene(cmd);
         await C.transition('wipe', () => { C.push(ex); ex.run(); }, 0.5);
         await new Promise(res => { const cl = ex.close; ex.close = v => { cl(v); res(); }; });
+        if (boys().some(b => !S.met[b])) { STAGE.bg = null; await paramMeets(); STAGE.bg = null; }
         await weekendFlow();
       }
       updateHurt();
       S.week++;
     }
   }
-  function StageScene_ensure() { if (!C.stack.includes(StageScene)) return StageScene; return { name: 'noop' }; }
   async function weekendFlow() {
     snd.bgm('daily');
     for (;;) {
@@ -1793,7 +1797,7 @@
       const v = await C.run(new WeekendScene());
       if (v === 'phone') { await phoneFlow(); }
       else if (v === 'rest') {
-        S.restedThisWeek = true; snd.se('rest' in {} ? 'rest' : 'pop_up');
+        S.restedThisWeek = true; snd.se('pop_up');
         applyEffect({ hp: 18, stress: -14 }, true);
         C.toast('ゆっくり休んだ。体調 +18 ストレス -14', { icon: 'rest', color: P.mintL });
       }
@@ -1810,6 +1814,13 @@
     await runEventPart(cal.event || 'closing', 'pre');
     await runEventPart(cal.event || 'closing', 'post');
     msgHide(); await hideActor('all');
+    const met = boys().filter(b => S.met[b]).sort((a, b) => S.aff[a] - S.aff[b]);
+    for (const id of met) {
+      const e = D().endings && D().endings[id];
+      const steps = e && e[tierIdx(S.aff[id])];
+      if (steps) { G.curBoy = id; await runScript(steps); msgHide(); await hideActor('all'); }
+    }
+    G.curBoy = null;
     G.phase = 'report';
     const rs = new ReportScene();
     await C.transition('blinds', () => { C.push(rs); rs.run(); }, 0.8);
