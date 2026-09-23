@@ -45,22 +45,35 @@
   --r: 16px;
 }
 
+/* ---------- 字 ----------
+   まるい 字（M PLUS Rounded）は かわいいが 子ども向けに 見える。
+   中学生から 上を 前提に、まるくない ゴシックに かえる。
+   小さく しても つぶれない ように 太さは 500〜700 を つかい分け。 */
 body{
   background:var(--cream);
   color:var(--ink);
-  font-weight:600;
-  letter-spacing:-.012em;
+  font-family:'Inter','Noto Sans JP','Hiragino Sans','Yu Gothic UI',system-ui,sans-serif;
+  font-weight:500;
+  font-size:15px;
+  line-height:1.5;
+  letter-spacing:.002em;
 }
+button,input,select,.tool,#sheet,.field label,.empty{
+  font-family:'Inter','Noto Sans JP','Hiragino Sans','Yu Gothic UI',system-ui,sans-serif;
+}
+/* 数字は 等幅っぽく そろえる（時間・％が ガタつかない） */
+.dot,.tnum,.val,#exPct{ font-variant-numeric:tabular-nums; }
 
 /* ---------- ボタン ---------- */
 button{
   background:var(--fill);
   color:var(--ink);
   border:1px solid transparent;
-  border-radius:999px;
+  border-radius:10px;
   box-shadow:none;
-  padding:.45rem .9rem;
-  font-weight:700;
+  padding:.44rem .8rem;
+  font-size:.8rem;
+  font-weight:600;
   transition:background .15s, color .15s, border-color .15s, transform .08s;
 }
 button:hover{ background:var(--fill2); }
@@ -86,7 +99,9 @@ button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
 .btn-g{ background:var(--ink); color:#fff; border-color:var(--ink); }
 .btn-g:hover{ background:#000; color:#fff; }
 .btn-p{ background:var(--pink-soft); border-color:var(--pink-soft); color:#8E2A1C; }
-.btn-sm{ padding:.3rem .7rem; font-size:.72rem; box-shadow:none; }
+.btn-sm{ padding:.3rem .62rem; font-size:.74rem; font-weight:600; box-shadow:none; }
+/* まるピルは「いま こうなって いる」を 見せる ところだけ */
+#pininfo,#top .size,.sheettabs button{ border-radius:999px; }
 
 /* ---------- 入れもの ---------- */
 input,select{
@@ -106,10 +121,10 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 #top{
   background:var(--paper);
   border-bottom:1px solid var(--line);
-  padding:.5rem .85rem;
-  min-height:58px;
+  padding:.5rem .9rem;
+  min-height:56px;
 }
-#top .name{ font-size:1.04rem; font-weight:800; letter-spacing:-.025em; border-color:transparent; }
+#top .name{ font-size:.96rem; font-weight:700; letter-spacing:-.01em; border-color:transparent; }
 #top .name:hover{ background:var(--fill); }
 #top .size{
   background:var(--fill); color:var(--ink2);
@@ -120,7 +135,8 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 #top button{ border-radius:999px; }
 #top #export{
   background:var(--ink); color:#fff; border-color:var(--ink);
-  padding-left:1.15rem; padding-right:1.15rem;
+  border-radius:10px; font-weight:600;
+  padding-left:1.05rem; padding-right:1.05rem;
 }
 #top #export:hover{ background:#000; }
 
@@ -140,10 +156,15 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 }
 .tool{
   background:var(--paper);
-  border:1px solid var(--line); border-radius:18px;
+  border:1px solid var(--line); border-radius:14px;
   box-shadow:var(--shadow-sm);
-  color:var(--ink); font-weight:700;
+  color:var(--ink2); font-weight:600;
+  font-size:.7rem; letter-spacing:0;
 }
+/* 絵文字は 色を 落として、字の じゃまを しない ように */
+.tool i{ font-size:1.05rem; filter:grayscale(1); opacity:.75; }
+.tool:hover{ color:var(--ink); }
+.tool.on i{ filter:grayscale(1) invert(1); opacity:.95; }
 .tool:hover{ background:#fff; box-shadow:var(--shadow); }
 .tool.on{ background:var(--ink); color:#fff; }
 
@@ -151,18 +172,19 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 #list{
   background:var(--paper);
   border-top:0;
-  border-radius:22px 22px 0 0;
+  border-radius:16px 16px 0 0;
   box-shadow:0 -2px 26px rgba(16,17,20,.06);
 }
 #tracks{ gap:.3rem; padding:.4rem .5rem .55rem; }
 #playbar{
   background:var(--paper); border-bottom:1px solid var(--line);
-  border-radius:22px 22px 0 0;
+  border-radius:16px 16px 0 0;
 }
 #playbar button{ background:var(--fill); }
 #playbar .tnum{ color:var(--gray); font-weight:700; }
 #pinbar{ background:var(--paper); border-bottom:1px solid var(--line); }
-#pininfo{ background:var(--ink); color:#fff; border-color:var(--ink); }
+#pininfo{ background:var(--ink); color:#fff; border-color:var(--ink); font-size:.72rem; }
+#pininfo:empty{ display:none; }   /* 中身が ない ときの 黒い かたまりを 出さない */
 
 #ruler{ background:var(--paper); }
 #ruler .rtrack{ background:var(--fill); border:0; border-radius:12px 12px 0 0; }
@@ -175,9 +197,10 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 
 .thead{
   background:var(--paper);
-  border:1px solid var(--line); border-radius:14px;
+  border:1px solid var(--line); border-radius:10px;
   box-shadow:none;
 }
+.thead .nm{ font-weight:600; font-size:.76rem; }
 .thead:hover{ background:var(--fill); }
 .trow.sel .thead{
   background:var(--ink); color:#fff;
@@ -191,7 +214,7 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 .thead .eye{ background:transparent; border-color:transparent; box-shadow:none; }
 .thead .thumb{ border-radius:9px; border:1px solid var(--line); }
 
-.track{ background:var(--fill); border:0; border-radius:12px; }
+.track{ background:var(--fill); border:0; border-radius:10px; }
 .trow.sel .track{ background:#EBEDF1; }
 .tick{ background:rgba(16,17,20,.06); }
 .tick.big{ background:rgba(16,17,20,.14); }
@@ -247,31 +270,37 @@ input[type=range]{ background:transparent; accent-color:var(--ink); }
 /* ---------- シート（せってい） ---------- */
 #sheet{
   background:var(--paper);
-  border:0; border-radius:26px 26px 0 0;
+  border:0; border-radius:18px 18px 0 0;
   box-shadow:0 -10px 44px rgba(16,17,20,.13);
 }
 #sheet .handle{ background:#D8DBE1; opacity:1; }
 /* 見出しは 黒ピルを やめて、ライムの 点＋太字（見本の 小見出しに 近い） */
+/* 見出しは 「ライムの たて線＋太字」。
+   上に うすい しきり線を 引いて、まとまりを 目で 分ける。 */
 #sheet h2{
   background:transparent; color:var(--ink);
-  font-size:.82rem; font-weight:800; letter-spacing:-.01em;
-  border-radius:0; padding:.2rem 0 .1rem;
-  display:flex; align-items:center; gap:.4rem;
-  margin:.85rem 0 .35rem;
+  font-size:.78rem; font-weight:700; letter-spacing:.01em;
+  border-radius:0; padding:.7rem 0 .1rem;
+  display:flex; align-items:center; gap:.45rem;
+  margin:.7rem 0 .4rem;
+  border-top:1px solid var(--line);
 }
 #sheet h2::before{
-  content:''; width:8px; height:8px; border-radius:3px;
+  content:''; width:3px; height:14px; border-radius:2px;
   background:var(--main); flex:0 0 auto;
 }
+#sheet h2:first-of-type{ border-top:0; padding-top:.2rem; }
 #sheet h2:first-of-type{ margin-top:.2rem; }
-#sheet .field label{ color:var(--gray); font-weight:700; }
-.field .val{ color:var(--ink2); font-weight:700; }
+/* ラベルは 用語を そのまま 出す ので、少し ひろげて 折り返さない ように */
+#sheet .field label{ color:var(--ink2); font-weight:500; font-size:.76rem; flex:0 0 108px; }
+.field .val{ color:var(--gray); font-weight:600; }
 .subhead{ color:var(--gray); letter-spacing:.04em; }
 .textin{ background:var(--fill); border:0; border-radius:12px; }
 #sheet .empty,.empty{
   background:#F7F8FA;
-  border:0; border-radius:14px;
-  color:var(--ink2); font-weight:600;
+  border:0; border-radius:10px;
+  color:var(--ink2); font-weight:500;
+  font-size:.76rem; line-height:1.62;
   box-shadow:none;
 }
 .sheettabs button{ border-radius:999px; }

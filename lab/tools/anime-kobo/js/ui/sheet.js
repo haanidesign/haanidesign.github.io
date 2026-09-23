@@ -770,12 +770,12 @@ export function buildLayerSheet(box, closeFn){
     edit('なまえをかえる', () => { l.name = nameIn.value || l.name; });
     onChange();
   });
-  box.appendChild(field('なまえ', nameIn));
+  box.appendChild(field('名前', nameIn));
 
   /* カギ。かけると 絵の上では さわれない。
      行に ボタンを 置くと ごちゃつくので ここに 入れた。
      かかっている ときは 名前の 先頭に 🔒 が つく。 */
-  box.appendChild(field('カギ', (() => {
+  box.appendChild(field('ロック', (() => {
     const b = document.createElement('button');
     const show = () => {
       b.textContent = l.locked ? '🔒 かかっている' : '🔓 かかっていない';
@@ -798,7 +798,7 @@ export function buildLayerSheet(box, closeFn){
      見つけられない と 言われた。
      なまえ・カギ の すぐ 下、いつも 出す ところに 移した。
      フォルダでも 同じ ように 出る。 */
-  box.appendChild(field('カメラ', (() => {
+  box.appendChild(field('カメラの影響', (() => {
     const b = document.createElement('button');
     const show = () => {
       b.textContent = l.noCam ? '📌 画面に はりつけ（合わせない）'
@@ -827,13 +827,13 @@ export function buildLayerSheet(box, closeFn){
   }
 
   const pct = v => Math.round(v * 100) + '%';
-  box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
+  box.appendChild(animSlider('不透明度', l, 'opacity', 0, 1, 0.01, pct));
 
   /* ---- トラックマット（AEと 同じ）----
      すぐ 上の レイヤーの 形（か 明るさ）で、この レイヤーを ぬく。
      ぬき型に なった レイヤーは 出なくなる。 */
   if(l.kind !== 'adjust'){
-    box.appendChild(field('ぬき型（上の 1まい）', (() => {
+    box.appendChild(field('トラックマット', (() => {
       const sel = document.createElement('select');
       [['', 'つかわない'],
        ['alpha',    '上の 形で ぬく'],
@@ -860,7 +860,7 @@ export function buildLayerSheet(box, closeFn){
      下に ある 絵と どう まぜるか。「乗算」は かけ算 ＝ かげ用。
      PSD の レイヤーモードと 同じ 名前なので、
      読みこみ・書き出しで そのまま 行き来できる。 */
-  box.appendChild(field('かさね方', (() => {
+  box.appendChild(field('描画モード', (() => {
     const sel = document.createElement('select');
     const opts = [
       ['normal', 'ふつう'],
@@ -893,10 +893,10 @@ export function buildLayerSheet(box, closeFn){
   /* フォルダは 絵を持たないので、まとめて動かすところだけ出す */
   if(isFolder(l)){
     const n = membersOf(S.proj, l).length;
-    box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
-    box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+    box.appendChild(animSlider('横スケール', l, 'scaleX', 0.05, 4, 0.01, pct));
+    box.appendChild(animSlider('縦スケール', l, 'scaleY', 0.05, 4, 0.01, pct));
     box.appendChild(aspectRow(l));
-    box.appendChild(animSlider('かたむき', l, 'rot', -180, 180, 1, v => Math.round(v) + '°'));
+    box.appendChild(animSlider('回転', l, 'rot', -180, 180, 1, v => Math.round(v) + '°'));
 
     const note = document.createElement('div');
     note.className = 'empty';
@@ -962,10 +962,10 @@ export function buildLayerSheet(box, closeFn){
     return;
   }
 
-  box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
-  box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+  box.appendChild(animSlider('横スケール', l, 'scaleX', 0.05, 4, 0.01, pct));
+  box.appendChild(animSlider('縦スケール', l, 'scaleY', 0.05, 4, 0.01, pct));
   box.appendChild(aspectRow(l));
-  box.appendChild(animSlider('かたむき', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
+  box.appendChild(animSlider('回転', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
 
   /* ---------- コマ ---------- */
   /* 文字レイヤーは 絵が1まいしか無いので、コマの欄は 出さない。
@@ -1007,7 +1007,7 @@ export function buildLayerSheet(box, closeFn){
   if(l.frames.length <= 1){
     const h = document.createElement('div');
     h.className = 'empty';
-    h.textContent = '絵を足すと、コマを切りかえる\nアニメが作れます';
+    h.textContent = '画像を追加すると、コマ送りのアニメになります';
     box.appendChild(h);
   }
 
@@ -1048,8 +1048,8 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(addFrames);
 
   box.appendChild(btnRow(
-    button('＋ コマを足す', () => addFrames.click()),
-    button('コマのピンを消す', () => {
+    button('＋ コマを追加', () => addFrames.click()),
+    button('コマのキーを削除', () => {
       edit('コマのピンを消す', () => {
         framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
       });
@@ -1086,7 +1086,7 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(swapAll);
 
   const swapRow = btnRow(
-    button('🔁 この コマの 絵を 入れかえる', () => swapOne.click()),
+    button('このコマの画像を差し替え', () => swapOne.click()),
     button(l.frames.length > 1 ? '🔁 コマ ぜんぶ' : '🔁 べつの 絵に', () => swapAll.click())
   );
   box.appendChild(swapRow);
@@ -1096,7 +1096,7 @@ export function buildLayerSheet(box, closeFn){
     paintKeep();
   });
   const paintKeep = () => {
-    keepBtn.textContent = (keepSizeOnSwap ? '✅' : '⬜') + ' 前と 同じ 大きさに する';
+    keepBtn.textContent = (keepSizeOnSwap ? '✓ ' : '　') + '元のサイズを保つ';
     keepBtn.classList.toggle('on', keepSizeOnSwap);
   };
   paintKeep();
@@ -2730,7 +2730,7 @@ export function buildFaceSheet(box){
     e.textContent = 'いま この レイヤーの 絵は 1まいです。' + NL
       + '目とじの絵が べつのレイヤーなら、' + NL
       + 'タイムラインで その行に ☑ を つけてから 下のボタン。' + NL
-      + '（絵のファイルから 足すときは「かたち」の ＋コマを足す）';
+      + '（画像ファイルから足すときは「レイヤー」の ＋コマを追加）';
     box.appendChild(e);
   }
 
@@ -2891,7 +2891,7 @@ export function buildFaceSheet(box){
       notify(keys.length + 'コの ピンを うちました');
       onChange();
     }),
-    button('コマのピンを消す', () => {
+    button('コマのキーを削除', () => {
       edit('コマのピンを消す', () => {
         framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
       });
@@ -3862,7 +3862,7 @@ export function buildDocSheet(box, closeFn){
     edit('なまえをかえる', () => { S.proj.name = nameIn.value.trim() || 'むだい'; });
     onChange();
   });
-  box.appendChild(field('なまえ', nameIn));
+  box.appendChild(field('名前', nameIn));
   const nnote = document.createElement('div');
   nnote.className = 'empty';
   nnote.style.textAlign = 'left';

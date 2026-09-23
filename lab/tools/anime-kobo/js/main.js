@@ -870,9 +870,9 @@ function openSheet(key){
   if(key === 'face'){
     if(l.kind === 'text')   return toast('文字には つかえません');
     if(l.kind === 'folder') return toast('フォルダには つかえません');
-    return sheet.open('かお（' + l.name + '）', (box) => buildFaceSheet(box));
+    return sheet.open('表情 — ' + l.name, (box) => buildFaceSheet(box));
   }
-  sheet.open('かたち（' + l.name + '）', (box) => buildLayerSheet(box, () => sheet.close()));
+  sheet.open('レイヤー — ' + l.name, (box) => buildLayerSheet(box, () => sheet.close()));
 }
 
 /* ---- 🎥 カメラ ----
@@ -890,7 +890,7 @@ setLayerOpener(() => openSheet('form'));
    ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
 function openParentSheet(){
   if(!S.pick.length && !selected()) return toast('レイヤーを えらんでね');
-  sheet.open('おやこ', (box) => buildParentSheet(box, () => sheet.close()));
+  sheet.open('親子付け', (box) => buildParentSheet(box, () => sheet.close()));
 }
 $('#parent').addEventListener('click', openParentSheet);
 setParentOpener(openParentSheet);
