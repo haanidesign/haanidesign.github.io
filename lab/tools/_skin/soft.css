@@ -342,3 +342,25 @@ header input,header select,#tb input,#tb select{
 .card .v,.card .val,.card .num,.card summary,.card .lab .v,
 #head + * .v,.panel .v,.panel summary,#props .v,#props summary,
 .card .dot,.panel .dot{ color:var(--ink2) !important; }
+
+/* ---------- 線の アイコン（icons.js が 入れる） ---------- */
+.ico{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:1.05em; height:1.05em; vertical-align:-.16em;
+  flex:0 0 auto;
+}
+.ico svg{ display:block; width:100%; height:100%; overflow:visible; }
+.ico + *{ margin-left:.1em; }
+button .ico,.btn .ico{ opacity:.9; }
+button.on .ico,.btn.on .ico,.tool.on .ico{ opacity:1; }
+/* 絵文字むけの 色おとしは アイコンには かけない */
+.tool i .ico{ filter:none !important; opacity:1 !important; }
+/* バーの 中の 黒ピルは 白い 字の まま */
+#titlebar .title,#topbar .title,#top .title,.titlebar .title,.topbar .title,header .title,#tb .title,
+#titlebar .dark,.titlebar .dark{ color:#fff !important; }
+/* 「BONE / MESH …」の ような 札は ライムの 上では 白ぬきに */
+#titlebar .tb-spec,.titlebar .tb-spec,#topbar .tb-spec{
+  background:rgba(255,255,255,.72) !important;
+  color:var(--ink) !important;
+  border-color:transparent !important;
+}
