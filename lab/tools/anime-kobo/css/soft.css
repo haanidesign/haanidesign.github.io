@@ -339,20 +339,20 @@ hr,.sep{ border-color:var(--line); }
 
 /* ---------- はじめの 画面（つづきから／あたらしく つくる） ---------- */
 #newdoc .docopen{
-  background:var(--paper) !important;
-  border:1px solid var(--line); border-radius:14px;
-  box-shadow:var(--shadow-sm);
+  background:#FBFAEC !important;
+  border:1px solid #E9E5BD; border-radius:14px;
+  box-shadow:none;
 }
-#newdoc .docopen:hover{ background:var(--fill) !important; }
-#newdoc .docopen img{ border:1px solid var(--line); border-radius:9px; }
-#newdoc .doctext i{ color:var(--gray); }
+#newdoc .docopen:hover{ background:#F4F1C8 !important; border-color:#DED8A4; }
+#newdoc .docopen img{ border:1px solid #E9E5BD; border-radius:9px; background:#fff; }
+#newdoc .doctext i{ color:#8A8567; }
 #newdoc .docdel{
-  background:var(--fill); border:0; border-radius:14px;
-  color:var(--ink2); box-shadow:none;
+  background:#FBFAEC; border:1px solid #E9E5BD; border-radius:14px;
+  color:#8A8567; box-shadow:none;
 }
-#newdoc .docdel:hover{ background:#FBE3E0; color:#C0392B; }
+#newdoc .docdel:hover{ background:#FBE3E0; border-color:#F0C9C3; color:#C0392B; }
 .sizepick{ background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-sm); }
-.sizepick .box{ border:2px solid var(--ink2); background:var(--fill); }
+.sizepick .box{ border:2px solid var(--ink2); background:#FBFAEC; }
 .sizepick:hover{ background:var(--fill); }
 .sizepick.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
 .sizepick.on .box{ background:#fff; border-color:#fff; }
