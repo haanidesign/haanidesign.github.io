@@ -1,8 +1,8 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
-import { S, clamp } from './state.js?v=45';
-import { beatOn, beatSec, beatAt } from './beat.js?v=45';
-import { bus } from './bus.js?v=45';
+import { S, clamp } from './state.js?v=51';
+import { beatOn, beatSec, beatAt } from './beat.js?v=51';
+import { bus } from './bus.js?v=51';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -229,7 +229,12 @@ export const FX_IN = [
 export const FX_LOOP = [
   ['none', 'なし'], ['bounce', 'はずむ'], ['pulse', 'どくどく'], ['shake', 'ゆれる'],
   ['swing', 'ふりこ'], ['wave', 'なみうち'], ['flash', 'ぴかっ'], ['jitter', 'がくがく'],
-  ['spin', 'まわる'], ['rainbow', 'にじ色'], ['zoombeat', '拍でズーム'], ['updown', 'うきしずみ']
+  ['spin', 'まわる'], ['rainbow', 'にじ色'], ['zoombeat', '拍でズーム'], ['updown', 'うきしずみ'],
+  ['drift', 'ただよう'], ['breath', 'こきゅう'], ['jelly', 'ゼリー'], ['flame', 'ともしび'],
+  ['gust', 'とっぷう'], ['hang', 'ぶらさがり'], ['stretchbeat', '拍で のびる'], ['flipbeat', '拍で 裏返る'],
+  ['gloss', 'つやめき'], ['focusshift', 'ピント送り'], ['string', '弦の ふるえ'], ['typo', 'かたかた'],
+  ['heartbeat', 'こどう'], ['sway', 'ゆらぎ'], ['tick', 'こま送り'], ['blink', 'またたき'],
+  ['squeezeb', '拍で つぶれる'], ['roll', 'ころがる'], ['hueslow', 'ゆっくり 色かわり'], ['float', 'ふわふわ']
 ];
 export const FX_OUT = [
   ['none', 'なし'], ['fade', 'じわっ'], ['up', '上へ'], ['down', '下へ'],
@@ -602,6 +607,66 @@ function loopAt(kind, b, g, size, amt) {
     case 'rainbow': t.hue = (b * 90 + g.idx * 18) % 360 * k; break;
     case 'zoombeat': t.sx = t.sy = 1 + Math.pow(1 - ph, 5) * .5 * k; break;
     case 'updown': t.dy = Math.sin(b * Math.PI) * size * .16 * k; break;
+
+    /* ---- ここから 足した ぶん ---- */
+    case 'drift':
+      t.dx = Math.sin(b * .9 + g.idx * .4) * size * .12 * k;
+      t.dy = Math.cos(b * .7 + g.idx * .3) * size * .1 * k; break;
+    case 'breath': t.sx = t.sy = 1 + Math.sin(b * Math.PI) * .05 * k; break;
+    case 'jelly': {
+      const w = Math.sin(b * Math.PI * 2) * .12 * k;
+      t.sx = 1 + w; t.sy = 1 - w; break;
+    }
+    case 'flame': {
+      const s2 = Math.floor(b * 8);
+      t.sy = 1 + (rnd(g.idx, s2) - .3) * .12 * k;
+      t.dx = (rnd(g.idx, s2 + 3) - .5) * size * .04 * k;
+      t.a = 1 - rnd(g.idx, s2 + 5) * .12 * k; break;
+    }
+    case 'gust': {
+      const w = Math.pow(Math.max(0, Math.sin(b * Math.PI * .5)), 6);
+      t.dx = w * size * .5 * k; t.rot = w * 12 * k; break;
+    }
+    case 'hang': {
+      t.rot = Math.sin(b * Math.PI * 1.3 + g.idx * .5) * 6 * k;
+      t.dy = Math.abs(Math.sin(b * Math.PI * 1.3)) * size * .05 * k; break;
+    }
+    case 'stretchbeat': {
+      const w = Math.pow(1 - ph, 4) * k;
+      t.sy = 1 + w * .5; t.sx = 1 - w * .2; break;
+    }
+    case 'flipbeat': t.sx = Math.cos(Math.floor(b) * Math.PI) >= 0 ? 1 : -1; break;
+    case 'gloss': {
+      const w = (b * .6 + g.idx * -.14) % 1;
+      t.a = 1 - Math.pow(Math.max(0, 1 - Math.abs(w - .5) * 6), 2) * .45 * k; break;
+    }
+    case 'focusshift': t.blur = (Math.sin(b * .8 + g.idx * .3) * .5 + .5) * size * .06 * k; break;
+    case 'string': t.dy = Math.sin(b * Math.PI * 9 + g.idx) * size * .03 * k * Math.max(0, 1 - ph); break;
+    case 'typo': {
+      const s2 = Math.floor(b * 6);
+      t.dy = (rnd(g.idx, s2 + 11) - .5) * size * .06 * k;
+      t.rot = (rnd(g.idx, s2 + 13) - .5) * 5 * k; break;
+    }
+    case 'heartbeat': {
+      const w = Math.pow(1 - ph, 8) + Math.pow(1 - Math.abs(ph - .22) * 6, 8) * .6;
+      t.sx = t.sy = 1 + Math.max(0, w) * .16 * k; break;
+    }
+    case 'sway': t.rot = Math.sin(b * .8 + g.idx * .25) * 5 * k; break;
+    case 'tick': {
+      const s2 = Math.floor(b * 3) / 3;
+      t.dy = (s2 % 1 < .5 ? -1 : 1) * size * .03 * k; break;
+    }
+    case 'blink': t.a = (Math.floor(b * 4) + g.idx) % 7 === 0 ? 1 - .7 * k : 1; break;
+    case 'squeezeb': {
+      const w = Math.pow(1 - ph, 5) * k;
+      t.sy = 1 - w * .35; t.sx = 1 + w * .2; break;
+    }
+    case 'roll': t.rot = Math.sin(b * Math.PI * .7 + g.idx * .6) * 16 * k; break;
+    case 'hueslow': t.hue = (b * 22 + g.idx * 6) % 360 * k; break;
+    case 'float': {
+      t.dy = Math.sin(b * 1.1 + g.idx * .7) * size * .09 * k;
+      t.rot = Math.sin(b * .9 + g.idx * .5) * 4 * k; break;
+    }
   }
   return t;
 }

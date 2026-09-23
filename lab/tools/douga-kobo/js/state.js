@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=45';
+import { bus } from './bus.js?v=51';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22,9 +22,13 @@ export const S = {
   beat: { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true },
   step: 0,               // コマ打ち（0=フル / 12=2コマ / 8=3コマ）
   trans: [],             // カット間の つなぎ [{at,dur,kind,seed}]
+  cams: [],              // カットごとの カメラ [{at,dur,kind,seed}]
+  noBg: false,           // 下じきを ぬらない（透過PNG の あいだだけ true）
   master: {
     vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
     slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0,
+    vhs: 0, strobe: 0, burn: 0, scratch: 0, snow: 0, bars: 0,
+    sparkle: 0, flare: 0, mosaic: 0, shutter: 0, halo: 0,
     br: 100, ct: 100, sa: 100
   },
   playing: false

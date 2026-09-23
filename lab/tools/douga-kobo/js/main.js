@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=45';
-import { wire, bus } from './bus.js?v=45';
-import { MEDIA, importFiles, hookAll } from './media.js?v=45';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=45';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=45';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=45';
-import { beatOn, beatSec, beatAt } from './beat.js?v=45';
-import * as TL from './ui/timeline.js?v=45';
-import * as P from './ui/panel.js?v=45';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=45';
+} from './state.js?v=51';
+import { wire, bus } from './bus.js?v=51';
+import { MEDIA, importFiles, hookAll } from './media.js?v=51';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=51';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=51';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=51';
+import { beatOn, beatSec, beatAt } from './beat.js?v=51';
+import * as TL from './ui/timeline.js?v=51';
+import * as P from './ui/panel.js?v=51';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=51';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=45';
-import { addFontFile } from './text.js?v=45';
-import { makePack, openPack } from './pack.js?v=45';
-import { showStart } from './ui/start.js?v=45';
-import { openDemo } from './demo.js?v=45';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=45';
-import { trackOf } from './state.js?v=45';
+} from './edit.js?v=51';
+import { addFontFile } from './text.js?v=51';
+import { makePack, openPack, zip } from './pack.js?v=51';
+import { showStart } from './ui/start.js?v=51';
+import { openDemo } from './demo.js?v=51';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=51';
+import { trackOf } from './state.js?v=51';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -363,8 +363,53 @@ function prog(p, msg) {
   if (msg) $('#busyMsg').textContent = msg;
 }
 
+/* ---------- 連番PNG ／ 透過PNG ----------
+   1コマずつ 焼いて ZIP に まとめる。透過は 下じきを ぬらずに 焼く。 */
+async function exportPng(opt = {}) {
+  const name = (opt.name || 'douga').replace(/[\\/:*?"<>|]/g, '_');
+  const alpha = !!opt.alpha;
+  const fps = S.fps;
+  const total = Math.max(1, Math.round(duration() * fps));
+  if (total > 3600) {
+    if (!confirm(`${total}枚に なります。だいぶ 時間が かかりますが いいですか？`)) return;
+  }
+  exStop = false;
+  pause();
+  busy(true, alpha ? '透過PNG を 焼いて います' : '連番PNG を 焼いて います');
+  const files = [];
+  try {
+    if (alpha) S.noBg = true;
+    for (let i = 0; i < total; i++) {
+      if (exStop) { toast('やめた'); return; }
+      const cv = renderFull(i / fps);
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      if (!blob) continue;
+      files.push({
+        name: `${name}_${String(i + 1).padStart(5, '0')}.png`,
+        data: new Uint8Array(await blob.arrayBuffer())
+      });
+      if (i % 4 === 0) {
+        prog(i / total, `${i + 1} / ${total} まい`);
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    prog(.98, 'ひとまとめに して います');
+    const blob = zip(files);
+    save(blob, name + (alpha ? '_alpha' : '') + '_png.zip');
+    toast(`${files.length}まい 書き出した（${r2(blob.size / 1048576)}MB）`, 3200);
+  } catch (e) {
+    toast('PNG に できなかった');
+  } finally {
+    S.noBg = false;
+    busy(false); drawAll();
+  }
+}
+
 async function doExport(opt = {}) {
   if (!allClips().length) { toast('まだ なにも 置いていない'); return; }
+  if (opt.kind === 'png' || opt.kind === 'pngalpha') {
+    return exportPng({ name: opt.name, alpha: opt.kind === 'pngalpha' });
+  }
   const name = (opt.name || 'douga').replace(/[\\/:*?"<>|]/g, '_');
   const bps = opt.bps || 12000000;
   const wantMp4 = opt.kind !== 'webm';
@@ -486,7 +531,7 @@ function thumb() {
 const auto = autoSaver(() => ({
   id: S.docId,
   doc: {
-    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans,
+    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans, cams: S.cams,
     beat: S.beat, master: S.master, tracks: S.tracks
   },
   media: [...MEDIA.values()],
@@ -507,10 +552,12 @@ async function backToStart() {
 function startNew(size, fps) {
   S.W = size.w; S.H = size.h; S.fps = fps || 30;
   S.bg = '#101010';
-  S.dur = 0; S.step = 0; S.trans = [];
+  S.dur = 0; S.step = 0; S.trans = []; S.cams = [];
   S.beat = { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true };
   S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
-    slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0, br: 100, ct: 100, sa: 100 };
+    slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0,
+    vhs: 0, strobe: 0, burn: 0, scratch: 0, snow: 0, bars: 0,
+    sparkle: 0, flare: 0, mosaic: 0, shutter: 0, halo: 0, br: 100, ct: 100, sa: 100 };
   S.loop = { on: false, a: 0, b: 0 };
   S.name = 'むだい';
   S.docId = newId();
@@ -535,6 +582,7 @@ async function openDoc(id) {
     S.dur = +o.dur > 0 ? +o.dur : 0;
     S.step = +o.step > 0 ? +o.step : 0;
     S.trans = Array.isArray(o.trans) ? o.trans : [];
+    S.cams = Array.isArray(o.cams) ? o.cams : [];
     if (o.beat) S.beat = Object.assign({ bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true }, o.beat);
     if (o.master) S.master = Object.assign({}, S.master, o.master);
     S.name = o.name || 'むだい';

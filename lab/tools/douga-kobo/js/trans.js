@@ -176,6 +176,25 @@ export const TRANS = [
     }
   }],
 
+  ['cube', 'キューブ', (g, W, H, p, o) => {
+    const e = ease(p);
+    const w = W * (1 - e);
+    g.beginPath(); g.rect(0, 0, w, H); g.clip();
+    g.translate(0, 0);
+    g.drawImage(o.img, -W * e * .15, 0, W, H);
+  }],
+  ['mosaic', 'モザイク 転換', (g, W, H, p, o) => {
+    const n = Math.max(6, Math.round(90 - p * 84));
+    const bh = Math.max(4, Math.round(n * H / W));
+    const tmp = document.createElement('canvas');
+    tmp.width = n; tmp.height = bh;
+    const tg = tmp.getContext('2d');
+    tg.drawImage(o.img, 0, 0, n, bh);
+    g.imageSmoothingEnabled = false;
+    g.globalAlpha = 1 - Math.max(0, (p - .6) / .4);
+    g.drawImage(tmp, 0, 0, n, bh, 0, 0, W, H);
+    g.imageSmoothingEnabled = true;
+  }],
   ['ink', 'インク', (g, W, H, p, o) => {
     const r = rnd(o.seed);
     const R = Math.hypot(W, H) * .75;

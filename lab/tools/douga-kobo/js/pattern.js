@@ -233,6 +233,153 @@ export const PATS = [
     g.restore();
   }],
 
+  ['tartan', 'タータン', (g, W, H, o) => {
+    const s = W / 9;
+    g.globalAlpha *= .7;
+    g.fillStyle = o.a;
+    for (let x = 0; x < W + s; x += s) g.fillRect(x, 0, s * .45, H);
+    for (let y = 0; y < H + s; y += s) g.fillRect(0, y, W, s * .45);
+    g.fillStyle = o.b;
+    for (let x = s * .55; x < W + s; x += s) g.fillRect(x, 0, s * .16, H);
+    for (let y = s * .55; y < H + s; y += s) g.fillRect(0, y, W, s * .16);
+  }],
+  ['houndstooth', '千鳥格子', (g, W, H, o) => {
+    const s = W / 14;
+    g.fillStyle = o.a;
+    for (let y = 0; y < H + s; y += s)
+      for (let x = 0; x < W + s; x += s) {
+        g.beginPath();
+        g.moveTo(x, y); g.lineTo(x + s * .5, y); g.lineTo(x + s * .75, y + s * .25);
+        g.lineTo(x + s * .5, y + s * .5); g.lineTo(x, y + s * .5); g.closePath(); g.fill();
+        g.beginPath();
+        g.moveTo(x + s * .5, y + s * .5); g.lineTo(x + s, y + s * .5);
+        g.lineTo(x + s, y + s); g.lineTo(x + s * .5, y + s); g.closePath(); g.fill();
+      }
+  }],
+  ['bricks', 'れんが', (g, W, H, o) => {
+    const bw = W / 8, bh = bw * .42;
+    g.strokeStyle = o.a; g.lineWidth = Math.max(1.5, W * .002);
+    for (let j = 0, y = 0; y < H + bh; y += bh, j++)
+      for (let x = (j % 2 ? -bw / 2 : 0); x < W + bw; x += bw)
+        g.strokeRect(x, y, bw, bh);
+  }],
+  ['cityscape', '街なみ', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    let x = 0;
+    while (x < W) {
+      const w = W * (.04 + r2() * .07), h = H * (.15 + r2() * .42);
+      g.fillStyle = o.a;
+      g.fillRect(x, H - h, w, h);
+      g.fillStyle = o.b;
+      for (let wy = H - h + 10; wy < H - 14; wy += 22)
+        for (let wx = x + 6; wx < x + w - 8; wx += 16)
+          if (r2() > .45) g.fillRect(wx, wy, 6, 10);
+      x += w + W * .004;
+    }
+  }],
+  ['mountains', '山なみ', (g, W, H, o) => {
+    for (let k = 0; k < 3; k++) {
+      g.beginPath(); g.moveTo(0, H);
+      const base = H * (.52 + k * .12), amp = H * (.16 - k * .04);
+      for (let x = 0; x <= W; x += 14) {
+        const y = base + Math.sin(x / W * (3 + k * 2) + k) * amp
+          + Math.sin(x / W * (9 + k * 3)) * amp * .3;
+        g.lineTo(x, y);
+      }
+      g.lineTo(W, H); g.closePath();
+      g.globalAlpha = .35 + k * .2;
+      g.fillStyle = k % 2 ? o.a : o.b; g.fill();
+    }
+    g.globalAlpha = 1;
+  }],
+  ['sunset', '夕日', (g, W, H, o) => {
+    const cy = H * .62, R = Math.min(W, H) * .3;
+    const gr = g.createRadialGradient(W / 2, cy, 0, W / 2, cy, R * 2);
+    gr.addColorStop(0, o.a); gr.addColorStop(.45, o.b); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.save();
+    g.globalCompositeOperation = 'destination-out';
+    for (let y = cy; y < cy + R; y += R / 7) g.fillRect(0, y, W, R / 18);
+    g.restore();
+  }],
+  ['rainwindow', '雨の まど', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    g.strokeStyle = o.a; g.lineWidth = Math.max(1, W * .0015);
+    for (let i = 0; i < 90; i++) {
+      const x = r2() * W;
+      const y = ((r2() * H) + o.t * H * (.5 + r2())) % (H + 60) - 30;
+      const L = H * (.03 + r2() * .06);
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x - L * .18, y + L); g.stroke();
+    }
+  }],
+  ['fireworks', '花火', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    for (let f = 0; f < 3; f++) {
+      const cx = W * (.2 + r2() * .6), cy = H * (.15 + r2() * .4);
+      const ph2 = ((o.t * .5 + f * .37) % 1);
+      const R = Math.min(W, H) * .3 * ph2;
+      g.globalAlpha = Math.max(0, 1 - ph2) * .9;
+      g.strokeStyle = f % 2 ? o.a : o.b;
+      g.lineWidth = Math.max(1, W * .0018);
+      for (let i = 0; i < 26; i++) {
+        const a = i / 26 * TAU;
+        g.beginPath();
+        g.moveTo(cx + Math.cos(a) * R * .7, cy + Math.sin(a) * R * .7);
+        g.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+        g.stroke();
+      }
+    }
+    g.globalAlpha = 1;
+  }],
+  ['marble', '大理石', (g, W, H, o) => {
+    g.strokeStyle = o.a; g.lineWidth = Math.max(1, W * .0014);
+    for (let k = 0; k < 14; k++) {
+      g.beginPath();
+      let y = H * (k / 14) + Math.sin(k) * H * .04;
+      g.moveTo(0, y);
+      for (let x = 0; x <= W; x += 16) {
+        y += (Math.sin(x * .013 + k * 2.1) + Math.sin(x * .031 + k)) * H * .004;
+        g.lineTo(x, y);
+      }
+      g.globalAlpha = .25 + (k % 3) * .2;
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+  }],
+  ['kiriye', '切り絵', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    g.fillStyle = o.a;
+    for (let i = 0; i < 9; i++) {
+      const cx = r2() * W, cy = r2() * H, R = Math.min(W, H) * (.05 + r2() * .16);
+      g.beginPath();
+      for (let k = 0; k <= 18; k++) {
+        const a = k / 18 * TAU;
+        const rr = R * (.6 + .4 * Math.sin(a * 5 + i));
+        const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+        k === 0 ? g.moveTo(px, py) : g.lineTo(px, py);
+      }
+      g.closePath(); g.globalAlpha = .3 + r2() * .4; g.fill();
+    }
+    g.globalAlpha = 1;
+  }],
+  ['moon', '月よ', (g, W, H, o) => {
+    const cx = W * .74, cy = H * .28, R = Math.min(W, H) * .16;
+    g.fillStyle = o.a;
+    g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.fill();
+    g.save(); g.globalCompositeOperation = 'destination-out';
+    g.beginPath(); g.arc(cx - R * .42, cy - R * .12, R * .92, 0, TAU); g.fill();
+    g.restore();
+  }],
+  ['spotgrid', 'スポット格子', (g, W, H, o) => {
+    const s = W / 20;
+    g.strokeStyle = o.a; g.lineWidth = Math.max(1, W * .0009);
+    for (let x = 0; x < W + s; x += s) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H + s; y += s) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    const cx = W / 2 + Math.sin(o.t * .6) * W * .2, cy = H / 2;
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.min(W, H) * .5);
+    gr.addColorStop(0, o.b); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }],
   ['wave', '海の波', (g, W, H, o) => {
     for (let k = 0; k < 4; k++) {
       g.beginPath();
@@ -416,6 +563,117 @@ export const DECOS = [
     }
   }],
 
+  ['film', 'フィルム ふち', (g, W, H, o) => {
+    const h = H * .085, n = 14;
+    g.fillStyle = o.a;
+    for (let i = 0; i < n; i++) {
+      const x = (i + ((o.t * 1.2) % 1)) * (W / n);
+      g.fillRect(x, h * .18, W / n * .5, h * .5);
+      g.fillRect(x, H - h * .68, W / n * .5, h * .5);
+    }
+  }],
+  ['bokeh', 'ボケ玉', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    for (let i = 0; i < 16; i++) {
+      const x = (r2() * W + Math.sin(o.t * .3 + i) * W * .02);
+      const y = (r2() * H + Math.cos(o.t * .25 + i) * H * .02);
+      const R = W * .012 * (1 + r2() * 4);
+      const gr = g.createRadialGradient(x, y, 0, x, y, R);
+      gr.addColorStop(0, i % 2 ? o.a : o.b);
+      gr.addColorStop(.7, i % 2 ? o.a : o.b);
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = .18 + r2() * .3;
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, R, 0, TAU); g.fill();
+    }
+    g.globalAlpha = 1;
+  }],
+  ['lightleak', '光もれ', (g, W, H, o) => {
+    const gr = g.createLinearGradient(0, 0, W, H);
+    gr.addColorStop(0, o.a);
+    gr.addColorStop(.35, 'rgba(0,0,0,0)');
+    gr.addColorStop(.7, 'rgba(0,0,0,0)');
+    gr.addColorStop(1, o.b);
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }],
+  ['firefly', 'ほたる', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    for (let i = 0; i < 26; i++) {
+      const sp = .3 + r2();
+      const x = (r2() * W + Math.sin(o.t * sp + i * 2) * W * .05);
+      const y = (r2() * H + Math.cos(o.t * sp * .8 + i) * H * .06);
+      const tw = (Math.sin(o.t * 3 + i * 1.7) * .5 + .5);
+      const R = W * .004 * (1 + tw);
+      const gr = g.createRadialGradient(x, y, 0, x, y, R * 4);
+      gr.addColorStop(0, o.a); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = .3 + tw * .6;
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, R * 4, 0, TAU); g.fill();
+    }
+    g.globalAlpha = 1;
+  }],
+  ['arrow', 'やじるし', (g, W, H, o) => {
+    const x = W * .08, y = H * .5, L = W * .07;
+    g.strokeStyle = o.a; g.lineWidth = Math.max(2, W * .004);
+    g.beginPath();
+    g.moveTo(x, y); g.lineTo(x + L, y);
+    g.moveTo(x + L, y); g.lineTo(x + L * .6, y - L * .3);
+    g.moveTo(x + L, y); g.lineTo(x + L * .6, y + L * .3);
+    g.stroke();
+  }],
+  ['play', '再生ボタン', (g, W, H, o) => {
+    const cx = W * .9, cy = H * .12, R = Math.min(W, H) * .045;
+    g.strokeStyle = o.a; g.lineWidth = Math.max(1.5, W * .002);
+    g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.stroke();
+    g.fillStyle = o.a;
+    g.beginPath();
+    g.moveTo(cx - R * .28, cy - R * .42); g.lineTo(cx + R * .45, cy);
+    g.lineTo(cx - R * .28, cy + R * .42); g.closePath(); g.fill();
+  }],
+  ['notemark', '音ぷ', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    g.fillStyle = o.a;
+    for (let i = 0; i < 9; i++) {
+      const x = r2() * W;
+      const y = ((r2() * H) + o.t * H * .18) % (H + 60) - 30;
+      const s2 = W * .012 * (.7 + r2());
+      g.save(); g.translate(x, y); g.rotate(Math.sin(o.t + i) * .3);
+      g.beginPath(); g.ellipse(0, 0, s2, s2 * .72, -.4, 0, TAU); g.fill();
+      g.fillRect(s2 * .75, -s2 * 2.6, s2 * .22, s2 * 2.7);
+      g.restore();
+    }
+  }],
+  ['starmark', '星', (g, W, H, o) => {
+    const r2 = rnd(o.seed);
+    g.fillStyle = o.a;
+    for (let i = 0; i < 8; i++) {
+      const cx = r2() * W, cy = r2() * H, R = W * .008 * (1 + r2() * 2.4);
+      g.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const a = k / 10 * TAU - Math.PI / 2;
+        const rr = k % 2 ? R * .42 : R;
+        const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr;
+        k === 0 ? g.moveTo(px, py) : g.lineTo(px, py);
+      }
+      g.closePath(); g.globalAlpha = .4 + r2() * .5; g.fill();
+    }
+    g.globalAlpha = 1;
+  }],
+  ['register', '見当合わせ', (g, W, H, o) => {
+    const cx = W * .1, cy = H * .12, R = Math.min(W, H) * .035;
+    g.strokeStyle = o.a; g.lineWidth = Math.max(1.2, W * .0014);
+    g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.stroke();
+    g.beginPath();
+    g.moveTo(cx - R * 1.5, cy); g.lineTo(cx + R * 1.5, cy);
+    g.moveTo(cx, cy - R * 1.5); g.lineTo(cx, cy + R * 1.5);
+    g.stroke();
+  }],
+  ['clip', 'クリップ', (g, W, H, o) => {
+    const x = W * .86, y = H * .06, w = W * .012, h = H * .12;
+    g.strokeStyle = o.a; g.lineWidth = Math.max(2, W * .003);
+    g.beginPath();
+    g.moveTo(x, y + h); g.lineTo(x, y + w); g.arc(x + w, y + w, w, Math.PI, 0);
+    g.lineTo(x + w * 2, y + h - w);
+    g.stroke();
+  }],
   ['scanbar', '荒い帯', (g, W, H, o) => {
     const y = (o.t * H * .35) % (H + 60) - 30;
     const gr = g.createLinearGradient(0, y, 0, y + H * .1);

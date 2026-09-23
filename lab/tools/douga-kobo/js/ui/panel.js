@@ -3,18 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=45';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=45';
-import { storeOk } from '../store.js?v=45';
-import { bus } from '../bus.js?v=45';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=45';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=45';
+} from '../state.js?v=51';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=51';
+import { storeOk } from '../store.js?v=51';
+import { bus } from '../bus.js?v=51';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=51';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=51';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=45';
+  offOf, setOff, clearOff } from '../text.js?v=51';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=45';
+} from '../edit.js?v=51';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -763,7 +763,8 @@ function autoBody(w) {
       fnum('がらの こさ', 'patAmt', 'おまかせ'),
       fsel('上に のせる かざり', DECO_LIST, 'deco'),
       fnum('かざりの こさ', 'decoAmt', 'おまかせ'),
-      fsel('カメラ', CAM_OPTS, 'cam')
+      fsel('カメラ', CAM_OPTS, 'cam'),
+      fnum('カメラが 入る わりあい', 'camAmt', 'おまかせ（0.72）')
     ]));
     fixWrap.appendChild(group('うごき', [
       fsel('出かた', FX_IN, 'fxIn'),
@@ -979,8 +980,20 @@ function masterBody() {
     mr('ブロック ずれ', 'block', 0, 1, .02, ''),
     mr('走査線', 'scan', 0, 1, .02, ''),
     mr('ひかり にじみ', 'bloom', 0, 1, .02, ''),
+    mr('VHS ロール', 'vhs', 0, 1, .02, ''),
+    mr('モザイク', 'mosaic', 0, 1, .02, ''),
+    mr('ストロボ', 'strobe', 0, 1, .02, ''),
+    mr('すなあらし', 'snow', 0, 1, .02, ''),
+    mr('カラーバー', 'bars', 0, 1, .02, ''),
     hint('「よこ ずれ」「ブロック ずれ」は 拍ではなく 1/24秒 ごとに 出ます。<br>' +
       'コマ数を 上げても チラつきの はやさは 変わりません。')
+  ]));
+  w.appendChild(group('フィルム・ひかり', [
+    mr('フィルム やけ', 'burn', 0, 1, .02, ''),
+    mr('フィルム きず', 'scratch', 0, 1, .02, ''),
+    mr('キラッ', 'sparkle', 0, 1, .02, ''),
+    mr('レンズ フレア', 'flare', 0, 1, .02, ''),
+    mr('まわり あたたかく', 'halo', 0, 1, .02, '')
   ]));
   w.appendChild(transGroup());
   w.appendChild(group('コマ打ち', [
@@ -999,6 +1012,7 @@ function masterBody() {
     mr('ズーム', 'zoom', 0, 1, .02, ''),
     mr('集中線', 'lines', 0, 1, .02, ''),
     mr('反転', 'invert', 0, 1, .02, ''),
+    mr('シャッター', 'shutter', 0, 1, .02, ''),
     beatOn() ? hint(`BPM ${r2(S.beat.bpm)} の 拍ごとに 出ます。`)
       : hint('BPM を きめると 拍ごとに 出ます。<br>いまは 1秒に 2回。')
   ]));
@@ -1044,7 +1058,8 @@ function fileBody() {
   [['12000000', 'きれい'], ['20000000', 'とても きれい'], ['7000000', 'ふつう'], ['3500000', 'かるい']]
     .forEach(([v, l]) => { const o = el('option', null, l); o.value = v; exq.appendChild(o); });
   const exk = el('select');
-  [['mp4', 'MP4（ふつうは こっち）'], ['webm', 'WebM（通しで 録る）']]
+  [['mp4', 'MP4（ふつうは こっち）'], ['webm', 'WebM（通しで 録る）'],
+   ['png', '連番PNG（ZIP）'], ['pngalpha', '透過PNG（ZIP・下じき なし）']]
     .forEach(([v, l]) => { const o = el('option', null, l); o.value = v; exk.appendChild(o); });
   w.appendChild(group('ようす（うまく いかない とき）', [
     stateBody(),
@@ -1069,9 +1084,11 @@ function fileBody() {
       if (!docked()) close();
       bus.export({ name: nm.value.trim() || 'douga', bps: +exq.value, kind: exk.value });
     })]),
-    hint(bus.canMp4 && bus.canMp4()
+    hint((bus.canMp4 && bus.canMp4()
       ? 'MP4 は 1コマずつ 焼く やり方。<br>長いと 時間は かかるが、コマ落ちしない。'
-      : 'この ブラウザは MP4 に できないので、<br>通しで 録って WebM に します。')
+      : 'この ブラウザは MP4 に できないので、<br>通しで 録って WebM に します。') +
+      '<br><b>連番PNG</b>は 1コマ＝1まいの 絵。<br>' +
+      '<b>透過PNG</b>は 下じきを ぬらずに 焼く ので、AE などで かさねられます（音は 入りません）。')
   ]));
   return w;
 }
@@ -1111,9 +1128,12 @@ function settingBody() {
   const w = el('div');
   w.appendChild(group('作品の かたち', [
     pick('大きさ', [
-      ['1280x720', '1280×720 よこ'], ['1920x1080', '1920×1080 よこ'],
-      ['1080x1080', '1080×1080 しかく'], ['1080x1920', '1080×1920 たて'],
-      ['854x480', '854×480 かるい']
+      ['1280x720', '16:9  1280×720'], ['1920x1080', '16:9  1920×1080'],
+      ['2560x1440', '16:9  2560×1440'], ['3840x2160', '16:9  3840×2160 (4K)'],
+      ['1080x1920', '9:16  1080×1920 たて'], ['720x1280', '9:16  720×1280 たて'],
+      ['1080x1080', '1:1  1080×1080 しかく'], ['1080x1350', '4:5  1080×1350'],
+      ['1440x1080', '4:3  1440×1080'], ['1080x1440', '3:4  1080×1440'],
+      ['2560x1080', '21:9  2560×1080'], ['854x480', '16:9  854×480 かるい']
     ], `${S.W}x${S.H}`, v => {
       const [w2, h2] = v.split('x').map(Number);
       S.W = w2; S.H = h2; bus.size(); bus.all();

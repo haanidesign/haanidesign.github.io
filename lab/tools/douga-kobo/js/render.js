@@ -1,10 +1,11 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=45';
-import { MEDIA, animFrame } from './media.js?v=45';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=45';
-import { beatOn, beatAt } from './beat.js?v=45';
-import { drawPat, drawDeco } from './pattern.js?v=45';
-import { drawTrans } from './trans.js?v=45';
+import { S, clamp, findClip } from './state.js?v=51';
+import { MEDIA, animFrame } from './media.js?v=51';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=51';
+import { beatOn, beatAt } from './beat.js?v=51';
+import { drawPat, drawDeco } from './pattern.js?v=51';
+import { drawTrans } from './trans.js?v=51';
+import { camAt } from './camera.js?v=51';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -122,7 +123,7 @@ const M = () => S.master || {};
    ざらざら（グレイン）と 色ずれは 1コマに 何回も 全面を ぬる ので いちばん おもい。
    止めて いる あいだは ちゃんと 見える。書き出しは もちろん そのまま。 */
 const cheapFx = () => S.playing && quality() < 1;
-const rgbNow = () => cheapFx() ? 0 : (M().rgb || 0);
+const rgbNow = () => (cheapFx() || S.noBg) ? 0 : (M().rgb || 0);
 const grainNow = () => cheapFx() ? 0 : (M().grain || 0);
 const needsBuf = () => {
   const m = M();
@@ -132,7 +133,9 @@ const needsBuf = () => {
 const anyMaster = () => {
   const m = M();
   return needsBuf() || m.vignette > 0 || m.grain > 0 || m.flash > 0 || m.shake > 0 || m.zoom > 0
-    || m.slice > 0 || m.block > 0 || m.scan > 0 || m.invert > 0 || m.bloom > 0 || m.lines > 0;
+    || m.slice > 0 || m.block > 0 || m.scan > 0 || m.invert > 0 || m.bloom > 0 || m.lines > 0
+    || m.vhs > 0 || m.strobe > 0 || m.burn > 0 || m.scratch > 0 || m.snow > 0
+    || m.bars > 0 || m.sparkle > 0 || m.flare > 0 || m.mosaic > 0 || m.shutter > 0 || m.halo > 0;
 };
 /* ---------- コマ打ち ----------
    S.step が 12 なら 1秒に 12枚ぶんしか 動かない（2コマ打ち）。
@@ -261,6 +264,124 @@ function rnd2(seed) {
   };
 }
 
+/* ---- ここから 足した 画面効果 ---- */
+function vhsRoll(g, t, amt) {
+  const cv = g.canvas, q = quality();
+  const y = ((t * 40 * amt) % (S.H + 200)) - 100;
+  const h = S.H * .09;
+  try {
+    g.drawImage(cv, 0, y * q, cv.width, h * q, S.W * .02 * amt, y, S.W, h);
+  } catch (e) { }
+  g.save();
+  g.globalAlpha = .22 * amt; g.fillStyle = '#fff';
+  g.fillRect(0, y, S.W, h * .3);
+  g.restore();
+}
+function strobe(g, t, amt) {
+  if (Math.floor(t * 24) % 2) return;
+  g.save(); g.globalAlpha = Math.min(.85, amt * .7);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, S.W, S.H); g.restore();
+}
+function filmBurn(g, t, amt) {
+  const r = rnd2(Math.floor(t * 24) * 7717);
+  if (r() > .1 + amt * .12) return;
+  const cx = S.W * r(), cy = S.H * r();
+  const gr = g.createRadialGradient(cx, cy, 0, cx, cy, Math.min(S.W, S.H) * (.2 + r() * .4));
+  gr.addColorStop(0, `rgba(255,190,90,${.75 * amt})`);
+  gr.addColorStop(1, 'rgba(255,120,0,0)');
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.fillStyle = gr; g.fillRect(0, 0, S.W, S.H); g.restore();
+}
+function filmScratch(g, t, amt) {
+  const r = rnd2(Math.floor(t * 24) * 20011);
+  g.save(); g.globalAlpha = .35 * amt; g.strokeStyle = '#fff';
+  const n = 1 + Math.floor(r() * 3 * amt);
+  for (let i = 0; i < n; i++) {
+    const x = r() * S.W;
+    g.lineWidth = Math.max(1, S.W * .0008 * (.5 + r()));
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x + (r() - .5) * 12, S.H); g.stroke();
+  }
+  g.restore();
+}
+function noiseSnow(g, t, amt) {
+  if (!grainTile) grainTile = makeGrain();
+  g.save();
+  g.globalAlpha = Math.min(.8, amt * .55);
+  const pat = g.createPattern(grainTile, 'repeat');
+  g.translate((Math.random() * 60) | 0, (Math.random() * 60) | 0);
+  g.fillStyle = pat; g.fillRect(-60, -60, S.W + 120, S.H + 120);
+  g.restore();
+}
+function colorBar(g, t, amt) {
+  if (rnd2(Math.floor(t * 24) * 33377)() > .06 + amt * .08) return;
+  const cols = ['#c0c0c0', '#c0c000', '#00c0c0', '#00c000', '#c000c0', '#c00000', '#0000c0'];
+  g.save(); g.globalAlpha = Math.min(.9, amt);
+  const bw = S.W / cols.length;
+  cols.forEach((c, i) => { g.fillStyle = c; g.fillRect(i * bw, 0, bw + 1, S.H); });
+  g.restore();
+}
+function sparkle(g, t, amt) {
+  const r = rnd2(Math.floor(t * 12) * 60013);
+  const n = Math.floor(2 + r() * 5 * amt);
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < n; i++) {
+    const x = r() * S.W, y = r() * S.H, L = S.W * .012 * (.6 + r() * 2.4);
+    g.globalAlpha = (.4 + r() * .6) * amt;
+    g.strokeStyle = '#fff'; g.lineWidth = Math.max(1, S.W * .0016);
+    g.beginPath();
+    g.moveTo(x - L, y); g.lineTo(x + L, y);
+    g.moveTo(x, y - L); g.lineTo(x, y + L);
+    g.stroke();
+  }
+  g.restore();
+}
+function flare(g, t, amt) {
+  const ph2 = phase(t);
+  const a = Math.pow(1 - ph2, 3) * amt;
+  if (a < .03) return;
+  const y = S.H * .42;
+  const gr = g.createLinearGradient(0, y, S.W, y);
+  gr.addColorStop(0, 'rgba(120,190,255,0)');
+  gr.addColorStop(.5, `rgba(150,210,255,${Math.min(.8, a)})`);
+  gr.addColorStop(1, 'rgba(120,190,255,0)');
+  g.save(); g.globalCompositeOperation = 'lighter';
+  g.fillStyle = gr; g.fillRect(0, y - S.H * .02, S.W, S.H * .04); g.restore();
+}
+function mosaicPass(g, t, amt) {
+  const cv = g.canvas, q = quality();
+  const n = Math.max(8, Math.round(120 - amt * 100));
+  if (!buf2) { buf2 = document.createElement('canvas'); buf2G = buf2.getContext('2d'); }
+  const bw = n, bh = Math.max(4, Math.round(n * S.H / S.W));
+  if (buf2.width !== bw || buf2.height !== bh) { buf2.width = bw; buf2.height = bh; }
+  buf2G.setTransform(1, 0, 0, 1, 0, 0);
+  buf2G.globalCompositeOperation = 'source-over';
+  buf2G.imageSmoothingEnabled = true;
+  try { buf2G.drawImage(cv, 0, 0, cv.width, cv.height, 0, 0, bw, bh); } catch (e) { return; }
+  g.save();
+  g.imageSmoothingEnabled = false;
+  g.globalAlpha = Math.min(1, amt * 1.2);
+  try { g.drawImage(buf2, 0, 0, bw, bh, 0, 0, S.W, S.H); } catch (e) { }
+  g.restore();
+  g.imageSmoothingEnabled = true;
+}
+function shutterPass(g, t, amt) {
+  const ph2 = phase(t);
+  const k = Math.pow(1 - ph2, 5) * amt;
+  if (k < .04) return;
+  const h = S.H * .5 * k;
+  g.save(); g.globalAlpha = Math.min(1, k * 1.6); g.fillStyle = '#000';
+  g.fillRect(0, 0, S.W, h); g.fillRect(0, S.H - h, S.W, h);
+  g.restore();
+}
+function vignetteColor(g, amt, col) {
+  const r = Math.hypot(S.W, S.H) / 2;
+  const gr = g.createRadialGradient(S.W / 2, S.H / 2, r * .3, S.W / 2, S.H / 2, r);
+  gr.addColorStop(0, 'rgba(0,0,0,0)');
+  gr.addColorStop(1, col);
+  g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = amt;
+  g.fillStyle = gr; g.fillRect(0, 0, S.W, S.H); g.restore();
+}
+
 function masterOver(g, t) {
   const m = M();
   const ph = phase(t);
@@ -268,9 +389,20 @@ function masterOver(g, t) {
   if (!cheapFx()) {
     if (m.slice > 0) sliceGlitch(g, t, m.slice);
     if (m.block > 0) blockGlitch(g, t, m.block);
+    if (m.vhs > 0) vhsRoll(g, t, m.vhs);
+    if (m.mosaic > 0) mosaicPass(g, t, m.mosaic);
     if (m.bloom > 0) bloomPass(g, m.bloom);
     if (m.invert > 0) invertPass(g, t, m.invert);
+    if (m.burn > 0) filmBurn(g, t, m.burn);
+    if (m.snow > 0) noiseSnow(g, t, m.snow);
+    if (m.bars > 0) colorBar(g, t, m.bars);
   }
+  if (m.scratch > 0) filmScratch(g, t, m.scratch);
+  if (m.strobe > 0) strobe(g, t, m.strobe);
+  if (m.sparkle > 0) sparkle(g, t, m.sparkle);
+  if (m.flare > 0) flare(g, t, m.flare);
+  if (m.shutter > 0) shutterPass(g, t, m.shutter);
+  if (m.halo > 0) vignetteColor(g, m.halo, 'rgba(255,170,90,.55)');
   if (m.scan > 0) scanLines(g, m.scan);
   if (m.lines > 0) speedLines(g, t, m.lines);
   if (m.flash > 0) {
@@ -369,6 +501,20 @@ export function renderStage(t = S.time, handles = true) {
    つなぎの あいだ ずっと それを つかう（毎コマ 2度 えがかない ため）。 */
 let trCv = null, trG = null, trKey = '';
 export function clearTrans() { trKey = ''; }
+/** いまの カメラ。S.cams = [{at,dur,kind,seed}] */
+function camNow(t) {
+  const list = S.cams;
+  if (!Array.isArray(list) || !list.length) return null;
+  for (const x of list) {
+    if (!x || !x.kind || x.kind === 'none') continue;
+    const d = Math.max(.05, x.dur || 1);
+    if (t >= x.at && t < x.at + d) {
+      return camAt(x.kind, (t - x.at) / d, phase(t), S.W, S.H, x.seed);
+    }
+  }
+  return null;
+}
+
 function transAt(t) {
   const list = S.trans;
   if (!Array.isArray(list)) return null;
@@ -402,9 +548,21 @@ function paintFull(G, t, noTrans) {
   const W = S.W, H = S.H;
 
   const q = quality();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, g.canvas.width, g.canvas.height);
   g.setTransform(q, 0, 0, q, 0, 0);
   g.globalAlpha = 1; g.filter = 'none';
-  g.fillStyle = S.bg; g.fillRect(0, 0, S.W, S.H);
+  /* 下じきを ぬらない ぶん（透過PNG）では、すきまを のこす */
+  if (!S.noBg) { g.fillStyle = S.bg; g.fillRect(0, 0, S.W, S.H); }
+
+  // カメラ（カットごとの 画ぜんたいの うごき）
+  const cam = camNow(t);
+  if (cam) {
+    g.translate(S.W / 2 + cam.x, S.H / 2 + cam.y);
+    g.rotate(cam.r * Math.PI / 180);
+    g.scale(cam.s, cam.s);
+    g.translate(-S.W / 2, -S.H / 2);
+  }
 
   // ゆれ・ズームは ぜんたいに かける
   if (m.shake > 0 || m.zoom > 0) {
@@ -424,7 +582,8 @@ function paintFull(G, t, noTrans) {
     G.setTransform(1, 0, 0, 1, 0, 0);
     G.globalAlpha = 1;
     G.globalCompositeOperation = 'source-over';
-    G.fillStyle = '#000'; G.fillRect(0, 0, ow(), oh());
+    G.clearRect(0, 0, ow(), oh());
+    if (!S.noBg) { G.fillStyle = '#000'; G.fillRect(0, 0, ow(), oh()); }
     G.filter = `brightness(${m.br === undefined ? 100 : m.br}%) contrast(${m.ct === undefined ? 100 : m.ct}%) saturate(${m.sa === undefined ? 100 : m.sa}%)`;
     if (rgbNow() > 0) {
       // 赤と 水いろに 分けて、左右に ずらして かさねる＝色ずれ
@@ -441,7 +600,7 @@ function paintFull(G, t, noTrans) {
     G.filter = 'none';
   }
   G.setTransform(q, 0, 0, q, 0, 0);
-  masterOver(G, t);
+  if (!S.noBg) masterOver(G, t);
 
   if (!noTrans) {
     const tr = transAt(t);

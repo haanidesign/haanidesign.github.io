@@ -8,12 +8,13 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
-} from './state.js?v=45';
-import { beatOn, beatSec } from './beat.js?v=45';
-import { GFONTS, setOff } from './text.js?v=45';
-import { bus } from './bus.js?v=45';
-import { PATS, DECOS } from './pattern.js?v=45';
-import { TRANS, TRANS_LIST } from './trans.js?v=45';
+} from './state.js?v=51';
+import { beatOn, beatSec } from './beat.js?v=51';
+import { GFONTS, setOff } from './text.js?v=51';
+import { bus } from './bus.js?v=51';
+import { PATS, DECOS } from './pattern.js?v=51';
+import { TRANS, TRANS_LIST } from './trans.js?v=51';
+import { CAMS as CAMLIST, CAM_LIST } from './camera.js?v=51';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {
@@ -37,22 +38,22 @@ export const MOODS = [
 /* 部品ごとの 雰囲気の ふだ。書いて ない ものは どの 雰囲気でも つかう。 */
 const TAGS = {
   glitch: ['glitch', 'flipx', 'flipy', 'stretch', 'scatter', 'jitter', 'shake', 'flash',
-    'crt', 'loading', 'crack', 'slicein', 'datafall', 'koma',
+    'crt', 'loading', 'crack', 'slicein', 'datafall', 'koma', 'typo', 'tick', 'blink', 'flipbeat',
     'glitchout', 'tvoff', 'sliceout', 'shred', 'explode', 'cut1', 'shock'],
   calm: ['fade', 'blur', 'up', 'down', 'wavein', 'swing', 'wave', 'none', 'kenburns',
-    'iris', 'unfold', 'rise', 'inkdrop', 'brush', 'pend',
+    'iris', 'unfold', 'rise', 'inkdrop', 'brush', 'pend', 'breath', 'drift', 'float', 'sway', 'focusshift',
     'mist', 'sink', 'melt', 'flutter', 'drain', 'shrink'],
   pop: ['pop', 'spring', 'zoomin', 'drop', 'bounce', 'pulse', 'zoombeat', 'zoom',
-    'bound', 'stamp', 'squash', 'pushin', 'sheet', 'countin', 'magnify',
+    'bound', 'stamp', 'squash', 'pushin', 'sheet', 'countin', 'magnify', 'jelly', 'heartbeat', 'squeezeb', 'stretchbeat',
     'balloon', 'fly', 'roll', 'shock', 'explode'],
   graphic: ['wipe', 'slide', 'left', 'right', 'rotate', 'none', 'updown', 'zoom',
-    'blind', 'shutter', 'zip', 'domino', 'fan', 'cylinder', 'drum', 'tilt',
+    'blind', 'shutter', 'zip', 'domino', 'fan', 'cylinder', 'drum', 'tilt', 'gloss', 'tick', 'roll',
     'wipeout', 'door', 'sliceout', 'suck', 'shrink'],
   editorial: ['type', 'fade', 'wipe', 'none', 'up', 'blur',
-    'stroke1', 'loading', 'rise', 'iris',
+    'stroke1', 'loading', 'rise', 'iris', 'breath', 'gloss',
     'backspace', 'erase', 'wipeout', 'mist'],
   emo: ['blur', 'fade', 'zoomout', 'spiral', 'wavein', 'pulse', 'swing', 'kenburns',
-    'gather', 'neon', 'datafall', 'magnify', 'unfold',
+    'gather', 'neon', 'datafall', 'magnify', 'unfold', 'flame', 'hang', 'string', 'hueslow', 'float',
     'mist', 'sand', 'tornado', 'balloon', 'flutter', 'burn', 'sink']
 };
 /* がら と かざり の 雰囲気ふだ */
@@ -248,7 +249,10 @@ const INS = ['up', 'down', 'left', 'right', 'zoomin', 'zoomout', 'pop', 'spring'
   'crack', 'magnify', 'sheet', 'unfold', 'gather', 'rise'];
 /** ③ ずっと（保持） */
 const LOOPS = ['none', 'none', 'bounce', 'pulse', 'shake', 'swing', 'wave',
-  'flash', 'jitter', 'updown', 'zoombeat'];
+  'flash', 'jitter', 'updown', 'zoombeat',
+  'drift', 'breath', 'jelly', 'flame', 'gust', 'hang', 'stretchbeat', 'flipbeat',
+  'gloss', 'focusshift', 'string', 'typo', 'heartbeat', 'sway', 'tick', 'blink',
+  'squeezeb', 'roll', 'hueslow', 'float'];
 /** ④ 消えかた（退場） */
 const OUTS = ['fade', 'fade', 'up', 'down', 'zoomin', 'zoomout', 'blur', 'scatter', 'type',
   'explode', 'collapse', 'mist', 'sliceout', 'wipeout', 'shrink', 'stretchout', 'fly',
@@ -435,11 +439,17 @@ export const STEPS = [['0', 'フル（なめらか）'], ['12', '2コマ打ち']
 
 /** ⑩ カメラ（うしろの うごき） */
 const CAMS = ['none', 'none', 'kenburns', 'zoom', 'up', 'fade'];
+/** カメラの 雰囲気ふだ */
+const CAM_TAGS = {
+  glitch: ['snap', 'step', 'quake', 'beatshake', 'crash', 'barrel'],
+  calm: ['slowin', 'slowout', 'kenburns', 'breathe', 'focus', 'driftL', 'driftR'],
+  pop: ['beatpunch', 'beatzoom', 'push', 'crash', 'snap', 'orbit'],
+  graphic: ['panL', 'panR', 'panU', 'panD', 'dutchfix', 'step', 'push'],
+  editorial: ['slowin', 'slowout', 'none', 'panU', 'breathe'],
+  emo: ['kenburns', 'orbit', 'dizzy', 'pendulum', 'breathe', 'swirl', 'tilt']
+};
 /** 画面で えらぶ ときの ならび */
-export const CAM_OPTS = [
-  ['none', 'なし'], ['kenburns', 'ゆっくり 寄る'], ['zoom', '寄る'],
-  ['up', '上へ'], ['fade', 'じわっ']
-];
+export const CAM_OPTS = CAM_LIST;
 /** 出る じゅんばん・まとまり・うごきかた を 画面で えらぶ ため */
 export const UNIT_OPTS = [
   ['char', '1文字ずつ'], ['word', 'ことばごと'], ['line', '行ごと'], ['all', 'まとめて']
@@ -452,7 +462,27 @@ export const PALETTES = [
   ['ネオン', { ink: '#07070C', paper: '#FFFFFF', accent: '#C8FF00', accent2: '#FF2E88', bg1: '#0d0d16', bg2: '#241a3d', text: '#FFFFFF' }],
   ['さくら', { ink: '#2b1a22', paper: '#FFF6F8', accent: '#F2A0B8', accent2: '#FFD8A8', bg1: '#3a2430', bg2: '#7a4a5e', text: '#FFF6F8' }],
   ['うみ', { ink: '#06121c', paper: '#F2FBFF', accent: '#00E5FF', accent2: '#7AC4A0', bg1: '#08243a', bg2: '#0f4c6b', text: '#F2FBFF' }],
-  ['ひざし', { ink: '#231703', paper: '#FFF8E8', accent: '#FFB300', accent2: '#FF5C00', bg1: '#3a2a08', bg2: '#8a5a10', text: '#FFF8E8' }]
+  ['ひざし', { ink: '#231703', paper: '#FFF8E8', accent: '#FFB300', accent2: '#FF5C00', bg1: '#3a2a08', bg2: '#8a5a10', text: '#FFF8E8' }],
+
+  /* ---- ここから 足した ぶん ---- */
+  ['しんかい', { ink: '#02080f', paper: '#E8F6FF', accent: '#2FE0C8', accent2: '#5B8CFF', bg1: '#04121f', bg2: '#0b2b47', text: '#E8F6FF' }],
+  ['ゆうやけ', { ink: '#2a1020', paper: '#FFF3E6', accent: '#FF7A45', accent2: '#FFC93C', bg1: '#4a1b35', bg2: '#9c3b3b', text: '#FFF3E6' }],
+  ['もりの てちょう', { ink: '#16240f', paper: '#F6F3E2', accent: '#8FB43A', accent2: '#D8A23A', bg1: '#1e3316', bg2: '#3f5c2a', text: '#F6F3E2' }],
+  ['ヴェイパー', { ink: '#160d2b', paper: '#FFF0FB', accent: '#FF6FD8', accent2: '#5BE7FF', bg1: '#241443', bg2: '#4a2a7a', text: '#FFF0FB' }],
+  ['しんぶん', { ink: '#1a1a18', paper: '#F3F0E6', accent: '#8a8878', accent2: '#B33A2B', bg1: '#EDE9DC', bg2: '#D8D3C2', text: '#1a1a18' }],
+  ['シンセ80s', { ink: '#0a041c', paper: '#FFFFFF', accent: '#FF2D95', accent2: '#00F0FF', bg1: '#140a33', bg2: '#3a1466', text: '#FFFFFF' }],
+  ['クラフト紙', { ink: '#2e2115', paper: '#F7ECD8', accent: '#C98A3C', accent2: '#6B8E5A', bg1: '#C9B08A', bg2: '#E3D2B4', text: '#2e2115' }],
+  ['キャンディ', { ink: '#33203a', paper: '#FFF8FC', accent: '#FF8FC7', accent2: '#8FD8FF', bg1: '#FFE3F1', bg2: '#E3F1FF', text: '#33203a' }],
+  ['アシッド', { ink: '#0d0d0d', paper: '#FBFF00', accent: '#00FF85', accent2: '#FF00C8', bg1: '#111111', bg2: '#2b2b00', text: '#FBFF00' }],
+  ['すみと しゅ', { ink: '#16110d', paper: '#F4EFE3', accent: '#C0392B', accent2: '#8a7a5a', bg1: '#F4EFE3', bg2: '#DED6C4', text: '#16110d' }],
+  ['きんや', { ink: '#0f0c06', paper: '#FFF6DC', accent: '#E8C25A', accent2: '#B8862B', bg1: '#161108', bg2: '#3a2c12', text: '#FFF6DC' }],
+  ['モノクロ', { ink: '#0a0a0a', paper: '#FFFFFF', accent: '#B0B0B0', accent2: '#606060', bg1: '#161616', bg2: '#3a3a3a', text: '#FFFFFF' }],
+  ['はいいろ 昼', { ink: '#23262b', paper: '#FAFBFC', accent: '#4A6FA5', accent2: '#A5794A', bg1: '#E8EBEF', bg2: '#C9D0D9', text: '#23262b' }],
+  ['みどり あめ', { ink: '#07140f', paper: '#EAF7F0', accent: '#3DDC84', accent2: '#B8E986', bg1: '#0c2119', bg2: '#17402f', text: '#EAF7F0' }],
+  ['むらさき やみ', { ink: '#0b0616', paper: '#F3ECFF', accent: '#A66BFF', accent2: '#FF6BB5', bg1: '#150b2b', bg2: '#2e1a52', text: '#F3ECFF' }],
+  ['あかつき', { ink: '#1c0d14', paper: '#FFF0F0', accent: '#FF4D6D', accent2: '#FFB86B', bg1: '#2e1220', bg2: '#6b2438', text: '#FFF0F0' }],
+  ['こおり', { ink: '#0a1620', paper: '#F0FAFF', accent: '#8FE3FF', accent2: '#C8D8FF', bg1: '#dceaf5', bg2: '#b8d4e8', text: '#0a1620' }],
+  ['つちいろ', { ink: '#231a12', paper: '#F5EDE0', accent: '#B5743A', accent2: '#7A8C5A', bg1: '#3a2c1e', bg2: '#6b5238', text: '#F5EDE0' }]
 ];
 
 /* ---------- 読める 色を えらぶ ----------
@@ -719,7 +749,16 @@ export function autoCompose(opt = {}) {
   const aIdx = S.tracks.findIndex(t2 => t2.kind === 'audio');
   S.tracks.splice(aIdx < 0 ? S.tracks.length : aIdx, 0, tBg);
 
-  /* --- カット間の つなぎ --- */
+  /* --- カメラ（カットごと）と つなぎ --- */
+  S.cams = [];
+  const camAmt = has('camAmt') ? +fx.camAmt : .72;
+  starts.forEach((at, i) => {
+    const kind = has('cam') ? fx.cam
+      : (chance(r, camAmt) ? pick(r, moodList(CAM_TAGS, mood, CAM_LIST)) : 'none');
+    if (!kind || kind === 'none') return;
+    S.cams.push({ at, dur: durOf(i), kind, seed: Math.floor(r() * 99999) + 1 });
+  });
+
   S.trans = [];
   const trAmt = has('transAmt') ? +fx.transAmt : .5;
   for (let i = 1; i < starts.length; i++) {
@@ -744,7 +783,7 @@ export function autoCompose(opt = {}) {
     const [c1, c2, dir] = bgf(P);
     const bg = newClip('color', { name: 'いろ', start: at, dur });
     bg.color = c1; bg.color2 = c2; bg.grad = c1 !== c2; bg.gradDir = dir;
-    bg.anim = F('cam', () => pickM(r, CAMS, mood));
+    bg.anim = pickM(r, CAMS, mood);
     if (bg.anim === 'kenburns' || bg.anim === 'zoom') bg.scale = 1.04;
     bg.fin = .05; bg.fout = .05;
     // うしろの もよう
