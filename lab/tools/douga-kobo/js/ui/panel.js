@@ -3,17 +3,18 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   snap as pushUndo
-} from '../state.js?v=14';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=14';
-import { storeOk } from '../store.js?v=14';
-import { bus } from '../bus.js?v=14';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=14';
+} from '../state.js?v=19';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=19';
+import { storeOk } from '../store.js?v=19';
+import { bus } from '../bus.js?v=19';
+import { autoCompose, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS } from '../auto.js?v=19';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=19';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=14';
+  offOf, setOff, clearOff } from '../text.js?v=19';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=14';
+} from '../edit.js?v=19';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -485,10 +486,182 @@ function trackBody() {
 
 /* --- うた --- */
 let lyUnit = 'beat';
+let lyMode = 'auto';
+let lySeed = Math.floor(Math.random() * 9999) + 1;
+let lyMood = 'all';
+let lyFix = {};           // きめうち（指定）した ところ
+let lyOpen = false;       // 「ここは きめる」を ひらいて いるか
+let lyHist = [];          // ためした たねの ならび
+let lyAt = -1;            // いま どこを 見て いるか
+let lyText = '';
+let lyBeats = 4;
+
 function lyricBody() {
   const w = el('div');
+  w.appendChild(grid('やりかた', [
+    btn('おまかせ 組み立て', 'btn-sm' + (lyMode === 'auto' ? ' on' : ''), () => { lyMode = 'auto'; draw(); }),
+    btn('ならべるだけ', 'btn-sm' + (lyMode === 'plain' ? ' on' : ''), () => { lyMode = 'plain'; draw(); })
+  ]));
+  return lyMode === 'auto' ? autoBody(w) : plainBody(w);
+}
+
+/* おまかせ：歌詞と 拍から カットを じどうで 組み立てる */
+function autoBody(w) {
+  const ta = el('textarea'); ta.rows = 7; ta.value = lyText;
+  ta.placeholder = 'ゆめの つづきを\nうたって いた / いまも\n*きみ* に とどけ';
+  ta.addEventListener('input', () => { lyText = ta.value; });
+
+  const from = el('input'); from.type = 'number'; from.step = .1; from.value = r2(S.time);
+  const beats = el('input'); beats.type = 'number'; beats.step = 1; beats.min = 1; beats.value = lyBeats;
+  beats.addEventListener('change', () => { lyBeats = Math.max(1, +beats.value || 4); });
+  const seed = el('input'); seed.type = 'number'; seed.step = 1; seed.value = lySeed;
+  seed.addEventListener('change', () => { lySeed = (+seed.value | 0) || 1; });
+
+  const run = () => {
+    lyText = ta.value;
+    const res = autoCompose({
+      text: lyText, from: +from.value || 0,
+      beats: Math.max(1, +beats.value || 4), seed: lySeed, mood: lyMood,
+      fix: lyFix
+    });
+    if (res) {
+      toast(`${res.cuts}カット つくった（たね ${lySeed}・${res.palette}）`, 3000);
+      if (!docked()) close(); else draw();
+    }
+    return res;
+  };
+  const build = (newSeed) => {
+    if (newSeed) {
+      lySeed = Math.floor(Math.random() * 9999) + 1;
+      seed.value = lySeed;
+      lyHist = lyHist.slice(0, lyAt + 1);
+      lyHist.push(lySeed); lyAt = lyHist.length - 1;
+      if (lyHist.length > 30) { lyHist.shift(); lyAt--; }
+    }
+    return run();
+  };
+  const step2 = (d) => {
+    const n = lyAt + d;
+    if (n < 0 || n >= lyHist.length) { toast(d < 0 ? 'これ以上 もどれない' : 'これ以上 すすめない'); return; }
+    lyAt = n; lySeed = lyHist[n]; seed.value = lySeed;
+    run();
+  };
+
+  w.appendChild(group('歌詞', [
+    hint('1行 ＝ 1カット。<b>/</b> で 1行を 2つに 割る。<br>' +
+      '<b>*つよく*</b> と はさむと そこだけ 大きく なる。<br>' +
+      '行の おわりに <b>!</b> で ぱっと ひかる。<b>|</b> の あとは 小さい そえ書き。<br>' +
+      '<b>[01:23.45]</b> を 行あたまに 書くと その 時こくに 置く。'),
+    row(null, ta)
+  ]));
+  w.appendChild(group('ならべ方', [
+    row('はじめ', from),
+    row('1行ぶん（拍）', beats),
+    row('たね', seed),
+    grid(null, [
+      btn('🎲 ひきなおす', 'btn-sm', () => build(true)),
+      btn('▶ 組み立てる', 'btn-y', () => build(false))
+    ]),
+    grid(null, [
+      btn('← 前の 案', 'btn-sm', () => step2(-1)),
+      btn('次の 案 →', 'btn-sm', () => step2(1))
+    ]),
+    beatOn()
+      ? hint(`BPM ${r2(S.beat.bpm)} の 拍に のせます。`)
+      : hint('BPM が きまって いないと 1拍＝0.5秒 で 組みます。<br>ひだりの 🥁 はやさ で さきに きめると きれいに 合います。')
+  ]));
+  /* --- ここは きめる（指定）--- */
+  let fixBtn = null;
+  const reCount = () => {
+    const n = Object.keys(lyFix).length;
+    if (!fixBtn) return;
+    fixBtn.textContent = (lyOpen ? '▼' : '▶') + ' ここは きめる' + (n ? `（${n}）` : '');
+    fixBtn.classList.toggle('on', !!n);
+  };
+  const fsel = (label, opts, key, autoLabel) => {
+    const s2 = el('select');
+    const o0 = el('option', null, autoLabel || '🎲 おまかせ'); o0.value = 'auto';
+    s2.appendChild(o0);
+    opts.forEach(([v, l]) => { const o = el('option', null, l); o.value = v; s2.appendChild(o); });
+    s2.value = lyFix[key] === undefined ? 'auto' : String(lyFix[key]);
+    s2.addEventListener('change', () => {
+      if (s2.value === 'auto') delete lyFix[key]; else lyFix[key] = s2.value;
+      reCount();
+    });
+    return row(label, s2);
+  };
+  const fnum = (label, key, ph) => {
+    const i = el('input'); i.type = 'number'; i.placeholder = ph || 'おまかせ';
+    i.value = lyFix[key] === undefined ? '' : lyFix[key];
+    i.addEventListener('change', () => {
+      if (i.value === '') delete lyFix[key]; else lyFix[key] = +i.value;
+      reCount();
+    });
+    return row(label, i);
+  };
+  const names = list => list.map(x => [x[0], x[1]]);
+  const fixed = Object.keys(lyFix).length;
+
+  const fixWrap = el('div');
+  fixBtn = btn((lyOpen ? '▼' : '▶') + ' ここは きめる' + (fixed ? `（${fixed}）` : ''),
+    'btn-sm' + (fixed ? ' on' : ''), () => { lyOpen = !lyOpen; draw(); });
+  fixWrap.appendChild(grid(null, [
+    fixBtn,
+    btn('ぜんぶ おまかせに もどす', 'btn-sm', () => { lyFix = {}; draw(); })
+  ]));
+  if (lyOpen) {
+    fixWrap.appendChild(hint('えらんだ ところは ぜんぶの カットで その とおりに なります。<br>' +
+      '「🎲 おまかせ」の ままの ところだけ くじを ひきます。'));
+    fixWrap.appendChild(group('いろ・字', [
+      fsel('配色', PALETTES.map(x => [x[0], x[0]]), 'palette'),
+      fsel('フォント', fontList(), 'font'),
+      fnum('字の 大きさ', 'size', 'おまかせ'),
+      fsel('ふとさ', [['400', 'ほそい'], ['700', 'ふつう'], ['800', 'ふとい'], ['900', 'いちばん ふとい']], 'weight'),
+      fsel('たて書き', [['no', 'よこ書き'], ['yes', 'たて書き']], 'vertical')
+    ]));
+    fixWrap.appendChild(group('ならべ方・かざり', [
+      fsel('ならべ方', names(LAYOUTS), 'layout'),
+      fsel('かざり', names(DECOR), 'decor'),
+      fsel('うしろ', names(BGS), 'bg'),
+      fsel('カメラ', CAM_OPTS, 'cam')
+    ]));
+    fixWrap.appendChild(group('うごき', [
+      fsel('出かた', FX_IN, 'fxIn'),
+      fsel('ずっと', FX_LOOP, 'fxLoop'),
+      fsel('消えかた', FX_OUT, 'fxOut'),
+      fsel('まとまり', UNIT_OPTS, 'unit'),
+      fsel('じゅんばん', ORDERS, 'order'),
+      fsel('うごきかた', EASES, 'ease'),
+      fnum('ずらし（秒）', 'stagger', 'おまかせ'),
+      fsel('出る 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1'], ['2', '2']], 'inBeat'),
+      fsel('消える 尺（拍）', [['.25', '1/4'], ['.5', '1/2'], ['1', '1']], 'outBeat')
+    ]));
+    fixWrap.appendChild(group('しあげ', [
+      fsel('画面ぜんたい', MOODS.filter(m => m[0] !== 'all'), 'look')
+    ]));
+  }
+  w.appendChild(group('きめうち', [fixWrap]));
+
+  w.appendChild(group('ふんいき', [
+    grid(null, MOODS.map(([k, label]) =>
+      btn(label, 'btn-sm' + (lyMood === k ? ' on' : ''), () => { lyMood = k; draw(); }))),
+    hint('えらんだ ふんいきに 合う 部品を 中心に ひきます。<br>「全部入り」は なんでも ひきます。')
+  ]));
+  w.appendChild(group('なかみ', [
+    hint(`1カット ごとに、下の たなから 1つずつ くじを ひきます。<br>` +
+      `ならべ方 ${LAYOUTS.length}・出かた 22・ずっと 11・消えかた 9・かざり ${DECOR.length}・` +
+      `うしろ ${BGS.length}・配色 ${PALETTES.length}。<br>` +
+      `<b>たね</b>が 同じなら いつも 同じ ものが 出ます。気に入ったら ばんごうを ひかえて。`),
+    hint('「おまかせ 文字」「おまかせ 背景」の 2段に 入ります。<br>' +
+      'ひきなおすと その 2段だけ 作り直します（音や ほかの 段は そのまま）。')
+  ]));
+  return w;
+}
+
+/* ならべるだけ：前からの やり方 */
+function plainBody(w) {
   const useBeat = beatOn() && lyUnit === 'beat';
-  const ta = el('textarea'); ta.rows = 8;
+  const ta = el('textarea'); ta.rows = 7;
   ta.placeholder = '0:00 さいしょの 行\nつぎの 行\nそのつぎの 行';
   const from = el('input'); from.type = 'number'; from.step = .1; from.value = r2(S.time);
   const each = el('input'); each.type = 'number'; each.step = useBeat ? 1 : .1; each.value = useBeat ? 4 : 2.5;
@@ -512,7 +685,6 @@ function lyricBody() {
       const g0 = +gap.value || 0;
       let start = +from.value || 0;
       if (useBeat) {
-        // 拍の ちょうどから はじめる
         const st = b, o = S.beat.offset || 0;
         start = Math.max(0, o + Math.round((start - o) / st) * st);
       }
