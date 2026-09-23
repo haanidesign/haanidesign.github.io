@@ -3,3 +3,4 @@
 
 # Notion のトークン（コミットしない）
 .notion.env
+_tmp/

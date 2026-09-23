@@ -1,0 +1,251 @@
+/* ================= やわらかい 見た目（ためし） =================
+
+   いまの 見た目は「厚い 黒ぶち＋かたい かげ」の レトロ。
+   これは その 上から かぶせる、白い カード中心の やわらかい 見た目。
+
+   ・下じきは うすい グレー、部品は 白い カード（まるみ 大きめ）
+   ・ふちは ほぼ 無し。うすい かげで 浮かせる
+   ・目立たせたい ところだけ ライム（黄緑）か 黒の まるピル
+   ・文字は 黒に 近い グレー、そえ書きは うすい グレー
+
+   さしかえは この 1まいを 読むか 読まないか だけ。
+   もとの css は さわって いない ので、いつでも もどせる。 */
+
+:root{
+  --paper:     #FFFFFF;
+  --cream:     #EDEDEF;   /* 下じき */
+  --ink:       #14161A;
+  --gray:      #8B9099;
+  --main:      #D6F94C;   /* ライム */
+  --main-deep: #C3E93A;
+  --main-soft: #F1FBD0;
+  --pink:      #FF7A6B;
+  --mint:      #7AC4A0;
+
+  --line:      #E6E7EB;   /* うすい しきり */
+  --fill:      #F3F4F6;   /* うすい 面 */
+  --shadow:    0 1px 2px rgba(20,22,26,.05), 0 10px 28px rgba(20,22,26,.07);
+  --shadow-sm: 0 1px 2px rgba(20,22,26,.06);
+
+  --bd:  none;
+  --bd2: none;
+  --r: 16px;
+}
+
+body{
+  background:var(--cream);
+  font-weight:600;
+  letter-spacing:-.01em;
+}
+
+/* ---------- ボタン ---------- */
+button{
+  background:var(--fill);
+  color:var(--ink);
+  border:0;
+  border-radius:999px;
+  box-shadow:none;
+  padding:.45rem .9rem;
+  font-weight:700;
+  transition:background .15s, color .15s, transform .08s;
+}
+button:hover{ background:#E8EAEE; }
+button:active{ transform:scale(.97); box-shadow:none; }
+button.on{
+  background:var(--ink); color:#fff;
+  transform:none; box-shadow:none;
+}
+button:disabled{ opacity:.4; box-shadow:none; }
+button:disabled:hover{ background:var(--fill); }
+button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+.btn-y{ background:var(--main); }
+.btn-y:hover{ background:var(--main-deep); }
+.btn-g{ background:var(--ink); color:#fff; }
+.btn-g:hover{ background:#000; color:#fff; }
+.btn-p{ background:#FFE1DD; }
+.btn-sm{ padding:.3rem .7rem; font-size:.72rem; box-shadow:none; }
+
+/* ---------- 入れもの ---------- */
+input,select{
+  background:var(--fill);
+  border:0; border-radius:12px;
+  font-weight:700;
+  box-shadow:none;
+}
+input[type=range]{ background:transparent; accent-color:var(--ink); }
+
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:#CFD2D8; border:2px solid transparent; background-clip:padding-box; }
+
+/* ---------- 上のバー ---------- */
+#app{ background:var(--cream); }
+#top{
+  background:var(--paper);
+  border-bottom:1px solid var(--line);
+  padding:.5rem .8rem;
+  min-height:58px;
+}
+#top .name{ font-size:1.02rem; font-weight:800; letter-spacing:-.02em; }
+#top .name:hover{ background:var(--fill); }
+#top .size{
+  background:var(--fill); color:var(--gray);
+  font-weight:700; padding:.15rem .7rem;
+}
+#top .ver{ color:#B4B8C0; }
+#top .ver:hover{ background:var(--fill); }
+#top button{ border-radius:999px; }
+#top #export{
+  background:var(--ink); color:#fff;
+  padding-left:1.1rem; padding-right:1.1rem;
+}
+#top #export:hover{ background:#000; }
+
+/* ---------- ステージ ---------- */
+#stage{
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(20,22,26,.07) 1.4px, transparent 1.5px);
+  background-size:16px 16px;
+}
+
+/* ---------- 道具（サイドの ボタン） ---------- */
+#tools{
+  background:var(--cream);
+  border-top:0; border-right:0;
+  gap:.4rem;
+  padding:.6rem .5rem calc(.6rem + var(--safe-b));
+}
+.tool{
+  background:var(--paper);
+  border:0; border-radius:18px;
+  box-shadow:var(--shadow-sm);
+  color:var(--ink);
+  font-weight:700;
+}
+.tool:hover{ background:#fff; box-shadow:var(--shadow); }
+.tool.on{ background:var(--ink); color:#fff; }
+
+/* ---------- タイムライン ---------- */
+#list{
+  background:var(--paper);
+  border-top:0;
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -2px 24px rgba(20,22,26,.06);
+}
+#tracks{ gap:.3rem; padding:.4rem .45rem .5rem; }
+#playbar{ border-bottom:1px solid var(--line); background:var(--paper); border-radius:20px 20px 0 0; }
+#playbar button{ background:var(--fill); }
+#playbar .tnum{ color:var(--gray); font-weight:700; }
+#pinbar{ background:var(--paper); border-bottom:1px solid var(--line); }
+#pininfo{ background:var(--ink); color:#fff; }
+
+#ruler{ background:var(--paper); }
+#ruler .rtrack{
+  background:var(--fill);
+  border:0; border-radius:12px 12px 0 0;
+}
+#ruler .rlab{ color:var(--gray); }
+#ruler .rtick{ background:rgba(20,22,26,.25); }
+#ruler .rtick.big{ background:rgba(20,22,26,.55); }
+#ruler .btick{ background:rgba(90,120,255,.45); }
+#ruler .btick.bar{ background:#5A78FF; }
+
+.thead{
+  background:var(--paper);
+  border:1px solid var(--line); border-radius:14px;
+  box-shadow:none;
+}
+.thead:hover{ background:var(--fill); }
+.trow.sel .thead{
+  background:var(--ink); color:#fff;
+  box-shadow:none; transform:none;
+  border-color:var(--ink);
+}
+.trow.sel .thead .nm{ color:#fff; }
+.trow.folder .thead{ background:#FAFBFC; }
+.trow.folder.sel .thead{ background:var(--ink); }
+.thead .pick{ border:1px solid var(--line); border-radius:8px; background:var(--paper); }
+.thead .pick.on{ background:var(--main); border-color:var(--main); }
+.thead .eye{ background:transparent; box-shadow:none; }
+.thead .thumb{ border-radius:8px; border:1px solid var(--line); }
+
+.track{
+  background:var(--fill);
+  border:0; border-radius:12px;
+}
+.trow.sel .track{ background:#EFF1F4; }
+.tick{ background:rgba(20,22,26,.07); }
+.tick.big{ background:rgba(20,22,26,.16); }
+.pinline{ background:var(--ink); opacity:.18; }
+
+.loopband{
+  background:rgba(214,249,76,.55);
+  border-left:2px solid var(--ink); border-right:2px solid var(--ink);
+  border-radius:8px;
+}
+.loopband.ping{ background:rgba(255,122,107,.35); }
+.loopoff{
+  border:0; background:var(--ink); color:#fff;
+  box-shadow:var(--shadow-sm);
+}
+
+.pin{
+  border:0; border-radius:5px;
+  background:var(--main);
+  box-shadow:0 1px 2px rgba(20,22,26,.18);
+}
+.pin:hover{ background:#fff; }
+.pin.on{ background:var(--ink); }
+.pin.hold{ background:var(--ink); }
+.pin.hold.on{ background:var(--pink); }
+
+/* ---------- シート（せってい） ---------- */
+#sheet{
+  background:var(--paper);
+  border:0;
+  border-radius:24px 24px 0 0;
+  box-shadow:0 -8px 40px rgba(20,22,26,.12);
+}
+#sheet h2{
+  font-size:.74rem; font-weight:800; letter-spacing:.02em;
+  background:var(--ink); color:#fff;
+  border:0; border-radius:999px;
+  box-shadow:none;
+  padding:.3rem .9rem;
+  display:inline-block;
+}
+#sheet .field label{ color:var(--gray); font-weight:700; }
+.field .val{ color:var(--gray); font-weight:700; }
+.subhead{ color:var(--gray); }
+.textin{ background:var(--fill); border:0; border-radius:12px; }
+#sheet .empty,.empty{
+  background:var(--fill);
+  border:0; border-radius:14px;
+  color:#5D636E; font-weight:600;
+  box-shadow:none;
+}
+#sheet .handle{ background:#D5D8DE; opacity:1; }
+.sheettabs button{ border-radius:999px; }
+
+/* しきり線 */
+hr,.sep{ border-color:var(--line); }
+
+/* 色えらび・見本の 四角も まるく */
+.swatch,.frameitem{ border-radius:12px; }
+.frameitem{ border:1px solid var(--line); box-shadow:none; }
+.frameitem.on{ border-color:var(--ink); box-shadow:0 0 0 2px var(--ink); }
+
+/* 出したままの 小さい ふきだし（トースト） */
+#toast{ background:var(--ink); color:#fff; box-shadow:var(--shadow); }
+
+/* 書き出し中の 帯 */
+#exFill{ background:var(--main); }
+#newdoc .card,#exporting .card{
+  background:var(--paper);
+  border:0; border-radius:24px;
+  box-shadow:var(--shadow);
+}
+#newdoc{
+  background:var(--cream);
+  background-image:radial-gradient(circle, rgba(20,22,26,.06) 1.4px, transparent 1.5px);
+}
