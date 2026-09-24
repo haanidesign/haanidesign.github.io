@@ -2,10 +2,10 @@
    ・ステージ … 1本で うごかす、2本で 大きさと かたむき
    ・どこでも … 2本指トン＝もどす、3本指トン＝やりなおし
    ・タイムライン … 2本指で つまんで 時間じくを のばす／ちぢめる */
-import { S, clamp, findClip, selected, snap as pushUndo, buzz } from '../state.js?v=64';
-import { clipBox, handlePoints, toProject, panView, zoomAt, charSpots } from '../render.js?v=64';
-import { setOff, offOf } from '../text.js?v=64';
-import { bus } from '../bus.js?v=64';
+import { S, clamp, findClip, selected, snap as pushUndo, buzz } from '../state.js?v=65';
+import { clipBox, handlePoints, toProject, panView, zoomAt, charSpots } from '../render.js?v=65';
+import { setOff, offOf } from '../text.js?v=65';
+import { bus } from '../bus.js?v=65';
 
 const TAP_MS = 360;     // これより 長く さわって いたら トンでは ない
 const TAP_SLOP = 18;    // これくらいの ずれなら 止まって いたと みなす

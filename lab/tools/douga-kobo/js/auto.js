@@ -8,13 +8,13 @@
    気に入った 組み合わせを あとから 呼びもどせる。 */
 import {
   S, uid, clamp, newTrack, newClip, findClip, snap as pushUndo, toast
-} from './state.js?v=64';
-import { beatOn, beatSec } from './beat.js?v=64';
-import { GFONTS, setOff } from './text.js?v=64';
-import { bus } from './bus.js?v=64';
-import { PATS, DECOS } from './pattern.js?v=64';
-import { TRANS, TRANS_LIST } from './trans.js?v=64';
-import { CAMS as CAMLIST, CAM_LIST } from './camera.js?v=64';
+} from './state.js?v=65';
+import { beatOn, beatSec } from './beat.js?v=65';
+import { GFONTS, setOff } from './text.js?v=65';
+import { bus } from './bus.js?v=65';
+import { PATS, DECOS } from './pattern.js?v=65';
+import { TRANS, TRANS_LIST } from './trans.js?v=65';
+import { CAMS as CAMLIST, CAM_LIST } from './camera.js?v=65';
 
 /* ---------- たねから 同じ くじを ひく ---------- */
 function rng(seed) {

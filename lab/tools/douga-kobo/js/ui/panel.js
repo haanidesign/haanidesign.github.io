@@ -3,19 +3,19 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=64';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=64';
-import { storeOk } from '../store.js?v=64';
-import { bus } from '../bus.js?v=64';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=64';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=64';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=64';
+} from '../state.js?v=65';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=65';
+import { storeOk } from '../store.js?v=65';
+import { bus } from '../bus.js?v=65';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=65';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=65';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=65';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=64';
+  offOf, setOff, clearOff } from '../text.js?v=65';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=64';
+} from '../edit.js?v=65';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -340,6 +340,62 @@ function binBody() {
 function hint(t) { const h = el('div', 'hint'); h.innerHTML = t; return h; }
 
 /* --- ふだ --- */
+/* つながり（前後に ばらした 文字PV など）の 行。つながって いない 文字PV には つなぎ直す ボタンを 出す */
+function linkGroup(c) {
+  const n = linkedOf(c).length;
+  if (n) {
+    return group('つながり', [
+      hint(`この ふだは ほか <b>${n}まい</b>と つながって います。<br>` +
+        'いち・ながさ・切る ところが いつも そろいます。'),
+      grid(null, [
+        btn('⛓ つながりを 切る', 'btn-sm btn-p', () => {
+          const k = unlink(c);
+          pushUndo(); bus.all();
+          toast(`${k + 1}まいの つながりを 切った`);
+        })
+      ])
+    ]);
+  }
+  if (c.kind !== 'jz' || !c.jz) return null;
+  /* ほかの 段に「同じ たね・同じ 出どころ」の 文字PV が ある なら つなぎ直せる */
+  const tr = S.tracks.find(t => t.clips.includes(c));
+  const cand = allClips().map(x => x.c).filter(x =>
+    x !== c && x.kind === 'jz' && x.jz && !x.link &&
+    x.jz.seed === c.jz.seed && Math.abs((x.jz.off || 0) - (c.jz.off || 0)) < .01 &&
+    !(tr && tr.clips.includes(x)));
+  if (!cand.length) return null;
+  return group('つながり', [
+    hint(`ほかの 段に 同じ 文字PV が <b>${cand.length}まい</b> あります。<br>` +
+      'つなぐと いち・ながさ・切る ところが そろいます。'),
+    grid(null, [
+      btn('⛓ 上下の 文字PV と つなぐ', 'btn-sm', () => {
+        const link = 'lk' + uid();
+        c.link = link; cand.forEach(x => { x.link = link; });
+        pushUndo(); bus.all();
+        toast(`${cand.length + 1}まいを つないだ`);
+      }),
+      btn('⛓ ぜんぶ つなぐ', 'btn-sm btn-y', () => {
+        // 段ごと そろって いる ときの まとめ直し。たね＋出どころ が 同じ ものを 組に する
+        const map = new Map();
+        allClips().map(x => x.c).filter(x => x.kind === 'jz' && x.jz && !x.link)
+          .forEach(x => {
+            const k = x.jz.seed + '@' + r2(x.jz.off || 0);
+            (map.get(k) || map.set(k, []).get(k)).push(x);
+          });
+        let g = 0;
+        map.forEach(list => {
+          if (list.length < 2) return;
+          const link = 'lk' + uid();
+          list.forEach(x => { x.link = link; });
+          g++;
+        });
+        pushUndo(); bus.all();
+        toast(g ? `${g}組 つないだ` : 'つなげる ものが なかった', 3000);
+      })
+    ])
+  ]);
+}
+
 function clipBody(c) {
   const w = el('div');
   const m = c.mid ? MEDIA.get(c.mid) : null;
@@ -363,19 +419,7 @@ function clipBody(c) {
     ])
   ]));
 
-  if (linkedOf(c).length) {
-    w.appendChild(group('つながり', [
-      hint(`この ふだは ほか <b>${linkedOf(c).length}まい</b>と つながって います。<br>` +
-        'いち・ながさ・切る ところが いつも そろいます。'),
-      grid(null, [
-        btn('⛓ つながりを 切る', 'btn-sm btn-p', () => {
-          const n = unlink(c);
-          pushUndo(); bus.all();
-          toast(`${n + 1}まいの つながりを 切った`);
-        })
-      ])
-    ]));
-  }
+  { const g = linkGroup(c); if (g) w.appendChild(g); }
 
   if (c.kind !== 'audio') {
     {
@@ -741,38 +785,58 @@ function jzEditBody(c) {
           '切ると、おまかせ組み立てと 同じに 1カット＝1まい に なります。'),
       grid(null, split ? [
         btn('◧ 1まいに もどす', 'btn-sm', () => {
-          const first = sibs.slice().sort((a, b) => a.start - b.start)[0];
-          const base = first.start - (first.jz.off || 0);
-          const keep = Object.assign({}, first.jz, { off: 0, noTrans: false, fit: false, cutDur: 0 });
-          tr.clips = tr.clips.filter(x => !sibs.includes(x));
-          const nm = (jzStyles().find(x => x[0] === keep.style) || [, 'うた'])[1];
-          const one = newClip('jz', { name: nm, start: base, dur: jzDur(keep) });
-          one.jz = keep;
-          tr.clips.push(one);
-          S.sel = one.id;
+          // つながって いる 段（前後に ばらした ぶん）も いっしょに 1まいに もどす
+          const trs = [...new Set([tr, ...sibs.flatMap(x => linkedOf(x))
+            .map(x => S.tracks.find(t => t.clips.includes(x)))].filter(Boolean))];
+          const nm = (jzStyles().find(x => x[0] === j.style) || [, 'うた'])[1];
+          const nl = trs.length > 1 ? 'lk' + uid() : null;
+          const made = [];
+          trs.forEach(t2 => {
+            const ss = t2.clips.filter(x => x.kind === 'jz' && x.jz && x.jz.seed === j.seed);
+            if (!ss.length) return;
+            const first = ss.slice().sort((a, b) => a.start - b.start)[0];
+            const base = first.start - (first.jz.off || 0);
+            const keep = Object.assign({}, first.jz, { off: 0, noTrans: false, fit: false, cutDur: 0 });
+            t2.clips = t2.clips.filter(x => !ss.includes(x));
+            const one = newClip('jz', { name: nm, start: base, dur: jzDur(keep) });
+            one.jz = keep;
+            if (nl) one.link = nl;
+            t2.clips.push(one);
+            made.push({ t: t2, one });
+          });
+          if (made.length) S.sel = ((made.find(x => x.t === tr) || made[0]).one).id;
           pushUndo(); bus.all(); draw();
-          toast('1まいに もどした');
+          toast('1まいに もどした' + (made.length > 1 ? '（前後 いっしょに）' : ''));
         })
       ] : [
         btn('✂ カットごとに 切る', 'btn-y', () => {
           if (!cs.length) { toast('カットが ない'); return; }
-          const base = c.start - (j.off || 0);
-          tr.clips = tr.clips.filter(x => x !== c);
-          cs.forEach((cut, i) => {
-            const n = newClip('jz', {
-              name: (cut.text || 'カット').slice(0, 8),
-              start: r2(base + cut.start),
-              dur: Math.max(.08, r2(cut.end - cut.start))
+          /* 前後に ばらして ある ときは つながって いる ふだも 同じ ところで 切って、
+             カットごとに つなぎ直す。かたっぽだけ 切れると ずれる ため。 */
+          const mates = [c, ...linkedOf(c)];
+          const links = cs.map(() => 'lk' + uid());
+          mates.forEach(mc => {
+            const mj = mc.jz;
+            const mtr = S.tracks.find(t => t.clips.includes(mc));
+            if (!mtr) return;
+            const mbase = mc.start - (mj.off || 0);
+            mtr.clips = mtr.clips.filter(x => x !== mc);
+            cs.forEach((cut, i) => {
+              const d = Math.max(.08, r2(cut.end - cut.start));
+              const n = newClip('jz', {
+                name: (cut.text || 'カット').slice(0, 8),
+                start: r2(mbase + cut.start), dur: d
+              });
+              n.jz = Object.assign({}, mj, {
+                off: r2(cut.start), noTrans: true, cutDur: d, fit: true
+              });
+              if (mates.length > 1) n.link = links[i];
+              mtr.clips.push(n);
+              if (i === 0 && mc === c) S.sel = n.id;
             });
-            n.jz = Object.assign({}, j, {
-              off: r2(cut.start), noTrans: true,
-              cutDur: Math.max(.08, r2(cut.end - cut.start)), fit: true
-            });
-            tr.clips.push(n);
-            if (i === 0) S.sel = n.id;
           });
           pushUndo(); bus.all(); draw();
-          toast(`${cs.length}まいに 切った`, 3000);
+          toast(`${cs.length}まいに 切った` + (mates.length > 1 ? '（前後 いっしょに）' : ''), 3000);
         })
       ]),
       split
@@ -784,19 +848,7 @@ function jzEditBody(c) {
     ]));
   }
 
-  if (linkedOf(c).length) {
-    w.appendChild(group('つながり', [
-      hint(`この ふだは ほか <b>${linkedOf(c).length}まい</b>と つながって います。<br>` +
-        'いち・ながさ・切る ところが いつも そろいます。'),
-      grid(null, [
-        btn('⛓ つながりを 切る', 'btn-sm btn-p', () => {
-          const n = unlink(c);
-          pushUndo(); bus.all();
-          toast(`${n + 1}まいの つながりを 切った`);
-        })
-      ])
-    ]));
-  }
+  { const g = linkGroup(c); if (g) w.appendChild(g); }
 
   /* --- のばした ときの ふるまい（カットごとに 切った ふだだけ） --- */
   if (j.cutDur > 0) {
