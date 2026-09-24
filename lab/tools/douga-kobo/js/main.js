@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=58';
-import { wire, bus } from './bus.js?v=58';
-import { MEDIA, importFiles, hookAll } from './media.js?v=58';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=58';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=58';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=58';
-import { beatOn, beatSec, beatAt } from './beat.js?v=58';
-import * as TL from './ui/timeline.js?v=58';
-import * as P from './ui/panel.js?v=58';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=58';
+} from './state.js?v=60';
+import { wire, bus } from './bus.js?v=60';
+import { MEDIA, importFiles, hookAll } from './media.js?v=60';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=60';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=60';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=60';
+import { beatOn, beatSec, beatAt } from './beat.js?v=60';
+import * as TL from './ui/timeline.js?v=60';
+import * as P from './ui/panel.js?v=60';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=60';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=58';
-import { addFontFile } from './text.js?v=58';
-import { makePack, openPack, zip } from './pack.js?v=58';
-import { showStart } from './ui/start.js?v=58';
-import { openDemo } from './demo.js?v=58';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=58';
-import { trackOf } from './state.js?v=58';
+} from './edit.js?v=60';
+import { addFontFile } from './text.js?v=60';
+import { makePack, openPack, zip } from './pack.js?v=60';
+import { showStart } from './ui/start.js?v=60';
+import { openDemo } from './demo.js?v=60';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=60';
+import { trackOf } from './state.js?v=60';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -219,12 +219,21 @@ $('#tlOut').onclick = () => TL.zoomOut();
 const setTool = (t) => {
   S.tool = t;
   $('#tCut').classList.toggle('on', t === 'cut');
-  $('#modebar').hidden = t !== 'cut';
-  $('#modeInfo').textContent = t === 'cut' ? 'ふだを さわると そこで 切れます' : '';
+  $('#tPick').classList.toggle('on', t === 'pick');
+  $('#modebar').hidden = t === 'select';
+  $('#modeInfo').textContent =
+    t === 'cut' ? 'ふだを さわると そこで 切れます'
+      : t === 'pick' ? 'ふだを さわると えらべます（もう一度で はずれる）'
+        : '';
 };
 $('#tAdd').onclick = () => $('#file').click();
 $('#tBin').onclick = () => P.open('bin');
 $('#tCut').onclick = () => setTool(S.tool === 'cut' ? 'select' : 'cut');
+$('#tPick').onclick = () => {
+  const on = S.tool !== 'pick';
+  setTool(on ? 'pick' : 'select');
+  if (on) P.open('pick'); else { S.selMany = []; drawAll(); }
+};
 $('#modeClose').onclick = () => setTool('select');
 $('#tText').onclick = () => { addText(S.time); P.open('text'); };
 $('#tLyric').onclick = () => P.open('lyric');
@@ -474,7 +483,7 @@ document.addEventListener('keydown', e => {
     case 'End': seek(duration()); break;
     case 'Delete': case 'Backspace': e.preventDefault(); delSel(); break;
     case 's': case 'S': TL.splitHere(); break;
-    case 'Escape': S.sel = null; setTool('select'); drawAll(); break;
+    case 'Escape': S.sel = null; S.selMany = []; setTool('select'); drawAll(); break;
     case '+': case ';': TL.zoomIn(); break;
     case '-': TL.zoomOut(); break;
   }

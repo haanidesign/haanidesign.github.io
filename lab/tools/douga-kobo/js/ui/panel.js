@@ -1,21 +1,21 @@
 /* せってい。ひろい よこ画面では 右に つけっぱなし、
    せまい ときは 下から 出る 幕に 入る。中身は 同じ もの。 */
 import {
-  S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, newTrack, newClip,
+  S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo
-} from '../state.js?v=58';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=58';
-import { storeOk } from '../store.js?v=58';
-import { bus } from '../bus.js?v=58';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=58';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=58';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=58';
+} from '../state.js?v=60';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=60';
+import { storeOk } from '../store.js?v=60';
+import { bus } from '../bus.js?v=60';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=60';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=60';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=60';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=58';
+  offOf, setOff, clearOff } from '../text.js?v=60';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=58';
+} from '../edit.js?v=60';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -67,7 +67,7 @@ export function draw() {
 }
 function titleOf() {
   return ({
-    bin: '素材だな', form: 'ふだ', color: 'ふだ', sound: 'ふだ', text: 'もじ',
+    bin: '素材だな', form: 'ふだ', color: 'ふだ', sound: 'ふだ', text: 'もじ', pick: 'えらぶ',
     lyric: 'うた', beat: 'はやさ', master: 'しあげ', track: 'だん', file: 'さくひん', setting: 'せってい', help: 'つかいかた'
   })[kind] || 'せってい';
 }
@@ -226,6 +226,7 @@ function body() {
     case 'file': return fileBody();
     case 'setting': return settingBody();
     case 'help': return helpBody();
+    case 'pick': return pickBody();
     case 'lyric': return lyricBody();
     case 'beat': return beatBody();
     case 'master': return masterBody();
@@ -1442,6 +1443,137 @@ function settingBody() {
   return w;
 }
 
+/* --- まとめて えらぶ・まとめて 動かす --- */
+function pickBody() {
+  const w = el('div');
+  const got = selectedAll();
+  const n = got.length;
+  const ids = () => got.map(x => x.c.id);
+  const after = (msg) => { pushUndo(); bus.all(); draw(); if (msg) toast(msg); };
+  const mine = () => selectedAll().filter(x => !x.t.lock);
+
+  w.appendChild(group('いま えらんで いる もの', [
+    hint(n
+      ? `<b>${n}まい</b>。` + (n > 1
+        ? 'どれか 1まいを つかんで うごかすと、<b>ぜんぶ いっしょに</b> うごきます。'
+        : 'もう すこし えらぶと まとめて うごかせます。')
+      : 'タイムラインの ふだを さわると えらべます。<br>もう一度 さわると はずれます。'),
+    n ? hint(got.slice(0, 12).map(x =>
+      `${r2(x.c.start)}s ${(x.c.kind === 'text' ? (x.c.text.str || '').split('\n')[0] : x.c.name) || 'ふだ'}`
+    ).join(' / ') + (n > 12 ? ` …ほか ${n - 12}まい` : '')) : null
+  ]));
+
+  w.appendChild(group('まとめて えらぶ', [
+    grid(null, [
+      btn('▶ いまの ところから 右 ぜんぶ', 'btn-y', () => {
+        const t = S.time;
+        setMany(allClips().filter(({ c, t: tr }) => !tr.lock && c.start >= t - 1e-6).map(x => x.c.id));
+        after(`${(S.selMany || []).length}まい えらんだ`);
+      }),
+      btn('◀ いまの ところから 左 ぜんぶ', 'btn-sm', () => {
+        const t = S.time;
+        setMany(allClips().filter(({ c, t: tr }) => !tr.lock && c.start < t).map(x => x.c.id));
+        after(`${(S.selMany || []).length}まい えらんだ`);
+      })
+    ]),
+    grid(null, [
+      btn('この 段 ぜんぶ', 'btn-sm', () => {
+        const tr = S.tracks.find(x => x.id === S.selTrack) || (got[0] && got[0].t);
+        if (!tr) { toast('段が きまって いない'); return; }
+        setMany(tr.clips.map(c => c.id));
+        after(`${tr.name} を ${tr.clips.length}まい えらんだ`);
+      }),
+      btn('この 段の 右 ぜんぶ', 'btn-sm', () => {
+        const tr = S.tracks.find(x => x.id === S.selTrack) || (got[0] && got[0].t);
+        if (!tr) { toast('段が きまって いない'); return; }
+        const t = S.time;
+        setMany(tr.clips.filter(c => c.start >= t - 1e-6).map(c => c.id));
+        after(`${(S.selMany || []).length}まい えらんだ`);
+      })
+    ]),
+    grid(null, [
+      btn('ぜんぶ', 'btn-sm', () => {
+        setMany(allClips().filter(({ t }) => !t.lock).map(x => x.c.id));
+        after(`${(S.selMany || []).length}まい えらんだ`);
+      }),
+      btn('えらびを 解く', 'btn-sm btn-p', () => { S.selMany = []; after('解いた'); })
+    ]),
+    hint('「右 ぜんぶ」は <b>いまの 時こく（さいせい位置）より 後ろ</b>の ふだ。<br>' +
+      '後半を まとめて ずらす ときに つかいます。')
+  ]));
+
+  if (n) {
+    const shift = (d) => {
+      const list = mine();
+      if (!list.length) { toast('うごかせる ふだが ない'); return; }
+      const minS = Math.min(...list.map(x => x.c.start));
+      const dd = Math.max(d, -minS);
+      list.forEach(x => { x.c.start = Math.max(0, r2(x.c.start + dd)); });
+      after(`${r2(dd)}秒 ずらした`);
+    };
+    w.appendChild(group('まとめて ずらす', [
+      grid('うしろへ', [
+        btn('+0.1s', 'btn-sm', () => shift(.1)),
+        btn('+0.5s', 'btn-sm', () => shift(.5)),
+        btn('+1s', 'btn-sm', () => shift(1)),
+        btn('+1拍', 'btn-sm', () => shift(beatOn() ? beatSec() : .5))
+      ]),
+      grid('まえへ', [
+        btn('-0.1s', 'btn-sm', () => shift(-.1)),
+        btn('-0.5s', 'btn-sm', () => shift(-.5)),
+        btn('-1s', 'btn-sm', () => shift(-1)),
+        btn('-1拍', 'btn-sm', () => shift(beatOn() ? -beatSec() : -.5))
+      ]),
+      grid(null, [
+        btn('いまの ところへ そろえる', 'btn-sm', () => {
+          const list = mine();
+          if (!list.length) return;
+          const minS = Math.min(...list.map(x => x.c.start));
+          const d = S.time - minS;
+          list.forEach(x => { x.c.start = Math.max(0, r2(x.c.start + d)); });
+          after('そろえた');
+        })
+      ])
+    ]));
+
+    w.appendChild(group('まとめて そのほか', [
+      grid(null, [
+        btn('すきまを つめる', 'btn-sm', () => {
+          const byTrack = new Map();
+          mine().forEach(x => {
+            if (!byTrack.has(x.t)) byTrack.set(x.t, []);
+            byTrack.get(x.t).push(x.c);
+          });
+          byTrack.forEach((cs, tr) => {
+            cs.sort((a, b) => a.start - b.start);
+            let t = cs[0].start;
+            cs.forEach(c => { c.start = r2(t); t += c.dur; });
+          });
+          after('つめた');
+        }),
+        btn('ながさを そろえる', 'btn-sm', () => {
+          const list = mine();
+          if (list.length < 2) { toast('2まい いじょう えらんで'); return; }
+          const d = list[0].c.dur;
+          list.forEach(x => { x.c.dur = d; });
+          after(`${r2(d)}秒 に そろえた`);
+        })
+      ]),
+      grid(null, [
+        btn('🗑 まとめて けす', 'btn-sm btn-p', () => {
+          const list = mine();
+          if (!list.length) return;
+          list.forEach(x => { x.t.clips = x.t.clips.filter(c => c !== x.c); });
+          S.selMany = []; S.sel = null;
+          after(`${list.length}まい けした`);
+        })
+      ]),
+      hint('かぎの かかった 段の ふだは さわりません。')
+    ]));
+  }
+  return w;
+}
+
 /* --- カット間の つなぎ --- */
 function transGroup() {
   const list = Array.isArray(S.trans) ? S.trans : [];
@@ -1563,6 +1695,11 @@ function helpBody() {
   <li><b>カット間の つなぎ</b>：ワイプ・アイリス・市松 など 18種。
   🎵うた で 組み立てると 切れ目に 入る</li>
   <li>🎨 いろの ふだ で 下じきの 色を 時間で かえられる</li></ul>
+  <h3>まとめて えらぶ</h3>
+  <ul><li>ひだりの <b>☑えらぶ</b> を おすと、ふだを さわる たびに 出し入れ できる</li>
+  <li>「<b>いまの ところから 右 ぜんぶ</b>」で 後半を まとめて えらべる</li>
+  <li>えらんだ うちの どれかを つかんで うごかすと <b>ぜんぶ いっしょに</b> うごく</li>
+  <li>ボタンで <b>+1拍 ずつ ずらす</b>・すきまを つめる・ながさを そろえる も できる</li></ul>
   <h3>7. 指の わざ</h3>
   <ul><li>絵を じかに ドラッグ。四すみの <b>まる</b>で 大きさと かたむき</li>
   <li><b>2本指</b>で 画面を ずらす・つまんで 大きく／小さく。

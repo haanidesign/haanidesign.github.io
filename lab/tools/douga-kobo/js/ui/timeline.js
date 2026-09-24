@@ -1,11 +1,11 @@
 /* 下の タイムライン。ふだを つかむ・はしを のばす・段を うつる。 */
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
-  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot
-} from '../state.js?v=58';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=58';
-import { bus } from '../bus.js?v=58';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=58';
+  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany
+} from '../state.js?v=60';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=60';
+import { bus } from '../bus.js?v=60';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=60';
 
 const el = {};
 export function init() {
@@ -108,7 +108,8 @@ function drawLanes() {
 
 function clipEl(c) {
   const d = document.createElement('div');
-  d.className = 'clip ' + c.kind + (S.sel === c.id ? ' sel' : '');
+  const many = (S.selMany || []).includes(c.id);
+  d.className = 'clip ' + c.kind + (S.sel === c.id ? ' sel' : '') + (many ? ' many' : '');
   d.style.left = t2x(c.start) + 'px';
   d.style.width = Math.max(26, t2x(c.dur)) + 'px';
   d.dataset.cid = c.id;
@@ -296,6 +297,7 @@ export function cancelDrag() {
   if (!drag) return;
   const d = drag; drag = null;
   Object.assign(d.f.c, d.before);            // つかむ 前に もどす
+  if (d.group && d.groupBefore) d.group.forEach((g, i) => { g.c.start = d.groupBefore[i]; });
   hideSnap(); bus.all();
 }
 
@@ -326,12 +328,30 @@ function grab(e) {
   const node = clipUnder(e);
   if (!node) {
     const lane = e.target.closest && e.target.closest('.lane');
-    if (lane) { S.selTrack = lane.dataset.tid; S.sel = null; S.selChar = null; bus.all(); }
+    if (lane) {
+      S.selTrack = lane.dataset.tid; S.sel = null; S.selChar = null;
+      if (S.tool !== 'pick') S.selMany = [];
+      bus.all();
+    }
     return;
   }
   const f = findClip(node.dataset.cid);
   if (!f) return;
+
+  /* えらぶ 道具：さわる たびに 出し入れ する（まとめて うごかす ため） */
+  if (S.tool === 'pick') {
+    const list = [...(S.selMany || [])];
+    const i = list.indexOf(f.c.id);
+    if (i >= 0) list.splice(i, 1); else list.push(f.c.id);
+    setMany(list);
+    S.selTrack = f.t.id; S.selChar = null;
+    buzz(12); bus.all();
+    return;
+  }
+
   if (S.sel !== f.c.id) S.selChar = null;
+  // えらんで いない ふだを さわったら、まとめえらびは いったん 解く
+  if (!(S.selMany || []).includes(f.c.id)) S.selMany = [];
   S.sel = f.c.id; S.selTrack = f.t.id;
   if (f.t.lock) { bus.all(); toast('この段は かぎが かかって いる'); return; }
 
@@ -342,10 +362,14 @@ function grab(e) {
   }
   const g = e.target.closest && e.target.closest('.grip');
   const mode = g ? (g.classList.contains('l') ? 'l' : 'r') : 'move';
+  const group = (S.selMany || []).includes(f.c.id)
+    ? selectedAll().filter(x => !x.t.lock).map(x => ({ c: x.c, s0: x.c.start }))
+    : null;
   drag = {
     f, mode, x0: e.clientX, y0: e.clientY,
     start0: f.c.start, dur0: f.c.dur, inp0: f.c.inp,
     before: JSON.parse(JSON.stringify(f.c)),
+    group, groupBefore: group ? group.map(g => g.c.start) : null,
     moved: false, id: e.pointerId
   };
   try { node.setPointerCapture(e.pointerId); } catch (_) { }
@@ -362,6 +386,16 @@ document.addEventListener('pointermove', e => {
   const m = c.mid ? MEDIA.get(c.mid) : null;
   const srcDur = m && m.kind !== 'image' ? m.dur : Infinity;
 
+  if (drag.mode === 'move' && drag.group && drag.group.length > 1) {
+    // まとめて えらんで いる ときは、ならびを くずさず ぜんぶ 動かす
+    let d2 = snapTo(drag.start0 + dt, c.id) - drag.start0;
+    const minS = Math.min(...drag.group.map(g => g.s0));
+    if (minS + d2 < 0) d2 = -minS;
+    drag.group.forEach(g => { g.c.start = Math.max(0, g.s0 + d2); });
+    drawLanes(); drawRuler(); movePlayhead();
+    bus.stage(); bus.panel();
+    return;
+  }
   if (drag.mode === 'move') {
     c.start = Math.max(0, snapTo(drag.start0 + dt, c.id));
     const under = document.elementFromPoint(e.clientX, e.clientY);

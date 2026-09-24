@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=58';
+import { bus } from './bus.js?v=60';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -13,6 +13,7 @@ export const S = {
   tracks: [],
   time: 0, pps: 60,
   sel: null, selTrack: null, selChar: null,
+  selMany: [],           // いくつか まとめて えらんだ ふだの id
   tool: 'select',          // select | cut | hand
   snap: true,
   loop: { on: false, a: 0, b: 0 },
@@ -77,6 +78,19 @@ export const findClip = id => {
 };
 export const trackOf = id => S.tracks.find(t => t.id === id);
 export const selected = () => S.sel ? findClip(S.sel) : null;
+/** えらんで いる ふだ ぜんぶ（1まいの ときも ここに 入る） */
+export function selectedAll() {
+  const ids = new Set([...(S.selMany || []), ...(S.sel ? [S.sel] : [])]);
+  const out = [];
+  ids.forEach(id => { const f = findClip(id); if (f) out.push(f); });
+  return out.sort((a, b) => a.c.start - b.c.start);
+}
+export const manyOn = () => (S.selMany || []).length > 1;
+/** えらびを まとめて 入れかえる */
+export function setMany(ids) {
+  S.selMany = [...new Set(ids)];
+  if (!S.selMany.includes(S.sel)) S.sel = S.selMany[0] || null;
+}
 /** ふだが おわる ところ */
 export const clipEnd = () => Math.max(0.5, ...allClips().map(({ c }) => c.start + c.dur));
 /** 作品の ながさ。きめて あれば その ながさ、なければ ふだに 合わせる */

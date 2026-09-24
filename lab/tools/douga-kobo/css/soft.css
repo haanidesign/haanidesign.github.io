@@ -546,3 +546,12 @@ hr,.sep{ border-color:var(--line); }
   border-left:3px solid var(--main);
   box-shadow:none;
 }
+
+
+/* まとめて えらんだ ふだ */
+.clip.many{
+  outline:2px solid var(--main);
+  outline-offset:-2px;
+  box-shadow:0 0 0 2px rgba(225,221,96,.55) !important;
+}
+.clip.many .nm{ background:rgba(225,221,96,.35) !important; }

@@ -1,6 +1,6 @@
 /* いちばん さいしょの 画面。
    つづきから えらぶか、あたらしく つくるか。 */
-import { listDocs, deleteDoc, whenText, MAX_DOCS } from '../store.js?v=58';
+import { listDocs, deleteDoc, whenText, MAX_DOCS } from '../store.js?v=60';
 
 export const SIZES = [
   { key: '1080x1920', w: 1080, h: 1920, label: 'たて', note: 'TikTok / Reels / Shorts' },
