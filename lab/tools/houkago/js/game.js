@@ -1932,8 +1932,8 @@
       if (this.t > 1.2) {
         const b = Math.min(1, (this.t - 1.2) * 2);
         c.globalAlpha = b;
-        UI.frame(c, 130, 238, 380, 68, { fill: 'rgba(255,246,224,0.95)', band: P.lemon2, bandH: 18 });
-        C.text(c, 'NEXT', 144, 241, { size: 12, color: P.white, outline: P.ink });
+        UI.frame(c, 130, 238, 380, 68, { fill: 'rgba(255,246,224,0.95)', band: P.lemon2, bandH: 21 });
+        C.text(c, 'NEXT', 144, 243, { size: 12, color: P.white, outline: P.ink });
         C.text(c, best ? `海、花火、夏祭り。${givenName(best)}との 夏が はじまる――？` : '海、花火、夏祭り。新しい 出会いの 夏が はじまる――？', 320, 262, { size: 12, align: 'center' });
         C.text(c, '体験版を 遊んでくれて ありがとう！', 320, 282, { size: 12, align: 'center', color: P.pink2 });
       }
