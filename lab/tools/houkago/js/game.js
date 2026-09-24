@@ -1489,6 +1489,7 @@
     S.lastDate[id] = S.week; S.dates[id] = (S.dates[id] || 0) + 1; S.stress -= good ? 10 : 2;
     clampS();
     C.remove(hud);
+    await showActor(id, good ? 'blush' : 'sad', 170);
     await C.run(new DateResult(id, affBefore, S.aff[id], good, ex));
     await hideActor(id);
     G.curBoy = null; G.curPlace = null;
@@ -1501,25 +1502,32 @@
     }
     update(dt, active) {
       this.t += dt; this.g.update(dt);
-      if (this.good && Math.random() < dt * 8) C.burst('heart', C.rand(170, 470), 280, 1, { angle: -Math.PI / 2, spread: 0.3, min: 40, max: 70 });
+      if (this.good && Math.random() < dt * 8) C.burst('heart', C.rand(60, 300), 300, 1, { angle: -Math.PI / 2, spread: 0.3, min: 40, max: 70 });
       if (active && this.t > 0.7 && (inp.advance() || G.fast)) { inp.consume(); snd.se('decide'); this.close(); }
     }
     draw(c) {
-      c.fillStyle = `rgba(27,28,58,${Math.min(0.55, this.t * 2)})`; c.fillRect(0, 0, W, H);
-      const k = this.k.v;
-      c.save(); c.translate(W / 2, 170); c.scale(k, k); c.translate(-W / 2, -170);
-      UI.frame(c, 170, 60, 300, 210, { fill: P.cream, band: this.good ? P.pink2 : P.grey, bandH: 26, dots: 'rgba(255,143,177,0.2)' });
-      C.text(c, this.good ? 'デート 大成功！' : 'デート 終了', 320, 64, { size: 16, align: 'center', color: P.white, outline: P.ink, head: true });
-      c.fillStyle = P.ink; c.fillRect(191, 99, 50, 50); art.face(c, this.id, this.good ? 'blush' : 'sad', 192, 100, 48);
-      C.text(c, charName(this.id), 252, 104, { size: 16 });
-      C.text(c, `もりあがり ${Math.round(this.ex)}%`, 252, 126, { size: 12, color: P.ink2 });
-      C.text(c, 'ときめき度', 192, 164, { size: 12 });
-      this.g.draw(c, 192, 182, 256, 10);
+      c.fillStyle = `rgba(27,28,58,${Math.min(0.35, this.t * 2)})`; c.fillRect(0, 0, W, H);
+      const k = this.k.v, X = 322, Y = 44, Wd = 300, Hd = 250;
+      c.save(); c.translate(X + Wd / 2, Y + Hd / 2); c.scale(k, k); c.translate(-(X + Wd / 2), -(Y + Hd / 2));
+      UI.frame(c, X, Y, Wd, Hd, { fill: P.cream, band: this.good ? P.pink2 : P.grey, bandH: 28, dots: 'rgba(255,143,177,0.2)' });
+      C.text(c, this.good ? 'デート 大成功！' : 'デート 終了', X + Wd / 2, Y + 6, { size: 16, align: 'center', color: P.white, outline: P.ink, head: true });
+      const pl = placeOf(G.curPlace || '');
+      c.fillStyle = P.ink; c.fillRect(X + 13, Y + 39, 82, 48); if (G.curPlace) c.drawImage(thumb(pl.bg || pl.id), 0, 0, 128, 72, X + 14, Y + 40, 80, 46);
+      C.text(c, charName(this.id), X + 104, Y + 40, { size: 16 });
+      C.text(c, `${pl.name || ''}で デート`, X + 104, Y + 58, { size: 12, color: P.ink2 });
+      C.text(c, 'もりあがり', X + 104, Y + 74, { size: 12 }); UI.bar(c, X + 172, Y + 78, 110, 6, this.ex / 100, P.pink2);
+      C.text(c, 'ときめき度', X + 16, Y + 102, { size: 12 });
       const d = this.a1 - this.a0;
-      C.text(c, `${d >= 0 ? '+' : ''}${d}`, 448, 160, { size: 16, align: 'right', color: d >= 0 ? P.green : P.red, head: true });
-      hearts(c, 192, 204, tierIdx(this.g.value) + 1, 5, 2);
-      C.text(c, tierName(this.a1), 448, 206, { size: 16, align: 'right', color: P.pink2 });
-      if (this.t > 0.7) C.text(c, 'クリックで つぎへ', 320, 246, { size: 12, align: 'center', color: P.pink2, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
+      C.text(c, `${d >= 0 ? '+' : ''}${d}`, X + Wd - 16, Y + 98, { size: 16, align: 'right', color: d >= 0 ? P.green : P.red, head: true });
+      this.g.draw(c, X + 16, Y + 120, Wd - 32, 10);
+      hearts(c, X + 16, Y + 142, tierIdx(this.g.value) + 1, 5, 2);
+      C.text(c, tierName(this.a1), X + Wd - 16, Y + 146, { size: 16, align: 'right', color: P.pink2 });
+      const up = tierIdx(this.a1) > tierIdx(this.a0);
+      const line = up ? `♥ ふたりの 関係が 進展した！` : this.good ? 'いい雰囲気だった…！ また 誘おう。' : 'ちょっと 空回りしちゃった…';
+      c.fillStyle = up ? '#ffe3ec' : '#f4ecd8'; c.fillRect(X + 12, Y + 176, Wd - 24, 22);
+      C.text(c, line, X + Wd / 2, Y + 181, { size: 12, align: 'center', color: up ? P.pink2 : P.ink2 });
+      C.text(c, '傷心度 リセット・ストレス 減少', X + Wd / 2, Y + 206, { size: 12, align: 'center', color: P.mint2 });
+      if (this.t > 0.7) C.text(c, 'クリックで つぎへ', X + Wd / 2, Y + 228, { size: 12, align: 'center', color: P.pink2, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
       c.restore();
     }
   }
@@ -1659,33 +1667,45 @@
       art.bg(c, 'sports_day', this.t);
       UI.frame(c, 140, 10, 360, 30, { fill: P.lemon });
       C.text(c, 'クラス対抗リレー　バトンパス！', 320, 17, { size: 16, align: 'center' });
-      /* track & runner */
-      c.fillStyle = '#d9824f'; c.fillRect(0, 238, W, 30); c.fillStyle = '#fff'; for (let x = 0; x < W; x += 40) c.fillRect(x + Math.floor(-this.t * 80 % 40), 252, 20, 2);
-      const rx = 80 + (this.round + (this.state === 'judged' ? 1 : this.runner * 0.6)) * 130;
-      scaled(c, 1, Math.min(560, rx), 266, () => art.chibi(c, 'sport', Math.floor(this.t * 10) % art.chibiFrames('sport'), 0, 0));
-      /* gauge */
-      const gx = 120, gy = 190, gw = 400;
-      UI.frame(c, gx - 10, gy - 30, gw + 20, 56, { fill: P.cream });
-      C.text(c, `第${this.round + 1}走者 → バトン`, gx, gy - 24, { size: 12 });
-      for (let i = 0; i < 3; i++) { const j = this.results[i]; c.fillStyle = P.ink; c.fillRect(gx + gw - 60 + i * 20, gy - 26, 14, 14); c.fillStyle = j == null ? '#e3d6bd' : ['#9a9ab8', P.sky2, P.mint2, P.lemon2][j]; c.fillRect(gx + gw - 59 + i * 20, gy - 25, 12, 12); }
-      c.fillStyle = P.ink; c.fillRect(gx - 1, gy - 1, gw + 2, 18);
-      c.fillStyle = '#f1e5c8'; c.fillRect(gx, gy, gw, 16);
-      c.fillStyle = P.mint; c.fillRect(gx + Math.round(this.zone * gw), gy, Math.round(this.zoneW * gw), 16);
-      c.fillStyle = P.lemon; c.fillRect(gx + Math.round((this.zone + this.zoneW * 0.32) * gw), gy, Math.round(this.zoneW * 0.36 * gw), 16);
+      /* track: back lane rivals (1x), front lane player (2x) */
+      c.fillStyle = '#d9824f'; c.fillRect(0, 250, W, 64); c.fillStyle = '#c4703e'; c.fillRect(0, 280, W, 2);
+      c.fillStyle = '#fff'; for (let x = 0; x < W; x += 40) { const o = Math.floor(-this.t * (this.state === 'play' ? 80 : 20) % 40); c.fillRect(x + o, 256, 20, 2); c.fillRect(x + o, 308, 20, 2); }
+      const prog = this.round + (this.state === 'judged' || this.state === 'result' ? 1 : this.runner * 0.6);
+      const RIV = [['rgba(80,140,255,0.45)', 0.93], ['rgba(80,200,120,0.45)', 1.02], ['rgba(250,200,60,0.5)', 0.88]];
+      if (!this.rc) this.rc = C.makeCanvas(48, 48);
+      RIV.forEach(([col, sp], i) => {
+        const rx = 40 + Math.min(3.2, (this.t > 0.5 && this.state !== 'intro' ? prog * sp + i * 0.08 : 0)) * 150 + i * 26;
+        const rc = this.rc.getContext('2d'); rc.clearRect(0, 0, 48, 48); rc.globalCompositeOperation = 'source-over';
+        art.chibi(rc, 'sport', Math.floor(this.t * 10 + i) % art.chibiFrames('sport'), 24, 48);
+        rc.globalCompositeOperation = 'source-atop'; rc.fillStyle = col; rc.fillRect(0, 0, 48, 48); rc.globalCompositeOperation = 'source-over';
+        c.drawImage(this.rc, Math.round(Math.min(600, rx) - 24), 234 + i * 4);
+      });
+      const px = 60 + Math.min(3, prog) * 150;
+      c.fillStyle = 'rgba(43,45,92,0.25)'; c.fillRect(Math.min(560, px) - 22, 312, 44, 4);
+      scaled(c, 2, Math.min(560, px), 316, () => art.chibi(c, 'sport', Math.floor(this.t * 10) % art.chibiFrames('sport'), 0, 0));
+      /* gauge (bottom) */
+      const gx = 120, gy = 330, gw = 400;
+      UI.frame(c, gx - 10, gy - 26, gw + 20, 50, { fill: P.cream });
+      C.text(c, `第${this.round + 1}走者 → バトン`, gx, gy - 21, { size: 12 });
+      for (let i = 0; i < 3; i++) { const j = this.results[i]; c.fillStyle = P.ink; c.fillRect(gx + gw - 60 + i * 20, gy - 23, 14, 14); c.fillStyle = j == null ? '#e3d6bd' : ['#9a9ab8', P.sky2, P.mint2, P.lemon2][j]; c.fillRect(gx + gw - 59 + i * 20, gy - 22, 12, 12); }
+      c.fillStyle = P.ink; c.fillRect(gx - 1, gy - 1, gw + 2, 14);
+      c.fillStyle = '#f1e5c8'; c.fillRect(gx, gy, gw, 12);
+      c.fillStyle = P.mint; c.fillRect(gx + Math.round(this.zone * gw), gy, Math.round(this.zoneW * gw), 12);
+      c.fillStyle = P.lemon; c.fillRect(gx + Math.round((this.zone + this.zoneW * 0.32) * gw), gy, Math.round(this.zoneW * 0.36 * gw), 12);
       const cx = gx + Math.round(this.cur * gw);
-      c.fillStyle = P.pink2; c.fillRect(cx - 2, gy - 6, 4, 28); c.fillStyle = P.ink; c.fillRect(cx - 4, gy - 8, 8, 3);
+      c.fillStyle = P.pink2; c.fillRect(cx - 2, gy - 4, 4, 20); c.fillStyle = P.ink; c.fillRect(cx - 4, gy - 6, 8, 3);
       if (this.state === 'intro') {
-        UI.frame(c, 150, 70, 340, 76, { fill: P.cream, band: P.pink2, bandH: 20 });
+        UI.frame(c, 150, 70, 340, 96, { fill: P.cream, band: P.pink2, bandH: 20 });
         C.text(c, 'ルール', 320, 75, { size: 12, align: 'center', color: P.white, outline: P.ink });
         C.text(c, '動くバーが 緑のゾーンに 入ったら', 320, 98, { size: 12, align: 'center' });
         C.text(c, 'クリック / Zキーで バトンを渡せ！（3回）', 320, 116, { size: 12, align: 'center' });
-        C.text(c, `運動 ${S.params.sport} → ゾーンの広さ UP`, 320, 222, { size: 12, align: 'center', color: P.ink2, alpha: 0.8 });
-        C.text(c, 'クリックで スタート', 320, 300, { size: 16, align: 'center', color: P.white, outline: P.ink, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
+        C.text(c, `運動 ${S.params.sport} → ゾーンの広さ UP`, 320, 138, { size: 12, align: 'center', color: P.mint2 });
+        C.text(c, 'クリックで スタート', 320, 190, { size: 16, align: 'center', color: P.white, outline: P.ink, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
       }
       if (this.judge) {
         const J = [['ミス…', P.grey], ['おしい', P.sky2], ['GOOD!', P.mint2], ['PERFECT!!', P.lemon2]][this.judge.j];
         const s = 1 + Math.max(0, 1 - this.judge.t * 5) * 1.5;
-        drawStamp(c, J[0], 320, 110, J[1], s, -0.08);
+        if (this.state !== 'result') drawStamp(c, J[0], 320, 150, J[1], s, -0.08);
       }
       if (this.state === 'result' && this.res) {
         const k = this.res.k;
@@ -1759,12 +1779,21 @@
       msgHide(); await hideActor('all');
     }
   }
+  async function bombCut(text, col, boom) {
+    const sc = { name: 'bombcut', t: 0, update(dt) { this.t += dt; }, draw(c) {
+      const k = Math.min(1, this.t * 4); c.fillStyle = boom ? `rgba(120,20,40,${0.45 * k})` : `rgba(27,28,58,${0.4 * k})`; c.fillRect(0, 0, W, H);
+      if (boom) for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + this.t, r = 60 + this.t * 260; c.fillStyle = i % 2 ? P.lemon : '#ff7a4a'; c.fillRect(130 + Math.cos(a) * r - 4, 150 + Math.sin(a) * r * 0.6 - 4, 8, 8); }
+      c.save(); c.translate(130, 150); const s = 3 + Math.sin(this.t * (boom ? 30 : 12)) * 0.3; c.scale(s, s); art.icon(c, boom ? 'bomb_lit' : 'bomb_lit', -8, -8, 16); c.restore();
+      drawStamp(c, text, W / 2, 44, col, 1 + Math.max(0, 1 - this.t * 5) * 1.5, -0.08); } };
+    C.push(sc); await C.wait(G.fast ? 0.05 : 1.1); C.remove(sc);
+  }
   async function bombWarnings() {
     for (const id of S.pendingBoom.splice(0)) {
       snd.bgm('sad'); await setBg('hallway');
       await showActor(FRIEND, 'surprise', 'center');
       const steps = bombLine(id, 'boom') || [{ say: FRIEND, text: `た、たいへん！ ${givenName(id)}くんが「ほったらかしにされた」って 言ってて… 変なうわさが 広まってる！` }];
       snd.se('bomb'); C.shake(10, 0.6); C.flash('#ff9aa6', 0.5);
+      await bombCut(`${givenName(id)}の 爆弾が 爆発！`, P.red, true);
       await runScript(steps);
       for (const b of boys()) if (S.met[b]) S.aff[b] -= 15;
       S.stress += 20; S.hurt[id] = 30; S.lit[id] = false; clampS();
@@ -1777,6 +1806,7 @@
       snd.bgm('tension'); await setBg('classroom');
       await showActor(FRIEND, 'think', 'center');
       snd.se('bomb_warn');
+      await bombCut(`${givenName(id)}に 爆弾 点火…`, P.pink2, false);
       const steps = bombLine(id, 'warn') || [{ say: FRIEND, text: `ねえ、${givenName(id)}くんのこと 最近 ほったらかしてない？ なんか 元気なかったよ。` }];
       await runScript(steps);
       await say(null, `${givenName(id)}の 傷心度が たまっている。デートに 誘って フォローしよう。`);
@@ -1872,6 +1902,12 @@
         C.wrap(c, `「${feelLine(id)}」`, 320, 12).slice(0, 2).forEach((l, j) => C.text(c, l, 284, y + 22 + j * 15, { size: 12, color: P.ink2 }));
       });
       if (!met.length) C.text(c, 'まだ だれとも 出会えなかった……', 240, 70, { size: 12, color: P.grey });
+      if (this.rows >= params().length + met.length) {
+        c.save(); c.translate(160, 290); c.rotate(-0.2); c.globalAlpha = 0.85;
+        c.strokeStyle = P.red; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, 22, 0, 7); c.stroke(); c.beginPath(); c.arc(0, 0, 18, 0, 7); c.stroke();
+        C.text(c, '1学期', 0, -12, { size: 12, align: 'center', color: P.red }); C.text(c, '修了', 0, 1, { size: 12, align: 'center', color: P.red });
+        c.restore();
+      }
       if (this.rows >= params().length + met.length) C.text(c, 'クリックで つぎへ', 610, 334, { size: 12, align: 'right', color: P.pink2, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
       c.restore();
     }
@@ -1887,16 +1923,17 @@
       art.bg(c, 'beach', this.t);
       c.fillStyle = 'rgba(255,246,224,0.15)'; c.fillRect(0, 0, W, H);
       const a = this.a.v;
+      const best = boys().filter(x => S.met[x]).sort((x, y) => S.aff[y] - S.aff[x])[0];
+      if (best) art.portrait(c, best, tierIdx(S.aff[best]) >= 2 ? 'smile' : 'normal', 548 + Math.round((1 - a) * 40), 372, { t: this.t, alpha: a, blink: true });
       c.globalAlpha = a;
       const y = 90 + Math.round((1 - a) * 20);
-      C.text(c, '夏休み編へ', 320, y, { size: 44, head: true, align: 'center', color: P.sky2, outline: P.white, ow: 3 });
-      C.text(c, 'つづく', 320, y + 56, { size: 44, head: true, align: 'center', color: P.pink2, outline: P.white, ow: 3 });
+      C.text(c, '夏休み編へ', 280, y, { size: 44, head: true, align: 'center', color: P.sky2, outline: P.white, ow: 3 });
+      C.text(c, 'つづく', 280, y + 56, { size: 44, head: true, align: 'center', color: P.pink2, outline: P.white, ow: 3 });
       if (this.t > 1.2) {
         const b = Math.min(1, (this.t - 1.2) * 2);
         c.globalAlpha = b;
         UI.frame(c, 130, 238, 380, 68, { fill: 'rgba(255,246,224,0.95)', band: P.lemon2, bandH: 18 });
         C.text(c, 'NEXT', 144, 241, { size: 12, color: P.white, outline: P.ink });
-        const best = boys().filter(x => S.met[x]).sort((x, y) => S.aff[y] - S.aff[x])[0];
         C.text(c, best ? `海、花火、夏祭り。${givenName(best)}との 夏が はじまる――？` : '海、花火、夏祭り。新しい 出会いの 夏が はじまる――？', 320, 262, { size: 12, align: 'center' });
         C.text(c, '体験版を 遊んでくれて ありがとう！', 320, 282, { size: 12, align: 'center', color: P.pink2 });
       }
