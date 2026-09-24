@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=56';
+import { S, toast } from './state.js?v=58';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -20,6 +20,7 @@ export function styles() {
 const planCache = new Map();
 let renderer = null;
 
+/* off / noTrans は 組み立てには ひびかない（えがく ときだけ）ので たなの かぎに 入れない */
 const keyOf = j => JSON.stringify([
   j.lyrics, j.style, j.seed, j.bpm, j.offset, j.W, j.H, j.fps,
   j.motion, j.glitch, j.chroma, j.decor, j.density, j.texture, j.koma, j.hud, j.bgSwitch,
@@ -109,8 +110,8 @@ export function draw(g, j, local, W, H, fast) {
   offG.globalCompositeOperation = 'source-over';
   offG.clearRect(0, 0, cv.width, cv.height);
   try {
-    renderer.frame(offG, plan, Math.max(0, local), {
-      scale: 1, fast: !!fast, transparent: !!j.transparent
+    renderer.frame(offG, plan, Math.max(0, local + (j.off || 0)), {
+      scale: 1, fast: !!fast, transparent: !!j.transparent, noTrans: !!j.noTrans
     });
   } catch (e) { return false; }
   g.save();
@@ -127,7 +128,8 @@ export function newJz(o = {}) {
     W: S.W, H: S.H, fps: S.fps,
     motion: .7, glitch: .55, chroma: .7, decor: .5, density: .55, texture: .6,
     koma: 12, hud: 'auto', bgSwitch: .35, extra: true, wa: true,
-    lineScale: 1, snap: true, tail: .9, lineTimes: {}, transparent: false
+    lineScale: 1, snap: true, tail: .9, lineTimes: {}, transparent: false,
+    off: 0, noTrans: false
   }, o);
 }
 export const clearCache = () => planCache.clear();
@@ -139,6 +141,13 @@ export function linesOf(lyrics) {
   try { return (J.parseLyrics(lyrics || '').lines || []).map(l => l.text); }
   catch (e) { return []; }
 }
+/** カットの きれめ [{start, end, text}] */
+export function cutsOf(j) {
+  const p = planOf(j);
+  if (!p || !p.cuts) return [];
+  return p.cuts.map(c => ({ start: c.start, end: c.end, text: c.text || '' }));
+}
+
 /** いま 何行目が 出て いるか（ふだの 中の 時こく から） */
 export function lineAt(j, local) {
   const p = planOf(j);

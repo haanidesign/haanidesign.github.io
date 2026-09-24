@@ -3,19 +3,19 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, newTrack, newClip,
   snap as pushUndo
-} from '../state.js?v=56';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=56';
-import { storeOk } from '../store.js?v=56';
-import { bus } from '../bus.js?v=56';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=56';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=56';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines } from '../jz.js?v=56';
+} from '../state.js?v=58';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=58';
+import { storeOk } from '../store.js?v=58';
+import { bus } from '../bus.js?v=58';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=58';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=58';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=58';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=56';
+  offOf, setOff, clearOff } from '../text.js?v=58';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=56';
+} from '../edit.js?v=58';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -711,6 +711,60 @@ function jzEditBody(c) {
     done ? hint('入れた 秒: ' + Object.keys(times).sort((a, b) => a - b)
       .map(k => `${(+k) + 1}行目 ${times[k]}s`).join(' / ')) : null
   ]));
+
+  /* --- カットごとに 切る --- */
+  {
+    const cs = jzCuts(j);
+    const tr = S.tracks.find(t => t.clips.includes(c));
+    const sibs = tr ? tr.clips.filter(x => x.kind === 'jz' && x.jz && x.jz.seed === j.seed) : [c];
+    const split = sibs.length > 1;
+    w.appendChild(group('カットごとに 切る', [
+      hint(split
+        ? `いま <b>${sibs.length}まい</b>に 切れて います。<br>` +
+          '1まいずつ 動かす・のばす・けす が できます。'
+        : `この ふだは <b>${cs.length}カット</b> ぶん 入って います。<br>` +
+          '切ると、おまかせ組み立てと 同じに 1カット＝1まい に なります。'),
+      grid(null, split ? [
+        btn('◧ 1まいに もどす', 'btn-sm', () => {
+          const first = sibs.slice().sort((a, b) => a.start - b.start)[0];
+          const base = first.start - (first.jz.off || 0);
+          const keep = Object.assign({}, first.jz, { off: 0, noTrans: false });
+          tr.clips = tr.clips.filter(x => !sibs.includes(x));
+          const nm = (jzStyles().find(x => x[0] === keep.style) || [, 'うた'])[1];
+          const one = newClip('jz', { name: nm, start: base, dur: jzDur(keep) });
+          one.jz = keep;
+          tr.clips.push(one);
+          S.sel = one.id;
+          pushUndo(); bus.all(); draw();
+          toast('1まいに もどした');
+        })
+      ] : [
+        btn('✂ カットごとに 切る', 'btn-y', () => {
+          if (!cs.length) { toast('カットが ない'); return; }
+          const base = c.start - (j.off || 0);
+          tr.clips = tr.clips.filter(x => x !== c);
+          cs.forEach((cut, i) => {
+            const n = newClip('jz', {
+              name: (cut.text || 'カット').slice(0, 8),
+              start: r2(base + cut.start),
+              dur: Math.max(.08, r2(cut.end - cut.start))
+            });
+            n.jz = Object.assign({}, j, { off: r2(cut.start), noTrans: true });
+            tr.clips.push(n);
+            if (i === 0) S.sel = n.id;
+          });
+          pushUndo(); bus.all(); draw();
+          toast(`${cs.length}まいに 切った`, 3000);
+        })
+      ]),
+      split
+        ? hint('<b>かさねると うしろが 二重に なります。</b> ふだを ずらす ときは<br>' +
+          'すきま・かさなりに 気を つけて ください。<br>' +
+          '「すける」に して おくと かさねても 平気です。')
+        : hint('切ると <b>カット間の つなぎ</b>は 切れます（1まいずつ 独立する ため）。<br>' +
+          'つなぎが ほしい ときは 切らずに つかって ください。')
+    ]));
+  }
 
   w.appendChild(group('歌詞と うしろを ばらす', [
     grid('うしろ', [
