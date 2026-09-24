@@ -46,6 +46,12 @@
       c.fillStyle = PARAM_COLOR[id] || P.lilac; c.fillRect(x + 2, y + 2, s - 4, s - 4);
     }
   };
+  const bigs = {};
+  function bigBg(id) {
+    if (bigs[id]) return bigs[id];
+    const big = C.makeCanvas(W, H); art.bg(big.getContext('2d'), id, 0.5);
+    bigs[id] = big; return big;
+  }
   const thumbs = {};
   function thumb(id) {
     if (thumbs[id]) return thumbs[id];
@@ -363,21 +369,33 @@
   class ChoiceScene {
     constructor(opts, o = {}) {
       this.name = 'choice'; this.t = 0;
-      const n = opts.length, bh = 30, gap = 8, total = n * bh + (n - 1) * gap;
-      const top = o.top != null ? o.top : Math.max(24, 140 - total / 2);
-      const bw = o.width || 380;
+      const n = opts.length, bh = 30, gap = n > 4 ? 6 : 8, total = n * bh + (n - 1) * gap;
+      const top = o.top != null ? o.top : Math.max(16, 128 - total / 2);
+      /* keep faces visible: with people on stage the choices go to a side column */
+      const acts = Object.values(STAGE.actors).filter(a => a.alpha > 0.1);
+      this.side = acts.length > 0 && !o.center;
+      const bw = o.width || (this.side ? 316 : 380);
+      const bx = this.side ? W - bw - 14 : (W - bw) / 2;
+      this.moved = [];
+      if (this.side) {
+        const slots = acts.length === 1 ? [168] : acts.length === 2 ? [110, 235] : [80, 170, 260];
+        acts.sort((a, b) => a.x - b.x).forEach((a, i) => { const to = slots[Math.min(i, slots.length - 1)]; if (Math.abs(a.x - to) > 2) { this.moved.push([a, a.x]); C.tween(a, { x: to }, 0.25, { ease: 'cubicOut' }); } });
+      }
       this.btns = opts.map((op, i) => new UI.Button({
-        x: (W - bw) / 2, y: top + i * (bh + gap), w: bw, h: bh, label: fmt(op.text || op), size: 16,
+        x: bx, y: top + i * (bh + gap), w: bw, h: bh, label: fmt(op.text || op), size: 16,
         color: P.cream, hoverColor: P.pinkL, enabled: op.enabled !== false,
         onClick: () => { if (this.done) return; this.done = true; snd.se('decide'); this.pick(i); }
       }));
       this.btns.forEach((b, i) => { b.appear = 0; C.tween(b, { appear: 1 }, 0.25, { delay: i * 0.05, ease: 'backOut' }); });
       this.group = new UI.Group(this.btns);
     }
-    async pick(i) { const b = this.btns[i]; b.bounce = 1; for (let k = 0; k < 6; k++) { await C.wait(0.03); b.visibleBlink = k % 2; } this.close(i); }
+    async pick(i) { const b = this.btns[i]; b.bounce = 1; for (let k = 0; k < 6; k++) { await C.wait(0.03); b.visibleBlink = k % 2; } this.restore(); this.close(i); }
+    restore() { for (const [a, x] of this.moved) if (STAGE.actors[a.id] === a) C.tween(a, { x }, 0.3, { ease: 'cubicOut' }); this.moved = []; }
     update(dt, active) { this.t += dt; this.group.update(dt, active && this.t > 0.15 && !this.done); }
     draw(c) {
-      c.fillStyle = `rgba(27,28,58,${0.25 * Math.min(1, this.t * 4)})`; c.fillRect(0, 0, W, 258);
+      const dk = Math.min(1, this.t * 4);
+      if (this.side) { const bx = this.btns[0].x - 40; const gg = c.createLinearGradient(bx, 0, bx + 50, 0); gg.addColorStop(0, 'rgba(27,28,58,0)'); gg.addColorStop(1, `rgba(27,28,58,${0.34 * dk})`); c.fillStyle = gg; c.fillRect(bx, 0, W - bx, 258); }
+      else { c.fillStyle = `rgba(27,28,58,${0.25 * dk})`; c.fillRect(0, 0, W, 258); }
       for (const b of this.btns) {
         if (b.visibleBlink) continue;
         c.save(); const s = b.appear; c.globalAlpha = Math.min(1, s * 1.5);
@@ -502,9 +520,13 @@
     c.fillStyle = 'rgba(255,255,255,0.35)';
     for (let y = 8; y < H; y += 24) for (let x = ((y / 24) & 1) * 12 + 6; x < W; x += 24) c.fillRect(x, y, 2, 2);
   }
-  function panel(c, x, y, w, h, title, band) {
-    UI.frame(c, x, y, w, h, { fill: P.cream, band: band || P.pink, bandH: 16 });
-    if (title) C.text(c, title, x + 8, y + 2, { size: 12, color: P.white, outline: P.ink });
+  function panel(c, x, y, w, h, title, band, icon) {
+    UI.frame(c, x, y, w, h, { fill: P.cream, band: band || P.pink, bandH: 20 });
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x + 3, y + 3, w - 6, 1);
+    c.fillStyle = 'rgba(43,45,92,0.25)'; c.fillRect(x + 2, y + 22, w - 4, 1);
+    let tx = x + 9;
+    if (icon) { art.icon(c, icon, x + 6, y + 4, 16); tx += 18; }
+    if (title) C.text(c, title, tx, y + 6, { size: 12, color: P.white, outline: P.ink });
   }
   function hearts(c, x, y, n, of = 5, s = 1) {
     for (let i = 0; i < of; i++) {
@@ -531,21 +553,30 @@
   function scaled(c, s, x, y, fn) { c.save(); c.translate(x, y); c.scale(s, s); fn(); c.restore(); }
 
   /* ================= title ================= */
+  const TITLE_BOYS = [
+    { id: 'ritsu', x: 604, y: 346, expr: 'normal', tint: 'rgba(58,30,90,0.42)', d: 0.55 },
+    { id: 'aoi', x: 452, y: 350, expr: 'smile', tint: 'rgba(58,30,90,0.34)', d: 0.45 },
+    { id: 'haruto', x: 530, y: 378, expr: 'laugh', tint: 'rgba(255,150,120,0.12)', d: 0.35 },
+    { id: 'minato', x: 384, y: 386, expr: 'smile', tint: 'rgba(255,150,120,0.1)', d: 0.25 }
+  ];
   class TitleScene {
     constructor() {
       this.name = 'title'; this.t = 0; this.letters = Array.from('放課後リフレイン').map((ch, i) => ({ ch, y: -60, a: 0, i }));
       this.letters.forEach((l, i) => C.tween(l, { y: 0, a: 1 }, 0.6, { delay: 0.25 + i * 0.07, ease: 'bounceOut' }));
       this.sub = { a: 0 }; C.tween(this.sub, { a: 1 }, 0.5, { delay: 1.0 });
+      this.boys = TITLE_BOYS.filter(b => chars()[b.id]).map(b => Object.assign({ k: 0 }, b));
+      this.boys.forEach(b => C.tween(b, { k: 1 }, 0.7, { delay: b.d, ease: 'cubicOut' }));
       const cont = hasSave();
-      const mk = (label, y, fn, en = true) => new UI.Button({ x: 250, y, w: 140, h: 28, label, enabled: en, onClick: fn, color: P.cream, hoverColor: P.pinkL });
+      const mk = (label, y, fn, en = true) => new UI.Button({ x: 138, y, w: 150, h: 28, label, enabled: en, onClick: fn, color: P.cream, hoverColor: P.pinkL });
       this.btns = [
-        mk('はじめから', 238, () => this.go('new')),
-        mk('つづきから', 272, () => this.go('continue'), cont),
-        mk('設定', 306, () => { snd.se('decide'); openSettings(); })
+        mk('はじめから', 206, () => this.go('new')),
+        mk('つづきから', 240, () => this.go('continue'), cont),
+        mk('設定', 274, () => { snd.se('decide'); openSettings(); })
       ];
       this.group = new UI.Group(this.btns);
       if (cont) this.group.setFocus(this.btns[1], true);
       this.bin = 0;
+      this.pc = C.makeCanvas(200, 300); this.lc = C.makeCanvas(440, 90);
     }
     go(v) { if (this.done) return; this.done = true; snd.se('decide'); this.close(v); }
     update(dt, active) {
@@ -553,35 +584,81 @@
       if (Math.random() < dt * 6) C.burst('petal', C.rand(0, W + 80), -8, 1);
       this.bin = Math.min(1, Math.max(0, (this.t - 1.1) / 0.4));
       this.group.update(dt, active && this.t > 0.6 && !this.done);
-      if (active && this.t < 1.2 && inp.click()) { this.t = 1.2; this.letters.forEach(l => { C.killTweens(l); l.y = 0; l.a = 1; }); this.sub.a = 1; }
+      if (active && this.t < 1.2 && inp.click()) { this.t = 1.2; this.letters.forEach(l => { C.killTweens(l); l.y = 0; l.a = 1; }); this.sub.a = 1; this.boys.forEach(b => { C.killTweens(b); b.k = 1; }); }
+    }
+    drawBoy(c, b) {
+      const pc = this.pc, px = pc.getContext('2d');
+      px.clearRect(0, 0, 200, 300); px.globalCompositeOperation = 'source-over';
+      art.portrait(px, b.id, b.expr, 100, 300, { t: this.t + b.d * 7, blink: true });
+      px.globalCompositeOperation = 'source-atop'; px.fillStyle = b.tint; px.fillRect(0, 0, 200, 300);
+      /* warm rim light from the sunset (left edge) */
+      px.globalCompositeOperation = 'source-over';
+      c.save(); c.globalAlpha = b.k;
+      c.drawImage(pc, Math.round(b.x - 100 + (1 - b.k) * 40), Math.round(b.y - 300 + Math.sin(this.t * 1.3 + b.d * 9) * 1.2));
+      c.restore();
     }
     draw(c) {
       art.bg(c, 'title', this.t);
-      c.fillStyle = 'rgba(255,246,224,0.18)'; c.fillRect(0, 0, W, H);
-      const cx = W / 2; let x0 = cx - 150;
-      c.font = C.font(44, true);
-      const widths = this.letters.map(l => c.measureText(l.ch).width);
-      const total = widths.reduce((a, b) => a + b, 0) + 4 * (widths.length - 1);
-      x0 = cx - total / 2;
-      let x = x0;
+      /* soft light behind the boys */
+      const gr = c.createRadialGradient(510, 200, 10, 510, 200, 230);
+      gr.addColorStop(0, 'rgba(255,236,200,0.55)'); gr.addColorStop(1, 'rgba(255,236,200,0)');
+      c.fillStyle = gr; c.fillRect(260, 0, 380, 360);
+      for (const b of this.boys) this.drawBoy(c, b);
+      /* left veil so the menu reads */
+      const vg = c.createLinearGradient(0, 0, 360, 0); vg.addColorStop(0, 'rgba(42,32,96,0.45)'); vg.addColorStop(1, 'rgba(42,32,96,0)');
+      c.fillStyle = vg; c.fillRect(0, 0, 360, H);
+      /* logo on its own layer, with a shine sweep */
+      const lc = this.lc, lx = lc.getContext('2d');
+      lx.clearRect(0, 0, 440, 90); lx.globalCompositeOperation = 'source-over';
+      lx.font = C.font(44, true);
+      const widths = this.letters.map(l => lx.measureText(l.ch).width);
+      const total = widths.reduce((a, b) => a + b, 0) + 3 * (widths.length - 1);
+      let x = (440 - total) / 2;
+      const xs = [];
       this.letters.forEach((l, i) => {
-        const wob = Math.round(Math.sin(this.t * 2.2 + i * 0.6) * 2);
-        c.globalAlpha = l.a;
-        const col = i < 3 ? P.pink2 : P.sky2;
-        C.text(c, l.ch, x + 3, 74 + l.y + wob + 3, { size: 44, head: true, color: P.ink });
-        C.text(c, l.ch, x, 74 + l.y + wob, { size: 44, head: true, color: col, outline: P.white, ow: 3 });
-        x += widths[i] + 4;
+        const wob = Math.round(Math.sin(this.t * 2.2 + i * 0.6) * 1.5);
+        lx.globalAlpha = l.a;
+        C.text(lx, l.ch, x + 3, 16 + l.y + wob + 3, { size: 44, head: true, color: P.ink });
+        C.text(lx, l.ch, x, 16 + l.y + wob, { size: 44, head: true, color: i < 3 ? P.pink2 : P.sky2, outline: P.white, ow: 3 });
+        xs.push(x + widths[i] / 2); x += widths[i] + 3;
       });
+      lx.globalAlpha = 1;
+      const sp = (this.t % 3.2) / 1.1;
+      if (this.t > 1.4 && sp < 1) {
+        lx.globalCompositeOperation = 'source-atop';
+        const sx = -60 + sp * 560; lx.fillStyle = 'rgba(255,255,255,0.75)';
+        lx.beginPath(); lx.moveTo(sx, 0); lx.lineTo(sx + 16, 0); lx.lineTo(sx - 14, 90); lx.lineTo(sx - 30, 90); lx.fill();
+        lx.fillStyle = 'rgba(255,255,255,0.4)'; lx.beginPath(); lx.moveTo(sx + 22, 0); lx.lineTo(sx + 28, 0); lx.lineTo(sx - 2, 90); lx.lineTo(sx - 8, 90); lx.fill();
+        lx.globalCompositeOperation = 'source-over';
+      }
+      const LX = 0, LY = 22;
+      c.drawImage(lc, LX, LY);
+      /* pixel sparkles on the logo */
+      for (let i = 0; i < 3; i++) {
+        const ph = (this.t * 0.9 + i * 0.37) % 1, k = Math.sin(ph * Math.PI);
+        if (this.t < 1.3 || k < 0.2) continue;
+        const li = Math.floor((this.t * 0.9 + i * 0.37)) * 3 + i * 5, sx = LX + xs[li % xs.length] + ((li * 7) % 20) - 10, sy = LY + 20 + ((li * 13) % 30);
+        const r = Math.round(k * 4);
+        c.fillStyle = '#fff'; c.fillRect(sx - r, sy, r * 2 + 1, 1); c.fillRect(sx, sy - r, 1, r * 2 + 1); c.fillStyle = P.lemon; c.fillRect(sx - 1, sy - 1, 3, 3); c.fillStyle = '#fff'; c.fillRect(sx, sy, 1, 1);
+      }
+      /* subtitle ribbon integrated under the logo */
       c.globalAlpha = this.sub.a;
-      UI.frame(c, cx - 110, 142, 220, 26, { fill: P.lemon, depth: 2 });
-      C.text(c, '1学期 体験版 ～4月から7月まで～', cx, 147, { size: 12, align: 'center' });
-      C.text(c, 'Afterschool Refrain', cx, 176, { size: 12, align: 'center', color: P.ink, outline: P.white });
+      const rx = 220, ry = 104, rw = 196;
+      c.fillStyle = P.ink; c.fillRect(rx - rw / 2 - 12, ry + 3, 16, 16); c.fillRect(rx + rw / 2 - 4, ry + 3, 16, 16);
+      c.fillStyle = '#c8406a'; c.fillRect(rx - rw / 2 - 11, ry + 4, 14, 14); c.fillRect(rx + rw / 2 - 3, ry + 4, 14, 14);
+      c.fillStyle = P.ink; c.fillRect(rx - rw / 2 - 11, ry + 10, 3, 2); c.fillRect(rx + rw / 2 + 8, ry + 10, 3, 2);
+      UI.frame(c, rx - rw / 2, ry, rw, 20, { fill: P.pink2, depth: 2 });
+      C.text(c, '～ Afterschool Refrain ～', rx, ry + 4, { size: 12, align: 'center', color: P.white, outline: '#8a2a4a' });
+      /* trial badge (sticker) */
+      c.save(); c.translate(388, 112); c.rotate(-0.12);
+      UI.frame(c, -40, -12, 80, 24, { fill: P.lemon, depth: 2 });
+      C.text(c, '1学期 体験版', 0, -6, { size: 12, align: 'center', color: P.ink });
+      c.restore();
+      C.text(c, '4月 入学式 → 7月 終業式', rx, 132, { size: 12, align: 'center', color: P.white, outline: P.ink });
       c.globalAlpha = 1;
-      /* sparkle glints on logo */
-      if (this.t > 1.2 && Math.random() < 0.08) C.burst('sparkle', C.rand(x0, x), C.rand(70, 120), 1, { min: 0, max: 10 });
       c.save(); c.globalAlpha = this.bin; c.translate(0, Math.round((1 - this.bin) * 20));
       this.group.draw(c); c.restore();
-      C.text(c, '© 放課後リフレイン製作委員会ごっこ', W - 8, H - 14, { size: 12, align: 'right', color: P.white, outline: P.ink, alpha: 0.9 });
+      C.text(c, '© 2026 放課後リフレイン　ver 0.9 体験版', 8, H - 16, { size: 12, color: P.white, outline: P.ink, alpha: 0.85 });
     }
   }
 
@@ -646,7 +723,7 @@
       c.save(); c.translate(Math.round(this.k.x), 0);
       UI.frame(c, 180, 90, 280, 170, { fill: P.cream, band: P.pink2, bandH: 30 });
       c.fillStyle = P.ink; for (let i = 0; i < 6; i++) { c.fillRect(206 + i * 42, 84, 6, 14); }
-      C.text(c, `${this.cal.month}月`, 320, 92, { size: 22, head: true, align: 'center', color: P.white, outline: P.ink });
+      C.text(c, `${this.cal.month}月`, 320, 94, { size: 22, head: true, align: 'center', color: P.white, outline: P.ink });
       const wk = this.cal.label ? this.cal.label.replace(/^\d+月\s*/, '') : `第${this.cal.week}週`;
       C.text(c, wk, 320, 140, { size: 44, head: true, align: 'center', color: P.pink2, outline: P.white, ow: 2 });
       const ev = eventTitle(this.cal);
@@ -657,29 +734,52 @@
 
   /* ================= main week menu ================= */
   const CMD_ICON = { study: 'study', sport: 'sport', art: 'art', culture: 'culture', style: 'style', rest: 'rest', play: 'play' };
+  function hiyoriTip() {
+    const lit = boys().find(b => S.met[b] && S.lit[b]);
+    const nx = nextEvent();
+    if (S.hp < 35) return ['sad', 'ひなた、顔色 わるいよ？ 今週は 休養しよ。倒れたら 元も子もないって！'];
+    if (S.stress > 65) return ['think', 'ストレス たまってない？ 「遊ぶ」か「休養」で 一回 リセットしよ！'];
+    if (lit) return ['surprise', `${givenName(lit)}くん、最近 さみしそう…。週末に 電話して デートに さそってあげて！`];
+    if (nx && nx.in <= 2) {
+      if (/テスト/.test(nx.name)) return ['think', nx.in === 0 ? '今週 テストだよ！ 最後の 追いこみ、勉強しとこ？' : `テストまで あと${nx.in}週！ 学力を 上げとかないと 順位が…`];
+      if (/体育祭/.test(nx.name)) return ['smile', `体育祭まで あと${nx.in}週。運動しとくと リレーの ゾーンが 広がるよ！`];
+      if (/七夕/.test(nx.name)) return ['wink', '七夕まつり、もうすぐだね。だれと 行きたいか 決めた？'];
+    }
+    if (!S.met.haruto && chars().haruto) return ['wink', `サッカー部に 声の大きい 男子が いるんだって。運動してたら 会えるかも？`];
+    if (!S.met.ritsu && chars().ritsu) return ['think', `放課後の 音楽室から ベースの音が するって うわさ…。芸術を みがくと 何か あるかも？`];
+    const cal = calOf(S.week);
+    const low = params().slice().sort((a, b) => S.params[a.id] - S.params[b.id])[0];
+    if (cal.note) return ['smile', `今週は「${cal.note}」だね！ ${low.name}が ちょっと 低めかも。バランスも 大事だよ。`];
+    return ['smile', `${low.name}が ちょっと 低めかも。デートの 話題に 困らないように、ね！`];
+  }
   class MenuScene {
     constructor() {
       this.name = 'menu'; this.t = 0;
       this.pg = {}; params().forEach(p => { this.pg[p.id] = new UI.Gauge(S.params[p.id], 200, PARAM_COLOR[p.id] || P.lilac); });
       this.ghp = new UI.Gauge(S.hp, 100, P.green); this.gst = new UI.Gauge(S.stress, 100, P.red);
       const cmds = commands();
-      const bw = 106, bh = 34;
+      const bw = 110, bh = 32;
       this.btns = cmds.map((cm, i) => {
         const col = i % 4, row = Math.floor(i / 4);
-        return new UI.Button({ x: 166 + col * (bw + 5), y: 166 + row * (bh + 6), w: bw, h: bh, label: cm.name, icon: CMD_ICON[cm.id] || cm.icon || cm.id, iconSize: 16, desc: cm.desc, cmd: cm, color: P.cream, hoverColor: P.mintL, onClick: b => this.pick(b.cmd) });
+        return new UI.Button({ x: 166 + col * (bw + 4), y: 172 + row * (bh + 6), w: bw, h: bh, label: cm.name, icon: CMD_ICON[cm.id] || cm.icon || cm.id, iconSize: 16, desc: cm.desc, cmd: cm, color: P.cream, hoverColor: P.mintL, onClick: b => this.pick(b.cmd) });
       });
-      this.gear = new UI.Button({ x: 166 + 3 * 111, y: 206, w: 106, h: 34, icon: 'gear', label: '設定', onClick: () => { snd.se('decide'); openSettings(); }, desc: '音量と 文字の速さを 変える', cmd: null, color: P.cream, hoverColor: P.lemon });
+      this.gear = new UI.Button({ x: 166 + 3 * (bw + 4), y: 172 + bh + 6, w: bw, h: bh, icon: 'gear', label: '設定', onClick: () => { snd.se('decide'); openSettings(); }, desc: '音量と 文字の速さを 変える', cmd: null, color: P.cream, hoverColor: P.lemon });
       this.btns.push(this.gear);
       this.group = new UI.Group(this.btns);
       this.group.onFocus = b => { this.hl = b; this.hlT = 0; };
       this.hl = this.btns[0]; this.hlT = 0;
       this.enterK = { v: 0 }; C.tween(this.enterK, { v: 1 }, 0.4, { ease: 'backOut' });
+      this.tip = hiyoriTip();
+      this.cx = 80; this.cdir = 1; this.cpause = 0;
     }
     pick(cmd) { if (this.done) return; this.done = true; snd.se('decide'); this.close(cmd); }
     update(dt, active) {
       this.t += dt; this.hlT += dt;
       for (const k in this.pg) this.pg[k].update(dt); this.ghp.update(dt); this.gst.update(dt);
       this.group.update(dt, active && !this.done && this.t > 0.2);
+      if (this.cpause > 0) this.cpause -= dt;
+      else { this.cx += this.cdir * dt * 14; if (this.cx > 122 || this.cx < 38) { this.cdir *= -1; this.cx = C.clamp(this.cx, 38, 122); this.cpause = 1.2; } }
+      if (Math.random() < dt * 0.8) C.burst('heart', C.rand(410, 620), 128, 1, { angle: -Math.PI / 2, spread: 0.3, min: 10, max: 22, life: 1.4 });
     }
     draw(c) {
       const t = this.t, e = this.enterK.v;
@@ -687,89 +787,109 @@
       const cal = calOf(S.week);
       /* calendar */
       c.save(); c.translate(0, Math.round((1 - e) * -40));
-      UI.frame(c, 10, 10, 140, 96, { fill: P.cream, band: P.pink2, bandH: 22 });
-      c.fillStyle = P.ink; c.fillRect(30, 6, 4, 10); c.fillRect(126, 6, 4, 10);
-      C.text(c, `${cal.month}月`, 80, 12, { size: 16, align: 'center', color: P.white, outline: P.ink, head: true });
+      UI.frame(c, 10, 10, 140, 96, { fill: P.cream, band: P.pink2, bandH: 24 });
+      c.fillStyle = P.ink; c.fillRect(30, 5, 4, 10); c.fillRect(126, 5, 4, 10);
+      c.fillStyle = '#c8c0b0'; c.fillRect(31, 6, 2, 8); c.fillRect(127, 6, 2, 8);
+      C.text(c, `${cal.month}月`, 80, 13, { size: 16, align: 'center', color: P.white, outline: P.ink, head: true });
       const wk = cal.label ? cal.label.replace(/^\d+月\s*/, '') : `第${S.week}週`;
-      C.text(c, wk, 80, 36, { size: 22, head: true, align: 'center', color: P.pink2 });
+      C.text(c, wk, 80, 37, { size: 22, head: true, align: 'center', color: P.pink2 });
       const nx = nextEvent();
-      C.text(c, nx ? `次: ${nx.name}` : '次: 夏休み', 80, 66, { size: 12, align: 'center' });
-      C.text(c, nx ? (nx.in === 0 ? '今週！' : `あと ${nx.in} 週`) : `あと ${WEEKS() - S.week + 1} 週`, 80, 82, { size: 12, align: 'center', color: P.pink2 });
+      C.text(c, nx ? `次: ${nx.name}` : '次: 夏休み', 80, 68, { size: 12, align: 'center' });
+      C.text(c, nx ? (nx.in === 0 ? '今週！' : `あと ${nx.in} 週`) : `あと ${WEEKS() - S.week + 1} 週`, 80, 84, { size: 12, align: 'center', color: P.pink2 });
       c.restore();
       /* player */
       c.save(); c.translate(Math.round((1 - e) * -60), 0);
       panel(c, 10, 112, 140, 140, PLAYER(), P.sky2);
-      c.fillStyle = '#e8f4ff'; c.fillRect(16, 132, 128, 58);
-      c.fillStyle = '#cfe6ff'; c.fillRect(16, 176, 128, 14);
-      const ch = S.hp < 30 ? 'sick' : S.stress > 70 ? 'fail' : 'walk';
-      scaled(c, 1, 80, 188, () => art.chibi(c, ch, Math.floor(t * 5) % art.chibiFrames(ch), 0, 0));
-      statBars(c, 16, 196, 128, this.ghp, this.gst);
+      c.fillStyle = P.ink; c.fillRect(15, 136, 130, 60);
+      c.drawImage(bigBg('bedroom_day'), 452, 208, 128, 58, 16, 137, 128, 58);
+      c.fillStyle = 'rgba(255,246,224,0.25)'; c.fillRect(16, 137, 128, 58);
+      const ch = S.hp < 30 ? 'sick' : S.stress > 70 ? 'fail' : this.cpause > 0 ? 'play' : 'walk';
+      c.save(); c.beginPath(); c.rect(16, 137, 128, 58); c.clip();
+      if (this.cdir < 0 && ch === 'walk') { c.translate(Math.round(this.cx) * 2, 0); c.scale(-1, 1); }
+      art.chibi(c, ch, Math.floor(t * (ch === 'play' ? 4 : 6)) % art.chibiFrames(ch), this.cdir < 0 && ch === 'walk' ? Math.round(this.cx) : Math.round(this.cx), 196);
+      c.restore();
+      statBars(c, 16, 202, 128, this.ghp, this.gst);
       c.restore();
       /* params */
       c.save(); c.translate(0, Math.round((1 - e) * -40));
-      panel(c, 158, 10, 236, 128, 'パラメータ', P.mint2);
+      panel(c, 158, 10, 236, 128, 'パラメータ', P.mint2, 'star');
       params().forEach((p, i) => {
-        const y = 30 + i * 21;
+        const y = 37 + i * 20;
         art.icon(c, p.id, 166, y, 16);
         C.text(c, p.name, 186, y + 2, { size: 12 });
-        this.pg[p.id].draw(c, 222, y + 5, 124, 8);
+        this.pg[p.id].draw(c, 222, y + 5, 132, 8);
         C.text(c, String(S.params[p.id]), 386, y + 2, { size: 12, align: 'right' });
       });
       c.restore();
       /* boys */
       c.save(); c.translate(Math.round((1 - e) * 60), 0);
-      panel(c, 402, 10, 228, 128, 'ときめき', P.pink2);
+      panel(c, 402, 10, 228, 128, 'ときめき', P.pink2, 'heart');
       boys().forEach((id, i) => {
-        const y = 32 + i * 26;
+        const y = 36 + i * 25;
         if (!S.met[id]) {
-          c.fillStyle = '#d8ccb2'; c.fillRect(410, y, 24, 24); C.text(c, '?', 422, y + 5, { size: 16, align: 'center', color: P.white });
-          C.text(c, '？？？', 442, y + 6, { size: 12, color: P.grey });
+          c.fillStyle = P.ink; c.fillRect(409, y - 1, 24, 24); c.fillStyle = '#d8ccb2'; c.fillRect(410, y, 22, 22); C.text(c, '?', 421, y + 4, { size: 16, align: 'center', color: P.white });
+          C.text(c, '？？？', 440, y + 5, { size: 12, color: P.grey });
           return;
         }
-        c.fillStyle = P.ink; c.fillRect(409, y - 1, 26, 26);
-        art.face(c, id, S.lit[id] ? 'sad' : tierIdx(S.aff[id]) >= 3 ? 'smile' : 'normal', 410, y, 24);
-        C.text(c, givenName(id), 442, y - 1, { size: 12 });
-        C.text(c, tierName(S.aff[id]), 442, y + 12, { size: 12, color: P.pink2 });
-        hearts(c, 530, y + 7, tierIdx(S.aff[id]) + 1);
+        c.fillStyle = P.ink; c.fillRect(409, y - 1, 24, 24);
+        art.face(c, id, S.lit[id] ? 'sad' : tierIdx(S.aff[id]) >= 3 ? 'smile' : 'normal', 410, y, 22);
+        C.text(c, givenName(id), 440, y - 1, { size: 12 });
+        C.text(c, tierName(S.aff[id]), 440, y + 11, { size: 12, color: P.pink2 });
+        const n = tierIdx(S.aff[id]) + 1;
+        hearts(c, 528, y + 7, n);
+        const pk = Math.max(0, Math.sin(t * 5 - i * 0.8));
+        if (pk > 0.85) { const hx = 528 + (n - 1) * 9; C.bitmap(c, C.HEART, hx - 1, y + 5, 1, '#ffd0de'); C.bitmap(c, C.HEART, hx, y + 6, 1, P.pink); }
         if (S.lit[id]) {
           const fl = Math.sin(t * 14) > 0;
-          art.icon(c, fl ? 'bomb_lit' : 'bomb', 606, y + 4, 16);
+          art.icon(c, fl ? 'bomb_lit' : 'bomb', 608, y + 3, 16);
         }
       });
       c.restore();
       /* commands */
       c.save(); c.translate(0, Math.round((1 - e) * 60));
-      panel(c, 158, 144, 472, 106, '今週の行動を えらぶ', P.lilac2);
+      panel(c, 158, 144, 472, 106, '今週の行動を えらぶ', P.lilac2, 'calendar');
       this.group.draw(c);
       /* desc */
       const b = this.hl || this.btns[0];
       UI.frame(c, 10, 258, 620, 94, { fill: P.cream, dots: 'rgba(199,168,255,0.25)' });
+      c.fillStyle = 'rgba(43,45,92,0.15)'; c.fillRect(244, 266, 1, 78); c.fillRect(410, 266, 1, 78);
       if (b) {
         const cm = b.cmd;
         if (cm) {
-          art.icon(c, CMD_ICON[cm.id] || cm.id, 22, 268, 16);
-          C.text(c, cm.name, 44, 268, { size: 16, color: P.lilac2 });
-          const lines = C.wrap(c, cm.desc || '', 360, 12);
-          lines.slice(0, 3).forEach((l, i) => C.text(c, l, 22, 292 + i * 16, { size: 12 }));
-          let cx = 400; let cy = 268;
-          const chips = [];
-          for (const k in (cm.gain || {})) chips.push([paramName(k), cm.gain[k], k === 'stress' ? cm.gain[k] < 0 : cm.gain[k] > 0]);
-          for (const k in (cm.cost || {})) chips.push([paramName(k), cm.cost[k], k === 'stress' ? cm.cost[k] < 0 : cm.cost[k] > 0]);
-          for (const [n, v, good] of chips) {
-            if (!v) continue;
-            const label = `${n}${v > 0 ? '↑' : '↓'}${Math.abs(v) >= 6 ? (v > 0 ? '↑' : '↓') : ''}`;
-            const w = C.measure(c, label, 12) + 12;
-            if (cx + w > 624) { cx = 400; cy += 20; }
-            c.fillStyle = P.ink; c.fillRect(cx, cy, w, 16); c.fillStyle = good ? P.mintL : '#ffd6da'; c.fillRect(cx + 1, cy + 1, w - 2, 14);
-            C.text(c, label, cx + 6, cy + 2, { size: 12, color: good ? P.mint2 : P.pink2 });
-            cx += w + 4;
-          }
-          const warn = S.hp < 35 ? '体調が 悪い。無理は 禁物…' : S.stress > 70 ? 'ストレスが たまっている。失敗しやすい' : '';
-          if (warn) C.text(c, warn, 400, 330, { size: 12, color: P.red });
+          art.icon(c, CMD_ICON[cm.id] || cm.id, 22, 267, 16);
+          C.text(c, cm.name, 44, 267, { size: 16, color: P.lilac2 });
+          C.wrap(c, cm.desc || '', 210, 12).slice(0, 3).forEach((l, i) => C.text(c, l, 22, 292 + i * 16, { size: 12 }));
+          /* expected result */
+          C.text(c, '1週間の 見こみ', 254, 266, { size: 12, color: P.ink2 });
+          const rows = [];
+          for (const k in (cm.gain || {})) if (cm.gain[k]) rows.push([k, Math.round(cm.gain[k] * GAIN_DAY * 5), 'param']);
+          for (const k in (cm.loss || {})) if (cm.loss[k]) rows.push([k, Math.round(cm.loss[k] * GAIN_DAY * 5), 'param']);
+          for (const k in (cm.cost || {})) if (cm.cost[k]) rows.push([k, Math.round(cm.cost[k] * COST_DAY * 5), 'stat']);
+          rows.slice(0, 4).forEach(([k, v], i) => {
+            const y = 283 + i * 16, cur = k === 'hp' ? S.hp : k === 'stress' ? S.stress : S.params[k];
+            const max = k === 'hp' || k === 'stress' ? 100 : 200, nv = C.clamp(cur + v, 0, max);
+            const good = k === 'stress' ? v < 0 : v > 0;
+            C.text(c, paramName(k), 254, y, { size: 12 });
+            C.text(c, `${cur}`, 336, y, { size: 12, align: 'right', color: P.ink2 });
+            const ax = 341 + Math.round(Math.sin(t * 6 + i) * 1.5);
+            c.fillStyle = good ? P.mint2 : P.pink2; c.fillRect(ax, y + 5, 8, 2); c.fillRect(ax + 6, y + 3, 2, 6); c.fillRect(ax + 8, y + 4, 1, 4);
+            C.text(c, `${nv}`, 374, y, { size: 12, align: 'right', color: good ? P.mint2 : P.pink2 });
+            C.text(c, `${v > 0 ? '+' : ''}${v}`, 402, y, { size: 12, align: 'right', color: good ? P.green : P.red });
+          });
+          if (!rows.length) C.text(c, '変化なし', 254, 283, { size: 12, color: P.grey });
         } else {
-          C.text(c, '設定', 44, 268, { size: 16, color: P.lilac2 }); C.text(c, b.desc, 22, 292, { size: 12 });
+          C.text(c, '設定', 44, 267, { size: 16, color: P.lilac2 }); C.text(c, b.desc, 22, 292, { size: 12 });
+          C.text(c, 'BGM・SE の 音量', 254, 283, { size: 12, color: P.ink2 }); C.text(c, '文字の 速さ', 254, 299, { size: 12, color: P.ink2 });
         }
       }
+      /* hiyori tip */
+      const [ex, tip] = this.tip;
+      c.fillStyle = P.ink; c.fillRect(417, 267, 34, 34); art.face(c, FRIEND, ex, 418, 268, 32);
+      C.text(c, 'ひより', 434, 305, { size: 12, align: 'center', color: P.pink2 });
+      C.bitmap(c, C.HEART, 431, 324, 1, P.pink);
+      c.fillStyle = P.ink; c.fillRect(457, 264, 166, 82); c.fillStyle = P.white; c.fillRect(458, 265, 164, 80);
+      c.fillStyle = P.ink; c.fillRect(453, 278, 4, 1); c.fillRect(454, 277, 3, 3); c.fillStyle = P.white; c.fillRect(456, 278, 2, 1);
+      C.wrap(c, tip, 148, 12).slice(0, 5).forEach((l, i) => C.text(c, l, 464, 268 + i * 15, { size: 12, color: P.ink }));
       c.restore();
     }
   }
@@ -796,6 +916,7 @@
     return r < fail ? 'fail' : r < fail + great ? 'great' : 'ok';
   }
   const GAIN_DAY = 0.34, COST_DAY = 0.3;
+  const EXEC_SCENE = { study: ['classroom', 96, 128], sport: ['ground', 96, 208], art: ['art_room', 58, 150], culture: ['library', 20, 196], style: ['bedroom_day', 424, 150], rest: ['bedroom', 440, 196], play: ['amusement', 392, 150], walk: ['schoolgate_sakura', 300, 190] };
   class ExecScene {
     constructor(cmd) {
       this.name = 'exec'; this.cmd = cmd; this.t = 0; this.day = -1; this.panels = DAYS.map((d, i) => ({ d, i, k: 0, res: null, stampK: 0, frameT: 0, gains: [] }));
@@ -870,32 +991,53 @@
         c.save(); const s = p.k; c.translate(x + 58, y + 93); c.scale(1, s); c.translate(-(x + 58), -(y + 93));
         const band = p.res === 'great' ? P.lemon2 : p.res === 'fail' ? P.grey : P.sky2;
         UI.frame(c, x, y, 116, 186, { fill: P.cream, band, bandH: 22 });
-        C.text(c, `${p.d}曜日`, x + 58, y + 3, { size: 16, align: 'center', color: P.white, outline: P.ink });
-        c.fillStyle = '#eef7ff'; c.fillRect(x + 6, y + 28, 104, 104);
-        c.fillStyle = '#d7ebfb'; c.fillRect(x + 6, y + 110, 104, 22);
+        C.text(c, `${p.d}曜日`, x + 58, y + 5, { size: 16, align: 'center', color: P.white, outline: P.ink });
+        /* mini scene: 2x crop of the matching background */
+        const sc = EXEC_SCENE[act] || EXEC_SCENE.walk;
+        c.fillStyle = P.ink; c.fillRect(x + 5, y + 26, 106, 100);
+        c.drawImage(bigBg(sc[0]), sc[1], sc[2], 52, 49, x + 6, y + 27, 104, 98);
+        if (p.res === 'fail') { c.fillStyle = 'rgba(40,40,80,0.35)'; c.fillRect(x + 6, y + 27, 104, 98); }
         const a = p.res === 'fail' ? 'fail' : act;
         const fr = Math.floor(p.frameT * (p.res === 'great' ? 9 : 6)) % art.chibiFrames(a);
-        scaled(c, 2, x + 58, y + 128, () => art.chibi(c, a, fr, 0, 0));
+        c.save(); c.beginPath(); c.rect(x + 6, y + 27, 104, 98); c.clip();
+        c.fillStyle = 'rgba(43,45,92,0.25)'; c.fillRect(x + 36, y + 119, 44, 4);
+        scaled(c, 2, x + 58, y + 122 + (act === 'rest' ? 2 : 0), () => art.chibi(c, a, fr, 0, 0));
+        c.restore();
         if (p.res) {
           const st = p.res === 'great' ? ['大成功', P.lemon2] : p.res === 'fail' ? ['失敗…', P.grey] : [this.cmd.id === 'rest' ? 'すやすや' : '成功', P.pink2];
-          const sk = 1 + (1 - p.stampK) * 2;
-          if (p.stampK > 0) drawStamp(c, st[0], x + 58, y + 112, st[1], sk, -0.2);
+          const sk = 0.8 + (1 - p.stampK) * 1.6;
+          if (p.stampK > 0) drawStamp(c, st[0], x + 58, y + 124, st[1], sk, -0.16);
           p.gains.slice(0, 3).forEach((g, j) => {
             const good = g[0] === 'stress' ? g[1] < 0 : g[1] > 0;
-            C.text(c, `${paramName(g[0])} ${g[1] > 0 ? '+' : ''}${g[1]}`, x + 58, y + 138 + j * 15, { size: 12, align: 'center', color: good ? P.mint2 : P.pink2 });
+            C.text(c, `${paramName(g[0])} ${g[1] > 0 ? '+' : ''}${g[1]}`, x + 58, y + 140 + j * 14, { size: 12, align: 'center', color: good ? P.mint2 : P.pink2 });
           });
         }
         c.restore();
       });
       UI.frame(c, 10, 254, 300, 96, { fill: P.cream });
       statBars(c, 20, 270, 280, this.ghp, this.gst);
+      /* running totals */
+      panel(c, 318, 254, 312, 96, '今週の 成果', P.mint2, 'star');
+      const ks = Object.keys(this.cmd.gain || {}).concat(Object.keys(this.cmd.loss || {})).filter(k => S.params[k] != null);
+      if (!ks.length) C.text(c, '体と心を しっかり 休めている…', 330, 290, { size: 12, color: P.ink2 });
+      ks.slice(0, 3).forEach((k, i) => {
+        const y = 284 + i * 20, v = this.total[k] || 0;
+        art.icon(c, k, 328, y - 2, 16); C.text(c, paramName(k), 348, y, { size: 12 });
+        C.text(c, `${this.p0[k]}`, 420, y, { size: 12, align: 'right', color: P.ink2 });
+        c.fillStyle = P.ink2; c.fillRect(426, y + 5, 8, 2); c.fillRect(432, y + 3, 2, 6);
+        C.text(c, `${S.params[k]}`, 466, y, { size: 12, align: 'right', color: v > 0 ? P.mint2 : v < 0 ? P.pink2 : P.ink });
+        this.pgs = this.pgs || {}; if (!this.pgs[k]) this.pgs[k] = new UI.Gauge(S.params[k], 200, PARAM_COLOR[k] || P.lilac);
+        if (this.pgs[k].value !== S.params[k]) this.pgs[k].set(S.params[k]); this.pgs[k].update(1 / 60);
+        this.pgs[k].draw(c, 474, y + 4, 100, 7);
+        C.text(c, `${v > 0 ? '+' : ''}${v}`, 620, y, { size: 12, align: 'right', color: v > 0 ? P.green : v < 0 ? P.red : P.grey, head: v !== 0 });
+      });
       C.text(c, S.stress > 80 ? 'ストレス限界…！' : S.hp < 25 ? 'ふらふら…' : 'がんばってる！', 20, 318, { size: 12, color: S.stress > 80 || S.hp < 25 ? P.red : P.ink2 });
       if (this.summary) {
         const k = this.summary.k;
         c.fillStyle = `rgba(27,28,58,${0.5 * Math.min(1, k)})`; c.fillRect(0, 0, W, H);
         c.save(); c.translate(W / 2, 180); c.scale(k, k); c.translate(-W / 2, -180);
         UI.frame(c, 160, 70, 320, 220, { fill: P.cream, band: P.pink2, bandH: 24, dots: 'rgba(255,143,177,0.2)' });
-        C.text(c, '今週の まとめ', 320, 74, { size: 16, align: 'center', color: P.white, outline: P.ink });
+        C.text(c, '今週の まとめ', 320, 76, { size: 16, align: 'center', color: P.white, outline: P.ink });
         const res = this.panels.map(p => p.res);
         const gc = res.filter(r => r === 'great').length, fc = res.filter(r => r === 'fail').length;
         C.text(c, `大成功 ${gc}　成功 ${5 - gc - fc}　失敗 ${fc}`, 320, 100, { size: 12, align: 'center', color: P.ink2 });
@@ -944,7 +1086,7 @@
       const k = C.ease.backOut(Math.min(1, this.t * 4));
       c.save(); c.translate(Math.round((1 - k) * -200), 0);
       UI.frame(c, 16, 16, 220, 110, { fill: P.cream, band: P.sky2, bandH: 22 });
-      C.text(c, '週末', 28, 19, { size: 16, color: P.white, outline: P.ink });
+      C.text(c, '週末', 28, 20, { size: 16, color: P.white, outline: P.ink });
       C.text(c, calOf(S.week).label || '', 224, 21, { size: 12, align: 'right', color: P.white, outline: P.ink });
       art.icon(c, 'sun', 28, 50, 16); C.text(c, '土曜日', 50, 50, { size: 16 });
       if (S.date) {
@@ -958,7 +1100,7 @@
       c.restore();
       c.save(); c.translate(Math.round((1 - k) * 220), 0);
       UI.frame(c, 438, 40, 196, 250, { fill: 'rgba(255,246,224,0.9)', band: P.pink2, bandH: 22 });
-      C.text(c, '週末の すごしかた', 450, 43, { size: 16, color: P.white, outline: P.ink });
+      C.text(c, '週末の すごしかた', 450, 45, { size: 16, color: P.white, outline: P.ink });
       this.group.draw(c);
       c.restore();
     }
@@ -972,7 +1114,7 @@
       const k = C.ease.backOut(Math.min(1, this.t * 5));
       c.save(); c.translate(W / 2, H / 2); c.scale(k, k); c.translate(-W / 2, -H / 2);
       UI.frame(c, 30, 20, 580, 320, { fill: P.cream, band: P.lilac2, bandH: 24, dots: 'rgba(199,168,255,0.2)' });
-      C.text(c, `ステータス　${PLAYER()}`, 46, 24, { size: 16, color: P.white, outline: P.ink });
+      C.text(c, `ステータス　${PLAYER()}`, 46, 25, { size: 16, color: P.white, outline: P.ink });
       params().forEach((p, i) => {
         const y = 60 + i * 26;
         art.icon(c, p.id, 50, y, 16); C.text(c, p.name, 72, y + 1, { size: 16 });
@@ -1015,7 +1157,7 @@
         },
         onClick: b => this.pick(b.cid)
       }));
-      this.btns.push(new UI.Button({ x: PHONE.x + 40, y: PHONE.y + PHONE.h - 44, w: PHONE.w - 80, h: 26, label: 'やめる', size: 12, color: P.cream, onClick: () => this.pick(null) }));
+      this.btns.push(new UI.Button({ x: PHONE.x + 40, y: PHONE.y + PHONE.h - 56, w: PHONE.w - 80, h: 26, label: 'やめる', size: 12, color: P.cream, onClick: () => this.pick(null) }));
       this.group = new UI.Group(this.btns, { onCancel: () => this.pick(null) });
     }
     pick(id) { if (this.done) return; this.done = true; snd.se(id ? 'phone_dial' : 'cancel'); this.close(id); }
@@ -1047,7 +1189,13 @@
     c.fillStyle = P.ink; c.fillRect(x + w / 2 - 14, y + 6, 28, 4); c.fillRect(x + w / 2 - 10, y + h - 14, 20, 6);
     c.fillStyle = '#fff'; c.fillRect(x + 6, y + 6, 2, 30);
     c.save(); c.beginPath(); c.rect(x + 10, y + 18, w - 20, h - 40); c.clip();
-    content(); c.restore();
+    content();
+    /* status bar */
+    c.fillStyle = 'rgba(43,45,92,0.85)'; c.fillRect(x + 10, y + 18, w - 20, 12);
+    C.text(c, '21:00', x + 14, y + 18, { size: 12, color: P.white });
+    c.fillStyle = P.white; for (let i = 0; i < 4; i++) c.fillRect(x + w - 52 + i * 3, y + 27 - i * 2, 2, 2 + i * 2);
+    c.fillRect(x + w - 34, y + 21, 14, 7); c.fillRect(x + w - 20, y + 23, 2, 3); c.fillStyle = P.mint; c.fillRect(x + w - 33, y + 22, 9, 5);
+    c.restore();
     c.restore();
   }
   class CallScene {
@@ -1087,14 +1235,17 @@
         render: (c, x, y) => {
           c.fillStyle = P.ink; c.fillRect(x + 5, y + 5, 82, 48);
           c.drawImage(thumb(p.bg || p.id), 0, 0, 128, 72, x + 6, y + 6, 80, 46);
-          const big = C.measure(c, p.name, 16) <= 96;
-          C.text(c, p.name, x + 94, y + (big ? 12 : 14), { size: big ? 16 : 12 });
-          C.text(c, p.cost ? '¥'.repeat(Math.min(3, p.cost)) : 'おこづかい 0', x + 94, y + 34, { size: 12, color: P.ink2 });
+          const ln = C.wrap(c, p.name, 96, 16);
+          if (ln.length > 1) { const k = Math.ceil(Array.from(p.name).length / 2) + 1; const a = Array.from(p.name); C.text(c, a.slice(0, k).join(''), x + 94, y + 5, { size: 16 }); C.text(c, a.slice(k).join(''), x + 94, y + 21, { size: 16 }); }
+          else C.text(c, p.name, x + 94, y + 12, { size: 16 });
+          C.text(c, p.cost ? '¥'.repeat(Math.min(3, p.cost)) : 'おこづかい 0', x + 94, y + 39, { size: 12, color: P.ink2 });
         },
         onClick: b => this.pick(b.place.id)
       }));
-      const n = pl.length, rows = Math.ceil(n / cols);
-      this.btns.push(new UI.Button({ x: 260, y: 44 + rows * (ch + 8) + 2, w: 120, h: 26, label: 'やっぱりやめる', size: 12, onClick: () => this.pick(null) }));
+      const n = pl.length, lastRow = Math.floor((n - 1) / cols), used = n % cols || cols;
+      this.infoSlot = used < cols ? { x: 20 + used * (cw + 8), y: 44 + lastRow * (ch + 8), w: cw, h: ch } : null;
+      const cx = used + 1 < cols ? 20 + (cols - 1) * (cw + 8) : 20 + (cols - 1) * (cw + 8), cy = used + 1 < cols ? 44 + lastRow * (ch + 8) : 44 + (lastRow + 1) * (ch + 8);
+      this.btns.push(new UI.Button({ x: cx + 20, y: cy + 14, w: cw - 40, h: 30, label: 'やっぱりやめる', size: 12, onClick: () => this.pick(null) }));
       this.group = new UI.Group(this.btns, { onCancel: () => this.pick(null) });
       this.group.onFocus = b => { this.hl = b; };
       this.hl = this.btns[0];
@@ -1107,6 +1258,18 @@
       c.save(); c.translate(0, Math.round((1 - k) * 30)); c.globalAlpha = Math.min(1, k);
       UI.frame(c, 12, 8, 616, 30, { fill: P.pink2 });
       C.text(c, `${givenName(this.boy)}を どこに さそう？`, 26, 14, { size: 16, color: P.white, outline: P.ink });
+      if (this.infoSlot) {
+        const r = this.infoSlot, id = this.boy, pp = this.hl && this.hl.place;
+        UI.frame(c, r.x, r.y, r.w, r.h, { fill: '#fff8fb', border: P.pink2 });
+        c.fillStyle = P.ink; c.fillRect(r.x + 6, r.y + 7, 42, 42); art.face(c, id, 'normal', r.x + 7, r.y + 8, 40);
+        C.text(c, `${givenName(id)}の 反応`, r.x + 56, r.y + 7, { size: 12, color: P.ink2 });
+        if (pp) {
+          const ch = acceptChance(id, pp.id), n = Math.max(1, Math.round(ch * 5));
+          hearts(c, r.x + 56, r.y + 25, n, 5, 1);
+          const liked = ((chars()[id].likes || {}).place || []).includes(pp.id);
+          C.text(c, liked ? '好きな場所かも！' : ch >= 0.7 ? 'OKしてくれそう' : ch >= 0.45 ? 'どうかな…？' : 'ちょっと 厳しいかも', r.x + 56, r.y + 38, { size: 12, color: liked ? P.pink2 : P.ink });
+        } else C.text(c, '場所を えらんでね', r.x + 56, r.y + 28, { size: 12, color: P.grey });
+      }
       this.group.draw(c);
       const p = this.hl && this.hl.place;
       if (p && p.desc) { UI.frame(c, 12, 322, 616, 30, { fill: P.cream }); C.text(c, p.desc, 24, 330, { size: 12 }); }
@@ -1418,9 +1581,9 @@
       if (this.phase === 'roll') { const b = Math.round(Math.sin(this.t * 20) * 2); C.text(c, 'ドキドキ……', 320, 316 + b, { size: 16, align: 'center', color: P.white, outline: P.ink }); }
       if (this.stamp) {
         const k = this.stamp.k, s = 1 + (1 - k) * 2.5;
-        c.save(); c.translate(W / 2, 178); c.rotate(-0.12); c.scale(s, s); c.globalAlpha = Math.min(1, k * 1.5);
-        UI.frame(c, -130, -46, 260, 92, { fill: this.rank <= 10 ? P.lemon : this.rank <= 120 ? P.pinkL : '#dde0f0', band: P.pink2, bandH: 20 });
-        C.text(c, `学年 ${240}人中`, 0, -44, { size: 12, align: 'center', color: P.white, outline: P.ink });
+        c.save(); c.translate(W / 2 + 40, 206); c.rotate(-0.1); c.scale(s, s); c.globalAlpha = Math.min(1, k * 1.5);
+        UI.frame(c, -130, -46, 260, 92, { fill: this.rank <= 10 ? P.lemon : this.rank <= 120 ? P.pinkL : '#dde0f0', band: P.pink2, bandH: 24 });
+        C.text(c, `学年 ${240}人中`, 0, -40, { size: 12, align: 'center', color: P.white, outline: P.ink });
         C.text(c, `${this.rank}位`, 0, -20, { size: 44, align: 'center', head: true, color: P.pink2, outline: P.white, ow: 2 });
         c.restore();
         if (k >= 1) {
@@ -1513,7 +1676,7 @@
       c.fillStyle = P.pink2; c.fillRect(cx - 2, gy - 6, 4, 28); c.fillStyle = P.ink; c.fillRect(cx - 4, gy - 8, 8, 3);
       if (this.state === 'intro') {
         UI.frame(c, 150, 70, 340, 76, { fill: P.cream, band: P.pink2, bandH: 20 });
-        C.text(c, 'ルール', 320, 72, { size: 12, align: 'center', color: P.white, outline: P.ink });
+        C.text(c, 'ルール', 320, 75, { size: 12, align: 'center', color: P.white, outline: P.ink });
         C.text(c, '動くバーが 緑のゾーンに 入ったら', 320, 98, { size: 12, align: 'center' });
         C.text(c, 'クリック / Zキーで バトンを渡せ！（3回）', 320, 116, { size: 12, align: 'center' });
         C.text(c, `運動 ${S.params.sport} → ゾーンの広さ UP`, 320, 222, { size: 12, align: 'center', color: P.ink2, alpha: 0.8 });
@@ -1528,8 +1691,8 @@
         const k = this.res.k;
         c.fillStyle = `rgba(27,28,58,${0.4 * k})`; c.fillRect(0, 0, W, H);
         c.save(); c.translate(W / 2, 170); c.scale(k, k);
-        UI.frame(c, -130, -60, 260, 120, { fill: this.place === 1 ? P.lemon : P.cream, band: P.pink2, bandH: 22 });
-        C.text(c, 'リレー 結果', 0, -58, { size: 12, align: 'center', color: P.white, outline: P.ink });
+        UI.frame(c, -130, -60, 260, 120, { fill: this.place === 1 ? P.lemon : P.cream, band: P.pink2, bandH: 24 });
+        C.text(c, 'リレー 結果', 0, -54, { size: 12, align: 'center', color: P.white, outline: P.ink });
         C.text(c, `${this.place}位`, 0, -30, { size: 44, align: 'center', head: true, color: P.pink2, outline: P.white, ow: 2 });
         C.text(c, this.place === 1 ? 'クラス 大よろこび！' : this.place <= 3 ? 'よく がんばった！' : '次は きっと…！', 0, 30, { size: 12, align: 'center' });
         c.restore();
@@ -1732,7 +1895,7 @@
         const b = Math.min(1, (this.t - 1.2) * 2);
         c.globalAlpha = b;
         UI.frame(c, 130, 238, 380, 68, { fill: 'rgba(255,246,224,0.95)', band: P.lemon2, bandH: 18 });
-        C.text(c, 'NEXT', 144, 239, { size: 12, color: P.white, outline: P.ink });
+        C.text(c, 'NEXT', 144, 241, { size: 12, color: P.white, outline: P.ink });
         const best = boys().filter(x => S.met[x]).sort((x, y) => S.aff[y] - S.aff[x])[0];
         C.text(c, best ? `海、花火、夏祭り。${givenName(best)}との 夏が はじまる――？` : '海、花火、夏祭り。新しい 出会いの 夏が はじまる――？', 320, 262, { size: 12, align: 'center' });
         C.text(c, '体験版を 遊んでくれて ありがとう！', 320, 282, { size: 12, align: 'center', color: P.pink2 });
@@ -1862,6 +2025,7 @@
       return g.buttons.filter(b => b.visible && b.enabled).map(b => { const p = C.toScreen(b.x + b.w / 2, b.y + b.h / 2); return { label: b.label || (b.cid ? charName(b.cid) : b.place ? b.place.name : b.cmd ? b.cmd.name : ''), id: (b.cmd && b.cmd.id) || b.cid || (b.place && b.place.id) || '', x: p.x, y: p.y }; });
     },
     busy: () => C.busy(),
+    stage: () => ({ bg: STAGE.bg, actors: Object.keys(STAGE.actors), name: MSG.name, msg: MSG.tw && MSG.tw.lines && MSG.tw.lines.join('') }),
     toScreen: (x, y) => C.toScreen(x, y),
     setState(o) { Object.assign(S, o); },
     forceRandom(v) { G.forceRandom = v; }

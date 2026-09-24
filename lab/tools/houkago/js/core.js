@@ -438,7 +438,12 @@
         if (this.label) tx = x + 8 + is + (this.w - 8 - is) / 2;
       }
       if (this.render) this.render(c, x, y, this);
-      else if (this.label) CORE.text(c, this.label, tx, y + this.h / 2 - this.size / 2 + (this.size >= 16 ? 0 : 0), { size: this.size, align: 'center', color: this.enabled ? this.textColor : PAL.grey, head: this.head });
+      else if (this.label) {
+        const avail = this.icon ? this.w - (this.iconSize || 16) - 18 : this.w - 12;
+        let sz = this.size; if (sz > 12 && CORE.measure(c, this.label, sz, this.head) > avail) sz = 12;
+        if (this.icon && sz !== this.size) tx = x + 8 + (this.iconSize || 16) + 4 + (this.w - 12 - (this.iconSize || 16) - 4) / 2;
+        CORE.text(c, this.label, tx, y + this.h / 2 - sz / 2 - (sz >= 16 ? 1 : 0), { size: sz, align: 'center', color: this.enabled ? this.textColor : PAL.grey, head: this.head });
+      }
       if (this.focused && this.enabled && this.hov > 0.5) {
         const t = CORE.time * 6; const ax = x - 7 + Math.round(Math.sin(t) * 1.5);
         c.fillStyle = PAL.pink2; c.fillRect(ax, y + this.h / 2 - 3, 2, 6); c.fillRect(ax + 2, y + this.h / 2 - 2, 1, 4); c.fillRect(ax + 3, y + this.h / 2 - 1, 1, 2);
