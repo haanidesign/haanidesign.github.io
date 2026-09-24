@@ -1,12 +1,12 @@
 /* 下の タイムライン。ふだを つかむ・はしを のばす・段を うつる。 */
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
-  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany
-} from '../state.js?v=63';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=63';
-import { bus } from '../bus.js?v=63';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=63';
-import { durOf as jzDur } from '../jz.js?v=63';
+  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked
+} from '../state.js?v=64';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=64';
+import { bus } from '../bus.js?v=64';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=64';
+import { durOf as jzDur } from '../jz.js?v=64';
 
 const el = {};
 export function init() {
@@ -394,7 +394,7 @@ document.addEventListener('pointermove', e => {
     let d2 = snapTo(drag.start0 + dt, c.id) - drag.start0;
     const minS = Math.min(...drag.group.map(g => g.s0));
     if (minS + d2 < 0) d2 = -minS;
-    drag.group.forEach(g => { g.c.start = Math.max(0, g.s0 + d2); });
+    drag.group.forEach(g => { g.c.start = Math.max(0, g.s0 + d2); syncLinked(g.c); });
     drawLanes(); drawRuler(); movePlayhead();
     bus.stage(); bus.panel();
     return;
@@ -431,6 +431,7 @@ document.addEventListener('pointermove', e => {
     if (isFinite(srcDur)) d = Math.min(d, (srcDur - c.inp) / (c.speed || 1));
     c.dur = d;
   }
+  syncLinked(c);                       // つないだ ふだ（前後に ばらした 文字PV）も そろえる
   drawLanes(); drawRuler(); movePlayhead();
   bus.stage(); bus.panel();
 });
@@ -471,24 +472,42 @@ function onDrop(e) {
 }
 
 /* ---------- 切る ---------- */
-export function splitAt(f, t) {
+export function splitAt(f, t, quiet) {
   const c = f.c;
-  if (t <= c.start + 1 / S.fps || t >= c.start + c.dur - 1 / S.fps) { toast('ふだの 中で 切って'); return false; }
+  if (t <= c.start + 1 / S.fps || t >= c.start + c.dur - 1 / S.fps) {
+    if (!quiet) toast('ふだの 中で 切って');
+    return null;
+  }
   const b = JSON.parse(JSON.stringify(c));
   b.id = uid();
   const off = t - c.start;
   b.start = t; b.dur = c.dur - off; b.inp = c.inp + off * (c.speed || 1); b.fin = 0;
   c.dur = off; c.fout = 0;
   f.t.clips.push(b);
-  S.sel = b.id;
-  pushUndo(); bus.all(); buzz(18);
-  return true;
+  if (!quiet) {
+    /* つないだ ふだ（前後に ばらした 文字PV）も 同じ ところで 切って、
+       うしろ半分どうしを つなぎ直す。かたっぽだけ 切れると ずれる ため。 */
+    if (c.link) {
+      const nl = 'lk' + uid();
+      allClips().filter(x => x.c !== c && x.c !== b && x.c.link === c.link)
+        .forEach(mf => { const nb = splitAt(mf, t, true); if (nb) nb.link = nl; });
+      b.link = nl;
+    }
+    S.sel = b.id;
+    pushUndo(); bus.all(); buzz(18);
+  }
+  return b;
 }
 export function splitHere() {
   const hits = S.tracks.flatMap(t =>
     t.clips.filter(c => S.time > c.start && S.time < c.start + c.dur).map(c => ({ c, t })));
   const target = S.sel && hits.some(h => h.c.id === S.sel) ? hits.filter(h => h.c.id === S.sel) : hits;
   if (!target.length) { toast('ここに 切れる ふだが ない'); return; }
-  target.forEach(f => splitAt(f, S.time));
-  toast(target.length + 'まい 切った');
+  const done = new Set();
+  let n = 0;
+  target.forEach(f => {
+    if (f.c.link) { if (done.has(f.c.link)) return; done.add(f.c.link); }
+    if (splitAt(f, S.time)) n++;
+  });
+  toast(n + 'まい 切った');
 }

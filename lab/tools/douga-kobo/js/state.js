@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=63';
+import { bus } from './bus.js?v=64';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -86,6 +86,23 @@ export function selectedAll() {
   return out.sort((a, b) => a.c.start - b.c.start);
 }
 export const manyOn = () => (S.selMany || []).length > 1;
+
+/* --- つないだ ふだ（前後に ばらした 文字PV など） ---
+   link が 同じ ふだは、いち・ながさ・出どころを そろえる。
+   かたっぽだけ のばすと ずれて 合わなく なる ため。 */
+export const linkedOf = c =>
+  (c && c.link) ? allClips().map(x => x.c).filter(x => x !== c && x.link === c.link) : [];
+export function syncLinked(c) {
+  const ms = linkedOf(c);
+  if (!ms.length) return 0;
+  ms.forEach(o => {
+    o.start = c.start; o.dur = c.dur; o.inp = c.inp || 0;
+    o.speed = c.speed; o.inF = c.inF; o.outF = c.outF;
+    if (o.jz && c.jz) { o.jz.fit = c.jz.fit; o.jz.cutDur = c.jz.cutDur; o.jz.off = c.jz.off; }
+  });
+  return ms.length;
+}
+export const unlink = c => { const ms = linkedOf(c); ms.forEach(o => { o.link = null; }); c.link = null; return ms.length; };
 /** えらびを まとめて 入れかえる */
 export function setMany(ids) {
   S.selMany = [...new Set(ids)];

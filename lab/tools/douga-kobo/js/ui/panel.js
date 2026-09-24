@@ -2,20 +2,20 @@
    せまい ときは 下から 出る 幕に 入る。中身は 同じ もの。 */
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
-  snap as pushUndo
-} from '../state.js?v=63';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=63';
-import { storeOk } from '../store.js?v=63';
-import { bus } from '../bus.js?v=63';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=63';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=63';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=63';
+  snap as pushUndo, syncLinked, uid, linkedOf, unlink
+} from '../state.js?v=64';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=64';
+import { storeOk } from '../store.js?v=64';
+import { bus } from '../bus.js?v=64';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=64';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=64';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=64';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=63';
+  offOf, setOff, clearOff } from '../text.js?v=64';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=63';
+} from '../edit.js?v=64';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -345,8 +345,8 @@ function clipBody(c) {
   const m = c.mid ? MEDIA.get(c.mid) : null;
 
   w.appendChild(group('いつ', [
-    num('はじまり', c.start, .05, v => { c.start = Math.max(0, v); bus.all(); }),
-    num('ながさ', c.dur, .05, v => { c.dur = Math.max(1 / S.fps, v); bus.all(); }),
+    num('はじまり', c.start, .05, v => { c.start = Math.max(0, v); syncLinked(c); bus.all(); }),
+    num('ながさ', c.dur, .05, v => { c.dur = Math.max(1 / S.fps, v); syncLinked(c); bus.all(); }),
     range('入り', c.fin, 0, 3, .05, 's', v => { c.fin = v; live(); }),
     range('出', c.fout, 0, 3, .05, 's', v => { c.fout = v; live(); }),
     (c.kind === 'video' || c.kind === 'audio')
@@ -358,10 +358,24 @@ function clipBody(c) {
     grid(null, [
       btn('✂ ここで 切る', 'btn-sm btn-y', () => bus.split()),
       btn('⧉ ふやす', 'btn-sm', dupSel),
-      btn('⇤ 頭出し', 'btn-sm', () => { c.start = S.time; pushUndo(); bus.all(); }),
+      btn('⇤ 頭出し', 'btn-sm', () => { c.start = S.time; syncLinked(c); pushUndo(); bus.all(); }),
       btn('🗑 けす', 'btn-sm btn-p', () => { delSel(); if (!docked()) close(); })
     ])
   ]));
+
+  if (linkedOf(c).length) {
+    w.appendChild(group('つながり', [
+      hint(`この ふだは ほか <b>${linkedOf(c).length}まい</b>と つながって います。<br>` +
+        'いち・ながさ・切る ところが いつも そろいます。'),
+      grid(null, [
+        btn('⛓ つながりを 切る', 'btn-sm btn-p', () => {
+          const n = unlink(c);
+          pushUndo(); bus.all();
+          toast(`${n + 1}まいの つながりを 切った`);
+        })
+      ])
+    ]));
+  }
 
   if (c.kind !== 'audio') {
     {
@@ -770,6 +784,20 @@ function jzEditBody(c) {
     ]));
   }
 
+  if (linkedOf(c).length) {
+    w.appendChild(group('つながり', [
+      hint(`この ふだは ほか <b>${linkedOf(c).length}まい</b>と つながって います。<br>` +
+        'いち・ながさ・切る ところが いつも そろいます。'),
+      grid(null, [
+        btn('⛓ つながりを 切る', 'btn-sm btn-p', () => {
+          const n = unlink(c);
+          pushUndo(); bus.all();
+          toast(`${n + 1}まいの つながりを 切った`);
+        })
+      ])
+    ]));
+  }
+
   /* --- のばした ときの ふるまい（カットごとに 切った ふだだけ） --- */
   if (j.cutDur > 0) {
     const rate = c.dur > 0 ? j.cutDur / c.dur : 1;
@@ -791,7 +819,7 @@ function jzEditBody(c) {
           '切る まえと 同じ ふるまいです。'),
       grid(null, [
         btn('↺ もとの ながさ に もどす', 'btn-sm', () => {
-          c.dur = j.cutDur; pushUndo(); bus.all(); draw();
+          c.dur = j.cutDur; syncLinked(c); pushUndo(); bus.all(); draw();
           toast(`${j.cutDur}s に もどした`);
         })
       ])
@@ -832,6 +860,7 @@ function jzEditBody(c) {
           const fc = newClip('jz', { name: c.name, start: c.start, dur: c.dur });
           fc.inp = c.inp || 0;
           fc.jz = Object.assign({}, j, { layer: 'front' });
+          c.link = fc.link = 'lk' + uid();      // いち・ながさを そろえる
           top.clips.push(fc);
           S.tracks.splice(i, 0, top, mid);
           S.sel = fc.id;
