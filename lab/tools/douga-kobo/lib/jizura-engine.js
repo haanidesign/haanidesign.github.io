@@ -472,8 +472,8 @@ function clipHalf(poly, nx, ny, d0, sgn) {
 (() => {
 'use strict';
 
-J.LANGS = ['auto', 'ja', 'zh-Hant', 'zh-Hans', 'ko'];
-J.LANG_LABEL = { auto: '自動判定', ja: '日本語', 'zh-Hant': '繁體中文', 'zh-Hans': '简体中文', ko: '한국어' };
+J.LANGS = ['auto', 'ja', 'zh-Hant', 'zh-Hans', 'ko', 'en'];
+J.LANG_LABEL = { auto: '自動判定', ja: '日本語', 'zh-Hant': '繁體中文', 'zh-Hans': '简体中文', ko: '한국어', en: 'English' };
 
 /* characters that differ between Traditional and Simplified Chinese (same order in both strings) */
 const TC = '們個說這會對時來還後過國開關與為從問間見長東車門愛聽學讓話號發點無現體經電實樣聲變離氣夢給覺當歡陽戀邊頭淚誰歲遠嗎萬難寫應讀憶樂麼麗傷將總結終紅綠線顏風飛鳥謝語請認識熱燈願獨夠紀帶滿靜輕別腦臉懷謊錯顆陣場讚淺溫記憑護壞歸媽隨銀聞態虛遙';
@@ -481,12 +481,14 @@ const SC = '们个说这会对时来还后过国开关与为从问间见长东�
 const TCSET = new Set([...TC]), SCSET = new Set([...SC]);
 // a few of the "Simplified" forms are also Japanese shinjitai (会 対 来 …) — kana decides Japanese first, so that is harmless
 
-/* which language are these lyrics in? (kana → ja, hangul → ko, Han only → Traditional / Simplified by the distinctive forms) */
+/* which language are these lyrics in? (almost only Latin letters → en (English / romaji), kana → ja, hangul → ko,
+   Han only → Traditional / Simplified by the distinctive forms) */
 J.detectLang = (text) => {
-  let kana = 0, hangul = 0, han = 0, tc = 0, sc = 0;
+  let kana = 0, hangul = 0, han = 0, tc = 0, sc = 0, latin = 0;
   for (const c of String(text || '')) {
     const u = c.codePointAt(0);
-    if ((u >= 0x3041 && u <= 0x30ff && u !== 0x30fb && u !== 0x30fc) || (u >= 0xff66 && u <= 0xff9d)) kana++;
+    if ((u >= 0x41 && u <= 0x5a) || (u >= 0x61 && u <= 0x7a) || (u >= 0xc0 && u <= 0x24f && u !== 0xd7 && u !== 0xf7) || (u >= 0xff21 && u <= 0xff5a && (u <= 0xff3a || u >= 0xff41))) latin++;
+    else if ((u >= 0x3041 && u <= 0x30ff && u !== 0x30fb && u !== 0x30fc) || (u >= 0xff66 && u <= 0xff9d)) kana++;
     else if ((u >= 0xac00 && u <= 0xd7a3) || (u >= 0x1100 && u <= 0x11ff) || (u >= 0x3130 && u <= 0x318f)) hangul++;
     else if ((u >= 0x4e00 && u <= 0x9fff) || (u >= 0x3400 && u <= 0x4dbf) || (u >= 0x20000 && u <= 0x2ffff)) {
       han++;
@@ -494,6 +496,9 @@ J.detectLang = (text) => {
       if (SCSET.has(c)) sc++;
     }
   }
+  // a CJK character carries about as much as a short word — weigh it ×3 against single Latin letters
+  const cjk = kana + hangul + han;
+  if (latin >= 6 && latin >= (latin + cjk * 3) * 0.9) return 'en';
   if (hangul >= 2 && hangul > kana) return 'ko';
   if (kana >= 2 || (kana > 0 && kana >= han * 0.03)) return 'ja';
   if (han >= 2 && (tc || sc)) return tc >= sc ? 'zh-Hant' : 'zh-Hans';
@@ -560,7 +565,7 @@ J.LANG_FACES = {
 /* the language fonts are drawn in right now (set by the planner / renderer from plan.lang) */
 J.lang = 'ja';
 J.setLang = (l) => {
-  l = J.LANG_FACES[l] ? l : 'ja';
+  l = J.LANG_FACES[l] || l === 'en' ? l : 'ja';               // en: the styles' own faces (they all have Latin glyphs)
   if (l === J.lang) return;
   J.lang = l;
   if (J.glyphs) J.glyphs.clear();
@@ -589,7 +594,7 @@ J.langBaseFaces = (keys) => {
   return out;
 };
 /* segmenter locale for chunking */
-J.segLocale = () => (J.lang === 'zh-Hant' ? 'zh-Hant' : J.lang === 'zh-Hans' ? 'zh-Hans' : J.lang === 'ko' ? 'ko' : 'ja');
+J.segLocale = () => (J.lang === 'zh-Hant' ? 'zh-Hant' : J.lang === 'zh-Hans' ? 'zh-Hans' : J.lang === 'ko' ? 'ko' : J.lang === 'en' ? 'en' : 'ja');
 })();
 
 /* ============================================================
@@ -2632,6 +2637,21 @@ J.chunkText = (text) => {
   return out.length ? out : [text];
 };
 
+/* English lyrics: cut by short phrases, not word by word (a Japanese chunk holds about as much as 2–3 English words) */
+J.phraseChunks = (words) => {
+  const out = []; let cur = [], letters = 0;
+  const flush = () => { if (cur.length) out.push(cur.join(' ')); cur = []; letters = 0; };
+  for (const w of words) {
+    const n = (w.match(/[A-Za-z\u00c0-\u024f0-9]/g) || []).length;
+    cur.push(w); letters += n;
+    if (letters >= 9 || cur.length >= 3 || /[,.;:!?]$/.test(w)) flush();
+  }
+  flush();
+  // a lone short word at the end joins the previous phrase
+  if (out.length >= 2 && out[out.length - 1].replace(/[^A-Za-z]/g, '').length <= 4) { const last = out.pop(); out[out.length - 1] += ' ' + last; }
+  return out.length ? out : words;
+};
+
 /* ---------------- timing ---------------- */
 J.computeTiming = (project, parsed, audio) => {
   const T = project.timing || {};
@@ -2721,7 +2741,7 @@ J.plan = (project, audio) => {
     const visEnd = Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
     const D = visEnd - s;
     plan.lines.push({ index: li, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
-    const chunks = ln.manual || J.chunkText(ln.text);
+    const chunks = ln.manual || (plan.lang === 'en' ? J.phraseChunks(J.chunkText(ln.text)) : J.chunkText(ln.text));
     plan.lines[li].chunks = chunks;
     const L = J.lerp(1.3, 0.5, fx.density);
     let nC = Math.round(D / L);
@@ -3202,7 +3222,9 @@ class Renderer {
     const beatInfo = plan.beats && plan.beats.length ? beatAt(plan.beats, tq) : null;
     const energy = plan.energy ? plan.energy[Math.min(plan.energy.length - 1, Math.max(0, Math.floor(t * plan.energyRate)))] : null;
     // ---------- background graphic (per line) ----------
-    if (!opt.transparent && !key && mainCut && mainCut.bg && mainCut.bg !== 'none' && J.BG[mainCut.bg]) {
+    // 透過PNG 前景／後景 (opt.layer): 'back' = background graphic + the decorations behind the lyrics, 'front' = the rest
+    const layer = opt.transparent ? opt.layer || null : null;
+    if ((!opt.transparent || layer === 'back') && !key && mainCut && mainCut.bg && mainCut.bg !== 'none' && J.BG[mainCut.bg]) {
       const env = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: tq - mainCut.start, ltb: tq - mainCut.start, step, scale, allowFilter, energy, beat: beatInfo, bgOnly: true });
       ctx.save();
       try { J.BG[mainCut.bg].draw(env, mainCut.bgP || {}); } catch (e) { console.warn('bg', mainCut.bg, e); }
@@ -3243,7 +3265,7 @@ class Renderer {
       const X = LX || ctx;
       const env = this.makeEnv(X, plan, cut, csc, {
         pass: P.pass, passColor: P.pass === 'A' ? csc.ghostA : P.pass === 'B' ? csc.ghostB : null,
-        t: tp, lt, ltb: lt + P.lag, step: Math.floor(tp / clock + 1e-6), scale, allowFilter, energy, beat: beatInfo,
+        t: tp, lt, ltb: lt + P.lag, step: Math.floor(tp / clock + 1e-6), scale, allowFilter, energy, beat: beatInfo, layer,
       });
       X.save();
       // camera move for this cut (default: slow push-in)
@@ -3281,7 +3303,7 @@ class Renderer {
       }
     }
     // ---------- HUD ----------
-    if (plan.hud && !opt.noHud) {
+    if (plan.hud && !opt.noHud && layer !== 'back') {
       const env = this.makeEnv(ctx, plan, mainCut, sc, { pass: 'main', t: tq, lt: 0, ltb: 0, step, scale, allowFilter, energy, beat: beatInfo });
       J.drawHUD(env, plan);
     }
@@ -3387,11 +3409,55 @@ class Renderer {
   drawCut(env) {
     const cut = env.cut, L = J.LAYOUTS[cut.layout] || J.LAYOUTS.center;
     const decor = cut.decor || [];
-    for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'back') try { D.draw(env, null, d); } catch (e) { console.warn(e); } }
+    if (env.layer !== 'front') for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'back') try { D.draw(env, null, d); } catch (e) { console.warn(e); } }
+    if (env.layer === 'back') return null;                // 後景だけ: the lyrics and the front decorations go to the other layer
     let bb = null;
     try { bb = L.render(env); } catch (e) { console.warn('layout', cut.layout, e); }
     for (const d of decor) { const D = J.DECOR[d.id]; if (D && D.layer === 'front') try { D.draw(env, bb, d); } catch (e) { console.warn(e); } }
     return bb;
+  }
+
+  /* 透過PNG: screen effects are written for an opaque frame (they paint the background colour, wash the whole frame,
+     or redraw a shifted copy over it). In transparent mode each effect is fenced:
+       - a full-frame opaque fill (background colour, black/white frame…) clears instead — it hid everything anyway
+       - afterwards, alpha is limited to where content was (before the effect) plus where the effect drew the
+         content again (shifted / scaled / mirrored copies of the scratch copy), so washes, flashes and strobes
+         tint the lyrics and the graphics but never turn the empty background opaque                            */
+  alphaGuard(ctx, S, sc) {
+    const cw = ctx.canvas.width, ch = ctx.canvas.height, R = this;
+    const P = this.ensure(this.guardP || (this.guardP = mk(2, 2)), cw, ch), px = P.getContext('2d');
+    const M = this.ensure(this.guardM || (this.guardM = mk(2, 2)), cw, ch), mx = M.getContext('2d');
+    let cleared = false, bgN = null;
+    const content = img => img === S;                  // the scratch copy of the frame (temp canvases may carry an opaque background)
+    const own = ['fillRect', 'drawImage'];
+    return {
+      begin() {
+        cleared = false;
+        const fs0 = ctx.fillStyle; ctx.fillStyle = sc.bg; bgN = ctx.fillStyle; ctx.fillStyle = fs0;   // the background colour, normalised
+        px.setTransform(1, 0, 0, 1, 0, 0); px.globalAlpha = 1; px.globalCompositeOperation = 'copy'; px.filter = 'none'; px.drawImage(ctx.canvas, 0, 0);
+        mx.setTransform(1, 0, 0, 1, 0, 0); mx.globalAlpha = 1; mx.globalCompositeOperation = 'source-over'; mx.filter = 'none'; mx.clearRect(0, 0, cw, ch);
+        const proto = Object.getPrototypeOf(ctx);
+        ctx.fillRect = function (x, y, w, h) {
+          const T = this.getTransform(), full = this.globalCompositeOperation === 'source-over' && this.globalAlpha >= 0.999 && typeof this.fillStyle === 'string' &&
+            /^#[0-9a-f]{6}$/i.test(this.fillStyle) && T.b === 0 && T.c === 0 && T.e + x * T.a <= 1 && T.f + y * T.d <= 1 && T.e + (x + w) * T.a >= cw - 1 && T.f + (y + h) * T.d >= ch - 1;
+          if (full) { cleared = true; mx.clearRect(0, 0, cw, ch); return proto.clearRect.call(this, x, y, w, h); }
+          if (this.globalCompositeOperation === 'source-over' && typeof this.fillStyle === 'string' && /^#[0-9a-f]{6}$/i.test(this.fillStyle) && this.globalAlpha >= 0.999 && this.fillStyle === bgN) return proto.clearRect.call(this, x, y, w, h);
+          return proto.fillRect.call(this, x, y, w, h);
+        };
+        ctx.drawImage = function (img, ...a) {
+          if (content(img)) { mx.setTransform(this.getTransform()); mx.globalAlpha = this.globalAlpha; proto.drawImage.call(mx, img, ...a); }
+          return proto.drawImage.call(this, img, ...a);
+        };
+      },
+      end() {
+        for (const k of own) delete ctx[k];
+        mx.setTransform(1, 0, 0, 1, 0, 0); mx.globalAlpha = 1;
+        if (!cleared) { mx.globalCompositeOperation = 'source-over'; mx.drawImage(P, 0, 0); }
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.filter = 'none';
+        ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(M, 0, 0);
+        ctx.restore();
+      },
+    };
   }
 
   post(ctx, plan, t, tq, step, sc, scale, opt, allowFilter) {
@@ -3403,16 +3469,20 @@ class Renderer {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     const copy = () => { const sx = S.getContext('2d'); sx.globalCompositeOperation = 'copy'; sx.drawImage(ctx.canvas, 0, 0); sx.globalCompositeOperation = 'source-over'; };
     const clock24 = Math.floor(t * 24);           // glitch randomness changes at most 24 times a second at any output fps
+    const guard = opt.transparent ? this.alphaGuard(ctx, S, sc) : null;   // 透過: effects must not fill the empty background
     for (const ev of active) {
-      const k = (t - ev.t) / Math.max(ev.dur, 1e-3);
+      // progress clamped to 0..1 (an event shorter than one output frame is still shown for that frame — k would pass 1)
+      const k0 = (t - ev.t) / Math.max(ev.dur, 1e-3), k = Number.isFinite(k0) ? J.clamp(k0, 0, 1) : 0;
       const st2 = clock24;
       const D = J.FXE[ev.type];
+      if (guard) guard.begin();
       if (D && D.draw) {
         if (D.scratch) copy();
         try {
-          D.draw(ctx, ev, k, { cw, ch, S, sc, st: plan.style, step: st2, t, scale, renderer: this, allowFilter, opt, tmp: (w, h) => this.ensure(this.tiny, w, h), tmp2: (w, h) => this.ensure(this.small2 || (this.small2 = mk(2, 2)), w, h) });
+          D.draw(ctx, ev, k, { cw, ch, S, sc, st: plan.style, step: st2, t, scale, renderer: this, allowFilter, opt, transparent: !!opt.transparent, tmp: (w, h) => this.ensure(this.tiny, w, h), tmp2: (w, h) => this.ensure(this.small2 || (this.small2 = mk(2, 2)), w, h) });
         } catch (e) { console.warn('fx', ev.type, e); }
         ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none'; ctx.imageSmoothingEnabled = true;
+        if (guard) guard.end();
         continue;
       }
       if (ev.type === 'slice') {
@@ -3452,6 +3522,8 @@ class Renderer {
         tx.imageSmoothingEnabled = true; tx.drawImage(S, 0, 0, T.width, T.height);
         ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 0.85 * (1 - k); ctx.drawImage(T, 0, 0, cw, ch); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = true;
       }
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+      if (guard) guard.end();
     }
     // bloom
     const glow = (st.glow || 0.6) * 0.5 * (fx.texture ?? 0.6);
@@ -3733,7 +3805,9 @@ class ZipWriter {
     return new Blob([...this.parts, ...this.central, end.buffer], { type: 'application/zip' });
   }
 }
-J.exportPNGZip = async ({ plan, project, transparent, onProgress, signal, every = 1 }) => {
+/* layers: transparent PNGs in two folders — back/ (background graphic + decorations behind the lyrics) and front/
+   (lyrics, their decorations, ghosts, HUD). Screen effects are applied to both, so stacking front over back matches. */
+J.exportPNGZip = async ({ plan, project, transparent, layers, onProgress, signal, every = 1 }) => {
   const [w, h] = J.outputSize(project);
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
@@ -3743,9 +3817,12 @@ J.exportPNGZip = async ({ plan, project, transparent, onProgress, signal, every 
   const scale = w / plan.W;
   for (let i = 0; i < total; i += every) {
     if (signal && signal.aborted) throw new Error('キャンセルしました');
-    R.frame(ctx, plan, i / fps, { scale, transparent });
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-    zip.add(`jizura_${String(i).padStart(5, '0')}.png`, new Uint8Array(await blob.arrayBuffer()));
+    const name = `jizura_${String(i).padStart(5, '0')}.png`;
+    for (const layer of layers ? ['back', 'front'] : [null]) {
+      R.frame(ctx, plan, i / fps, { scale, transparent: transparent || !!layers, layer });
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+      zip.add((layer ? layer + '/' : '') + name, new Uint8Array(await blob.arrayBuffer()));
+    }
     onProgress && onProgress(i / total, `PNG ${i + 1}/${total}`);
   }
   onProgress && onProgress(1, '完了');
@@ -26696,7 +26773,9 @@ fxReg('posterize', { name: 'ポスタリゼ', tags: ['glitch', 'pop', 'graphic']
 fxReg('hueShift', { name: '色相シフト', tags: ['glitch', 'pop', 'emotional'], w: 0.7, dur: 3, amp: 1, mid: true, scratch: true,
   draw(ctx, ev, k, I) {
     const { cw, ch, S, sc } = I; if (!S) return;
-    const s = evS(ev), a = Math.pow(1 - k, 0.8) * Math.min(1, ampOf(ev)), deg = Math.round(90 + 180 * J.r(s, 3)), dk = isDark(sc.bg);
+    const kk = Number.isFinite(k) ? clamp(k, 0, 1) : 1;                 // progress past the end (short event at low fps) → NaN alpha before
+    const s = evS(ev), a = Math.pow(1 - kk, 0.8) * Math.min(1, ampOf(ev)), deg = Math.round(90 + 180 * J.r(s, 3)), dk = isDark(sc.bg);
+    if (!(a > 0.002)) return;
     if (I.allowFilter) { ctx.globalAlpha = a; ctx.filter = `hue-rotate(${deg}deg) saturate(1.6)`; ctx.drawImage(S, 0, 0); ctx.filter = 'none'; }
     ctx.globalAlpha = 0.5 * a; ctx.globalCompositeOperation = dk ? 'multiply' : 'screen';
     ctx.fillStyle = J.r(s, 4) < 0.5 ? sc.ghostA : sc.ghostB; ctx.fillRect(0, 0, cw, ch);

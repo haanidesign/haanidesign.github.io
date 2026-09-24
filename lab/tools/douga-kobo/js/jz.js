@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=61';
+import { S, toast } from './state.js?v=62';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -111,7 +111,8 @@ export function draw(g, j, local, W, H, fast) {
   offG.clearRect(0, 0, cv.width, cv.height);
   try {
     renderer.frame(offG, plan, Math.max(0, local + (j.off || 0)), {
-      scale: 1, fast: !!fast, transparent: !!j.transparent, noTrans: !!j.noTrans
+      scale: 1, fast: !!fast, transparent: !!j.transparent, noTrans: !!j.noTrans,
+      layer: j.layer || null
     });
   } catch (e) { return false; }
   g.save();
@@ -129,7 +130,7 @@ export function newJz(o = {}) {
     motion: .7, glitch: .55, chroma: .7, decor: .5, density: .55, texture: .6,
     koma: 12, hud: 'auto', bgSwitch: .35, extra: true, wa: true,
     lineScale: 1, snap: true, tail: .9, lineTimes: {}, transparent: false,
-    off: 0, noTrans: false
+    off: 0, noTrans: false, layer: null
   }, o);
 }
 export const clearCache = () => planCache.clear();

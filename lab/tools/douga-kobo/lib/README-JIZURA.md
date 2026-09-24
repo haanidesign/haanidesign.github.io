@@ -6,6 +6,7 @@
 - もと: https://github.com/852wa/JIZURA
 - ライセンス: MIT License — Copyright (c) 2026 hakoniwa
 - 全文: `../LICENSE-JIZURA.txt`
+- 取りこんだ 時点: 2026-09-24（本家 `1b48bea`）
 
 ## 取りこむ にあたって したこと
 
@@ -26,6 +27,8 @@ new J.Renderer().frame(ctx, plan, t, { scale: 1 });
 
 - カットは `plan.cuts[i].start` / `.end`、ぜんたいの ながさは `plan.duration`
 - スタイルは `J.STYLES`（24種）、部品は `J.LAYOUTS` ほか
+- `frame()` の `transparent` と いっしょに `layer: 'back' | 'front'` を 入れると
+  うしろ（背景の 絵・うしろの かざり）と 前（歌詞・前の かざり・HUD）に わかれます
 
 ## 出力物の 権利
 

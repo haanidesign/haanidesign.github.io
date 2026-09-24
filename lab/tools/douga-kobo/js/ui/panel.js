@@ -3,19 +3,19 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo
-} from '../state.js?v=61';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=61';
-import { storeOk } from '../store.js?v=61';
-import { bus } from '../bus.js?v=61';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=61';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=61';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=61';
+} from '../state.js?v=62';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=62';
+import { storeOk } from '../store.js?v=62';
+import { bus } from '../bus.js?v=62';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=62';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=62';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=62';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=61';
+  offOf, setOff, clearOff } from '../text.js?v=62';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=61';
+} from '../edit.js?v=62';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -767,24 +767,49 @@ function jzEditBody(c) {
     ]));
   }
 
-  w.appendChild(group('歌詞と うしろを ばらす', [
-    grid('うしろ', [
-      btn('えがく', 'btn-sm' + (j.transparent ? '' : ' on'), () => { j.transparent = false; jzClear(); bus.all(); draw(); }),
-      btn('すける（文字だけ）', 'btn-sm' + (j.transparent ? ' on' : ''), () => { j.transparent = true; jzClear(); bus.all(); draw(); })
-    ]),
-    hint('<b>すける</b>に すると うしろを ぬらず、文字と かざりだけ に なります。<br>' +
-      'この ふだの <b>下の 段</b>に 絵や 動画を 置くと、その 上に 歌詞が のります。'),
-    grid(null, [
-      btn('＋ 下に 絵を 置く 段を つくる', 'btn-sm', () => {
-        const t = newTrack('video', '絵');
-        const i = S.tracks.findIndex(x => x.clips.includes(c));
-        S.tracks.splice(i < 0 ? S.tracks.length : i + 1, 0, t);
-        j.transparent = true; jzClear();
-        pushUndo(); bus.all(); draw();
-        toast('「絵」の 段を つくった。🗂素材 から 置いて ください', 3400);
-      })
-    ])
-  ]));
+  {
+    const mode = !j.transparent ? 'all' : j.layer === 'back' ? 'back' : j.layer === 'front' ? 'front' : 'see';
+    const setMode = m => {
+      j.transparent = m !== 'all';
+      j.layer = m === 'back' ? 'back' : m === 'front' ? 'front' : null;
+      jzClear(); bus.all(); draw();
+    };
+    const mb = (n, m) => btn(n, 'btn-sm' + (mode === m ? ' on' : ''), () => setMode(m));
+    w.appendChild(group('歌詞と うしろを ばらす', [
+      grid('えがく ぶん', [mb('ぜんぶ', 'all'), mb('すける', 'see')]),
+      grid(null, [mb('うしろだけ', 'back'), mb('文字だけ（前）', 'front')]),
+      hint('<b>すける</b>: うしろを ぬらない。下の 段の 絵が すけます。<br>' +
+        '<b>うしろだけ</b>／<b>文字だけ</b>: 2まいに して あいだに 絵を はさめます。'),
+      grid(null, [
+        btn('＋ 下に 絵を 置く 段を つくる', 'btn-sm', () => {
+          const t = newTrack('video', '絵');
+          const i = S.tracks.findIndex(x => x.clips.includes(c));
+          S.tracks.splice(i < 0 ? S.tracks.length : i + 1, 0, t);
+          setMode('see');
+          pushUndo();
+          toast('「絵」の 段を つくった。🗂素材 から 置いて ください', 3400);
+        })
+      ]),
+      grid(null, [
+        btn('⧉ 前後に ばらして 絵の 段を はさむ', 'btn-sm btn-y', () => {
+          const i = S.tracks.findIndex(x => x.clips.includes(c));
+          if (i < 0) return;
+          /* いまの ふだを「うしろだけ」に して、その 上に 絵の 段と「文字だけ」の ふだを つくる */
+          j.transparent = true; j.layer = 'back';
+          const mid = newTrack('video', '絵');
+          const top = newTrack('video', '歌詞');
+          const fc = newClip('jz', { name: c.name, start: c.start, dur: c.dur });
+          fc.inp = c.inp || 0;
+          fc.jz = Object.assign({}, j, { layer: 'front' });
+          top.clips.push(fc);
+          S.tracks.splice(i, 0, top, mid);
+          S.sel = fc.id;
+          jzClear(); pushUndo(); bus.all(); draw();
+          toast('前後に ばらした。まん中の「絵」の 段に 置いて ください', 3800);
+        })
+      ])
+    ]));
+  }
 
   const fx = (label, key, min, max, step) =>
     range(label, j[key], min, max, step, '', (v, dn) => { j[key] = v; if (dn) re(); });
