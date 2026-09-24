@@ -2,10 +2,11 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany
-} from '../state.js?v=60';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=60';
-import { bus } from '../bus.js?v=60';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=60';
+} from '../state.js?v=61';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=61';
+import { bus } from '../bus.js?v=61';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=61';
+import { durOf as jzDur } from '../jz.js?v=61';
 
 const el = {};
 export function init() {
@@ -384,7 +385,8 @@ document.addEventListener('pointermove', e => {
   }
   if (!drag.moved) return;
   const m = c.mid ? MEDIA.get(c.mid) : null;
-  const srcDur = m && m.kind !== 'image' ? m.dur : Infinity;
+  let srcDur = m && m.kind !== 'image' ? m.dur : Infinity;
+  if (c.kind === 'jz') srcDur = jzDur(c.jz);     // 組み立てた ながさより 先は ない
 
   if (drag.mode === 'move' && drag.group && drag.group.length > 1) {
     // まとめて えらんで いる ときは、ならびを くずさず ぜんぶ 動かす

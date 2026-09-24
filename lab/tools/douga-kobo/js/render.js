@@ -1,12 +1,12 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=60';
-import { MEDIA, animFrame } from './media.js?v=60';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=60';
-import { beatOn, beatAt } from './beat.js?v=60';
-import { drawPat, drawDeco } from './pattern.js?v=60';
-import { drawTrans } from './trans.js?v=60';
-import { camAt } from './camera.js?v=60';
-import { draw as jzDraw } from './jz.js?v=60';
+import { S, clamp, findClip } from './state.js?v=61';
+import { MEDIA, animFrame } from './media.js?v=61';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=61';
+import { beatOn, beatAt } from './beat.js?v=61';
+import { drawPat, drawDeco } from './pattern.js?v=61';
+import { drawTrans } from './trans.js?v=61';
+import { camAt } from './camera.js?v=61';
+import { draw as jzDraw } from './jz.js?v=61';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -654,7 +654,10 @@ function paintScene(G, t) {
 
       if (c.kind === 'jz') {
         G.translate(-S.W / 2, -S.H / 2);
-        jzDraw(G, c.jz, lt, S.W, S.H, S.playing && quality() < 1);
+        /* inp は「素材の どこから えがくか」。
+           ✂きる や はしを つまんだ ときに ここが 立つ ので、
+           文字PV でも ちゃんと その ぶん 先から えがく。 */
+        jzDraw(G, c.jz, lt + (c.inp || 0) * (c.speed || 1), S.W, S.H, S.playing && quality() < 1);
       }
       else if (c.kind === 'text') paintText(G, c, local, t);
       else if (c.kind === 'color') {
