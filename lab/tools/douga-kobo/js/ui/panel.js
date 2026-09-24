@@ -1,20 +1,21 @@
 /* せってい。ひろい よこ画面では 右に つけっぱなし、
    せまい ときは 下から 出る 幕に 入る。中身は 同じ もの。 */
 import {
-  S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected,
+  S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, newTrack, newClip,
   snap as pushUndo
-} from '../state.js?v=51';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=51';
-import { storeOk } from '../store.js?v=51';
-import { bus } from '../bus.js?v=51';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=51';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=51';
+} from '../state.js?v=53';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=53';
+import { storeOk } from '../store.js?v=53';
+import { bus } from '../bus.js?v=53';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=53';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=53';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear } from '../jz.js?v=53';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=51';
+  offOf, setOff, clearOff } from '../text.js?v=53';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=51';
+} from '../edit.js?v=53';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -608,7 +609,7 @@ function trackBody() {
 
 /* --- うた --- */
 let lyUnit = 'beat';
-let lyMode = 'auto';
+let lyMode = 'jz';
 let lySeed = Math.floor(Math.random() * 9999) + 1;
 let lyMood = 'all';
 let lyFix = {};           // きめうち（指定）した ところ
@@ -624,10 +625,113 @@ let lyBeats = 4;
 function lyricBody() {
   const w = el('div');
   w.appendChild(grid('やりかた', [
+    btn('文字PV（JIZURA）', 'btn-sm' + (lyMode === 'jz' ? ' on' : ''), () => { lyMode = 'jz'; draw(); }),
     btn('おまかせ 組み立て', 'btn-sm' + (lyMode === 'auto' ? ' on' : ''), () => { lyMode = 'auto'; draw(); }),
     btn('ならべるだけ', 'btn-sm' + (lyMode === 'plain' ? ' on' : ''), () => { lyMode = 'plain'; draw(); })
   ]));
-  return lyMode === 'auto' ? autoBody(w) : plainBody(w);
+  return lyMode === 'jz' ? jzBody(w) : lyMode === 'auto' ? autoBody(w) : plainBody(w);
+}
+
+/* 文字PV（JIZURA のエンジン）。スタイルを えらぶと その 中だけで くじを ひく */
+let jzText = '', jzStyle = 'noir', jzSeed = Math.floor(Math.random() * 99999) + 1;
+let jzFx = { motion: .7, glitch: .55, chroma: .7, decor: .5, density: .55, texture: .6, koma: 12, bgSwitch: .35 };
+let jzOpen = false;
+
+function jzBody(w) {
+  if (!jzReady()) {
+    w.appendChild(group('文字PV', [
+      hint('しくみを まだ 読みこめて いません。<br>ページを ひらき直して みて ください。')
+    ]));
+    return w;
+  }
+  const list = jzStyles();
+
+  const ta = el('textarea'); ta.rows = 7; ta.value = jzText;
+  ta.placeholder = 'ゆめの つづきを\nうたって いた\n*きみ* に とどけ';
+  ta.addEventListener('input', () => { jzText = ta.value; });
+
+  const from = el('input'); from.type = 'number'; from.step = .1; from.value = r2(S.time);
+  const seed = el('input'); seed.type = 'number'; seed.step = 1; seed.value = jzSeed;
+  seed.addEventListener('change', () => { jzSeed = (+seed.value | 0) || 1; });
+
+  const build = (newSeed) => {
+    jzText = ta.value.trim();
+    if (!jzText) { toast('歌詞を 入れて'); return; }
+    if (newSeed) { jzSeed = Math.floor(Math.random() * 99999) + 1; seed.value = jzSeed; }
+    const at = Math.max(0, +from.value || 0);
+    const j = newJz(Object.assign({
+      lyrics: jzText, style: jzStyle, seed: jzSeed,
+      bpm: beatOn() ? S.beat.bpm : 0, beatOffset: S.beat.offset || 0,
+      W: S.W, H: S.H, fps: S.fps
+    }, jzFx));
+    const d = jzDur(j);
+    if (!d) { toast('組み立てられなかった'); return; }
+    // まえに 作った ぶんを どける
+    S.tracks.forEach(t => { t.clips = t.clips.filter(c => c.kind !== 'jz'); });
+    let tr = S.tracks.find(t => t.name === '文字PV');
+    if (!tr) { tr = newTrack('video', '文字PV'); S.tracks.unshift(tr); }
+    const c = newClip('jz', { name: (list.find(x => x[0] === jzStyle) || [, 'うた'])[1], start: at, dur: d });
+    c.jz = j;
+    tr.clips.push(c);
+    S.sel = c.id; S.selTrack = tr.id;
+    pushUndo(); bus.all(); bus.fit();
+    toast(`${r2(d)}秒 の 文字PV を 作った（${c.name}・たね ${jzSeed}）`, 3200);
+    if (!docked()) close(); else draw();
+  };
+
+  w.appendChild(group('歌詞', [
+    hint('1行 ＝ 1フレーズ。<b>/</b> で カットを 割る。<b>*つよく*</b> で 強調。<br>' +
+      '行おわりの <b>!</b> で フラッシュ。<b>歌詞|注釈</b>。<b>[01:23.45]</b> で 時こく指定。'),
+    row(null, ta)
+  ]));
+
+  w.appendChild(group('スタイル（これを 決めると 雰囲気が そろう）', [
+    hint('えらんだ スタイルの <b>中だけ</b>で くじを ひきます。<br>' +
+      'ひきなおしても、まったく ちがう 雰囲気の ものは 出て きません。'),
+    grid(null, list.map(([k, nm]) =>
+      btn(nm, 'btn-sm' + (jzStyle === k ? ' on' : ''), () => { jzStyle = k; draw(); }))),
+    hint((list.find(x => x[0] === jzStyle) || [, , ''])[2] || '')
+  ]));
+
+  w.appendChild(group('組み立てる', [
+    row('はじめ', from),
+    row('たね', seed),
+    grid(null, [
+      btn('🎲 ひきなおす', 'btn-sm', () => build(true)),
+      btn('▶ 組み立てる', 'btn-y', () => build(false))
+    ]),
+    beatOn()
+      ? hint(`BPM ${r2(S.beat.bpm)} の 拍に カットを 合わせます。`)
+      : hint('BPM が きまって いないと 文字数から 割りだします。<br>ひだりの 🥁 はやさ で さきに きめると 合います。')
+  ]));
+
+  const fxRow = (label, key, min, max, step) =>
+    range(label, jzFx[key], min, max, step, '', v => { jzFx[key] = v; });
+  w.appendChild(grid(null, [
+    btn((jzOpen ? '▼' : '▶') + ' こまかい ところ', 'btn-sm', () => { jzOpen = !jzOpen; draw(); })
+  ]));
+  if (jzOpen) {
+    w.appendChild(group('つよさ', [
+      fxRow('うごき', 'motion', 0, 1, .05),
+      fxRow('グリッチ', 'glitch', 0, 1, .05),
+      fxRow('色ずれ', 'chroma', 0, 1, .05),
+      fxRow('かざりの 量', 'decor', 0, 1, .05),
+      fxRow('こみぐあい', 'density', 0, 1, .05),
+      fxRow('質かん', 'texture', 0, 1, .05),
+      fxRow('背景の 切りかえ', 'bgSwitch', 0, 1, .05),
+      grid('コマ打ち', [['12', '2コマ'], ['8', '3コマ'], ['0', 'フル']].map(([v, n]) =>
+        btn(n, 'btn-sm' + (String(jzFx.koma) === v ? ' on' : ''), () => { jzFx.koma = +v; jzClear(); draw(); }))),
+      hint('変えたら もういちど「組み立てる」を おして ください。')
+    ]));
+  }
+
+  w.appendChild(group('できる もの', [
+    hint('「文字PV」という 段に、ひとつの ふだ として 入ります。<br>' +
+      'ふだは ほかと 同じに <b>動かせる・切れる・ほかの 段と かさねられる</b>。<br>' +
+      '音は べつに 置いて ください。書き出しは いつもの MP4 で できます。'),
+    hint('しくみは <b>JIZURA</b>（MIT / hakoniwa さん）の ものを そのまま つかって います。')
+  ]));
+  return w;
 }
 
 /* おまかせ：歌詞と 拍から カットを じどうで 組み立てる */

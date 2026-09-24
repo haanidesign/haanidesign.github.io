@@ -2,10 +2,10 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot
-} from '../state.js?v=51';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=51';
-import { bus } from '../bus.js?v=51';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=51';
+} from '../state.js?v=53';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=53';
+import { bus } from '../bus.js?v=53';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=53';
 
 const el = {};
 export function init() {
@@ -113,11 +113,13 @@ function clipEl(c) {
   d.style.width = Math.max(26, t2x(c.dur)) + 'px';
   d.dataset.cid = c.id;
   const label = c.kind === 'text' ? (c.text.str.split('\n')[0] || 'もじ')
-    : c.kind === 'color' ? (c.grad ? 'グラデ' : 'いろ') : (c.name || '素材');
+    : c.kind === 'jz' ? (c.name || 'うた')
+      : c.kind === 'color' ? (c.grad ? 'グラデ' : 'いろ') : (c.name || '素材');
   d.innerHTML = `<div class="nm"></div><div class="body"></div>
     <div class="grip l"></div><div class="grip r"></div>`;
   d.querySelector('.nm').textContent =
-    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'color' ? '🎨 ' : '🎞 ') + label;
+    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'jz' ? '✦ '
+      : c.kind === 'color' ? '🎨 ' : '🎞 ') + label;
   const body = d.querySelector('.body');
   const pw = Math.max(26, Math.round(t2x(c.dur)));
   if (c.kind === 'color') {

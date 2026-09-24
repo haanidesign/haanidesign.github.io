@@ -1,11 +1,12 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=51';
-import { MEDIA, animFrame } from './media.js?v=51';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=51';
-import { beatOn, beatAt } from './beat.js?v=51';
-import { drawPat, drawDeco } from './pattern.js?v=51';
-import { drawTrans } from './trans.js?v=51';
-import { camAt } from './camera.js?v=51';
+import { S, clamp, findClip } from './state.js?v=53';
+import { MEDIA, animFrame } from './media.js?v=53';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=53';
+import { beatOn, beatAt } from './beat.js?v=53';
+import { drawPat, drawDeco } from './pattern.js?v=53';
+import { drawTrans } from './trans.js?v=53';
+import { camAt } from './camera.js?v=53';
+import { draw as jzDraw } from './jz.js?v=53';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -651,7 +652,11 @@ function paintScene(G, t) {
       G.rotate(c.rot * Math.PI / 180);
       G.scale(c.scale * pose.sc, c.scale * pose.sc);
 
-      if (c.kind === 'text') paintText(G, c, local, t);
+      if (c.kind === 'jz') {
+        G.translate(-S.W / 2, -S.H / 2);
+        jzDraw(G, c.jz, lt, S.W, S.H, S.playing && quality() < 1);
+      }
+      else if (c.kind === 'text') paintText(G, c, local, t);
       else if (c.kind === 'color') {
         if (c.fillOn !== false) {
           if (c.grad) {
@@ -723,7 +728,7 @@ export function clipBox(c) {
   if (c.kind === 'text') {
     const bx = textBox(g, c.text);
     w = Math.max(40, bx.w); h = bx.h;
-  } else if (c.kind === 'color') {
+  } else if (c.kind === 'color' || c.kind === 'jz') {
     w = S.W; h = S.H;
   } else if (m) { const f = fitSize(c, m); w = f.w; h = f.h; }
   return { w: w * c.scale, h: h * c.scale };

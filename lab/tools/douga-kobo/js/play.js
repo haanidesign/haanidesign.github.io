@@ -1,9 +1,9 @@
 /* さいせいと 書き出し。 */
-import { S, clamp, r2, toast, duration, $ } from './state.js?v=51';
-import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=51';
-import { allClips, findClip, trackOf } from './state.js?v=51';
-import { activeClips, fadeAlpha, renderStage, canvas, setQuality, quality } from './render.js?v=51';
-import { bus } from './bus.js?v=51';
+import { S, clamp, r2, toast, duration, $ } from './state.js?v=53';
+import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=53';
+import { allClips, findClip, trackOf } from './state.js?v=53';
+import { activeClips, fadeAlpha, renderStage, canvas, setQuality, quality } from './render.js?v=53';
+import { bus } from './bus.js?v=53';
 
 let raf = 0, t0 = 0, base = 0;
 

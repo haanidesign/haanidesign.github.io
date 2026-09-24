@@ -1,7 +1,7 @@
 /* ホーム画面から ひらく ための しくみ。
    つないで いる ときは かならず 新しいのを 取りに 行き、
    取れたら 手もとにも しまう。つながらない ときだけ 手もとの ものを 出す。 */
-const VER = 'v51';
+const VER = 'v53';
 const BOX = 'douga-kobo-' + VER;
 
 self.addEventListener('install', () => self.skipWaiting());
