@@ -3,19 +3,19 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo
-} from '../state.js?v=62';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=62';
-import { storeOk } from '../store.js?v=62';
-import { bus } from '../bus.js?v=62';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=62';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=62';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=62';
+} from '../state.js?v=63';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=63';
+import { storeOk } from '../store.js?v=63';
+import { bus } from '../bus.js?v=63';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=63';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=63';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=63';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=62';
+  offOf, setOff, clearOff } from '../text.js?v=63';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=62';
+} from '../edit.js?v=63';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -729,7 +729,7 @@ function jzEditBody(c) {
         btn('◧ 1まいに もどす', 'btn-sm', () => {
           const first = sibs.slice().sort((a, b) => a.start - b.start)[0];
           const base = first.start - (first.jz.off || 0);
-          const keep = Object.assign({}, first.jz, { off: 0, noTrans: false });
+          const keep = Object.assign({}, first.jz, { off: 0, noTrans: false, fit: false, cutDur: 0 });
           tr.clips = tr.clips.filter(x => !sibs.includes(x));
           const nm = (jzStyles().find(x => x[0] === keep.style) || [, 'うた'])[1];
           const one = newClip('jz', { name: nm, start: base, dur: jzDur(keep) });
@@ -750,7 +750,10 @@ function jzEditBody(c) {
               start: r2(base + cut.start),
               dur: Math.max(.08, r2(cut.end - cut.start))
             });
-            n.jz = Object.assign({}, j, { off: r2(cut.start), noTrans: true });
+            n.jz = Object.assign({}, j, {
+              off: r2(cut.start), noTrans: true,
+              cutDur: Math.max(.08, r2(cut.end - cut.start)), fit: true
+            });
             tr.clips.push(n);
             if (i === 0) S.sel = n.id;
           });
@@ -764,6 +767,34 @@ function jzEditBody(c) {
           '「すける」に して おくと かさねても 平気です。')
         : hint('切ると <b>カット間の つなぎ</b>は 切れます（1まいずつ 独立する ため）。<br>' +
           'つなぎが ほしい ときは 切らずに つかって ください。')
+    ]));
+  }
+
+  /* --- のばした ときの ふるまい（カットごとに 切った ふだだけ） --- */
+  if (j.cutDur > 0) {
+    const rate = c.dur > 0 ? j.cutDur / c.dur : 1;
+    w.appendChild(group('のばし縮め', [
+      grid('のばすと', [
+        btn('その 歌詞が のびる', 'btn-sm' + (j.fit ? ' on' : ''), () => {
+          j.fit = true; pushUndo(); bus.all(); draw();
+        }),
+        btn('つぎの 歌詞が 出る', 'btn-sm' + (j.fit ? '' : ' on'), () => {
+          j.fit = false; pushUndo(); bus.all(); draw();
+        })
+      ]),
+      j.fit
+        ? hint(`いまの はやさ <b>${(rate).toFixed(2)}倍</b>` +
+          `（もとの ${j.cutDur}s → ${r2(c.dur)}s）<br>` +
+          'ふだの はしを つまんで のばすと、<b>その 歌詞の うごきが ゆっくり</b>に なります。<br>' +
+          '歌詞は 入れかわりません。')
+        : hint('ふだを のばすと、<b>そこから 先の カット</b>が 出て きます。<br>' +
+          '切る まえと 同じ ふるまいです。'),
+      grid(null, [
+        btn('↺ もとの ながさ に もどす', 'btn-sm', () => {
+          c.dur = j.cutDur; pushUndo(); bus.all(); draw();
+          toast(`${j.cutDur}s に もどした`);
+        })
+      ])
     ]));
   }
 

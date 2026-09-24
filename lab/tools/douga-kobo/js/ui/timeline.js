@@ -2,11 +2,11 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany
-} from '../state.js?v=62';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=62';
-import { bus } from '../bus.js?v=62';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=62';
-import { durOf as jzDur } from '../jz.js?v=62';
+} from '../state.js?v=63';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=63';
+import { bus } from '../bus.js?v=63';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=63';
+import { durOf as jzDur } from '../jz.js?v=63';
 
 const el = {};
 export function init() {
@@ -386,7 +386,8 @@ document.addEventListener('pointermove', e => {
   if (!drag.moved) return;
   const m = c.mid ? MEDIA.get(c.mid) : null;
   let srcDur = m && m.kind !== 'image' ? m.dur : Infinity;
-  if (c.kind === 'jz') srcDur = jzDur(c.jz);     // 組み立てた ながさより 先は ない
+  // 組み立てた ながさより 先は ない。ただし fit（カットを のばす）の ふだは 何秒でも のばせる
+  if (c.kind === 'jz') srcDur = (c.jz && c.jz.fit) ? Infinity : jzDur(c.jz);
 
   if (drag.mode === 'move' && drag.group && drag.group.length > 1) {
     // まとめて えらんで いる ときは、ならびを くずさず ぜんぶ 動かす
@@ -411,6 +412,12 @@ document.addEventListener('pointermove', e => {
         drawLanes(); drawHeads();
       }
     }
+  } else if (drag.mode === 'l' && c.kind === 'jz' && c.jz && c.jz.fit) {
+    // カットを のばす ふだ: 頭を つまんでも 中身の 出どころ（inp）は 動かさない
+    let ns = snapTo(drag.start0 + dt, c.id);
+    const d = drag.dur0 - (ns - drag.start0);
+    if (d < 1 / S.fps) return;
+    c.start = Math.max(0, ns); c.dur = d;
   } else if (drag.mode === 'l') {
     let ns = snapTo(drag.start0 + dt, c.id);
     let d = drag.dur0 - (ns - drag.start0);

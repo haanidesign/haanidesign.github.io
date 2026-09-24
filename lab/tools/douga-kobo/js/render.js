@@ -1,12 +1,12 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=62';
-import { MEDIA, animFrame } from './media.js?v=62';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=62';
-import { beatOn, beatAt } from './beat.js?v=62';
-import { drawPat, drawDeco } from './pattern.js?v=62';
-import { drawTrans } from './trans.js?v=62';
-import { camAt } from './camera.js?v=62';
-import { draw as jzDraw } from './jz.js?v=62';
+import { S, clamp, findClip } from './state.js?v=63';
+import { MEDIA, animFrame } from './media.js?v=63';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=63';
+import { beatOn, beatAt } from './beat.js?v=63';
+import { drawPat, drawDeco } from './pattern.js?v=63';
+import { drawTrans } from './trans.js?v=63';
+import { camAt } from './camera.js?v=63';
+import { draw as jzDraw } from './jz.js?v=63';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -656,8 +656,12 @@ function paintScene(G, t) {
         G.translate(-S.W / 2, -S.H / 2);
         /* inp は「素材の どこから えがくか」。
            ✂きる や はしを つまんだ ときに ここが 立つ ので、
-           文字PV でも ちゃんと その ぶん 先から えがく。 */
-        jzDraw(G, c.jz, lt + (c.inp || 0) * (c.speed || 1), S.W, S.H, S.playing && quality() < 1);
+           文字PV でも ちゃんと その ぶん 先から えがく。
+           fit が 立って いる ふだ（カットごとに 切った もの）は、
+           のばし縮めた ぶん だけ 中身の 時間を 引きのばす。
+           そうしないと のばした ぶん だけ つぎの 歌詞が 出て しまう。 */
+        const k = (c.jz.fit && c.jz.cutDur > 0 && c.dur > 0) ? c.jz.cutDur / c.dur : 1;
+        jzDraw(G, c.jz, lt * k + (c.inp || 0) * (c.speed || 1), S.W, S.H, S.playing && quality() < 1);
       }
       else if (c.kind === 'text') paintText(G, c, local, t);
       else if (c.kind === 'color') {
