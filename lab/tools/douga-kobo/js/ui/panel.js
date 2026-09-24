@@ -3,19 +3,19 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, newTrack, newClip,
   snap as pushUndo
-} from '../state.js?v=53';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=53';
-import { storeOk } from '../store.js?v=53';
-import { bus } from '../bus.js?v=53';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=53';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=53';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear } from '../jz.js?v=53';
+} from '../state.js?v=56';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=56';
+import { storeOk } from '../store.js?v=56';
+import { bus } from '../bus.js?v=56';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=56';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=56';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines } from '../jz.js?v=56';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=53';
+  offOf, setOff, clearOff } from '../text.js?v=56';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=53';
+} from '../edit.js?v=56';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -637,7 +637,131 @@ let jzText = '', jzStyle = 'noir', jzSeed = Math.floor(Math.random() * 99999) + 
 let jzFx = { motion: .7, glitch: .55, chroma: .7, decor: .5, density: .55, texture: .6, koma: 12, bgSwitch: .35 };
 let jzOpen = false;
 
+/** いま えらんで いる 文字PV の ふだ（なければ null） */
+function jzSel() {
+  const f = selected();
+  return f && f.c.kind === 'jz' ? f.c : null;
+}
+
+/* 文字PV の ふだを あとから 直す ところ */
+function jzEditBody(c) {
+  const w = el('div');
+  const j = c.jz;
+  const re = () => {
+    jzClear();
+    const d = jzDur(j);
+    if (d) c.dur = d;
+    bus.all(); draw();
+  };
+
+  w.appendChild(group('曲に 合わせる', [
+    hint('<b>いちばん 確実なのは 時こく指定です。</b> 歌詞の 行あたまに<br>' +
+      '<b>[00:12.30]</b> の ように 書くと、その 秒に その行が 出ます。<br>' +
+      'ぜんぶの 行に 書けば、文字数からの 推測を やめて その とおりに 並べます。'),
+    range('はじまり', j.offset === undefined ? .4 : j.offset, 0, 8, .05, 's', (v, done) => {
+      j.offset = v; if (done) re();
+    }),
+    range('行の ながさ', j.lineScale === undefined ? 1 : j.lineScale, .3, 3, .05, 'x', (v, done) => {
+      j.lineScale = v; if (done) re();
+    }),
+    range('おわりの ま', j.tail === undefined ? .9 : j.tail, 0, 4, .1, 's', (v, done) => {
+      j.tail = v; if (done) re();
+    }),
+    grid('拍に すいつく', [
+      btn(j.snap === false ? 'しない' : 'する', 'btn-sm' + (j.snap === false ? '' : ' on'),
+        () => { j.snap = j.snap === false; re(); })
+    ]),
+    j.bpm > 0
+      ? hint(`いまは BPM ${r2(j.bpm)} で 組んで います。`)
+      : hint('BPM が 入って いません。🥁はやさ で きめてから 組み直すと 拍に のります。'),
+    grid(null, [btn('↻ いまの BPM で 組み直す', 'btn-sm', () => {
+      j.bpm = beatOn() ? S.beat.bpm : 0; j.beatOffset = S.beat.offset || 0; re();
+    })])
+  ]));
+
+  /* --- タップで 合わせる --- */
+  const names = jzLines(j.lyrics);
+  const times = j.lineTimes || (j.lineTimes = {});
+  const done = Object.keys(times).length;
+  w.appendChild(group('タップで 合わせる', [
+    hint(`曲を ながしながら、行の あたまで ボタンを おして いくと<br>` +
+      `その 秒を おぼえます（いま <b>${done} / ${names.length}</b> 行）。`),
+    grid(null, [
+      btn(jzTap ? '⏹ やめる' : '● はじめる', 'btn-sm' + (jzTap ? ' on' : ''), () => {
+        if (jzTap) { jzTap = null; bus.stop && bus.stop(); draw(); return; }
+        jzTap = { c, i: 0 };
+        S.time = c.start; bus.seek(c.start); bus.start && bus.start();
+        draw();
+      }),
+      btn('ここ！', 'btn-y', () => {
+        if (!jzTap) { toast('さきに「はじめる」を おして'); return; }
+        const t = Math.max(0, S.time - c.start);
+        times[jzTap.i] = r2(t);
+        jzTap.i++;
+        if (jzTap.i >= names.length) { jzTap = null; bus.stop && bus.stop(); re(); toast('ぜんぶ おぼえた'); return; }
+        draw();
+      })
+    ]),
+    jzTap ? hint(`つぎは <b>${jzTap.i + 1}行目「${(names[jzTap.i] || '').slice(0, 14)}」</b>` +
+      `<br>その 行が はじまる ところで「ここ！」を おす。`) : null,
+    grid(null, [
+      btn('おぼえた 秒を つかう', 'btn-sm', () => { re(); toast('入れた 秒で 組み直した'); }),
+      btn('ぜんぶ 忘れる', 'btn-sm btn-p', () => { j.lineTimes = {}; jzTap = null; re(); })
+    ]),
+    done ? hint('入れた 秒: ' + Object.keys(times).sort((a, b) => a - b)
+      .map(k => `${(+k) + 1}行目 ${times[k]}s`).join(' / ')) : null
+  ]));
+
+  w.appendChild(group('歌詞と うしろを ばらす', [
+    grid('うしろ', [
+      btn('えがく', 'btn-sm' + (j.transparent ? '' : ' on'), () => { j.transparent = false; jzClear(); bus.all(); draw(); }),
+      btn('すける（文字だけ）', 'btn-sm' + (j.transparent ? ' on' : ''), () => { j.transparent = true; jzClear(); bus.all(); draw(); })
+    ]),
+    hint('<b>すける</b>に すると うしろを ぬらず、文字と かざりだけ に なります。<br>' +
+      'この ふだの <b>下の 段</b>に 絵や 動画を 置くと、その 上に 歌詞が のります。'),
+    grid(null, [
+      btn('＋ 下に 絵を 置く 段を つくる', 'btn-sm', () => {
+        const t = newTrack('video', '絵');
+        const i = S.tracks.findIndex(x => x.clips.includes(c));
+        S.tracks.splice(i < 0 ? S.tracks.length : i + 1, 0, t);
+        j.transparent = true; jzClear();
+        pushUndo(); bus.all(); draw();
+        toast('「絵」の 段を つくった。🗂素材 から 置いて ください', 3400);
+      })
+    ])
+  ]));
+
+  const fx = (label, key, min, max, step) =>
+    range(label, j[key], min, max, step, '', (v, dn) => { j[key] = v; if (dn) re(); });
+  w.appendChild(group('つよさ', [
+    fx('うごき', 'motion', 0, 1, .05),
+    fx('グリッチ', 'glitch', 0, 1, .05),
+    fx('色ずれ', 'chroma', 0, 1, .05),
+    fx('かざりの 量', 'decor', 0, 1, .05),
+    fx('こみぐあい', 'density', 0, 1, .05),
+    fx('質かん', 'texture', 0, 1, .05),
+    fx('背景の 切りかえ', 'bgSwitch', 0, 1, .05),
+    grid('コマ打ち', [['12', '2コマ'], ['8', '3コマ'], ['0', 'フル']].map(([v, n]) =>
+      btn(n, 'btn-sm' + (String(j.koma) === v ? ' on' : ''), () => { j.koma = +v; re(); })))
+  ]));
+
+  w.appendChild(group('スタイル・たね', [
+    grid(null, jzStyles().map(([k, nm]) =>
+      btn(nm, 'btn-sm' + (j.style === k ? ' on' : ''), () => {
+        j.style = k; c.name = nm; re();
+      }))),
+    grid(null, [btn('🎲 たねを ひきなおす', 'btn-sm', () => {
+      j.seed = Math.floor(Math.random() * 99999) + 1; re();
+    })]),
+    hint(`たね ${j.seed}`)
+  ]));
+  return w;
+}
+let jzTap = null;
+
 function jzBody(w) {
+  const sel = jzSel();
+  if (sel) return jzEditBody(sel);
   if (!jzReady()) {
     w.appendChild(group('文字PV', [
       hint('しくみを まだ 読みこめて いません。<br>ページを ひらき直して みて ください。')

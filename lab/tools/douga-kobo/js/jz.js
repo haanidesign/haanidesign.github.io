@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=53';
+import { S, toast } from './state.js?v=56';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -23,7 +23,7 @@ let renderer = null;
 const keyOf = j => JSON.stringify([
   j.lyrics, j.style, j.seed, j.bpm, j.offset, j.W, j.H, j.fps,
   j.motion, j.glitch, j.chroma, j.decor, j.density, j.texture, j.koma, j.hud, j.bgSwitch,
-  j.extra, j.wa
+  j.extra, j.wa, j.lineScale, j.snap, j.tail, j.lineTimes, j.beatOffset
 ]);
 
 /** ふだの 中身から 組み立てる */
@@ -49,7 +49,14 @@ export function planOf(j) {
     koma: num(j.koma, 12), bgSwitch: num(j.bgSwitch, .35),
     hud: j.hud === undefined ? 'auto' : j.hud
   });
-  pr.timing = Object.assign({}, pr.timing, { bpm: j.bpm || 0, offset: num(j.offset, .4) });
+  pr.timing = Object.assign({}, pr.timing, {
+    bpm: j.bpm || 0,
+    offset: num(j.offset, .4),
+    lineScale: num(j.lineScale, 1),
+    snap: j.snap !== false,
+    tail: num(j.tail, .9),
+    lineTimes: j.lineTimes || {}
+  });
 
   const audio = j.bpm > 0 ? { beats: J.beatGrid(j.bpm, j.beatOffset || 0, 900) } : null;
   let plan = null;
@@ -79,18 +86,35 @@ export function durOf(j) {
   return p ? (p.duration || 0) : 0;
 }
 
+/* JIZURA は「キャンバス ぜんたいが 自分の もの」と 思って
+   読みかえしたり 合成モードを つかったり する。
+   そのまま 本番の 画面に 描くと 下じきや ほかの 段を こわす ので、
+   いったん 別の 紙に 描いて から 重ねる。 */
+let off = null, offG = null;
+function offCv(w, h) {
+  if (!off) { off = document.createElement('canvas'); offG = off.getContext('2d'); }
+  if (off.width !== w || off.height !== h) { off.width = w; off.height = h; }
+  return off;
+}
+
 /** 1コマ えがく。g は すでに 画面の はしが 0,0 に なって いる こと */
 export function draw(g, j, local, W, H, fast) {
   const J = JZ();
   const plan = planOf(j);
   if (!J || !plan) return false;
   if (!renderer) renderer = new J.Renderer();
-  g.save();
+  const cv = offCv(plan.W, plan.H);
+  offG.setTransform(1, 0, 0, 1, 0, 0);
+  offG.globalAlpha = 1; offG.filter = 'none';
+  offG.globalCompositeOperation = 'source-over';
+  offG.clearRect(0, 0, cv.width, cv.height);
   try {
-    // 作品の 大きさと plan の 大きさが ちがう ときは のばす
-    g.scale(W / plan.W, H / plan.H);
-    renderer.frame(g, plan, Math.max(0, local), { scale: 1, fast: !!fast });
-  } catch (e) { g.restore(); return false; }
+    renderer.frame(offG, plan, Math.max(0, local), {
+      scale: 1, fast: !!fast, transparent: !!j.transparent
+    });
+  } catch (e) { return false; }
+  g.save();
+  try { g.drawImage(cv, 0, 0, W, H); } catch (e) { }
   g.restore();
   return true;
 }
@@ -102,7 +126,24 @@ export function newJz(o = {}) {
     bpm: 0, offset: .4, beatOffset: 0,
     W: S.W, H: S.H, fps: S.fps,
     motion: .7, glitch: .55, chroma: .7, decor: .5, density: .55, texture: .6,
-    koma: 12, hud: 'auto', bgSwitch: .35, extra: true, wa: true
+    koma: 12, hud: 'auto', bgSwitch: .35, extra: true, wa: true,
+    lineScale: 1, snap: true, tail: .9, lineTimes: {}, transparent: false
   }, o);
 }
 export const clearCache = () => planCache.clear();
+
+/** 歌詞の 行（空行と メタ行を のぞいた もの）。タップで 合わせる とき に つかう */
+export function linesOf(lyrics) {
+  const J = JZ();
+  if (!J || !J.parseLyrics) return [];
+  try { return (J.parseLyrics(lyrics || '').lines || []).map(l => l.text); }
+  catch (e) { return []; }
+}
+/** いま 何行目が 出て いるか（ふだの 中の 時こく から） */
+export function lineAt(j, local) {
+  const p = planOf(j);
+  if (!p || !p.lines) return -1;
+  let hit = -1;
+  p.lines.forEach((l, i) => { if (local >= (l.start != null ? l.start : l.t)) hit = i; });
+  return hit;
+}
