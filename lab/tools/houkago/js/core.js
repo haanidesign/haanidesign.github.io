@@ -315,7 +315,7 @@
       this.total = this.lines.reduce((a, l) => a + Array.from(l).length, 0);
       this.shown = 0; this.acc = 0; this.onChar = onChar; this.done = this.total === 0; this.idle = 0;
     }
-    get cps() { return [18, 34, 60, 400][CORE.textSpeedIdx != null ? CORE.textSpeedIdx : 1]; }
+    get cps() { return [22, 44, 80, 400][CORE.textSpeedIdx != null ? CORE.textSpeedIdx : 1]; }
     update(dt, fast) {
       if (this.done) { this.idle += dt; return; }
       this.acc += dt * this.cps * (fast ? 4 : 1);

@@ -381,8 +381,12 @@
         const slots = acts.length === 1 ? [168] : acts.length === 2 ? [110, 235] : [80, 170, 260];
         acts.sort((a, b) => a.x - b.x).forEach((a, i) => { const to = slots[Math.min(i, slots.length - 1)]; if (Math.abs(a.x - to) > 2) { this.moved.push([a, a.x]); C.tween(a, { x: to }, 0.25, { ease: 'cubicOut' }); } });
       }
+      /* "who do you go to" choices: every option targets a different boy -> show faces */
+      const who = opts.map(op => { const ks = Object.keys((op && op.effect) || {}).filter(k => chars()[k] && k !== FRIEND); return ks.length === 1 ? ks[0] : null; });
+      const faces = n >= 3 && who.every(Boolean) && new Set(who).size === n;
       this.btns = opts.map((op, i) => new UI.Button({
         x: bx, y: top + i * (bh + gap), w: bw, h: bh, label: fmt(op.text || op), size: 16,
+        render: faces ? (c, x, y, b) => { c.fillStyle = P.ink; c.fillRect(x + 5, y + 3, 24, 24); if (S.met[who[i]]) art.face(c, who[i], 'normal', x + 6, y + 4, 22); else { c.fillStyle = '#d8ccb4'; c.fillRect(x + 6, y + 4, 22, 22); C.text(c, '?', x + 17, y + 7, { size: 16, align: 'center', color: P.white }); } C.text(c, b.label, x + 36 + (bw - 44) / 2, y + b.h / 2 - 9, { size: 16, align: 'center', color: b.enabled ? P.ink : P.grey }); } : null,
         color: P.cream, hoverColor: P.pinkL, enabled: op.enabled !== false,
         onClick: () => { if (this.done) return; this.done = true; snd.se('decide'); this.pick(i); }
       }));
@@ -456,7 +460,7 @@
     }
     if (s.choice) {
       const opts = s.choice.filter(o => !o.if || evalCond(o.if));
-      const i = await choose(opts.map(o => ({ text: o.text })));
+      const i = await choose(opts.map(o => ({ text: o.text, effect: o.effect })));
       const o = opts[i];
       if (o.effect) applyEffect(o.effect);
       if (o.set) doSet(o.set);
@@ -712,7 +716,7 @@
 
   /* ================= week card ================= */
   class WeekCard {
-    constructor(cal) { this.name = 'weekcard'; this.cal = cal; this.t = 0; this.k = { a: 0, x: -W }; C.tween(this.k, { x: 0 }, 0.35, { ease: 'backOut' }); this.dur = 1.1; snd.se('week'); }
+    constructor(cal) { this.name = 'weekcard'; this.cal = cal; this.t = 0; this.k = { a: 0, x: -W }; C.tween(this.k, { x: 0 }, 0.3, { ease: 'backOut' }); this.dur = 0.95; snd.se('week'); }
     update(dt, active) {
       this.t += dt;
       if (active && inp.advance() && this.t > 0.3) { inp.consume(); this.dur = Math.min(this.dur, this.t + 0.2); }
@@ -761,7 +765,7 @@
       const bw = 110, bh = 32;
       this.btns = cmds.map((cm, i) => {
         const col = i % 4, row = Math.floor(i / 4);
-        return new UI.Button({ x: 166 + col * (bw + 4), y: 172 + row * (bh + 6), w: bw, h: bh, label: cm.name, icon: CMD_ICON[cm.id] || cm.icon || cm.id, iconSize: 16, desc: cm.desc, cmd: cm, color: P.cream, hoverColor: P.mintL, onClick: b => this.pick(b.cmd) });
+        return new UI.Button({ x: 166 + col * (bw + 4), y: 172 + row * (bh + 6), w: bw, h: bh, label: ({ sport: '運動', culture: '教養' })[cm.id] || cm.name, icon: CMD_ICON[cm.id] || cm.icon || cm.id, iconSize: 16, desc: cm.desc, cmd: cm, color: P.cream, hoverColor: P.mintL, onClick: b => this.pick(b.cmd) });
       });
       this.gear = new UI.Button({ x: 166 + 3 * (bw + 4), y: 172 + bh + 6, w: bw, h: bh, icon: 'gear', label: '設定', onClick: () => { snd.se('decide'); openSettings(); }, desc: '音量と 文字の速さを 変える', cmd: null, color: P.cream, hoverColor: P.lemon });
       this.btns.push(this.gear);
@@ -954,7 +958,7 @@
         await this.sleep(0.12); snd.se('stamp');
         gains.filter(g => S.params[g[0]] != null).forEach((g, j) => setTimeout(() => { }, 0) || C.pop(px, 214 - j * 2, `${paramName(g[0])}${g[1] > 0 ? '+' : ''}${g[1]}`, g[1] > 0 ? P.green : P.red, { size: 12 }));
         snd.se(gains.some(g => S.params[g[0]] != null && g[1] > 0) ? 'pop_up' : 'pop_down');
-        await this.sleep(0.5);
+        await this.sleep(0.38);
       }
       await this.sleep(0.2);
       this.summary = { k: 0 };
@@ -1036,26 +1040,30 @@
         const k = this.summary.k;
         c.fillStyle = `rgba(27,28,58,${0.5 * Math.min(1, k)})`; c.fillRect(0, 0, W, H);
         c.save(); c.translate(W / 2, 180); c.scale(k, k); c.translate(-W / 2, -180);
-        UI.frame(c, 160, 70, 320, 220, { fill: P.cream, band: P.pink2, bandH: 24, dots: 'rgba(255,143,177,0.2)' });
-        C.text(c, '今週の まとめ', 320, 76, { size: 16, align: 'center', color: P.white, outline: P.ink });
+        const nrow = params().filter(p => S.params[p.id] !== this.p0[p.id]).length;
+        const ph = 34 + 24 + nrow * 20 + 26 + (this.line ? 22 : 0) + 26, py = 180 - ph / 2;
+        UI.frame(c, 160, py, 320, ph, { fill: P.cream, band: P.pink2, bandH: 24, dots: 'rgba(255,143,177,0.2)' });
+        C.text(c, '今週の まとめ', 320, py + 6, { size: 16, align: 'center', color: P.white, outline: P.ink });
         const res = this.panels.map(p => p.res);
         const gc = res.filter(r => r === 'great').length, fc = res.filter(r => r === 'fail').length;
-        C.text(c, `大成功 ${gc}　成功 ${5 - gc - fc}　失敗 ${fc}`, 320, 100, { size: 12, align: 'center', color: P.ink2 });
-        if (this.line) C.text(c, this.line, 320, 238, { size: 12, align: 'center', color: P.pink2 });
+        C.text(c, `大成功 ${gc}　成功 ${5 - gc - fc}　失敗 ${fc}`, 320, py + 30, { size: 12, align: 'center', color: P.ink2 });
         let row = 0;
         params().forEach(p => {
           const d = S.params[p.id] - this.p0[p.id]; if (!d) return;
-          const y = 124 + row * 20; row++;
+          const y = py + 54 + row * 20; row++;
           art.icon(c, p.id, 190, y - 2, 16);
           C.text(c, p.name, 212, y, { size: 12 });
           C.text(c, `${this.p0[p.id]} → ${S.params[p.id]}`, 330, y, { size: 12, align: 'center' });
           C.text(c, `${d > 0 ? '+' : ''}${d}`, 450, y, { size: 16, align: 'right', color: d > 0 ? P.green : P.red, head: true });
         });
-        const y = Math.max(124 + row * 20 + 6, 200);
+        let y = py + 54 + row * 20 + 4;
         const dh = S.hp - this.hp0, ds = S.stress - this.st0;
-        C.text(c, `体調 ${dh >= 0 ? '+' : ''}${dh}`, 230, y, { size: 12, color: dh >= 0 ? P.green : P.red, align: 'center' });
-        C.text(c, `ストレス ${ds >= 0 ? '+' : ''}${ds}`, 410, y, { size: 12, color: ds <= 0 ? P.green : P.red, align: 'center' });
-        if (k > 0.9) C.text(c, 'クリックで つぎへ', 320, 262, { size: 12, align: 'center', color: P.pink2, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
+        c.fillStyle = 'rgba(43,45,92,0.15)'; c.fillRect(184, y - 4, 272, 1);
+        C.text(c, `体調 ${dh >= 0 ? '+' : ''}${dh}`, 250, y, { size: 12, color: dh >= 0 ? P.green : P.red, align: 'center' });
+        C.text(c, `ストレス ${ds >= 0 ? '+' : ''}${ds}`, 390, y, { size: 12, color: ds <= 0 ? P.green : P.red, align: 'center' });
+        y += 22;
+        if (this.line) { C.text(c, this.line, 320, y, { size: 12, align: 'center', color: P.pink2 }); y += 22; }
+        if (k > 0.9) C.text(c, 'クリックで つぎへ', 320, y, { size: 12, align: 'center', color: P.pink2, alpha: 0.5 + 0.5 * Math.sin(this.t * 6) });
         c.restore();
       }
     }
@@ -1431,10 +1439,11 @@
     update(dt) { this.t += dt; this.ex.update(dt); this.pulse = Math.max(0, this.pulse - dt * 2); }
     draw(c) {
       const pl = placeOf(this.place);
-      UI.frame(c, 8, 8, 170, 26, { fill: P.cream, depth: 2 });
+      const lbl = `${pl.name}デート`, bx0 = 34 + Math.max(96, Math.ceil(C.measure(c, lbl, 12))) + 8;
+      UI.frame(c, 8, 8, bx0 + 36 + 2 - 8, 26, { fill: P.cream, depth: 2 });
       art.icon(c, 'heart', 14, 13, 16);
-      C.text(c, `${pl.name}デート`, 34, 13, { size: 12 });
-      for (let i = 0; i < 3; i++) { c.fillStyle = P.ink; c.fillRect(140 + i * 12, 16, 9, 9); c.fillStyle = i < this.round ? P.pink2 : '#e3d6bd'; c.fillRect(141 + i * 12, 17, 7, 7); }
+      C.text(c, lbl, 34, 13, { size: 12 });
+      for (let i = 0; i < 3; i++) { c.fillStyle = P.ink; c.fillRect(bx0 + i * 12, 16, 9, 9); c.fillStyle = i < this.round ? P.pink2 : '#e3d6bd'; c.fillRect(bx0 + 1 + i * 12, 17, 7, 7); }
       UI.frame(c, 410, 8, 222, 26, { fill: P.cream, depth: 2 });
       const s = 1 + this.pulse * 0.6;
       scaled(c, s, 424, 21, () => { C.bitmap(c, C.HEART, -7, -6, 2, P.ink); C.bitmap(c, C.HEART, -7, -7, 2, this.ex.value >= 50 ? P.pink2 : P.grey); });
@@ -1589,10 +1598,10 @@
       if (this.phase === 'roll') { const b = Math.round(Math.sin(this.t * 20) * 2); C.text(c, 'ドキドキ……', 320, 316 + b, { size: 16, align: 'center', color: P.white, outline: P.ink }); }
       if (this.stamp) {
         const k = this.stamp.k, s = 1 + (1 - k) * 2.5;
-        c.save(); c.translate(W / 2 + 40, 206); c.rotate(-0.1); c.scale(s, s); c.globalAlpha = Math.min(1, k * 1.5);
-        UI.frame(c, -130, -46, 260, 92, { fill: this.rank <= 10 ? P.lemon : this.rank <= 120 ? P.pinkL : '#dde0f0', band: P.pink2, bandH: 24 });
-        C.text(c, `学年 ${240}人中`, 0, -40, { size: 12, align: 'center', color: P.white, outline: P.ink });
-        C.text(c, `${this.rank}位`, 0, -20, { size: 44, align: 'center', head: true, color: P.pink2, outline: P.white, ow: 2 });
+        c.save(); c.translate(262, 226); c.rotate(-0.08); c.scale(s, s); c.globalAlpha = Math.min(1, k * 1.5);
+        UI.frame(c, -100, -42, 200, 84, { fill: this.rank <= 10 ? P.lemon : this.rank <= 120 ? P.pinkL : '#dde0f0', band: P.pink2, bandH: 24 });
+        C.text(c, `学年 ${240}人中`, 0, -36, { size: 12, align: 'center', color: P.white, outline: P.ink });
+        C.text(c, `${this.rank}位`, 0, -16, { size: 44, align: 'center', head: true, color: P.pink2, outline: P.white, ow: 2 });
         c.restore();
         if (k >= 1) {
           const rc = (D().rankComments || []).find(x => this.rank <= x.max);
@@ -1826,8 +1835,9 @@
     }
   }
   async function randomEvent() {
-    const list = (D().random || []).filter(r => r && !S.randomSeen.includes(r.id) && evalCond(r.cond || r.if));
-    if (!list.length || Math.random() > (G.forceRandom ? 1 : 0.35)) return;
+    const forced = G.nextRandom && (D().random || []).find(r => r && r.id === G.nextRandom); G.nextRandom = null;
+    const list = forced ? [forced] : (D().random || []).filter(r => r && !S.randomSeen.includes(r.id) && evalCond(r.cond || r.if));
+    if (!list.length || (!forced && Math.random() > (G.forceRandom ? 1 : 0.35))) return;
     const r = C.pick(list); S.randomSeen.push(r.id);
     snd.bgm(r.bgm || 'school'); G.phase = 'event';
     await runScript(r.scene || r.steps || r.id);
@@ -2065,7 +2075,8 @@
     stage: () => ({ bg: STAGE.bg, actors: Object.keys(STAGE.actors), name: MSG.name, msg: MSG.tw && MSG.tw.lines && MSG.tw.lines.join('') }),
     toScreen: (x, y) => C.toScreen(x, y),
     setState(o) { Object.assign(S, o); },
-    forceRandom(v) { G.forceRandom = v; }
+    forceRandom(v) { G.forceRandom = v; },
+    nextRandom(id) { G.nextRandom = id; }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
