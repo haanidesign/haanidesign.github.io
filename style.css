@@ -647,3 +647,9 @@ img{display:block;max-width:100%;}
   .fbody2{padding:.8rem .85rem;}
   .nlist li{font-size:.72rem;}
 }
+
+/* アイコン（hugeicons） */
+.hi{width:1.2em;height:1.2em;stroke-width:1.8;flex-shrink:0;vertical-align:-.22em;}
+.tool i,.layer i{display:flex;}
+.win-bar h2 .hi,.vbtn .hi,.wk-info .hi{margin-right:.25em;}
+.cbtn .hi,.totop .hi,.tl-bar .hi{width:1.1em;height:1.1em;stroke-width:2.2;}
