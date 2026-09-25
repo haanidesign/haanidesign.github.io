@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=66';
+import { S, toast } from './state.js?v=67';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -24,7 +24,7 @@ let renderer = null;
 const keyOf = j => JSON.stringify([
   j.lyrics, j.style, j.seed, j.bpm, j.offset, j.W, j.H, j.fps,
   j.motion, j.glitch, j.chroma, j.decor, j.density, j.texture, j.koma, j.hud, j.bgSwitch,
-  j.extra, j.wa, j.lineScale, j.snap, j.tail, j.lineTimes, j.beatOffset
+  j.extra, j.wa, j.lineScale, j.snap, j.tail, j.lineTimes, j.beatOffset, j.ov
 ]);
 
 /** ふだの 中身から 組み立てる */
@@ -43,6 +43,7 @@ export function planOf(j) {
   pr.fps = j.fps || 24;
   pr.aspect = aspectOf(j.W || 1280, j.H || 720);
   pr.extra = j.extra !== false;
+  pr.overrides = j.ov || {};   // 行ごと・カットごとの さしかえ
   pr.wa = j.wa !== false;
   pr.fx = Object.assign({}, pr.fx, {
     motion: num(j.motion, .7), glitch: num(j.glitch, .55), chroma: num(j.chroma, .7),
@@ -72,10 +73,11 @@ export function planOf(j) {
 const num = (v, d) => (v === undefined || v === null || isNaN(+v) ? d : +v);
 
 /* ---------- カット 1つだけ 中身を さしかえる ----------
-   JIZURA-AviUtl2（SakiikaVR）の やり方を 借りた。
-   組み立てた plan の カットを 1つ 取りかえて、
-   ならべ方・登場・退場 などを その カットだけ 変える。
-   たねは そのまま なので、ほかの カットは 1ミリも 動かない。 */
+   nocore-dtm/JIZURA の やり方に そろえた。
+   組み立てた あとで 絵を すりかえるのでは なく、
+   組み立てる ときに「この行の k番目の カットは これ」と わたす。
+   えらばれ なかった ほうを 履歴に のこす 作りに なって いるので、
+   1つ 変えても ほかの カットは 1ミリも 動かない。 */
 export const EDIT_GROUPS = [
   ['layout', 'ならべ方'], ['enter', '登場'], ['hold', 'うごき'], ['exit', '退場'],
   ['treat', '文字の 加工'], ['bg', 'うしろの 絵'], ['cam', 'カメラ'], ['trans', 'つなぎ']
@@ -98,61 +100,67 @@ export function cutIndexOf(plan, j) {
   return best;
 }
 
-const editCache = new Map();
-const editKey = (j, base) => JSON.stringify([keyOf(j), j.off || 0, j.edit]);
+/** この ふだが 何行目の 何番目の カットか {line, k, cut} */
+export function cutSlot(j) {
+  const plan = planOf(j);
+  const i = cutIndexOf(plan, j);
+  if (i < 0) return null;
+  const cut = plan.cuts[i];
+  if (cut.line == null || cut.line < 0) return null;
+  let k = 0;
+  for (let n = 0; n < i; n++) if (plan.cuts[n].line === cut.line) k++;
+  return { line: cut.line, k, cut, index: i };
+}
 
-/** edit が 入って いれば、その カットだけ さしかえた plan を かえす */
-function withEdit(base, j) {
-  const e = j.edit;
-  if (!base || !e || !Object.keys(e).some(k => e[k])) return base;
-  const J = JZ();
-  if (!J || !J.registry) return base;
-  const ck = editKey(j, base);
-  const hit = editCache.get(ck);
-  if (hit && hit.base === base) return hit.plan;
+/** さしかえの ふくろ（同じ たねの ふだで 1つを 分けあう） */
+export const ovOf = j => (j.ov || (j.ov = {}));
+export function techOf(j) {
+  const sl = cutSlot(j);
+  if (!sl) return {};
+  const o = ovOf(j)[sl.line] || {};
+  return (o.cutTech && (o.cutTech[sl.k] || o.cutTech[String(sl.k)])) || {};
+}
+/** その カットの 部品を 1つ さしかえる（'' で おまかせに もどす）*/
+export function setTech(j, group, value) {
+  const sl = cutSlot(j);
+  if (!sl) return false;
+  const ov = ovOf(j);
+  const line = Object.assign({}, ov[sl.line] || {});
+  const cutTech = Object.assign({}, line.cutTech || {});
+  const slot = Object.assign({}, cutTech[sl.k] || cutTech[String(sl.k)] || {});
+  delete cutTech[String(sl.k)];
+  if (value === '' || value === null || value === undefined) delete slot[group];
+  else slot[group] = value;
+  if (Object.keys(slot).length) cutTech[sl.k] = slot; else delete cutTech[sl.k];
+  if (Object.keys(cutTech).length) line.cutTech = cutTech; else delete line.cutTech;
+  if (Object.keys(line).length) ov[sl.line] = line; else delete ov[sl.line];
+  return true;
+}
+/** その 行を いくつの カットに 切るか（0 で おまかせ）*/
+export function setCutCount(j, n) {
+  const sl = cutSlot(j);
+  if (!sl) return false;
+  const ov = ovOf(j);
+  const line = Object.assign({}, ov[sl.line] || {});
+  if (n > 0) line.cuts = Math.min(12, n | 0); else delete line.cuts;
+  if (Object.keys(line).length) ov[sl.line] = line; else delete ov[sl.line];
+  return true;
+}
+export const cutCountOf = j => {
+  const sl = cutSlot(j);
+  return sl ? ((ovOf(j)[sl.line] || {}).cuts || 0) : 0;
+};
 
-  const i = cutIndexOf(base, j);
-  if (i < 0) return base;
-  const src = base.cuts[i];
-  const cut = Object.assign({}, src);
+export const planFor = j => planOf(j);
 
-  if (typeof e.text === 'string' && e.text.trim()) {
-    cut.text = e.text; cut.lineText = e.text;
-    try { cut.words = J.chunkText(e.text); } catch (x) { }
-  }
-  EDIT_GROUPS.forEach(([g]) => {
-    const v = e[g];
-    if (v === undefined || v === null || v === '') return;
-    const key = (g === 'trans' && v === 'none') ? null : v;
-    const old = cut[g];
-    cut[g] = key;
-    if (!key || key === old) return;
-    const def = (J.registry(g) || {})[key];
-    if (!def) { cut[g] = old; return; }
-    const rng = J.rng((cut.seed | 0) + 1);
-    try {
-      if (g === 'layout' && def.plan) {
-        cut.params = def.plan(rng, {
-          text: cut.text, n: J.glyphCount(cut.text),
-          W: base.W, H: base.H, dur: cut.dur
-        }, base.style);
-      }
-      if (['treat', 'bg', 'cam', 'trans'].includes(g)) cut[g + 'P'] = def.plan ? def.plan(rng, base.style) : {};
-    } catch (x) { }
-  });
-  if (typeof e.decor === 'string') {
-    const names = e.decor.split(/[、,\n]/).map(x => x.trim()).filter(Boolean);
-    cut.decor = names.map((id, k) => {
-      if (!(J.registry('decor') || {})[id]) return null;
-      return Object.assign({}, (src.decor && (src.decor[k] || src.decor[0])) || {}, { id, seed: (cut.seed + k + 1) | 0 });
-    }).filter(Boolean);
-  }
-  const cuts = base.cuts.slice();
-  cuts[i] = cut;
-  const plan = Object.assign(Object.create(Object.getPrototypeOf(base)), base, { cuts });
-  editCache.set(ck, { base, plan });
-  if (editCache.size > 24) editCache.delete(editCache.keys().next().value);
-  return plan;
+/** いま その カットが つかって いる 部品 {layout:'…', …} */
+export function cutNow(j) {
+  const sl = cutSlot(j);
+  if (!sl) return null;
+  const cut = sl.cut;
+  const out = { text: cut.text || '', decor: (cut.decor || []).map(d => d.id).join('、') };
+  EDIT_GROUPS.forEach(([g]) => { out[g] = cut[g] || null; });
+  return out;
 }
 
 /** その スタイルが じっさいに つかって いる 部品だけ（雰囲気を こわさない ため）*/
@@ -164,19 +172,6 @@ export function partPool(j, group) {
   return seen;
 }
 
-/** さしかえこみの plan（えがく ときは いつも こちら） */
-export const planFor = j => withEdit(planOf(j), j);
-
-/** いま その カットが つかって いる 部品 {layout:'…', …} */
-export function cutNow(j) {
-  const base = planOf(j);
-  const i = cutIndexOf(base, j);
-  if (i < 0) return null;
-  const cut = (planFor(j).cuts || [])[i] || base.cuts[i];
-  const out = { text: cut.text || '', decor: (cut.decor || []).map(d => d.id).join('、') };
-  EDIT_GROUPS.forEach(([g]) => { out[g] = cut[g] || null; });
-  return out;
-}
 
 /** いちばん 近い 画面比を えらぶ */
 function aspectOf(W, H) {
@@ -237,10 +232,10 @@ export function newJz(o = {}) {
     motion: .7, glitch: .55, chroma: .7, decor: .5, density: .55, texture: .6,
     koma: 12, hud: 'auto', bgSwitch: .35, extra: true, wa: true,
     lineScale: 1, snap: true, tail: .9, lineTimes: {}, transparent: false,
-    off: 0, noTrans: false, layer: null
+    off: 0, noTrans: false, layer: null, ov: {}
   }, o);
 }
-export const clearCache = () => { planCache.clear(); editCache.clear(); };
+export const clearCache = () => planCache.clear();
 
 /** 歌詞の 行（空行と メタ行を のぞいた もの）。タップで 合わせる とき に つかう */
 export function linesOf(lyrics) {

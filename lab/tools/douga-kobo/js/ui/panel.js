@@ -3,20 +3,21 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=66';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=66';
-import { storeOk } from '../store.js?v=66';
-import { bus } from '../bus.js?v=66';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=66';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=66';
+} from '../state.js?v=67';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=67';
+import { storeOk } from '../store.js?v=67';
+import { bus } from '../bus.js?v=67';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=67';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=67';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
-  EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool } from '../jz.js?v=66';
+  EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
+  techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv } from '../jz.js?v=67';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=66';
+  offOf, setOff, clearOff } from '../text.js?v=67';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=66';
+} from '../edit.js?v=67';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -773,6 +774,33 @@ function jzEditBody(c) {
       .map(k => `${(+k) + 1}行目 ${times[k]}s`).join(' / ')) : null
   ]));
 
+  /* --- 1行を いくつの カットに するか（まだ きざんで いない ふだ） --- */
+  if (!(j.cutDur > 0)) {
+    const lines = jzLines(j) || [];
+    const ov = j.ov || (j.ov = {});
+    const cur = (ov[0] && ov[0].cuts) || 0;
+    const setAll = n => {
+      lines.forEach((_, i) => {
+        const L = Object.assign({}, ov[i] || {});
+        if (n > 0) L.cuts = Math.min(12, n); else delete L.cuts;
+        if (Object.keys(L).length) ov[i] = L; else delete ov[i];
+      });
+      jzClear(); pushUndo(); bus.all(); draw();
+    };
+    w.appendChild(group('1行を いくつに 切るか', [
+      num('カットの 数', cur, 1, v => setAll(Math.max(0, Math.min(12, v | 0)))),
+      grid(null, [
+        btn('おまかせ', 'btn-sm' + (cur ? '' : ' on'), () => setAll(0)),
+        btn('1行 = 1カット', 'btn-sm' + (cur === 1 ? ' on' : ''), () => setAll(1)),
+        btn('こまかく（6）', 'btn-sm' + (cur === 6 ? ' on' : ''), () => setAll(6)),
+        btn('1文字ずつ（12）', 'btn-sm' + (cur === 12 ? ' on' : ''), () => setAll(12))
+      ]),
+      hint('ぜんぶの 行を 同じ 数の カットに 分けます。<br>' +
+        '文字数より 多く すると <b>1文字ずつ</b> に なります（上は 12）。<br>' +
+        '<b>0 / おまかせ</b>で もとの 自動わりに もどります。')
+    ]));
+  }
+
   /* --- カットごとに 切る --- */
   {
     const cs = jzCuts(j);
@@ -856,16 +884,17 @@ function jzEditBody(c) {
   if (j.cutDur > 0) {
     const now = jzCutNow(j);
     if (now) {
-      const e = j.edit || (j.edit = {});
-      const hit = () => { jzClear(); pushUndo(); bus.all(); draw(); };
+      const tech = jzTech(j);
+      /* さしかえは 組み立てに ひびく ので、同じ たねの ふだ ぜんぶで
+         1つの ふくろを 分けあう。そうしないと ふだ ごとに 組み立てが ばらける。 */
+      const share = () => {
+        const ov = jzOv(j);
+        allClips().map(x => x.c).forEach(x => {
+          if (x.kind === 'jz' && x.jz && x.jz !== j && x.jz.seed === j.seed) x.jz.ov = ov;
+        });
+      };
+      const hit = () => { share(); jzClear(); pushUndo(); bus.all(); draw(); };
       const rows = [];
-      rows.push(row('文字', (() => {
-        const i = el('input'); i.type = 'text'; i.value = e.text || now.text || '';
-        i.addEventListener('change', () => { e.text = i.value.trim(); hit(); });
-        return i;
-      })()));
-      /* ★ は この スタイルが じっさいに つかって いる もの。
-         そこから えらべば 雰囲気が こわれない。 */
       const pools = {};
       JZ_EDIT.forEach(([g, label]) => {
         const list = jzParts(g);
@@ -876,26 +905,28 @@ function jzEditBody(c) {
         if (g === 'trans') opts.push(['none', 'なし']);
         list.filter(x => pool.includes(x[0])).forEach(x => opts.push([x[0], '★ ' + x[1]]));
         list.filter(x => !pool.includes(x[0])).forEach(x => opts.push(x));
-        rows.push(pick(label, opts, e[g] || '', v => { e[g] = v; hit(); }));
+        rows.push(pick(label, opts, tech[g] || '', v => { jzSetTech(j, g, v); hit(); }));
       });
       rows.push(grid(null, [
         btn('🎲 この カットだけ ひき直す', 'btn-sm', () => {
-          // たねを 1つ ずらすと この カットの 中身だけ 引き直せる
           // この スタイルが つかう ものの 中から だけ 引く（ちがう 雰囲気が 出て こない ように）
           JZ_EDIT.forEach(([g]) => {
             const pool = pools[g] || [];
             if (pool.length < 2 || g === 'trans') return;
-            let v = e[g];
-            for (let k = 0; k < 8 && (!v || v === e[g]); k++) v = pool[Math.floor(Math.random() * pool.length)];
-            e[g] = v;
+            let v = tech[g];
+            for (let k = 0; k < 8 && (!v || v === tech[g]); k++) v = pool[Math.floor(Math.random() * pool.length)];
+            jzSetTech(j, g, v);
           });
           hit();
         }),
-        btn('↺ おまかせに もどす', 'btn-sm btn-p', () => { j.edit = {}; hit(); })
+        btn('↺ おまかせに もどす', 'btn-sm btn-p', () => {
+          JZ_EDIT.forEach(([g]) => jzSetTech(j, g, ''));
+          hit();
+        })
       ]));
       rows.push(hint('この <b>1カットだけ</b> 中身を えらび直せます。ほかの カットは 動きません。<br>' +
         '<b>★</b> は この スタイルが じっさいに つかって いる もの。<br>' +
-        'ここから えらぶと 雰囲気が こわれません。「おまかせ」で もとに もどります。'));
+        'ここから えらぶと 雰囲気が こわれません。'));
       w.appendChild(group('この カットだけ 変える', rows));
     }
   }
@@ -1013,7 +1044,7 @@ function jzBody(w) {
   const list = jzStyles();
 
   const ta = el('textarea'); ta.rows = 7; ta.value = jzText;
-  ta.placeholder = 'ゆめの つづきを\nうたって いた\n*きみ* に とどけ';
+  ta.placeholder = 'ゆめの つづきを\nうたって いた\n[間奏 8]\n*きみ* に とどけ';
   ta.addEventListener('input', () => { jzText = ta.value; });
 
   const from = el('input'); from.type = 'number'; from.step = .1; from.value = r2(S.time);
@@ -1047,7 +1078,8 @@ function jzBody(w) {
 
   w.appendChild(group('歌詞', [
     hint('1行 ＝ 1フレーズ。<b>/</b> で カットを 割る。<b>*つよく*</b> で 強調。<br>' +
-      '行おわりの <b>!</b> で フラッシュ。<b>歌詞|注釈</b>。<b>[01:23.45]</b> で 時こく指定。'),
+      '行おわりの <b>!</b> で フラッシュ。<b>歌詞|注釈</b>。<b>[01:23.45]</b> で 時こく指定。<br>' +
+      '<b>[間奏 8]</b> だけの 行で 8秒の 間奏（歌詞なし）が 入ります。'),
     row(null, ta)
   ]));
 

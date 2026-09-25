@@ -6,7 +6,8 @@
 - もと: https://github.com/852wa/JIZURA
 - ライセンス: MIT License — Copyright (c) 2026 hakoniwa
 - 全文: `../LICENSE-JIZURA.txt`
-- 取りこんだ 時点: 2026-09-24（本家 `1b48bea`）
+- 取りこんだ 時点: 2026-09-25（[nocore-dtm/JIZURA](https://github.com/nocore-dtm/JIZURA) `782fa7d`。本家と 同じ MIT・同じ 権利者で、
+  行ごと・カットごとの さしかえ、[間奏] 行、カット数の 指定 などが 足された もの）
 
 ## 取りこむ にあたって したこと
 
@@ -37,6 +38,7 @@ new J.Renderer().frame(ctx, plan, t, { scale: 1 });
 
 ## 参考に した もの
 
-カット 1つだけ 中身を さしかえる やり方は
+カット 1つだけ 中身を さしかえる 画面は
 [JIZURA for AviUtl2](https://github.com/SakiikaVR/JIZURA-AviUtl2)（SakiikaVR, MIT）の
-`bridge.js` を 参考に しました。エンジン じたいは 本家と 同じ ものです。
+`bridge.js` を 参考に しました。中の しくみは いま
+nocore-dtm 版の `overrides` / `cutTech` を そのまま つかって います。

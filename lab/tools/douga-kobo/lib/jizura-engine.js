@@ -482,7 +482,7 @@ const TCSET = new Set([...TC]), SCSET = new Set([...SC]);
 // a few of the "Simplified" forms are also Japanese shinjitai (会 対 来 …) — kana decides Japanese first, so that is harmless
 
 /* which language are these lyrics in? (almost only Latin letters → en (English / romaji), kana → ja, hangul → ko,
-   Han only → Traditional / Simplified by the distinctive forms) */
+   Han only → Traditional / Simplified by the distinctive forms, Traditional when there are none) */
 J.detectLang = (text) => {
   let kana = 0, hangul = 0, han = 0, tc = 0, sc = 0, latin = 0;
   for (const c of String(text || '')) {
@@ -501,7 +501,8 @@ J.detectLang = (text) => {
   if (latin >= 6 && latin >= (latin + cjk * 3) * 0.9) return 'en';
   if (hangul >= 2 && hangul > kana) return 'ko';
   if (kana >= 2 || (kana > 0 && kana >= han * 0.03)) return 'ja';
-  if (han >= 2 && (tc || sc)) return tc >= sc ? 'zh-Hant' : 'zh-Hans';
+  // Han without kana is Chinese even when no distinctive form appears (the shared forms render fine in the TC faces)
+  if (han >= 2) return sc > tc ? 'zh-Hans' : 'zh-Hant';
   return 'ja';
 };
 /* project → the language actually used */
@@ -2224,6 +2225,13 @@ J.LAYOUTS = {
     render(env) {
       const { W, H, sc } = env, P = env.cut.params, lb = env.ltb;
       const fs = J.clamp(H * 0.022, 12, 22);
+      if (P.variant === 'quiet') {                        // [間奏]: nothing but the song title on long interludes
+        if (P.showTitle && P.titleText) {
+          const a = J.clamp(env.lt / 0.8) * J.clamp((env.cut.dur - env.lt) / 0.8);
+          env.draw({ text: P.titleText, font: env.st.fonts.body[0], size: fs * 1.1, x: W / 2, y: H * 0.88, track: 0.3, color: sc.sub, alpha: a, ghost: false });
+        }
+        return { x0: W * 0.3, x1: W * 0.7, y0: H * 0.3, y1: H * 0.7, cx: W / 2, cy: H / 2, boxes: [] };
+      }
       if (P.variant === 'counter') {
         const remain = Math.max(0, env.cut.dur - env.lt);
         env.draw({ text: remain.toFixed(1), font: env.st.fonts.display[0], size: H * 0.36, x: W / 2, y: H / 2, color: sc.fg, alpha: 0.9 });
@@ -2542,8 +2550,9 @@ J.stepDur = (fx, fps) => { const k = J.komaOf(fx); return k > 0 ? 1 / k : 1 / (f
 J.parseLyrics = (raw) => {
   const lines = []; const meta = {};
   let pendingGap = false;
-  for (let src of String(raw || '').replace(/\r/g, '').split('\n')) {
-    const s0 = src.trim();
+  const rows = String(raw || '').replace(/\r/g, '').split('\n');
+  for (let ri = 0; ri < rows.length; ri++) {
+    const s0 = rows[ri].trim();
     if (!s0) { if (lines.length) pendingGap = true; continue; }
     if (s0.startsWith('#')) continue;
     const mm = s0.match(/^\[(ti|ar|al|by|offset):(.*)\]$/i);
@@ -2552,6 +2561,15 @@ J.parseLyrics = (raw) => {
     let m;
     while ((m = s.match(/^\[(\d+):(\d+(?:[.:]\d+)?)\]/))) { times.push(+m[1] * 60 + parseFloat(m[2].replace(':', '.'))); s = s.slice(m[0].length); }
     s = s.trim();
+    // 間奏: [間奏] / [間奏 8] (8 seconds) — also [interlude] [inst] [间奏] [간주]; no lyrics, only background and decorations
+    const im = s.match(/^\[\s*(間奏|间奏|interlude|instrumental|inst|간주)(?:\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(?:s|sec|秒|초)?)?\s*\]$/i);
+    if (im) {
+      const base = { text: '', interlude: true, secs: im[2] ? parseFloat(im[2]) : null, note: null, impact: false, emph: [], manual: null, gapBefore: pendingGap, src: ri };
+      pendingGap = false;
+      if (times.length) times.forEach(t => lines.push(Object.assign({}, base, { lrc: t })));
+      else lines.push(Object.assign({}, base, { lrc: null }));
+      continue;
+    }
     let note = null;
     const bar = s.indexOf('|');
     if (bar >= 0) { note = s.slice(bar + 1).trim() || null; s = s.slice(0, bar).trim(); }
@@ -2566,7 +2584,7 @@ J.parseLyrics = (raw) => {
       s = manual.join(latin ? ' ' : '');
     }
     if (!s) continue;
-    const base = { text: s, note, impact, emph, manual, gapBefore: pendingGap };
+    const base = { text: s, note, impact, emph, manual, gapBefore: pendingGap, src: ri };
     pendingGap = false;
     if (times.length) times.forEach(t => lines.push(Object.assign({}, base, { lrc: t })));
     else lines.push(Object.assign({}, base, { lrc: null }));
@@ -2663,13 +2681,13 @@ J.computeTiming = (project, parsed, audio) => {
   lines.forEach((l, i) => {
     const man = T.lineTimes && T.lineTimes[i] != null ? +T.lineTimes[i] : null;
     let s;
-    if (allLrc) s = l.lrc;
-    else if (man != null && isFinite(man)) s = man;
+    if (man != null && isFinite(man)) s = man;          // a hand-set time (typed, tapped, dragged) wins over the LRC tag
+    else if (allLrc) s = l.lrc;
     else {
       if (i > 0) {
-        const n = [...lines[i - 1].text].length;
-        let d = J.clamp(0.8 + n * 0.17, 1.3, 5.2) * (T.lineScale || 1);
-        if (beat) d = Math.max(2, Math.round(d / beat)) * beat;
+        const n = [...lines[i - 1].text].length, pl = lines[i - 1];
+        let d = pl.interlude ? (pl.secs > 0 ? pl.secs : 4) : J.clamp(0.8 + n * 0.17, 1.3, 5.2) * (T.lineScale || 1);
+        if (beat && !(pl.interlude && pl.secs > 0)) d = Math.max(2, Math.round(d / beat)) * beat;
         s = starts[i - 1] + d + (l.gapBefore ? (beat ? beat * 2 : 0.8) : 0);
       } else s = t;
     }
@@ -2677,9 +2695,9 @@ J.computeTiming = (project, parsed, audio) => {
   });
   const ends = starts.map((s, i) => {
     if (i < starts.length - 1) return Math.max(s + 0.35, starts[i + 1]);
-    const n = [...lines[i].text].length;
-    let d = J.clamp(0.8 + n * 0.17, 1.5, 5.2) * (T.lineScale || 1);
-    if (beat) d = Math.max(2, Math.round(d / beat)) * beat;
+    const n = [...lines[i].text].length, L = lines[i];
+    let d = L.interlude ? (L.secs > 0 ? L.secs : 4) : J.clamp(0.8 + n * 0.17, 1.5, 5.2) * (T.lineScale || 1);
+    if (beat && !(L.interlude && L.secs > 0)) d = Math.max(2, Math.round(d / beat)) * beat;
     return s + d;
   });
   let duration = (ends.length ? ends[ends.length - 1] : 3) + (T.tail ?? 0.9);
@@ -2689,6 +2707,12 @@ J.computeTiming = (project, parsed, audio) => {
 
 /* ---------------- planning ---------------- */
 const wkey = (obj, k, d = 1) => (obj && obj[k] != null ? obj[k] : d);
+
+function cutTechOf(ov, k) {
+  const t = (ov.cutTech && (ov.cutTech[k] || ov.cutTech[String(k)])) || {};
+  const fromLay = ov.cutLayouts && (ov.cutLayouts[k] || ov.cutLayouts[String(k)]);
+  return fromLay && !t.layout ? Object.assign({}, t, { layout: fromLay }) : t;
+}
 
 J.plan = (project, audio) => {
   const st = J.resolveStyle(project);
@@ -2737,10 +2761,24 @@ J.plan = (project, audio) => {
     const ov = (project.overrides || {})[li] || {};
     const lineSeed = ov.lock && ov.lockedSeed != null ? ov.lockedSeed : J.h(project.seed, li + 1, ov.seed | 0);
     const rng = J.rng(lineSeed);
+    if (ln.interlude) {                                    // [間奏]: background, decorations and screen effects only
+      plan.lines.push({ index: li, src: ln.src, text: '', interlude: true, secs: ln.secs, start: s, end: e, visEnd: e, note: null, impact: false, emph: [], chunks: [], seed: lineSeed });
+      const bg = ov.bg && J.BG[ov.bg] ? ov.bg : pickBg(rng, st, en, fx, bgHistory); bgHistory.push(bg);
+      const dur = e - s, showTitle = dur >= 6 && !!(title || artist);
+      plan.cuts.push(makeCut({ text: '', lineText: '', line: li, start: s, end: e, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.4, outDur: 0.4,
+        params: { variant: 'quiet', showTitle, titleText: showTitle ? [title, artist].filter(Boolean).join('  /  ') : '' }, decor: Array.isArray(ov.decor) ? ov.decor.filter(id => J.DECOR[id]).map(id => decorParams(rng, id)) : pickDecor(rng, st, en, Object.assign({}, fx, { decor: Math.max(0.6, fx.decor) }), 'interlude', history),
+        scheme: schemeIdx, seed: J.h(lineSeed, 405), bg, bgP: J.BG[bg] && J.BG[bg].plan ? J.BG[bg].plan(rng, st) : {}, cam: 'push', camP: {} }));
+      if (en.fx == null || en.fx.chroma !== false) addEvent(s, 'chroma', 1 + fx.chroma, 0.25);
+      for (let t = s + 1.2; t < e - 0.8; t += J.clamp(dur / 4, 1.6, 3.2)) {          // a few effect accents so a long interlude keeps moving
+        const pick = pickFx(rng, st, en, fx, false, fxHistory, 'mid');
+        if (pick) { const D2 = J.FXE[pick]; addEvent(t, pick, (D2.amp || 1) * 0.6, (D2.dur || 3) / 24); fxHistory.push(pick); }
+      }
+      return;
+    }
     const n = [...ln.text.replace(/\s+/g, '')].length;
     const visEnd = Math.min(e, s + Math.max(3.6, n * 0.5 + 1.2));
     const D = visEnd - s;
-    plan.lines.push({ index: li, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
+    plan.lines.push({ index: li, src: ln.src, text: ln.text, start: s, end: e, visEnd, note: ln.note, impact: ln.impact, emph: ln.emph, chunks: null, seed: lineSeed });
     const chunks = ln.manual || (plan.lang === 'en' ? J.phraseChunks(J.chunkText(ln.text)) : J.chunkText(ln.text));
     plan.lines[li].chunks = chunks;
     const L = J.lerp(1.3, 0.5, fx.density);
@@ -2748,12 +2786,16 @@ J.plan = (project, audio) => {
     const maxC = chunks.length + (chunks.length >= 2 && D > 2.0 ? 1 : 0);
     nC = J.clamp(nC, 1, Math.max(1, maxC));
     if (ov.single) nC = 1;
+    // カット数の指定 (per line): exactly that many cuts — chunks are split further when the line has fewer
+    const fixedN = ov.cuts > 0 ? Math.min(12, ov.cuts | 0) : 0;
+    let chunks2 = chunks;
+    if (fixedN) { nC = fixedN; chunks2 = splitToCount(chunks, fixedN); }
     // groups of chunks
     let groups;
-    const nG = Math.min(nC, chunks.length);
+    const nG = Math.min(nC, chunks2.length);
     if (nG <= 1) groups = [ln.text];
-    else groups = partition(chunks, nG).map(g => g.join(/[A-Za-z]/.test(g.join('')) ? ' ' : ''));
-    const recap = nC > groups.length && groups.length >= 2;
+    else groups = partition(chunks2, nG).map(g => g.join(/[A-Za-z]/.test(g.join('')) ? ' ' : ''));
+    const recap = !fixedN && nC > groups.length && groups.length >= 2;
     const units = groups.map(g => ({ text: g, w: [...g].length + 1.6 }));
     if (recap) units.push({ text: ln.text, w: (units.reduce((a, u) => a + u.w, 0) / units.length) * 1.25, recap: true });
     const tot = units.reduce((a, u) => a + u.w, 0);
@@ -2772,10 +2814,17 @@ J.plan = (project, audio) => {
       const txt = u.text;
       const nn = [...txt.replace(/\s+/g, '')].length;
       const emph = ln.impact && (k === 0 || u.recap) || ln.emph.some(w => txt.includes(w));
-      const layout = ov.layout && J.LAYOUTS[ov.layout] ? ov.layout : pickLayout(rng, st, en, nn, dur, history, emph, u.recap, H > W);
-      let enter = ov.enter && J.ENTER[ov.enter] ? ov.enter : pickEnter(rng, st, en, layout, dur, history, emph, nn);
-      let exit = ov.exit && J.EXIT[ov.exit] ? ov.exit : pickExit(rng, st, en, layout, dur, k === units.length - 1, history);
-      const hold = ov.hold && J.HOLD[ov.hold] ? ov.hold : pickHold(rng, en, fx, history);
+      const pickedLayout = pickLayout(rng, st, en, nn, dur, history, emph, u.recap, H > W);
+      const tech = cutTechOf(ov, k);
+      const layout = (tech.layout && J.LAYOUTS[tech.layout] && !J.LAYOUTS[tech.layout].special) ? tech.layout
+        : (ov.layout && J.LAYOUTS[ov.layout] ? ov.layout : pickedLayout);
+      const pickedEnter = ov.enter && J.ENTER[ov.enter] ? ov.enter : pickEnter(rng, st, en, pickedLayout, dur, history, emph, nn);
+      const pickedExit = ov.exit && J.EXIT[ov.exit] ? ov.exit : pickExit(rng, st, en, pickedLayout, dur, k === units.length - 1, history);
+      const pickedHold = ov.hold && J.HOLD[ov.hold] ? ov.hold : pickHold(rng, en, fx, history);
+      let enter = pickedEnter, exit = pickedExit, hold = pickedHold;
+      if (tech.enter && J.ENTER[tech.enter]) enter = tech.enter;
+      if (tech.exit && J.EXIT[tech.exit]) exit = tech.exit;
+      if (tech.hold && J.HOLD[tech.hold]) hold = tech.hold;
       let inDur = J.clamp(dur * 0.36, 0.12, 0.6);
       if (enter === 'type') inDur = J.clamp(nn * 0.055 + 0.1, 0.15, dur * 0.65);
       if (enter === 'assemble') inDur = J.clamp(dur * 0.45, 0.22, 0.75);
@@ -2787,33 +2836,67 @@ J.plan = (project, audio) => {
       if (inDur + outDur > dur * 0.92) { const f = dur * 0.92 / (inDur + outDur); inDur *= f; outDur *= f; }
       let sch = schemeIdx;
       if (nSchemes > 1 && k > 0 && rng.chance(0.12 * fx.bgSwitch)) sch = (schemeIdx + 1) % nSchemes;
+      const LD0 = J.LAYOUTS[pickedLayout];
       const LD = J.LAYOUTS[layout];
-      const params = LD.plan(rng, { text: txt, n: nn, W, H, dur }, st);
-      const decor = Array.isArray(ov.decor) ? ov.decor.filter(id => J.DECOR[id]).map(id => decorParams(rng, id)) : pickDecor(rng, st, en, fx, layout, history);
-      const treat = ov.treat && J.TREAT[ov.treat] ? ov.treat : pickTreat(rng, st, en, fx, LD, emph, history);
-      const treatP = J.TREAT[treat].plan ? J.TREAT[treat].plan(rng, st) : {};
+      let params = LD0.plan(rng, { text: txt, n: nn, W, H, dur }, st);
+      if (layout !== pickedLayout) {
+        try { params = LD.plan(J.rng(J.h(lineSeed, k, 91)), { text: txt, n: nn, W, H, dur }, st); } catch (e) {}
+      }
+      const decor = Array.isArray(ov.decor) ? ov.decor.filter(id => J.DECOR[id]).map(id => decorParams(rng, id)) : pickDecor(rng, st, en, fx, pickedLayout, history);
+      const pickedDecor = decor.map(d => d.id);
+      if (tech.decor !== undefined) {
+        if (!tech.decor || tech.decor === 'none' || !J.DECOR[tech.decor]) decor.length = 0;
+        else { decor.length = 0; decor.push(decorParams(J.rng(J.h(lineSeed, k, 92)), tech.decor)); }
+      }
+      const pickedTreat = ov.treat && J.TREAT[ov.treat] ? ov.treat : pickTreat(rng, st, en, fx, LD0, emph, history);
+      let treat = pickedTreat;
+      let treatP = J.TREAT[treat].plan ? J.TREAT[treat].plan(rng, st) : {};
+      if (tech.treat && J.TREAT[tech.treat]) {
+        treat = tech.treat;
+        treatP = J.TREAT[treat].plan ? J.TREAT[treat].plan(J.rng(J.h(lineSeed, k, 93)), st) : {};
+      }
       if (!ov.bg && k > 0 && rng.chance(0.18 * fx.bgSwitch + 0.04)) { lineBg = pickBg(rng, st, en, fx, bgHistory); lineBgP = J.BG[lineBg].plan ? J.BG[lineBg].plan(rng, st) : {}; }
-      const bg = LD.busy && !(J.BG[lineBg] && J.BG[lineBg].subtle) ? 'none' : lineBg;
-      const cam = ov.cam && J.CAMERA[ov.cam] ? ov.cam : pickCam(rng, st, en, fx, LD, emph, history);
-      const camP = J.CAMERA[cam].plan ? J.CAMERA[cam].plan(rng, st) : {};
-      // cut-to-cut transition (replaces the previous cut's exit and this cut's entrance)
+      let bg = LD.busy && !(J.BG[lineBg] && J.BG[lineBg].subtle) ? 'none' : lineBg;
+      let bgP = bg === lineBg ? lineBgP : {};
+      if (tech.bg && J.BG[tech.bg]) {
+        bg = tech.bg;
+        bgP = J.BG[bg].plan ? J.BG[bg].plan(J.rng(J.h(lineSeed, k, 94)), st) : {};
+      }
+      const pickedCam = ov.cam && J.CAMERA[ov.cam] ? ov.cam : pickCam(rng, st, en, fx, LD0, emph, history);
+      let cam = pickedCam;
+      let camP = J.CAMERA[cam].plan ? J.CAMERA[cam].plan(rng, st) : {};
+      if (tech.cam && J.CAMERA[tech.cam]) {
+        cam = tech.cam;
+        camP = J.CAMERA[cam].plan ? J.CAMERA[cam].plan(J.rng(J.h(lineSeed, k, 95)), st) : {};
+      }
       const prevCut = plan.cuts[plan.cuts.length - 1];
       let trans = null, transP = {}, transDur = 0;
       const canTrans = prevCut && Math.abs(prevCut.end - cs) < 0.06 && prevCut.layout !== 'interlude' && dur > 0.5;
+      let pickedTrans = null;
       if (canTrans) {
-        trans = ov.trans && J.TRANS[ov.trans] ? ov.trans : pickTrans(rng, st, en, fx, emph, history);
-        if (trans) {
+        pickedTrans = ov.trans && J.TRANS[ov.trans] ? ov.trans : pickTrans(rng, st, en, fx, emph, history);
+        trans = pickedTrans;
+        if (trans && J.TRANS[trans]) {
           const TD = J.TRANS[trans];
           transDur = J.clamp(TD.dur || 0.35, 0.12, Math.min(0.6, dur * 0.45));
           transP = TD.plan ? TD.plan(rng, st) : {};
-          enter = 'cut'; inDur = 0.12;
-          prevCut.exit = 'cut'; prevCut.outDur = 0;
         }
       }
+      if (tech.trans === '' || tech.trans === 'none') { trans = null; transP = {}; transDur = 0; }
+      else if (tech.trans && J.TRANS[tech.trans]) {
+        trans = tech.trans;
+        const TD = J.TRANS[trans];
+        transDur = J.clamp(TD.dur || 0.35, 0.12, Math.min(0.6, dur * 0.45));
+        transP = TD.plan ? TD.plan(J.rng(J.h(lineSeed, k, 96)), st) : {};
+      }
+      if (trans && prevCut && prevCut.layout !== 'interlude') {
+        enter = 'cut'; inDur = 0.12;
+        prevCut.exit = 'cut'; prevCut.outDur = 0;
+      }
       const cut = makeCut({ text: txt, lineText: ln.text, note: ln.note, line: li, start: cs, end: ce, layout, enter, exit, hold, inDur, outDur, params, decor, scheme: sch, seed: J.h(lineSeed, k, 17), emph, recap: !!u.recap, words: J.chunkText(txt), stagger: rng.range(0.025, 0.06),
-        treat, treatP, bg, bgP: bg === lineBg ? lineBgP : {}, cam, camP, trans, transP, transDur });
+        treat, treatP, bg, bgP, cam, camP, trans, transP, transDur });
       plan.cuts.push(cut);
-      history.push({ layout, enter, exit, hold, treat, cam, trans, decor: decor.map(d => d.id) });
+      history.push({ layout: pickedLayout, enter: pickedEnter, exit: pickedExit, hold: pickedHold, treat: pickedTreat, cam: pickedCam, trans: pickedTrans, decor: pickedDecor });
       // events at cut start
       // events at cut start — durations are on a 24fps timebase so every output rate looks the same
       const g = fx.glitch * (st.glitchBoost || 1);
@@ -2837,7 +2920,7 @@ J.plan = (project, audio) => {
     });
     // interlude in long gaps
     const nextStart = li < parsed.lines.length - 1 ? tm.starts[li + 1] : null;
-    if (nextStart != null && nextStart - visEnd > 1.3) {
+    if (nextStart != null && nextStart - visEnd > 1.3 && !parsed.lines[li + 1].interlude) {
       const r2 = J.rng(J.h(lineSeed, 404));
       plan.cuts.push(makeCut({ text: title || '', lineText: '', line: li, start: visEnd, end: nextStart, layout: 'interlude', enter: 'blur', exit: 'blur', hold: 'still', inDur: 0.3, outDur: 0.3, params: J.LAYOUTS.interlude.plan(r2), decor: pickDecor(r2, st, en, Object.assign({}, fx, { decor: 1 }), 'interlude'), scheme: schemeIdx, seed: J.h(lineSeed, 405) }));
     }
@@ -2854,6 +2937,28 @@ function makeCut(o) {
   const c = Object.assign({ hold: 'still', inDur: 0.3, outDur: 0.25, stagger: 0.04, decor: [], params: {}, scheme: 0, emph: false, words: [], note: null, treat: 'none', treatP: {}, bg: 'none', bgP: {}, cam: 'push', camP: {} }, o);
   c.dur = c.end - c.start;
   return c;
+}
+/* split chunks until there are at least n pieces (longest first: words for Latin text, characters otherwise) */
+function splitToCount(chunks, n) {
+  const out = chunks.slice();
+  let guard = 0;
+  while (out.length < n && guard++ < 64) {
+    let bi = -1, bl = 1;
+    out.forEach((c, i) => { const l = /\s/.test(c.trim()) ? c.trim().split(/\s+/).length : [...c].length; if (l > bl) { bl = l; bi = i; } });
+    if (bi < 0) break;
+    const c = out[bi].trim();
+    let a, b;
+    if (/\s/.test(c)) { const w = c.split(/\s+/), h = Math.ceil(w.length / 2); a = w.slice(0, h).join(' '); b = w.slice(h).join(' '); }
+    else {
+      // at a word boundary nearest the middle when there is one (夜明け|の), else between characters
+      const ch = [...c], segs = J.segments ? J.segments(c) : [];
+      let cut = Math.ceil(ch.length / 2);
+      if (segs.length > 1) { let acc = 0, best = -1, bd = 1e9; for (let k = 0; k < segs.length - 1; k++) { acc += [...segs[k]].length; const d = Math.abs(acc - ch.length / 2); if (d < bd) { bd = d; best = acc; } } if (best > 0) cut = best; }
+      a = ch.slice(0, cut).join(''); b = ch.slice(cut).join('');
+    }
+    out.splice(bi, 1, a, b);
+  }
+  return out;
 }
 function partition(chunks, k) {
   const lens = chunks.map(c => [...c].length + 1);
@@ -2997,6 +3102,90 @@ function pickFx(rng, st, en, fx, emph, fxHist, kind) {
     .map(k => { const D = J.FXE[k]; let w = wkey(st.bias && st.bias.fx, k, D.w ?? 1) * (last.includes(k) ? 0.2 : 1); if (D.glitchy) w *= 0.3 + g * 1.4; return [k, w]; });
   return cands.length ? rng.wpick(cands) : null;
 }
+
+/* one-cut (or two-cut, for transitions) plan used by the 手法 tab thumbnails */
+J.previewPlan = (project, group, key) => {
+  const enUI = typeof document !== 'undefined' && document.documentElement && document.documentElement.lang === 'en';
+  const st = J.resolveStyle(project);
+  const fx = Object.assign({}, J.defaultProject().fx, project.fx || {}, {
+    glitch: group === 'fx' ? 0.85 : 0,
+    chroma: group === 'fx' ? 0.9 : 0.22,
+    flash: false, hud: 'off', texture: 0.3, bgSwitch: 0, motion: 0.75,
+    decor: group === 'decor' ? 1 : 0,
+  });
+  const [W, H] = J.designSize(project.aspect || '16:9');
+  const rng = J.rng(J.h(J.sid(String(group) + ':' + String(key)), 11, 22));
+  let text = enUI ? 'Lyric' : '字面';
+  if (group === 'layout') {
+    const L0 = J.LAYOUTS[key];
+    const n2 = [...text.replace(/\s+/g, '')].length;
+    if (L0 && L0.fits && !L0.fits(n2)) text = enUI ? 'color of dawn' : '夜明けの色を';
+    if (L0 && L0.fits && !L0.fits([...text.replace(/\s+/g, '')].length)) text = enUI ? 'I remember the color of dawn' : '夜明けの色を覚えてる';
+  }
+  const nn = [...text.replace(/\s+/g, '')].length;
+  const dur = 2.4;
+  let layout = group === 'layout' ? key : 'center';
+  if (!J.LAYOUTS[layout] || J.LAYOUTS[layout].special) layout = 'center';
+  let enter = group === 'enter' ? key : 'cut';
+  let exit = group === 'exit' ? key : 'cut';
+  let hold = group === 'hold' ? key : 'still';
+  if (!J.ENTER[enter]) enter = 'cut';
+  if (!J.EXIT[exit]) exit = 'cut';
+  if (!J.HOLD[hold]) hold = 'still';
+  if (group === 'layout' || group === 'decor' || group === 'treat' || group === 'bg') {
+    if (enter === 'cut' && J.ENTER.pop) enter = 'pop';
+    if (hold === 'still' && J.HOLD.breathe) hold = 'breathe';
+    else if (hold === 'still' && J.HOLD.drift) hold = 'drift';
+  }
+  const LD = J.LAYOUTS[layout];
+  let params = {};
+  try { params = LD.plan(rng, { text, n: nn, W, H, dur }, st) || {}; } catch (e) { params = {}; }
+  let inDur = enter === 'cut' ? 0.12 : 0.5;
+  if (J.ENTER[enter] && J.ENTER[enter].inDur) try { inDur = J.ENTER[enter].inDur(dur, nn); } catch (e) {}
+  let outDur = exit === 'cut' ? 0 : 0.5;
+  if (J.EXIT[exit] && J.EXIT[exit].outDur) try { outDur = J.EXIT[exit].outDur(dur, nn); } catch (e) {}
+  if (inDur + outDur > dur * 0.85) { const f = dur * 0.85 / Math.max(0.2, inDur + outDur); inDur *= f; outDur *= f; }
+  const decor = (group === 'decor' && J.DECOR[key]) ? [decorParams(rng, key)] : [];
+  let treat = group === 'treat' ? key : 'none';
+  if (!J.TREAT[treat]) treat = 'none';
+  const treatP = (J.TREAT[treat] && J.TREAT[treat].plan) ? (J.TREAT[treat].plan(rng, st) || {}) : {};
+  let bg = group === 'bg' ? key : 'none';
+  if (!J.BG[bg]) bg = 'none';
+  const bgP = (J.BG[bg] && J.BG[bg].plan) ? (J.BG[bg].plan(rng, st) || {}) : {};
+  let cam = group === 'cam' ? key : 'push';
+  if (!J.CAMERA[cam]) cam = 'push';
+  const camP = (J.CAMERA[cam] && J.CAMERA[cam].plan) ? (J.CAMERA[cam].plan(rng, st) || {}) : {};
+  const events = [];
+  if (group === 'fx' && J.FXE[key]) {
+    const D2 = J.FXE[key];
+    events.push({ t: 0.04, type: key, amp: (D2.amp || 1.15) * 1.2, dur: ((D2.dur || 6) / 24) });
+  }
+  const cuts = [];
+  if (group === 'trans' && J.TRANS[key]) {
+    const TD = J.TRANS[key];
+    const transDur = J.clamp(TD.dur || 0.35, 0.18, 0.7);
+    const transP = TD.plan ? (TD.plan(rng, st) || {}) : {};
+    const tA = enUI ? 'BEFORE' : '前のカット';
+    const tB = enUI ? 'AFTER' : '字面';
+    let pA = {}, pB = {};
+    try { pA = J.LAYOUTS.center.plan(rng, { text: tA, n: [...tA].length, W, H, dur: 1.2 }, st) || {}; } catch (e) {}
+    try { pB = J.LAYOUTS.center.plan(rng, { text: tB, n: [...tB].length, W, H, dur: 1.2 }, st) || {}; } catch (e) {}
+    cuts.push(makeCut({ text: tA, lineText: tA, line: 0, start: 0, end: 1.2, layout: 'center', enter: 'cut', exit: 'cut', hold: 'still', inDur: 0.12, outDur: 0, params: pA, decor: [], scheme: 0, seed: 1, words: J.chunkText(tA) }));
+    cuts.push(makeCut({ text: tB, lineText: tB, line: 1, start: 1.2, end: 2.4, layout: 'center', enter: 'cut', exit: 'cut', hold: 'still', inDur: 0.12, outDur: 0, params: pB, decor: [], scheme: Math.min(1, st.schemes.length - 1), seed: 2, words: J.chunkText(tB), trans: key, transP, transDur }));
+  } else {
+    cuts.push(makeCut({
+      text, lineText: text, line: 0, start: 0, end: dur, layout, enter, exit, hold, inDur, outDur,
+      params, decor, scheme: 0, seed: J.h(J.sid(String(key)), 9), words: J.chunkText(text),
+      treat, treatP, bg, bgP, cam, camP, stagger: 0.04,
+    }));
+  }
+  cuts.forEach((c, i) => { c.index = i; });
+  return {
+    version: 1, generator: 'JIZURA-preview', title: '', artist: '', W, H, fps: 24,
+    duration: cuts[cuts.length - 1].end, styleKey: project.style, style: st, fx,
+    lines: [], cuts, events, beats: [], hud: false, keyBg: null,
+  };
+};
 
 J.designSize = (aspect) => {
   if (aspect === '9:16') return [1080, 1920];
@@ -3651,6 +3840,52 @@ J.analyzeAudio = async (file) => {
   };
 };
 
+/* 16-bit PCM WAV of an AudioBuffer, cut / padded to `duration` seconds (the soundtrack next to an MP4 whose
+   audio track some players cannot play, or when the browser has no audio encoder) */
+J.audioWav = (buffer, duration, offset = 0) => {
+  const sr = buffer.sampleRate, chn = Math.min(2, buffer.numberOfChannels);
+  const n = Math.max(1, Math.round((duration > 0 ? duration : buffer.duration) * sr));
+  const bytes = n * chn * 2, ab = new ArrayBuffer(44 + bytes), v = new DataView(ab);
+  const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + bytes, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, chn, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * chn * 2, true); v.setUint16(32, chn * 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, bytes, true);
+  const ch = []; for (let c = 0; c < chn; c++) ch.push(buffer.getChannelData(c));
+  const L = buffer.length, i0 = Math.max(0, Math.round(offset * sr)); let o = 44;
+  for (let i = 0; i < n; i++) for (let c = 0; c < chn; c++) {
+    const j = i + i0, x = j < L ? Math.max(-1, Math.min(1, ch[c][j])) : 0;
+    v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7fff, true); o += 2;
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+};
+
+/* the last song, kept in this browser (IndexedDB) so a reload does not silently drop the audio from exports */
+const IDB = { db: null };
+IDB.open = () => IDB.db || (IDB.db = new Promise((res, rej) => {
+  if (typeof indexedDB === 'undefined') return rej(new Error('no IndexedDB'));
+  const r = indexedDB.open('jizura', 1);
+  r.onupgradeneeded = () => { r.result.createObjectStore('files'); };
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+}));
+J.saveSong = async (file) => {
+  try {
+    const db = await IDB.open(), data = await file.arrayBuffer();
+    await new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put({ name: file.name, type: file.type, data }, 'song'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    return true;
+  } catch (e) { return false; }
+};
+J.loadSong = async () => {
+  try {
+    const db = await IDB.open();
+    const rec = await new Promise((res, rej) => { const tx = db.transaction('files', 'readonly'); const q = tx.objectStore('files').get('song'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    if (!rec || !rec.data) return null;
+    return new File([rec.data], rec.name || 'song', { type: rec.type || '' });
+  } catch (e) { return null; }
+};
+J.forgetSong = async () => {
+  try { const db = await IDB.open(); await new Promise(res => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').delete('song'); tx.oncomplete = res; tx.onerror = res; }); } catch (e) {}
+};
+
 /* rebuild a beat grid from a user BPM + first-beat offset */
 J.beatGrid = (bpm, offset, duration) => {
   const out = []; if (!(bpm > 0)) return out;
@@ -3711,16 +3946,22 @@ J.pickAudioCodec = async (sr, chn) => {
   return null;
 };
 
-async function resample(buffer, sr, duration) {
+async function resample(buffer, sr, duration, offset = 0) {
   const chn = Math.min(2, buffer.numberOfChannels);
   const len = Math.ceil(duration * sr);
   const oc = new OfflineAudioContext(chn, len, sr);
-  const src = oc.createBufferSource(); src.buffer = buffer; src.connect(oc.destination); src.start(0);
+  const src = oc.createBufferSource(); src.buffer = buffer; src.connect(oc.destination); src.start(0, Math.max(0, offset));
   return oc.startRendering();
 }
+/* part of the song to export: range = { t0, t1 } in seconds (選んだ行だけ), default the whole plan */
+J.exportSpan = (plan, range) => {
+  const t0 = range ? Math.max(0, range.t0) : 0, t1 = range ? Math.min(plan.duration, range.t1) : plan.duration;
+  return { t0, dur: Math.max(1 / plan.fps, t1 - t0) };
+};
 
 /* ---------- MP4 ---------- */
-J.exportMP4 = async ({ plan, project, audio, quality = 'high', onProgress, signal }) => {
+J.exportMP4 = async ({ plan, project, audio, quality = 'high', onProgress, signal, range }) => {
+  const span = J.exportSpan(plan, range);
   const [w, h] = J.outputSize(project);
   const fps = plan.fps;
   const px = w * h * fps;
@@ -3739,14 +3980,14 @@ J.exportMP4 = async ({ plan, project, audio, quality = 'high', onProgress, signa
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d', { alpha: false });
   const R = new J.Renderer();
-  const total = Math.max(1, Math.round(plan.duration * fps));
+  const total = Math.max(1, Math.round(span.dur * fps));
   const scale = w / plan.W;
   const prevRes = J.glyphs.maxRes; J.glyphs.maxRes = h >= 1000 ? 768 : 512;
   try {
   for (let i = 0; i < total; i++) {
     if (signal && signal.aborted) { try { venc.close(); } catch (e) {} throw new Error('キャンセルしました'); }
     if (err) throw err;
-    R.frame(ctx, plan, i / fps, { scale });
+    R.frame(ctx, plan, span.t0 + i / fps, { scale });
     const vf = new VideoFrame(canvas, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
     venc.encode(vf, { keyFrame: i % (fps * 2) === 0 });
     vf.close();
@@ -3757,9 +3998,10 @@ J.exportMP4 = async ({ plan, project, audio, quality = 'high', onProgress, signa
   await venc.flush(); venc.close();
   if (ac) {
     onProgress && onProgress(0.99, '音声をエンコード中');
-    const rs = await resample(audio.buffer, ac.sr, plan.duration);
+    const rs = await resample(audio.buffer, ac.sr, span.dur, span.t0);
     const chn = rs.numberOfChannels;
-    const aenc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: e => { err = e; } });
+    let aChunks = 0, aEnd = 0;
+    const aenc = new AudioEncoder({ output: (chunk, meta) => { aChunks++; aEnd = Math.max(aEnd, chunk.timestamp + (chunk.duration || 0)); muxer.addAudioChunk(chunk, meta); }, error: e => { err = e; } });
     aenc.configure({ codec: ac.codec, sampleRate: ac.sr, numberOfChannels: chn, bitrate: 192000 });
     const frames = rs.length, block = 4800;
     for (let off = 0; off < frames; off += block) {
@@ -3772,10 +4014,12 @@ J.exportMP4 = async ({ plan, project, audio, quality = 'high', onProgress, signa
     }
     await aenc.flush(); aenc.close();
     if (err) throw err;
+    // the encoder must have produced the whole soundtrack — otherwise report it instead of writing a silent file
+    if (!aChunks || aEnd < (Math.min(span.dur, audio.buffer.duration - span.t0) - 0.5) * 1e6) throw new Error('音声のエンコードが途中で止まりました（' + aChunks + '）。もう一度書き出してください');
   }
   muxer.finalize();
   onProgress && onProgress(1, '完了');
-  return { blob: new Blob([target.buffer], { type: 'video/mp4' }), codec: vc.label, audio: ac ? ac.mux : null, width: w, height: h };
+  return { blob: new Blob([target.buffer], { type: 'video/mp4' }), codec: vc.label, audio: ac ? ac.mux : null, audioWanted: !!(audio && audio.buffer && project.includeAudio !== false), width: w, height: h };
 };
 
 /* ---------- PNG sequence as ZIP (store, no compression) ---------- */
@@ -3807,19 +4051,20 @@ class ZipWriter {
 }
 /* layers: transparent PNGs in two folders — back/ (background graphic + decorations behind the lyrics) and front/
    (lyrics, their decorations, ghosts, HUD). Screen effects are applied to both, so stacking front over back matches. */
-J.exportPNGZip = async ({ plan, project, transparent, layers, onProgress, signal, every = 1 }) => {
+J.exportPNGZip = async ({ plan, project, transparent, layers, onProgress, signal, every = 1, range }) => {
+  const span = J.exportSpan(plan, range);
   const [w, h] = J.outputSize(project);
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
   const R = new J.Renderer();
-  const fps = plan.fps, total = Math.max(1, Math.round(plan.duration * fps));
+  const fps = plan.fps, total = Math.max(1, Math.round(span.dur * fps));
   const zip = new ZipWriter();
   const scale = w / plan.W;
   for (let i = 0; i < total; i += every) {
     if (signal && signal.aborted) throw new Error('キャンセルしました');
     const name = `jizura_${String(i).padStart(5, '0')}.png`;
     for (const layer of layers ? ['back', 'front'] : [null]) {
-      R.frame(ctx, plan, i / fps, { scale, transparent: transparent || !!layers, layer });
+      R.frame(ctx, plan, span.t0 + i / fps, { scale, transparent: transparent || !!layers, layer });
       const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
       zip.add((layer ? layer + '/' : '') + name, new Uint8Array(await blob.arrayBuffer()));
     }
@@ -3843,7 +4088,7 @@ J.AE_MAP = {
 };
 // The plan goes to the After Effects panel as-is (version 2): the panel builds every key it implements and
 // picks the closest counterpart itself (from the exported metadata / J.AE_MAP) for anything it lacks.
-J.planForAE = (plan, project) => {
+J.planForAE = (plan, project, range) => {
   const clean = JSON.parse(JSON.stringify(plan, (k, v) => (k === 'energy' || k === 'buffer' || k === 'peaks' ? undefined : v)));
   clean.version = 2;
   clean.width = J.outputSize(project)[0]; clean.height = J.outputSize(project)[1];
@@ -3856,6 +4101,16 @@ J.planForAE = (plan, project) => {
   if (J.setLang && J.faceOf && clean.lang !== 'ja') {
     J.setLang(clean.lang);
     for (const k of Object.keys(clean.fontTable)) { const f = J.faceOf(k); clean.fontTable[k].langFamily = f.family.replace(/"/g, ''); clean.fontTable[k].langWeight = f.weight; }
+  }
+  // 行の範囲だけ: keep the cuts / events inside [t0, t1] and move them to start at 0.
+  // audioOffset tells the AE panel to slide the song layer left by t0 so it stays in sync.
+  if (range) {
+    const sp = J.exportSpan(plan, range), t0 = sp.t0, t1 = t0 + sp.dur, eps = 1e-3;
+    const sh = o => { o.start -= t0; o.end -= t0; return o; };
+    clean.cuts = clean.cuts.filter(c => c.end > t0 + eps && c.start < t1 - eps).map(sh);
+    clean.events = (clean.events || []).filter(e => e.t >= t0 - 1 && e.t < t1).map(e => Object.assign(e, { t: e.t - t0 }));
+    for (const l of clean.lines || []) { sh(l); if (l.visEnd != null) l.visEnd -= t0; }   // all lines stay (cut.line indexes them)
+    clean.duration = sp.dur; clean.audioOffset = t0; clean.range = { t0, t1 };
   }
   return clean;
 };
