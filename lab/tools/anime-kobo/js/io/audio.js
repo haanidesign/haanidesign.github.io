@@ -37,6 +37,21 @@ export const A = {
 
 export const hasAudio = () => !!A.buf;
 
+/* ---- 作業中だけ 音を 切る ----
+   となりで 人が 寝て いる、外に いる、耳が つかれた ―― そういう とき用。
+   切って いても 書き出しには ちゃんと 音が 入る
+   （書き出しは 鳴らさずに、音の もとから 直に つくる ので）。
+   えらんだ ものは この 端末に おぼえて おく。 */
+const MUTE_KEY = 'anime-kobo.mute';
+let muted = false;
+try{ muted = localStorage.getItem(MUTE_KEY) === '1'; }catch(e){}
+export const isMuted = () => muted;
+export function setMuted(v){
+  muted = !!v;
+  try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
+  if(muted) stop();
+}
+
 /** 音を 鳴らして いいか。
     🔊 の 行の 目を 切って いたら 鳴らさない（書き出しにも 入れない）。 */
 export function audioEnabled(project){
@@ -291,7 +306,7 @@ let node = null, startedAt = 0, startedFrom = 0, gain = null;
  */
 export function play(from, volume, off){
   stop();
-  if(!A.buf) return;
+  if(!A.buf || muted) return;
   const c = audioCtx();
   if(c.state === 'suspended') c.resume();
   const shift = off || 0;
@@ -644,6 +659,7 @@ function writeBlip(ch, at, sr, gain, hz){
 
 /** いま 鳴らす（画面で 見て いる とき用） */
 export function playBlip(volume, hz){
+  if(muted) return;
   try{
     const c = audioCtx();
     if(c.state === 'suspended') c.resume();

@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=284';
+import { M } from './engine/math.js?v=288';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=284';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=288';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=284';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=284';
-import { createRenderer } from './render/renderer.js?v=284';
-import { createTimeline } from './ui/timeline.js?v=284';
-import { fmtTime, setPin } from './engine/anim.js?v=284';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=284';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=288';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=288';
+import { createRenderer } from './render/renderer.js?v=288';
+import { createTimeline } from './ui/timeline.js?v=288';
+import { fmtTime, setPin } from './engine/anim.js?v=288';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=288';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,24 +21,24 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=284';
+         setWarper } from './ui/sheet.js?v=288';
 
-import { showNewDoc } from './ui/newdoc.js?v=284';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=284';
-import { fitToCanvas, isBg } from './io/bg.js?v=284';
-import * as Audio from './io/audio.js?v=284';
-import { isTalk, blipTimes } from './engine/talk.js?v=284';
+import { showNewDoc } from './ui/newdoc.js?v=288';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=288';
+import { fitToCanvas, isBg } from './io/bg.js?v=288';
+import * as Audio from './io/audio.js?v=288';
+import { isTalk, blipTimes } from './engine/talk.js?v=288';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=284';
-import { importPsd } from './io/psd.js?v=284';
-import { splitTextChars } from './io/text.js?v=284';
-import { exportAE } from './io/ae.js?v=284';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=288';
+import { importPsd } from './io/psd.js?v=288';
+import { splitTextChars } from './io/text.js?v=288';
+import { exportAE } from './io/ae.js?v=288';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=284';
-import { pathKeys, pathLength } from './engine/path.js?v=284';
-import { paintDirty } from './engine/paint.js?v=284';
+         canUseWebCodecs } from './io/export.js?v=288';
+import { pathKeys, pathLength } from './engine/path.js?v=288';
+import { paintDirty } from './engine/paint.js?v=288';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=284';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=288';
 
 const $ = (s) => document.querySelector(s);
 
@@ -795,6 +795,30 @@ PIN_KINDS.forEach(([id, kind]) => {
         : 'キーフレームをおすと けせます');
   });
 });
+
+/* ---------- 作業中だけ 音を 切る ----------
+   書き出しは 鳴らさずに 音の もとから つくる ので、
+   ここを 切って いても 動画には ちゃんと 音が 入る。 */
+function showMute(){
+  const b = $('#mute');
+  if(!b) return;
+  const off = Audio.isMuted();
+  b.textContent = off ? '🔇' : '🔊';
+  b.classList.toggle('on', off);
+  b.title = off ? '作業中の 音は 切って います（書き出しには 入ります）'
+                : '作業中の 音を 切る（書き出しには ちゃんと 入ります）';
+  b.setAttribute('aria-label', off ? '音を 出す' : '音を 切る');
+}
+$('#mute').addEventListener('click', () => {
+  Audio.setMuted(!Audio.isMuted());
+  showMute();
+  if(Audio.isMuted()) toast('作業中の 音を 切りました（書き出しには 入ります）');
+  else{
+    toast('音を 出すように しました');
+    if(S.playing) startSound();
+  }
+});
+showMute();
 
 /* ---- タイムライン ---- */
 /* 音は 再生ボタンと いっしょに 鳴らす。
