@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=281';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=281';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=282';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=282';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=281';
+         nearestFolder, setParent } from '../engine/layer.js?v=282';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=281';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=281';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=281';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=281';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=282';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=282';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=282';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=282';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -35,8 +35,19 @@ export function createTimeline(root, opts = {}){
   };
   const contentWidth = () => trackWidth() * S.tlZoom;
 
+  /* 目もりを なぞって いる あいだは、横の ずれを 止めて おく。
+
+     ふだんは 再生ヘッドが まん中に 来るように 横を ずらして いる。
+     ところが その ずれは いまの 時こくから 出して いる ので、
+     さわって 時こくを 変えると ずれも 変わり、
+     指の 下で めもりが 動いて しまう。
+     ＝ さわった ところと ちがう 時こくに 行く、ずるずる 動く。
+     なぞって いる あいだ だけ 指を おいた ときの ずれで 止める。 */
+  let scrubFix = null;
+
   /** 再生ヘッドがまん中に来る横のずれ量（px） */
   function scrollX(){
+    if(scrubFix !== null) return scrubFix;
     const w = trackWidth(), cw = contentWidth();
     if(cw <= w) return 0;
     const head = (S.time / Math.max(0.001, S.proj.duration)) * cw;
@@ -162,13 +173,16 @@ export function createTimeline(root, opts = {}){
     ruler.addEventListener('pointerdown', (e) => {
       try{ ruler.setPointerCapture(e.pointerId); }catch(_){}
       S.playing = false;
-      // 位置の出し方は レイヤー行と そろえる（スクロールバーのぶん 幅が違うことがある）
-      const ref = rows.querySelector('.track') || ruler;
-      const rect = ref.getBoundingClientRect();
-      const edge = rect.left + ref.clientLeft;   // わくの線のぶんを のぞく
+      /* さわって いる のは 目もり そのもの なので、
+         ものさしは 目もりの わく で とる（めもりの 線も この わくに 置いて いる）。 */
+      const rect = ruler.getBoundingClientRect();
+      const edge = rect.left + ruler.clientLeft;   // わくの線のぶんを のぞく
+      scrubFix = scrollX();                        // 指を おいた ときの ずれで 止める
       const scrub = (ev) => { S.time = snap(x2t(ev.clientX - edge)); onChange(); };
       scrub(e);
       const end = () => {
+        scrubFix = null;
+        onChange();                                // 指を はなしたら まん中に もどす
         ruler.removeEventListener('pointermove', scrub);
         ruler.removeEventListener('pointerup', end);
         ruler.removeEventListener('pointercancel', end);
