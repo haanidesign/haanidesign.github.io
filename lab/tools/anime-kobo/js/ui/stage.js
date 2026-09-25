@@ -1,25 +1,25 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=283';
-import { cleanPath } from '../engine/path.js?v=283';
+import { M, clamp } from '../engine/math.js?v=284';
+import { cleanPath } from '../engine/path.js?v=284';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=283';
-import { liveMasks } from '../engine/mask.js?v=283';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=283';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=283';
+         keepChildren, cornersOf } from '../engine/layer.js?v=284';
+import { liveMasks } from '../engine/mask.js?v=284';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=284';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=284';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=283';
-import { createRenderer } from '../render/renderer.js?v=283';
-import { attachInput } from './input.js?v=283';
-import { newStroke, paintDirty } from '../engine/paint.js?v=283';
+         bendChain } from '../engine/puppet.js?v=284';
+import { createRenderer } from '../render/renderer.js?v=284';
+import { attachInput } from './input.js?v=284';
+import { newStroke, paintDirty } from '../engine/paint.js?v=284';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=283';
+         copyPts, setPts } from '../engine/warp.js?v=284';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=283';
-import { inCamView } from '../render/camview.js?v=283';
-import { ORBIT_MAX } from '../engine/camera.js?v=283';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=284';
+import { inCamView } from '../render/camview.js?v=284';
+import { ORBIT_MAX } from '../engine/camera.js?v=284';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
@@ -72,10 +72,26 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   function resize(){
     const r = host.getBoundingClientRect();
     const dpr = Math.min(devicePixelRatio || 1, 2) * quality();
-    canvas.width = Math.max(1, Math.round(r.width * dpr));
-    canvas.height = Math.max(1, Math.round(r.height * dpr));
+    const w = Math.max(1, Math.round(r.width * dpr));
+    const h = Math.max(1, Math.round(r.height * dpr));
+    const oldW = canvas.width, oldH = canvas.height;
+
+    canvas.width = w;
+    canvas.height = h;
     canvas.style.width = r.width + 'px';
     canvas.style.height = r.height + 'px';
+
+    /* 見え方（S.view）は キャンバスの ドットで もって いる。
+       画質を 変えると ドットの 数が 変わる ので、そのままだと
+       絵の 場所も 大きさも ずれる。同じ ぶんだけ かけ直して、
+       画面の 見た目は 動かさない ように する。 */
+    if(oldW > 1 && oldH > 1 && (oldW !== w || oldH !== h)){
+      const kx = w / oldW, ky = h / oldH;
+      const k = Math.min(kx, ky);
+      S.view.z *= k;
+      S.view.x *= kx;
+      S.view.y *= ky;
+    }
   }
 
   function fit(){
