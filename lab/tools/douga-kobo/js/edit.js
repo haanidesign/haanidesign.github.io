@@ -3,9 +3,9 @@ import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
   freeSlot, laneFor, freeLane
-} from './state.js?v=68';
-import { MEDIA, hookAudio } from './media.js?v=68';
-import { bus } from './bus.js?v=68';
+} from './state.js?v=69';
+import { MEDIA, hookAudio } from './media.js?v=69';
+import { bus } from './bus.js?v=69';
 
 export function addFromMedia(m, at = 0, track = null) {
   if (!m) return null;

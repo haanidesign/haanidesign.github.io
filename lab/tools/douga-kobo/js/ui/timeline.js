@@ -1,13 +1,13 @@
 /* 下の タイムライン。ふだを つかむ・はしを のばす・段を うつる。 */
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
-  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked
-} from '../state.js?v=68';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=68';
-import { bus } from '../bus.js?v=68';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=68';
-import { durOf as jzDur } from '../jz.js?v=68';
-import { moveTrack, delTrack, renameTrack } from '../edit.js?v=68';
+  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
+} from '../state.js?v=69';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=69';
+import { bus } from '../bus.js?v=69';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=69';
+import { durOf as jzDur } from '../jz.js?v=69';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=69';
 
 const el = {};
 export function init() {
@@ -20,6 +20,7 @@ export function init() {
   el.snapline = $('#snapline');
   el.beat = $('#beatCv');
   el.loop = $('#loopband');
+  el.cbar = $('#clipbar');
   el.scroll.addEventListener('scroll', () => {
     el.heads.style.transform = `translateY(${-el.scroll.scrollTop}px)`;
   });
@@ -35,7 +36,7 @@ const MAXW = 30000;   // これより 大きい 絵は ブラウザが えがけ
 const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(Math.max(duration(), clipEnd())) + 360));
 
 /* ---------- えがく ---------- */
-export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); }
+export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); drawClipBar(); }
 
 function drawHeads() {
   el.heads.innerHTML = '';
@@ -84,6 +85,64 @@ function drawHeads() {
     headDrag(d, tr);
     el.heads.appendChild(d);
   });
+}
+
+/* えらんだ ふだの 上に 出る 小さな ボタン。
+   ふだを えらんだ その場で、けす・となりへ ずらす・上下の 段へ 移す が できる。
+   ふだが 小さい ときは 中に ボタンを 入れられない ので 上に うかせる。 */
+function drawClipBar() {
+  const bar = el.cbar;
+  if (!bar) return;
+  const f = S.sel && findClip(S.sel);
+  if (!f || (S.selMany || []).length > 1) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const c = f.c, t = f.t;
+  const i = S.tracks.indexOf(t);
+  const up = S.tracks.slice(0, i).reverse().find(x => fitsTrack(c, x));
+  const dn = S.tracks.slice(i + 1).find(x => fitsTrack(c, x));
+  const lock = t.lock;
+  const b = (a, label, title, off) =>
+    `<button class="cb${off ? ' off' : ''}" data-c="${a}" title="${title}"${off ? ' disabled' : ''}>${label}</button>`;
+  bar.innerHTML =
+    b('up', '⬆', 'ひとつ 上の 段へ', !up || lock) +
+    b('dn', '⬇', 'ひとつ 下の 段へ', !dn || lock) +
+    b('l', '◀', 'すこし 前へ', lock) +
+    b('r', '▶', 'すこし うしろへ', lock) +
+    b('cut', '✂', 'いまの ところで 切る', lock) +
+    b('dup', '⧉', 'ふやす', lock) +
+    b('del', '🗑', 'けす', lock);
+  bar.style.display = 'flex';
+  /* ふだの 左上に 出す。上に はみ出す ときは 下に 出す */
+  const laneH = (el.lanes.querySelector('.lane') || {}).offsetHeight || 64;
+  const top = i * laneH;
+  const x = Math.max(0, t2x(c.start));
+  bar.style.left = x + 'px';
+  bar.style.top = (top > 30 ? top - 30 : top + laneH - 2) + 'px';
+  bar.onclick = e => {
+    const hit = e.target.closest && e.target.closest('[data-c]');
+    if (!hit || !bar.contains(hit)) return;
+    e.stopPropagation();
+    const a = hit.dataset.c;
+    if (t.lock) { toast('この 段は かぎが かかって います'); return; }
+    if (a === 'del') { delSel(); return; }
+    if (a === 'dup') { dupSel(); return; }
+    if (a === 'cut') { splitHere(); return; }
+    if (a === 'up' || a === 'dn') {
+      const nt = a === 'up' ? up : dn;
+      if (!nt) return;
+      t.clips = t.clips.filter(x => x !== c);
+      nt.clips.push(c);
+      S.selTrack = nt.id;
+      pushUndo(); bus.all(); buzz(14);
+      return;
+    }
+    if (a === 'l' || a === 'r') {
+      const st = beatOn() ? stepSec() : 1 / S.fps * 6;
+      const d = (a === 'l' ? -1 : 1) * st;
+      c.start = Math.max(0, r2(c.start + d));
+      syncLinked(c);
+      pushUndo(); bus.all(); buzz(10);
+    }
+  };
 }
 
 /* 段の あたまを つまんで 上下に 動かすと ならびが かわる。
@@ -462,6 +521,7 @@ document.addEventListener('pointermove', e => {
   const c = drag.f.c, dt = x2t(e.clientX - drag.x0);
   if (!drag.moved && (Math.abs(e.clientX - drag.x0) > 4 || Math.abs(e.clientY - drag.y0) > 4)) {
     drag.moved = true; buzz();
+    if (el.cbar) el.cbar.style.display = 'none';   // 動かして いる あいだは じゃまなので 引っこめる
   }
   if (!drag.moved) return;
   const m = c.mid ? MEDIA.get(c.mid) : null;
@@ -485,8 +545,7 @@ document.addEventListener('pointermove', e => {
     const lane = under && under.closest && under.closest('.lane');
     if (lane && lane.dataset.tid !== drag.f.t.id) {
       const nt = trackOf(lane.dataset.tid);
-      const kind = c.kind === 'image' ? 'video' : c.kind;
-      if (nt && nt.kind === kind) {
+      if (nt && fitsTrack(c, nt)) {
         drag.f.t.clips = drag.f.t.clips.filter(x => x !== c);
         nt.clips.push(c); drag.f.t = nt; S.selTrack = nt.id;
         drawLanes(); drawHeads();

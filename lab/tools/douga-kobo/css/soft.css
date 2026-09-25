@@ -558,3 +558,6 @@ hr,.sep{ border-color:var(--line); }
 
 .thead .grip{ color:#C9C4A8; letter-spacing:-.08em; }
 .thead.dragging{ box-shadow:0 0 0 2px #C8C24E inset; }
+
+#clipbar{ background:var(--paper); border:1px solid var(--line); box-shadow:0 4px 12px rgba(30,28,20,.14); }
+#clipbar .cb{ box-shadow:none; border:1px solid var(--line); }
