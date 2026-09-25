@@ -1,46 +1,46 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=268';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=289';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=268';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=268';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=289';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=289';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=268';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=289';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=268';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=268';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=268';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=268';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=289';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=289';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=289';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=289';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=268';
+         addTextLayer } from '../io/text.js?v=289';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=268';
-import { PATTERN_NAMES } from '../io/pattern.js?v=268';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=289';
+import { PATTERN_NAMES } from '../io/pattern.js?v=289';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=268';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=268';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=268';
+         PITCH_MAX } from '../engine/pano.js?v=289';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=289';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=289';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=268';
-import { readAsDataURL, loadImage } from '../io/image.js?v=268';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=289';
+import { readAsDataURL, loadImage } from '../io/image.js?v=289';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=268';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=268';
-import { newHand } from '../engine/hand.js?v=268';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=268';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=289';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=289';
+import { newHand } from '../engine/hand.js?v=289';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=289';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=268';
+  from './colorwheel.js?v=289';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=268';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=289';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=268';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=289';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -62,8 +62,8 @@ document.addEventListener('pointerup', () => {
   holding = false;
 }, true);
 
-/* よこ画面の タブレットでは、せってい を 右に つけっぱなしに する。
-   絵・タイムライン・せってい を 同時に さわれる ように する ため。
+/* よこ画面の タブレットでは、設定 を 右に つけっぱなしに する。
+   絵・タイムライン・設定 を 同時に さわれる ように する ため。
    （下から せり上がる 幕だと、時間を ずらす たびに 出し入れに なる） */
 const DOCK_Q = '(min-width:900px) and (orientation:landscape)';
 export const canDock = () => window.matchMedia(DOCK_Q).matches;
@@ -178,7 +178,7 @@ export function createSheet(sheetEl, backEl){
       const x = document.createElement('button');
       x.className = 'btn-sm';
       x.textContent = '✕ とじる';
-      x.title = 'せっていを とじる';
+      x.title = '設定を とじる';
       x.addEventListener('click', () => close());
       bar.appendChild(x);
       sheetEl.appendChild(bar);
@@ -541,8 +541,8 @@ export function slider(label, get, set, min, max, step, fmt){
   return field(label, i, v);
 }
 
-/** ピンが打たれているレイヤーなら、値を変えたときに いまの時間のピンも更新する。
-    ピンが無いうちは素の値を変えるだけ（勝手にピンが増えない）。 */
+/** キーフレームが打たれているレイヤーなら、値を変えたときに いまの時間のキーフレームも更新する。
+    キーフレームが無いうちは素の値を変えるだけ（勝手にキーフレームが増えない）。 */
 export function animSlider(label, layer, ch, min, max, step, fmt){
   const get = () => channelValue(layer, ch, S.time);
   const set = (v) => {
@@ -720,7 +720,7 @@ export function heading(text){
   return h;
 }
 
-const SWAY_HINT = 'いまの時間から さいごまで、ゆれるピンを ならべます。'
+const SWAY_HINT = 'いまの時間から さいごまで、ゆれるキーフレームを ならべます。'
   + String.fromCharCode(10)
   + '「おくれ」を大きくすると、毛先ほど おくれて しなります。';
 
@@ -740,7 +740,7 @@ export function setNotifier(fn){ notify = fn; }
 export function buildLayerSheet(box, closeFn){
   const NL = String.fromCharCode(10);
   const l = selected();
-  /* 🔊 の 行は 絵では ない ので、おとの せっていを そのまま 出す */
+  /* 🔊 の 行は 絵では ない ので、おとの 設定を そのまま 出す */
   if(l && l.kind === 'audio'){
     const h = document.createElement('div');
     h.className = 'empty';
@@ -761,7 +761,7 @@ export function buildLayerSheet(box, closeFn){
   }
 
   /* 💬 セリフ枠は「文を 書く」のが 目あて なので いちばん 上に 出す。
-     なまえや すけ具合の 下に あると 見つからない。 */
+     なまえや 不透明度の 下に あると 見つからない。 */
   talkRow(box, l, closeFn);
 
   const nameIn = document.createElement('input');
@@ -770,12 +770,12 @@ export function buildLayerSheet(box, closeFn){
     edit('なまえをかえる', () => { l.name = nameIn.value || l.name; });
     onChange();
   });
-  box.appendChild(field('なまえ', nameIn));
+  box.appendChild(field('名前', nameIn));
 
   /* カギ。かけると 絵の上では さわれない。
      行に ボタンを 置くと ごちゃつくので ここに 入れた。
      かかっている ときは 名前の 先頭に 🔒 が つく。 */
-  box.appendChild(field('カギ', (() => {
+  box.appendChild(field('ロック', (() => {
     const b = document.createElement('button');
     const show = () => {
       b.textContent = l.locked ? '🔒 かかっている' : '🔓 かかっていない';
@@ -792,16 +792,16 @@ export function buildLayerSheet(box, closeFn){
     return b;
   })()));
 
-  /* ---- カメラに 合わせない（画面に はりつけ）----
-     まえは「おくゆき（カメラ用）」の 中に しまって いて、
+  /* ---- カメラに 合わせない（画面に 固定）----
+     まえは「奥行き（カメラ用）」の 中に しまって いて、
      しかも カメラが 無い ときは まるごと 出て いなかった ので
      見つけられない と 言われた。
      なまえ・カギ の すぐ 下、いつも 出す ところに 移した。
      フォルダでも 同じ ように 出る。 */
-  box.appendChild(field('カメラ', (() => {
+  box.appendChild(field('カメラの影響', (() => {
     const b = document.createElement('button');
     const show = () => {
-      b.textContent = l.noCam ? '📌 画面に はりつけ（合わせない）'
+      b.textContent = l.noCam ? '📌 画面に 固定（カメラに 合わせない）'
                               : '🎥 カメラに 合わせる';
       b.classList.toggle('on', !!l.noCam);
     };
@@ -820,20 +820,20 @@ export function buildLayerSheet(box, closeFn){
     const n = document.createElement('div');
     n.className = 'empty';
     n.style.textAlign = 'left';
-    n.textContent = 'はりつけに すると、カメラの ふれ・よせ・まわりこみを'
+    n.textContent = '画面に 固定 すると、カメラの ふれ・よせ・まわりこみを'
       + String.fromCharCode(10)
       + 'ぜんぶ うけません。セリフ枠・ロゴ・字まく むけ。';
     box.appendChild(n);
   }
 
   const pct = v => Math.round(v * 100) + '%';
-  box.appendChild(animSlider('すけ具合', l, 'opacity', 0, 1, 0.01, pct));
+  box.appendChild(animSlider('不透明度', l, 'opacity', 0, 1, 0.01, pct));
 
   /* ---- トラックマット（AEと 同じ）----
      すぐ 上の レイヤーの 形（か 明るさ）で、この レイヤーを ぬく。
-     ぬき型に なった レイヤーは 出なくなる。 */
+     トラックマットに なった レイヤーは 出なくなる。 */
   if(l.kind !== 'adjust'){
-    box.appendChild(field('ぬき型（上の 1まい）', (() => {
+    box.appendChild(field('トラックマット', (() => {
       const sel = document.createElement('select');
       [['', 'つかわない'],
        ['alpha',    '上の 形で ぬく'],
@@ -847,20 +847,20 @@ export function buildLayerSheet(box, closeFn){
         sel.appendChild(o);
       });
       sel.addEventListener('change', () => {
-        edit('ぬき型', () => { l.matte = sel.value || null; });
+        edit('トラックマット', () => { l.matte = sel.value || null; });
         notify(sel.value ? 'すぐ上の レイヤーで ぬきます（上は 出なくなります）'
-                         : 'ぬき型を やめました');
+                         : 'トラックマットを やめました');
         onChange();
       });
       return sel;
     })()));
   }
 
-  /* ---- かさね方（フォトショップの 乗算 など）----
+  /* ---- 描画モード（フォトショップの 乗算 など）----
      下に ある 絵と どう まぜるか。「乗算」は かけ算 ＝ かげ用。
      PSD の レイヤーモードと 同じ 名前なので、
      読みこみ・書き出しで そのまま 行き来できる。 */
-  box.appendChild(field('かさね方', (() => {
+  box.appendChild(field('描画モード', (() => {
     const sel = document.createElement('select');
     const opts = [
       ['normal', 'ふつう'],
@@ -884,7 +884,7 @@ export function buildLayerSheet(box, closeFn){
     sel.value = l.blend || 'normal';
     sel.style.flex = '1';
     sel.addEventListener('change', () => {
-      edit('かさね方をかえる', () => { l.blend = sel.value; });
+      edit('描画モードをかえる', () => { l.blend = sel.value; });
       onChange();
     });
     return sel;
@@ -893,10 +893,10 @@ export function buildLayerSheet(box, closeFn){
   /* フォルダは 絵を持たないので、まとめて動かすところだけ出す */
   if(isFolder(l)){
     const n = membersOf(S.proj, l).length;
-    box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
-    box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+    box.appendChild(animSlider('横スケール', l, 'scaleX', 0.05, 4, 0.01, pct));
+    box.appendChild(animSlider('縦スケール', l, 'scaleY', 0.05, 4, 0.01, pct));
     box.appendChild(aspectRow(l));
-    box.appendChild(animSlider('かたむき', l, 'rot', -180, 180, 1, v => Math.round(v) + '°'));
+    box.appendChild(animSlider('回転', l, 'rot', -180, 180, 1, v => Math.round(v) + '°'));
 
     const note = document.createElement('div');
     note.className = 'empty';
@@ -905,7 +905,7 @@ export function buildLayerSheet(box, closeFn){
       + String.fromCharCode(10)
       + 'ここを動かすと 中身ぜんぶが いっしょに動きます。'
       + String.fromCharCode(10)
-      + '塗り・ぼかし・ふちどりは、中身を1まいにまとめてから'
+      + '塗り・ぼかし・境界線は、中身を1まいにまとめてから'
       + String.fromCharCode(10)
       + 'かかります。だから ふちは 外がわにだけ 出ます。';
     box.appendChild(note);
@@ -919,20 +919,20 @@ export function buildLayerSheet(box, closeFn){
     /* ---- バラで 動かす（AEの コラップス）----
        ふだん フォルダは 中身を 1まいの 紙に まとめて 出す。
        それを やめて、中身 1まい 1まいを カメラに 直に 見せる。 */
-    /* 立体・おくゆきは フォルダにも きく。
-       まとめた 1まいの 紙を、おくゆきの ところに 立てて うつす
+    /* 立体・奥行きは フォルダにも きく。
+       まとめた 1まいの 紙を、奥行きの ところに 立てて うつす
        （camera.js の sheetQuad3D）ので、
        ふつうの レイヤーと 同じ 手ざわりで たおせる。 */
     tiltRow(box, l);
     depthRow(box, l);
 
-    box.appendChild(heading('🎥 カメラと おくゆき'));
+    box.appendChild(heading('🎥 カメラと 奥行き'));
     const col = !!l.collapse;
     box.appendChild(btnRow(
       button(col ? '✅ 中身を バラで 動かす' : '⬜ 中身を バラで 動かす', () => {
         edit('バラで 動かす', () => { l.collapse = !col; });
         notify(col ? 'フォルダを 1まいの 紙に もどしました'
-                   : '中身が それぞれの おくゆきで 動くように なりました');
+                   : '中身が それぞれの 奥行きで 動くように なりました');
         onChange();
       })
     ));
@@ -940,13 +940,13 @@ export function buildLayerSheet(box, closeFn){
     cnote.className = 'empty';
     cnote.style.textAlign = 'left';
     cnote.textContent = col
-      ? ('中身の 1まい 1まいが、自分の おくゆきで 動きます。' + NL
+      ? ('中身の 1まい 1まいが、自分の 奥行きで 動きます。' + NL
          + 'フォルダの 中でも 手前と おくの ずれが 出ます。' + NL
-         + 'そのかわり、フォルダに かける すけ具合・ふちどり・' + NL
-         + 'ゆがみ は 中身 それぞれに かかる かたちに なります。')
+         + 'そのかわり、フォルダに かける 不透明度・境界線・' + NL
+         + 'ワープ は 中身 それぞれに かかる かたちに なります。')
       : ('いまは 中身ぜんぶで 1まいの 紙 です。' + NL
          + 'まとめて うすく したり ゆがめたり できる かわりに、' + NL
-         + '中の おくゆきの ちがいは 出ません。' + NL
+         + '中の 奥行きの ちがいは 出ません。' + NL
          + 'PSDの グループを 立体に したい ときは オンに。');
     box.appendChild(cnote);
 
@@ -962,10 +962,10 @@ export function buildLayerSheet(box, closeFn){
     return;
   }
 
-  box.appendChild(animSlider('よこ幅', l, 'scaleX', 0.05, 4, 0.01, pct));
-  box.appendChild(animSlider('たて幅', l, 'scaleY', 0.05, 4, 0.01, pct));
+  box.appendChild(animSlider('横スケール', l, 'scaleX', 0.05, 4, 0.01, pct));
+  box.appendChild(animSlider('縦スケール', l, 'scaleY', 0.05, 4, 0.01, pct));
   box.appendChild(aspectRow(l));
-  box.appendChild(animSlider('かたむき', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
+  box.appendChild(animSlider('回転', l, 'rot',   -180, 180, 1, v => Math.round(v) + '°'));
 
   /* ---------- コマ ---------- */
   /* 文字レイヤーは 絵が1まいしか無いので、コマの欄は 出さない。
@@ -1007,7 +1007,7 @@ export function buildLayerSheet(box, closeFn){
   if(l.frames.length <= 1){
     const h = document.createElement('div');
     h.className = 'empty';
-    h.textContent = '絵を足すと、コマを切りかえる\nアニメが作れます';
+    h.textContent = '画像を追加すると、コマ送りのアニメになります';
     box.appendChild(h);
   }
 
@@ -1048,9 +1048,9 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(addFrames);
 
   box.appendChild(btnRow(
-    button('＋ コマを足す', () => addFrames.click()),
-    button('コマのピンを消す', () => {
-      edit('コマのピンを消す', () => {
+    button('＋ コマを追加', () => addFrames.click()),
+    button('コマのキーフレームを削除', () => {
+      edit('コマのキーフレームを消す', () => {
         framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
       });
       onChange();
@@ -1058,9 +1058,9 @@ export function buildLayerSheet(box, closeFn){
   ));
 
   /* ---------- 絵だけ 入れかえる ----------
-     動き（ピン・親子・タイミング・エフェクト）は そのままで、
+     動き（キーフレーム・親子・タイミング・エフェクト）は そのままで、
      はって ある 絵 だけを すげかえる。
-     絵の 大きさが ちがっても、ピンは 同じ ところを さす ように
+     絵の 大きさが ちがっても、パペットピンは 同じ ところを さす ように
      こちらで なおす。 */
   const swapOne = document.createElement('input');
   swapOne.type = 'file';
@@ -1086,8 +1086,8 @@ export function buildLayerSheet(box, closeFn){
   box.appendChild(swapAll);
 
   const swapRow = btnRow(
-    button('🔁 この コマの 絵を 入れかえる', () => swapOne.click()),
-    button(l.frames.length > 1 ? '🔁 コマ ぜんぶ' : '🔁 べつの 絵に', () => swapAll.click())
+    button('このコマの画像を差し替え', () => swapOne.click()),
+    button(l.frames.length > 1 ? '🔁 コマ ぜんぶ' : '🔁 べつの画像に 差し替え', () => swapAll.click())
   );
   box.appendChild(swapRow);
 
@@ -1096,7 +1096,7 @@ export function buildLayerSheet(box, closeFn){
     paintKeep();
   });
   const paintKeep = () => {
-    keepBtn.textContent = (keepSizeOnSwap ? '✅' : '⬜') + ' 前と 同じ 大きさに する';
+    keepBtn.textContent = (keepSizeOnSwap ? '✓ ' : '　') + '元のサイズを保つ';
     keepBtn.classList.toggle('on', keepSizeOnSwap);
   };
   paintKeep();
@@ -1106,7 +1106,7 @@ export function buildLayerSheet(box, closeFn){
   swapNote.className = 'empty';
   swapNote.style.textAlign = 'left';
   swapNote.textContent = '絵だけ かえて、うごきは そのまま のこします。'
-    + NL + 'ピン・ゆがみ・マスクは 絵の 大きさに 合わせて なおします。'
+    + NL + 'キーフレーム・ワープ・マスクは 絵の 大きさに 合わせて なおします。'
     + NL + '「コマ ぜんぶ」は、えらんだ まい数が そのまま コマに なります。';
   box.appendChild(swapNote);
 
@@ -1131,7 +1131,7 @@ export function buildLayerSheet(box, closeFn){
 
   /* ---------- パペットピン ---------- */
   if(l.pins && l.pins.length){
-    box.appendChild(heading('ピンのかたさ（' + l.pins.length + '本）'));
+    box.appendChild(heading('パペットピンのかたさ（' + l.pins.length + '本）'));
     const setStiff = (v) => { l.stiff = v; if(l.mesh) l.mesh.dirty = true; };
     box.appendChild(slider('かたさ',
       () => l.stiff == null ? 1.4 : l.stiff,
@@ -1151,7 +1151,7 @@ export function buildLayerSheet(box, closeFn){
       b.classList.toggle('on', Math.abs((l.stiff == null ? 1.4 : l.stiff) - v) < 0.3);
       preset.appendChild(b);
     });
-    box.appendChild(field('めやす', preset));
+    box.appendChild(field('プリセット', preset));
 
     const h = document.createElement('div');
     h.className = 'empty';
@@ -1160,16 +1160,16 @@ export function buildLayerSheet(box, closeFn){
       + String.fromCharCode(10)
       + 'ひじ・ゆびのように 1か所だけ カクッと 折りたいときは、'
       + String.fromCharCode(10)
-      + '「ピン」→ 🦴かんせつ で そのピンを おしてください。'
+      + '「パペットピン」→ 🦴かんせつ で そのパペットピンを おしてください。'
       + String.fromCharCode(10)
-      + '（うでは つけね→ひじ→手首→指先 の順に ピンをさす）';
+      + '（うでは つけね→ひじ→手首→指先 の順に パペットピンをさす）';
 
     const jn = (l.pins || []).filter(p => p.joint).length;
     if(jn){
       const jd = document.createElement('div');
       jd.className = 'empty';
       jd.style.textAlign = 'left';
-      jd.textContent = 'いま かんせつは ' + jn + 'か所（四角いピン）';
+      jd.textContent = 'いま かんせつは ' + jn + 'か所（四角いパペットピン）';
       box.appendChild(jd);
     }
     box.appendChild(h);
@@ -1229,16 +1229,16 @@ export function buildMotionSheet(box, open){
   head.className = 'empty';
   head.style.textAlign = 'left';
   head.textContent = now
-    ? '「' + l.name + '」に うごきのピンが ' + now + 'コ あります。'
-    : '「' + l.name + '」に まだ うごきのピンは ありません。';
+    ? '「' + l.name + '」に うごきのキーフレームが ' + now + 'コ あります。'
+    : '「' + l.name + '」に まだ うごきのキーフレームは ありません。';
   box.appendChild(head);
 
   const MENU = [
     ['anim',   '✨ うごきを つける', 'イン・ループ・アウト。出る／ゆれる／消える'],
-    ['path',   '👆 みちを なぞる', 'なぞった みちを 何秒で 通るか'],
-    ['beat',   '🥁 リズム（BPM）', '拍に あわせて ピンを うつ'],
+    ['path',   '👆 パスを なぞる', 'なぞった みちを 何秒で 通るか'],
+    ['beat',   '🥁 リズム（BPM）', '拍に あわせて キーフレームを うつ'],
     ['flip',   '🎞 パラパラ',      '☑ でえらんだ 絵を コマにして 順ぐりに 出す'],
-    ['finish', '💨 しあげ',        'うごきブラー／ピンの おそうじ']
+    ['finish', '💨 仕上げ',        'モーションブラー／キーフレームの整理']
   ];
 
   MENU.forEach(([key, label, note]) => {
@@ -1302,15 +1302,15 @@ function presetGrid(box, list, run){
 }
 
 
-/* ================= おくゆき =================
+/* ================= 奥行き =================
    カメラが ある ときだけ 出す。
    カメラを ふった とき、手前の ものほど 大きく ずれる。 */
 function depthRow(box, l){
   if(isCam(l)) return;
-  if(!camOf(S.proj, S.time)) return;   /* カメラが 無ければ おくゆきの 話は 出さない */
+  if(!camOf(S.proj, S.time)) return;   /* カメラが 無ければ 奥行きの 話は 出さない */
   const NL = String.fromCharCode(10);
 
-  box.appendChild(heading('おくゆき（カメラ用）'));
+  box.appendChild(heading('奥行き（カメラ用）'));
 
 
   box.appendChild(btnRow(
@@ -1324,9 +1324,9 @@ function depthRow(box, l){
     + '手前の ものは 大きく、おくの ものは すこしだけ ずれます。';
   box.appendChild(note);
 
-  /* ---- フォルダの 中の 1まいは、そのままでは おくゆきが きかない ----
+  /* ---- フォルダの 中の 1まいは、そのままでは 奥行きが きかない ----
      フォルダは 中身を 1まいの 紙に まとめて から カメラに 見せる ので、
-     中身 1つ1つの おくゆきは 出番が ない（フォルダの おくゆきに なる）。
+     中身 1つ1つの 奥行きは 出番が ない（フォルダの 奥行きに なる）。
      「バラで 動かす」に すると 中身が 1まいずつ カメラに 出るので きく。
      ここで すぐ 切りかえられる ように して おく。 */
   const host = nearestFolder(S.proj, l);
@@ -1335,13 +1335,13 @@ function depthRow(box, l){
     w.className = 'empty';
     w.style.textAlign = 'left';
     w.textContent = 'いまは フォルダ「' + (host.name || 'フォルダ') + '」の'
-      + ' おくゆきに なります。' + NL
+      + ' 奥行きに なります。' + NL
       + '中身を 1まいずつ 置きたい ときは、下を おしてね。';
     box.appendChild(w);
     box.appendChild(btnRow(
       button('📂 「' + (host.name || 'フォルダ') + '」の 中身を バラで 動かす', () => {
         edit('バラで 動かす', () => { host.collapse = true; });
-        notify('中身が それぞれの おくゆきで 動くように なりました');
+        notify('中身が それぞれの 奥行きで 動くように なりました');
         onChange();
       })
     ));
@@ -1351,17 +1351,17 @@ function depthRow(box, l){
   const sizeNote = document.createElement('div');
   sizeNote.className = 'empty';
   sizeNote.style.textAlign = 'left';
-  const refresh = () => sizeNote.textContent = 'いまの おくゆきだと ' + show();
+  const refresh = () => sizeNote.textContent = 'いまの 奥行きだと ' + show();
   refresh();
 
-  box.appendChild(animSlider('おくゆき', l, 'depth', DEPTH_MIN, DEPTH_MAX, 0.5,
+  box.appendChild(animSlider('奥行き', l, 'depth', DEPTH_MIN, DEPTH_MAX, 0.5,
     v => v === 0 ? 'ふつう' : (v < 0 ? 'てまえ ' + (-v) : 'おく ' + v)));
   box.appendChild(sizeNote);
 
   const dpin = document.createElement('div');
   dpin.className = 'empty';
   dpin.style.textAlign = 'left';
-  dpin.textContent = 'おくゆきにも ピンが うてます。' + NL
+  dpin.textContent = '奥行きにも キーフレームが うてます。' + NL
     + '「おくへ とんで いく」「手前に せまって くる」が 作れます。';
   box.appendChild(dpin);
 
@@ -1370,7 +1370,7 @@ function depthRow(box, l){
   row.style.flexWrap = 'wrap';
   DEPTH_PRESETS.forEach(([label, v]) => {
     const b = button(label, () => {
-      edit('おくゆきを かえる', () => {
+      edit('奥行きを かえる', () => {
         l.depth = v;
         if(hasPins(l)) setPin(l, 'depth', S.time, v, 'smooth');
       });
@@ -1381,7 +1381,7 @@ function depthRow(box, l){
     b.classList.toggle('on', (l.depth || 0) === v);
     row.appendChild(b);
   });
-  box.appendChild(field('めやす', row));
+  box.appendChild(field('プリセット', row));
 }
 
 
@@ -1402,8 +1402,8 @@ function tiltRow(box, l){
   box.appendChild(note);
 
   const deg = v => v === 0 ? 'まっすぐ' : (Math.round(v) + '°');
-  /* ピンが うって あれば、その 時こくの ピンも いっしょに 直す
-     ＝ 立体の かたむきにも うごきが つけられる。 */
+  /* キーフレームが うって あれば、その 時こくの キーフレームも いっしょに 直す
+     ＝ 立体の 回転にも うごきが つけられる。 */
   box.appendChild(animSlider('おくへ たおす', l, 'rx', -80, 80, 1, deg));
   box.appendChild(animSlider('よこに まわす', l, 'ry', -80, 80, 1, deg));
 
@@ -1431,7 +1431,7 @@ function tiltRow(box, l){
     b.classList.toggle('on', (l.rx || 0) === rx && (l.ry || 0) === ry);
     row.appendChild(b);
   });
-  box.appendChild(field('めやす', row));
+  box.appendChild(field('プリセット', row));
 
   /* いつも 正面（ビルボード）。
      カメラが 回りこんでも、この 絵だけは こっちを 向いた まま。
@@ -1452,7 +1452,7 @@ function tiltRow(box, l){
     bn.textContent = 'カメラが まわりこんでも、この 絵だけ' + NL
       + 'いつも こっちを 向いた ままに なります。' + NL
       + '立体の せかいに キャラや ふきだしを 置く ときに。' + NL
-      + 'おくゆきの ずれは そのまま 出る ので、' + NL
+      + '奥行きの ずれは そのまま 出る ので、' + NL
       + '「その 場所に 立って いる」感じは のこります。';
     box.appendChild(bn);
   }
@@ -1462,7 +1462,7 @@ function tiltRow(box, l){
     w.className = 'empty';
     w.style.textAlign = 'left';
     w.textContent = 'たおして いる あいだは、この レイヤーの' + NL
-      + '「おやこ」の 子は ついてきません。' + NL
+      + '「親子付け」の 子は ついてきません。' + NL
       + 'いっしょに たおしたい ときは フォルダに 入れて、' + NL
       + 'フォルダごと たおして ください。';
     box.appendChild(w);
@@ -1472,7 +1472,7 @@ function tiltRow(box, l){
 /* ================= カメラ =================
    絵を 動かすのでは なく、見ている ほうを 動かす。
    カメラは ふつうの レイヤーなので、
-   よこ・たて・ズーム・かたむき に そのまま ピンが うてる。 */
+   よこ・たて・ズーム・回転 に そのまま キーフレームが うてる。 */
 export function buildCamSheet(box, back){
   backRow(box, back);
   const NL = String.fromCharCode(10);
@@ -1501,7 +1501,7 @@ export function buildCamSheet(box, back){
     e.style.textAlign = 'left';
     e.textContent = 'カメラを 足すと、絵を 動かさずに' + NL
       + '「見ている ほう」を 動かせます。' + NL + NL
-      + 'レイヤーごとに「おくゆき」を きめて おくと、' + NL
+      + 'レイヤーごとに「奥行き」を きめて おくと、' + NL
       + 'カメラを ふった とき 手前の ものほど 大きく ずれて、' + NL
       + '絵が 立体に 見えます（アフターエフェクトと おなじ かんじ）。';
     box.appendChild(e);
@@ -1536,7 +1536,7 @@ export function buildCamSheet(box, back){
     const e = document.createElement('div');
     e.className = 'empty';
     e.style.textAlign = 'left';
-    e.textContent = '切って いる あいだは、おくゆきも きかず、' + NL
+    e.textContent = '切って いる あいだは、奥行きも きかず、' + NL
       + 'ふつうに ならんだ 絵に なります。';
     box.appendChild(e);
     return;
@@ -1550,7 +1550,7 @@ export function buildCamSheet(box, back){
     v => v === cy ? 'まん中' : px(v - cy)));
   box.appendChild(animSlider('ズーム（画角）', cam, 'scaleX', 0.2, 4, 0.01,
     v => (v * 100).toFixed(0) + '%'));
-  box.appendChild(animSlider('かたむき', cam, 'rot', -180, 180, 1,
+  box.appendChild(animSlider('回転', cam, 'rot', -180, 180, 1,
     v => Math.round(v) + '°'));
 
   /* ---- まわりこみ ----
@@ -1570,8 +1570,8 @@ export function buildCamSheet(box, back){
     + '2本指で つまんで ひろげると アップ（寄る）、' + NL
     + 'すぼめると 引き（下がる）。マウスの ホイールでも 同じ。' + NL
     + NL
-    + 'まわりこむと、レイヤーは おくゆきの ところに 立てた' + NL
-    + '「紙」に なります。おくゆきを ちがえた ものほど 大きく ずれます。' + NL
+    + 'まわりこむと、レイヤーは 奥行きの ところに 立てた' + NL
+    + '「紙」に なります。奥行きを ちがえた ものほど 大きく ずれます。' + NL
     + 'フォルダは 中身ぜんぶで 1まいの 紙 です。' + NL
     + 'べつべつに 動かしたい ものは フォルダから 出して ください。';
   box.appendChild(peek);
@@ -1597,7 +1597,7 @@ export function buildCamSheet(box, back){
 
   /* ---- 魚眼 ---- */
   box.appendChild(heading('魚眼（ひろがる レンズ）'));
-  box.appendChild(animSlider('レンズの ゆがみ', cam, 'fish', -1, 1, 0.05,
+  box.appendChild(animSlider('レンズの ワープ', cam, 'fish', -1, 1, 0.05,
     v => Math.abs(v) < 0.03 ? 'ふつうの レンズ'
        : v > 0 ? 'ひろがる ' + Math.round(v * 100) + '%'
                : 'すぼまる ' + Math.round(-v * 100) + '%'));
@@ -1608,12 +1608,12 @@ export function buildCamSheet(box, back){
     + 'ドアの のぞき穴から 見た かんじ。' + NL
     + 'マイナスに すると 逆に そります。' + NL
     + 'できあがった 絵ぜんたいに かかる ので、' + NL
-    + '手前の ものも おくの ものも いっしょに ゆがみます。' + NL
-    + 'ピンが うてる ので、寄る ときだけ ぐいっと ひろげる、も できます。';
+    + '手前の ものも おくの ものも いっしょに ワープます。' + NL
+    + 'キーフレームが うてる ので、寄る ときだけ ぐいっと ひろげる、も できます。';
   box.appendChild(fn3);
 
   /* ---- 注視点 ---- */
-  box.appendChild(heading('注視点（まわる じく）'));
+  box.appendChild(heading('注視点（回転の中心）'));
   const aim = !!cam.aim;
   box.appendChild(btnRow(
     button(aim ? '✅ 注視点を つかう' : '⬜ 注視点を つかう', () => {
@@ -1639,7 +1639,7 @@ export function buildCamSheet(box, back){
   if(aim){
     box.appendChild(animSlider('よこ', cam, 'tx', 0, S.proj.w, 1, px));
     box.appendChild(animSlider('たて', cam, 'ty', 0, S.proj.h, 1, px));
-    box.appendChild(animSlider('おくゆき', cam, 'td', DEPTH_MIN, DEPTH_MAX, 0.5,
+    box.appendChild(animSlider('奥行き', cam, 'td', DEPTH_MIN, DEPTH_MAX, 0.5,
       v => v === 0 ? 'ふつう' : v.toFixed(1)));
     box.appendChild(btnRow(
       button('えらんだ レイヤーに 合わせる', () => {
@@ -1662,19 +1662,19 @@ export function buildCamSheet(box, back){
   box.appendChild(slider('ぼかしの つよさ', () => cam.dof || 0,
     v => cam.dof = v, 0, 12, 0.5,
     v => v < 0.01 ? 'なし' : v.toFixed(1)));
-  box.appendChild(animSlider('ピントの おくゆき', cam, 'fd', DEPTH_MIN, DEPTH_MAX, 0.5,
+  box.appendChild(animSlider('ピントの 奥行き', cam, 'fd', DEPTH_MIN, DEPTH_MAX, 0.5,
     v => v === 0 ? 'ふつう' : v.toFixed(1)));
   const fn2 = document.createElement('div');
   fn2.className = 'empty';
   fn2.style.textAlign = 'left';
-  fn2.textContent = 'ピントの おくゆきから 離れた 紙ほど ぼけます。' + NL
+  fn2.textContent = 'ピントの 奥行きから 離れた 紙ほど ぼけます。' + NL
     + '手前を ぼかして おくを 見せる、の 切りかえも' + NL
-    + 'ピントに ピンを うてば できます。' + NL
+    + 'ピントに キーフレームを うてば できます。' + NL
     + 'のぞき窓に 青い 点線で ピントの めんが 出ます。';
   box.appendChild(fn2);
 
-  /* ---- 手ぶれ ---- */
-  box.appendChild(heading('手ぶれ'));
+  /* ---- 手ブレ ---- */
+  box.appendChild(heading('手ブレ'));
   box.appendChild(slider('ゆれの 大きさ', () => cam.shake || 0,
     v => cam.shake = v, 0, 1, 0.05, v => v < 0.01 ? 'なし' : Math.round(v * 100) + '%'));
   box.appendChild(slider('ゆれの はやさ', () => cam.shakeSpd == null ? 1 : cam.shakeSpd,
@@ -1682,13 +1682,13 @@ export function buildCamSheet(box, back){
   const sn = document.createElement('div');
   sn.className = 'empty';
   sn.style.textAlign = 'left';
-  sn.textContent = '手持ちカメラの ゆれです。ピンは いりません。' + NL
+  sn.textContent = '手持ちカメラの ゆれです。キーフレームは いりません。' + NL
     + '時こくから きまる 波なので、何回 書き出しても 同じ ゆれです。';
   box.appendChild(sn);
 
-  /* ---- ざんぞう ---- */
-  box.appendChild(heading('ざんぞう（うごきブラー）'));
-  box.appendChild(slider('カメラの ざんぞう', () => cam.mblur || 0,
+  /* ---- 残像 ---- */
+  box.appendChild(heading('残像（モーションブラー）'));
+  box.appendChild(slider('カメラの 残像', () => cam.mblur || 0,
     v => cam.mblur = v, 0, 1, 0.05,
     v => v < 0.01 ? 'なし'
        : (Math.round(v * 100) + '%（' + (0.5 + 2.5 * v).toFixed(1) + 'コマ）')));
@@ -1702,7 +1702,7 @@ export function buildCamSheet(box, back){
 
 
   /* ---- うごかす ----
-     スライダーは「ピンが 1本でも あれば」自動で ピンに なる しくみ。
+     スライダーは「キーフレームが 1つでも あれば」自動で キーフレームに なる しくみ。
      さいしょの 1本だけは 自分で うつ ひつようが ある ので、
      ここに ボタンを 出す（タイムラインを さがさなくて すむ）。
      ここが 無かった ので、スライダーを 動かしても
@@ -1715,24 +1715,24 @@ export function buildCamSheet(box, back){
   const showStatus = () => {
     const n = camPins();
     status.textContent = n
-      ? ('いま ピンが ' + n + 'コ。' + NL
+      ? ('いま キーフレームが ' + n + 'コ。' + NL
          + 'この あとは 時こくを うつして スライダーを 動かすだけで、' + NL
-         + 'その 時こくに ピンが つきます。')
-      : ('まだ ピンが ありません。' + NL
-         + 'まず「◆ ここに ピンを うつ」を おしてください。' + NL
+         + 'その 時こくに キーフレームが つきます。')
+      : ('まだ キーフレームが ありません。' + NL
+         + 'まず「◆ ここに キーフレームを うつ」を おしてください。' + NL
          + 'そのあとは 時こくを うつして スライダーを 動かすだけです。');
   };
   showStatus();
 
   box.appendChild(field('うごかす', btnRow(
-    button('◆ ここに ピンを うつ', () => {
-      edit('カメラの ピン', () => {
+    button('◆ ここに キーフレームを うつ', () => {
+      edit('カメラの キーフレーム', () => {
         ['x', 'y', 'scaleX', 'rot', 'rx', 'ry', ...CAM_CHANNELS].forEach(ch => {
           setPin(cam, ch, S.time, channelValue(cam, ch, S.time), 'smooth');
         });
       });
       showStatus();
-      notify('いまの ところに カメラの ピンを うちました');
+      notify('いまの ところに カメラの キーフレームを うちました');
       onChange();
     }),
     button('🎥 の 行を えらぶ', () => {
@@ -1752,11 +1752,11 @@ export function buildCamSheet(box, back){
     })
   ));
 
-  /* ---- みんなの おくゆき ----
-     おくゆきは レイヤー 1まいずつの もの だけれど、
+  /* ---- みんなの 奥行き ----
+     奥行きは レイヤー 1まいずつの もの だけれど、
      「どれを 手前に、どれを おくに」は ぜんぶ ならべて
      見ないと きめられない。ここに あつめる。 */
-  box.appendChild(heading('みんなの おくゆき'));
+  box.appendChild(heading('レイヤーの 奥行き一覧'));
   const dpn = document.createElement('div');
   dpn.className = 'empty';
   dpn.style.textAlign = 'left';
@@ -1764,9 +1764,9 @@ export function buildCamSheet(box, back){
     + 'おくに 置くほど 小さく なって、カメラを ふっても' + NL
     + 'あまり 動かなく なります（これが 立体に 見える もと）。' + NL
     + NL
-    + '⚠ おくゆきでは 前後の かさなりは 変わりません。' + NL
+    + '⚠ 奥行きでは 前後の かさなりは 変わりません。' + NL
     + 'かさなりは タイムラインの ならび順で きまります。' + NL
-    + 'キャラを はいけいの うしろに したい ときは、' + NL
+    + 'キャラを 背景の うしろに したい ときは、' + NL
     + 'ならびも 下に うつして ください。';
   box.appendChild(dpn);
 
@@ -1796,14 +1796,14 @@ export function buildCamSheet(box, back){
         v => (v === 0 ? 'ふつう' : (v < 0 ? 'てまえ ' + (-v) : 'おく ' + v))
              + '（' + Math.round(depthScale({ depth: v }) * 100) + '%）'));
 
-      /* ---- カメラに 合わせない（画面に はりつけ）----
-         「カメラの せってい」に 無いと 見つけられない と 言われた。
+      /* ---- カメラに 合わせない（画面に 固定）----
+         「カメラの 設定」に 無いと 見つけられない と 言われた。
          レイヤーの「かたち」にも あるが、カメラの 話を して いる
          ここにも 出す。どちらを さわっても 同じ もの。 */
       {
         const pb = document.createElement('button');
         const show = () => {
-          pb.textContent = x.noCam ? '　📌 画面に はりつけ（カメラに 合わせない）'
+          pb.textContent = x.noCam ? '　📌 画面に 固定（カメラに 合わせない）'
                                    : '　🎥 カメラに 合わせる';
           pb.classList.toggle('on', !!x.noCam);
         };
@@ -1825,7 +1825,7 @@ export function buildCamSheet(box, back){
       if(isFolder(x) && !x.collapse && membersOf(S.proj, x).length){
         const b = button('　└ 中身を バラで 置く（' + membersOf(S.proj, x).length + 'まい）', () => {
           edit('バラで 動かす', () => { x.collapse = true; });
-          notify('中身が それぞれの おくゆきで 動くように なりました');
+          notify('中身が それぞれの 奥行きで 動くように なりました');
           onChange();
         });
         b.style.fontSize = '.7rem';
@@ -1881,9 +1881,9 @@ export function buildCamSheet(box, back){
   hint.className = 'empty';
   hint.style.textAlign = 'left';
   hint.textContent = 'カメラも レイヤーの ひとつです。' + NL
-    + 'タイムラインの 🎥 の 行に ピンが ならびます。' + NL
-    + 'そこで ピンを 左右に ずらせば、はやさを かえられます。' + NL
-    + 'おくゆきは、それぞれの レイヤーの「かたち」で きめます。';
+    + 'タイムラインの 🎥 の 行に キーフレームが ならびます。' + NL
+    + 'そこで キーフレームを 左右に ずらせば、はやさを かえられます。' + NL
+    + '奥行きは、それぞれの レイヤーの「かたち」で きめます。';
   box.appendChild(hint);
 }
 
@@ -1915,7 +1915,7 @@ export function buildEnterSheet(box, back, which){
   hint.className = 'empty';
   hint.style.textAlign = 'left';
   hint.textContent = isLoop
-    ? ('いまの時間から くりかえします。' + String.fromCharCode(10) + 'ピンの バーで「🔁ループ」に すると ずっと つづきます。')
+    ? ('いまの時間から ループます。' + String.fromCharCode(10) + 'キーフレームの バーで「🔁ループ」に すると ずっと つづきます。')
     : ('いまの時間から はじまります。' + String.fromCharCode(10) + 'いまの見た目が「おわりの姿」になります。');
   box.appendChild(hint);
 
@@ -1935,19 +1935,19 @@ export function buildTraceSheet(box, back){
   backRow(box, back);
   const NL = String.fromCharCode(10);
 
-  box.appendChild(heading('👆 なぞって うごかす'));
+  box.appendChild(heading('👆 パスで 動かす'));
   const tnote = document.createElement('div');
   tnote.className = 'empty';
   tnote.style.textAlign = 'left';
   tnote.textContent = '絵の上を 指で なぞると、その みちを 通ります。' + NL
     + 'なぞった あとで「何秒で 通るか」を きめます。' + NL
-    + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
+    + '道のりで 等分に キーフレームを 打つので、まがり角でも 形が くずれません。';
   tnote.textContent += NL + NL
     + '🎥 の 行を えらんで から なぞると、カメラが その みちを 通ります' + NL
     + '（アフターエフェクトの「カメラを パスに 沿わせる」）。';
   box.appendChild(tnote);
   box.appendChild(btnRow(
-    button('👆 みちを なぞる', () => { onTrace(); })
+    button('👆 パスを なぞる', () => { onTrace(); })
   ));
 }
 
@@ -1967,13 +1967,13 @@ export function buildFinishSheet(box, back){
   const NL = String.fromCharCode(10);
   const { chans, count } = motionHelp(box, l);
 
-  box.appendChild(heading('💨 うごきブラー'));
+  box.appendChild(heading('💨 モーションブラー'));
   const bnote = document.createElement('div');
   bnote.className = 'empty';
   bnote.style.textAlign = 'left';
   bnote.textContent = 'はやく 動いている ときだけ ぶれます。' + NL
     + '止まっている ときは 何も 変わりません。' + NL
-    + '（置く・回す・大きさ・ピンの曲げ ぜんぶに 効きます）' + NL
+    + '（置く・回す・大きさ・パペットピンの曲げ ぜんぶに 効きます）' + NL
     + NL
     + 'つよさ＝シャッターの 開いて いる 長さ です。' + NL
     + '100%で 3コマぶん。長いほど 尾が のびます。' + NL
@@ -1985,13 +1985,13 @@ export function buildFinishSheet(box, back){
     v => v < 0.03 ? 'なし'
        : (Math.round(v * 100) + '%（' + (0.5 + 2.5 * v).toFixed(1) + 'コマ）')));
 
-  /* カメラの ざんぞうは 絵ぜんぶに かかる。
+  /* カメラの 残像は 絵ぜんぶに かかる。
      文字だけは くっきり させたい、が よく ある ので 逃げ道を つける。 */
   const nb = !!l.noMB;
   box.appendChild(btnRow(
     button(nb ? '✅ この レイヤーには かけない' : '⬜ この レイヤーには かけない', () => {
-      edit('ざんぞうを かけない', () => { l.noMB = !nb; });
-      notify(nb ? 'ざんぞうが かかるように しました'
+      edit('残像を かけない', () => { l.noMB = !nb; });
+      notify(nb ? '残像が かかるように しました'
                 : 'この レイヤーは くっきりの ままに しました');
       onChange();
     })
@@ -1999,25 +1999,25 @@ export function buildFinishSheet(box, back){
   const nbn = document.createElement('div');
   nbn.className = 'empty';
   nbn.style.textAlign = 'left';
-  nbn.textContent = 'カメラの ざんぞうは 絵ぜんぶに かかります。' + NL
+  nbn.textContent = 'カメラの 残像は 絵ぜんぶに かかります。' + NL
     + 'ここを 入れると、この レイヤーだけ かからなく なります。' + NL
     + '文字が ぶれて 読めない ときに どうぞ。';
   box.appendChild(nbn);
 
-  box.appendChild(heading('🗑 ピンの おそうじ'));
+  box.appendChild(heading('🗑 キーフレームの 整理'));
   const c = document.createElement('div');
   c.className = 'empty';
   c.style.textAlign = 'left';
-  c.textContent = 'いま うごきのピンは ' + count() + 'コ。' + NL
-    + '（パペットピンの ゆれは のこります）';
+  c.textContent = 'いま うごきのキーフレームは ' + count() + 'コ。' + NL
+    + '（パペットピンの 変形は のこります）';
   box.appendChild(c);
   box.appendChild(btnRow(
-    button('🗑 うごきのピンを ぜんぶ けす', () => {
+    button('🗑 うごきのキーフレームを ぜんぶ けす', () => {
       const n = count();
-      if(!n) return notify('けす ピンが ありません');
-      if(!confirm('「' + l.name + '」の うごきのピン ' + n + 'コを ぜんぶ けしますか？' + NL + NL
-        + '（パペットピンの ゆれは のこります）')) return;
-      edit('うごきのピンを ぜんぶけす', () => {
+      if(!n) return notify('けす キーフレームが ありません');
+      if(!confirm('「' + l.name + '」の うごきのキーフレーム ' + n + 'コを ぜんぶ けしますか？' + NL + NL
+        + '（パペットピンの 変形は のこります）')) return;
+      edit('うごきのキーフレームを ぜんぶけす', () => {
         chans().forEach(ch => delete l.tracks[ch]);
         l.loop = null;
       });
@@ -2027,18 +2027,99 @@ export function buildFinishSheet(box, back){
   ));
 }
 
-/* ---------- リズム（BPM）でピンをうつ ----------
+/* ---------- リズム（BPM）でキーフレームをうつ ----------
    拍の しゅんかんに ぐっと 変えて、すぐ もどす。
    もどりを 少し 行きすぎさせると ぽにょんと はねて見える。 */
 function buildRhythm(box, l){
   const NL = String.fromCharCode(10);
   box.appendChild(heading('🥁 リズム（BPM）'));
 
+  /* 曲の 拍（音を 読みこむと じどうで 入る）を はじめの 数に する */
+  const PB = (S.proj.beat && S.proj.beat.bpm > 0) ? S.proj.beat : null;
   l.beat = l.beat || {
-    bpm: 120, every: 1, kind: 'omote', motion: 'ぽにょん',
-    power: 0.35, offset: 0, bars: 8
+    bpm: PB ? PB.bpm : 120, every: 1, kind: 'omote', motion: 'ぽにょん',
+    power: 0.35, offset: PB ? PB.offset || 0 : 0, bars: 8
   };
   const B = l.beat;
+
+  /* ---- 曲から きた はやさ ----
+     音を 読みこむと BPM を その場で さがして おぼえて ある。
+     ここから ひと おしで つかえる。 */
+  if(PB){
+    const sb = document.createElement('div');
+    sb.className = 'empty';
+    sb.style.textAlign = 'left';
+    sb.textContent = 'この 曲は だいたい ' + PB.bpm + ' BPM'
+      + '（はじまり ' + (PB.offset || 0).toFixed(2) + '秒）。' + NL
+      + 'タイムラインの あおい めもりが 拍です。';
+    box.appendChild(sb);
+
+    box.appendChild(btnRow(
+      button('🎵 曲の ' + PB.bpm + ' BPM に 合わせる', () => {
+        B.bpm = PB.bpm; B.offset = PB.offset || 0;
+        notify('曲の はやさに しました');
+        onChange();
+        openLayer();
+      }),
+      (() => {
+        const on = PB.snap !== false;
+        const b = button((on ? '✅' : '⬜') + ' 拍に すいつく', () => {
+          S.proj.beat.snap = !on;
+          notify(on ? 'すいつきを やめました' : 'キーフレームが 拍に すいつきます');
+          onChange();
+          openLayer();
+        });
+        b.classList.toggle('on', on);
+        return b;
+      })()
+    ));
+  }
+
+  /* ---- ひと おしで 曲に のせる ----
+     1小節ぶん（4拍）だけ うごきを 作って、そこを くり返す。
+     キーフレームを 曲ぜんぶに ばらまくより 軽いし、
+     あとから 1か所 直すと ぜんぶに 効く。 */
+  const putLoopBar = (beats, label) => {
+    const bl = beatSec(B.bpm);
+    /* はじまりは「いまの 時こく」から いちばん 近い 拍。
+       曲の あたま（offset）から 数えて そろえる。 */
+    const off = B.offset || 0;
+    let start = off + Math.round((S.time - off) / bl) * bl;
+    if(start < 0) start = off;
+    const end = start + bl * beats;
+    if(end > S.proj.duration + 1e-6){
+      return notify('のこり時間が たりません（' + (bl * beats).toFixed(2) + '秒 いります）');
+    }
+    const pose = valuesAt(l, start);
+    const r = { n: 0 };
+    edit(label, () => {
+      r.n = rhythmKeys(l, {
+        bpm: B.bpm, every: B.every, kind: B.kind, motion: B.motion,
+        power: B.power, start, end: end - bl * 0.001, offset: 0, pose
+      });
+      // さいごの 拍の あとまで を くり返しに する
+      l.loop = { from: +start.toFixed(3), to: +end.toFixed(3), mode: 'loop' };
+    });
+    if(!r.n) return notify('うてませんでした');
+    notify(beats + '拍ぶん つくって くり返しに しました（' + r.n + 'コの キーフレーム）');
+    onChange();
+  };
+
+  box.appendChild(btnRow(
+    button('🥁 1小節（4拍）ぶん つくって くり返す',
+           () => putLoopBar(4, '曲に 合わせて うごかす'))
+  ));
+  box.appendChild(btnRow(
+    button('2拍ぶん', () => putLoopBar(2, '曲に 合わせて うごかす')),
+    button('8拍ぶん', () => putLoopBar(8, '曲に 合わせて うごかす'))
+  ));
+  const lnote = document.createElement('div');
+  lnote.className = 'empty';
+  lnote.style.textAlign = 'left';
+  lnote.textContent = 'いまの 時こくに いちばん 近い 拍から はじめます。' + NL
+    + 'その ぶんだけ キーフレームを うって、あとは くり返すので 軽いです。' + NL
+    + 'うごきの 種類と つよさは 下で えらべます（あとから 変えて 打ち直せます）。';
+  box.appendChild(lnote);
 
   const info = document.createElement('div');
   info.className = 'empty';
@@ -2090,13 +2171,18 @@ function buildRhythm(box, l){
   const find = document.createElement('div');
   find.className = 'rowbtns';
   find.appendChild(button('🎵 音から さがす', () => {
-    if(!hasAudio()) return notify('さきに 音を 読みこんでね（せってい → おと）');
+    if(!hasAudio()) return notify('さきに 音を 読みこんでね（設定 → おと）');
     const bpm = guessBpm();
     if(!bpm) return notify('見つかりませんでした。トントンで きめてね');
     B.bpm = Math.max(60, Math.min(200, bpm));
     B.offset = firstOnset();
+    /* 作品ぜんたいにも おぼえる。
+       タイムラインの めもりと「拍に すいつく」が これを 見る。 */
+    S.proj.beat = { bpm: B.bpm, offset: B.offset,
+                    snap: S.proj.beat ? S.proj.beat.snap !== false : true };
     notify('だいたい ' + B.bpm + ' BPM。はじまり ' + B.offset.toFixed(2) + '秒');
     onChange();
+    openLayer();
   }));
 
   let taps = [];
@@ -2110,8 +2196,11 @@ function buildRhythm(box, l){
     const avg = sum / (taps.length - 1);
     const bpm = Math.max(60, Math.min(200, 60 / avg));
     B.bpm = Math.round(bpm);
+    S.proj.beat = { bpm: B.bpm, offset: B.offset || 0,
+                    snap: S.proj.beat ? S.proj.beat.snap !== false : true };
     tapB.textContent = '👆 ' + B.bpm + ' BPM（' + taps.length + '回）';
     showInfo();
+    onChange();
   });
   find.appendChild(tapB);
   box.appendChild(field('BPMを きめる', find));
@@ -2143,12 +2232,12 @@ function buildRhythm(box, l){
   box.appendChild(slider('なん拍ぶん', () => B.bars, v => B.bars = v, 2, 64, 1,
     v => Math.round(v) + '拍'));
 
-  box.appendChild(heading('◆ ピンだけ うつ（うごきは 自分で）'));
+  box.appendChild(heading('◆ キーフレームだけ うつ（うごきは 自分で）'));
 
   /* うごきは つけず、拍の ところに 印だけ うつ。
      あとで 自分で 動かせば、ぴったり リズムに 合う。 */
 
-  /** 印のピンを うつ。beats を わたすと その拍ぶんだけ */
+  /** 印のキーフレームを うつ。beats を わたすと その拍ぶんだけ */
   const putMarks = (beats, label) => {
     const start = S.time;
     const b = beatSec(B.bpm);
@@ -2169,29 +2258,29 @@ function buildRhythm(box, l){
       }
     });
     if(!r.n) return notify('うてませんでした');
-    notify(r.times.length + 'コの 拍に ピンを うちました'
+    notify(r.times.length + 'コの 拍に キーフレームを うちました'
       + (B.loopIt !== false ? '（くり返しに しました）' : ''));
     onChange();
   };
 
   box.appendChild(btnRow(
-    button('◆ 1拍ぶん（表2・裏1）', () => putMarks(1, '1拍ぶんのピン'))
+    button('◆ 1拍ぶん（表2・裏1）', () => putMarks(1, '1拍ぶんのキーフレーム'))
   ));
 
   const onenote = document.createElement('div');
   onenote.className = 'empty';
   onenote.style.textAlign = 'left';
-  onenote.textContent = 'はじめの拍・まん中の うら拍・つぎの拍 の 3つに ピンが つきます。'
+  onenote.textContent = 'はじめの拍・まん中の うら拍・つぎの拍 の 3つに キーフレームが つきます。'
     + NL + 'まん中を 動かせば、それだけで リズムに 合った くり返しに なります。';
   box.appendChild(onenote);
 
   box.appendChild(btnRow(
-    button('◆ 拍のところに ピンだけ うつ', () => {
+    button('◆ 拍のところに キーフレームだけ うつ', () => {
       const start = S.time;
       const end = Math.min(S.proj.duration, start + beatSec(B.bpm) * B.bars);
       const r = { n: 0, times: [] };
       const pose = valuesAt(l, S.time);
-      edit('拍のピンをうつ', () => {
+      edit('拍のキーフレームをうつ', () => {
         const got = markKeys(l, {
           bpm: B.bpm, every: B.every, kind: B.kind,
           offset: B.offset, start, end, pose
@@ -2207,7 +2296,7 @@ function buildRhythm(box, l){
         }
       });
       if(!r.n) return notify('うてませんでした（時間を のばしてね）');
-      notify(r.times.length + 'コの 拍に ピンを うちました'
+      notify(r.times.length + 'コの 拍に キーフレームを うちました'
         + (B.loopIt !== false ? '（くり返しに しました）' : ''));
       onChange();
     })
@@ -2221,23 +2310,23 @@ function buildRhythm(box, l){
     b.classList.toggle('on', (B.loopIt !== false) === v);
     loopRow.appendChild(b);
   });
-  box.appendChild(field('拍のピンは', loopRow));
+  box.appendChild(field('拍のキーフレームは', loopRow));
 
   const mnote = document.createElement('div');
   mnote.className = 'empty';
   mnote.style.textAlign = 'left';
-  mnote.textContent = '「ピンだけ」は うごきを つけません。' + NL
+  mnote.textContent = '「キーフレームだけ」は うごきを つけません。' + NL
     + 'いまの姿の まま 拍の ところに ならぶので、' + NL
-    + 'その ピンを 1つずつ 動かせば 自分の うごきが リズムに 合います。';
+    + 'その キーフレームを 1つずつ 動かせば 自分の うごきが リズムに 合います。';
   box.appendChild(mnote);
 
   /* ---- ここから下は うごきも つける ---- */
-  box.appendChild(heading('🎬 うごきも つける'));
+  box.appendChild(heading('🎬 動きも つける'));
   const mm = document.createElement('div');
   mm.className = 'empty';
   mm.style.textAlign = 'left';
   mm.textContent = 'こちらは 拍に 合わせて うごきまで つけます。'
-    + NL + '自分で うごかしたいときは 上の「ピンだけ」を つかってね。';
+    + NL + '自分で うごかしたいときは 上の「キーフレームだけ」を つかってね。';
   box.appendChild(mm);
 
   /* うごきの 種類 */
@@ -2258,7 +2347,7 @@ function buildRhythm(box, l){
   /* ---- 1回だけ 入れる ----
      ぜんぶの 拍に 打つと、あとから 1つだけ 変えるのが 大へん。
      1回ぶんだけ 入れて おけば、あとは
-     タイムラインの ⧉コピー → 📋はりつけ で
+     タイムラインの ⧉コピー → 📋ペースト で
      好きな ところに 好きなだけ ならべられる。 */
   box.appendChild(btnRow(
     button('◆ ここに 1回だけ 入れる', () => {
@@ -2286,8 +2375,8 @@ function buildRhythm(box, l){
       const back = Math.min(0.34, b * 0.62);
       S.selPins = { layer: l.id, times: [+t0.toFixed(3), +(t0 + back).toFixed(3)] };
 
-      notify(B.motion + ' を 1回 入れました（ピン ' + r.n + 'コ）' + NL
-        + 'えらんだ ままなので ⧉コピー → 📋はりつけ で ならべられます');
+      notify(B.motion + ' を 1回 入れました（キーフレーム ' + r.n + 'コ）' + NL
+        + 'えらんだ ままなので ⧉コピー → 📋ペースト で ならべられます');
       onChange();
     })
   ));
@@ -2296,19 +2385,19 @@ function buildRhythm(box, l){
   oneNote.className = 'empty';
   oneNote.style.textAlign = 'left';
   oneNote.textContent = '1回ぶん（' + beatSec(B.bpm).toFixed(2) + '秒）だけ 入ります。' + NL
-    + 'あとは タイムラインで その ピンを えらんで' + NL
-    + '⧉コピー → 再生バーを うごかして → 📋はりつけ。' + NL
-    + '「◆ ピンだけ うつ」で 拍の 印を 先に 打っておくと' + NL
-    + 'はりつける ところが ぴったり わかります。';
+    + 'あとは タイムラインで その キーフレームを えらんで' + NL
+    + '⧉コピー → 再生バーを うごかして → 📋ペースト。' + NL
+    + '「◆ キーフレームだけ うつ」で 拍の 印を 先に 打っておくと' + NL
+    + 'ペーストする ところが ぴったり わかります。';
   box.appendChild(oneNote);
 
-  box.appendChild(heading('◆ ぜんぶの 拍に うつ'));
+  box.appendChild(heading('◆ すべての拍に 打つ'));
   box.appendChild(btnRow(
-    button('◆ リズムで ピンをうつ', () => {
+    button('◆ リズムで キーフレームをうつ', () => {
       const start = S.time;
       const end = Math.min(S.proj.duration, start + beatSec(B.bpm) * B.bars);
       const n = { v: 0 };
-      edit('リズムで ピンをうつ', () => {
+      edit('リズムで キーフレームをうつ', () => {
         n.v = rhythmKeys(l, {
           bpm: B.bpm, every: B.every, kind: B.kind, motion: B.motion,
           power: B.power, offset: B.offset, start, end
@@ -2316,11 +2405,11 @@ function buildRhythm(box, l){
       });
       if(!n.v) return notify('うてませんでした（時間を のばしてね）');
       const beats = beatTimes({ bpm:B.bpm, every:B.every, kind:B.kind, start, end, offset:B.offset });
-      notify(beats.length + '回 きざみます（ピン ' + n.v + 'コ）');
+      notify(beats.length + '回 きざみます（キーフレーム ' + n.v + 'コ）');
       onChange();
     }),
-    button('リズムを けす', () => {
-      edit('リズムをけす', () => {
+    button('リズムを 削除', () => {
+      edit('リズムを削除', () => {
         rhythmChannels(B.motion).forEach(ch => delete (l.tracks || {})[ch]);
       });
       notify('リズムを けしました');
@@ -2339,31 +2428,31 @@ function buildRhythm(box, l){
 }
 
 /* ---------- かみのゆれ ----------
-   ピンが 2本いじょう ささっていれば、骨を しならせて ゆらす
+   パペットピンが 2本いじょう ささっていれば、骨を しならせて ゆらす
    （つけねは 止まったまま、毛先ほど おくれて 動く）。
    ささっていなければ、じくを 中心に かたむけて ゆらす。 */
 function buildSway(box, l){
   const NL = String.fromCharCode(10);
   const boned = (l.pins || []).length > 1;
 
-  box.appendChild(heading('🌬 かみのゆれ'));
+  box.appendChild(heading('🌬 髪の揺れ'));
 
   const note = document.createElement('div');
   note.className = 'empty';
   note.style.textAlign = 'left';
   note.textContent = boned
-    ? 'ピンが ' + l.pins.length + '本 あるので、骨を しならせて ゆらします。'
+    ? 'パペットピンが ' + l.pins.length + '本 あるので、骨を しならせて ゆらします。'
       + NL + 'つけねは 止まったまま、毛先ほど おくれて 動きます。'
     : 'じく（回転の中心）を 中心に かたむけて ゆらします。'
       + NL + 'かみのけの つけねに じくを 置くと それらしくなります。'
-      + NL + '「ピン」を 2本いじょう さすと、しなって もっと自然に。';
+      + NL + '「パペットピン」を 2本いじょう さすと、しなって もっと自然に。';
   box.appendChild(note);
 
   l.sway = Object.assign(newSway(), l.sway || {}, { on: !!(l.sway && l.sway.on) });
   const sw = l.sway;
 
-  /* ---- ずっと ゆらす（ピンを 打たない）----
-     ピンを 何コマか 打って あいだを つなぐ やり方だと、
+  /* ---- ずっと ゆらす（キーフレームを 打たない）----
+     キーフレームを 何コマか 打って あいだを つなぐ やり方だと、
      なみの 山と 谷の あいだが まっすぐな 線に なって カクカクする。
      ここを オンに すると、何秒めでも 本物の なみを その場で 出すので
      なめらかに ゆれる。数字を 変えれば すぐ 効く。 */
@@ -2385,14 +2474,14 @@ function buildSway(box, l){
     const liveNote = document.createElement('div');
     liveNote.className = 'empty';
     liveNote.style.textAlign = 'left';
-    liveNote.textContent = 'オンの あいだは ピンを 打たずに ずっと ゆれます。'
+    liveNote.textContent = 'オンの あいだは キーフレームを 打たずに ずっと ゆれます。'
       + NL + 'カクカクせず、数字を 変えると すぐ 効きます。'
       + NL + 'レイヤー 1まいずつ 別べつに つけられます。'
       + NL + (boned
         ? '（オンの あいだ、そのレイヤーの パペットピンの'
-          + NL + '　うごきのピンは お休みします）'
-        : 'ピンが ないので じくを 中心に かたむけて ゆらします。'
-          + NL + '「ピン」を 2本いじょう さすと、しなって もっと自然に。');
+          + NL + '　うごきのキーフレームは お休みします）'
+        : 'キーフレームが ないので じくを 中心に かたむけて ゆらします。'
+          + NL + '「パペットピン」を 2本いじょう さすと、しなって もっと自然に。');
     box.appendChild(liveNote);
   }
 
@@ -2411,9 +2500,9 @@ function buildSway(box, l){
     if(inp) inp.disabled = true;
     const v = dl.querySelector('.val');
     if(v) v.textContent = '—';
-    dl.title = 'ピンを 2本いじょう さすと つかえます（毛先が おくれて しなる）';
+    dl.title = 'パペットピンを 2本いじょう さすと つかえます（毛先が おくれて しなる）';
     const dn = dl.querySelector('label');
-    if(dn) dn.textContent = 'おくれ（ピン2本〜）';
+    if(dn) dn.textContent = 'おくれ（パペットピン2本〜）';
   }
 
   const desc = document.createElement('div');
@@ -2445,26 +2534,26 @@ function buildSway(box, l){
       edit('めやす（' + label + '）', () => {
         sw.angle = opt.angle; sw.period = opt.period; sw.delay = opt.delay;
       });
-      // ずっと ゆらす が オンなら すぐ 効く。オフなら ピンを 打つ
+      // ずっと ゆらす が オンなら すぐ 効く。オフなら キーフレームを 打つ
       if(sw.on){ notify(label + ' に しました'); onChange(); }
       else put(label);
     });
     kaze.appendChild(b);
   });
-  box.appendChild(heading('めやす'));
+  box.appendChild(heading('プリセット'));
   box.appendChild(kaze);
 
   /* ---- あと引き（止まった あとの ゆれ）----
      しゅっと 来て ピタッと 止まる ときに いる もの。
      風の ゆれ（ずっと 同じ はば）とは べつ。 */
-  box.appendChild(heading('💨 止まった ときに ゆらす'));
+  box.appendChild(heading('💨 停止時の 揺れ'));
   const an = document.createElement('div');
   an.className = 'empty';
   an.style.textAlign = 'left';
   an.textContent = 'しゅっと 入って きて 止まる ―― そのとき 髪は' + NL
     + 'すぐ 止まらず、いきおいで 先へ 流れて から' + NL
     + 'ゆれながら もどって きます。' + NL
-    + '「うごき」の ピンを 見て、止まる ところを さがして' + NL
+    + '「うごき」の キーフレームを 見て、止まる ところを さがして' + NL
     + 'そこに 入れます。';
   box.appendChild(an);
 
@@ -2527,7 +2616,7 @@ function buildSway(box, l){
   box.appendChild(btnRow(
     button('💨 止まる ところを さがして 入れる', () => {
       const m = motionOwner();
-      if(!m) return notify('うごきの ピンが 見つかりません（先に 動かしてね）');
+      if(!m) return notify('うごきの キーフレームが 見つかりません（先に 動かしてね）');
       putAfter(m.stops, m.l === l ? 'じぶん' : '「' + m.l.name + '」');
     }),
     button('◆ いまの ところに 入れる', () => {
@@ -2547,7 +2636,7 @@ function buildSway(box, l){
         angle: sw.angle, period: sw.period, phase: sw.phase, delay: sw.delay,
         duration: end - start, start
       });
-      if(!keys.length) return notify('ピンを 2本いじょう さしてね');
+      if(!keys.length) return notify('パペットピンを 2本いじょう さしてね');
       edit('かみのゆれ', () => {
         keys.forEach(k => {
           k.pins.forEach((v, i) => {
@@ -2558,9 +2647,9 @@ function buildSway(box, l){
           });
         });
       });
-      notify((label || 'ゆれ') + ' を いれました（ピン ' + keys.length + 'コ）');
+      notify((label || 'ゆれ') + ' を いれました（キーフレーム ' + keys.length + 'コ）');
     } else {
-      /* かたむきの ゆれ。行って もどるを くり返す。 */
+      /* 回転の ゆれ。行って もどるを くり返す。 */
       const base = valuesAt(l, start).rot;
       const p = sw.period;
       edit('かみのゆれ', () => {
@@ -2583,9 +2672,9 @@ function buildSway(box, l){
   }
 
   box.appendChild(btnRow(
-    button('◆ ピンを 打って ゆらす', () => put(null)),
-    button('ゆれを けす', () => {
-      edit('ゆれをけす', () => {
+    button('◆ キーフレームを 打って ゆらす', () => put(null)),
+    button('ゆれを 削除', () => {
+      edit('ゆれを削除', () => {
         if(l.sway) l.sway.on = false;
         if(boned){
           (l.pins || []).forEach(pn => {
@@ -2631,7 +2720,7 @@ export function buildFaceSheet(box){
   steps.textContent =
     '① このレイヤーに 目あき・目とじ の絵を そろえる' + NL +
     '② どれが「あいた絵」「とじた絵」か えらぶ' + NL +
-    '③ ボタンを おすと、じどうで ピンが ならぶ';
+    '③ ボタンを おすと、じどうで キーフレームが ならぶ';
   box.appendChild(steps);
 
   if(l.frames.length < 2){
@@ -2641,7 +2730,7 @@ export function buildFaceSheet(box){
     e.textContent = 'いま この レイヤーの 絵は 1まいです。' + NL
       + '目とじの絵が べつのレイヤーなら、' + NL
       + 'タイムラインで その行に ☑ を つけてから 下のボタン。' + NL
-      + '（絵のファイルから 足すときは「かたち」の ＋コマを足す）';
+      + '（画像ファイルから足すときは「レイヤー」の ＋コマを追加）';
     box.appendChild(e);
   }
 
@@ -2664,7 +2753,7 @@ export function buildFaceSheet(box){
       const NL2 = String.fromCharCode(10);
       const n = l.frames.length;
       if(!confirm(n + 'コマを ' + n + 'まいの レイヤーに もどしますか？' + NL2 + NL2
-        + '（目パチ・口パクの コマの ピンは 消えます）')) return;
+        + '（目パチ・口パクの コマの キーフレームは 消えます）')) return;
       const r = { made: [] };
       edit('コマを バラす', () => { r.made = splitFrames(S.proj, l, S.time); });
       notify(r.made.length + 'まいを 外に 出しました（もどす で 戻せます）');
@@ -2675,7 +2764,8 @@ export function buildFaceSheet(box){
   if(l.frames.length < 2) return;
 
   l.blink = l.blink || { open:0, close:1, every:3, hold:0.09 };
-  l.talk  = l.talk  || { rate:8, len:2, closed:0 };
+  l.talk  = l.talk  || { rate:8, len:2, closed:0, open:null };
+  if(l.talk.open === undefined) l.talk.open = null;
 
   const frameSel = (label, get, set) => {
     const sel = document.createElement('select');
@@ -2690,6 +2780,38 @@ export function buildFaceSheet(box){
     sel.addEventListener('change', () => { set(+sel.value); onChange(); });
     return field(label, sel);
   };
+
+  /* 「おまかせ」も えらべる ほう。
+     あけた口を きめない ときは、とじた口 いがいの コマを
+     ぜんぶ つかう（これまでと 同じ うごき）。 */
+  const frameSelAuto = (label, get, set) => {
+    const sel = document.createElement('select');
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = 'おまかせ（のこりの コマ ぜんぶ）';
+    if(get() == null) o0.selected = true;
+    sel.appendChild(o0);
+    l.frames.forEach((_, i) => {
+      const o = document.createElement('option');
+      const a = S.proj.assets[l.frames[i]];
+      o.value = i;
+      o.textContent = (i + 1) + 'コマめ' + (a && a.name ? '（' + a.name + '）' : '');
+      if(i === get()) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      set(sel.value === '' ? null : +sel.value);
+      onChange();
+    });
+    return field(label, sel);
+  };
+
+  /* 口パクに つかう コマ。
+     あけた口を きめて あれば その 2まいだけ、
+     きめて いなければ ぜんぶ。 */
+  const mouthFrames = () => (l.talk.open != null && l.talk.open !== l.talk.closed)
+    ? [l.talk.closed, l.talk.open]
+    : l.frames.map((_, i) => i);
 
   const sub = (t) => {
     const d = document.createElement('div');
@@ -2724,7 +2846,7 @@ export function buildFaceSheet(box){
   ));
 
   /* ---------- 音に合わせた 口パク ---------- */
-  box.appendChild(heading('🎤 音に合わせて 口パク'));
+  box.appendChild(heading('🎤 音に合わせた 口パク'));
   if(!hasAudio()){
     const e = document.createElement('div');
     e.className = 'empty';
@@ -2761,10 +2883,13 @@ export function buildFaceSheet(box){
     box.appendChild(slider('口のはやさ', () => l.voice.rate, v => l.voice.rate = v, 4, 16, 1,
       v => Math.round(v) + '/秒'));
     box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));
+    box.appendChild(frameSelAuto('あけた口の絵', () => l.talk.open, v => l.talk.open = v));
+    box.appendChild(sub('あけた口を きめると、その 2まいだけで パクパクします。'
+      + NL + 'おまかせの ままだと、のこりの コマを 声の 大きさで つかい分けます。'));
     box.appendChild(btnRow(
       button('🎤 音から 口パクを つくる', () => {
         const r = voiceMouthKeys({
-          frames: l.frames.map((_, i) => i),
+          frames: mouthFrames(),
           closedFrame: l.talk.closed,
           rate: l.voice.rate, sense: l.voice.sense,
           shift: (S.proj.audio && S.proj.audio.offset) || 0,
@@ -2775,7 +2900,7 @@ export function buildFaceSheet(box){
           framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
           r.keys.forEach(k => setPin(l, 'frame', k.t, k.v, 'hold'));
         });
-        notify(r.spans.length + 'か所 しゃべります（ピン ' + r.keys.length + 'コ）');
+        notify(r.spans.length + 'か所 しゃべります（キーフレーム ' + r.keys.length + 'コ）');
         onChange();
       })
     ));
@@ -2789,21 +2914,22 @@ export function buildFaceSheet(box){
   box.appendChild(slider('しゃべる長さ', () => l.talk.len, v => l.talk.len = v, 0.3, 8, 0.1,
     v => v.toFixed(1) + '秒'));
   box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));
+  box.appendChild(frameSelAuto('あけた口の絵', () => l.talk.open, v => l.talk.open = v));
   box.appendChild(btnRow(
     button('👄 口パクを いれる', () => {
       const keys = talkKeys({
-        frames: l.frames.map((_, i) => i),
+        frames: mouthFrames(),
         rate: l.talk.rate, closedFrame: l.talk.closed,
         start: S.time, end: Math.min(S.proj.duration, S.time + l.talk.len)
       });
       edit('口パクを いれる', () => {
         keys.forEach(k => setPin(l, 'frame', k.t, k.v, 'hold'));
       });
-      notify(keys.length + 'コの ピンを うちました');
+      notify(keys.length + 'コの キーフレームを うちました');
       onChange();
     }),
-    button('コマのピンを消す', () => {
-      edit('コマのピンを消す', () => {
+    button('コマのキーフレームを削除', () => {
+      edit('コマのキーフレームを消す', () => {
         framePinTimes(l).forEach(t => removePin(l, t, 'frame'));
       });
       onChange();
@@ -2814,7 +2940,7 @@ export function buildFaceSheet(box){
 /* ================= テキスト ================= */
 /* ================= もじ =================
    「もじ」ボタンから ひらく。ここには 文字のことだけ 置く。
-   かたち（大きさ・かたむき）や うごきは せってい に あるので まぜない。
+   かたち（大きさ・回転）や うごきは 設定 に あるので まぜない。
 
    まだ レイヤーが 無いときは 下書きを いじって、
    「✓ 決定」を おしたときに はじめて レイヤーを作る。
@@ -2831,7 +2957,7 @@ export function buildTextSheet(box, closeFn){
   tnote.style.textAlign = 'left';
   tnote.textContent = '下に 帯を 出して、名前と セリフを 1文字ずつ 出します。' + NL
     + '「ぽぽぽ」と 鳴らしたり、その あいだ キャラの 口を' + NL
-    + '動かしたり できます（作った あと せっていで）。';
+    + '動かしたり できます（作った あと 設定で）。';
   box.appendChild(tnote);
   box.appendChild(btnRow(
     button('💬 セリフ枠を つくる', () => {
@@ -2839,7 +2965,7 @@ export function buildTextSheet(box, closeFn){
       addTalkLayer('セリフ');
       commitEdit();
       onChange();
-      /* すぐ 文を 書ける ように、その まま せっていを ひらく */
+      /* すぐ 文を 書ける ように、その まま 設定を ひらく */
       openLayer();
     })
   ));
@@ -2982,8 +3108,8 @@ export function buildTextSheet(box, closeFn){
     const note = document.createElement('div');
     note.className = 'empty';
     note.style.textAlign = 'left';
-    note.textContent = '大きさや かたむき、うごきは' + NL
-      + '出したあとに「せってい」で かえられます。';
+    note.textContent = '大きさや 回転、うごきは' + NL
+      + '出したあとに「設定」で かえられます。';
     box.appendChild(note);
   }
 }
@@ -2994,10 +3120,10 @@ export function clearDraftText(){ draftText = null; }
 
 
 
-/* ================= ぐるり360 =================
+/* ================= 360°パノラマ =================
    正距円筒（ぐるり1しゅうの 絵）を、その場に 立って 見まわす ように 出す。
    よこ回転・たて回転・ズーム は ふつうの チャンネルなので、
-   タイミングピンが うてる＝そのまま 動画に なる。 */
+   キーフレームが うてる＝そのまま 動画に なる。 */
 /* ---------- 🔮 球に はる ----------
    絵の よこを ぐるり1しゅう、たてを 上から下 に して 玉に まく。
    ふつうの レイヤーの まま なので、場所・大きさ・親つけ・
@@ -3039,7 +3165,7 @@ function talkRow(box, l, closeFn){
   ta.rows = 5;
   ta.placeholder = 'ここに セリフを 書く';
   ta.style.cssText = 'flex:1;min-width:0;font-size:.85rem;line-height:1.6;padding:.4rem';
-  /* 打って いる あいだは せっていを 作り直さない。
+  /* 打って いる あいだは 設定を 作り直さない。
      作り直すと この わく じたいが 作りなおされて、
      字を 打つ ところが 飛んだり 1文字ずつ 消えたり する。 */
   ta.addEventListener('focus', () => holdSheet(true));
@@ -3091,7 +3217,7 @@ function talkRow(box, l, closeFn){
     v => { t.bg = v; dirty(); }));
   box.appendChild(colorPick('文字の 色', () => t.fg || '#FFFEF7',
     v => { t.fg = v; dirty(); }));
-  box.appendChild(slider('帯の すけ具合', () => t.bgAlpha == null ? 0.82 : t.bgAlpha,
+  box.appendChild(slider('帯の 不透明度', () => t.bgAlpha == null ? 0.82 : t.bgAlpha,
     v => { t.bgAlpha = v; dirty(); }, 0, 1, 0.01,
     v => Math.round(v * 100) + '%'));
   box.appendChild(btnRow(
@@ -3102,7 +3228,7 @@ function talkRow(box, l, closeFn){
   ));
 
   /* ---- ぽぽぽ ---- */
-  box.appendChild(heading('🔈 ぽぽぽ'));
+  box.appendChild(heading('🔈 ポップ音'));
   box.appendChild(btnRow(
     button(t.blip ? '✅ 文字が 出る たびに 鳴らす' : '⬜ 文字が 出る たびに 鳴らす', () => {
       edit('ぽぽぽ', () => { t.blip = !t.blip; });
@@ -3193,15 +3319,58 @@ function talkRow(box, l, closeFn){
       if(t.mouth === x.id) o.selected = true;
       sel.appendChild(o);
     });
-    sel.addEventListener('change', () => { t.mouth = sel.value || null; });
     box.appendChild(field('だれの 口', sel));
+
+    /* えらんだ 口の レイヤーの、どの コマが とじ口／あけ口 か。
+       「表情」の 口パクと 同じ ところに しまう ので、
+       どちらの 画面で きめても 同じ ように 効く。 */
+    const mouthBox = document.createElement('div');
+    box.appendChild(mouthBox);
+    const frameOpts = (target, cur, withAuto) => {
+      const s2 = document.createElement('select');
+      if(withAuto){
+        const o = document.createElement('option');
+        o.value = ''; o.textContent = 'おまかせ（のこりの コマ ぜんぶ）';
+        if(cur == null) o.selected = true;
+        s2.appendChild(o);
+      }
+      target.frames.forEach((fid, i) => {
+        const o = document.createElement('option');
+        const a = S.proj.assets[fid];
+        o.value = i;
+        o.textContent = (i + 1) + 'コマめ' + (a && a.name ? '（' + a.name + '）' : '');
+        if(i === cur) o.selected = true;
+        s2.appendChild(o);
+      });
+      return s2;
+    };
+    const drawMouth = () => {
+      mouthBox.textContent = '';
+      const target = S.proj.layers.find(x => x.id === t.mouth);
+      if(!target) return;
+      target.talk = target.talk || { rate: 8, len: 2, closed: 0, open: null };
+      if(target.talk.open === undefined) target.talk.open = null;
+
+      const a = frameOpts(target, target.talk.closed, false);
+      a.addEventListener('change', () => { target.talk.closed = +a.value; });
+      mouthBox.appendChild(field('とじた口の絵', a));
+
+      const b = frameOpts(target, target.talk.open, true);
+      b.addEventListener('change', () => {
+        target.talk.open = b.value === '' ? null : +b.value;
+      });
+      mouthBox.appendChild(field('あけた口の絵', b));
+    };
+    sel.addEventListener('change', () => { t.mouth = sel.value || null; drawMouth(); });
+    drawMouth();
+
     box.appendChild(btnRow(
       button('👄 セリフに 合わせて 口を 動かす', () => {
         const target = S.proj.layers.find(x => x.id === t.mouth);
         if(!target) return notify('口の レイヤーを えらんでね');
         const r = { n: 0 };
         edit('口パクを つける', () => { r.n = talkMouthKeys(l, target, setPin); });
-        notify(r.n ? r.n + 'か所に ピンを うちました' : 'つけられませんでした');
+        notify(r.n ? r.n + 'か所に キーフレームを うちました' : 'つけられませんでした');
         onChange();
       })
     ));
@@ -3209,8 +3378,8 @@ function talkRow(box, l, closeFn){
     mn.className = 'empty';
     mn.style.textAlign = 'left';
     mn.textContent = '「ぽ」と 同じ ところで 口が 開きます。' + NL
-      + 'さいごは かならず 口を とじます。' + NL
-      + 'やり直す ときは、その レイヤーの コマの ピンを 消してね。';
+      + 'さいごは かならず「とじた口の絵」に もどします。' + NL
+      + 'やり直す ときは、その レイヤーの コマの キーフレームを 消してね。';
     box.appendChild(mn);
   }
 }
@@ -3222,7 +3391,7 @@ function ballRow(box, l){
      ふつうの レイヤーは その 絵が 材料。 */
   if(!isFolder(l) && !(l.frames && l.frames.length)) return;
   const NL = String.fromCharCode(10);
-  box.appendChild(heading('🔮 球に はる'));
+  box.appendChild(heading('🔮 球に 貼る'));
 
   const help = document.createElement('div');
   help.className = 'empty';
@@ -3326,14 +3495,14 @@ function ballRow(box, l){
 function panoRow(box, l){
   if(!isPano(l)) return;
   const NL = String.fromCharCode(10);
-  box.appendChild(heading('ぐるり360'));
+  box.appendChild(heading('360°パノラマ'));
 
   const help = document.createElement('div');
   help.className = 'empty';
   help.style.textAlign = 'left';
   help.textContent = '「ぐるり 360°」で 作った 絵です。' + NL
     + 'むきを かえると、その場で 見まわした 絵に なります。' + NL
-    + '下の ボタンを おすと ピンが うたれて、動画に なります。';
+    + '下の ボタンを おすと キーフレームが うたれて、動画に なります。';
   box.appendChild(help);
 
   const deg = v => Math.round(v) + '°';
@@ -3375,13 +3544,13 @@ function panoRow(box, l){
   const note = document.createElement('div');
   note.className = 'empty';
   note.style.textAlign = 'left';
-  note.textContent = 'ピンを うった あとは、タイムラインで 速さを 直せます。' + NL
+  note.textContent = 'キーフレームを うった あとは、タイムラインで 速さを 直せます。' + NL
     + 'ほかの レイヤーは この 上に かさなるので、' + NL
     + 'キャラクターを おいて いっしょに 動かせます。';
   box.appendChild(note);
 }
 
-/* ---------- 見た目（塗り・ぼかし・ふちどり） ----------
+/* ---------- 見た目（塗り・ぼかし・境界線） ----------
    ふつうのレイヤーでも フォルダでも 同じものが使える。
    フォルダは 中身を1まいにまとめてから かかるので、
    中に何まい入っていても ふちは 外側にだけ出る。 */
@@ -3389,7 +3558,7 @@ export function buildLook(box, l, opts){
   const NL = String.fromCharCode(10);
   const closeLook = opts && opts.close;
   const pct = v => Math.round(v * 100) + '%';
-  box.appendChild(heading('見た目'));
+  box.appendChild(heading('スタイル'));
 
   // 塗り（色と強さ）
   box.appendChild(colorPick('塗りの色',
@@ -3400,19 +3569,19 @@ export function buildLook(box, l, opts){
   box.appendChild(animSlider('ぼかし', l, 'blur', 0, 40, 0.5,
     v => v < 0.05 ? 'なし' : v.toFixed(1)));
 
-  /* ふちどり。太さは キャンバスの大きさに対して一定なので、
+  /* 境界線。太さは キャンバスの大きさに対して一定なので、
      レイヤーを 大きくしても 細くならない。 */
   box.appendChild(colorPick('ふちの色',
     () => (l.stroke && l.stroke.color) || '#FFFEF7',
     v => { l.stroke = l.stroke || { color:'#FFFEF7', width:0 }; l.stroke.color = v; }));
-  box.appendChild(animSlider('ふちどり', l, 'stroke', 0, 40, 0.5,
+  box.appendChild(animSlider('境界線', l, 'stroke', 0, 40, 0.5,
     v => v < 0.4 ? 'なし' : Math.round(v) + 'px'));
 
   /* ---- ✂ マスク ----
      クリップは「べつの レイヤーの 形」で ぬく。
      マスクは「自分に かいた 形」で ぬく。抜き型の 絵を
      用意しなくて いい ぶん、その場で さっと できる。
-     何まいでも かけられる（たす／ぬく）。形には ピンも うてる。 */
+     何まいでも かけられる（たす／ぬく）。形には キーフレームも うてる。 */
   box.appendChild(heading('✂ マスク（形で 切りぬく）'));
   const ms = masksOf(l);
   const mnote = document.createElement('div');
@@ -3469,8 +3638,8 @@ export function buildLook(box, l, opts){
         if(closeLook) closeLook();
         openLayer();
       }),
-      button('🗑 けす', () => {
-        edit('マスクを けす', () => {
+      button('🗑 削除', () => {
+        edit('マスクを 削除', () => {
           const list = toMasks(l);
           list.splice(mi, 1);
           clearMaskKeys(l, mi);
@@ -3493,8 +3662,8 @@ export function buildLook(box, l, opts){
         if(closeLook) closeLook();
         onMask(l, { mode: m.mode, at: mi });
       }),
-      button('◆ いまの 形に ピンを うつ', () => {
-        edit('マスクに ピン', () => {
+      button('◆ いまの 形に キーフレームを うつ', () => {
+        edit('マスクに キーフレーム', () => {
           const list = toMasks(l);
           const now = (valuesAt(l, S.time).maskPts || [])[mi] || list[mi].pts;
           setMaskKeys(l, mi, S.time, now, setPin);
@@ -3506,8 +3675,8 @@ export function buildLook(box, l, opts){
 
     if(maskAnimated(l)){
       box.appendChild(btnRow(
-        button('🗑 この マスクの ピンを けす', () => {
-          edit('マスクの ピンを けす', () => { clearMaskKeys(l, mi); l._maskKey = null; });
+        button('🗑 この マスクの キーフレームを 削除', () => {
+          edit('マスクの キーフレームを 削除', () => { clearMaskKeys(l, mi); l._maskKey = null; });
           notify('形が 止まりました');
           onChange();
           if(closeLook) closeLook();
@@ -3521,7 +3690,7 @@ export function buildLook(box, l, opts){
     const mk = document.createElement('div');
     mk.className = 'empty';
     mk.style.textAlign = 'left';
-    mk.textContent = '形を 動かすには … 時間を すすめて「◆ いまの 形に ピンを うつ」、' + NL
+    mk.textContent = '形を 動かすには … 時間を すすめて「◆ いまの 形に キーフレームを うつ」、' + NL
       + 'そのあと べつの 時こくで「✂ かこみ直す」。' + NL
       + '点の 数は こちらで そろえるので、かこみ方は 気に しなくて いいです。';
     box.appendChild(mk);
@@ -3529,8 +3698,8 @@ export function buildLook(box, l, opts){
 
   /* ---- ✨ ひかり（グロー）と 🌑 かげ ----
      どちらも 絵の 形を ぼかして 色を ぬって 下に 敷く だけ。
-     ふちどりの やわらかい ばん。 */
-  box.appendChild(heading('✨ ひかり'));
+     境界線の やわらかい ばん。 */
+  box.appendChild(heading('✨ グロー'));
   box.appendChild(colorPick('ひかりの色',
     () => (l.glow && l.glow.color) || '#FFF2A8',
     v => { l.glow = l.glow || { color:'#FFF2A8', amount:0, size:24 }; l.glow.color = v; }));
@@ -3541,7 +3710,7 @@ export function buildLook(box, l, opts){
     v => { l.glow = l.glow || { color:'#FFF2A8', amount:0, size:24 }; l.glow.size = v; },
     2, 120, 1, v => Math.round(v) + 'px'));
 
-  box.appendChild(heading('🌑 かげ'));
+  box.appendChild(heading('🌑 ドロップシャドウ'));
   box.appendChild(colorPick('かげの色',
     () => (l.shadow && l.shadow.color) || '#1E1C14',
     v => { l.shadow = l.shadow || { color:'#1E1C14', amount:0, x:14, y:18, blur:12 }; l.shadow.color = v; }));
@@ -3598,7 +3767,7 @@ export function buildLook(box, l, opts){
     b.style.flex = '0 0 30%';
     adjRow.appendChild(b);
   });
-  box.appendChild(field('めやす', adjRow));
+  box.appendChild(field('プリセット', adjRow));
 
   buildHand(box, l);
 
@@ -3627,7 +3796,7 @@ export function buildLook(box, l, opts){
 }
 
 
-/* ---------- おやこ（親につける）専用のページ ----------
+/* ---------- 親子付け（親につける）専用のページ ----------
    したいことが 1つしか無い画面にする。
    ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
 let openParent = () => {};
@@ -3690,7 +3859,7 @@ export function buildParentSheet(box, closeFn){
       if(!sel.value) return notify('親にする レイヤーを えらんでね');
       const oya = S.proj.layers.find(x => x.id === sel.value);
       const r = { n: 0 };
-      edit('おやこに する', () => {
+      edit('親子付けに する', () => {
         r.n = attachMany(S.proj, kids.map(k => k.id), oya.id, S.time);
       });
       S.pick = [];
@@ -3701,7 +3870,7 @@ export function buildParentSheet(box, closeFn){
     }),
     button('はなす', () => {
       const r = { n: 0 };
-      edit('おやこを はなす', () => {
+      edit('親子付けを はなす', () => {
         r.n = attachMany(S.proj, kids.map(k => k.id), null, S.time);
       });
       S.pick = [];
@@ -3726,8 +3895,8 @@ export function buildParentSheet(box, closeFn){
 }
 
 
-/* ---------- どうが ぜんたいの せってい ----------
-   1まいごとではなく 作品ぜんたいのこと（長さ・はいけい）を ここにまとめる。 */
+/* ---------- どうが ぜんたいの 設定 ----------
+   1まいごとではなく 作品ぜんたいのこと（長さ・背景）を ここにまとめる。 */
 let onBgFile = async () => 0;
 export function setBgPicker(fn){ onBgFile = fn; }
 
@@ -3749,7 +3918,7 @@ export function setTrainer(fn){ onTrain = fn; }
 let onCam = () => {};
 export function setCamOpener(fn){ onCam = fn; }
 
-/* えらんで いる レイヤーの せっていを ひらく（作った 直後に つかう） */
+/* えらんで いる レイヤーの 設定を ひらく（作った 直後に つかう） */
 let openLayer = () => {};
 export function setLayerOpener(fn){ openLayer = fn; }
 
@@ -3766,14 +3935,14 @@ export function setAudioSync(fn){ onAudioSync = fn; }
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
 
-  box.appendChild(heading('さくひんの なまえ'));
+  box.appendChild(heading('作品名'));
   const nameIn = document.createElement('input');
   nameIn.value = S.proj.name || 'むだい';
   nameIn.addEventListener('change', () => {
     edit('なまえをかえる', () => { S.proj.name = nameIn.value.trim() || 'むだい'; });
     onChange();
   });
-  box.appendChild(field('なまえ', nameIn));
+  box.appendChild(field('名前', nameIn));
   const nnote = document.createElement('div');
   nnote.className = 'empty';
   nnote.style.textAlign = 'left';
@@ -3785,7 +3954,7 @@ export function buildDocSheet(box, closeFn){
      玉や 部屋は 三角を たくさん 貼る ので、つまみを 動かして いる
      あいだ だけ あらく すると 手ざわりが 軽く なる。
      書き出す ときは いつも きれい（ここは 作って いる あいだの 話）。 */
-  box.appendChild(heading('画質（作って いる あいだ）'));
+  box.appendChild(heading('プレビュー画質'));
   const qrow = document.createElement('div');
   qrow.className = 'rowbtns';
   const QS = [
@@ -3820,14 +3989,14 @@ export function buildDocSheet(box, closeFn){
      書き出す 動画は 枠の 中だけ。作って いる あいだだけの 話。 */
   /* ---------- 📌 カメラに 合わせない ----------
      レイヤーの「かたち」にも 🎥カメラ の 中にも 置いたが、
-     さがす とき まず ⚙せってい を 見る と 言われた。
+     さがす とき まず ⚙設定 を 見る と 言われた。
      ここにも ぜんぶ ならべて、1つの 画面で 切りかえられる ように する。
      さわって いる ものは どこも 同じ（l.noCam）。 */
   /* ---------- 作品を ファイルに 出す・読みこむ ----------
      いままで 作品は この 機かいの 中（ブラウザの ひきだし）だけに あった。
      ほかの 機かいに うつす ことも、だれかに 見せる ことも、
      こわれた ときに もどす ことも できなかった。 */
-  box.appendChild(heading('作品の もちはこび'));
+  box.appendChild(heading('保存と 読みこみ'));
   {
     box.appendChild((() => {
     const n = document.createElement('div');
@@ -3948,7 +4117,7 @@ export function buildDocSheet(box, closeFn){
     }
   }
 
-  box.appendChild(heading('枠の そと'));
+  box.appendChild(heading('フレームの外'));
   const outOn = S.outside !== false;
   box.appendChild(btnRow(
     button(outOn ? '✅ 枠の そとも 見せる' : '⬜ 枠の そとも 見せる', () => {
@@ -3971,7 +4140,7 @@ export function buildDocSheet(box, closeFn){
   })());
 
   /* ---- 紙の 方眼 ---- */
-  box.appendChild(heading('紙の 方眼'));
+  box.appendChild(heading('グリッド'));
   const dotOn = S.paperDots !== false;
   box.appendChild(btnRow(
     button(dotOn ? '✅ うすい 点を 出す' : '⬜ うすい 点を 出す', () => {
@@ -4052,10 +4221,10 @@ export function buildDocSheet(box, closeFn){
 }
 
 /* ================= おと =================
-   「どうがの せってい」と、タイムラインの 🔊 の 行、どちらからも 出す。 */
+   「どうがの 設定」と、タイムラインの 🔊 の 行、どちらからも 出す。 */
 export function audioRows(box, closeFn){
   const NL = String.fromCharCode(10);
-  box.appendChild(heading('おと'));
+  box.appendChild(heading('音声'));
   if(!hasAudio()){
     const e = document.createElement('div');
     e.className = 'empty';
@@ -4100,7 +4269,7 @@ export function audioRows(box, closeFn){
 
   box.appendChild(btnRow(
     button(hasAudio() ? '🎤 音を えらびなおす' : '🎤 音を 読みこむ', () => apick.click()),
-    button('音を けす', () => {
+    button('音を 削除', () => {
       if(!hasAudio()) return notify('まだ 音は ありません');
       clearAudio();
       S.proj.audio = null;
@@ -4111,7 +4280,7 @@ export function audioRows(box, closeFn){
   ));
 
   /* ---------- 🎙 その場で 録音 ---------- */
-  box.appendChild(heading('🎙 じぶんの こえで しゃべらせる'));
+  box.appendChild(heading('🎙 自分の声で しゃべらせる'));
   const rn = document.createElement('div');
   rn.className = 'empty';
   rn.style.textAlign = 'left';
@@ -4149,7 +4318,7 @@ export function audioRows(box, closeFn){
 
   /* ---------- こえの 高さ ---------- */
   if(hasAudio()){
-    box.appendChild(heading('こえの 高さ'));
+    box.appendChild(heading('声の高さ（ピッチ）'));
     const ph = document.createElement('div');
     ph.className = 'empty';
     ph.style.textAlign = 'left';
@@ -4189,7 +4358,7 @@ export function audioRows(box, closeFn){
         b.classList.toggle('on', (AUD.semi || 0) === n);
         prow.appendChild(b);
       });
-    box.appendChild(field('めやす', prow));
+    box.appendChild(field('プリセット', prow));
 
     box.appendChild(btnRow(
       button(AUD.keepLen === false ? '✅ はやさごと かえる' : '⬜ はやさごと かえる', () => {
@@ -4209,8 +4378,8 @@ export function audioRows(box, closeFn){
 
 }
 
-/* ================= はいけい =================
-   はいけいのことだけ。動画の長さや 音は 「どうがの せってい」に ある。 */
+/* ================= 背景 =================
+   背景のことだけ。動画の長さや 音は 「どうがの 設定」に ある。 */
 /* かべ 6面。1面ずつ 絵を えらぶ */
 function roomFaces(box, room){
   ROOM_FACES.forEach(fc => {
@@ -4270,7 +4439,7 @@ export function buildBgSheet(box, closeFn){
      6まいの 絵を はこの 内がわに はって、その まん中から 見まわす。
      天じょう・かべを レイヤーで 1まいずつ たおして 作ると
      つなぎ目が 合わないので、はこ 1つ として まとめて 出す。 */
-  box.appendChild(heading('🏠 部屋（はこの 中）'));
+  box.appendChild(heading('🏠 部屋（ボックス）'));
   const room = S.proj.layers.find(isRoom);
   const rn = document.createElement('div');
   rn.className = 'empty';
@@ -4301,13 +4470,13 @@ export function buildBgSheet(box, closeFn){
     box.appendChild(animSlider('よこ回転', room, 'roomY', -720, 720, 1, deg));
     box.appendChild(animSlider('たて回転', room, 'roomP', -85, 85, 1, deg));
     box.appendChild(animSlider('ズーム',   room, 'roomZ', 25, 130, 1, deg));
-    box.appendChild(slider('はこの よこ幅', () => room.rw || S.proj.w,
+    box.appendChild(slider('はこの 横スケール', () => room.rw || S.proj.w,
       v => { room.rw = Math.round(v); room._rmKey = null; },
       200, 4000, 20, v => Math.round(v) + 'px'));
     box.appendChild(slider('はこの たかさ', () => room.rh || S.proj.h,
       v => { room.rh = Math.round(v); room._rmKey = null; },
       200, 4000, 20, v => Math.round(v) + 'px'));
-    box.appendChild(slider('はこの おくゆき', () => room.rd || S.proj.w,
+    box.appendChild(slider('はこの 奥行き', () => room.rd || S.proj.w,
       v => { room.rd = Math.round(v); room._rmKey = null; },
       200, 6000, 20, v => Math.round(v) + 'px'));
     box.appendChild(slider('あみの こまかさ', () => room.mesh1 || 10,
@@ -4318,15 +4487,15 @@ export function buildBgSheet(box, closeFn){
     rnote.className = 'empty';
     rnote.style.textAlign = 'left';
     rnote.textContent = 'はこを 大きく するほど、かべが 遠くなります。' + NL
-      + 'おくゆきを ながく すると、ろうか みたいに なります。' + NL
+      + '奥行きを ながく すると、ろうか みたいに なります。' + NL
       + 'カメラを 足すと、まわりこみ で 首ふり・よせ で 前進 に なります。';
     box.appendChild(rnote);
   }
 
-  /* ---------- ぐるり360 ----------
+  /* ---------- 360°パノラマ ----------
      「ぐるり 360°」で かいた 絵を いれると、
-     その場に 立って 見まわす はいけいに なる。 */
-  box.appendChild(heading('ぐるり360の 絵'));
+     その場に 立って 見まわす 背景に なる。 */
+  box.appendChild(heading('360°パノラマの 絵'));
   const pano = S.proj.layers.find(isPano);
   const pn = document.createElement('div');
   pn.className = 'empty';
@@ -4335,7 +4504,7 @@ export function buildBgSheet(box, closeFn){
     ? ('いま「' + pano.name + '」が 入っています。' + NL
        + 'むきや うごきは、そのレイヤーの「かたち」で かえられます。')
     : ('「ぐるり 360°」で 作った 絵（よこが たての 2ばいの 絵）を いれると、' + NL
-       + 'その場で 見まわす はいけいに なります。' + NL
+       + 'その場で 見まわす 背景に なります。' + NL
        + 'ぐるっと まわす ボタンを おすだけで 動画に できます。');
   box.appendChild(pn);
 
@@ -4352,12 +4521,12 @@ export function buildBgSheet(box, closeFn){
       const src = await readAsDataURL(f);
       const im = await loadImage(src);
       const ratio = im.naturalWidth / Math.max(1, im.naturalHeight);
-      beginEdit('ぐるり360を いれる');
-      const l = addPanoLayer(f.name.replace(/\.[a-z0-9]+$/i, '') || 'ぐるり360', src, im);
+      beginEdit('360°パノラマを いれる');
+      const l = addPanoLayer(f.name.replace(/\.[a-z0-9]+$/i, '') || '360°パノラマ', src, im);
       commitEdit();
       notify(ratio < 1.6 || ratio > 2.4
         ? 'いれました（よこが たての 2ばいの 絵だと きれいです）'
-        : 'ぐるり360を いれました');
+        : '360°パノラマを いれました');
       onChange();
       if(closeFn) closeFn();
     }catch(err){
@@ -4368,35 +4537,35 @@ export function buildBgSheet(box, closeFn){
   });
   box.appendChild(ppick);
   box.appendChild(btnRow(
-    button(pano ? '🌐 べつの 絵に する' : '🌐 ぐるり360の 絵を いれる', () => ppick.click())
+    button(pano ? '🌐 べつの 絵に する' : '🌐 360°パノラマの 絵を いれる', () => ppick.click())
   ));
 
-  box.appendChild(heading('はいけい'));
+  box.appendChild(heading('背景'));
   const bg = S.proj.layers.find(isBg);
 
   if(!bg){
     const e = document.createElement('div');
     e.className = 'empty';
     e.style.textAlign = 'left';
-    e.textContent = 'はいけいを 足すと、いちばん下に 1まい入ります。' + NL
+    e.textContent = '背景を 足すと、いちばん下に 1まい入ります。' + NL
       + 'ふつうのレイヤーなので、色をかえる・写真にする・' + NL
       + 'ゆっくり動かす も できます。';
     box.appendChild(e);
     box.appendChild(btnRow(
-      button('＋ はいけいを 足す', async () => {
-        beginEdit('はいけいを足す');
+      button('＋ 背景を 足す', async () => {
+        beginEdit('背景を足す');
         await addBgLayer('#BFE3F5');
         commitEdit();
-        notify('はいけいを 足しました');
+        notify('背景を 足しました');
         onChange();
       }),
       button('🎨 もようで 足す', async () => {
         try{
           onBusy(true, 'もようを つくっています…');
-          beginEdit('もようの はいけい');
+          beginEdit('もようの 背景');
           await addPatternBg({ kind:'ドット' });
           commitEdit();
-          notify('もようの はいけいを 足しました');
+          notify('もようの 背景を 足しました');
           onChange();
         }catch(err){
           notify('つくれませんでした（' + (err && err.message || '') + '）');
@@ -4408,7 +4577,7 @@ export function buildBgSheet(box, closeFn){
     return;
   }
 
-  box.appendChild(colorPick('はいけいの色',
+  box.appendChild(colorPick('背景の色',
     () => bg.bgColor || '#BFE3F5',
     (v) => { paintBg(bg, v); }));
 
@@ -4418,7 +4587,7 @@ export function buildBgSheet(box, closeFn){
   [['そら','#BFE3F5'], ['ゆうやけ','#FFCBA4'], ['よる','#2E3358'],
    ['くさ','#BFE8B0'], ['しろ','#FFFEF7'], ['ピンク','#F7D3E0']].forEach(([n, c]) => {
     const b = button(n, async () => {
-      beginEdit('はいけいの色');
+      beginEdit('背景の色');
       await paintBg(bg, c);
       commitEdit();
       onChange();
@@ -4439,15 +4608,15 @@ export function buildBgSheet(box, closeFn){
   box.appendChild(pick);
 
   box.appendChild(btnRow(
-    button('🖼 写真を はいけいにする', () => pick.click()),
+    button('🖼 写真を 背景にする', () => pick.click()),
     button('キャンバスに 合わせる', () => {
-      edit('はいけいを 合わせる', () => fitToCanvas(bg));
+      edit('背景を 合わせる', () => fitToCanvas(bg));
       onChange();
     })
   ));
 
   /* ---------- もよう ---------- */
-  box.appendChild(heading('もよう'));
+  box.appendChild(heading('パターン'));
   const pt = bg.bgPattern || {
     kind: 'ドット', back: bg.bgColor || '#FFFEF7', front: '#F2A0B8',
     size: Math.round(S.proj.w / 10), angle: 0, move: 'とめる', speed: 90
@@ -4559,7 +4728,7 @@ export function buildBgSheet(box, closeFn){
   const pnote = document.createElement('div');
   pnote.className = 'empty';
   pnote.style.textAlign = 'left';
-  pnote.textContent = 'いろ・大きさ・かたむきを かえると すぐ はりなおします。'
+  pnote.textContent = 'いろ・大きさ・回転を かえると すぐ はりなおします。'
     + NL + 'うごくもようは、つなぎ目が 見えないように'
     + NL + 'ちょうど ひとマスぶん ずらして くり返します。';
   box.appendChild(pnote);
@@ -4567,7 +4736,7 @@ export function buildBgSheet(box, closeFn){
   const note = document.createElement('div');
   note.className = 'empty';
   note.style.textAlign = 'left';
-  note.textContent = 'はいけいも ふつうのレイヤーです。' + NL
+  note.textContent = '背景も ふつうのレイヤーです。' + NL
     + 'タイムラインで えらべば、ぼかしたり ゆっくり動かしたり できます。';
   box.appendChild(note);
 }
@@ -4585,12 +4754,12 @@ export function aspectRow(l){
   b.addEventListener('click', () => {
     edit('たてよこの そろえ方', () => {
       l.lockAspect = !on();
-      if(l.lockAspect) l.scaleY = l.scaleX;   // そろえた瞬間に よこ幅へ合わせる
+      if(l.lockAspect) l.scaleY = l.scaleX;   // そろえた瞬間に 横スケールへ合わせる
     });
     show();
     onChange();
   });
-  return field('たてよこ', b);
+  return field('縦横比', b);
 }
 
 /** どのレイヤーの形で ぬくか えらぶ */
@@ -4640,7 +4809,7 @@ export function clipRow(l){
 }
 
 export function parentLink(box, l, closeFn){
-  box.appendChild(heading('おやこ'));
+  box.appendChild(heading('親子付け'));
   const pnote = document.createElement('div');
   pnote.className = 'empty';
   pnote.style.textAlign = 'left';
@@ -4650,12 +4819,12 @@ export function parentLink(box, l, closeFn){
     : 'いまは どこにも ついていません。';
   box.appendChild(pnote);
   box.appendChild(btnRow(
-    button('🔗 おやこを きめる', () => { if(closeFn) closeFn(); openParent(); })
+    button('🔗 親子付けを きめる', () => { if(closeFn) closeFn(); openParent(); })
   ));
 }
 
 export function otherRow(box, l, closeFn){
-  box.appendChild(heading('そのほか'));
+  box.appendChild(heading('その他'));
 
   /* コピーは ☑ を つけていれば まとめて、なければ この1まい。
      絵そのものは 使いまわすので、ふやしても 重くならない。 */
@@ -4678,7 +4847,7 @@ export function otherRow(box, l, closeFn){
       if(list.length < 2) return notify('☑ で 2まい いじょう えらんでね');
       if(!confirm(list.length + 'まいを 1まいの 絵に しますか？' + nl + nl
         + list.map(x => x.name).join('、') + nl + nl
-        + '（いまの 見た目で 焼きます。中の うごきや ピンは なくなります。'
+        + '（いまの 見た目で 焼きます。中の うごきや キーフレームは なくなります。'
         + nl + 'まちがえたら「もどす」で 戻せます）')) return;
       let made;
       try{
@@ -4702,13 +4871,13 @@ export function otherRow(box, l, closeFn){
       notify(S.layerClip.length + 'まい コピーしました');
       onChange();
     }),
-    button('📋 はりつけ', () => {
+    button('📋 ペースト', () => {
       if(!S.layerClip || !S.layerClip.length) return notify('さきに コピーしてね');
       const made = { v: [] };
-      edit('はりつけ', () => { made.v = pasteLayers(S.proj, S.layerClip); });
+      edit('ペースト', () => { made.v = pasteLayers(S.proj, S.layerClip); });
       if(made.v[0]) S.sel = made.v[0].id;
       S.pick = [];
-      notify(made.v.length + 'まい はりつけました');
+      notify(made.v.length + 'まい ペーストしました');
       onChange();
       if(closeFn) closeFn();
     })
@@ -4719,12 +4888,12 @@ export function otherRow(box, l, closeFn){
       edit('まんなかへ', () => { l.x = S.proj.w / 2; l.y = S.proj.h / 2; });
       onChange();
     }),
-    button('🗑 けす', () => {
+    button('🗑 削除', () => {
       const list = ids().map(id => S.proj.layers.find(x => x.id === id)).filter(Boolean);
       const nl = String.fromCharCode(10);
       if(!confirm(list.length + 'まい けしますか？' + nl + nl + list.map(x => x.name).join('、'))) return;
       const r = { n: 0 };
-      edit('レイヤーをけす', () => { r.n = removeLayers(S.proj, ids()); });
+      edit('レイヤーを削除', () => { r.n = removeLayers(S.proj, ids()); });
       S.pick = [];
       if(S.sel && !S.proj.layers.some(x => x.id === S.sel)) S.sel = null;
       notify(r.n + 'まい けしました（もどす で 戻せます）');
@@ -4737,7 +4906,7 @@ export function otherRow(box, l, closeFn){
 
 /* ================= 書き出す =================
    MP4 … 音つき。SNSに あげる ふつうの 動画。
-   すける GIF … はいけいが すけたまま。動画の上に かさねる 素材に なる。 */
+   すける GIF … 背景が すけたまま。動画の上に かさねる 素材に なる。 */
 export function buildExportSheet(box, closeFn, run){
   const NL = String.fromCharCode(10);
   const g = S.proj.gif = S.proj.gif || { fps: 12, maxSide: 480, seconds: Math.min(6, S.proj.duration) };
@@ -4757,7 +4926,7 @@ export function buildExportSheet(box, closeFn, run){
   const t = document.createElement('div');
   t.className = 'empty';
   t.style.textAlign = 'left';
-  t.textContent = 'はいけいを ぬらずに 出すので、うしろが すけます。' + NL
+  t.textContent = '背景を ぬらずに 出すので、うしろが すけます。' + NL
     + '動画の上に かさねる 素材や、うごくスタンプに つかえます。' + NL
     + '（GIFは 色が 256いろまで。音は 入りません）';
   box.appendChild(t);
@@ -4820,7 +4989,7 @@ export function buildExportSheet(box, closeFn, run){
   const aeMB = Math.round(aeN * Math.max(1, aeL) * 0.2);
   ae.textContent = 'レイヤーを 1まいずつ 連番の 絵に 焼いて、'
     + NL + 'AEで ならべ直す スクリプトと いっしょに zipで 出します。'
-    + NL + 'うごき（ピン・ゆがみ・手がき風・カメラ）は 絵に 入ります。'
+    + NL + 'うごき（キーフレーム・ワープ・手描き風・カメラ）は 絵に 入ります。'
     + NL + 'AEでは 順番・時間・エフェクト・合成が いじれます。'
     + NL
     + NL + aeN + 'コマ × ' + aeL + 'まい ＝ だいたい ' + aeMB + 'MB。'
@@ -4834,7 +5003,7 @@ export function buildExportSheet(box, closeFn, run){
 
 
 /* ================= つなぎ方（イージング） =================
-   ピンと ピンの あいだの 進み方。
+   キーフレームと キーフレームの あいだの 進み方。
    えらぶと すぐ 効く。形も 小さい絵で 見せる。 */
 export function buildEaseSheet(box, closeFn, now, onPick, shape){
   const NL = String.fromCharCode(10);
@@ -4842,7 +5011,7 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
   const head = document.createElement('div');
   head.className = 'empty';
   head.style.textAlign = 'left';
-  head.textContent = 'えらんだ ピンから つぎの ピンまでの 進み方。'
+  head.textContent = 'えらんだ キーフレームから つぎの キーフレームまでの 進み方。'
     + NL + '「ゆっくり止まる」に すると、止まる ときが やわらかくなります。';
   box.appendChild(head);
 
@@ -5046,7 +5215,7 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
   }
 
   /* ---------- 自分で かく ---------- */
-  box.appendChild(heading('✏ じぶんで かく'));
+  box.appendChild(heading('✏ 自分で 描く'));
 
   const note2 = document.createElement('div');
   note2.className = 'empty';
@@ -5198,7 +5367,7 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
   ));
 
   if(S.proj.eases && S.proj.eases.length){
-    box.appendChild(heading('まえに かいた かたち'));
+    box.appendChild(heading('保存したパス'));
     const row = document.createElement('div');
     row.className = 'rowbtns';
     row.style.flexWrap = 'wrap';
@@ -5219,7 +5388,7 @@ export function buildEaseSheet(box, closeFn, now, onPick, shape){
 
 
 /* ================= なぞった みちで うごかす =================
-   道のりで 等分に ピンを 打つので、まがり角でも 形が くずれない。
+   道のりで 等分に キーフレームを 打つので、まがり角でも 形が くずれない。
    何秒で 通るか と、進み方（つなぎ方）を きめる。 */
 export function buildPathSheet(box, closeFn, pts, apply){
   const NL = String.fromCharCode(10);
@@ -5315,7 +5484,7 @@ export function buildPathSheet(box, closeFn, pts, apply){
 
   box.appendChild(slider('何秒で 通る', () => P.dur, v => { P.dur = v; showInfo(); },
     0.2, 20, 0.1, v => v.toFixed(1) + '秒'));
-  box.appendChild(slider('ピンの こまかさ', () => P.count, v => P.count = v,
+  box.appendChild(slider('キーフレームの こまかさ', () => P.count, v => P.count = v,
     4, 80, 2, v => Math.round(v) + 'コ'));
 
   /* ---- 頭の むき ----
@@ -5325,7 +5494,7 @@ export function buildPathSheet(box, closeFn, pts, apply){
      どちらが ほしいかは 絵しだい なので、えらべる ように して ある。 */
   const reopen = () => { if(closeFn) closeFn(); onChange(); setTimeout(() => reopenPath(), 0); };
 
-  box.appendChild(heading('頭の むき'));
+  box.appendChild(heading('頭の向き'));
   const ors = document.createElement('div');
   ors.className = 'rowbtns';
   [['そのまま', false], ['進む むきに むける', true]].forEach(([lb, on]) => {
@@ -5375,7 +5544,7 @@ export function buildPathSheet(box, closeFn, pts, apply){
         reopen();
       })
     ));
-    box.appendChild(slider('文字の ざんぞう', () => P.mb || 0, v => P.mb = v, 0, 1, 0.05,
+    box.appendChild(slider('文字の 残像', () => P.mb || 0, v => P.mb = v, 0, 1, 0.05,
       v => v < 0.03 ? 'なし（くっきり）'
          : (Math.round(v * 100) + '%（' + (0.5 + 2.5 * v).toFixed(1) + 'コマ）')));
     const bn = document.createElement('div');
@@ -5385,8 +5554,8 @@ export function buildPathSheet(box, closeFn, pts, apply){
       + '何秒で 通るかを かえても ならびは くずれません。' + NL
       + NL
       + 'はやく 走らせる ほど 文字は ぶれます。' + NL
-      + 'ぶれの 長さは「はやさ × ざんぞうの 長さ」。' + NL
-      + '読ませたい ときは ざんぞうを 0 に するか、' + NL
+      + 'ぶれの 長さは「はやさ × 残像の 長さ」。' + NL
+      + '読ませたい ときは 残像を 0 に するか、' + NL
       + '「何秒で 通る」を のばして ください。' + NL
       + '秒を 2ばいに すると ぶれは 半分に なります。';
     box.appendChild(bn);
@@ -5422,7 +5591,7 @@ export function buildPathSheet(box, closeFn, pts, apply){
   note.className = 'empty';
   note.style.textAlign = 'left';
   note.textContent = 'いまの時間から はじまります。' + NL
-    + '道のりで 等分に ピンを 打つので、まがり角でも 形が くずれません。';
+    + '道のりで 等分に キーフレームを 打つので、まがり角でも 形が くずれません。';
   box.appendChild(note);
 }
 
@@ -5483,7 +5652,7 @@ export function buildDoneSheet(box, closeFn, info, save){
 }
 
 
-/* ---------- 手がき風（ハンドドロウン） ----------
+/* ---------- 手描き風（ハンドドロウン） ----------
    紙に 何まいも 描いた アニメは、同じ絵でも 線が びみょうに ずれる。
    その ずれを まねる。
 
@@ -5492,18 +5661,18 @@ export function buildDoneSheet(box, closeFn, info, save){
    ぱっ ぱっ と 切りかわるから 手がきに 見える。 */
 export function buildHand(box, l){
   const NL = String.fromCharCode(10);
-  box.appendChild(heading('✏ 手がき風'));
+  box.appendChild(heading('✏ 手描き風'));
 
   const on = () => !!(l.hand && l.hand.on);
   const sw = document.createElement('button');
   sw.style.flex = '1';
   const paint = () => {
-    sw.textContent = on() ? '✏ 手がき風 … オン' : '✏ 手がき風 … オフ';
+    sw.textContent = on() ? '✏ 手描き風 … オン' : '✏ 手描き風 … オフ';
     sw.classList.toggle('on', on());
   };
   paint();
   sw.addEventListener('click', () => {
-    edit('手がき風', () => {
+    edit('手描き風', () => {
       if(on()) l.hand.on = false;
       else l.hand = Object.assign(newHand(), l.hand || {}, { on: true });
     });
@@ -5580,7 +5749,7 @@ export function buildHand(box, l){
 }
 
 
-/* ================= お絵かき =================
+/* ================= ペイント =================
    ペンで 書いた ものは「点の ならび」で おぼえる。
    書いた 順が のこるので、その順に 出す ことが できる。
    （情熱大陸の 名前みたいに、書いている ように 見せられる） */
@@ -5595,23 +5764,23 @@ export function buildPaintSheet(box, closeFn){
   const NL = String.fromCharCode(10);
   const l = selected();
 
-  box.appendChild(heading('あたらしい かみ'));
+  box.appendChild(heading('新しいレイヤー'));
   const note = document.createElement('div');
   note.className = 'empty';
   note.style.textAlign = 'left';
-  note.textContent = 'おえかきの かみ … すけたまま。上に かさねて 書きこめます。' + NL
+  note.textContent = 'ペイントの かみ … すけたまま。上に かさねて 書きこめます。' + NL
     + 'いろの かみ … ぜんたいを 1つの 色で ぬります。';
   box.appendChild(note);
 
   box.appendChild(btnRow(
-    button('✏ おえかきの かみ', () => {
+    button('✏ ペイントの かみ', () => {
       const made = {};
-      edit('おえかきの かみ', () => {
-        made.l = newPaintLayer('おえかき', S.proj.w, S.proj.h);
+      edit('ペイントの かみ', () => {
+        made.l = newPaintLayer('ペイント', S.proj.w, S.proj.h);
         S.proj.layers.unshift(made.l);
         S.sel = made.l.id;
       });
-      notify('おえかきの かみを つくりました');
+      notify('ペイントの かみを つくりました');
       onChange();
       if(closeFn) closeFn();
       onPaint();
@@ -5649,7 +5818,7 @@ export function buildPaintSheet(box, closeFn){
   }
 
   if(l.kind === 'solid'){
-    box.appendChild(heading('いろ'));
+    box.appendChild(heading('カラー'));
     box.appendChild(colorPick('かみの色', () => l.color || '#F2A0B8',
       v => { l.color = v; paintDirty(l); }));
     return;
@@ -5659,14 +5828,14 @@ export function buildPaintSheet(box, closeFn){
     const e = document.createElement('div');
     e.className = 'empty';
     e.style.textAlign = 'left';
-    e.textContent = '「' + l.name + '」は おえかきの かみでは ありません。' + NL
+    e.textContent = '「' + l.name + '」は ペイントの かみでは ありません。' + NL
       + '上の ボタンで かみを つくるか、' + NL
-      + 'おえかきの かみを えらんでね。';
+      + 'ペイントの かみを えらんでね。';
     box.appendChild(e);
     return;
   }
 
-  /* ---- ペンの せってい ---- */
+  /* ---- ペンの 設定 ---- */
   box.appendChild(heading('ペン'));
   box.appendChild(colorPick('ペンの色', () => S.penColor, v => { S.penColor = v; }));
   box.appendChild(slider('ふとさ', () => S.penWidth, v => S.penWidth = v, 1, 80, 1,
@@ -5676,7 +5845,7 @@ export function buildPaintSheet(box, closeFn){
   ));
 
   /* ---- 書いた 順に 出す ---- */
-  box.appendChild(heading('✍ 書いた順に 出す'));
+  box.appendChild(heading('✍ 描いた順に 表示'));
   const n = (l.strokes || []).length;
   const len = Math.round(totalLen(l.strokes));
   const info = document.createElement('div');
@@ -5904,19 +6073,19 @@ export function setSpanner(fn){ onSpan = fn; }
 let onWarp = () => {};
 export function setWarper(fn){ onWarp = fn; }
 
-/* ---------- ゆがみ・自由変形 ----------
+/* ---------- ワープ・自由変形 ----------
    絵の上に「あみの目（かご）」を かぶせて 引っぱる。
    骨（パペットピン）が「うごかす」ための ものなのに対して、
    こちらは「形を ととのえる」ための もの。 */
 export function warpRow(box, l, closeFn){
   const NL = String.fromCharCode(10);
-  box.appendChild(heading('🫳 ゆがみ・自由変形'));
+  box.appendChild(heading('🫳 ワープ・自由変形'));
 
   const t = document.createElement('div');
   t.className = 'empty';
   t.style.textAlign = 'left';
   t.textContent = '自由変形 … 赤い 四すみを 引っぱって 形を 変える' + NL
-    + 'ゆがみ … むらさきの あみの目を つまんで 引っぱる' + NL
+    + 'ワープ … むらさきの あみの目を つまんで 引っぱる' + NL
     + 'かためる … 筆で なぞった ところは かたまりに なって、' + NL
     + '　　　　　 つまむと まるごと 持ち上がります' + NL
     + (l.cage ? 'いま ゆがめて います。' : 'まだ さわって いません。')
@@ -5928,12 +6097,12 @@ export function warpRow(box, l, closeFn){
   box.appendChild(t);
 
   box.appendChild(btnRow(
-    button('🫳 ゆがみ・自由変形', () => { if(closeFn) closeFn(); onWarp(l); })
+    button('🫳 ワープ・自由変形', () => { if(closeFn) closeFn(); onWarp(l); })
   ));
 }
 
 /* ---------- ⏳ 時間を いじる（AEの タイムリマップ） ----------
-   「その 時こくに、中みの 何秒めを 見せるか」を ピンで きめる。
+   「その 時こくに、中みの 何秒めを 見せるか」を キーフレームで きめる。
    おそく する・止める・ぎゃくに 流す が できる。
    フォルダに かけると 中身も いっしょに その 時間で 動く。 */
 export function remapRow(box, l){
@@ -5941,7 +6110,7 @@ export function remapRow(box, l){
   const dur = S.proj.duration;
   const on = () => !!(l.remap && l.tracks && l.tracks.time && l.tracks.time.length);
 
-  box.appendChild(heading('⏳ 時間を いじる'));
+  box.appendChild(heading('⏳ タイムリマップ'));
 
   const sw = button('', () => {
     edit('時間いじり', () => {
@@ -5968,7 +6137,7 @@ export function remapRow(box, l){
     n.className = 'empty';
     n.style.textAlign = 'left';
     n.textContent = 'オンに すると「いま 中みの 何秒めを 見せるか」を' + NL
-      + 'ピンで きめられます。止める・ゆっくり・ぎゃく回し が できます。';
+      + 'キーフレームで きめられます。止める・ゆっくり・ぎゃく回し が できます。';
     box.appendChild(n);
     return;
   }
@@ -6017,7 +6186,7 @@ export function remapRow(box, l){
   const note = document.createElement('div');
   note.className = 'empty';
   note.style.textAlign = 'left';
-  note.textContent = 'ピンは タイムラインに 出る ので、あとから 引っぱって' + NL
+  note.textContent = 'キーフレームは タイムラインに 出る ので、あとから 引っぱって' + NL
     + '早さを 変えられます。コマ（パラパラ）にも かかります。' + NL
     + 'フォルダに かけると、中身 ぜんぶが その 時間で 動きます。';
   box.appendChild(note);
@@ -6025,7 +6194,7 @@ export function remapRow(box, l){
 
 export function spanRow(box, l, closeFn){
   const NL = String.fromCharCode(10);
-  box.appendChild(heading('⏱ 出す ところ'));
+  box.appendChild(heading('⏱ イン点・アウト点'));
 
   const t = document.createElement('div');
   t.className = 'empty';

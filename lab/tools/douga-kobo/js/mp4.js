@@ -2,10 +2,10 @@
    本命 … WebCodecs で 1コマずつ 焼いて、mp4-muxer で MP4 の 箱に 詰める。
    音は タイムラインの とおりに まぜてから AAC に する。
    WebCodecs が ない 端末は、これまでどおり 通しで 録る やり方に まわす。 */
-import { S, clamp, duration, allClips, r2 } from './state.js?v=11';
-import { MEDIA, animFrameAt } from './media.js?v=11';
-import { renderOut, outCanvas, activeClips } from './render.js?v=11';
-import { fadeAlpha } from './render.js?v=11';
+import { S, clamp, duration, allClips, r2 } from './state.js?v=69';
+import { MEDIA, animFrameAt } from './media.js?v=69';
+import { renderOut, outCanvas, activeClips, setQuality, quality } from './render.js?v=69';
+import { fadeAlpha } from './render.js?v=69';
 
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 
@@ -170,6 +170,8 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
 
   const dur = duration();
   const total = Math.max(1, Math.ceil(dur * fps));
+  const keepQ = quality();
+  setQuality(1);                       // 書き出しは いつも 原寸
 
   onProgress(0, '音を まぜています');
   let abuf = null, a = null;
@@ -197,7 +199,7 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
   const cv = outCanvas();
   const usPer = 1e6 / fps;
   for (let i = 0; i < total; i++) {
-    if (shouldStop()) { try { enc.close(); } catch (e) { } throw new Error('やめました'); }
+    if (shouldStop()) { setQuality(keepQ); try { enc.close(); } catch (e) { } throw new Error('やめました'); }
     if (failed) throw failed;
     const t = i / fps;
     await prepareFrame(t, fps);
@@ -221,6 +223,7 @@ export async function exportMp4({ fps = S.fps, bitrate = 12000000, onProgress = 
     await encodeAudio(muxer, acfg, abuf, dur);
   }
   muxer.finalize();
+  setQuality(keepQ);
   onProgress(1, 'できました');
   return {
     blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }),

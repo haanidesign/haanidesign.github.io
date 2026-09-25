@@ -37,6 +37,21 @@ export const A = {
 
 export const hasAudio = () => !!A.buf;
 
+/* ---- 作業中だけ 音を 切る ----
+   となりで 人が 寝て いる、外に いる、耳が つかれた ―― そういう とき用。
+   切って いても 書き出しには ちゃんと 音が 入る
+   （書き出しは 鳴らさずに、音の もとから 直に つくる ので）。
+   えらんだ ものは この 端末に おぼえて おく。 */
+const MUTE_KEY = 'anime-kobo.mute';
+let muted = false;
+try{ muted = localStorage.getItem(MUTE_KEY) === '1'; }catch(e){}
+export const isMuted = () => muted;
+export function setMuted(v){
+  muted = !!v;
+  try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
+  if(muted) stop();
+}
+
 /** 音を 鳴らして いいか。
     🔊 の 行の 目を 切って いたら 鳴らさない（書き出しにも 入れない）。 */
 export function audioEnabled(project){
@@ -291,7 +306,7 @@ let node = null, startedAt = 0, startedFrom = 0, gain = null;
  */
 export function play(from, volume, off){
   stop();
-  if(!A.buf) return;
+  if(!A.buf || muted) return;
   const c = audioCtx();
   if(c.state === 'suspended') c.resume();
   const shift = off || 0;
@@ -368,10 +383,30 @@ export function guessBpm(){
   }
   if(!best.lag) return null;
 
-  let bpm = 60 / (best.lag * slot);
+  /* 山の 前後を 見て、もっと こまかい ところを 当てる（放物線あて）。
+     ここを しないと きざみ（slot）ぶんの ずれが のこり、
+     長い 曲では だんだん 拍から はなれて いく。 */
+  const sc = (lag) => {
+    if(lag < 1 || lag >= on.length) return -Infinity;
+    let sum = 0;
+    for(let i = 0; i + lag < on.length; i++) sum += on[i] * on[i + lag];
+    return sum / (on.length - lag);
+  };
+  let lag = best.lag;
+  const y0 = sc(lag - 1), y1 = best.score, y2 = sc(lag + 1);
+  if(isFinite(y0) && isFinite(y2)){
+    const den = (y0 - 2 * y1 + y2);
+    if(Math.abs(den) > 1e-12) lag += 0.5 * (y0 - y2) / den;
+  }
+
+  let bpm = 60 / (lag * slot);
   // はやすぎ・おそすぎは 倍・半分に して 90〜180 に よせる
   while(bpm < 70) bpm *= 2;
   while(bpm > 190) bpm /= 2;
+  /* たいていの 曲は きりの いい 数（120 など）。
+     すぐ 近くなら その 数に そろえる（ずれが たまらない ように）。 */
+  const near = Math.round(bpm);
+  if(Math.abs(bpm - near) < 0.45) bpm = near;
   return Math.round(bpm * 10) / 10;
 }
 
@@ -624,6 +659,7 @@ function writeBlip(ch, at, sr, gain, hz){
 
 /** いま 鳴らす（画面で 見て いる とき用） */
 export function playBlip(volume, hz){
+  if(muted) return;
   try{
     const c = audioCtx();
     if(c.state === 'suspended') c.resume();

@@ -1,11 +1,13 @@
 /* 下の タイムライン。ふだを つかむ・はしを のばす・段を うつる。 */
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
-  allClips, findClip, trackOf, duration, newTrack, freeSlot
-} from '../state.js?v=11';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=11';
-import { bus } from '../bus.js?v=11';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=11';
+  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
+} from '../state.js?v=69';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=69';
+import { bus } from '../bus.js?v=69';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=69';
+import { durOf as jzDur } from '../jz.js?v=69';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=69';
 
 const el = {};
 export function init() {
@@ -18,6 +20,7 @@ export function init() {
   el.snapline = $('#snapline');
   el.beat = $('#beatCv');
   el.loop = $('#loopband');
+  el.cbar = $('#clipbar');
   el.scroll.addEventListener('scroll', () => {
     el.heads.style.transform = `translateY(${-el.scroll.scrollTop}px)`;
   });
@@ -30,34 +33,171 @@ export function init() {
 export const x2t = x => x / S.pps;
 export const t2x = t => t * S.pps;
 const MAXW = 30000;   // これより 大きい 絵は ブラウザが えがけない
-const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(duration()) + 360));
+const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(Math.max(duration(), clipEnd())) + 360));
 
 /* ---------- えがく ---------- */
-export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); }
+export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); drawClipBar(); }
 
 function drawHeads() {
   el.heads.innerHTML = '';
   S.tracks.forEach((tr, i) => {
     const d = document.createElement('div');
-    d.className = 'thead' + (S.selTrack === tr.id ? ' sel' : '');
+    const on = S.selTrack === tr.id;
+    d.className = 'thead' + (on ? ' sel' : '');
+    d.dataset.tid = tr.id;
     const ic = { video: '🎞', audio: '🎵', text: '🅰' }[tr.kind];
     /* 音の段に「目」は いらない。音けしと まぎらわしい ので 出さない */
     const eye = tr.kind === 'audio' ? '' :
       `<button class="tb ${tr.hidden ? 'off' : ''}" data-a="hide" title="出す／かくす">${tr.hidden ? '🚫' : '👁'}</button>`;
+    /* えらんだ 段だけ 上げ下げと ごみ箱を 出す。いつも 出すと ボタンだらけに なる */
+    const edit = on
+      ? `<button class="tb" data-a="name" title="なまえを かえる">✏</button>` +
+        `<button class="tb" data-a="up" title="ひとつ 上へ"${i === 0 ? ' disabled' : ''}>▲</button>` +
+        `<button class="tb" data-a="down" title="ひとつ 下へ"${i === S.tracks.length - 1 ? ' disabled' : ''}>▼</button>` +
+        `<button class="tb btn-p" data-a="del" title="この 段を けす">🗑</button>`
+      : '';
     d.innerHTML =
+      `<span class="grip" title="つまんで 上下に 動かすと ならびが かわります">⠿</span>` +
       `<span class="ic">${ic}</span><span class="nm"></span>` + eye +
       `<button class="tb ${tr.mute ? 'off' : ''}" data-a="mute" title="音を 出す／けす">${tr.mute ? '🔇' : '🔊'}</button>` +
-      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>`;
+      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>` +
+      edit;
     d.querySelector('.nm').textContent = tr.name;
     d.addEventListener('click', e => {
-      const a = e.target.dataset && e.target.dataset.a;
+      /* ボタンの 中身は アイコンに 置きかわる ので、
+         e.target では なく いちばん 近い [data-a] を 見る */
+      const hit = e.target.closest && e.target.closest('[data-a]');
+      const a = hit && d.contains(hit) ? hit.dataset.a : null;
       S.selTrack = tr.id;
       if (a === 'hide') tr.hidden = !tr.hidden;
       else if (a === 'mute') tr.mute = !tr.mute;
       else if (a === 'lock') tr.lock = !tr.lock;
+      else if (a === 'up') { moveTrack(tr.id, -1); return; }
+      else if (a === 'down') { moveTrack(tr.id, 1); return; }
+      else if (a === 'del') { delTrack(tr.id); return; }
+      else if (a === 'name') {
+        const v = prompt('この 段の なまえ', tr.name);
+        if (v && v.trim()) renameTrack(tr.id, v.trim());
+        bus.all(); return;
+      }
       if (a) { pushUndo(); bus.all(); } else bus.all();
     });
+    headDrag(d, tr);
     el.heads.appendChild(d);
+  });
+}
+
+/* えらんだ ふだの 上に 出る 小さな ボタン。
+   ふだを えらんだ その場で、けす・となりへ ずらす・上下の 段へ 移す が できる。
+   ふだが 小さい ときは 中に ボタンを 入れられない ので 上に うかせる。 */
+function drawClipBar() {
+  const bar = el.cbar;
+  if (!bar) return;
+  const f = S.sel && findClip(S.sel);
+  if (!f || (S.selMany || []).length > 1) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const c = f.c, t = f.t;
+  const i = S.tracks.indexOf(t);
+  const up = S.tracks.slice(0, i).reverse().find(x => fitsTrack(c, x));
+  const dn = S.tracks.slice(i + 1).find(x => fitsTrack(c, x));
+  const lock = t.lock;
+  const b = (a, label, title, off) =>
+    `<button class="cb${off ? ' off' : ''}" data-c="${a}" title="${title}"${off ? ' disabled' : ''}>${label}</button>`;
+  bar.innerHTML =
+    b('up', '⬆', 'ひとつ 上の 段へ', !up || lock) +
+    b('dn', '⬇', 'ひとつ 下の 段へ', !dn || lock) +
+    b('l', '◀', 'すこし 前へ', lock) +
+    b('r', '▶', 'すこし うしろへ', lock) +
+    b('cut', '✂', 'いまの ところで 切る', lock) +
+    b('dup', '⧉', 'ふやす', lock) +
+    b('del', '🗑', 'けす', lock);
+  bar.style.display = 'flex';
+  /* ふだの 左上に 出す。上に はみ出す ときは 下に 出す */
+  const laneH = (el.lanes.querySelector('.lane') || {}).offsetHeight || 64;
+  const top = i * laneH;
+  const x = Math.max(0, t2x(c.start));
+  bar.style.left = x + 'px';
+  bar.style.top = (top > 30 ? top - 30 : top + laneH - 2) + 'px';
+  bar.onclick = e => {
+    const hit = e.target.closest && e.target.closest('[data-c]');
+    if (!hit || !bar.contains(hit)) return;
+    e.stopPropagation();
+    const a = hit.dataset.c;
+    if (t.lock) { toast('この 段は かぎが かかって います'); return; }
+    if (a === 'del') { delSel(); return; }
+    if (a === 'dup') { dupSel(); return; }
+    if (a === 'cut') { splitHere(); return; }
+    if (a === 'up' || a === 'dn') {
+      const nt = a === 'up' ? up : dn;
+      if (!nt) return;
+      t.clips = t.clips.filter(x => x !== c);
+      nt.clips.push(c);
+      S.selTrack = nt.id;
+      pushUndo(); bus.all(); buzz(14);
+      return;
+    }
+    if (a === 'l' || a === 'r') {
+      const st = beatOn() ? stepSec() : 1 / S.fps * 6;
+      const d = (a === 'l' ? -1 : 1) * st;
+      c.start = Math.max(0, r2(c.start + d));
+      syncLinked(c);
+      pushUndo(); bus.all(); buzz(10);
+    }
+  };
+}
+
+/* 段の あたまを つまんで 上下に 動かすと ならびが かわる。
+   たてに 10px ほど 動かした ところで はじまる（よこは 見のがす）。
+   ボタンの 上から は はじまらない。 */
+let hdrag = null;
+function headDrag(d, tr) {
+  d.addEventListener('pointerdown', e => {
+    if (e.target.closest && e.target.closest('button')) return;
+    let armed = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    const begin = () => {
+      hdrag = { id: tr.id, y0: armed.y, el: d, moved: false };
+      d.classList.add('dragging');
+      buzz(12);
+    };
+    const move = ev => {
+      if (ev.pointerId !== armed.id) return;
+      if (!hdrag) {
+        const dy = ev.clientY - armed.y, dx = ev.clientX - armed.x;
+        if (Math.abs(dy) < 10 || Math.abs(dy) < Math.abs(dx)) return;
+        begin();
+      }
+      if (hdrag.id !== tr.id) return;
+      ev.preventDefault();
+      const h = (hdrag.el && hdrag.el.getBoundingClientRect().height) || 1;
+      const dy = ev.clientY - hdrag.y0;
+      /* 1だん ぶん（の 6わり）動かしたら 1つ 入れかえる。
+         半分で 入れかえると 指が ふるえた だけで ころころ 変わる */
+      if (Math.abs(dy) < h * 0.6) return;
+      const dir = dy > 0 ? 1 : -1;
+      const i = S.tracks.findIndex(x => x.id === tr.id);
+      const j = i + dir;
+      if (j < 0 || j >= S.tracks.length) { hdrag.y0 = ev.clientY; return; }
+      const [t2] = S.tracks.splice(i, 1);
+      S.tracks.splice(j, 0, t2);
+      hdrag.y0 += dir * h; hdrag.moved = true;
+      S.selTrack = tr.id;
+      drawHeads(); drawLanes();
+      const nd = el.heads.querySelector('.thead[data-tid="' + tr.id + '"]');
+      if (nd) { nd.classList.add('dragging'); hdrag.el = nd; }
+      buzz(8);
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', up);
+      if (!hdrag) return;
+      const moved = hdrag.moved;
+      if (hdrag.el) hdrag.el.classList.remove('dragging');
+      hdrag = null;
+      if (moved) { pushUndo(); bus.all(); }
+    };
+    document.addEventListener('pointermove', move, { passive: false });
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
   });
 }
 
@@ -69,14 +209,17 @@ function drawBeatGrid(w, h) {
   const g = cv.getContext('2d');
   const st = stepSec(), off = S.beat.offset || 0;
   const perBar = (S.beat.per || 4) * (S.beat.div || 1);
+  /* 線が つまって くると 目が ちらつく。せまい ときは 小節の 線だけ 引く */
+  const barsOnly = S.pps * st < 14;
   let n = Math.ceil((0 - off) / st);
   let guard = 4000;
   for (let t = off + n * st; t2x(t) < w && guard-- > 0; t += st, n++) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const bar = perBar > 0 && ((n % perBar) + perBar) % perBar === 0;
-    g.strokeStyle = bar ? 'rgba(30,28,20,.34)' : 'rgba(30,28,20,.13)';
-    g.lineWidth = bar ? 2 : 1;
+    if (barsOnly && !bar) continue;
+    g.strokeStyle = bar ? 'rgba(30,28,20,.16)' : 'rgba(30,28,20,.06)';
+    g.lineWidth = 1;
     g.beginPath(); g.moveTo(x, 0); g.lineTo(x, cv.height); g.stroke();
   }
 }
@@ -105,16 +248,19 @@ function drawLanes() {
 
 function clipEl(c) {
   const d = document.createElement('div');
-  d.className = 'clip ' + c.kind + (S.sel === c.id ? ' sel' : '');
+  const many = (S.selMany || []).includes(c.id);
+  d.className = 'clip ' + c.kind + (S.sel === c.id ? ' sel' : '') + (many ? ' many' : '');
   d.style.left = t2x(c.start) + 'px';
   d.style.width = Math.max(26, t2x(c.dur)) + 'px';
   d.dataset.cid = c.id;
   const label = c.kind === 'text' ? (c.text.str.split('\n')[0] || 'もじ')
-    : c.kind === 'color' ? (c.grad ? 'グラデ' : 'いろ') : (c.name || '素材');
+    : c.kind === 'jz' ? (c.name || 'うた')
+      : c.kind === 'color' ? (c.grad ? 'グラデ' : 'いろ') : (c.name || '素材');
   d.innerHTML = `<div class="nm"></div><div class="body"></div>
     <div class="grip l"></div><div class="grip r"></div>`;
   d.querySelector('.nm').textContent =
-    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'color' ? '🎨 ' : '🎞 ') + label;
+    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'jz' ? '✦ '
+      : c.kind === 'color' ? '🎨 ' : '🎞 ') + label;
   const body = d.querySelector('.body');
   const pw = Math.max(26, Math.round(t2x(c.dur)));
   if (c.kind === 'color') {
@@ -147,22 +293,22 @@ function drawRuler() {
   const w = width();
   el.rcv.width = w; el.rcv.style.width = w + 'px';
   const g = el.rcv.getContext('2d');
-  g.fillStyle = '#F2F0BE'; g.fillRect(0, 0, w, 30);
-  g.strokeStyle = '#1E1C14'; g.fillStyle = '#1E1C14';
-  g.font = "12px 'DotGothic16', monospace"; g.textBaseline = 'top';
+  g.fillStyle = '#FFFEF7'; g.fillRect(0, 0, w, 30);
+  g.strokeStyle = '#1E1C14'; g.fillStyle = '#5c5843';
+  g.font = "11px 'DotGothic16', monospace"; g.textBaseline = 'top';
   if (beatOn() && S.beat.grid) { drawBarRuler(g, w); return; }
   const steps = [1 / S.fps, .1, .5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
   const step = steps.find(s => s * S.pps > 74) || 900;
   for (let t = 0; t2x(t) < w; t += step) {
     const x = Math.round(t2x(t)) + .5;
-    g.globalAlpha = .9; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(x, 17); g.lineTo(x, 30); g.stroke();
+    g.globalAlpha = .45; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x, 18); g.lineTo(x, 30); g.stroke();
     const lab = t >= 60 ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : r2(t) + 's';
     g.fillText(lab, x + 4, 2);
     const sub = step / (step * S.pps > 160 ? 4 : 2);
     for (let k = 1; k * sub < step - 1e-9; k++) {
       const sx = Math.round(t2x(t + k * sub)) + .5;
-      g.globalAlpha = .35; g.lineWidth = 1.5;
+      g.globalAlpha = .2; g.lineWidth = 1;
       g.beginPath(); g.moveTo(sx, 23); g.lineTo(sx, 30); g.stroke();
     }
   }
@@ -181,8 +327,8 @@ function drawBarRuler(g, w) {
     const x = Math.round(t2x(t)) + .5;
     const inBar = ((n % per) + per) % per;
     const bar = inBar === 0;
-    g.globalAlpha = bar ? .95 : .45;
-    g.lineWidth = bar ? 2 : 1.4;
+    g.globalAlpha = bar ? .5 : .22;
+    g.lineWidth = bar ? 1.5 : 1;
     g.beginPath(); g.moveTo(x, bar ? 14 : 22); g.lineTo(x, 30); g.stroke();
     if (bar && (n / per) % every === 0) {
       g.globalAlpha = 1;
@@ -203,7 +349,7 @@ function drawBeatTicks(g, w) {
     if (t < 0) continue;
     const x = Math.round(t2x(t)) + .5;
     const bar = ((n % per) + per) % per === 0;
-    g.fillStyle = bar ? '#1E1C14' : '#B8B43F';
+    g.fillStyle = bar ? '#A8A33C' : 'rgba(168,163,60,.55)';
     if (bar) { g.fillRect(x - 1.5, 16, 3, 6); g.beginPath(); g.arc(x, 13, 3.4, 0, 7); g.fill(); }
     else { g.beginPath(); g.arc(x, 14, 2.2, 0, 7); g.fill(); }
   }
@@ -291,18 +437,61 @@ export function cancelDrag() {
   if (!drag) return;
   const d = drag; drag = null;
   Object.assign(d.f.c, d.before);            // つかむ 前に もどす
+  if (d.group && d.groupBefore) d.group.forEach((g, i) => { g.c.start = d.groupBefore[i]; });
   hideSnap(); bus.all();
 }
 
+/** さわった ところの ふだを さがす。
+    上に なにかが かぶさって いて つかめない ことが あるので、
+    見つからない ときは 同じ ところに ある ものを 下まで 見に いく。 */
+function clipUnder(e) {
+  let node = e.target.closest ? e.target.closest('.clip') : null;
+  if (node) return node;
+  const list = document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY) : [];
+  for (const n of list) {
+    const hit = n.closest && n.closest('.clip');
+    if (hit) return hit;
+  }
+  // それでも だめなら 場しょで さがす（ふだの わく と くらべる）
+  for (const lane of $$('.lane', el.lanes)) {
+    const lr = lane.getBoundingClientRect();
+    if (e.clientY < lr.top || e.clientY > lr.bottom) continue;
+    for (const n of $$('.clip', lane)) {
+      const r = n.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right) return n;
+    }
+  }
+  return null;
+}
+
 function grab(e) {
-  const node = e.target.closest ? e.target.closest('.clip') : null;
+  const node = clipUnder(e);
   if (!node) {
     const lane = e.target.closest && e.target.closest('.lane');
-    if (lane) { S.selTrack = lane.dataset.tid; S.sel = null; bus.all(); }
+    if (lane) {
+      S.selTrack = lane.dataset.tid; S.sel = null; S.selChar = null;
+      if (S.tool !== 'pick') S.selMany = [];
+      bus.all();
+    }
     return;
   }
   const f = findClip(node.dataset.cid);
   if (!f) return;
+
+  /* えらぶ 道具：さわる たびに 出し入れ する（まとめて うごかす ため） */
+  if (S.tool === 'pick') {
+    const list = [...(S.selMany || [])];
+    const i = list.indexOf(f.c.id);
+    if (i >= 0) list.splice(i, 1); else list.push(f.c.id);
+    setMany(list);
+    S.selTrack = f.t.id; S.selChar = null;
+    buzz(12); bus.all();
+    return;
+  }
+
+  if (S.sel !== f.c.id) S.selChar = null;
+  // えらんで いない ふだを さわったら、まとめえらびは いったん 解く
+  if (!(S.selMany || []).includes(f.c.id)) S.selMany = [];
   S.sel = f.c.id; S.selTrack = f.t.id;
   if (f.t.lock) { bus.all(); toast('この段は かぎが かかって いる'); return; }
 
@@ -311,12 +500,16 @@ function grab(e) {
     splitAt(f, x2t(e.clientX - r.left + el.scroll.scrollLeft));
     return;
   }
-  const g = e.target.closest('.grip');
+  const g = e.target.closest && e.target.closest('.grip');
   const mode = g ? (g.classList.contains('l') ? 'l' : 'r') : 'move';
+  const group = (S.selMany || []).includes(f.c.id)
+    ? selectedAll().filter(x => !x.t.lock).map(x => ({ c: x.c, s0: x.c.start }))
+    : null;
   drag = {
     f, mode, x0: e.clientX, y0: e.clientY,
     start0: f.c.start, dur0: f.c.dur, inp0: f.c.inp,
     before: JSON.parse(JSON.stringify(f.c)),
+    group, groupBefore: group ? group.map(g => g.c.start) : null,
     moved: false, id: e.pointerId
   };
   try { node.setPointerCapture(e.pointerId); } catch (_) { }
@@ -328,24 +521,42 @@ document.addEventListener('pointermove', e => {
   const c = drag.f.c, dt = x2t(e.clientX - drag.x0);
   if (!drag.moved && (Math.abs(e.clientX - drag.x0) > 4 || Math.abs(e.clientY - drag.y0) > 4)) {
     drag.moved = true; buzz();
+    if (el.cbar) el.cbar.style.display = 'none';   // 動かして いる あいだは じゃまなので 引っこめる
   }
   if (!drag.moved) return;
   const m = c.mid ? MEDIA.get(c.mid) : null;
-  const srcDur = m && m.kind !== 'image' ? m.dur : Infinity;
+  let srcDur = m && m.kind !== 'image' ? m.dur : Infinity;
+  // 組み立てた ながさより 先は ない。ただし fit（カットを のばす）の ふだは 何秒でも のばせる
+  if (c.kind === 'jz') srcDur = (c.jz && c.jz.fit) ? Infinity : jzDur(c.jz);
 
+  if (drag.mode === 'move' && drag.group && drag.group.length > 1) {
+    // まとめて えらんで いる ときは、ならびを くずさず ぜんぶ 動かす
+    let d2 = snapTo(drag.start0 + dt, c.id) - drag.start0;
+    const minS = Math.min(...drag.group.map(g => g.s0));
+    if (minS + d2 < 0) d2 = -minS;
+    drag.group.forEach(g => { g.c.start = Math.max(0, g.s0 + d2); syncLinked(g.c); });
+    drawLanes(); drawRuler(); movePlayhead();
+    bus.stage(); bus.panel();
+    return;
+  }
   if (drag.mode === 'move') {
     c.start = Math.max(0, snapTo(drag.start0 + dt, c.id));
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const lane = under && under.closest && under.closest('.lane');
     if (lane && lane.dataset.tid !== drag.f.t.id) {
       const nt = trackOf(lane.dataset.tid);
-      const kind = c.kind === 'image' ? 'video' : c.kind;
-      if (nt && nt.kind === kind) {
+      if (nt && fitsTrack(c, nt)) {
         drag.f.t.clips = drag.f.t.clips.filter(x => x !== c);
         nt.clips.push(c); drag.f.t = nt; S.selTrack = nt.id;
         drawLanes(); drawHeads();
       }
     }
+  } else if (drag.mode === 'l' && c.kind === 'jz' && c.jz && c.jz.fit) {
+    // カットを のばす ふだ: 頭を つまんでも 中身の 出どころ（inp）は 動かさない
+    let ns = snapTo(drag.start0 + dt, c.id);
+    const d = drag.dur0 - (ns - drag.start0);
+    if (d < 1 / S.fps) return;
+    c.start = Math.max(0, ns); c.dur = d;
   } else if (drag.mode === 'l') {
     let ns = snapTo(drag.start0 + dt, c.id);
     let d = drag.dur0 - (ns - drag.start0);
@@ -359,6 +570,7 @@ document.addEventListener('pointermove', e => {
     if (isFinite(srcDur)) d = Math.min(d, (srcDur - c.inp) / (c.speed || 1));
     c.dur = d;
   }
+  syncLinked(c);                       // つないだ ふだ（前後に ばらした 文字PV）も そろえる
   drawLanes(); drawRuler(); movePlayhead();
   bus.stage(); bus.panel();
 });
@@ -399,24 +611,42 @@ function onDrop(e) {
 }
 
 /* ---------- 切る ---------- */
-export function splitAt(f, t) {
+export function splitAt(f, t, quiet) {
   const c = f.c;
-  if (t <= c.start + 1 / S.fps || t >= c.start + c.dur - 1 / S.fps) { toast('ふだの 中で 切って'); return false; }
+  if (t <= c.start + 1 / S.fps || t >= c.start + c.dur - 1 / S.fps) {
+    if (!quiet) toast('ふだの 中で 切って');
+    return null;
+  }
   const b = JSON.parse(JSON.stringify(c));
   b.id = uid();
   const off = t - c.start;
   b.start = t; b.dur = c.dur - off; b.inp = c.inp + off * (c.speed || 1); b.fin = 0;
   c.dur = off; c.fout = 0;
   f.t.clips.push(b);
-  S.sel = b.id;
-  pushUndo(); bus.all(); buzz(18);
-  return true;
+  if (!quiet) {
+    /* つないだ ふだ（前後に ばらした 文字PV）も 同じ ところで 切って、
+       うしろ半分どうしを つなぎ直す。かたっぽだけ 切れると ずれる ため。 */
+    if (c.link) {
+      const nl = 'lk' + uid();
+      allClips().filter(x => x.c !== c && x.c !== b && x.c.link === c.link)
+        .forEach(mf => { const nb = splitAt(mf, t, true); if (nb) nb.link = nl; });
+      b.link = nl;
+    }
+    S.sel = b.id;
+    pushUndo(); bus.all(); buzz(18);
+  }
+  return b;
 }
 export function splitHere() {
   const hits = S.tracks.flatMap(t =>
     t.clips.filter(c => S.time > c.start && S.time < c.start + c.dur).map(c => ({ c, t })));
   const target = S.sel && hits.some(h => h.c.id === S.sel) ? hits.filter(h => h.c.id === S.sel) : hits;
   if (!target.length) { toast('ここに 切れる ふだが ない'); return; }
-  target.forEach(f => splitAt(f, S.time));
-  toast(target.length + 'まい 切った');
+  const done = new Set();
+  let n = 0;
+  target.forEach(f => {
+    if (f.c.link) { if (done.has(f.c.link)) return; done.add(f.c.link); }
+    if (splitAt(f, S.time)) n++;
+  });
+  toast(n + 'まい 切った');
 }

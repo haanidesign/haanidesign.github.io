@@ -217,7 +217,7 @@ export function createWheel(value, onPick){
 
 
 /* ---------- おきにいりの色 ----------
-   端末に おぼえておく。ほかの さくひんでも 出てくる。 */
+   端末に おぼえておく。ほかの 作品でも 出てくる。 */
 const FAV_KEY = 'anime-kobo-favs';
 const FAV_MAX = 18;
 

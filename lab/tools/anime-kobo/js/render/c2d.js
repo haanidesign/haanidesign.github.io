@@ -3,22 +3,22 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=268';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=268';
-import { liveMasks } from '../engine/mask.js?v=268';
-import { valuesAt } from '../engine/anim.js?v=268';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=268';
+         nearestFolder } from '../engine/layer.js?v=289';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=289';
+import { liveMasks } from '../engine/mask.js?v=289';
+import { valuesAt } from '../engine/anim.js?v=289';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=289';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=268';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=268';
-import { paintCanvas } from '../engine/paint.js?v=268';
-import { panoCanvas } from '../engine/pano.js?v=268';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=268';
-import { roomCanvas } from '../engine/room.js?v=268';
-import { talkCanvas } from '../engine/talk.js?v=268';
-import { homography, applyH } from '../engine/warp.js?v=268';
-import { drawCamView } from './camview.js?v=268';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=268';
+         meshSizeFor } from '../engine/puppet.js?v=289';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=289';
+import { paintCanvas } from '../engine/paint.js?v=289';
+import { panoCanvas } from '../engine/pano.js?v=289';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=289';
+import { roomCanvas } from '../engine/room.js?v=289';
+import { talkCanvas } from '../engine/talk.js?v=289';
+import { homography, applyH } from '../engine/warp.js?v=289';
+import { drawCamView } from './camview.js?v=289';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=289';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -966,6 +966,20 @@ function flatMesh(w, h){
     l._maskKey = key;
     l._maskSrc = img;
     return l._maskC;
+  }
+
+  /* 枠の そとの まくの 色（css から 1回だけ もらう） */
+  let veilCol = null;
+  function outsideVeil(){
+    if(veilCol == null){
+      let v = '';
+      try{
+        v = getComputedStyle(document.documentElement)
+              .getPropertyValue('--outside').trim();
+      }catch(_){}
+      veilCol = v || 'rgba(255,254,247,.72)';
+    }
+    return veilCol;
   }
 
   /* ---------- 魚眼の 紙と 貼り直し ---------- */
@@ -2087,7 +2101,11 @@ function flatMesh(w, h){
       const x0 = (0 - view.x) / view.z, y0 = (0 - view.y) / view.z;
       const x1 = (W - view.x) / view.z, y1 = (H - view.y) / view.z;
       ctx.save();
-      ctx.fillStyle = 'rgba(255,254,247,.72)';
+      /* 枠の そとに かける まく。
+         見た目（css）の --outside が あれば その色を つかう
+         ―― 見た目を さしかえた ときに ここだけ 前の 色で
+         のこって しまわない ように。 */
+      ctx.fillStyle = outsideVeil();
       const band = (a, b, c, d) => {
         if(c > a && d > b) ctx.fillRect(a, b, c - a, d - b);
       };
@@ -2138,13 +2156,18 @@ function flatMesh(w, h){
 
   function drawSelection(project, layer, poses, view){
     const pose = poses[layer.id]; if(!pose) return null;
-    let q;
+    let q, qAsset = null;
     if(isFolder(layer)){
       // 立体に なって いる フォルダは、その 四すみが そのまま わく
       q = pose.quad || folderQuad(project, layer, poses);
     } else {
       const asset = frameAsset(layer, pose.v.frame); if(!asset) return null;
-      q = cornersOf(layer, pose.m, asset);
+      /* カメラで ななめから 見て いる ときは、絵は 四すみを
+         ゆがめて はって いる（pose.quad）。わくも 同じ ものを つかう。
+         ここだけ まっすぐな ものさし（pose.m）で 出して いたので、
+         絵と わくが ずれて 見えて いた。 */
+      q = pose.quad || cornersOf(layer, pose.m, asset);
+      qAsset = asset;
     }
     if(!q) return null;
 
@@ -2162,7 +2185,14 @@ function flatMesh(w, h){
     ctx.strokeStyle = INK;
     ctx.stroke();
 
-    const piv = { x: pose.m.tx, y: pose.m.ty };
+    /* じくの 点。ゆがめて はって いる ときは、わくと 同じ ように
+       四すみの ものさしを 通して 出す（まっすぐな ものさしでは ずれる）。 */
+    let piv = { x: pose.m.tx, y: pose.m.ty };
+    if(pose.quad && qAsset){
+      const w = qAsset.w, h = qAsset.h;
+      const H = homography([{x:0,y:0},{x:w,y:0},{x:w,y:h},{x:0,y:h}], pose.quad);
+      if(H) piv = applyH(H, w * layer.pivot.x, h * layer.pivot.y);
+    }
     ctx.lineWidth = 2 / z;
     ctx.beginPath(); ctx.arc(piv.x, piv.y, 7 / z, 0, 7);
     ctx.fillStyle = MAIN; ctx.fill(); ctx.stroke();

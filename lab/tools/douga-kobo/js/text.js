@@ -1,8 +1,8 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
-import { S, clamp } from './state.js?v=11';
-import { beatOn, beatSec, beatAt } from './beat.js?v=11';
-import { bus } from './bus.js?v=11';
+import { S, clamp } from './state.js?v=69';
+import { beatOn, beatSec, beatAt } from './beat.js?v=69';
+import { bus } from './bus.js?v=69';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -216,17 +216,38 @@ export const FX_IN = [
   ['pop', 'ぽん'], ['spring', 'ばね'], ['rotate', 'くるっ'], ['flipx', 'よこ回転'],
   ['flipy', 'たて回転'], ['blur', 'ぼけから'], ['type', 'タイプ'], ['wipe', 'ワイプ'],
   ['scatter', 'ちらばり'], ['drop', 'おちる'], ['stretch', 'のびる'], ['glitch', 'がたつき'],
-  ['spiral', 'うずまき'], ['wavein', 'なみで'], ['slide', '好きな むきから']
+  ['spiral', 'うずまき'], ['wavein', 'なみで'], ['slide', '好きな むきから'],
+  ['domino', 'ドミノ'], ['slicein', 'スライス'], ['iris', 'アイリス'], ['blind', 'ブラインド'],
+  ['neon', 'ネオン 点灯'], ['stamp', 'スタンプ'], ['bound', 'バウンド'], ['fan', '扇ひらき'],
+  ['cylinder', '円筒 回転'], ['koma', 'コマ撮り'], ['crt', 'CRT 電源'], ['loading', 'ローディング'],
+  ['drum', 'ドラム 回転'], ['datafall', 'データ 降下'], ['brush', '筆ばらい'], ['inkdrop', 'インク滴'],
+  ['countin', 'カウントイン'], ['stroke1', '一画ずつ'], ['shutter', 'シャッター'], ['pend', 'ふりこ'],
+  ['zip', 'ジッパー'], ['pushin', 'おし出し'], ['tilt', 'かたむき おき'], ['squash', 'つぶれ もどり'],
+  ['crack', 'ひび'], ['magnify', 'ルーペ'], ['sheet', 'シール はり'], ['unfold', '手紙ひらき'],
+  ['gather', '分解→集合'], ['rise', 'せり上がり']
 ];
 export const FX_LOOP = [
   ['none', 'なし'], ['bounce', 'はずむ'], ['pulse', 'どくどく'], ['shake', 'ゆれる'],
   ['swing', 'ふりこ'], ['wave', 'なみうち'], ['flash', 'ぴかっ'], ['jitter', 'がくがく'],
-  ['spin', 'まわる'], ['rainbow', 'にじ色'], ['zoombeat', '拍でズーム'], ['updown', 'うきしずみ']
+  ['spin', 'まわる'], ['rainbow', 'にじ色'], ['zoombeat', '拍でズーム'], ['updown', 'うきしずみ'],
+  ['drift', 'ただよう'], ['breath', 'こきゅう'], ['jelly', 'ゼリー'], ['flame', 'ともしび'],
+  ['gust', 'とっぷう'], ['hang', 'ぶらさがり'], ['stretchbeat', '拍で のびる'], ['flipbeat', '拍で 裏返る'],
+  ['gloss', 'つやめき'], ['focusshift', 'ピント送り'], ['string', '弦の ふるえ'], ['typo', 'かたかた'],
+  ['heartbeat', 'こどう'], ['sway', 'ゆらぎ'], ['tick', 'こま送り'], ['blink', 'またたき'],
+  ['squeezeb', '拍で つぶれる'], ['roll', 'ころがる'], ['hueslow', 'ゆっくり 色かわり'], ['float', 'ふわふわ']
 ];
 export const FX_OUT = [
   ['none', 'なし'], ['fade', 'じわっ'], ['up', '上へ'], ['down', '下へ'],
   ['zoomin', '大きく'], ['zoomout', '小さく'], ['blur', 'ぼける'], ['scatter', 'ちらばる'],
-  ['type', 'タイプ']
+  ['type', 'タイプ'],
+  ['explode', '爆散'], ['collapse', '崩落'], ['mist', '霧散'], ['sliceout', 'スライス'],
+  ['wipeout', 'ワイプ'], ['shrink', '収縮'], ['stretchout', '伸縮'], ['fly', '飛散'],
+  ['glitchout', 'グリッチ'], ['door', 'とびら'], ['tvoff', 'TV オフ'], ['suck', '吸いこみ'],
+  ['melt', 'とける'], ['backspace', 'バックスペース'], ['peel', 'はがす'], ['roll', 'まるめて 捨てる'],
+  ['tear', 'やぶり捨て'], ['burn', 'こげて 消える'], ['erase', '黒板ふき'], ['sand', 'すなに なる'],
+  ['shred', 'シュレッダー'], ['balloon', 'ふうせん'], ['glass', 'ガラス われ'], ['tornado', 'たつまき'],
+  ['flutter', 'ひらひら'], ['shock', 'しょうげき波'], ['sink', 'すいぼつ'], ['cut1', '一刀両断'],
+  ['blow', 'ふき消す'], ['drain', 'したへ すいこむ']
 ];
 
 /** 出かた。p は 0→1 */
@@ -278,6 +299,133 @@ function inAt(kind, p, g, size, opt = {}) {
       t.rot = (1 - e) * 320; t.sx = t.sy = e; t.a = p; break;
     }
     case 'wavein': t.dy = Math.sin((1 - p) * 8 + g.idx * .6) * size * .5 * (1 - e); t.a = p; break;
+
+    /* ---- ここから 足した ぶん ---- */
+    case 'domino':                 // 下の はしを 軸に 起きあがる
+      t.rot = -(1 - e) * 88; t.dy = (1 - e) * size * .5; t.a = clamp(p * 2, 0, 1); break;
+    case 'slicein': {              // 1文字おきに 左右から
+      const d = g.idx % 2 ? 1 : -1;
+      t.dx = d * (1 - e) * size * 2.2; t.a = p; break;
+    }
+    case 'iris': t.sx = t.sy = e; t.a = clamp(p * 2.5, 0, 1); break;
+    case 'blind': t.sy = e; t.a = clamp(p * 2.5, 0, 1); break;
+    case 'neon': {                 // ちかちか して から 点く
+      const f = rnd(g.idx, Math.floor(p * 9));
+      t.a = p > .62 ? 1 : (f > .42 ? 1 : .08);
+      break;
+    }
+    case 'stamp': {                // 大きく きて、どんと 止まる
+      const k = Math.min(1, p / .55);
+      t.sx = t.sy = 2.6 - 1.6 * easeOut(k);
+      const sh = p > .55 ? Math.pow(1 - (p - .55) / .45, 3) : 0;
+      t.dy = (rnd(g.idx, 5) - .5) * size * .28 * sh;
+      t.a = clamp(p * 3, 0, 1); break;
+    }
+    case 'bound': {                // 上から きて はずむ
+      const b = 1 - Math.abs(Math.cos(p * Math.PI * 2.2)) * (1 - p);
+      t.dy = -(1 - b) * size * 2.4;
+      t.sy = 1 + (1 - b) * .35; t.sx = 1 - (1 - b) * .2;
+      t.a = clamp(p * 4, 0, 1); break;
+    }
+    case 'fan': t.rot = -(1 - e) * 120; t.sx = t.sy = .3 + .7 * e; t.a = p; break;
+    case 'cylinder': t.sx = Math.max(.05, Math.sin(e * Math.PI / 2)); t.a = clamp(p * 2, 0, 1); break;
+    case 'koma': {                 // 3コマだけ 止めながら 出る
+      const k = Math.floor(p * 3) / 3;
+      t.sx = t.sy = .5 + .5 * k; t.a = k > 0 ? 1 : 0; break;
+    }
+    case 'crt': {                  // まん中の 線から ぱっと ひらく
+      const k = Math.min(1, p / .5);
+      t.sy = Math.max(.02, easeOut(k));
+      t.sx = p < .5 ? 1.3 - .3 * k : 1;
+      t.a = clamp(p * 6, 0, 1); break;
+    }
+    case 'loading': {              // 1文字ずつ かちかち と 現れる
+      const k = Math.floor(p * 6) / 6;
+      t.a = rnd(g.idx, Math.floor(p * 6)) < k + .15 ? 1 : 0; break;
+    }
+    case 'drum': {                 // たて に まわって くる
+      const a2 = (1 - e) * Math.PI;
+      t.sy = Math.max(.05, Math.abs(Math.cos(a2)));
+      t.dy = Math.sin(a2) * size * .6; t.a = clamp(p * 2, 0, 1); break;
+    }
+    case 'datafall': {             // 上から 落ちて くる（文字ごとに ずれる）
+      const d = rnd(g.idx, 6);
+      t.dy = -(1 - e) * size * (2 + d * 5);
+      t.a = p > d * .25 ? 1 : 0;
+      t.blur = (1 - e) * size * .12; break;
+    }
+    case 'brush': {                // 筆で はらう
+      t.sx = Math.max(.02, e);
+      t.dx = -(1 - e) * size * .5;
+      t.rot = (1 - e) * -8; t.a = clamp(p * 2.5, 0, 1); break;
+    }
+    case 'inkdrop': {              // ぽとりと 落ちて にじむ
+      const b = back(p);
+      t.sx = b * (1 + (1 - p) * .25); t.sy = b * (1 - (1 - p) * .18);
+      t.blur = (1 - e) * size * .1; t.a = clamp(p * 3, 0, 1); break;
+    }
+    case 'countin': {              // 3回 脈打って から 決まる
+      const k = Math.min(1, p / .7);
+      const pulse = Math.abs(Math.sin(k * Math.PI * 3));
+      t.sx = t.sy = p > .7 ? 1 : 1 + pulse * .3;
+      t.a = clamp(p * 4, 0, 1); break;
+    }
+    case 'stroke1': {              // 一画ずつ 書いて いく ように 下から
+      const k = clamp(p * 1.15, 0, 1);
+      t.sy = k; t.dy = (1 - k) * size * .5; t.a = k > 0 ? 1 : 0; break;
+    }
+    case 'shutter': {
+      const k = Math.min(1, p / .35);
+      t.sy = easeOut(k); t.a = clamp(p * 5, 0, 1); break;
+    }
+    case 'pend': {                 // ふりこの ように ゆれて 止まる
+      t.rot = Math.cos(p * Math.PI * 3.2) * (1 - p) * 34;
+      t.dy = -(1 - e) * size * .3; t.a = clamp(p * 3, 0, 1); break;
+    }
+    case 'zip': {                  // 1文字おきに 上下から かみ合う
+      const d = g.idx % 2 ? 1 : -1;
+      t.dy = d * (1 - e) * size * 1.5; t.a = clamp(p * 2, 0, 1); break;
+    }
+    case 'pushin': {
+      const b = back(p);
+      t.dx = -(1 - b) * size * 2.6; t.a = clamp(p * 3, 0, 1); break;
+    }
+    case 'tilt': t.rot = (1 - e) * 84; t.dy = (1 - e) * size * .3; t.a = p; break;
+    case 'squash': {
+      const b = spring(p);
+      t.sx = 1 + (1 - b) * .8; t.sy = Math.max(.05, 1 - (1 - b) * .9);
+      t.a = clamp(p * 3, 0, 1); break;
+    }
+    case 'crack': {                // ひびが 入って 直る
+      const j = (rnd(g.idx, Math.floor(p * 10)) - .5) * (1 - p);
+      t.dx = j * size * .5; t.dy = j * size * .3;
+      t.rot = j * 40; t.sx = t.sy = .82 + .18 * e;
+      t.a = clamp(p * 4, 0, 1); break;
+    }
+    case 'magnify': {
+      t.sx = t.sy = 3.4 - 2.4 * e;
+      t.blur = (1 - e) * size * .2; t.a = clamp(p * 2, 0, 1); break;
+    }
+    case 'sheet': {                // シールを はる
+      t.rot = (1 - e) * (rnd(g.idx, 7) - .5) * 40;
+      t.sx = t.sy = 1.35 - .35 * e;
+      t.a = clamp(p * 4, 0, 1); break;
+    }
+    case 'unfold': {               // 手紙を ひらく
+      t.sy = e; t.dy = -(1 - e) * size * .4;
+      t.rot = (1 - e) * -14; t.a = clamp(p * 2, 0, 1); break;
+    }
+    case 'gather': {               // ばらばらの かけらが 集まる
+      const a2 = rnd(g.idx, 8) * Math.PI * 2, d = rnd(g.idx, 9);
+      t.dx = Math.cos(a2) * size * (1 + d * 4) * (1 - e);
+      t.dy = Math.sin(a2) * size * (1 + d * 4) * (1 - e);
+      t.rot = (d - .5) * 180 * (1 - e);
+      t.sx = t.sy = .4 + .6 * e; t.a = p; break;
+    }
+    case 'rise': {                 // 下から せり上がる（見きれながら）
+      t.dy = (1 - e) * size * 1.4; t.sy = .6 + .4 * e;
+      t.a = clamp(p * 2, 0, 1); break;
+    }
   }
   return t;
 }
@@ -301,6 +449,139 @@ function outAt(kind, p, g, size, opt = {}) {
       t.rot = r1 * 220 * e; t.a = p; break;
     }
     case 'type': t.a = p > 0 ? 1 : 0; break;
+
+    /* ---- ここから 足した ぶん（q が 0→1 で 消えて いく） ---- */
+    case 'explode': {
+      const a2 = rnd(g.idx, 11) * Math.PI * 2, d = .4 + rnd(g.idx, 12);
+      t.dx = Math.cos(a2) * size * 6 * d * e;
+      t.dy = Math.sin(a2) * size * 6 * d * e;
+      t.rot = (d - .7) * 420 * e; t.sx = t.sy = 1 - e * .4; t.a = p; break;
+    }
+    case 'collapse': {
+      t.dy = e * e * size * 5;
+      t.rot = (rnd(g.idx, 13) - .5) * 120 * e; t.a = 1 - Math.pow(e, 3); break;
+    }
+    case 'mist': {
+      t.dy = -e * size * .9; t.blur = e * size * .45;
+      t.sx = t.sy = 1 + e * .3; t.a = p; break;
+    }
+    case 'sliceout': {
+      const d = g.idx % 2 ? 1 : -1;
+      t.dx = d * e * size * 3; t.a = p; break;
+    }
+    case 'wipeout': t.sx = Math.max(.02, 1 - e); t.a = clamp(p * 3, 0, 1); break;
+    case 'shrink': t.sx = t.sy = Math.max(.02, 1 - e); t.a = clamp(p * 2, 0, 1); break;
+    case 'stretchout': t.sy = 1 + e * 3; t.sx = Math.max(.04, 1 - e); t.a = p; break;
+    case 'fly': {
+      t.dy = -e * e * size * 6;
+      t.rot = (rnd(g.idx, 14) - .5) * 260 * e; t.a = p; break;
+    }
+    case 'glitchout': {
+      const j = rnd(g.idx, Math.floor(q * 14)) - .5;
+      t.dx = j * size * 2 * e; t.hue = j * 220 * e;
+      t.a = rnd(g.idx, Math.floor(q * 9)) > e * .9 ? 1 : 0; break;
+    }
+    case 'door': {
+      const d = g.idx % 2 ? 1 : -1;
+      t.dx = d * e * size * .9; t.sx = Math.max(.02, 1 - e);
+      t.a = clamp(p * 2, 0, 1); break;
+    }
+    case 'tvoff': {
+      const k = Math.min(1, q / .6);
+      t.sy = Math.max(.01, 1 - k);
+      t.sx = q < .6 ? 1 + k * .5 : Math.max(.01, 1 - (q - .6) / .4);
+      t.a = clamp(p * 4, 0, 1); break;
+    }
+    case 'suck': {
+      t.sx = t.sy = Math.max(.02, 1 - e);
+      t.rot = e * 540; t.dx = -g.x * e * .5; t.a = clamp(p * 1.6, 0, 1); break;
+    }
+    case 'melt': {
+      t.dy = e * e * size * 1.6; t.sy = 1 + e * 1.8;
+      t.sx = Math.max(.1, 1 - e * .5); t.a = p; break;
+    }
+    case 'backspace': {            // うしろの 字から 消えて いく
+      t.a = (1 - g.idx / Math.max(1, opt.total || 12)) > e ? 1 : 0; break;
+    }
+    case 'peel': {
+      t.rot = e * 70; t.dx = e * size * 1.2; t.dy = -e * size * .4;
+      t.sx = Math.max(.1, 1 - e * .5); t.a = p; break;
+    }
+    case 'roll': {
+      t.sx = t.sy = Math.max(.05, 1 - e);
+      t.rot = e * 720; t.dx = e * size * 3; t.dy = e * size * .8; t.a = p; break;
+    }
+    case 'tear': {
+      const d = g.idx % 2 ? 1 : -1;
+      t.dx = d * e * size * 1.6; t.dy = e * e * size * 2.4;
+      t.rot = d * e * 90; t.a = p; break;
+    }
+    case 'burn': {
+      t.hue = e * 60; t.blur = e * size * .2;
+      t.dy = -e * size * .5; t.sy = 1 - e * .3; t.a = Math.pow(p, .5) * p; break;
+    }
+    case 'erase': {                // 左から ごしごし 消す
+      const k = g.idx / Math.max(1, opt.total || 12);
+      t.a = k > e ? 1 : 0;
+      t.dx = k > e ? 0 : size * .3; break;
+    }
+    case 'sand': {
+      const d = rnd(g.idx, 15);
+      t.dx = e * size * (1 + d * 3); t.dy = e * size * (d - .3) * 2;
+      t.blur = e * size * .35; t.a = p; break;
+    }
+    case 'shred': {
+      const d = (g.idx % 3) - 1;
+      t.dy = e * e * size * (3 + Math.abs(d));
+      t.dx = d * e * size * .3; t.sy = 1 + e * .4; t.a = p; break;
+    }
+    case 'balloon': {
+      t.dy = -e * e * size * 5;
+      t.dx = Math.sin(e * 6 + g.idx) * size * .5 * e;
+      t.rot = Math.sin(e * 5 + g.idx) * 22 * e; t.a = p; break;
+    }
+    case 'glass': {
+      const a2 = rnd(g.idx, 16) * Math.PI * 2;
+      t.dx = Math.cos(a2) * size * 4 * e * e;
+      t.dy = Math.sin(a2) * size * 4 * e * e + e * e * size * 2;
+      t.rot = (rnd(g.idx, 17) - .5) * 300 * e;
+      t.a = e < .12 ? 1 : p; break;
+    }
+    case 'tornado': {
+      const a2 = e * Math.PI * 3.5;
+      t.dx = Math.cos(a2) * size * 3 * e;
+      t.dy = -e * size * 3.4;
+      t.rot = e * 640; t.sx = t.sy = Math.max(.06, 1 - e * .8); t.a = p; break;
+    }
+    case 'flutter': {
+      t.dy = e * e * size * 4;
+      t.dx = Math.sin(e * 7 + g.idx * .8) * size * .9;
+      t.rot = Math.sin(e * 9 + g.idx) * 70; t.a = p; break;
+    }
+    case 'shock': {
+      const k = Math.min(1, q / .3);
+      t.sx = t.sy = q < .3 ? 1 + k * .7 : Math.max(.02, 1.7 - (q - .3) / .7 * 1.7);
+      t.a = clamp(p * 2, 0, 1); break;
+    }
+    case 'sink': {
+      t.dy = e * size * 1.8; t.blur = e * size * .3;
+      t.sy = 1 - e * .25; t.a = p; break;
+    }
+    case 'cut1': {                 // まん中で 切れて 上下に ずれる
+      const d = g.idx % 2 ? 1 : -1;
+      t.dy = d * e * size * 1.1; t.dx = d * e * size * .4;
+      t.a = e < .08 ? 1 : p; break;
+    }
+    case 'blow': {
+      const d = rnd(g.idx, 18);
+      t.dx = e * e * size * (3 + d * 5);
+      t.dy = -e * size * (d - .2) * 1.6;
+      t.rot = e * (120 + d * 220); t.blur = e * size * .12; t.a = p; break;
+    }
+    case 'drain': {
+      t.dy = e * size * 2.2; t.sy = Math.max(.04, 1 - e);
+      t.sx = 1 + e * .2; t.a = clamp(p * 1.5, 0, 1); break;
+    }
   }
   return t;
 }
@@ -326,6 +607,66 @@ function loopAt(kind, b, g, size, amt) {
     case 'rainbow': t.hue = (b * 90 + g.idx * 18) % 360 * k; break;
     case 'zoombeat': t.sx = t.sy = 1 + Math.pow(1 - ph, 5) * .5 * k; break;
     case 'updown': t.dy = Math.sin(b * Math.PI) * size * .16 * k; break;
+
+    /* ---- ここから 足した ぶん ---- */
+    case 'drift':
+      t.dx = Math.sin(b * .9 + g.idx * .4) * size * .12 * k;
+      t.dy = Math.cos(b * .7 + g.idx * .3) * size * .1 * k; break;
+    case 'breath': t.sx = t.sy = 1 + Math.sin(b * Math.PI) * .05 * k; break;
+    case 'jelly': {
+      const w = Math.sin(b * Math.PI * 2) * .12 * k;
+      t.sx = 1 + w; t.sy = 1 - w; break;
+    }
+    case 'flame': {
+      const s2 = Math.floor(b * 8);
+      t.sy = 1 + (rnd(g.idx, s2) - .3) * .12 * k;
+      t.dx = (rnd(g.idx, s2 + 3) - .5) * size * .04 * k;
+      t.a = 1 - rnd(g.idx, s2 + 5) * .12 * k; break;
+    }
+    case 'gust': {
+      const w = Math.pow(Math.max(0, Math.sin(b * Math.PI * .5)), 6);
+      t.dx = w * size * .5 * k; t.rot = w * 12 * k; break;
+    }
+    case 'hang': {
+      t.rot = Math.sin(b * Math.PI * 1.3 + g.idx * .5) * 6 * k;
+      t.dy = Math.abs(Math.sin(b * Math.PI * 1.3)) * size * .05 * k; break;
+    }
+    case 'stretchbeat': {
+      const w = Math.pow(1 - ph, 4) * k;
+      t.sy = 1 + w * .5; t.sx = 1 - w * .2; break;
+    }
+    case 'flipbeat': t.sx = Math.cos(Math.floor(b) * Math.PI) >= 0 ? 1 : -1; break;
+    case 'gloss': {
+      const w = (b * .6 + g.idx * -.14) % 1;
+      t.a = 1 - Math.pow(Math.max(0, 1 - Math.abs(w - .5) * 6), 2) * .45 * k; break;
+    }
+    case 'focusshift': t.blur = (Math.sin(b * .8 + g.idx * .3) * .5 + .5) * size * .06 * k; break;
+    case 'string': t.dy = Math.sin(b * Math.PI * 9 + g.idx) * size * .03 * k * Math.max(0, 1 - ph); break;
+    case 'typo': {
+      const s2 = Math.floor(b * 6);
+      t.dy = (rnd(g.idx, s2 + 11) - .5) * size * .06 * k;
+      t.rot = (rnd(g.idx, s2 + 13) - .5) * 5 * k; break;
+    }
+    case 'heartbeat': {
+      const w = Math.pow(1 - ph, 8) + Math.pow(1 - Math.abs(ph - .22) * 6, 8) * .6;
+      t.sx = t.sy = 1 + Math.max(0, w) * .16 * k; break;
+    }
+    case 'sway': t.rot = Math.sin(b * .8 + g.idx * .25) * 5 * k; break;
+    case 'tick': {
+      const s2 = Math.floor(b * 3) / 3;
+      t.dy = (s2 % 1 < .5 ? -1 : 1) * size * .03 * k; break;
+    }
+    case 'blink': t.a = (Math.floor(b * 4) + g.idx) % 7 === 0 ? 1 - .7 * k : 1; break;
+    case 'squeezeb': {
+      const w = Math.pow(1 - ph, 5) * k;
+      t.sy = 1 - w * .35; t.sx = 1 + w * .2; break;
+    }
+    case 'roll': t.rot = Math.sin(b * Math.PI * .7 + g.idx * .6) * 16 * k; break;
+    case 'hueslow': t.hue = (b * 22 + g.idx * 6) % 360 * k; break;
+    case 'float': {
+      t.dy = Math.sin(b * 1.1 + g.idx * .7) * size * .09 * k;
+      t.rot = Math.sin(b * .9 + g.idx * .5) * 4 * k; break;
+    }
   }
   return t;
 }
@@ -341,7 +682,7 @@ export function glyphState(T, g, local, dur, total, absT) {
   const b = beatOn() ? beatSec() : .5;
   const inD = Math.max(.001, T.inBeat > 0 ? b * T.inBeat : (T.inDur || .4));
   const outD = Math.max(.001, T.outBeat > 0 ? b * T.outBeat : (T.outDur || .3));
-  const opt = { ease: T.ease && T.ease !== 'auto' ? T.ease : null, dist: T.dist || 0, angle: T.angle };
+  const opt = { ease: T.ease && T.ease !== 'auto' ? T.ease : null, dist: T.dist || 0, angle: T.angle, total };
 
   let pIn = clamp((local - lag) / inD, 0, 1);
   if ((T.fxIn || 'none') === 'type') pIn = (local - lag) >= 0 ? 1 : 0;
@@ -392,7 +733,7 @@ export function drawText(G, c, local, absT) {
       : unit === 'all' ? 1 : lay.glyphs.length;
 
   const mb = T.mblur || 0;
-  const steps = mb > 0 ? 4 : 1;
+  const steps = mb > 0 ? ((S.quality || 1) < 1 ? 2 : 4) : 1;
 
   for (const g of lay.glyphs) {
     if (g.ch === ' ' || g.ch === '　') continue;
@@ -401,12 +742,14 @@ export function drawText(G, c, local, absT) {
       const st = glyphState(T, g, local - back, c.dur, total, absT - back);
       if (st.a <= .004) continue;
       const fade = k === 0 ? 1 : (1 - k / steps) * .45;
+      const o = offOf(T, g.idx);
       G.save();
       G.globalAlpha = clamp(st.a * fade, 0, 1);
-      G.translate(g.x + st.dx, g.y + st.dy);
+      G.translate(g.x + st.dx + o.x * size, g.y + st.dy + o.y * size);
       if (g.rot) G.rotate(g.rot * Math.PI / 180);
       if (st.rot) G.rotate(st.rot * Math.PI / 180);
-      G.scale(st.sx, st.sy);
+      if (o.r) G.rotate(o.r * Math.PI / 180);
+      G.scale(st.sx * o.s, st.sy * o.s);
       if (st.blur > .05) G.filter = `blur(${st.blur.toFixed(2)}px)`;
 
       const col = st.hue ? shiftHue(T.color, st.hue) : T.color;
@@ -444,6 +787,47 @@ export function drawText(G, c, local, absT) {
     }
   }
   G.restore();
+}
+
+/* ---------- 1文字ずつの ずらし ----------
+   Lyrica の Character Offset と 同じ 考え。
+   よこ・たては 文字の 大きさを 1 と した 目もり（em）で 持つ ので、
+   あとで 大きさを 変えても くずれない。 */
+export const OFF0 = { x: 0, y: 0, s: 1, r: 0 };
+export function offOf(T, idx) {
+  const o = T.off && T.off[idx];
+  if (!o) return OFF0;
+  return { x: o.x || 0, y: o.y || 0, s: o.s === undefined ? 1 : o.s, r: o.r || 0 };
+}
+export function setOff(T, idx, part) {
+  if (!T.off) T.off = {};
+  const cur = T.off[idx] || { x: 0, y: 0, s: 1, r: 0 };
+  T.off[idx] = Object.assign(cur, part);
+  const o = T.off[idx];
+  if (!o.x && !o.y && !o.r && (o.s === 1 || o.s === undefined)) delete T.off[idx];
+}
+export const clearOff = (T, idx) => {
+  if (!T.off) return;
+  if (idx === undefined) T.off = {}; else delete T.off[idx];
+};
+
+/** 1文字ずつの 置き場（ずらしこみ）。えらぶ ため・わくを 出す ため */
+export function glyphSpots(G, T) {
+  const lay = layout(G, T);
+  const size = T.size;
+  G.font = `${T.weight} ${size}px ${fontFamily(T.font || 'rounded')}`;
+  return lay.glyphs
+    .filter(g => g.ch !== ' ' && g.ch !== '　')
+    .map(g => {
+      const o = offOf(T, g.idx);
+      const m = G.measureText(g.ch);
+      return {
+        idx: g.idx, ch: g.ch,
+        x: g.x + o.x * size, y: g.y + o.y * size,
+        w: Math.max(size * .4, m.width) * o.s, h: size * 1.05 * o.s,
+        rot: (g.rot || 0) + o.r
+      };
+    });
 }
 
 /** 文字ぜんたいに かかる グラデーション。

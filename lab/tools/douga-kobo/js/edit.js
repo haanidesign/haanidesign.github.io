@@ -3,9 +3,9 @@ import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
   freeSlot, laneFor, freeLane
-} from './state.js?v=11';
-import { MEDIA, hookAudio } from './media.js?v=11';
-import { bus } from './bus.js?v=11';
+} from './state.js?v=69';
+import { MEDIA, hookAudio } from './media.js?v=69';
+import { bus } from './bus.js?v=69';
 
 export function addFromMedia(m, at = 0, track = null) {
   if (!m) return null;
@@ -119,7 +119,7 @@ export function renameTrack(id, name) {
 export function saveProject(name = 'douga') {
   const data = {
     app: 'douga-kobo', ver: 1,
-    W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans, cams: S.cams,
     beat: S.beat, master: S.master,
     media: [...MEDIA.values()].map(m => ({ id: m.id, name: m.name, kind: m.kind, dur: m.dur })),
     tracks: S.tracks
@@ -136,6 +136,10 @@ export async function openProject(file) {
     const o = JSON.parse(await file.text());
     if (o.app !== 'douga-kobo' && o.app !== 'douga-hen') { toast('この台の ファイルじゃない'); return; }
     S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    S.dur = +o.dur > 0 ? +o.dur : 0;
+    S.step = +o.step > 0 ? +o.step : 0;
+    S.trans = Array.isArray(o.trans) ? o.trans : [];
+    S.cams = Array.isArray(o.cams) ? o.cams : [];
     if (o.beat) S.beat = Object.assign(S.beat, o.beat);
     if (o.master) S.master = Object.assign(S.master, o.master);
     S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;

@@ -1,9 +1,9 @@
 /* さいせいと 書き出し。 */
-import { S, clamp, r2, toast, duration, $ } from './state.js?v=11';
-import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=11';
-import { allClips, findClip, trackOf } from './state.js?v=11';
-import { activeClips, fadeAlpha, renderStage, canvas } from './render.js?v=11';
-import { bus } from './bus.js?v=11';
+import { S, clamp, r2, toast, duration, $ } from './state.js?v=69';
+import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=69';
+import { allClips, findClip, trackOf } from './state.js?v=69';
+import { activeClips, fadeAlpha, renderStage, canvas, setQuality, quality } from './render.js?v=69';
+import { bus } from './bus.js?v=69';
 
 let raf = 0, t0 = 0, base = 0;
 
@@ -161,6 +161,8 @@ export async function exportMovie({ name = 'douga', bps = 8000000 } = {}) {
   if (!canExport()) { toast('この ブラウザでは 書き出せない'); return; }
   const dur = duration();
   pause(); cancelled = false;
+  const keepQ = quality();
+  setQuality(1);                       // 通しで 録る ときも 原寸
   audioCtx(); hookAll();
 
   const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
@@ -204,6 +206,7 @@ export async function exportMovie({ name = 'douga', bps = 8000000 } = {}) {
     }, 100);
   });
   const blob = await finished;
+  setQuality(keepQ);
   if (cancelled) toast('やめた');
   else if (blob) toast('書き出した（' + r2(blob.size / 1048576) + 'MB）', 3000);
   return blob;

@@ -114,6 +114,12 @@
   background:rgba(30,28,20,.45); pointer-events:none;
 }
 #ruler .rtick.big{ height:11px; background:var(--ink); width:1.5px; }
+/* 曲の 拍（音を 読みこむと 出る） */
+#ruler .btick{
+  position:absolute; top:0; width:1px; height:7px;
+  background:rgba(91,127,212,.55); pointer-events:none;
+}
+#ruler .btick.bar{ height:12px; width:2px; background:#5B7FD4; }
 
 /* ---------- タイムラインの行 ---------- */
 .trow{

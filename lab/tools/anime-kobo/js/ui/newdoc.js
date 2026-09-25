@@ -1,11 +1,11 @@
 /* いちばん最初の画面。どの形の動画を作るかを選ぶ。 */
 
-import { SIZE_PRESETS } from '../state.js?v=268';
+import { SIZE_PRESETS } from '../state.js?v=289';
 
 const LENGTHS = [5, 8, 10, 15, 30, 60];   /* ショートを 作る 人が 多い ので みじかい ほうを あつく */
 
 /**
- * docs を渡すと、いちばん上に これまでの さくひんが ならぶ。
+ * docs を渡すと、いちばん上に これまでの 作品が ならぶ。
  *   docs   … [{ id, name, thumb, at, layers, seconds }]
  *   onOpen(id) / onDelete(id)
  */
@@ -56,7 +56,7 @@ export function showNewDoc(el, onStart, resume){
       const delB = document.createElement('button');
       delB.className = 'docdel';
       delB.textContent = '🗑';
-      delB.title = 'この さくひんを けす';
+      delB.title = 'この 作品を けす';
       delB.addEventListener('click', async () => {
         if(!confirm('「' + (d.name || 'むだい') + '」を けしますか？')) return;
         await resume.onDelete(d.id);
@@ -70,7 +70,7 @@ export function showNewDoc(el, onStart, resume){
     if(resume.full){
       const warn = document.createElement('p');
       warn.className = 'sub';
-      warn.textContent = 'さくひんは ' + resume.max + 'つまで もてます。'
+      warn.textContent = '作品は ' + resume.max + 'つまで もてます。'
         + String.fromCharCode(10) + 'あたらしく つくるには どれか けしてね。';
       card.appendChild(warn);
     }
@@ -129,7 +129,8 @@ export function showNewDoc(el, onStart, resume){
   /* ---- 長さ ---- */
   const lh = document.createElement('h2');
   lh.textContent = 'ながさ';
-  lh.style.cssText = 'font-size:.72rem;background:#1E1C14;color:#E1DD60;border-radius:100px;padding:.1rem .8rem;display:inline-block;margin-top:.4rem';
+  lh.className = 'subhead';
+  lh.style.cssText = 'font-size:.78rem;font-weight:700;margin-top:.5rem';
   card.appendChild(lh);
 
   const lens = document.createElement('div');
@@ -162,7 +163,7 @@ export function showNewDoc(el, onStart, resume){
 
   go.addEventListener('click', () => {
     if(resume && resume.full){
-      alert('さくひんが いっぱいです。どれか けしてから つくってね。');
+      alert('作品が いっぱいです。どれか けしてから つくってね。');
       return;
     }
     el.style.display = 'none';

@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=11';
+import { bus } from './bus.js?v=69';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -9,16 +9,29 @@ export const r2 = v => Math.round(v * 100) / 100;
 
 export const S = {
   fps: 30, W: 1280, H: 720, bg: '#101010',
+  dur: 0,                // 作品の ながさ（0 なら ふだに 合わせる）
   tracks: [],
   time: 0, pps: 60,
-  sel: null, selTrack: null,
+  sel: null, selTrack: null, selChar: null,
+  selMany: [],           // いくつか まとめて えらんだ ふだの id
   tool: 'select',          // select | cut | hand
   snap: true,
   loop: { on: false, a: 0, b: 0 },
   timeMode: 'sec',
+  quality: 1,            // 作業中の 画質（1=きれい、小さいほど かるい）
   docId: null, name: 'むだい',
   beat: { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true },
-  master: { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 },
+  step: 0,               // コマ打ち（0=フル / 12=2コマ / 8=3コマ）
+  trans: [],             // カット間の つなぎ [{at,dur,kind,seed}]
+  cams: [],              // カットごとの カメラ [{at,dur,kind,seed}]
+  noBg: false,           // 下じきを ぬらない（透過PNG の あいだだけ true）
+  master: {
+    vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
+    slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0,
+    vhs: 0, strobe: 0, burn: 0, scratch: 0, snow: 0, bars: 0,
+    sparkle: 0, flare: 0, mosaic: 0, shutter: 0, halo: 0,
+    br: 100, ct: 100, sa: 100
+  },
   playing: false
 };
 
@@ -33,7 +46,7 @@ export function newClip(kind, o = {}) {
     vol: 1, fin: 0, fout: 0,
     color: '#E1DD60', color2: '#F2A0B8', grad: false, gradDir: 0,
     fx: { br: 100, ct: 100, sa: 100, bl: 0, hue: 0, sepia: 0 },
-    anim: 'none',
+    anim: 'none', mblur: 0,
     text: {
       str: 'ここに もじ', size: 80, color: '#FFFEF7', stroke: '#1E1C14',
       sw: 9, weight: 800, align: 'center', bgOn: false, bgColor: '#E1DD60',
@@ -43,6 +56,7 @@ export function newClip(kind, o = {}) {
       grad: false, color2: '#E1DD60', gradDir: 90,
       shadowOn: false, shadowColor: '#1E1C14', shadowX: 6, shadowY: 8, shadowBlur: 0,
       glowOn: false, glowColor: '#E1DD60', glowSize: 18,
+      charOn: false, off: {},
       fxIn: 'pop', fxOut: 'fade', fxLoop: 'none',
       unit: 'char', inDur: .45, outDur: .3, stagger: .04,
       inBeat: 0, outBeat: 0, order: 'fwd', ease: 'out', dist: 0, angle: 90,
@@ -64,7 +78,44 @@ export const findClip = id => {
 };
 export const trackOf = id => S.tracks.find(t => t.id === id);
 export const selected = () => S.sel ? findClip(S.sel) : null;
-export const duration = () => Math.max(0.5, ...allClips().map(({ c }) => c.start + c.dur));
+/** えらんで いる ふだ ぜんぶ（1まいの ときも ここに 入る） */
+export function selectedAll() {
+  const ids = new Set([...(S.selMany || []), ...(S.sel ? [S.sel] : [])]);
+  const out = [];
+  ids.forEach(id => { const f = findClip(id); if (f) out.push(f); });
+  return out.sort((a, b) => a.c.start - b.c.start);
+}
+/* この ふだを その 段に 置けるか。
+   音の 段には 音だけ。そのほかの 段は 絵・文字PV・いろ・文字 どれでも 置ける */
+export const fitsTrack = (c, t) => (t.kind === 'audio') === (c.kind === 'audio');
+
+export const manyOn = () => (S.selMany || []).length > 1;
+
+/* --- つないだ ふだ（前後に ばらした 文字PV など） ---
+   link が 同じ ふだは、いち・ながさ・出どころを そろえる。
+   かたっぽだけ のばすと ずれて 合わなく なる ため。 */
+export const linkedOf = c =>
+  (c && c.link) ? allClips().map(x => x.c).filter(x => x !== c && x.link === c.link) : [];
+export function syncLinked(c) {
+  const ms = linkedOf(c);
+  if (!ms.length) return 0;
+  ms.forEach(o => {
+    o.start = c.start; o.dur = c.dur; o.inp = c.inp || 0;
+    o.speed = c.speed; o.inF = c.inF; o.outF = c.outF;
+    if (o.jz && c.jz) { o.jz.fit = c.jz.fit; o.jz.cutDur = c.jz.cutDur; o.jz.off = c.jz.off; }
+  });
+  return ms.length;
+}
+export const unlink = c => { const ms = linkedOf(c); ms.forEach(o => { o.link = null; }); c.link = null; return ms.length; };
+/** えらびを まとめて 入れかえる */
+export function setMany(ids) {
+  S.selMany = [...new Set(ids)];
+  if (!S.selMany.includes(S.sel)) S.sel = S.selMany[0] || null;
+}
+/** ふだが おわる ところ */
+export const clipEnd = () => Math.max(0.5, ...allClips().map(({ c }) => c.start + c.dur));
+/** 作品の ながさ。きめて あれば その ながさ、なければ ふだに 合わせる */
+export const duration = () => (S.dur > 0 ? S.dur : clipEnd());
 
 export function bootProject() {
   S.tracks = [

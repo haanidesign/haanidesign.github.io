@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=268';
+import { uid } from './engine/math.js?v=289';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -20,6 +20,9 @@ export function newProject(w, h, seconds){
     fps: 30,
     duration: seconds || 15,
     bg: '#FFFEF7',
+    /* 曲の 拍。音を 読みこむと じどうで 入る。
+       タイムラインの めもりと「拍に すいつく」に つかう。 */
+    beat: { bpm: 0, offset: 0, snap: true },
     layers: [],      // [0] が一番手前
     assets: {}       // id -> { id, name, src, w, h }
   };
@@ -140,6 +143,18 @@ function restore(json){
   if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
   S.pick = S.pick.filter(id => S.proj.layers.some(l => l.id === id));
   if(S.selPins.layer && !S.proj.layers.some(l => l.id === S.selPins.layer)) S.selPins = { layer:null, times:[] };
+
+  /* もどした あと、もう 無い キーフレームを えらんだ ままに しない。
+     のこして いると 「のばす 帯」や つまみ だけが 画面に のこって、
+     中身は 無いのに 消せない ように 見える。 */
+  if(S.selPins.layer){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    const live = new Set();
+    const tr = (l && l.tracks) || {};
+    Object.keys(tr).forEach(c => (tr[c] || []).forEach(k => live.add(Math.round(k.t * 1000))));
+    S.selPins.times = S.selPins.times.filter(t => live.has(Math.round(t * 1000)));
+    if(!S.selPins.times.length) S.selPins = { layer:null, times:[] };
+  }
   if(restoreHook) restoreHook();
 }
 

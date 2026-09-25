@@ -1,13 +1,16 @@
 {
-  "syncedAt": "2026-08-21T21:29:45.988Z",
+  "syncedAt": "2026-09-23T23:30:44.949Z",
   "tasks": [
     {
       "id": "3c357ed9-f096-803b-996e-fa9f93db0df3",
       "title": "お仕事",
       "date": "2026-08-26",
+      "time": null,
       "category": "締切",
       "done": false,
-      "url": "https://app.notion.com/p/3c357ed9f096803b996efa9f93db0df3"
+      "url": "https://app.notion.com/p/3c357ed9f096803b996efa9f93db0df3",
+      "edited": "2026-08-21T04:58:00.000Z",
+      "image": null
     }
   ]
 }

@@ -2,24 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=11';
-import { wire, bus } from './bus.js?v=11';
-import { MEDIA, importFiles, hookAll } from './media.js?v=11';
-import { useCanvas, renderStage, renderOut, outCanvas, fitView, view } from './render.js?v=11';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=11';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=11';
-import { beatOn, beatSec, beatAt } from './beat.js?v=11';
-import * as TL from './ui/timeline.js?v=11';
-import * as P from './ui/panel.js?v=11';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=11';
+} from './state.js?v=69';
+import { wire, bus } from './bus.js?v=69';
+import { MEDIA, importFiles, hookAll } from './media.js?v=69';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=69';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=69';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=69';
+import { beatOn, beatSec, beatAt } from './beat.js?v=69';
+import * as TL from './ui/timeline.js?v=69';
+import * as P from './ui/panel.js?v=69';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=69';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=11';
-import { addFontFile } from './text.js?v=11';
-import { makePack, openPack } from './pack.js?v=11';
-import { showStart } from './ui/start.js?v=11';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=11';
-import { trackOf } from './state.js?v=11';
+} from './edit.js?v=69';
+import { addFontFile } from './text.js?v=69';
+import { makePack, openPack, zip } from './pack.js?v=69';
+import { showStart } from './ui/start.js?v=69';
+import { openDemo } from './demo.js?v=69';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=69';
+import { trackOf } from './state.js?v=69';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -37,7 +38,8 @@ function fitStage() {
 function applySize() {
   outCanvas();
   const dn = $('#docName'); if (dn) dn.textContent = S.name || 'むだい';
-  $('#docSize').textContent = `${S.W}×${S.H} / ${S.fps}fps`;
+  $('#docSize').textContent =
+    `${S.W}×${S.H} / ${S.fps}fps / ${r2(duration())}s${S.dur > 0 ? ' きめた' : ''}`;
   fitStage();
 }
 
@@ -74,12 +76,14 @@ function playUI() {
 }
 
 wire({
-  all: () => { drawAll(); auto.touch(); },
+  all: () => { clearTrans(); drawAll(); auto.touch(); },
   tl: () => TL.drawAll(),
   stage: () => renderStage(S.time),
   panel: () => P.draw(),
   tick,
   play: playUI,
+  start: () => play(),
+  stop: () => pause(),
   seek,
   size: applySize,
   fit: () => TL.fit(),
@@ -87,7 +91,10 @@ wire({
   export: doExport,
   canMp4: () => hasCodecs(),
   version: () => VERSION,
+  qual: setQual,
+  qualList: () => QUAL,
   home: backToStart,
+  demo: runDemo,
   rename: v => { S.name = v; auto.touch(); },
   replaceMedia: id => { swapId = id; $('#fileSwap').click(); },
   wip: startWip,
@@ -125,6 +132,33 @@ wire({
 /* ---------- 上バー ---------- */
 $('#home').onclick = backToStart;
 $('#docSize').onclick = () => P.open('setting');
+
+/* ---------- 作業中の 画質 ----------
+   動画を のせると 毎コマ 原寸で 描き直すのが おもい。
+   ここを おすと 小さく 描いて 画面で ひきのばす ＝ なめらかに なる。
+   書き出す ときは かならず 原寸に もどる。 */
+export const QUAL = [
+  [1, 'きれい'], [0.66, 'ふつう'], [0.5, 'かるい'], [0.33, 'とても かるい']
+];
+export function showQual() {
+  const cur = S.quality || 1;
+  const hit = QUAL.find(x => Math.abs(x[0] - cur) < .02) || QUAL[0];
+  const b = $('#qBtn');
+  b.textContent = '画質 ' + hit[1];
+  b.classList.toggle('low', hit[0] < 1);
+}
+export function setQual(v) {
+  setQuality(v);
+  showQual();
+  drawAll();
+  const hit = QUAL.find(x => Math.abs(x[0] - v) < .02);
+  toast('画質を「' + (hit ? hit[1] : v) + '」に した（書き出しは いつも きれい）', 2600);
+}
+$('#qBtn').onclick = () => {
+  const cur = S.quality || 1;
+  const i = QUAL.findIndex(x => Math.abs(x[0] - cur) < .02);
+  setQual(QUAL[(i + 1 + QUAL.length) % QUAL.length][0]);
+};
 $('#docName').onclick = () => {
   const v = prompt('さくひんの 名前', S.name || 'むだい');
   if (v === null) return;
@@ -170,7 +204,7 @@ $('#loop').onclick = e => {
   drawAll();
 };
 $('#shot').onclick = () => {
-  const cvs = renderOut(S.time);
+  const cvs = renderFull(S.time);
   cvs.toBlob(bl => {
     if (!bl) { toast('出せなかった'); return; }
     save(bl, 'koma_' + Math.round(S.time * S.fps) + 'f.png');
@@ -185,12 +219,21 @@ $('#tlOut').onclick = () => TL.zoomOut();
 const setTool = (t) => {
   S.tool = t;
   $('#tCut').classList.toggle('on', t === 'cut');
-  $('#modebar').hidden = t !== 'cut';
-  $('#modeInfo').textContent = t === 'cut' ? 'ふだを さわると そこで 切れます' : '';
+  $('#tPick').classList.toggle('on', t === 'pick');
+  $('#modebar').hidden = t === 'select';
+  $('#modeInfo').textContent =
+    t === 'cut' ? 'ふだを さわると そこで 切れます'
+      : t === 'pick' ? 'ふだを さわると えらべます（もう一度で はずれる）'
+        : '';
 };
 $('#tAdd').onclick = () => $('#file').click();
 $('#tBin').onclick = () => P.open('bin');
 $('#tCut').onclick = () => setTool(S.tool === 'cut' ? 'select' : 'cut');
+$('#tPick').onclick = () => {
+  const on = S.tool !== 'pick';
+  setTool(on ? 'pick' : 'select');
+  if (on) P.open('pick'); else { S.selMany = []; drawAll(); }
+};
 $('#modeClose').onclick = () => setTool('select');
 $('#tText').onclick = () => { addText(S.time); P.open('text'); };
 $('#tLyric').onclick = () => P.open('lyric');
@@ -331,8 +374,53 @@ function prog(p, msg) {
   if (msg) $('#busyMsg').textContent = msg;
 }
 
+/* ---------- 連番PNG ／ 透過PNG ----------
+   1コマずつ 焼いて ZIP に まとめる。透過は 下じきを ぬらずに 焼く。 */
+async function exportPng(opt = {}) {
+  const name = (opt.name || 'douga').replace(/[\\/:*?"<>|]/g, '_');
+  const alpha = !!opt.alpha;
+  const fps = S.fps;
+  const total = Math.max(1, Math.round(duration() * fps));
+  if (total > 3600) {
+    if (!confirm(`${total}枚に なります。だいぶ 時間が かかりますが いいですか？`)) return;
+  }
+  exStop = false;
+  pause();
+  busy(true, alpha ? '透過PNG を 焼いて います' : '連番PNG を 焼いて います');
+  const files = [];
+  try {
+    if (alpha) S.noBg = true;
+    for (let i = 0; i < total; i++) {
+      if (exStop) { toast('やめた'); return; }
+      const cv = renderFull(i / fps);
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+      if (!blob) continue;
+      files.push({
+        name: `${name}_${String(i + 1).padStart(5, '0')}.png`,
+        data: new Uint8Array(await blob.arrayBuffer())
+      });
+      if (i % 4 === 0) {
+        prog(i / total, `${i + 1} / ${total} まい`);
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    prog(.98, 'ひとまとめに して います');
+    const blob = zip(files);
+    save(blob, name + (alpha ? '_alpha' : '') + '_png.zip');
+    toast(`${files.length}まい 書き出した（${r2(blob.size / 1048576)}MB）`, 3200);
+  } catch (e) {
+    toast('PNG に できなかった');
+  } finally {
+    S.noBg = false;
+    busy(false); drawAll();
+  }
+}
+
 async function doExport(opt = {}) {
   if (!allClips().length) { toast('まだ なにも 置いていない'); return; }
+  if (opt.kind === 'png' || opt.kind === 'pngalpha') {
+    return exportPng({ name: opt.name, alpha: opt.kind === 'pngalpha' });
+  }
   const name = (opt.name || 'douga').replace(/[\\/:*?"<>|]/g, '_');
   const bps = opt.bps || 12000000;
   const wantMp4 = opt.kind !== 'webm';
@@ -395,7 +483,7 @@ document.addEventListener('keydown', e => {
     case 'End': seek(duration()); break;
     case 'Delete': case 'Backspace': e.preventDefault(); delSel(); break;
     case 's': case 'S': TL.splitHere(); break;
-    case 'Escape': S.sel = null; setTool('select'); drawAll(); break;
+    case 'Escape': S.sel = null; S.selMany = []; setTool('select'); drawAll(); break;
     case '+': case ';': TL.zoomIn(); break;
     case '-': TL.zoomOut(); break;
   }
@@ -421,6 +509,7 @@ export const VERSION = (() => {
   return m ? m[1] : '?';
 })();
 $('#ver').textContent = 'v' + VERSION;
+window.__v = VERSION;        // 版を 外からも 見られる ように（ようす・たしかめ 用）
 $('#ver').onclick = async () => {
   /* ホーム画面や ブラウザが 古いものを つかんだ ままに なる ことが ある。
      ここを おしたら ためこんだ ものを ぜんぶ 捨てて 取り直す。
@@ -453,7 +542,7 @@ function thumb() {
 const auto = autoSaver(() => ({
   id: S.docId,
   doc: {
-    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg,
+    name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans, cams: S.cams,
     beat: S.beat, master: S.master, tracks: S.tracks
   },
   media: [...MEDIA.values()],
@@ -469,19 +558,29 @@ const auto = autoSaver(() => ({
 async function backToStart() {
   pause();
   await auto.now();
-  showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+  showStart($('#start'), { onOpen: openDoc, onNew: startNew, onDemo: runDemo });
 }
 function startNew(size, fps) {
   S.W = size.w; S.H = size.h; S.fps = fps || 30;
   S.bg = '#101010';
+  S.dur = 0; S.step = 0; S.trans = []; S.cams = [];
   S.beat = { bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true };
-  S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0, br: 100, ct: 100, sa: 100 };
+  S.master = { vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
+    slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0,
+    vhs: 0, strobe: 0, burn: 0, scratch: 0, snow: 0, bars: 0,
+    sparkle: 0, flare: 0, mosaic: 0, shutter: 0, halo: 0, br: 100, ct: 100, sa: 100 };
   S.loop = { on: false, a: 0, b: 0 };
   S.name = 'むだい';
   S.docId = newId();
   MEDIA.clear();
   bootProject();
   applySize(); resetHist(); appH(); drawAll(); TL.fit();
+}
+async function runDemo() {
+  $('#start').classList.remove('on');
+  busy(true, 'デモを つくって います'); prog(.3);
+  try { await openDemo(); } catch (e) { toast('デモを ひらけなかった'); }
+  finally { busy(false); drawAll(); }
 }
 async function openDoc(id) {
   $('#start').classList.remove('on');
@@ -491,6 +590,10 @@ async function openDoc(id) {
     if (!rec) { toast('見つからなかった'); busy(false); return; }
     const o = rec.doc;
     S.W = o.W; S.H = o.H; S.fps = o.fps; S.bg = o.bg || '#101010';
+    S.dur = +o.dur > 0 ? +o.dur : 0;
+    S.step = +o.step > 0 ? +o.step : 0;
+    S.trans = Array.isArray(o.trans) ? o.trans : [];
+    S.cams = Array.isArray(o.cams) ? o.cams : [];
     if (o.beat) S.beat = Object.assign({ bpm: 0, offset: 0, div: 1, per: 4, on: false, grid: true }, o.beat);
     if (o.master) S.master = Object.assign({}, S.master, o.master);
     S.name = o.name || 'むだい';
@@ -531,6 +634,7 @@ TL.init();
 P.init();
 bootProject();
 applySize();
+showQual();
 resetHist();
 appH();
 drawAll();
@@ -542,11 +646,13 @@ setTool('select');
 (async () => {
   if (!S.docId) S.docId = newId();
   try {
-    const docs = await Promise.race([
+    /* はじめの 画面は いつも 出す。
+       はじめて の 人が デモに たどりつけない と 意味が ない。 */
+    await Promise.race([
       listDocs(),
       new Promise(r => setTimeout(() => r([]), 6000))   // 待ちすぎない
     ]);
-    if (docs.length) await showStart($('#start'), { onOpen: openDoc, onNew: startNew });
+    await showStart($('#start'), { onOpen: openDoc, onNew: startNew, onDemo: runDemo });
   } catch (e) {
     $('#start').classList.remove('on');                  // 出しかけで 止めない
   }

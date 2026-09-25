@@ -2,9 +2,10 @@
    ・ステージ … 1本で うごかす、2本で 大きさと かたむき
    ・どこでも … 2本指トン＝もどす、3本指トン＝やりなおし
    ・タイムライン … 2本指で つまんで 時間じくを のばす／ちぢめる */
-import { S, clamp, findClip, selected, snap as pushUndo, buzz } from '../state.js?v=11';
-import { clipBox, handlePoints, toProject, panView, zoomAt } from '../render.js?v=11';
-import { bus } from '../bus.js?v=11';
+import { S, clamp, findClip, selected, snap as pushUndo, buzz } from '../state.js?v=69';
+import { clipBox, handlePoints, toProject, panView, zoomAt, charSpots } from '../render.js?v=69';
+import { setOff, offOf } from '../text.js?v=69';
+import { bus } from '../bus.js?v=69';
 
 const TAP_MS = 360;     // これより 長く さわって いたら トンでは ない
 const TAP_SLOP = 18;    // これくらいの ずれなら 止まって いたと みなす
@@ -107,6 +108,30 @@ export function attachStage(cv) {
     }
     if (pts.size > 2) return;
 
+    /* 1文字ずつ いじる ときは、まず 字を つかむ */
+    const cT = target();
+    if (cT && cT.kind === 'text' && cT.text.charOn) {
+      const r = cv.getBoundingClientRect();
+      const mx = e.clientX - r.left, my = e.clientY - r.top;
+      let best = null, bd = 1e9;
+      charSpots(cT).forEach(sp => {
+        const d = Math.hypot(sp.sx - mx, sp.sy - my);
+        const reach = Math.max(22, Math.max(sp.sw, sp.sh) * .7);
+        if (d < reach && d < bd) { bd = d; best = sp; }
+      });
+      if (best) {
+        S.selChar = best.idx;
+        const p = toProject(e.clientX, e.clientY);
+        const o = offOf(cT.text, best.idx);
+        st = {
+          mode: 'char', c: cT, idx: best.idx, p,
+          x0: o.x, y0: o.y, moved: false
+        };
+        bus.all();
+        return;
+      }
+    }
+
     const h = grabHandle(e);
     if (h) {
       const c = target();
@@ -123,7 +148,7 @@ export function attachStage(cv) {
     const p = toProject(e.clientX, e.clientY);
     const c = (target() && inside(target(), p)) ? target() : hit(p);
     if (c) {
-      if (S.sel !== c.id) { S.sel = c.id; bus.all(); }
+      if (S.sel !== c.id) { S.sel = c.id; S.selChar = null; bus.all(); }
       st = { mode: 'move', c, p, x0: c.x, y0: c.y, moved: false };
     } else {
       st = { mode: 'pan', sx: e.clientX, sy: e.clientY, moved: false };
@@ -148,6 +173,20 @@ export function attachStage(cv) {
     if (st.mode === 'pan') {
       panView(e.clientX - st.sx, e.clientY - st.sy);
       st.sx = e.clientX; st.sy = e.clientY;
+      st.moved = true;
+      bus.stage();
+      return;
+    }
+    if (st.mode === 'char') {
+      const p = toProject(e.clientX, e.clientY);
+      const T = st.c.text;
+      const sc = Math.max(.01, st.c.scale * T.size);
+      const a = -st.c.rot * Math.PI / 180;
+      const dx = p.x - st.p.x, dy = p.y - st.p.y;
+      setOff(T, st.idx, {
+        x: st.x0 + (dx * Math.cos(a) - dy * Math.sin(a)) / sc,
+        y: st.y0 + (dx * Math.sin(a) + dy * Math.cos(a)) / sc
+      });
       st.moved = true;
       bus.stage();
       return;

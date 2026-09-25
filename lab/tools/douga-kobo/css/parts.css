@@ -189,6 +189,8 @@ kbd{
 .sizebtn i{ font-style:normal; font-size:.58rem; font-weight:400; color:#5c5843; }
 .fpsrow{ display:flex; align-items:center; gap:.4rem; margin-bottom:.9rem; }
 .gobtn{ width:100%; min-height:54px; font-size:.95rem; font-weight:800; }
+.demobtn{ margin-bottom:.9rem; background:var(--mint); }
+.demobtn:hover{ background:#8fd4b2; }
 
 /* ---------- 立ち上がらなかった ときの 知らせ ---------- */
 #deadman{
@@ -213,3 +215,56 @@ kbd{
   box-shadow:0 3px 0 #1E1C14;
 }
 #deadman #deadhide{ background:#FFFEF7; font-size:.78rem; min-height:44px; }
+
+/* 1文字ずつ えらぶ 札 */
+.row .grid.chips{ gap:.2rem; }
+.chip1{
+  min-width:34px; min-height:34px; padding:0 .3rem;
+  font-size:.8rem; box-shadow:0 2px 0 var(--ink);
+}
+.chip1.moved{ background:var(--main-soft); }
+.chip1.moved.on{ background:var(--main); }
+
+/* つまみ：長おし中は「きりの いい 数字」だけを 通る。その あいだ めもりを 出す */
+input[type=range].coarse{
+  background-image:repeating-linear-gradient(90deg,
+    var(--ink) 0 2px, transparent 2px 12.5%);
+  background-repeat:no-repeat;
+  background-size:100% 6px;
+  background-position:0 50%;
+}
+/* 数の ところは おせる（打ちこみ・もどす） */
+button.val{ flex:0 0 54px;
+  border:var(--bd2); border-radius:7px; background:var(--paper);
+  padding:.1rem .25rem; min-height:26px; cursor:pointer;
+  font-weight:700; line-height:1.1;
+}
+button.val:active{ transform:translateY(1px); }
+
+/* 段の あたま: つまむ ところ と、動かして いる あいだの 見た目 */
+.thead .grip{
+  flex:0 0 auto; width:14px; text-align:center;
+  font-size:.7rem; color:var(--gray);
+  cursor:grab; touch-action:none; user-select:none;
+}
+.thead.dragging{ opacity:.75; box-shadow:0 0 0 2px var(--main) inset; }
+.thead .tb[disabled]{ opacity:.35; }
+
+/* えらぶと ボタンが 4つ ふえる。はみ出さない ように 小さく して、
+   なまえは つぶれても いい ことに する */
+.thead{ overflow:hidden; }
+.thead.sel .tb{ min-width:24px; font-size:.64rem; }
+.thead.sel .nm{ flex:1 1 30px; min-width:24px; }
+
+/* えらんだ ふだの 上に うかぶ 小さな ボタン */
+#clipbar{
+  position:absolute; z-index:14; display:none; gap:2px;
+  padding:2px; border-radius:9px;
+  background:var(--paper); border:var(--bd2);
+  box-shadow:0 2px 0 var(--ink);
+}
+#clipbar .cb{
+  min-height:26px; min-width:26px; padding:0;
+  font-size:.7rem; border-radius:7px; box-shadow:0 2px 0 var(--ink);
+}
+#clipbar .cb.off{ opacity:.35; }
