@@ -3,21 +3,21 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=69';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=69';
-import { storeOk } from '../store.js?v=69';
-import { bus } from '../bus.js?v=69';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=69';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=69';
+} from '../state.js?v=70';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=70';
+import { storeOk } from '../store.js?v=70';
+import { bus } from '../bus.js?v=70';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=70';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=70';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
-  techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv } from '../jz.js?v=69';
+  techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv } from '../jz.js?v=70';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=69';
+  offOf, setOff, clearOff } from '../text.js?v=70';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=69';
+} from '../edit.js?v=70';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;

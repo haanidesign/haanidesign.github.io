@@ -2,12 +2,12 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
-} from '../state.js?v=69';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=69';
-import { bus } from '../bus.js?v=69';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=69';
-import { durOf as jzDur } from '../jz.js?v=69';
-import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=69';
+} from '../state.js?v=70';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=70';
+import { bus } from '../bus.js?v=70';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=70';
+import { durOf as jzDur } from '../jz.js?v=70';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=70';
 
 const el = {};
 export function init() {
@@ -93,53 +93,73 @@ function drawHeads() {
 function drawClipBar() {
   const bar = el.cbar;
   if (!bar) return;
+  const many = (S.selMany || []).length > 1 ? selectedAll().filter(x => !x.t.lock) : null;
   const f = S.sel && findClip(S.sel);
-  if (!f || (S.selMany || []).length > 1) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  const c = f.c, t = f.t;
+  if (!many && !f) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+
+  /* まとめて えらんで いる ときは、いちばん 上・いちばん 前の ふだの 上に 出す */
+  const head = many
+    ? many.slice().sort((x, y) => (S.tracks.indexOf(x.t) - S.tracks.indexOf(y.t)) || (x.c.start - y.c.start))[0]
+    : f;
+  if (!head) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const c = head.c, t = head.t;
   const i = S.tracks.indexOf(t);
-  const up = S.tracks.slice(0, i).reverse().find(x => fitsTrack(c, x));
-  const dn = S.tracks.slice(i + 1).find(x => fitsTrack(c, x));
-  const lock = t.lock;
-  const b = (a, label, title, off) =>
-    `<button class="cb${off ? ' off' : ''}" data-c="${a}" title="${title}"${off ? ' disabled' : ''}>${label}</button>`;
+  const list = many || [head];
+  /* ぜんぶの ふだが 動ける 行き先だけ 出す */
+  const canAll = nt => nt && list.every(x => fitsTrack(x.c, nt));
+  const up = S.tracks.slice(0, i).reverse().find(canAll);
+  const dn = S.tracks.slice(i + 1).find(canAll);
+  const lock = !many && t.lock;
+  const b = (a2, label, title, off) =>
+    `<button class="cb${off ? ' off' : ''}" data-c="${a2}" title="${title}"${off ? ' disabled' : ''}>${label}</button>`;
   bar.innerHTML =
+    (many ? `<span class="cn">${many.length}まい</span>` : '') +
     b('up', '⬆', 'ひとつ 上の 段へ', !up || lock) +
     b('dn', '⬇', 'ひとつ 下の 段へ', !dn || lock) +
     b('l', '◀', 'すこし 前へ', lock) +
     b('r', '▶', 'すこし うしろへ', lock) +
-    b('cut', '✂', 'いまの ところで 切る', lock) +
-    b('dup', '⧉', 'ふやす', lock) +
-    b('del', '🗑', 'けす', lock);
+    (many ? '' : b('cut', '✂', 'いまの ところで 切る', lock) + b('dup', '⧉', 'ふやす', lock)) +
+    b('del', '🗑', many ? 'えらんだ ぶん ぜんぶ けす' : 'けす', lock);
   bar.style.display = 'flex';
   /* ふだの 左上に 出す。上に はみ出す ときは 下に 出す */
   const laneH = (el.lanes.querySelector('.lane') || {}).offsetHeight || 64;
   const top = i * laneH;
-  const x = Math.max(0, t2x(c.start));
-  bar.style.left = x + 'px';
+  bar.style.left = Math.max(0, t2x(c.start)) + 'px';
   bar.style.top = (top > 30 ? top - 30 : top + laneH - 2) + 'px';
   bar.onclick = e => {
     const hit = e.target.closest && e.target.closest('[data-c]');
     if (!hit || !bar.contains(hit)) return;
     e.stopPropagation();
-    const a = hit.dataset.c;
-    if (t.lock) { toast('この 段は かぎが かかって います'); return; }
-    if (a === 'del') { delSel(); return; }
-    if (a === 'dup') { dupSel(); return; }
-    if (a === 'cut') { splitHere(); return; }
-    if (a === 'up' || a === 'dn') {
-      const nt = a === 'up' ? up : dn;
+    const a2 = hit.dataset.c;
+    if (lock) { toast('この 段は かぎが かかって います'); return; }
+    if (a2 === 'del') {
+      if (many) {
+        list.forEach(x => { x.t.clips = x.t.clips.filter(y => y !== x.c); });
+        S.selMany = []; S.sel = null;
+        pushUndo(); bus.all(); buzz(18);
+        toast(`${list.length}まい けした`);
+      } else delSel();
+      return;
+    }
+    if (a2 === 'dup') { dupSel(); return; }
+    if (a2 === 'cut') { splitHere(); return; }
+    if (a2 === 'up' || a2 === 'dn') {
+      const nt = a2 === 'up' ? up : dn;
       if (!nt) return;
-      t.clips = t.clips.filter(x => x !== c);
-      nt.clips.push(c);
+      list.forEach(x => {
+        x.t.clips = x.t.clips.filter(y => y !== x.c);
+        nt.clips.push(x.c);
+      });
       S.selTrack = nt.id;
       pushUndo(); bus.all(); buzz(14);
       return;
     }
-    if (a === 'l' || a === 'r') {
+    if (a2 === 'l' || a2 === 'r') {
       const st = beatOn() ? stepSec() : 1 / S.fps * 6;
-      const d = (a === 'l' ? -1 : 1) * st;
-      c.start = Math.max(0, r2(c.start + d));
-      syncLinked(c);
+      let d = (a2 === 'l' ? -1 : 1) * st;
+      const minS = Math.min(...list.map(x => x.c.start));
+      if (minS + d < 0) d = -minS;
+      list.forEach(x => { x.c.start = Math.max(0, r2(x.c.start + d)); syncLinked(x.c); });
       pushUndo(); bus.all(); buzz(10);
     }
   };

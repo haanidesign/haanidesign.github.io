@@ -1,7 +1,7 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp, allClips } from './state.js?v=69';
-import { bus } from './bus.js?v=69';
-import { analyse } from './beat.js?v=69';
+import { S, uid, r2, toast, clamp, allClips } from './state.js?v=70';
+import { bus } from './bus.js?v=70';
+import { analyse } from './beat.js?v=70';
 
 export const MEDIA = new Map();
 

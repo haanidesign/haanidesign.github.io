@@ -268,3 +268,7 @@ button.val:active{ transform:translateY(1px); }
   font-size:.7rem; border-radius:7px; box-shadow:0 2px 0 var(--ink);
 }
 #clipbar .cb.off{ opacity:.35; }
+#clipbar .cn{
+  align-self:center; padding:0 .25rem;
+  font-size:.6rem; color:var(--gray); white-space:nowrap;
+}
