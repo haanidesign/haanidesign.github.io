@@ -3,3 +3,5 @@
 
 # Notion のトークン（コミットしない）
 .notion.env
+_tmp/
+scratchpad_preview/

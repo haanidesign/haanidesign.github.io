@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GBループ切り抜き</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470; --pink:#F2A0B8;
+  --bd:2.5px solid var(--ink); --r:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+[hidden]{display:none!important;}
+html,body{height:100%;}
+body{
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI','Meiryo',sans-serif;
+  font-weight:700;color:var(--ink);background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow:hidden;
+}
+.dot{font-family:'DotGothic16','M PLUS Rounded 1c',monospace;font-weight:400;}
+
+button{
+  display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
+  background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:var(--r);
+  padding:.35rem .75rem;font:inherit;font-size:.74rem;font-weight:700;
+  box-shadow:0 3px 0 var(--ink);cursor:pointer;
+  transition:transform .07s,box-shadow .07s,background .13s;white-space:nowrap;
+}
+button:hover{background:var(--main);}
+button:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink);}
+button.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+button:disabled{opacity:.35;cursor:default;box-shadow:0 3px 0 var(--ink);transform:none;}
+button:disabled:hover{background:var(--paper);}
+.btn-sm{padding:.2rem .55rem;font-size:.68rem;box-shadow:0 2.5px 0 var(--ink);border-radius:9px;}
+.btn-y{background:var(--main);}
+.btn-y:hover{background:var(--main-deep);}
+.btn-g{background:var(--ink);color:var(--main);}
+.btn-g:hover{background:#000;color:var(--main);}
+button.danger:hover{background:var(--pink);}
+
+input,select{
+  font:inherit;font-size:.72rem;font-weight:700;color:var(--ink);
+  background:var(--paper);border:2px solid var(--ink);border-radius:8px;padding:.12rem .4rem;
+}
+input[type=number]{width:64px;}
+input[type=text]{width:100%;}
+input[type=checkbox]{accent-color:var(--main-deep);width:auto;}
+input[type=range]{padding:0;border:none;background:transparent;height:16px;accent-color:var(--main-deep);width:100%;}
+select{cursor:pointer;}
+
+#app{
+  display:grid;height:calc(100% - 16px);margin:8px;
+  grid-template-columns:260px 1fr 300px;
+  grid-template-rows:auto 1fr;
+  grid-template-areas:"tb tb tb" "side main detail";
+  border:var(--bd);border-radius:18px;background:var(--paper);
+  box-shadow:0 6px 0 var(--ink);overflow:hidden;
+}
+#tb{grid-area:tb;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
+  background:var(--main);border-bottom:var(--bd);padding:.45rem .8rem;}
+#tb h1{font-size:.95rem;font-weight:800;margin-right:.4rem;}
+#tb h1 a{color:inherit;text-decoration:none;}
+#tb .grow{flex:1;}
+#tb label{font-size:.7rem;display:flex;align-items:center;gap:.3rem;}
+#tb input[type=range]{width:90px;}
+
+.panel{overflow:auto;padding:.7rem;display:flex;flex-direction:column;gap:.7rem;background:var(--cream);}
+#side{grid-area:side;border-right:var(--bd);}
+#detail{grid-area:detail;border-left:var(--bd);}
+#main{grid-area:main;overflow:auto;padding:.8rem;background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);background-size:16px 16px;}
+
+.box{background:var(--paper);border:2px solid var(--ink);border-radius:var(--r);padding:.55rem .6rem;
+  display:flex;flex-direction:column;gap:.45rem;box-shadow:0 3px 0 var(--ink);}
+.title{align-self:flex-start;background:var(--ink);color:var(--main);border-radius:100px;padding:.08rem .7rem;font-size:.66rem;}
+.row{display:flex;align-items:center;gap:.4rem;font-size:.7rem;flex-wrap:wrap;}
+.row > span:first-child{min-width:5.2em;}
+.row .val{min-width:2.8em;text-align:right;font-size:.66rem;}
+.row input[type=range]{flex:1;width:auto;min-width:60px;}
+.hint{background:var(--main-soft);border:2px dashed var(--ink);border-radius:10px;
+  padding:.4rem .5rem;font-size:.62rem;font-weight:400;color:#5c5843;line-height:1.55;}
+
+#drop{border:2.5px dashed var(--ink);border-radius:var(--r);padding:.8rem .5rem;text-align:center;
+  font-size:.72rem;cursor:pointer;background:var(--paper);}
+#drop.over{background:var(--main-soft);}
+#peekWrap{position:relative;border:2px solid var(--ink);border-radius:9px;overflow:hidden;line-height:0;}
+#peek{width:100%;display:block;}
+#peek.pick{cursor:crosshair;}
+.swatch{width:26px;height:18px;border:2px solid var(--ink);border-radius:6px;display:inline-block;}
+.bar{height:12px;border:2px solid var(--ink);border-radius:100px;overflow:hidden;background:var(--paper);}
+.bar i{display:block;height:100%;width:0;background:var(--main);}
+#status{font-size:.64rem;font-weight:400;color:#5c5843;min-height:1.2em;}
+
+.bg-checker{background:repeating-conic-gradient(#E8E5CF 0 25%,#FFFEF7 0 50%) 0 0/16px 16px;}
+.bg-white{background:#fff;}
+.bg-black{background:#1E1C14;}
+.bg-green{background:#00FF00;}
+.bg-blue{background:#0000FF;}
+.bg-dots{background-color:var(--cream);background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);background-size:16px 16px;}
+
+#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw,300px),1fr));gap:.9rem;align-items:start;}
+.card{background:var(--paper);border:var(--bd);border-radius:14px;box-shadow:0 4px 0 var(--ink);overflow:hidden;}
+.card.sel{background:var(--main-soft);}
+.card header{display:flex;align-items:baseline;gap:.5rem;padding:.4rem .6rem;border-bottom:2px solid var(--ink);cursor:pointer;}
+.card header b{font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card header .meta{font-size:.58rem;color:var(--gray);margin-left:auto;white-space:nowrap;}
+.card .view{position:relative;display:flex;align-items:center;justify-content:center;border-bottom:2px solid var(--ink);line-height:0;}
+.card canvas{max-width:100%;max-height:var(--ch,280px);display:block;}
+.card .cnt{position:absolute;top:6px;right:6px;background:var(--ink);color:var(--main);font-size:.62rem;
+  border-radius:100px;padding:.05rem .45rem;line-height:1.5;}
+.card .ctl{display:flex;gap:.35rem;align-items:center;padding:.45rem .6rem .2rem;flex-wrap:wrap;}
+.card .ctl .grow{flex:1;}
+.card .info{padding:.2rem .6rem .55rem;font-size:.6rem;font-weight:400;color:#5c5843;line-height:1.55;}
+.card .holds{font-size:.64rem;word-break:break-all;}
+.card .holds span{margin-right:.35em;}
+.card .holds span.cur{background:var(--main);color:var(--ink);border-radius:4px;}
+.seam{display:inline-block;border:1.5px solid var(--ink);border-radius:100px;padding:0 .45rem;font-size:.58rem;font-weight:700;}
+.seam.ok{background:var(--main);} .seam.mid{background:var(--main-soft);} .seam.ng{background:var(--pink);}
+
+#empty{max-width:520px;margin:3rem auto;text-align:center;display:flex;flex-direction:column;gap:.8rem;align-items:center;}
+#empty .big{font-size:1.05rem;}
+
+#strip{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;}
+#strip .c{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+#strip canvas{width:52px;height:52px;border:2px solid var(--ink);border-radius:6px;opacity:.45;}
+#strip .c.in canvas{opacity:1;}
+#strip .c.s canvas{border-color:var(--main-deep);box-shadow:0 0 0 2px var(--main);}
+#strip .c.e canvas{box-shadow:0 0 0 2px var(--pink);}
+#strip .c span{font-size:.5rem;color:var(--gray);}
+#dBody{display:flex;flex-direction:column;gap:.7rem;}
+.cands{display:flex;flex-direction:column;gap:.3rem;}
+.cands button{justify-content:space-between;font-size:.64rem;padding:.18rem .5rem;box-shadow:0 2px 0 var(--ink);}
+.grid2{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:.3rem .4rem;align-items:center;font-size:.68rem;}
+.grid2 input{width:100%;}
+
+@media (max-width:900px){
+  body{overflow:auto;}
+  #app{height:auto;min-height:calc(100% - 16px);grid-template-columns:1fr;grid-template-rows:auto;
+    grid-template-areas:"tb" "side" "main" "detail";}
+  #side{border-right:none;border-bottom:var(--bd);}
+  #detail{border-left:none;border-top:var(--bd);}
+  #main{min-height:320px;}
+}
+</style>
+<!-- 共通の 見た目で つかう 字 -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<!-- はぁにラボ 共通の 見た目（さいごに 読む） -->
+<link rel="stylesheet" href="../skin/soft.css?v=11">
+<script type="module" src="../skin/icons.js?v=7"></script>
+</head>
+<body>
+<div id="app">
+  <div id="tb">
+    <h1><a href="../../index.html">GBループ切り抜き</a></h1>
+    <button id="playAll" class="btn-sm">すべて停止</button>
+    <label>速さ <input type="range" id="speed" min="0.1" max="2" step="0.05" value="1"><span id="speedV" class="dot">1.0x</span></label>
+    <label>背景 <select id="bg">
+      <option value="checker">市松</option><option value="white">白</option><option value="black">黒</option>
+      <option value="green">緑</option><option value="blue">青</option><option value="dots">ドット</option>
+    </select></label>
+    <label>大きさ <select id="zoom">
+      <option value="220">小</option><option value="300" selected>中</option><option value="440">大</option>
+    </select></label>
+    <span class="grow"></span>
+    <button id="exportAll" class="btn-g btn-sm" disabled>すべて書き出し</button>
+  </div>
+
+  <div id="side" class="panel">
+    <div class="box">
+      <span class="title">動画</span>
+      <div id="drop">GB・BBの動画をここへ<br><span style="font-weight:400;font-size:.62rem">（クリックでも選べる）</span></div>
+      <input type="file" id="file" accept="video/*" hidden>
+      <div id="peekWrap" class="bg-checker" hidden><canvas id="peek"></canvas></div>
+      <div class="row" id="peekRow" hidden>
+        <input type="range" id="peekT" min="0" max="1" step="0.001" value="0">
+        <button id="peekRaw" class="btn-sm">元の色</button>
+      </div>
+      <div id="vinfo" class="dot" style="font-size:.62rem"></div>
+    </div>
+
+    <div class="box">
+      <span class="title">背景の色</span>
+      <div class="row"><span class="swatch" id="keySw"></span><span id="keyName" class="dot" style="font-size:.66rem">-</span>
+        <button id="pick" class="btn-sm">スポイト</button><button id="autoKeyBtn" class="btn-sm">自動</button></div>
+      <div class="row"><span>抜く強さ</span><input type="range" id="strength" min="5" max="95" value="55"><span class="val dot" id="strengthV"></span></div>
+      <div class="row"><span>なじみ幅</span><input type="range" id="soft" min="1" max="60" value="25"><span class="val dot" id="softV"></span></div>
+      <div class="row"><span>色かぶり取り</span><input type="range" id="spill" min="0" max="100" value="70"><span class="val dot" id="spillV"></span></div>
+      <div class="row"><span>ふち削り</span><input type="range" id="choke" min="0" max="3" value="0"><span class="val dot" id="chokeV"></span></div>
+      <div class="row"><span>ゴミ取り</span><input type="range" id="speck" min="0" max="200" value="16"><span class="val dot" id="speckV"></span></div>
+    </div>
+
+    <div class="box">
+      <span class="title">読み取り</span>
+      <div class="row"><span>範囲(秒)</span><input type="number" id="t0" step="0.01" min="0" value="0"> 〜 <input type="number" id="t1" step="0.01" min="0" value="0"></div>
+      <div class="row"><span>読む速さ</span><select id="fps"><option>60</option><option>30</option><option>24</option><option>12</option></select><span style="font-size:.64rem">fps</span></div>
+      <div class="row"><span>処理の大きさ</span><select id="maxSide">
+        <option value="99999">元のまま</option><option value="1920" selected>長辺1920</option><option value="1280">長辺1280</option><option value="960">長辺960</option></select></div>
+      <div class="row"><span>コマの見分け</span><input type="range" id="sameTol" min="0" max="30" value="2"><span class="val dot" id="sameTolV"></span></div>
+      <div class="row"><label><input type="checkbox" id="splitCut" checked> 絵が切り替わったら別の素材にする</label></div>
+      <div class="row"><span>最小コマ数</span><input type="number" id="minCels" min="1" max="60" value="2"></div>
+      <button id="run" class="btn-y" disabled>切り抜く</button>
+      <div class="bar"><i id="barI"></i></div>
+      <div id="status"></div>
+    </div>
+    <div class="hint">背景の色でつながった動画を読むと、何も映っていないところと絵が切り替わるところで素材を分けて、同じ絵に戻ってくる区間をループにします。コマごとの表示時間は読む速さの1コマ単位で測ります。</div>
+  </div>
+
+  <div id="main">
+    <div id="empty">
+      <div class="big">動画を読み込んでください</div>
+      <div class="hint" style="text-align:left">① 左に動画を入れる<br>② 背景の色が合っているか見る（ずれていたらスポイト）<br>③「切り抜く」<br>④ 素材を選んで、範囲や切り出しを直して書き出す</div>
+    </div>
+    <div id="cards"></div>
+  </div>
+
+  <div id="detail" class="panel">
+    <div id="dEmpty" class="hint">素材の名前をクリックすると、ここで直せます。</div>
+    <div id="dBody" hidden>
+      <div class="box">
+        <span class="title">素材</span>
+        <input type="text" id="dName">
+        <div class="row"><button id="dDup" class="btn-sm">複製</button><button id="dDel" class="btn-sm danger">消す</button></div>
+      </div>
+      <div class="box">
+        <span class="title">ループの範囲</span>
+        <div class="row"><button id="modeS" class="btn-sm on">はじめを選ぶ</button><button id="modeE" class="btn-sm">おわりを選ぶ</button></div>
+        <div id="strip"></div>
+        <div class="row"><span>コマ</span><input type="number" id="dA" min="1"> 〜 <input type="number" id="dB" min="1"></div>
+        <div class="row"><span>回し方</span><select id="dMode"><option value="loop">ループ</option><option value="pingpong">往復</option></select></div>
+        <div class="row"><span id="dSeam"></span></div>
+        <div class="cands" id="dCands"></div>
+      </div>
+      <div class="box">
+        <span class="title">切り出し</span>
+        <div class="row"><label><input type="checkbox" id="dAuto" checked> 自動</label><span>余白</span><input type="number" id="dPad" min="0" max="400" value="4"></div>
+        <div class="grid2">
+          <span>X</span><input type="number" id="dX"><span>Y</span><input type="number" id="dY">
+          <span>幅</span><input type="number" id="dW"><span>高さ</span><input type="number" id="dH">
+        </div>
+        <div class="row"><button id="dFull" class="btn-sm">画面いっぱい</button><button id="dSquare" class="btn-sm">正方形に</button></div>
+      </div>
+      <div class="box">
+        <span class="title">書き出し</span>
+        <div class="row"><span>形式</span><select id="xFmt">
+          <option value="apng">APNG（透過・コマ時間そのまま）</option>
+          <option value="zipcel">連番PNG（コマごと＋時間表）</option>
+          <option value="zipfps">連番PNG（fpsで並べる）</option>
+          <option value="sheet">スプライトシート＋JSON</option>
+          <option value="webm">WebM</option>
+        </select></div>
+        <div class="row"><span>fps</span><select id="xFps"><option>60</option><option selected>30</option><option>24</option><option>12</option></select></div>
+        <div class="row"><span>倍率</span><select id="xScale"><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option><option value="0.25">25%</option></select></div>
+        <div class="row"><span>下地</span><select id="xBg"><option value="">透明</option><option value="#00FF00">緑</option><option value="#0000FF">青</option><option value="#000000">黒</option><option value="#FFFFFF">白</option></select></div>
+        <button id="xGo" class="btn-y">この素材を書き出す</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const frame = () => new Promise(r => requestAnimationFrame(r));
+
+/* ---------- 設定 ---------- */
+const S = { strength:55, soft:25, spill:70, choke:0, speck:16, fps:60, maxSide:1920, sameTol:2, splitCut:true, minCels:2 };
+const PIX_TH = 24;           // サムネで「変わった」とみなす差
+let KEY = [0, 255, 0];
+let video = null, fileName = "sozai", dur = 0;
+let W = 0, H = 0, ws = 1;    // 処理の大きさ
+let TW = 128, TH = 72;       // サムネ
+let cels = [], mats = [], extractFps = 60, selId = null, busy = false, cancel = false, nextId = 1;
+let stale = false;           // 背景色を変えたあと、読み直しが要る
+
+const wc = document.createElement("canvas"), wctx = wc.getContext("2d", { willReadFrequently: true });
+const mc = document.createElement("canvas"), mctx = mc.getContext("2d");
+const tc = document.createElement("canvas"), tctx = tc.getContext("2d", { willReadFrequently: true });
+mctx.imageSmoothingQuality = tctx.imageSmoothingQuality = "high";
+
+function status(t){ $("status").textContent = t; }
+function bar(f){ $("barI").style.width = (clamp(f, 0, 1) * 100).toFixed(1) + "%"; }
+
+/* ---------- キー ---------- */
+function kp(){
+  const K = KEY;
+  const c = (K[1] >= K[0] && K[1] >= K[2]) ? 1 : (K[2] >= K[0] ? 2 : 0);
+  const o1 = (c + 1) % 3, o2 = (c + 2) % 3;
+  const ks = Math.max(1, K[c] - Math.max(K[o1], K[o2]));
+  const hi = 1 - S.strength / 100;
+  const lo = Math.min(hi - 0.001, hi - S.soft / 100);
+  return { K, c, o1, o2, ks, hi, lo, spill: S.spill / 100 };
+}
+// 背景らしさ（1で背景の色そのもの）
+function ratioOf(d, i, p){
+  const v = d[i + p.c], m = Math.max(d[i + p.o1], d[i + p.o2]);
+  return (v - m) / p.ks;
+}
+function keyBuffer(src, w, h, p){
+  const out = new Uint8ClampedArray(w * h * 4);
+  const K = p.K, c = p.c, o1 = p.o1, o2 = p.o2, hi = p.hi, lo = p.lo, span = hi - lo, sp = p.spill, ks = p.ks;
+  const col = [0, 0, 0];
+  for(let i = 0; i < out.length; i += 4){
+    col[0] = src[i]; col[1] = src[i + 1]; col[2] = src[i + 2];
+    const r = (col[c] - Math.max(col[o1], col[o2])) / ks;
+    let a = r >= hi ? 0 : r <= lo ? 1 : (hi - r) / span;
+    if(a <= 0.02) continue;
+    if(a < 1){
+      for(let k = 0; k < 3; k++) col[k] = clamp((col[k] - (1 - a) * K[k]) / a, 0, 255);
+    }
+    const m = Math.max(col[o1], col[o2]);
+    if(col[c] > m) col[c] -= (col[c] - m) * sp;
+    out[i] = col[0]; out[i + 1] = col[1]; out[i + 2] = col[2]; out[i + 3] = a * 255;
+  }
+  return out;
+}
+function choke(d, w, h, n){
+  if(n <= 0) return;
+  let a = new Uint8Array(w * h), b = new Uint8Array(w * h);
+  for(let i = 0; i < w * h; i++) a[i] = d[i * 4 + 3];
+  for(let it = 0; it < n; it++){
+    for(let y = 0; y < h; y++) for(let x = 0; x < w; x++){
+      let m = a[y * w + x];
+      if(m){
+        if(x > 0) m = Math.min(m, a[y * w + x - 1]);
+        if(x < w - 1) m = Math.min(m, a[y * w + x + 1]);
+        if(y > 0) m = Math.min(m, a[(y - 1) * w + x]);
+        if(y < h - 1) m = Math.min(m, a[(y + 1) * w + x]);
+      }
+      b[y * w + x] = m;
+    }
+    [a, b] = [b, a];
+  }
+  for(let i = 0; i < w * h; i++) d[i * 4 + 3] = a[i];
+}
+// ちいさな点を消す
+function despeck(d, w, h, minArea){
+  if(minArea <= 0) return;
+  const lab = new Int32Array(w * h), stack = new Int32Array(w * h), comp = [];
+  for(let s = 0; s < w * h; s++){
+    if(lab[s] || d[s * 4 + 3] === 0) continue;
+    let sp = 0, n = 0; stack[sp++] = s; lab[s] = 1; comp.length = 0;
+    while(sp){
+      const q = stack[--sp]; n++; if(n <= minArea) comp.push(q);
+      const x = q % w, y = (q / w) | 0;
+      if(x > 0 && !lab[q - 1] && d[(q - 1) * 4 + 3]){ lab[q - 1] = 1; stack[sp++] = q - 1; }
+      if(x < w - 1 && !lab[q + 1] && d[(q + 1) * 4 + 3]){ lab[q + 1] = 1; stack[sp++] = q + 1; }
+      if(y > 0 && !lab[q - w] && d[(q - w) * 4 + 3]){ lab[q - w] = 1; stack[sp++] = q - w; }
+      if(y < h - 1 && !lab[q + w] && d[(q + w) * 4 + 3]){ lab[q + w] = 1; stack[sp++] = q + w; }
+    }
+    if(n < minArea) for(const q of comp) d[q * 4 + 3] = 0;
+  }
+}
+
+/* ---------- 動画 ---------- */
+function seek(t){
+  return new Promise(res => {
+    let done = false;
+    const fin = () => { if(done) return; done = true; video.removeEventListener("seeked", fin); res(); };
+    video.addEventListener("seeked", fin);
+    video.currentTime = t;
+    setTimeout(fin, 2000);
+  });
+}
+async function loadVideo(file){
+  if(busy) return;
+  const v = document.createElement("video");
+  v.muted = true; v.playsInline = true; v.preload = "auto";
+  v.src = URL.createObjectURL(file);
+  try{
+    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error("この動画は読めませんでした")); });
+  }catch(e){ status(e.message); return; }
+  if(!isFinite(v.duration)){
+    v.currentTime = 1e9;
+    await new Promise(r => { v.ondurationchange = () => { if(isFinite(v.duration)) r(); }; setTimeout(r, 3000); });
+    v.currentTime = 0;
+  }
+  if(video) URL.revokeObjectURL(video.src);
+  video = v; dur = v.duration || 0;
+  fileName = file.name.replace(/\.[^.]+$/, "") || "sozai";
+  $("t0").value = 0; $("t1").value = dur.toFixed(2);
+  $("peekT").max = dur;
+  $("peekWrap").hidden = $("peekRow").hidden = false;
+  $("vinfo").textContent = `${v.videoWidth}×${v.videoHeight} ・ ${dur.toFixed(2)}秒`;
+  $("run").disabled = false;
+  setupWork();
+  await seek(Math.min(0.05, dur / 2));
+  wctx.drawImage(video, 0, 0, W, H);
+  autoKey();
+  await drawPeek();
+  status("背景の色を確かめて「切り抜く」");
+}
+function setupWork(){
+  ws = Math.min(1, S.maxSide / Math.max(video.videoWidth, video.videoHeight));
+  W = Math.max(1, Math.round(video.videoWidth * ws));
+  H = Math.max(1, Math.round(video.videoHeight * ws));
+  wc.width = W; wc.height = H;
+  if(W >= H){ TW = 128; TH = Math.max(1, Math.round(128 * H / W)); }
+  else { TH = 128; TW = Math.max(1, Math.round(128 * W / H)); }
+  tc.width = TW; tc.height = TH;
+  mc.width = Math.min(W, TW * 4); mc.height = Math.min(H, TH * 4);
+}
+function autoKey(){
+  const d = wctx.getImageData(0, 0, W, H).data;
+  const band = Math.max(2, Math.round(Math.min(W, H) * 0.03));
+  const bins = new Map();
+  const add = (x, y) => {
+    const i = (y * W + x) * 4, k = (d[i] >> 4) << 8 | (d[i + 1] >> 4) << 4 | (d[i + 2] >> 4);
+    let b = bins.get(k); if(!b){ b = [0, 0, 0, 0]; bins.set(k, b); }
+    b[0] += d[i]; b[1] += d[i + 1]; b[2] += d[i + 2]; b[3]++;
+  };
+  const st = Math.max(1, Math.round(Math.max(W, H) / 400));
+  for(let y = 0; y < H; y += st) for(let x = 0; x < W; x += st)
+    if(x < band || y < band || x >= W - band || y >= H - band) add(x, y);
+  let best = null;
+  for(const b of bins.values()) if(!best || b[3] > best[3]) best = b;
+  if(best) setKey([best[0] / best[3], best[1] / best[3], best[2] / best[3]].map(Math.round));
+}
+function setKey(k){
+  const changed = cels.length && (Math.abs(k[0] - KEY[0]) + Math.abs(k[1] - KEY[1]) + Math.abs(k[2] - KEY[2]) > 12);
+  KEY = k;
+  $("keySw").style.background = `rgb(${k})`;
+  const p = kp(), nm = ["赤", "緑", "青"][p.c];
+  $("keyName").textContent = `${nm}  rgb(${k.join(",")})` + (p.ks < 60 ? "  ※色がうすい" : "");
+  if(changed){ stale = true; status("背景の色を変えたので、もう一度「切り抜く」"); }
+}
+
+/* ---------- 左のためし見 ---------- */
+const peek = $("peek"), pctx = peek.getContext("2d", { willReadFrequently: true });
+let peekRaw = false, picking = false, peekBusy = false, peekAgain = false;
+async function drawPeek(fromSeek){
+  if(!video) return;
+  if(peekBusy){ peekAgain = true; return; }
+  peekBusy = true;
+  const pw = Math.min(480, W), ph = Math.max(1, Math.round(pw * H / W));
+  peek.width = pw; peek.height = ph;
+  if(fromSeek && !busy) await seek(+$("peekT").value);
+  pctx.drawImage(video, 0, 0, pw, ph);
+  const id = pctx.getImageData(0, 0, pw, ph);
+  peek._raw = id.data.slice();
+  if(!peekRaw){
+    const out = keyBuffer(id.data, pw, ph, kp());
+    id.data.set(out);
+    pctx.putImageData(id, 0, 0);
+  }
+  peekBusy = false;
+  if(peekAgain){ peekAgain = false; drawPeek(true); }
+}
+peek.addEventListener("click", e => {
+  if(!picking || !peek._raw) return;
+  const r = peek.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / r.width * peek.width), y = Math.floor((e.clientY - r.top) / r.height * peek.height);
+  let s = [0, 0, 0], n = 0;
+  for(let dy = -2; dy <= 2; dy++) for(let dx = -2; dx <= 2; dx++){
+    const xx = clamp(x + dx, 0, peek.width - 1), yy = clamp(y + dy, 0, peek.height - 1), i = (yy * peek.width + xx) * 4;
+    s[0] += peek._raw[i]; s[1] += peek._raw[i + 1]; s[2] += peek._raw[i + 2]; n++;
+  }
+  setKey(s.map(v => Math.round(v / n)));
+  picking = false; $("pick").classList.remove("on"); peek.classList.remove("pick");
+  drawPeek();
+});
+
+/* ---------- 読み取り ---------- */
+function diffCount(a, b){
+  let n = 0;
+  for(let i = 0; i < a.length; i += 4){
+    const d = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+    if(d > PIX_TH) n++;
+  }
+  return n;
+}
+function makeCel(full, thumb, idx, t, p){
+  const loose = Math.max(0.85, p.hi + 0.05), solid = p.hi;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1, cnt = 0;
+  for(let y = 0; y < H; y++){
+    let row = y * W * 4;
+    for(let x = 0; x < W; x++, row += 4){
+      const r = ratioOf(full, row, p);
+      if(r < loose){
+        if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+        if(r < solid) cnt++;
+      }
+    }
+  }
+  const cel = { i: idx, t, n: 1, thumb, x: 0, y: 0, w: 0, h: 0, raw: null, k: null, empty: cnt < Math.max(12, S.speck) };
+  let tf = 0, tb = [TW, TH, -1, -1];
+  for(let i = 0, j = 0; i < thumb.length; i += 4, j++){
+    if(ratioOf(thumb, i, p) < solid){
+      tf++; const x = j % TW, y = (j / TW) | 0;
+      tb[0] = Math.min(tb[0], x); tb[1] = Math.min(tb[1], y); tb[2] = Math.max(tb[2], x); tb[3] = Math.max(tb[3], y);
+    }
+  }
+  cel.tf = tf; cel.tb = tb;
+  if(x1 >= 0 && !cel.empty){
+    x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(W - 1, x1 + 2); y1 = Math.min(H - 1, y1 + 2);
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, raw = new Uint8ClampedArray(w * h * 4);
+    for(let y = 0; y < h; y++) raw.set(full.subarray(((y0 + y) * W + x0) * 4, ((y0 + y) * W + x0 + w) * 4), y * w * 4);
+    Object.assign(cel, { x: x0, y: y0, w, h, raw });
+  }
+  return cel;
+}
+async function extract(){
+  if(!video || busy) return;
+  busy = true; cancel = false; stale = false;
+  $("run").textContent = "やめる"; $("run").classList.remove("btn-y"); $("run").disabled = false;
+  stopAllPlayers();
+  setupWork();
+  cels.forEach(c => c.k && c.k.bmp && c.k.bmp.close && c.k.bmp.close());
+  cels = []; mats = []; selId = null; renderCards(); renderDetail();
+  const p = kp(); extractFps = S.fps;
+  const t0 = clamp(+$("t0").value || 0, 0, dur), t1 = clamp(+$("t1").value || dur, t0, dur);
+  const N = Math.max(1, Math.floor((t1 - t0) * extractFps + 1e-6));
+  let last = null;
+  for(let i = 0; i < N; i++){
+    if(cancel) break;
+    const t = t0 + (i + 0.5) / extractFps;
+    await seek(Math.min(t, dur - 0.001));
+    wctx.drawImage(video, 0, 0, W, H);
+    mctx.drawImage(wc, 0, 0, mc.width, mc.height);
+    tctx.drawImage(mc, 0, 0, TW, TH);
+    const th = tctx.getImageData(0, 0, TW, TH).data;
+    if(last && diffCount(last.thumb, th) <= S.sameTol){ last.n++; }
+    else {
+      const full = wctx.getImageData(0, 0, W, H).data;
+      last = makeCel(full, th, i, t0 + i / extractFps, p);
+      cels.push(last);
+    }
+    if(i % 4 === 0){ bar((i + 1) / N * 0.7); status(`読んでいます ${i + 1}/${N}（${cels.length}コマ）`); }
+  }
+  if(cancel){ finish("やめました"); return; }
+  await keyAll(0.7);
+  analyze();
+  finish(`${cels.length}コマ・素材${mats.length}個`);
+}
+function finish(msg){
+  busy = false; cancel = false;
+  $("run").textContent = "切り抜く"; $("run").classList.add("btn-y");
+  bar(1); status(msg);
+  renderCards(); renderDetail();
+}
+
+/* ---------- 抜き ---------- */
+async function keyCel(cel, p){
+  if(cel.k && cel.k.bmp && cel.k.bmp.close) cel.k.bmp.close();
+  cel.k = null;
+  if(!cel.raw) return;
+  const { w, h } = cel;
+  const d = keyBuffer(cel.raw, w, h, p);
+  choke(d, w, h, S.choke);
+  despeck(d, w, h, S.speck);
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for(let y = 0; y < h; y++) for(let x = 0; x < w; x++){
+    const i = (y * w + x) * 4;
+    if(d[i + 3] < 6){ d[i + 3] = 0; continue; }
+    if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+  }
+  if(x1 < 0) return;
+  const cw = x1 - x0 + 1, ch = y1 - y0 + 1, img = new ImageData(cw, ch);
+  for(let y = 0; y < ch; y++) img.data.set(d.subarray(((y0 + y) * w + x0) * 4, ((y0 + y) * w + x0 + cw) * 4), y * cw * 4);
+  const bmp = await createImageBitmap(img);
+  cel.k = { x: cel.x + x0, y: cel.y + y0, w: cw, h: ch, bmp };
+}
+async function keyAll(base = 0){
+  const p = kp(); let t = performance.now();
+  for(let i = 0; i < cels.length; i++){
+    await keyCel(cels[i], p);
+    if(performance.now() - t > 40){
+      bar(base + (1 - base) * (i + 1) / cels.length); status(`抜いています ${i + 1}/${cels.length}`);
+      await frame(); t = performance.now();
+    }
+  }
+}
+let rekeyTimer = 0, rekeying = false, rekeyAgain = false;
+function scheduleRekey(){
+  drawPeek();
+  if(!cels.length) return;
+  clearTimeout(rekeyTimer);
+  rekeyTimer = setTimeout(async () => {
+    if(busy) return;
+    if(rekeying){ rekeyAgain = true; return; }
+    rekeying = true;
+    do{
+      rekeyAgain = false;
+      await keyAll(0);
+    }while(rekeyAgain);
+    mats.forEach(updateCrop);
+    rekeying = false;
+    bar(1); status("反映しました");
+    renderCards(); renderDetail();
+  }, 250);
+}
+
+/* ---------- 素材に分ける・ループを探す ---------- */
+function iou(a, b){
+  const ix = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0]) + 1), iy = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]) + 1);
+  const I = ix * iy, A = (a[2] - a[0] + 1) * (a[3] - a[1] + 1), B = (b[2] - b[0] + 1) * (b[3] - b[1] + 1);
+  return I / Math.max(1, A + B - I);
+}
+function isCut(a, b){
+  if(!a.tf || !b.tf) return false;
+  const d = diffCount(a.thumb, b.thumb);
+  if(iou(a.tb, b.tb) < 0.25 && d > 0.3 * Math.min(a.tf, b.tf)) return true;
+  return d > 0.9 * Math.max(a.tf, b.tf) && iou(a.tb, b.tb) < 0.6;
+}
+function analyze(){
+  mats = [];
+  let s = -1;
+  const close = e => {
+    if(s >= 0 && e - s >= 1) addMat(s, e);
+    s = -1;
+  };
+  for(let i = 0; i < cels.length; i++){
+    const c = cels[i];
+    if(c.empty || !c.k){ close(i); continue; }
+    if(s >= 0 && S.splitCut && isCut(cels[i - 1], c)) close(i);
+    if(s < 0) s = i;
+  }
+  close(cels.length);
+  selId = mats.length ? mats[0].id : null;
+}
+function addMat(s, e){
+  const m = { id: nextId++, name: `${fileName}_${mats.length + 1}`, s, e, a: s, b: e, mode: "loop",
+    crop: { auto: true, pad: 4, x: 0, y: 0, w: W, h: H }, seam: null, cands: [], pl: { pos: 0, acc: 0, playing: true } };
+  findLoops(m);
+  updateCrop(m);
+  mats.push(m);
+  return m;
+}
+function findLoops(m){
+  const s = m.s, n = m.e - m.s, minP = Math.max(1, S.minCels);
+  const memo = new Int32Array(n * n).fill(-1);
+  const D = (i, j) => {
+    const k = i * n + j;
+    if(memo[k] < 0) memo[k] = memo[j * n + i] = diffCount(cels[s + i].thumb, cels[s + j].thumb);
+    return memo[k];
+  };
+  // となりのコマどうしの差を目安に、つなぎ目の許し幅を決める
+  const steps = [];
+  for(let i = 0; i + 1 < n; i++) steps.push(D(i, i + 1));
+  steps.sort((a, b) => a - b);
+  const med = steps.length ? steps[steps.length >> 1] : 0;
+  const tol = m.tol = Math.max(S.sameTol + 4, Math.round(med * 0.08));
+  m.cands = []; m.seam = null;
+  if(n <= minP){ m.a = m.s; m.b = m.e; return; }
+  // くり返し（いちばん短い周期）
+  let per = null;
+  for(let p = minP; p < n && !per; p++){
+    let run = 0, best = 0, bestStart = 0, st = 0, hit = 0;
+    const t = n - p;
+    for(let i = 0; i < t; i++){
+      if(D(i, i + p) <= tol){ hit++; if(!run) st = i; run++; if(run > best){ best = run; bestStart = st; } }
+      else run = 0;
+    }
+    if(best >= 1 && (best >= p || (t >= 2 && hit / t >= 0.8) || best + p >= 0.7 * n))
+      per = { a: bestStart, b: bestStart + p, d: D(bestStart, bestStart + p) };
+  }
+  // 同じ絵に戻る組
+  const pairs = [];
+  for(let i = 0; i < n; i++) for(let j = i + minP; j < n; j++){
+    const d = D(i, j);
+    if(d <= tol) pairs.push({ a: i, b: j, d });
+  }
+  pairs.sort((x, y) => (y.b - y.a) - (x.b - x.a) || x.d - y.d);
+  const list = [];
+  const push = c => { if(c && !list.some(o => o.a === c.a && o.b === c.b)) list.push(c); };
+  push(per);
+  for(const c of pairs){ if(list.length >= 5) break; if(!list.some(o => Math.abs(o.a - c.a) + Math.abs(o.b - c.b) <= 1)) push(c); }
+  if(!list.length){
+    // ぴったり戻らない：いちばん近い組
+    let best = null;
+    for(let i = 0; i < n; i++) for(let j = Math.max(i + minP, i + Math.ceil(n / 2)); j < n; j++){
+      const d = D(i, j);
+      if(!best || d < best.d) best = { a: i, b: j, d };
+    }
+    push(best);
+    list.push({ a: 0, b: n, d: null });
+  }
+  m.cands = list.map(c => ({ a: s + c.a, b: s + c.b, d: c.d }));
+  m.a = m.cands[0].a; m.b = m.cands[0].b; m.seam = m.cands[0].d;
+}
+function seamOf(m){
+  if(m.b >= m.e || m.b <= m.a) return null;
+  return diffCount(cels[m.a].thumb, cels[m.b].thumb);
+}
+function seamLabel(d, tol = S.sameTol + 4){
+  if(d == null) return ['<span class="seam mid">つなぎ目 不明</span>', "mid"];
+  if(d <= tol) return ['<span class="seam ok">つなぎ目 ぴったり</span>', "ok"];
+  if(d <= tol * 5) return ['<span class="seam mid">つなぎ目 ほぼ</span>', "mid"];
+  return ['<span class="seam ng">つなぎ目 ずれ</span>', "ng"];
+}
+function updateCrop(m){
+  const c = m.crop;
+  if(!c.auto) return;
+  let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  for(let i = m.a; i < m.b; i++){
+    const k = cels[i].k; if(!k) continue;
+    x0 = Math.min(x0, k.x); y0 = Math.min(y0, k.y); x1 = Math.max(x1, k.x + k.w); y1 = Math.max(y1, k.y + k.h);
+  }
+  if(x1 <= x0){ Object.assign(c, { x: 0, y: 0, w: W, h: H }); return; }
+  x0 = Math.max(0, x0 - c.pad); y0 = Math.max(0, y0 - c.pad); x1 = Math.min(W, x1 + c.pad); y1 = Math.min(H, y1 + c.pad);
+  Object.assign(c, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+}
+function seqOf(m){
+  const out = [];
+  for(let i = m.a; i < m.b; i++) out.push({ ci: i, n: cels[i].n });
+  if(m.mode === "pingpong" && out.length > 2) for(let i = m.b - 2; i > m.a; i--) out.push({ ci: i, n: cels[i].n });
+  return out;
+}
+const holdMs = n => n * 1000 / extractFps;
+
+/* ---------- 描く ---------- */
+function drawMat(ctx, m, ci, scale = 1, bg = ""){
+  const c = m.crop;
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  if(bg){ ctx.fillStyle = bg; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); }
+  const k = cels[ci] && cels[ci].k;
+  if(!k) return;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(k.bmp, (k.x - c.x) * scale, (k.y - c.y) * scale, k.w * scale, k.h * scale);
+}
+
+/* ---------- カード ---------- */
+const cardEls = new Map();
+function renderCards(){
+  const box = $("cards"); box.innerHTML = ""; cardEls.clear();
+  $("empty").hidden = !!mats.length || busy;
+  $("exportAll").disabled = !mats.length;
+  const bg = $("bg").value;
+  for(const m of mats){
+    const seq = seqOf(m);
+    const total = seq.reduce((s, q) => s + holdMs(q.n), 0);
+    const minN = Math.min(...seq.map(q => q.n));
+    const el = document.createElement("div");
+    el.className = "card" + (m.id === selId ? " sel" : "");
+    el.innerHTML = `
+      <header><b></b><span class="meta dot">${seq.length}コマ ・ ${m.crop.w}×${m.crop.h}px ・ ${total.toFixed(1)}ms/周 ・ 約${Math.round(extractFps / minN)}fps</span></header>
+      <div class="view bg-${bg}"><canvas></canvas><span class="cnt dot"></span></div>
+      <div class="ctl">
+        <button class="btn-sm pp">${m.pl.playing ? "停止" : "再生"}</button>
+        <button class="btn-sm prev">-1コマ</button><button class="btn-sm next">+1コマ</button>
+        <span class="grow"></span>${seamLabel(m.seam, m.tol)[0]}
+      </div>
+      <div class="info">
+        元動画 ${cels[m.a].i}..${cels[m.b - 1].i + cels[m.b - 1].n - 1}（${cels[m.a].t.toFixed(2)}s〜${(cels[m.b - 1].t + holdMs(cels[m.b - 1].n) / 1000).toFixed(2)}s）・ 切り出し (${Math.round(m.crop.x / ws)}, ${Math.round(m.crop.y / ws)})${ws < 1 ? ` ・ 処理は元の${Math.round(ws * 100)}%` : ""}<br>
+        <span class="holds dot">hold(ms): ${seq.map((q, i) => `<span data-i="${i}">${holdMs(q.n).toFixed(1)}</span>`).join("")}</span>
+      </div>`;
+    el.querySelector("b").textContent = m.name;
+    const cv = el.querySelector("canvas");
+    cv.width = m.crop.w; cv.height = m.crop.h;
+    const ctx = cv.getContext("2d");
+    m.pl.pos = Math.min(m.pl.pos, seq.length - 1);
+    el.querySelector("header").onclick = () => select(m.id);
+    el.querySelector(".pp").onclick = e => { m.pl.playing = !m.pl.playing; e.target.textContent = m.pl.playing ? "停止" : "再生"; };
+    el.querySelector(".prev").onclick = () => { m.pl.playing = false; el.querySelector(".pp").textContent = "再生"; step(m, -1); };
+    el.querySelector(".next").onclick = () => { m.pl.playing = false; el.querySelector(".pp").textContent = "再生"; step(m, 1); };
+    box.appendChild(el);
+    const ent = { el, ctx, seq, holds: [...el.querySelectorAll(".holds span[data-i]")], cnt: el.querySelector(".cnt"), last: -1 };
+    cardEls.set(m.id, ent);
+    paint(m);
+  }
+  updatePlayAllBtn();
+}
+function paint(m){
+  const ent = cardEls.get(m.id); if(!ent) return;
+  const q = ent.seq[m.pl.pos]; if(!q) return;
+  drawMat(ent.ctx, m, q.ci);
+  ent.cnt.textContent = `${m.pl.pos + 1}/${ent.seq.length}`;
+  if(ent.last >= 0 && ent.holds[ent.last]) ent.holds[ent.last].classList.remove("cur");
+  if(ent.holds[m.pl.pos]) ent.holds[m.pl.pos].classList.add("cur");
+  ent.last = m.pl.pos;
+}
+function step(m, d){
+  const ent = cardEls.get(m.id); if(!ent) return;
+  const L = ent.seq.length;
+  m.pl.pos = (m.pl.pos + d + L) % L; m.pl.acc = 0;
+  paint(m);
+}
+let lastT = performance.now();
+function tick(now){
+  const dt = Math.min(200, now - lastT) * +$("speed").value; lastT = now;
+  for(const m of mats){
+    if(!m.pl.playing) continue;
+    const ent = cardEls.get(m.id); if(!ent || !ent.seq.length) continue;
+    m.pl.acc += dt;
+    let moved = false, guard = 0;
+    while(m.pl.acc >= holdMs(ent.seq[m.pl.pos].n) && guard++ < 1000){
+      m.pl.acc -= holdMs(ent.seq[m.pl.pos].n);
+      m.pl.pos = (m.pl.pos + 1) % ent.seq.length; moved = true;
+    }
+    if(moved) paint(m);
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+function stopAllPlayers(){ mats.forEach(m => m.pl.playing = false); }
+function updatePlayAllBtn(){ $("playAll").textContent = mats.some(m => m.pl.playing) ? "すべて停止" : "すべて再生"; }
+
+/* ---------- 右の詳細 ---------- */
+let pickEnd = false;
+function select(id){ selId = id; renderCards(); renderDetail(); }
+function cur(){ return mats.find(m => m.id === selId); }
+function renderDetail(){
+  const m = cur();
+  $("dEmpty").hidden = !!m; $("dBody").hidden = !m;
+  if(!m) return;
+  $("dName").value = m.name;
+  $("dA").min = $("dB").min = 1; $("dA").max = $("dB").max = m.e - m.s;
+  $("dA").value = m.a - m.s + 1; $("dB").value = m.b - m.s;
+  $("dMode").value = m.mode;
+  $("dSeam").innerHTML = seamLabel(m.seam, m.tol)[0];
+  $("dAuto").checked = m.crop.auto; $("dPad").value = m.crop.pad;
+  for(const k of ["x", "y", "w", "h"]){ const el = $("d" + k.toUpperCase()); el.value = m.crop[k]; el.disabled = m.crop.auto; }
+  $("modeS").classList.toggle("on", !pickEnd); $("modeE").classList.toggle("on", pickEnd);
+  // 候補
+  const cb = $("dCands"); cb.innerHTML = "";
+  m.cands.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.className = "btn-sm" + (c.a === m.a && c.b === m.b ? " on" : "");
+    b.innerHTML = `<span>候補${i + 1}：${c.a - m.s + 1}〜${c.b - m.s}（${c.b - c.a}コマ）</span>${seamLabel(c.d, m.tol)[0]}`;
+    b.onclick = () => { m.a = c.a; m.b = c.b; m.seam = c.d; changed(m); };
+    cb.appendChild(b);
+  });
+  // コマの帯
+  const st = $("strip"); st.innerHTML = "";
+  let ux0 = W, uy0 = H, ux1 = 0, uy1 = 0;
+  for(let i = m.s; i < m.e; i++){ const k = cels[i].k; if(!k) continue;
+    ux0 = Math.min(ux0, k.x); uy0 = Math.min(uy0, k.y); ux1 = Math.max(ux1, k.x + k.w); uy1 = Math.max(uy1, k.y + k.h); }
+  const uw = Math.max(1, ux1 - ux0), uh = Math.max(1, uy1 - uy0), sc = 48 / Math.max(uw, uh);
+  for(let i = m.s; i < m.e; i++){
+    const d = document.createElement("div");
+    d.className = "c" + (i >= m.a && i < m.b ? " in" : "") + (i === m.a ? " s" : "") + (i === m.b - 1 ? " e" : "");
+    const cv = document.createElement("canvas"); cv.width = 48; cv.height = 48; cv.className = "bg-" + $("bg").value;
+    const k = cels[i].k;
+    if(k){ const x = cv.getContext("2d"); x.drawImage(k.bmp, (k.x - ux0) * sc + (48 - uw * sc) / 2, (k.y - uy0) * sc + (48 - uh * sc) / 2, k.w * sc, k.h * sc); }
+    const lb = document.createElement("span"); lb.className = "dot"; lb.textContent = `${i - m.s + 1}・${cels[i].n}`;
+    d.append(cv, lb);
+    d.onclick = () => {
+      if(!pickEnd){ m.a = i; if(m.b <= m.a) m.b = Math.min(m.e, m.a + 1); pickEnd = true; }
+      else { if(i + 1 > m.a) m.b = i + 1; else { m.a = i; } pickEnd = false; }
+      m.seam = seamOf(m); changed(m);
+    };
+    st.appendChild(d);
+  }
+}
+function changed(m){
+  updateCrop(m); m.pl.pos = 0; m.pl.acc = 0;
+  renderCards(); renderDetail();
+}
+$("dName").oninput = () => { const m = cur(); if(!m) return; m.name = $("dName").value; const e = cardEls.get(m.id); if(e) e.el.querySelector("b").textContent = m.name; };
+$("modeS").onclick = () => { pickEnd = false; renderDetail(); };
+$("modeE").onclick = () => { pickEnd = true; renderDetail(); };
+$("dA").onchange = $("dB").onchange = () => {
+  const m = cur(); if(!m) return;
+  let a = clamp(Math.round(+$("dA").value) - 1, 0, m.e - m.s - 1), b = clamp(Math.round(+$("dB").value), 1, m.e - m.s);
+  if(b <= a) b = a + 1;
+  m.a = m.s + a; m.b = m.s + b; m.seam = seamOf(m); changed(m);
+};
+$("dMode").onchange = () => { const m = cur(); if(!m) return; m.mode = $("dMode").value; changed(m); };
+$("dAuto").onchange = () => { const m = cur(); if(!m) return; m.crop.auto = $("dAuto").checked; changed(m); };
+$("dPad").onchange = () => { const m = cur(); if(!m) return; m.crop.pad = clamp(+$("dPad").value || 0, 0, 400); m.crop.auto = true; changed(m); };
+for(const k of ["x", "y", "w", "h"]) $("d" + k.toUpperCase()).onchange = () => {
+  const m = cur(); if(!m) return; const c = m.crop;
+  c[k] = Math.round(+$("d" + k.toUpperCase()).value) || 0;
+  c.x = clamp(c.x, -W, W); c.y = clamp(c.y, -H, H); c.w = clamp(c.w, 1, W * 3); c.h = clamp(c.h, 1, H * 3);
+  changed(m);
+};
+$("dFull").onclick = () => { const m = cur(); if(!m) return; Object.assign(m.crop, { auto: false, x: 0, y: 0, w: W, h: H }); changed(m); };
+$("dSquare").onclick = () => {
+  const m = cur(); if(!m) return; const c = m.crop, s = Math.max(c.w, c.h);
+  Object.assign(c, { auto: false, x: Math.round(c.x - (s - c.w) / 2), y: Math.round(c.y - (s - c.h) / 2), w: s, h: s }); changed(m);
+};
+$("dDup").onclick = () => {
+  const m = cur(); if(!m) return;
+  const n = { ...m, id: nextId++, name: m.name + "_2", crop: { ...m.crop }, cands: [...m.cands], pl: { pos: 0, acc: 0, playing: true } };
+  mats.splice(mats.indexOf(m) + 1, 0, n); select(n.id);
+};
+$("dDel").onclick = () => {
+  const m = cur(); if(!m) return;
+  const i = mats.indexOf(m); mats.splice(i, 1);
+  selId = mats[Math.min(i, mats.length - 1)] ? mats[Math.min(i, mats.length - 1)].id : null;
+  renderCards(); renderDetail();
+};
+
+/* ---------- 書き出し ---------- */
+function outCanvas(m, scale){
+  const cv = document.createElement("canvas");
+  cv.width = Math.max(1, Math.round(m.crop.w * scale)); cv.height = Math.max(1, Math.round(m.crop.h * scale));
+  return cv;
+}
+function toBlob(cv){ return new Promise(r => cv.toBlob(r, "image/png")); }
+async function pngBytes(cv){ return new Uint8Array(await (await toBlob(cv)).arrayBuffer()); }
+function download(blob, name){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const safe = s => (s || "sozai").replace(/[\\/:*?"<>|]/g, "_");
+const pad3 = i => String(i).padStart(3, "0");
+
+// APNG
+const CRC = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for(let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function readChunks(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), out = [];
+  for(let p = 8; p < u8.length;){
+    const len = dv.getUint32(p), type = String.fromCharCode(...u8.subarray(p + 4, p + 8));
+    out.push({ type, data: u8.subarray(p + 8, p + 8 + len) }); p += 12 + len;
+  }
+  return out;
+}
+function chunk(type, data){
+  const out = new Uint8Array(12 + data.length), dv = new DataView(out.buffer);
+  dv.setUint32(0, data.length);
+  for(let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+  out.set(data, 8);
+  dv.setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)));
+  return out;
+}
+function u32s(...v){ const b = new Uint8Array(v.length * 4), dv = new DataView(b.buffer); v.forEach((x, i) => dv.setUint32(i * 4, x)); return b; }
+async function makeApng(m, scale, bg){
+  const cv = outCanvas(m, scale), ctx = cv.getContext("2d"), seq = seqOf(m), parts = [];
+  parts.push(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]));
+  let sn = 0;
+  for(let f = 0; f < seq.length; f++){
+    drawMat(ctx, m, seq[f].ci, scale, bg);
+    const ch = readChunks(await pngBytes(cv));
+    if(f === 0){
+      parts.push(chunk("IHDR", ch.find(c => c.type === "IHDR").data));
+      parts.push(chunk("acTL", u32s(seq.length, 0)));
+    }
+    const fc = new Uint8Array(26), dv = new DataView(fc.buffer);
+    dv.setUint32(0, sn++); dv.setUint32(4, cv.width); dv.setUint32(8, cv.height); dv.setUint32(12, 0); dv.setUint32(16, 0);
+    dv.setUint16(20, Math.min(65535, seq[f].n)); dv.setUint16(22, extractFps); fc[24] = 0; fc[25] = 0;
+    parts.push(chunk("fcTL", fc));
+    for(const c of ch.filter(c => c.type === "IDAT")){
+      if(f === 0) parts.push(chunk("IDAT", c.data));
+      else { const d = new Uint8Array(4 + c.data.length); new DataView(d.buffer).setUint32(0, sn++); d.set(c.data, 4); parts.push(chunk("fdAT", d)); }
+    }
+  }
+  parts.push(chunk("IEND", new Uint8Array(0)));
+  return new Blob(parts, { type: "image/png" });
+}
+function timingJson(m, scale, files){
+  const seq = seqOf(m);
+  return JSON.stringify({
+    name: m.name, width: Math.round(m.crop.w * scale), height: Math.round(m.crop.h * scale), baseFps: extractFps,
+    loop: m.mode, totalMs: +seq.reduce((s, q) => s + holdMs(q.n), 0).toFixed(3),
+    source: { cropX: Math.round(m.crop.x / ws), cropY: Math.round(m.crop.y / ws), scale: +(ws * scale).toFixed(4) },
+    frames: seq.map((q, i) => ({ file: files ? files[i] : undefined, holdFrames: q.n, holdMs: +holdMs(q.n).toFixed(3) }))
+  }, null, 2);
+}
+async function addToZip(zip, m, fmt, opt){
+  const nm = safe(m.name), cv = outCanvas(m, opt.scale), ctx = cv.getContext("2d"), seq = seqOf(m);
+  if(fmt === "apng"){ zip.file(nm + ".png", await makeApng(m, opt.scale, opt.bg)); return; }
+  const dir = zip.folder(nm);
+  if(fmt === "zipcel"){
+    const files = [];
+    for(let i = 0; i < seq.length; i++){
+      drawMat(ctx, m, seq[i].ci, opt.scale, opt.bg);
+      const f = `${nm}_${pad3(i)}.png`; files.push(f); dir.file(f, await toBlob(cv));
+    }
+    dir.file("timing.json", timingJson(m, opt.scale, files));
+  } else if(fmt === "zipfps"){
+    const total = seq.reduce((s, q) => s + holdMs(q.n), 0), N = Math.max(1, Math.round(total * opt.fps / 1000));
+    let k = 0, acc = holdMs(seq[0].n);
+    for(let f = 0; f < N; f++){
+      const t = (f + 0.5) * 1000 / opt.fps;
+      while(t >= acc && k < seq.length - 1){ k++; acc += holdMs(seq[k].n); }
+      drawMat(ctx, m, seq[k].ci, opt.scale, opt.bg);
+      dir.file(`${nm}_${pad3(f)}.png`, await toBlob(cv));
+    }
+  } else if(fmt === "sheet"){
+    const cols = Math.ceil(Math.sqrt(seq.length)), rows = Math.ceil(seq.length / cols);
+    const sh = document.createElement("canvas"); sh.width = cv.width * cols; sh.height = cv.height * rows;
+    const sctx = sh.getContext("2d"), frames = [];
+    for(let i = 0; i < seq.length; i++){
+      drawMat(ctx, m, seq[i].ci, opt.scale, opt.bg);
+      const x = (i % cols) * cv.width, y = Math.floor(i / cols) * cv.height;
+      sctx.drawImage(cv, x, y);
+      frames.push({ x, y, w: cv.width, h: cv.height, holdFrames: seq[i].n, holdMs: +holdMs(seq[i].n).toFixed(3) });
+    }
+    dir.file(nm + "_sheet.png", await toBlob(sh));
+    dir.file(nm + "_sheet.json", JSON.stringify({ name: m.name, baseFps: extractFps, loop: m.mode, frames }, null, 2));
+  }
+}
+async function makeWebm(m, opt){
+  const cv = outCanvas(m, opt.scale), ctx = cv.getContext("2d"), seq = seqOf(m);
+  const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  if(!mime) throw new Error("このブラウザではWebMを作れません");
+  const stream = cv.captureStream(0), track = stream.getVideoTracks()[0];
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12e6 }), bufs = [];
+  rec.ondataavailable = e => e.data.size && bufs.push(e.data);
+  const done = new Promise(r => rec.onstop = r);
+  drawMat(ctx, m, seq[0].ci, opt.scale, opt.bg);
+  rec.start();
+  const t0 = performance.now(); let at = 0;
+  for(const q of seq){
+    drawMat(ctx, m, q.ci, opt.scale, opt.bg); track.requestFrame();
+    at += holdMs(q.n);
+    const wait = t0 + at - performance.now(); if(wait > 0) await sleep(wait);
+  }
+  rec.stop(); await done;
+  return new Blob(bufs, { type: "video/webm" });
+}
+function xopt(){ return { fmt: $("xFmt").value, fps: +$("xFps").value, scale: +$("xScale").value, bg: $("xBg").value }; }
+async function exportOne(m){
+  const o = xopt(), nm = safe(m.name);
+  status(`書き出しています：${m.name}`);
+  if(o.fmt === "webm"){ download(await makeWebm(m, o), nm + ".webm"); }
+  else if(o.fmt === "apng"){ download(await makeApng(m, o.scale, o.bg), nm + ".png"); }
+  else {
+    const zip = new JSZip(); await addToZip(zip, m, o.fmt, o);
+    download(await zip.generateAsync({ type: "blob" }), nm + ".zip");
+  }
+}
+async function guard(fn){
+  if(busy) return; busy = true;
+  try{ await fn(); status("書き出しました"); }
+  catch(e){ console.error(e); status("書き出せませんでした：" + e.message); }
+  busy = false;
+}
+$("xGo").onclick = () => { const m = cur(); if(m) guard(() => exportOne(m)); };
+$("exportAll").onclick = () => guard(async () => {
+  const o = xopt();
+  if(o.fmt === "webm"){ for(const m of mats){ status(`書き出しています：${m.name}`); download(await makeWebm(m, o), safe(m.name) + ".webm"); await sleep(300); } return; }
+  const zip = new JSZip();
+  for(let i = 0; i < mats.length; i++){ status(`まとめています ${i + 1}/${mats.length}`); await addToZip(zip, mats[i], o.fmt, o); }
+  download(await zip.generateAsync({ type: "blob" }), safe(fileName) + "_loops.zip");
+});
+
+/* ---------- つなぎこみ ---------- */
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+$("file").onchange = e => { const f = e.target.files[0]; if(f) loadVideo(f); e.target.value = ""; };
+["dragenter", "dragover"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+document.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) loadVideo(f); });
+
+$("run").onclick = () => { if(busy){ cancel = true; return; } extract(); };
+$("pick").onclick = () => { picking = !picking; $("pick").classList.toggle("on", picking); peek.classList.toggle("pick", picking); if(picking && !peekRaw) { peekRaw = true; $("peekRaw").classList.add("on"); drawPeek(); } };
+$("autoKeyBtn").onclick = async () => { if(!video || busy) return; await seek(+$("peekT").value); wctx.drawImage(video, 0, 0, W, H); autoKey(); drawPeek(); };
+$("peekRaw").onclick = () => { peekRaw = !peekRaw; $("peekRaw").classList.toggle("on", peekRaw); drawPeek(); };
+$("peekT").oninput = () => { if(!busy) drawPeek(true); };
+
+const sliders = { strength: v => v + "", soft: v => v + "", spill: v => v + "%", choke: v => v + "px", speck: v => v + "px", sameTol: v => v + "" };
+for(const k in sliders){
+  const el = $(k), lab = $(k + "V");
+  const up = () => { S[k] = +el.value; lab.textContent = sliders[k](el.value); };
+  up();
+  el.oninput = () => { up(); if(k !== "sameTol") scheduleRekey(); };
+}
+$("sameTol").onchange = () => { if(cels.length && !busy){ status("コマの見分けは、次に「切り抜く」ときに効きます"); } };
+$("fps").onchange = () => S.fps = +$("fps").value;
+$("maxSide").onchange = () => { S.maxSide = +$("maxSide").value; if(video && !busy){ setupWork(); drawPeek(); } };
+$("splitCut").onchange = () => { S.splitCut = $("splitCut").checked; if(cels.length && !busy){ analyze(); renderCards(); renderDetail(); } };
+$("minCels").onchange = () => { S.minCels = clamp(+$("minCels").value || 1, 1, 60); if(cels.length && !busy){ mats.forEach(m => { findLoops(m); updateCrop(m); }); renderCards(); renderDetail(); } };
+
+$("speed").oninput = () => $("speedV").textContent = (+$("speed").value).toFixed(1) + "x";
+$("bg").onchange = () => { renderCards(); renderDetail(); };
+$("zoom").onchange = () => { const v = +$("zoom").value; $("cards").style.setProperty("--cw", v + "px"); $("cards").style.setProperty("--ch", Math.round(v * 0.95) + "px"); };
+$("playAll").onclick = () => {
+  const any = mats.some(m => m.pl.playing);
+  mats.forEach(m => m.pl.playing = !any);
+  renderCards();
+};
+setKey(KEY);
+</script>
+</body>
+</html>

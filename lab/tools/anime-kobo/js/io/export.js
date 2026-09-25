@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=263';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=263';
-import { isTalk, blipTimes } from '../engine/talk.js?v=263';
-import { encodeGif } from './gif.js?v=263';
+import { createRenderer } from '../render/renderer.js?v=269';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=269';
+import { isTalk, blipTimes } from '../engine/talk.js?v=269';
+import { encodeGif } from './gif.js?v=269';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -297,6 +297,67 @@ export async function saveVideo(blob, filename, how){
   return 'download';
 }
 
+
+/* ---------- すける WebM ----------
+   GIF は 色が 256 までで、すける ところも「すける／すけない」の
+   2つしか 持てない。ふちが ギザギザに なる。
+
+   WebM（VP9／VP8）は 色も すけぐあいも そのまま 持てる。
+   ただ 1コマずつ 焼く やり方（WebCodecs）は すけぐあいを
+   あつかえない ので、画面を 実時間で 録る。
+   ＝ ながさの ぶんだけ 時間が かかる。そのかわり きれい。 */
+export async function exportAlphaWebm(project, opt = {}){
+  const fps = Math.max(8, Math.min(60, opt.fps || 30));
+  const seconds = Math.max(0.2, Math.min(project.duration, opt.seconds || project.duration));
+  const onProgress = opt.onProgress || (() => {});
+  const shouldStop = opt.shouldStop || (() => false);
+
+  const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+    .find(t => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t));
+  if(!type) throw new Error('この ブラウザでは すける WebM を つくれません');
+
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(2, project.w);
+  cv.height = Math.max(2, project.h);
+  const R = createRenderer(cv);
+  const view = { x: 0, y: 0, z: 1 };
+
+  const stream = cv.captureStream(fps);
+  const rec = new MediaRecorder(stream, {
+    mimeType: type,
+    videoBitsPerSecond: opt.bitrate || 16000000
+  });
+  const chunks = [];
+  rec.ondataavailable = (e) => { if(e.data.size) chunks.push(e.data); };
+  const stopped = new Promise(r => { rec.onstop = r; });
+
+  // はじめの 1コマを 出してから 録りはじめる
+  R.draw(project, null, 0, view, { forExport: true, noBg: true });
+  await new Promise(r => requestAnimationFrame(r));
+  rec.start(200);
+
+  const t0 = performance.now();
+  let stop = false;
+  await new Promise((res) => {
+    const step = () => {
+      if(shouldStop()){ stop = true; res(); return; }
+      const t = (performance.now() - t0) / 1000;
+      R.draw(project, null, Math.min(t, seconds), view, { forExport: true, noBg: true });
+      onProgress(Math.min(1, t / seconds));
+      if(t >= seconds){ res(); return; }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+
+  await new Promise(r => setTimeout(r, 180));   // さいごの コマが 入るまで
+  if(rec.state !== 'inactive') rec.stop();
+  await stopped;
+  stream.getTracks().forEach(t => t.stop());
+  if(stop) throw new Error('やめました');
+  onProgress(1);
+  return { blob: new Blob(chunks, { type }), ext: 'webm', how: 'すけるWebM' };
+}
 
 /* ---------- すける GIF ----------
    はいけいを 描かずに 中身だけ 描いて、そのまま GIF に する。

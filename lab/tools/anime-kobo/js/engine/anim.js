@@ -27,6 +27,11 @@ export const warpChX = (i) => 'W' + i + ':x';
 export const warpChY = (i) => 'W' + i + ':y';
 export const isWarpCh = (c) => /^W\d+:(x|y)$/.test(c);
 
+/* ✂ マスクの 形の ピン（mask.js に そろえて ある） */
+export const maskChX = (mi, pi) => 'K' + mi + ':' + pi + ':x';
+export const maskChY = (mi, pi) => 'K' + mi + ':' + pi + ':y';
+export const isMaskCh = (c) => /^K\d+:\d+:(x|y)$/.test(c);
+
 export const pinChX = (id) => 'P' + id + ':x';
 export const pinChY = (id) => 'P' + id + ':y';
 
@@ -41,7 +46,7 @@ export const CH_LABEL = {
   panY:'よこ回転', panP:'たて回転', panZ:'ズーム',
   ballY:'玉を まわす', ballP:'玉を たおす',
   roomY:'よこ回転', roomP:'たて回転', roomZ:'ズーム',
-  rx:'おくへ たおす', ry:'よこに まわす'
+  rx:'おくへ たおす', ry:'よこに まわす', time:'時間'
 };
 
 /** そのレイヤーにピンが1つでもあるか */
@@ -352,8 +357,35 @@ export function sampleStep(keys, time, fallback){
 }
 
 /** そのレイヤーの、その時刻の姿 */
+/* ---------- 時間を いじる（AEの タイムリマップ） ----------
+   'time' チャンネルに ピンを うつと、
+   「その 時こくに、中みの 何秒めを 見せるか」に なる。
+   おそく する・止める・ぎゃくに 流す が できる。 */
+export const remapOn = (l) => !!(l && l.remap
+                                 && (l.tracks || {}).time && l.tracks.time.length);
+
+/** その レイヤーが 読む 時こく（時間いじりが 無ければ そのまま） */
+export function remapTime(layer, time){
+  return remapOn(layer) ? sample(layer.tracks.time, time, time) : time;
+}
+
+/** マスクの 形を その時こくで 読む。ピンが 1つも 無ければ null */
+function maskPtsAt(layer, tr, t){
+  const ms = (Array.isArray(layer.masks) && layer.masks.length)
+    ? layer.masks
+    : (layer.mask && layer.mask.pts ? [layer.mask] : null);
+  if(!ms) return null;
+  let any = false;
+  for(const c of Object.keys(tr)){ if(isMaskCh(c) && tr[c] && tr[c].length){ any = true; break; } }
+  if(!any) return null;
+  return ms.map((m, mi) => (m.pts || []).map((p, pi) => ({
+    x: sample(tr[maskChX(mi, pi)], t, p.x),
+    y: sample(tr[maskChY(mi, pi)], t, p.y)
+  })));
+}
+
 export function valuesAt(layer, time){
-  const t = mapTime(time, layer.loop);
+  const t = mapTime(remapTime(layer, time), layer.loop);
   const tr = layer.tracks || {};
   const tint = layer.tint || { color:'#F2A0B8', amount:0 };
   const st   = layer.stroke || { color:'#FFFEF7', width:0 };
@@ -438,6 +470,10 @@ export function valuesAt(layer, time){
       x: sample(tr[warpChX(i)], t, p.x),
       y: sample(tr[warpChY(i)], t, p.y)
     })) : null,
+
+    /* ✂ マスクの 形の、その時の 場所。
+       ピンが 無ければ null（そのままの 形を つかう）。 */
+    maskPts: maskPtsAt(layer, tr, t),
 
     // パペットピンの、その時のずれ
     pins: (layer.pins || []).map(p => ({

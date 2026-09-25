@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Notion の予定を月ごとに見て、時こくと画像を足せるカレンダー。">
+<title>予定カレンダー | HAANI LAB</title>
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../../style.css?v=8">
+<style>
+/* ============ スケジュール専用（見た目は style.css に合わせる） ============ */
+.sch-head{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem;
+}
+/* 月は数字で大きく。色は変えず、黄色にベタ影 */
+.sch-en{
+  display:inline-flex; align-items:baseline; gap:.1rem;
+  font-size:3rem; line-height:1; font-weight:800; letter-spacing:-.02em;
+  color:var(--main); text-shadow:0 3px 0 var(--ink);
+  margin-right:.15rem;
+}
+.sch-en i{font-style:normal; font-size:1.2rem;}
+.sch-year{font-size:.56rem; letter-spacing:.24em; color:var(--gray); line-height:1.4;}
+.sch-year b{display:block; font-family:'DotGothic16',monospace; font-weight:400;
+  font-size:1.15rem; letter-spacing:.06em; color:var(--ink);}
+.sch-month{
+  font-size:.72rem; font-weight:800; letter-spacing:.02em;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  box-shadow:0 2.5px 0 var(--ink); padding:.1rem .75rem;
+}
+.btn-circ{
+  width:2.4rem; height:2.4rem; padding:0; border-radius:50%;
+  font-size:1rem; line-height:1;
+}
+/* 今月の中身を数えたピル */
+.sch-count{
+  display:flex; gap:.4rem; flex-wrap:wrap; align-items:center;
+  width:100%; margin:-.4rem 0 .9rem;
+}
+.cpill{
+  display:inline-flex; align-items:center; gap:.35rem;
+  font-size:.66rem; font-weight:700;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  box-shadow:0 2.5px 0 var(--ink); padding:.1rem .7rem;
+}
+.cpill b{font-family:'DotGothic16',monospace; font-weight:400; font-size:.86rem;}
+.cpill .sw{width:11px; height:11px; border-radius:4px; border:2px solid var(--ink);}
+.cpill.off{background:#F6F1D8; color:var(--ink);}
+.sch-legend{
+  display:flex; gap:.8rem; flex-wrap:wrap; align-items:center;
+  margin-left:auto; font-size:.7rem; color:var(--gray);
+}
+.sch-legend b{display:inline-flex; align-items:center; gap:.3rem; font-weight:700; color:var(--ink);}
+.lg-swatch{width:12px; height:12px; border-radius:4px; border:2px solid var(--ink); display:inline-block;}
+.lg-off{
+  width:12px; height:12px; border-radius:4px;
+  border:2px solid var(--ink); display:inline-block;
+  background:#F6F1D8;
+  background-image:repeating-linear-gradient(-45deg,
+    rgba(184,180,63,.55) 0 2px, transparent 2px 6px);
+}
+
+/* --- カレンダー --- */
+.cal{display:grid; grid-template-columns:repeat(7,1fr); gap:.4rem;}
+.cal .dow{
+  text-align:center; font-size:.66rem; font-weight:700; color:var(--ink);
+  letter-spacing:.1em; line-height:1.9;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  margin-bottom:.15rem;
+}
+.cal .dow.sat,.cal .dow.sun{background:var(--main);}
+.day{
+  min-height:132px; border:2px solid var(--ink); border-radius:13px;
+  background:var(--paper); padding:0;
+  display:flex; flex-direction:column; gap:0; overflow:hidden;
+}
+/* 予定のある日は、ちょっと浮かせる */
+.day.filled{box-shadow:0 3px 0 var(--ink); background:#FFFDEE;}
+.day .top{display:flex; align-items:center; gap:.25rem; padding:.3rem .35rem .15rem;}
+.day .cnt{
+  margin-left:auto; font-family:'DotGothic16',monospace; font-weight:400;
+  font-size:.5rem; color:var(--gray); letter-spacing:.04em;
+}
+.day .tdy{
+  font-size:.5rem; font-weight:700; line-height:1.5;
+  background:var(--pink); color:var(--ink);
+  border:2px solid var(--ink); border-radius:999px; padding:0 .4rem;
+}
+.day.out{opacity:.28; border-style:dashed; box-shadow:none;}
+.day.past{background:#f4f2e6;}
+/* 土日祝はお休み。背景を変えて、ひと目で分かるようにする */
+/* お休み：平日（ほぼ白）より一段 沈めた 生成りに、斜線を 重ねる。
+   地の色で ひと目 分かり、斜線で「閉まっている」ことを 足す。 */
+.day.off{
+  background:#F6F1D8;
+  background-image:repeating-linear-gradient(-45deg,
+    rgba(184,180,63,.30) 0 3px, transparent 3px 10px);
+}
+.day.off.past{
+  background:#EDE8CC;
+  background-image:repeating-linear-gradient(-45deg,
+    rgba(30,28,20,.09) 0 3px, transparent 3px 10px);
+}
+.hol{
+  padding:0 .4rem .15rem;
+  font-size:.56rem; font-weight:700; color:var(--gray);
+  line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.off-mark{
+  margin:auto .4rem .3rem; align-self:flex-start;
+  font-size:.52rem; font-weight:700; line-height:1.6; color:var(--ink);
+  background:#F6F1D8; border:2px solid var(--ink); border-radius:999px;
+  padding:0 .45rem;
+}
+.day.today{border:var(--bd); box-shadow:0 4px 0 var(--ink); background:var(--main-soft);}
+.day.today.off{background:var(--main-soft); background-image:none;}
+.day.today .dnum{color:var(--ink);}
+.day .dnum{font-family:'DotGothic16',monospace; font-weight:400; font-size:.94rem; flex:none; line-height:1.2;}
+.day.sun .dnum,.day.sat .dnum{color:var(--ink);}
+.day .dnum.is-today{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:21px; height:21px; border-radius:50%; background:var(--ink); color:var(--main);
+}
+.ev{
+  margin:0 .35rem .2rem;
+  font-size:.62rem; font-weight:700; line-height:1.6;
+  border:2px solid var(--ink); border-radius:999px;
+  box-shadow:0 2px 0 var(--ink);
+  padding:.02rem .45rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.more{font-size:.58rem; color:var(--gray); padding:0 .4rem .2rem;}
+
+/* --- 画像つきの予定（Notion に画像があるときだけ） --- */
+.card{
+  border:0; border-radius:0; overflow:hidden; background:var(--paper);
+  box-shadow:none; display:flex; flex-direction:column; flex:1 1 auto; min-height:0;
+}
+.card-top{display:flex; align-items:center; gap:.2rem; padding:0 .35rem .15rem;}
+.card .cat-badge{
+  font-size:.52rem; font-weight:700; line-height:1.6;
+  border:2px solid var(--ink); border-radius:999px; padding:0 .4rem;
+  max-width:5.5em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.card .at{
+  font-family:'DotGothic16',monospace; font-weight:400;
+  font-size:.56rem; color:var(--gray); margin-left:auto;
+}
+.card img{
+  width:100%; flex:1 1 auto; min-height:64px; object-fit:cover; display:block;
+  border-top:2px solid var(--ink); border-bottom:0;
+  margin:0; background:var(--main-soft);
+}
+/* 絵が入っている日は、絵を 下まで 伸ばして、「休」は その上に 小さく 乗せる */
+.day{position:relative;}
+.day.filled .off-mark{
+  position:absolute; left:.25rem; bottom:.25rem; margin:0; z-index:2;
+  font-size:.48rem; padding:0 .35rem; background:rgba(255,254,247,.92);
+}
+.card{cursor:zoom-in;}
+.card:hover{background:var(--main-soft);}
+.card .n{
+  font-size:.5rem; color:var(--gray); border:2px solid var(--ink);
+  border-radius:999px; padding:0 .3rem; background:var(--cream);
+}
+.card .cap{
+  display:block; font-size:.56rem; font-weight:700; line-height:1.5;
+  padding:.05rem .25rem .1rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* --- 直近の予定リスト --- */
+.up{list-style:none; margin:.4rem 0 0; padding:0;}
+.up li{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  background:var(--paper); border:var(--bd); border-radius:var(--r);
+  box-shadow:0 3px 0 var(--ink);
+  padding:.5rem .8rem; margin-bottom:.5rem;
+}
+.up .when{
+  font-size:.78rem; font-weight:800; min-width:5.2em;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:8px;
+  padding:.05rem .5rem; text-align:center;
+}
+.up .what{flex:1 1 12rem; min-width:0; font-size:.86rem;}
+.up .upthumb{
+  width:76px; aspect-ratio:16/9; object-fit:cover; flex:none;
+  border:2px solid var(--ink); border-radius:8px; background:var(--main-soft);
+}
+.up .uptime{font-size:.7rem; color:var(--gray);}
+.up .cat{
+  font-size:.66rem; border:2px solid var(--ink); border-radius:999px;
+  padding:.02rem .6rem;
+}
+.holbar{
+  margin-top:.8rem; font-size:.72rem; font-weight:700; color:var(--gray);
+  display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;
+}
+.holbar:empty{display:none;}
+.holbar .hb-item{
+  background:var(--cream); border:2px solid var(--ink); border-radius:999px; color:var(--ink);
+  padding:.02rem .6rem;
+}
+/* --- 押したとき 大きく見る --- */
+.pic{
+  position:fixed; inset:0; z-index:99; display:none;
+  align-items:center; justify-content:center; padding:1.2rem;
+  background:rgba(30,28,20,.85);
+}
+.pic.on{display:flex;}
+.pic figure{margin:0; max-width:100%; display:flex; flex-direction:column; align-items:center; gap:.6rem;}
+.pic img,.pic video{
+  max-width:100%; max-height:74vh; border:var(--bd); border-radius:var(--r);
+  background:var(--paper);
+}
+.pic [hidden]{display:none;}
+.pic figcaption{
+  color:var(--ink); background:var(--main); border:var(--bd); border-radius:999px;
+  box-shadow:0 3px 0 var(--ink); padding:.15rem .9rem; font-size:.76rem;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.pic .row{display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center;}
+.pic-x{position:absolute; right:1rem; top:1rem;}
+.pic-arrow{position:absolute; top:50%; transform:translateY(-50%);}
+.pic-prev{left:.6rem;} .pic-next{right:.6rem;}
+
+.note{font-size:.76rem; color:var(--gray); font-weight:500; line-height:1.9;}
+.sch-empty{text-align:center; color:var(--gray); font-size:.82rem; padding:2rem 0;}
+.updated{font-size:.66rem; color:var(--gray); font-weight:500;}
+
+@media (max-width:640px){
+  .cal{gap:.22rem;}
+  .day{min-height:72px; padding:.22rem .24rem; gap:.14rem; border-radius:9px;}
+  .day .cnt,.day .tdy{display:none;}
+  .sch-en{font-size:1.7rem;}
+  .cpill{font-size:.6rem;}
+  /* 幅が40px台しかなく、文字を出しても読めないので色帯だけにする。
+     予定の中身は下の「これからの予定」で読んでもらう。 */
+  .ev{
+    font-size:0; line-height:0; height:7px; padding:0;
+    border-width:1.5px; border-radius:4px;
+  }
+  .more{font-size:0; line-height:0; height:7px;}
+  /* 幅が足りないので、画像だけ見せて文字は下のリストで読んでもらう */
+  /* 枡いっぱいに 絵を出す。文字は 入らないので 出さない */
+  .card{box-shadow:none; border-width:1.5px; border-radius:7px;}
+  .card-top,.card .cap{display:none;}
+  .card img{min-height:40px; border-top:1.5px solid var(--ink); border-bottom:0; margin:0;}
+  .day{min-height:82px;}
+  .pic{padding:.6rem;}
+  .pic img,.pic video{max-height:68vh;}
+  .hol{display:none;}
+  .off-mark{font-size:.54rem;}
+  .sch-legend{margin-left:0; width:100%; font-size:.66rem;}
+  .up .when{min-width:4.6em; font-size:.74rem;}
+}
+
+/* ============ ラボ版で足したところ ============ */
+.lab-head{display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.8rem;}
+.day{cursor:context-menu;}
+.ev,.card{cursor:pointer;}
+.ev:hover{outline:2px solid var(--ink); outline-offset:1px;}
+.card:hover{background:var(--main-soft);}
+.day.mine-here{background:var(--main-soft);}
+/* 消すための ✕。指でも押せる大きさにする */
+.cal .ev,.cal .card{position:relative;}
+.xbtn{
+  position:absolute; top:2px; right:2px; z-index:2;
+  width:17px; height:17px; padding:0; line-height:1;
+  display:grid; place-items:center; font-size:.52rem; font-weight:700;
+  background:var(--pink); color:var(--ink);
+  border:2px solid var(--ink); border-radius:50%;
+  box-shadow:0 2px 0 var(--ink); cursor:pointer;
+}
+.xbtn:active{transform:translateY(2px); box-shadow:none;}
+.cal .ev .xbtn{top:1px; right:1px; width:15px; height:15px;}
+
+.veil{position:fixed; inset:0; background:rgba(30,28,20,.45); display:none; place-items:center; padding:1rem; z-index:40;}
+.veil.on{display:grid;}
+.panel{
+  width:min(400px,100%); background:var(--paper);
+  border:var(--bd); border-radius:16px; box-shadow:0 6px 0 var(--ink);
+  padding:1rem; max-height:90vh; overflow:auto;
+}
+.panel h3{
+  display:inline-block; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.15rem .8rem; font-size:.66rem; margin-bottom:.5rem;
+}
+.panel label{display:block; font-size:.62rem; color:var(--gray); margin:.7rem 0 .2rem;}
+.panel input{
+  width:100%; font:inherit; font-weight:700; font-size:.82rem; padding:.45rem .6rem;
+  border:2px solid var(--ink); border-radius:9px; background:var(--cream); color:var(--ink);
+}
+.drop{
+  margin-top:.2rem; border:2px dashed var(--ink); border-radius:10px; padding:.5rem;
+  text-align:center; font-size:.66rem; font-weight:400; color:#5c5843;
+  cursor:pointer; background:var(--main-soft);
+}
+.drop.over{background:var(--main);}
+.drop img{width:100%; border:2px solid var(--ink); border-radius:8px; margin-bottom:.4rem;}
+.panel-btns{display:flex; gap:.4rem; margin-top:1rem;}
+.panel-btns .btn{flex:1;}
+.btn-p{background:var(--pink);}
+.panel .note{font-size:.62rem; margin-top:.7rem;}
+
+/* スマホ：公開ページは「見るだけ」なので細くしているが、
+   こちらは つついて直す道具なので、指で押せる大きさに戻す */
+@media (max-width:640px){
+  .day{min-height:92px;}
+  .ev{
+    font-size:.5rem; line-height:1.7; height:auto; padding:0 .35rem;
+    border-width:2px; border-radius:999px;
+  }
+  .card .cap{display:block; font-size:.5rem;}
+  .card-top{display:flex;}
+  .lab-head .btn{flex:1;}
+}
+
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="titlebar">
+    <div class="tb-title">予定カレンダー</div>
+    <span class="tb-spec dot">SCHEDULE　／　Notion と 手元の予定</span>
+    <div class="tb-actions">
+      <a href="../../index.html" class="btn btn-sm">← ラボ</a>
+      <a href="../../../schedule.html" class="btn btn-sm btn-g">公開ページ</a>
+    </div>
+  </div>
+</div>
+
+<section class="win">
+  <div class="win-bar">
+    <h2>📅 カレンダー</h2>
+    <span class="tb-spec dot">土日祝はお休み</span>
+  </div>
+  <div class="win-body">
+
+    <div id="shot">
+      <div class="sch-head">
+        <span class="sch-en"><span id="monthEn">—</span><i>月</i></span>
+        <span class="sch-year">YEAR<b id="yearNum">—</b></span>
+        <button class="btn btn-sm btn-circ" id="prev" aria-label="前の月">‹</button>
+        <button class="btn btn-sm btn-circ" id="next" aria-label="次の月">›</button>
+        <span class="sch-month" id="month" hidden>—</span>
+        <button class="btn btn-sm" id="thisMonth">今月</button>
+        <div class="sch-legend" id="legend"></div>
+      </div>
+
+      <div class="sch-count" id="count"></div>
+      <div class="cal" id="cal"></div>
+    </div>
+
+    <div class="lab-head" style="margin:.9rem 0 0">
+      <button class="btn btn-sm" id="add">＋ 予定を足す</button>
+      <button class="btn btn-sm btn-g" id="shoot">画像を書き出し</button>
+    </div>
+
+    <p class="holbar" id="holbar"></p>
+    <p class="note" id="note" style="margin-top:.9rem"></p>
+  </div>
+</section>
+
+<section class="win">
+  <div class="win-bar">
+    <h2>🗒 これからの予定</h2>
+    <span class="tb-spec dot">直近8件</span>
+  </div>
+  <div class="win-body">
+    <ul class="up" id="upcoming"></ul>
+  </div>
+</section>
+
+<div class="pic" id="pic">
+  <button class="btn btn-sm pic-x" data-act="close">✕</button>
+  <button class="btn btn-sm pic-arrow pic-prev" data-act="prev">‹</button>
+  <button class="btn btn-sm pic-arrow pic-next" data-act="next">›</button>
+  <figure>
+    <img id="picImg" alt="">
+    <video id="picVid" controls playsinline hidden></video>
+    <figcaption id="picCap"></figcaption>
+    <div class="row" id="picRow"></div>
+  </figure>
+</div>
+
+<button class="totop" id="toTop" aria-label="ページ上部へ戻る">↑</button>
+
+<div class="veil" id="veil">
+  <div class="panel" role="dialog" aria-modal="true">
+    <h3 id="pTitle">予定</h3>
+    <label>タイトル</label>
+    <input type="text" id="fTitle" placeholder="たとえば 雑談配信">
+    <label>カテゴリー（色は名前から決まります）</label>
+    <input type="text" id="fCat" placeholder="配信 / 締切 など">
+    <label>時こく</label>
+    <input type="time" id="fTime">
+    <label>画像</label>
+    <div class="drop" id="drop"><div id="dropBody">ここにドロップ／クリックで選ぶ</div></div>
+    <button class="btn btn-sm btn-p" id="dropX" style="margin-top:.4rem" hidden>画像をはずす</button>
+    <div class="panel-btns">
+      <button class="btn btn-sm" id="save">ほぞん</button>
+      <button class="btn btn-sm btn-p" id="del">けす</button>
+      <button class="btn btn-sm" id="cancel">やめる</button>
+    </div>
+    <p class="note" id="pNote"></p>
+  </div>
+</div>
+
+<script>
+
+/* =========================================================================
+   ラボ版のカレンダー。並びと見た目は /schedule.html と同じ。
+   ちがうのは3つだけ:
+     ・予定を自分で足せる（日付を右クリック）
+     ・予定をつついて 時こく・画像を差し替えられる
+     ・月ごと1枚のPNGに書き出せる
+   足した分と直した分は この端末の中だけに持つ（IndexedDB）。
+   Notion から来た分は data/notion.json を読むだけで、書き戻さない。
+   ========================================================================= */
+const FEED = "data/notion.json";
+
+/* Bluesky に その日 出した 画像も 枡に 並べる。
+   ギャラリー（bsky.html）と同じ 公開APIで、誰でも 読める ぶんだけ。
+   取ってくるのは 画像つきの 投稿だけで、他人への 返信と ひろい上げは のぞく。 */
+const BSKY_HANDLE = "haanidesign.bsky.social";
+const BSKY_API = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed";
+const BSKY_PAGES = 6;          // 1回に さかのぼる 上限（1ページ100件）
+let bskyPosts = [];            // 画面に出す形にしたもの
+let bskyOldest = null;         // どこまで さかのぼったか
+let bskyCursor = null, bskyDone = false, bskyBusy = false;
+
+/* カテゴリーの色。決め打ちせず、名前から安定して選ぶ。
+   Notion 側でカテゴリーを増やしても、勝手に色が付く。 */
+/* メインの黄色を軸に、濃さと温度だけ変えて並べる。
+   差し色のピンクは1つだけ混ぜる（青系・紫系は使わない）。 */
+const PALETTE = ["#E1DD60","#F2A0B8","#F2F0BE","#F6D98C","#FBE0EA","#CFC97E","#EFE9BE"];
+function colorOf(name){
+  if(!name) return "#EDEBDD";
+  let h = 0;
+  for(const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 100000;
+  return PALETTE[h % PALETTE.length];
+}
+
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+/* =========================================================================
+   日本の祝日。毎年書き換えなくていいよう計算で出す。
+   振替休日（日曜と重なったら次の平日）と、
+   祝日に挟まれた平日の国民の休日（シルバーウィーク）まで見ている。
+   ※ 法改正や五輪のような一度きりの移動は反映されない。
+      その年だけずれるときは Notion に予定として書いて上書きしてください。
+   ========================================================================= */
+function nthMonday(y, m, n){
+  const first = new Date(y, m-1, 1).getDay();   // 0=日
+  return 1 + ((8 - first) % 7) + (n-1)*7;
+}
+function equinox(y, spring){
+  // 1900〜2099 で使える近似式
+  const base = spring ? 20.8431 : 23.2488;
+  return Math.floor(base + 0.242194*(y-1980) - Math.floor((y-1980)/4));
+}
+const holidayCache = {};
+function holidaysOf(y){
+  if(holidayCache[y]) return holidayCache[y];
+  const h = {};
+  const k = (m,d) => y+"-"+pad(m)+"-"+pad(d);
+  const put = (m,d,name) => { h[k(m,d)] = name; };
+
+  put(1, 1, "元日");
+  put(1, nthMonday(y,1,2), "成人の日");
+  put(2, 11, "建国記念の日");
+  put(2, 23, "天皇誕生日");
+  put(3, equinox(y,true), "春分の日");
+  put(4, 29, "昭和の日");
+  put(5, 3, "憲法記念日");
+  put(5, 4, "みどりの日");
+  put(5, 5, "こどもの日");
+  put(7, nthMonday(y,7,3), "海の日");
+  put(8, 11, "山の日");
+  put(9, nthMonday(y,9,3), "敬老の日");
+  put(9, equinox(y,false), "秋分の日");
+  put(10, nthMonday(y,10,2), "スポーツの日");
+  put(11, 3, "文化の日");
+  put(11, 23, "勤労感謝の日");
+
+  // 振替休日
+  for(const key of Object.keys(h)){
+    const [yy,mm,dd] = key.split("-").map(Number);
+    if(new Date(yy,mm-1,dd).getDay() !== 0) continue;
+    const n = new Date(yy,mm-1,dd);
+    do { n.setDate(n.getDate()+1); }
+    while(h[ymd(n)]);
+    h[ymd(n)] = "振替休日";
+  }
+
+  // 国民の休日（祝日に挟まれた平日）
+  for(const key of Object.keys({...h})){
+    const [yy,mm,dd] = key.split("-").map(Number);
+    const mid  = new Date(yy,mm-1,dd+1);
+    const next = new Date(yy,mm-1,dd+2);
+    if(h[ymd(next)] && !h[ymd(mid)] && mid.getDay()!==0 && mid.getDay()!==6){
+      h[ymd(mid)] = "国民の休日";
+    }
+  }
+
+  holidayCache[y] = h;
+  return h;
+}
+const holidayName = d => holidaysOf(d.getFullYear())[ymd(d)] || null;
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const WDAY = ["日","月","火","水","木","金","土"];
+
+let tasks = [];        // 画面に出す分（下の merge() が作る）
+let fromNotion = [];   // Notion から来た分（読むだけ）
+let mine = {};         // 自分で足した分
+let over = {};         // Notion の分への上書き
+let syncedAt = null;
+let anchor = new Date();
+
+const $ = s => document.querySelector(s);
+
+/* 今日（時刻を落として比較用に） */
+function today0(){
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+
+/* 画面に出す一覧。Notion の予定＋Bluesky に出した絵。
+   同じ日に両方あれば、予定を先に、絵をあとに並べる。 */
+function allTasks(){
+  return tasks.concat(bskyPosts);
+}
+
+/* 枡に並べるのは 絵と動画だけ。
+   文字だけの予定は 枡に出さず、下の「これからの予定」で読んでもらう。 */
+function onDay(key){
+  return allTasks().filter(t => t.date === key && t.image);
+}
+
+function render(){
+  const y = anchor.getFullYear(), m = anchor.getMonth();
+  $("#month").textContent = `${y}年 ${m+1}月`;
+  $("#monthEn").textContent = m + 1;
+  $("#yearNum").textContent = y;
+
+  const first = new Date(y, m, 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());          // 日曜はじまり（サイトの読者向け）
+
+  const cells = [];
+  for(let i=0;i<42;i++){
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+    if(i>=35 && d.getMonth()!==m) break;
+    cells.push(d);
+  }
+
+  const t0 = today0();
+  const todayKey = ymd(t0);
+
+  const dow = WDAY.map((w,i)=>
+    `<div class="dow${i===0?" sun":i===6?" sat":""}">${w}</div>`).join("");
+
+  const body = cells.map(d => {
+    const key = ymd(d);
+    const out = d.getMonth() !== m;
+    const past = d < t0;
+    const list = onDay(key);
+    // 画像つきは背が高いので、その日に画像があるときは2件までにする
+    const shown = list.slice(0, list.some(t => t.image) ? 2 : 3);
+    const wd = d.getDay();
+
+    // 土日と祝日はお休み
+    const hol = holidayName(d);
+    const off = wd === 0 || wd === 6 || !!hol;
+
+    return `<div class="day${out?" out":""}${list.length&&!out?" filled":""}${past?" past":""}${off?" off":""}${key===todayKey?" today":""}${wd===0?" sun":wd===6?" sat":""}" data-date="${key}" ${hol?`title="${esc(hol)}"`:""}>
+      <div class="top">
+        <span class="dnum${key===todayKey?" is-today":""}">${d.getDate()}</span>
+        ${key===todayKey ? '<span class="tdy">TODAY</span>' : ""}
+        ${list.length && !out ? `<span class="cnt">${list.length} ITEM</span>` : ""}
+      </div>
+      ${hol ? `<div class="hol">${esc(hol)}</div>` : ""}
+      ${shown.map(t => t.image
+        ? `<${t.url && t.bsky ? "a" : "div"} class="card${t.bsky ? " bsky" : ""}" data-id="${esc(t.id)}"${t.url && t.bsky ? ` href="${esc(t.url)}" target="_blank" rel="noopener"` : ""} ${t.title ? `title="${esc(t.title)}"` : ""}>
+             ${t.category && !t.bsky
+               ? `<div class="card-top"><span class="cat-badge" style="background:${colorOf(t.category)}">${esc(t.category)}</span></div>`
+               : ""}
+             <img src="${esc(t.image)}" alt="" loading="lazy">
+             ${t.title && !t.bsky ? `<span class="cap">${esc(t.title)}</span>` : ""}
+           </${t.url && t.bsky ? "a" : "div"}>`
+        : `<div class="ev" data-id="${esc(t.id)}" style="background:${colorOf(t.category)}" title="${esc(t.title)}">${esc(t.title)}</div>`
+      ).join("")}
+      ${list.length>shown.length ? `<div class="more">ほか${list.length-shown.length}件</div>` : ""}
+      ${off && !out ? '<span class="off-mark">休</span>' : ""}
+    </div>`;
+  }).join("");
+
+  $("#cal").innerHTML = dow + body;
+
+  // 凡例（この月に出ているカテゴリーだけ）
+  const cats = [...new Set(
+    allTasks().filter(t=>{
+      if(!t.date) return false;
+      const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+      return d.getFullYear()===y && d.getMonth()===m;
+    }).map(t=>t.category).filter(Boolean)
+  )];
+  $("#legend").innerHTML =
+    cats.map(c=>`<b><span class="lg-swatch" style="background:${colorOf(c)}"></span>${esc(c)}</b>`).join("") +
+    '<b><span class="lg-off"></span>お休み（土日祝）</b>';
+
+  // 今月の中身を数えて、上に並べる
+  const ofMonth = allTasks().filter(t => {
+    const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+    return d.getFullYear()===y && d.getMonth()===m;
+  });
+  const byCat = new Map();
+  for(const t of ofMonth){
+    const k = t.category || "その他";
+    byCat.set(k, (byCat.get(k)||0) + 1);
+  }
+  const days = new Set(ofMonth.map(t => t.date)).size;
+  const offDays = cells.filter(d => d.getMonth()===m &&
+    (d.getDay()===0 || d.getDay()===6 || holidayName(d))).length;
+  $("#count").innerHTML =
+    [...byCat.entries()].map(([k,n]) =>
+      `<span class="cpill"><span class="sw" style="background:${colorOf(k)}"></span>${esc(k)} <b>${n}</b> 件</span>`).join("") +
+    (ofMonth.length ? `<span class="cpill">予定のある日 <b>${days}</b> 日</span>` : "") +
+    `<span class="cpill off">お休み <b>${offDays}</b> 日</span>`;
+
+  // 狭い画面ではセルに祝日名が入らないので、下にも並べておく
+  const hs = holidaysOf(y);
+  const items = Object.keys(hs)
+    .filter(k => Number(k.slice(5,7)) === m+1)
+    .sort()
+    .map(k => `<span class="hb-item">${Number(k.slice(5,7))}/${Number(k.slice(8,10))} ${esc(hs[k])}</span>`);
+  $("#holbar").innerHTML = items.length ? "今月の祝日　" + items.join("") : "";
+}
+
+/* 枡の絵は スマホだと小さいので、押したら 大きく出す。
+   その月の絵を ひとつづきに して、‹ › で めくれるようにする。 */
+let picList = [], picAt = 0;
+
+function picOpen(id){
+  const y = anchor.getFullYear(), m = anchor.getMonth();
+  picList = allTasks()
+    .filter(t => t.image)
+    .filter(t => {
+      const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+      return d.getFullYear()===y && d.getMonth()===m;
+    })
+    .sort((a,b)=> (a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
+  picAt = Math.max(0, picList.findIndex(t => t.id === id));
+  picShow();
+  $("#pic").classList.add("on");
+  document.body.style.overflow = "hidden";
+}
+/* Bluesky の動画は HLS（.m3u8）。そのまま出せるのは Safari と iOS だけで、
+   Android の Chrome は「出せる」と答えておきながら じつは出せない。
+   ギャラリー（bsky.html）と同じく、hls.js があれば そちらを先に使う。 */
+const HLSJS = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js";
+let hls = null, hlsReady = null;
+function loadHls(){
+  if(hlsReady) return hlsReady;
+  hlsReady = new Promise((ok,ng)=>{
+    const sc = document.createElement("script");
+    sc.src = HLSJS;
+    sc.onload = ok;
+    sc.onerror = ()=> ng(new Error("hls.js を 読めません"));
+    document.head.appendChild(sc);
+  });
+  return hlsReady;
+}
+function nativeHls(){
+  return !!$("#picVid").canPlayType("application/vnd.apple.mpegurl");
+}
+function stopVideo(){
+  const vid = $("#picVid");
+  if(hls){ hls.destroy(); hls = null; }
+  vid.pause?.();
+  vid.removeAttribute("src");
+  vid.load?.();
+}
+function playVideo(t){
+  const vid = $("#picVid");
+  const native = ()=>{ vid.src = t.video; vid.play?.().catch(()=>{}); };
+  loadHls().then(()=>{
+    if(!window.Hls || !window.Hls.isSupported()){
+      if(nativeHls()) return native();
+      throw new Error("この ブラウザでは 流せません");
+    }
+    hls = new window.Hls({ enableWorker:true });
+    hls.loadSource(t.video);
+    hls.attachMedia(vid);
+    vid.play?.().catch(()=>{});
+  }).catch((err)=>{
+    if(nativeHls()) return native();
+    // 流せないときは 表紙の絵に戻して、投稿へ行ってもらう
+    console.error("[カレンダー] 動画: " + (err.message || err));
+    vid.hidden = true;
+    $("#picImg").hidden = false;
+  });
+}
+
+function picShow(){
+  if(!picList.length) return;
+  picAt = (picAt + picList.length) % picList.length;
+  const t = picList[picAt];
+
+  const vid = $("#picVid");
+  stopVideo();
+  const showVideo = !!t.video;
+  vid.hidden = !showVideo;
+  $("#picImg").hidden = showVideo;
+  if(showVideo){
+    vid.poster = t.image || "";
+    playVideo(t);
+  }
+  $("#picImg").src = t.imageFull || t.image;
+  $("#picImg").alt = t.title || "";
+  const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+  $("#picCap").textContent =
+    `${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})${t.time ? " " + t.time : ""}` +
+    (t.title ? "　" + t.title : "");
+  $("#picRow").innerHTML = t.url
+    ? `<a class="btn btn-sm btn-g" href="${esc(t.url)}" target="_blank" rel="noopener">${
+        t.bsky ? (t.video ? "Bluesky で 見る" : "投稿を見る") : "Notion で見る"}</a>`
+    : "";
+  if(typeof picExtra === "function") picExtra(t);
+}
+function picClose(){
+  $("#pic").classList.remove("on");
+  stopVideo();
+  $("#picImg").src = "";
+  document.body.style.overflow = "";
+}
+$("#pic").addEventListener("click", (e)=>{
+  const act = e.target.getAttribute && e.target.getAttribute("data-act");
+  if(act === "prev"){ picAt--; picShow(); return; }
+  if(act === "next"){ picAt++; picShow(); return; }
+  if(act === "close" || e.target === $("#pic")) picClose();
+});
+document.addEventListener("keydown", (e)=>{
+  if(!$("#pic").classList.contains("on")) return;
+  if(e.key === "Escape") picClose();
+  if(e.key === "ArrowLeft"){ picAt--; picShow(); }
+  if(e.key === "ArrowRight"){ picAt++; picShow(); }
+});
+$("#cal").addEventListener("click", (e)=>{
+  const card = e.target.closest(".card[data-id]");
+  if(!card) return;
+  e.preventDefault();          // Bluesky のカードは そのままでは 投稿へ飛ぶ
+  picOpen(card.dataset.id);
+});
+
+function renderUpcoming(){
+  const t0 = today0();
+  const list = tasks
+    .filter(t => t.date && new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10)) >= t0)
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .slice(0,8);
+
+  if(list.length === 0){
+    $("#upcoming").innerHTML = '<li style="justify-content:center; color:var(--gray)">これからの予定はまだありません</li>';
+    return;
+  }
+
+  $("#upcoming").innerHTML = list.map(t => {
+    const d = new Date(t.date.slice(0,4), Number(t.date.slice(5,7))-1, t.date.slice(8,10));
+    return `<li data-id="${esc(t.id)}">
+      <span class="when">${d.getMonth()+1}/${d.getDate()}(${WDAY[d.getDay()]})</span>
+      ${t.image ? `<img class="upthumb" src="${esc(t.image)}" alt="" loading="lazy">` : ""}
+      <span class="what">${esc(t.title)}${t.time ? ` <span class="uptime dot">${esc(t.time)}</span>` : ""}</span>
+      ${t.category ? `<span class="cat" style="background:${colorOf(t.category)}">${esc(t.category)}</span>` : ""}
+    </li>`;
+  }).join("");
+}
+
+/* 埋め込みの 形が 何通りか あるので ならす（bsky.html と同じ）。
+   写真は images#view、動画は video#view で 別の形で来る。
+   引用つきの投稿だと どちらも recordWithMedia#view の 中に 入っている。 */
+function bskyMedia(post){
+  let e = post && post.embed;
+  if(!e) return null;
+  if(e.$type === "app.bsky.embed.recordWithMedia#view") e = e.media;
+  if(!e) return null;
+  if(e.$type === "app.bsky.embed.images#view"){
+    const imgs = e.images || [];
+    if(!imgs.length) return null;
+    return {
+      kind: "image",
+      thumb: imgs[0].thumb || imgs[0].fullsize,
+      full: imgs[0].fullsize || imgs[0].thumb,
+      count: imgs.length,
+    };
+  }
+  if(e.$type === "app.bsky.embed.video#view"){
+    return {
+      kind: "video",
+      thumb: e.thumbnail || null,
+      full: e.thumbnail || null,
+      video: e.playlist || null,   // HLS（.m3u8）
+      count: 1,
+    };
+  }
+  return null;
+}
+
+/* 日本時間の 日付と 時こくに 直す（投稿の 時刻は UTC で来る） */
+function jst(iso){
+  const d = new Date(iso);
+  const j = new Date(d.getTime() + 9*3600*1000);
+  return {
+    date: j.toISOString().slice(0,10),
+    time: j.toISOString().slice(11,16),
+  };
+}
+
+async function loadBsky(){
+  if(bskyBusy || bskyDone) return;
+  bskyBusy = true;
+  try{
+    for(let i=0; i<BSKY_PAGES && !bskyDone; i++){
+      const url = BSKY_API + "?actor=" + encodeURIComponent(BSKY_HANDLE)
+                + "&limit=100&filter=posts_with_media"
+                + (bskyCursor ? "&cursor=" + encodeURIComponent(bskyCursor) : "");
+      const res = await fetch(url);
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      bskyCursor = data.cursor || null;
+      if(!bskyCursor) bskyDone = true;
+
+      for(const item of (data.feed || [])){
+        if(item.reason) continue;                       // 他の人の 投稿の ひろい上げ
+        const post = item.post;
+        if(!post) continue;
+        if(item.reply){                                 // 他の人への 返信は のぞく
+          const pd = item.reply.parent?.author?.did;
+          if(!pd || pd !== post.author?.did) continue;
+        }
+        const media = bskyMedia(post);
+        if(!media || !media.thumb) continue;
+        const when = jst(post.record?.createdAt || post.indexedAt);
+        if(!bskyOldest || when.date < bskyOldest) bskyOldest = when.date;
+        const text = (post.record?.text || "").split("\n")[0].trim();
+        const rkey = String(post.uri || "").split("/").pop();
+        bskyPosts.push({
+          id: "bsky:" + post.cid,
+          date: when.date,
+          time: when.time,
+          title: text,            // 文が 無ければ 何も出さない
+          category: "投稿",        // 数えるのに 使うだけで、枡には 出さない
+          image: media.thumb,
+          imageFull: media.full,
+          video: media.video || null,
+          count: media.count,
+          url: `https://bsky.app/profile/${post.author?.handle || BSKY_HANDLE}/post/${rkey}`,
+          bsky: true,
+        });
+      }
+    }
+  }catch(e){
+    // 読めなくても カレンダーは 出す
+    console.error("Bluesky を 読めませんでした: " + e.message);
+  }
+  bskyBusy = false;
+}
+
+async function load(){
+  try{
+    const res = await fetch(FEED + "?t=" + Date.now(), {cache:"no-store"});
+    if(!res.ok) throw new Error(String(res.status));
+    const feed = await res.json();
+    fromNotion = (feed.tasks || []).filter(t => t.date).map(t => ({
+      ...t,
+      // 画像はリポジトリの根から数えた場所にあるので、ここから見た形に直す
+      image: t.image ? "../../../" + t.image : null,
+    }));
+    syncedAt = feed.syncedAt || null;
+  }catch(e){
+    fromNotion = [];
+  }
+
+  mine = (await kvGet("mine")) || {};
+  over = (await kvGet("over")) || {};
+  merge();
+
+  render();
+  renderUpcoming();
+
+  // 絵は あとから 足す（Bluesky が 重くても カレンダーは 先に 出す）
+  await loadBsky();
+  render();
+
+  $("#note").innerHTML =
+    '予定をつつくと 時こく・画像を直せます。日付を右クリックすると その日に足せます。' +
+    '<br>色の付いた帯はその日の予定です。画像のある予定はそのまま絵で出ます。灰色は過ぎた日。' +
+    '<br><b>斜線の日は土日祝のお休み</b>です。祝日は名前を添えています。' +
+    (syncedAt ? `<br><span class="updated">最終更新: ${new Date(syncedAt).toLocaleString("ja-JP",{year:"numeric",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>` : "");
+}
+
+$("#prev").addEventListener("click", () => {
+  anchor = new Date(anchor.getFullYear(), anchor.getMonth()-1, 1); render();
+});
+$("#next").addEventListener("click", () => {
+  anchor = new Date(anchor.getFullYear(), anchor.getMonth()+1, 1); render();
+});
+$("#thisMonth").addEventListener("click", () => { anchor = new Date(); render(); });
+
+load();
+
+/* ページ上部へ戻る（他ページと同じ挙動） */
+const toTop = document.getElementById('toTop');
+const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
+window.addEventListener('scroll', onScroll, {passive:true});
+onScroll();
+toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+
+/* =========================================================================
+   ここから下が ラボ版だけの足しもの。
+   ・置き場（IndexedDB）… 画像を持つので localStorage では足りない
+   ・合成 … Notion の分 ＋ 自分で足した分 ＋ 上書き
+   ・編集と 画像の書き出し
+   ========================================================================= */
+const DB_NAME = "haani-task-calendar", STORE = "kv";
+let dbp = null;
+function db(){
+  if(dbp) return dbp;
+  dbp = new Promise((ok,ng)=>{
+    const r = indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore(STORE);
+    r.onsuccess = ()=> ok(r.result);
+    r.onerror   = ()=> ng(r.error);
+  });
+  return dbp;
+}
+async function kvGet(key){
+  try{
+    const d = await db();
+    return await new Promise((ok,ng)=>{
+      const q = d.transaction(STORE,"readonly").objectStore(STORE).get(key);
+      q.onsuccess = ()=> ok(q.result); q.onerror = ()=> ng(q.error);
+    });
+  }catch{ return undefined; }
+}
+async function kvSet(key,val){
+  try{
+    const d = await db();
+    await new Promise((ok,ng)=>{
+      const t = d.transaction(STORE,"readwrite");
+      t.objectStore(STORE).put(val,key);
+      t.oncomplete = ok; t.onerror = ()=> ng(t.error);
+    });
+  }catch(e){ alert("この端末に保存できませんでした。\n" + e.message); }
+}
+
+/* Notion の分に 手元の直しを重ねて、画面に出す一覧を作る */
+function merge(){
+  const out = [];
+  for(const t of fromNotion){
+    const o = over[t.id];
+    if(o?.hidden) continue;
+    out.push({ ...t, ...(o||{}), source:"notion" });
+  }
+  for(const m of Object.values(mine)) out.push({ ...m, source:"mine" });
+  tasks = out.filter(t => t.date);
+}
+function findTask(id){ return tasks.find(t => t.id === id) || null; }
+
+/* ---- 編集 ---- */
+let editing = null, pendingImage = "";
+
+function openNew(date){
+  editing = { id:"m"+Date.now().toString(36), source:"mine", date, title:"", category:"", time:"", image:"" };
+  fillPanel("予定を書く", `${date} に足します。書いたあとは 予定の右上の ✕ で消せます。`, true);
+}
+function openEdit(t){
+  editing = { ...t };
+  fillPanel("予定をなおす",
+    t.source === "notion"
+      ? "Notion から来た予定です。直した分は この端末にだけ残ります（Notion には書き戻しません）。"
+      : "自分で足した予定です。この端末の中だけにあります。");
+}
+function fillPanel(title, note, isNew){
+  $("#del").hidden = !!isNew;
+  $("#pTitle").textContent = title;
+  $("#pNote").textContent  = note;
+  $("#fTitle").value = editing.title || "";
+  $("#fCat").value   = editing.category || "";
+  $("#fTime").value  = editing.time || "";
+  pendingImage = editing.image || "";
+  drawDrop();
+  $("#veil").classList.add("on");
+  $("#fTitle").focus();
+}
+function drawDrop(){
+  $("#dropBody").innerHTML = pendingImage
+    ? `<img src="${pendingImage}" alt=""><span>押すと えらびなおし</span>`
+    : "ここにドロップ／押して 選ぶ";
+  // 画像が入っているときだけ「はずす」を出す
+  $("#dropX").hidden = !pendingImage;
+}
+function closePanel(){ $("#veil").classList.remove("on"); editing = null; }
+
+function redraw(){ merge(); render(); renderUpcoming(); putX(); }
+
+/* 枡には 絵のあるものしか出ないので、
+   文字だけの予定は 下の一覧を つついて 直す */
+$("#upcoming").addEventListener("click", (e)=>{
+  const li = e.target.closest("li[data-id]");
+  if(!li) return;
+  const t = findTask(li.dataset.id);
+  if(t) openEdit(t);
+});
+
+async function save(){
+  if(!editing) return;
+  const v = {
+    title: $("#fTitle").value.trim() || "予定",
+    category: $("#fCat").value.trim() || null,
+    time: $("#fTime").value || null,
+    image: pendingImage || null,
+  };
+  if(editing.source === "mine"){
+    mine[editing.id] = { id:editing.id, date:editing.date, ...v };
+    await kvSet("mine", mine);
+  }else{
+    // Notion から来た絵を はずしたときも、上書きとして そのまま残す
+    over[editing.id] = { ...(over[editing.id]||{}), ...v };
+    await kvSet("over", over);
+  }
+  closePanel(); redraw();
+}
+async function remove(){
+  if(!editing) return;
+  if(!confirm("この予定を消します。よろしいですか。")) return;
+  if(editing.source === "mine"){ delete mine[editing.id]; await kvSet("mine", mine); }
+  else { over[editing.id] = { ...(over[editing.id]||{}), hidden:true }; await kvSet("over", over); }
+  closePanel(); redraw();
+}
+
+/* 画像は長い辺 640px まで縮めて持つ（端末の置き場をふさがないため） */
+function shrink(file){
+  return new Promise((ok,ng)=>{
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const max = 640, k = Math.min(1, max/Math.max(img.width,img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+        c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+        ok(c.toDataURL("image/jpeg",0.82));
+      };
+      img.onerror = ()=> ng(new Error("画像を読めませんでした"));
+      img.src = fr.result;
+    };
+    fr.onerror = ()=> ng(new Error("画像を読めませんでした"));
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ---- 画像に書き出し ---- */
+async function exportPng(){
+  const node = $("#shot");
+  const w = Math.ceil(node.getBoundingClientRect().width), h = Math.ceil(node.scrollHeight);
+  const css = [...document.querySelectorAll("style")].map(s=>s.textContent).join("\n");
+  const html =
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;background:#FFFEF7">` +
+    `<style>${css}</style>${node.outerHTML}</div>`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+    `<foreignObject x="0" y="0" width="${w}" height="${h}">${html}</foreignObject></svg>`;
+  const img = new Image();
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  try{
+    await img.decode();
+    const c = document.createElement("canvas");
+    const k = 2;
+    c.width = w*k; c.height = h*k;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#FFFEF7"; ctx.fillRect(0,0,c.width,c.height);
+    ctx.scale(k,k); ctx.drawImage(img,0,0);
+    const a = document.createElement("a");
+    a.download = `calendar-${anchor.getFullYear()}-${pad(anchor.getMonth()+1)}.png`;
+    a.href = c.toDataURL("image/png");
+    a.click();
+  }catch(e){
+    alert("書き出せませんでした。画面をそのまま撮ってください。\n" + e.message);
+  }
+}
+
+/* ---- 配線 ---- */
+/* 絵のカードは「大きく出す」方にまかせる。ここでは 色帯だけ 受ける */
+$("#cal").addEventListener("click", (e)=>{
+  const hit = e.target.closest(".ev");
+  if(!hit) return;
+  const t = findTask(hit.dataset.id);
+  if(t) openEdit(t);
+});
+
+/* 大きく出したまま 直せるように、箱の中に「なおす」を足す */
+function picExtra(t){
+  if(!t || t.bsky) return;
+  const b = document.createElement("button");
+  b.className = "btn btn-sm"; b.type = "button"; b.textContent = "なおす";
+  b.addEventListener("click", ()=>{
+    picClose();
+    const cur = findTask(t.id);
+    if(cur) openEdit(cur);
+  });
+  $("#picRow").appendChild(b);
+
+  const x = document.createElement("button");
+  x.className = "btn btn-sm btn-p"; x.type = "button"; x.textContent = "けす";
+  x.addEventListener("click", async ()=>{
+    const cur = findTask(t.id);
+    if(!cur) return;
+    if(!confirm(`「${cur.title || "この予定"}」を消します。よろしいですか。`)) return;
+    if(cur.source === "mine"){ delete mine[cur.id]; await kvSet("mine", mine); }
+    else { over[cur.id] = { ...(over[cur.id]||{}), hidden:true }; await kvSet("over", over); }
+    picClose(); redraw();
+  });
+  $("#picRow").appendChild(x);
+}
+$("#cal").addEventListener("contextmenu", (e)=>{
+  const day = e.target.closest(".day");
+  if(!day || !day.dataset.date) return;
+  e.preventDefault();
+  const hit = e.target.closest(".ev,.card");
+  const t = hit ? findTask(hit.dataset.id) : null;
+  if(t) openEdit(t); else openNew(day.dataset.date);
+});
+$("#cal").addEventListener("dblclick", (e)=>{
+  const day = e.target.closest(".day");
+  if(day?.dataset.date && !e.target.closest(".ev,.card")) openNew(day.dataset.date);
+});
+/* それぞれの予定に ✕ を付ける（Bluesky の絵には付けない）。
+   枡の空いている所を押すと「足す」パネルが開くので、
+   消すのは この ✕ だけ、と はっきりさせる。 */
+function putX(){
+  for(const el of $("#cal").querySelectorAll(".ev[data-id],.card[data-id]")){
+    if(el.classList.contains("bsky") || el.querySelector(".xbtn")) continue;
+    const b = document.createElement("button");
+    b.className = "xbtn"; b.type = "button";
+    b.textContent = "✕";
+    b.title = "この予定を消す";
+    b.addEventListener("click", async (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const t = findTask(el.dataset.id);
+      if(!t) return;
+      if(!confirm(`「${t.title}」を消します。よろしいですか。`)) return;
+      if(t.source === "mine"){ delete mine[t.id]; await kvSet("mine", mine); }
+      else { over[t.id] = { ...(over[t.id]||{}), hidden:true }; await kvSet("over", over); }
+      redraw();
+    });
+    el.appendChild(b);
+  }
+}
+
+/* スマホには右クリックが無いので、長押しで 同じことができるようにする。
+   指を動かしたら（＝画面を送っているとき）取り消す。 */
+let pressTimer = null, pressed = false;
+function startPress(e){
+  const touch = e.touches?.[0];
+  const day = e.target.closest(".day");
+  if(!day || !day.dataset.date) return;
+  pressed = false;
+  clearTimeout(pressTimer);
+  pressTimer = setTimeout(()=>{
+    pressed = true;
+    if(navigator.vibrate) navigator.vibrate(12);
+    const hit = e.target.closest(".ev,.card");
+    const t = hit && !hit.classList.contains("bsky") ? findTask(hit.dataset.id) : null;
+    if(t) openEdit(t); else openNew(day.dataset.date);
+  }, 500);
+  startPress.from = touch ? {x:touch.clientX, y:touch.clientY} : null;
+}
+function endPress(){ clearTimeout(pressTimer); }
+function movePress(e){
+  const t = e.touches?.[0], from = startPress.from;
+  if(!t || !from) return endPress();
+  if(Math.abs(t.clientX-from.x) > 10 || Math.abs(t.clientY-from.y) > 10) endPress();
+}
+/* 読み込み直後と、月を送ったあとにも 配り直す */
+const baseRender2 = render;
+render = function(){ baseRender2(); putX(); };
+render();
+
+$("#cal").addEventListener("touchstart", startPress, {passive:true});
+$("#cal").addEventListener("touchmove", movePress, {passive:true});
+$("#cal").addEventListener("touchend", endPress);
+$("#cal").addEventListener("touchcancel", endPress);
+// 長押しで開いたあとに 指を離すと click も飛んでくるので、その1回は捨てる
+$("#cal").addEventListener("click", (e)=>{
+  if(pressed){ e.stopPropagation(); e.preventDefault(); pressed = false; }
+}, true);
+
+$("#add").addEventListener("click", ()=>{
+  // 押した日を 選んでから 足せるようにする（スマホはこちらが早い）
+  const d = prompt("何日に足しますか（2026-09-21 のように）", ymd(today0()));
+  if(!d) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return alert("日付の形が ちがいます。2026-09-21 のように書いてください。");
+  openNew(d);
+});
+$("#shoot").addEventListener("click", exportPng);
+$("#save").addEventListener("click", save);
+$("#del").addEventListener("click", remove);
+$("#cancel").addEventListener("click", closePanel);
+$("#veil").addEventListener("click", (e)=>{ if(e.target === $("#veil")) closePanel(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePanel(); });
+
+const picker = document.createElement("input");
+picker.type = "file"; picker.accept = "image/*";
+picker.addEventListener("change", async ()=>{
+  const f = picker.files[0]; if(!f) return;
+  try{ pendingImage = await shrink(f); drawDrop(); }catch(err){ alert(err.message); }
+  picker.value = "";
+});
+$("#dropX").addEventListener("click", ()=>{
+  pendingImage = "";
+  drawDrop();
+});
+
+const drop = $("#drop");
+drop.addEventListener("click", ()=> picker.click());
+drop.addEventListener("dragover", (e)=>{ e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", ()=> drop.classList.remove("over"));
+drop.addEventListener("drop", async (e)=>{
+  e.preventDefault(); drop.classList.remove("over");
+  const f = [...e.dataTransfer.files].find(x => x.type.startsWith("image/"));
+  if(!f) return;
+  try{ pendingImage = await shrink(f); drawDrop(); }catch(err){ alert(err.message); }
+});
+
+</script>
+</body>
+</html>

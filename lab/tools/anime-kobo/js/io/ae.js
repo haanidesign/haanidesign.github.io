@@ -18,8 +18,8 @@
    できない こと
      ・焼いた あとの 動き じたいを 直す（それは こちらで 直す） */
 
-import { createRenderer } from '../render/renderer.js?v=263';
-import { drawOrder, nearestFolder } from '../engine/layer.js?v=263';
+import { createRenderer } from '../render/renderer.js?v=269';
+import { drawOrder, nearestFolder } from '../engine/layer.js?v=269';
 
 /* ---------- zip（おしこめない「ためるだけ」の zip） ----------
    PNG は もう ちぢんで いる ので、さらに おしこんでも 小さく ならない。
@@ -153,19 +153,44 @@ export async function exportAE(project, opt = {}){
     }
     return true;
   };
-  const order = drawOrder(project)
-    .filter(l => l.kind !== 'cam' && l.kind !== 'audio' && shown(l));
+  const all = drawOrder(project)
+    .filter(l => l.kind !== 'cam' && l.kind !== 'audio' && l.kind !== 'adjust' && shown(l));
+
+  /* ぬき型（トラックマット）に つかって いる レイヤーは、
+     それじたいは 画面に 出ない ので 焼かない。
+     そのかわり、ぬかれる がわを 焼く あいだは 出して おく。 */
+  const MATTES = ['alpha', 'alphaInv', 'luma', 'lumaInv'];
+  const matteOf = {};
+  const isMatte = new Set();
+  for(let i = 1; i < all.length; i++){
+    const l = all[i];
+    if(MATTES.indexOf(l.matte) < 0) continue;
+    const m = all[i - 1];
+    if(!m || isMatte.has(m.id) || MATTES.indexOf(m.matte) >= 0) continue;
+    matteOf[l.id] = m;
+    isMatte.add(m.id);
+  }
+  const order = all.filter(l => !isMatte.has(l.id));
   if(!order.length) throw new Error('出せる レイヤーが ありません');
 
   /* 1まいずつ 焼くので、ほかの レイヤーは いったん 消す。
      もとの 見え方は あとで かならず もどす。 */
   const was = project.layers.map(l => [l, l.visible]);
   const solo = (l) => {
-    /* カメラは 消さない。消すと「カメラなし」に なって しまい、
-       焼いた 絵だけ カメラの きいて いない 場所に 出る。 */
-    was.forEach(([x, v]) => { x.visible = (x.kind === 'cam') ? v : false; });
+    /* カメラと ちょうせいの かみは 消さない。
+       カメラを 消すと「カメラなし」の 場所に 焼かれて しまうし、
+       ちょうせいの かみを 消すと 色が 変わって しまう。 */
+    was.forEach(([x, v]) => {
+      x.visible = (x.kind === 'cam' || x.kind === 'adjust') ? v : false;
+    });
     let cur = l;
     while(cur){ cur.visible = true; cur = nearestFolder(project, cur); }
+    // ぬき型に つかう 1まいも 出して おく（でないと ぬけない）
+    const mt = matteOf[l.id];
+    if(mt){
+      let c2 = mt;
+      while(c2){ c2.visible = true; c2 = nearestFolder(project, c2); }
+    }
   };
   const undo = () => { was.forEach(([l, v]) => { l.visible = v; }); };
 

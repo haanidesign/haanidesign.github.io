@@ -1,0 +1,388 @@
+/* ================= やわらかい 見た目（ためし） =================
+
+   見本（いただいた スクショ）に 色を 合わせた もの。
+
+   ・下じき  … ひんやりした うすいグレー
+   ・部品    … 白い カード。まるみ 大きめ、かげは ほんの少し
+   ・強調    … 黒の まるピル（えらんで いる もの）と ライム（黄緑）
+   ・文字    … ほぼ黒／そえ書きは グレー
+   ・しるし  … 赤（あぶない）・オレンジ（ちゅうい）も 見本に 合わせた
+
+   もとの css は さわって いない。この 1まいを 読むのを やめれば
+   いつでも レトロな 見た目に もどる。 */
+
+:root{
+  /* ---- 下じき・面 ---- */
+  --paper:     #FFFEF7;   /* カード（動画工房と 同じ 生成り） */
+  --cream:     #FBFAEC;   /* いちばん 下の 下じき */
+  --fill:      #F3F1E2;   /* うすい 面（ボタン・入力） */
+  --fill2:     #EAE7D2;   /* その 上を なぞった とき */
+  --line:      #E8E5D0;   /* うすい しきり */
+
+  /* ---- 文字 ---- */
+  --ink:       #1E1C14;   /* ほぼ黒（動画工房と 同じ） */
+  --ink2:      #5C5843;   /* 本文の そえ書き */
+  --gray:      #8A8470;   /* うすい そえ書き */
+
+  /* ---- 強調 ---- */
+  --main:      #E1DD60;   /* ライム */
+  --main-deep: #B8B43F;
+  --main-soft: #F2F0BE;
+  --pink:      #F05B4A;   /* あぶない（見本の High） */
+  --pink-soft: #FFE5E0;
+  --warn:      #F5A623;   /* ちゅうい（見本の Under review） */
+  --warn-soft: #FDEEDA;
+  --mint:      #7AC4A0;
+
+  /* ---- 作業面（絵と タイムラインの 下じき）----
+     白より すこし だけ 暗い 灰色。絵の ふちが わかる ていど。
+     黒は 下じきに つかわない（えらんだ ボタンなどの さし色だけ）。 */
+  --work:      #F4F2E4;
+  --work2:     #FBFAEC;   /* 作業面の 中の 帯（トラックなど） */
+  --work-line: rgba(30,28,20,.10);
+
+  /* 枠の そとに かける まく（描画が 読む）。作業面と 同じ 黒 */
+  --outside:   rgba(244,242,228,.86);
+
+  --shadow:    0 1px 2px rgba(30,28,20,.05), 0 10px 30px rgba(30,28,20,.07);
+  --shadow-sm: 0 1px 2px rgba(30,28,20,.06);
+
+  --bd:  none;
+  --bd2: none;
+  --r: 16px;
+}
+
+/* ---------- 字 ----------
+   まるい 字（M PLUS Rounded）は かわいいが 子ども向けに 見える。
+   中学生から 上を 前提に、まるくない ゴシックに かえる。
+   小さく しても つぶれない ように 太さは 500〜700 を つかい分け。 */
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:'Inter','Noto Sans JP','Hiragino Sans','Yu Gothic UI',system-ui,sans-serif;
+  font-weight:500;
+  font-size:15px;
+  line-height:1.5;
+  letter-spacing:.002em;
+}
+button,input,select,.tool,#sheet,.field label,.empty{
+  font-family:'Inter','Noto Sans JP','Hiragino Sans','Yu Gothic UI',system-ui,sans-serif;
+}
+/* 数字は 等幅っぽく そろえる（時間・％が ガタつかない） */
+.dot,.tnum,.val,#exPct{ font-variant-numeric:tabular-nums; }
+
+/* ---------- ボタン ---------- */
+button{
+  background:var(--fill);
+  color:var(--ink);
+  border:1px solid transparent;
+  border-radius:10px;
+  box-shadow:none;
+  padding:.44rem .8rem;
+  font-size:.8rem;
+  font-weight:600;
+  transition:background .15s, color .15s, border-color .15s, transform .08s;
+}
+button:hover{ background:var(--fill2); }
+button:active{ transform:scale(.97); box-shadow:none; }
+button.on{ background:var(--ink); color:#fff; border-color:var(--ink); transform:none; }
+/* 白い ところに おいた ボタンが 消えない ように、うすい ふちを 足す */
+#top button,#playbar button,#pinbar button,#sheet button,.tool,#ruler .rhead button{
+  border-color:var(--line);
+}
+#top button.on,#playbar button.on,#pinbar button.on,#sheet button.on,.tool.on{
+  border-color:var(--ink);
+}
+/* 押せない ボタンは 白ぬけ＋うすい 字（すけさせるだけ だと 分かりにくい） */
+button:disabled{
+  opacity:1; background:var(--paper); color:#C2C6CD;
+  border-color:var(--line); box-shadow:none;
+}
+button:disabled:hover{ background:var(--paper); }
+button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+.btn-y{ background:var(--main); border-color:var(--main); }
+.btn-y:hover{ background:var(--main-deep); border-color:var(--main-deep); }
+.btn-g{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.btn-g:hover{ background:#000; color:#fff; }
+.btn-p{ background:var(--pink-soft); border-color:var(--pink-soft); color:#8E2A1C; }
+.btn-sm{ padding:.3rem .62rem; font-size:.74rem; font-weight:600; box-shadow:none; }
+/* まるピルは「いま こうなって いる」を 見せる ところだけ */
+#pininfo,#top .size,.sheettabs button{ border-radius:999px; }
+
+/* ---------- 入れもの ---------- */
+input,select{
+  background:var(--fill);
+  border:1px solid transparent; border-radius:12px;
+  font-weight:700; color:var(--ink);
+  box-shadow:none;
+}
+input:focus,select:focus{ border-color:#D9DCE1; }
+input[type=range]{ background:transparent; accent-color:var(--ink); }
+
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:#D2D5DB; border:2px solid transparent; background-clip:padding-box; }
+
+/* ---------- 上のバー ---------- */
+#app{ background:var(--cream); }
+#top{
+  background:var(--main);
+  border-bottom:1px solid rgba(16,17,20,.12);
+  padding:.5rem .9rem;
+  min-height:56px;
+}
+#top .name{ font-size:.96rem; font-weight:700; letter-spacing:-.01em; border-color:transparent; }
+#top .name:hover{ background:rgba(255,255,255,.55); }
+#top .size{
+  background:rgba(255,255,255,.6); color:var(--ink);
+  font-weight:700; padding:.15rem .7rem; border-color:transparent;
+}
+#top .ver{ color:rgba(30,28,20,.4); border-color:transparent; }
+#top .ver:hover{ background:rgba(255,255,255,.55); }
+#top button{ border-radius:999px; background:rgba(255,255,255,.72); border-color:transparent; }
+#top button:hover{ background:#fff; }
+#top #export{
+  background:var(--ink); color:#fff; border-color:var(--ink);
+  border-radius:10px; font-weight:600;
+  padding-left:1.05rem; padding-right:1.05rem;
+}
+#top #export:hover{ background:#000; }
+
+/* ---------- ステージ（作業面） ---------- */
+#stage{
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:14px 14px;
+}
+
+/* ---------- 道具 ---------- */
+#tools{
+  background:var(--cream);
+  border-top:0; border-right:0;
+  gap:.42rem;
+  padding:.6rem .5rem calc(.6rem + var(--safe-b));
+}
+.tool{
+  background:var(--paper);
+  border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--shadow-sm);
+  color:var(--ink2); font-weight:600;
+  font-size:.7rem; letter-spacing:0;
+}
+/* 絵文字は 色を 落として、字の じゃまを しない ように */
+.tool i{ font-size:1.05rem; filter:grayscale(1); opacity:.75; }
+.tool:hover{ color:var(--ink); }
+.tool.on i{ filter:grayscale(1) invert(1); opacity:.95; }
+.tool:hover{ background:#fff; box-shadow:var(--shadow); }
+.tool.on{ background:var(--ink); color:#fff; }
+
+/* ---------- タイムライン ---------- */
+#list{
+  background:var(--paper);
+  border-top:0;
+  border-radius:16px 16px 0 0;
+  box-shadow:0 -2px 26px rgba(16,17,20,.06);
+}
+#tracks{ gap:.3rem; padding:.4rem .5rem .55rem; }
+/* トラックの 名前は 白い カード、帯は 黒い 作業面 ―― 対比を はっきり */
+.thead .thumb{ background:var(--paper); }
+#playbar{
+  background:var(--paper); border-bottom:1px solid var(--line);
+  border-radius:16px 16px 0 0;
+}
+#playbar button{ background:var(--fill); }
+#playbar .tnum{ color:var(--gray); font-weight:700; }
+#pinbar{ background:var(--paper); border-bottom:1px solid var(--line); }
+#pininfo{
+  background:#FBFAEC; color:var(--ink); border:1px solid #E9E5BD;
+  font-size:.72rem; font-weight:700;
+}
+#pininfo:empty{ display:none; }   /* 中身が ない ときの 黒い かたまりを 出さない */
+
+/* ---------- タイムラインも うすい 作業面 ---------- */
+#ruler{ background:var(--paper); }
+#ruler .rtrack{ background:var(--work); border:0; border-radius:10px 10px 0 0; }
+#ruler .rlab{ color:var(--gray); }
+#ruler .rtick{ background:rgba(16,17,20,.22); }
+#ruler .rtick.big{ background:rgba(16,17,20,.45); }
+/* 拍は ライム。小節の あたまは 白で 強く */
+#ruler .btick{ background:rgba(168,163,60,.55); }
+#ruler .btick.bar{ background:#A8A33C; }
+
+.thead{
+  background:var(--paper);
+  border:1px solid var(--line); border-radius:10px;
+  box-shadow:none;
+}
+.thead .nm{ font-weight:600; font-size:.76rem; }
+.thead:hover{ background:var(--fill); }
+.trow.sel .thead{
+  background:#FBFAEC; color:var(--ink);
+  border:1px solid #DED8A4; box-shadow:inset 3px 0 0 var(--main);
+  transform:none;
+}
+.trow.sel .thead .nm{ color:var(--ink); font-weight:700; }
+.trow.folder .thead{ background:#FDFCF3; }
+.trow.folder.sel .thead{ background:#F4F1C8; }
+.thead .pick{ border:1px solid var(--line); border-radius:8px; background:var(--paper); box-shadow:none; }
+.thead .pick.on{ background:var(--main); border-color:var(--main); }
+.thead .eye{ background:transparent; border-color:transparent; box-shadow:none; }
+.thead .thumb{ border-radius:9px; border:1px solid var(--line); }
+
+.track{ background:var(--work2); border:0; border-radius:10px; }
+.trow.sel .track{ background:#EFEDDC; }
+.tick{ background:rgba(16,17,20,.06); }
+.tick.big{ background:rgba(16,17,20,.14); }
+.pinline{ background:var(--ink); opacity:.16; }
+
+/* くりかえしの 帯・のばす 帯・出すところ */
+.loopband{
+  background:rgba(225,221,96,.22);
+  border-left:2px solid #E1DD60; border-right:2px solid #E1DD60;
+  border-radius:8px;
+}
+.loopband.ping{ background:rgba(240,91,74,.25); border-color:#F05B4A; }
+.loopoff{ border:1px solid #DED8A4; background:#FBFAEC; color:var(--ink); box-shadow:var(--shadow-sm); }
+.looprest{
+  background:repeating-linear-gradient(45deg,
+    rgba(16,17,20,.06) 0 5px, transparent 5px 10px);
+}
+.stretch{
+  background:rgba(16,17,20,.06);
+  border-top:2px solid rgba(16,17,20,.45); border-bottom:2px solid rgba(16,17,20,.45);
+  border-radius:6px;
+}
+.sgrip{
+  border:0; border-radius:10px;
+  background:#FBFAEC; color:var(--ink); border:1px solid #DED8A4;
+  box-shadow:var(--shadow-sm);
+}
+.span{ background:rgba(16,17,20,.12); border-radius:5px; }
+.span.on{ background:rgba(225,221,96,.85); box-shadow:none; }
+.spgrip{
+  border:0; border-radius:8px;
+  background:var(--paper); color:var(--ink);
+  box-shadow:var(--shadow-sm);
+}
+.spgrip.on{ background:var(--main); color:var(--ink); }
+
+.playhead{
+  background:var(--ink);
+  width:2px; border-radius:2px;
+  box-shadow:0 0 6px rgba(16,17,20,.25);
+}
+
+.pin{
+  border:0; border-radius:5px;
+  background:var(--main);
+  box-shadow:0 1px 3px rgba(16,17,20,.2);
+}
+.pin:hover{ background:#C8C24A; }
+.pin.on{ background:var(--ink); }
+.pin.hold{ background:#C8C24A; }
+.pin.hold.on{ background:var(--pink); }
+
+/* ---------- シート（せってい） ---------- */
+#sheet{
+  background:var(--paper);
+  border:0; border-radius:18px 18px 0 0;
+  box-shadow:0 -10px 44px rgba(16,17,20,.13);
+}
+#sheet .handle{ background:#DCD8C2; opacity:1; }
+/* 見出しは 黒ピルを やめて、ライムの 点＋太字（見本の 小見出しに 近い） */
+/* 見出しは 「ライムの たて線＋太字」。
+   上に うすい しきり線を 引いて、まとまりを 目で 分ける。 */
+#sheet h2{
+  background:var(--ink); color:#fff;
+  font-size:.66rem; font-weight:700; letter-spacing:.02em;
+  border-radius:100px; padding:.15rem .8rem;
+  display:inline-flex; align-items:center; gap:.4rem;
+  margin:.9rem 0 .45rem;
+  border-top:0;
+}
+#sheet h2:first-of-type{ border-top:0; padding-top:.2rem; }
+#sheet h2:first-of-type{ margin-top:.2rem; }
+/* ラベルは 用語を そのまま 出す ので、少し ひろげて 折り返さない ように */
+#sheet .field label{ color:var(--ink2); font-weight:500; font-size:.76rem; flex:0 0 108px; }
+.field .val{ color:var(--gray); font-weight:600; }
+.subhead{ color:var(--gray); letter-spacing:.04em; }
+.textin{ background:var(--fill); border:0; border-radius:12px; }
+#sheet .empty,.empty{
+  background:#F7F5E9;
+  border:0; border-radius:10px;
+  color:var(--ink2); font-weight:500;
+  font-size:.76rem; line-height:1.62;
+  box-shadow:none;
+}
+.sheettabs button{ border-radius:999px; }
+
+hr,.sep{ border-color:var(--line); }
+
+.swatch,.frameitem{ border-radius:12px; }
+.frameitem{ border:1px solid var(--line); box-shadow:none; }
+.frameitem.on{ border-color:var(--ink); box-shadow:0 0 0 2px var(--ink); }
+
+#toast{ background:var(--ink); color:#fff; box-shadow:var(--shadow); }
+
+#exFill{ background:var(--main); }
+#newdoc .card,#exporting .card{
+  background:var(--paper);
+  border:0; border-radius:26px;
+  box-shadow:var(--shadow);
+}
+#newdoc{
+  background:var(--cream);
+  background-image:radial-gradient(circle, rgba(16,17,20,.055) 1.3px, transparent 1.4px);
+}
+
+
+
+/* ---------- はじめの 画面（つづきから／あたらしく つくる） ---------- */
+#newdoc .docopen{
+  background:#FBFAEC !important;
+  border:1px solid #E9E5BD; border-radius:14px;
+  box-shadow:none;
+}
+#newdoc .docopen:hover{ background:#F4F1C8 !important; border-color:#DED8A4; }
+#newdoc .docopen img{ border:1px solid #E9E5BD; border-radius:9px; background:#fff; }
+#newdoc .doctext i{ color:#8A8567; }
+#newdoc .docdel{
+  background:#FBFAEC; border:1px solid #E9E5BD; border-radius:14px;
+  color:#8A8567; box-shadow:none;
+}
+#newdoc .docdel:hover{ background:#FBE3E0; border-color:#F0C9C3; color:#C0392B; }
+.sizepick{ background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-sm); }
+.sizepick .box{ border:2px solid var(--ink2); background:#FBFAEC; }
+.sizepick:hover{ background:var(--fill); }
+.sizepick.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.sizepick.on .box{ background:#fff; border-color:#fff; }
+.sizepick.on .d{ color:rgba(255,255,255,.7); }
+.lenrow button{ background:var(--fill); border:0; border-radius:12px; box-shadow:none; }
+.lenrow button.on{ background:var(--ink); color:#fff; }
+#newdoc .go{ border-radius:14px; font-weight:700; padding:.85rem 1rem; }
+
+/* ---------- 線の アイコン（skin/icons.js が 入れる） ---------- */
+.ico{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:1.05em; height:1.05em; vertical-align:-.16em; flex:0 0 auto;
+}
+.ico svg{ display:block; width:100%; height:100%; overflow:visible; }
+.tool i .ico{ filter:none !important; opacity:1 !important; width:1.25em; height:1.25em; }
+.tool i{ filter:none; opacity:1; }
+
+/* 画質を 下げて いる あいだは ひと目で わかるように */
+#top #qBtn.low{ background:#fff !important; color:var(--ink) !important; font-weight:700; }
+
+/* えらんで いる 大きい ふだは 黄色（黒は 小さい ところだけ） */
+.sizepick.on,.sizebtn.on{
+  background:var(--main) !important; color:var(--ink) !important;
+  border:2px solid var(--ink) !important;
+}
+.sizepick.on .box,.sizebtn.on .box{ background:#fff !important; border-color:var(--ink) !important; }
+.sizepick.on .d,.sizebtn.on .d{ color:#5c5843 !important; }
+.lenrow button.on,.fpsrow button.on{
+  background:var(--main) !important; color:var(--ink) !important;
+  border:1px solid var(--ink) !important;
+}
+.tool.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--ink) !important; }
+.tool.on .ico{ color:var(--ink) !important; }

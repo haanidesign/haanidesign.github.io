@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 <style>
 /* ===== 一覧 ===== */
 .bs-wrap{max-width:1240px;margin:1rem auto;border:var(--bd);border-radius:18px;
@@ -25,6 +25,13 @@
 .bs-cell img{width:100%;height:100%;object-fit:cover;
   transition:transform .25s ease, opacity .25s ease;}
 .bs-cell:hover img{transform:scale(1.04);opacity:.88;}
+/* 動画の しるし */
+.bs-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:46px;height:46px;border:var(--bd);border-radius:50%;
+  background:var(--paper);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.9rem;padding-left:3px;pointer-events:none;
+  box-shadow:0 3px 0 var(--ink);}
 
 .bs-msg{padding:2.5rem 1rem;text-align:center;font-size:.85rem;color:var(--gray);}
 .bs-more{display:flex;justify-content:center;padding:1.1rem 0 1.3rem;}
@@ -34,13 +41,15 @@
   align-items:center;justify-content:center;padding:1.5rem;
   background:rgba(30,28,20,.85);}
 .bs-box.on{display:flex;}
-.bs-box img{max-width:100%;max-height:84vh;border:var(--bd);border-radius:var(--r);
-  background:var(--paper);}
+.bs-box img,.bs-box video{max-width:100%;max-height:84vh;
+  border:var(--bd);border-radius:var(--r);background:var(--paper);}
+.bs-box [hidden]{display:none;}
 .bs-x{position:absolute;right:1rem;top:1rem;}
 .bs-arrow{position:absolute;top:50%;transform:translateY(-50%);}
 .bs-prev{left:1rem;} .bs-next{right:1rem;}
 .bs-cap{position:absolute;left:0;right:0;bottom:.4rem;
   text-align:center;color:var(--main);font-size:.75rem;}
+.bs-cap a{color:var(--main);text-decoration:underline;margin-left:.6rem;}
 
 @media(max-width:700px){
   .bs-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:3px;padding:3px;}
@@ -67,6 +76,7 @@
   <button class="btn btn-sm bs-arrow bs-prev" data-act="prev">‹</button>
   <button class="btn btn-sm bs-arrow bs-next" data-act="next">›</button>
   <img id="bs-box-img" alt="">
+  <video id="bs-box-vid" controls loop playsinline hidden></video>
   <div id="bs-cap" class="bs-cap dot"></div>
 </div>
 
@@ -77,46 +87,77 @@
   var HANDLE = 'haanidesign.bsky.social';
   var API    = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed';
   var PAGE   = 40;
+  var HLSJS  = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
 
   var grid = document.getElementById('bs-grid');
   var msg  = document.getElementById('bs-msg');
   var more = document.getElementById('bs-more');
   var box  = document.getElementById('bs-box');
   var boxImg = document.getElementById('bs-box-img');
+  var boxVid = document.getElementById('bs-box-vid');
   var cap  = document.getElementById('bs-cap');
 
   var cursor = null;
   var done = false, busy = false, again = false;
-  var shots = [];   // 拡大用
+  var shots = [];
   var at = 0;
+  var hls = null;          // 動画を 流す 道具（要るときだけ 読む）
+  var hlsReady = null;
 
-  // 埋め込みの 形が 何通りか あるので ならす
-  function imagesOf(post){
-    var e = post && post.embed;
+  /* ---- 投稿から 中身を とり出す ----
+     画像は images、動画（GIF も 変換されて こちら）は video。
+     引用つきの 投稿は recordWithMedia に 包まれて くる。 */
+  function mediaOf(post){
+    return fromEmbed(post && post.embed);
+  }
+  function fromEmbed(e){
     if(!e) return [];
-    if(e.$type === 'app.bsky.embed.images#view') return e.images || [];
-    if(e.$type === 'app.bsky.embed.recordWithMedia#view'){
-      var m = e.media;
-      if(m && m.$type === 'app.bsky.embed.images#view') return m.images || [];
+    var t = e.$type;
+
+    if(t === 'app.bsky.embed.images#view'){
+      return (e.images || []).map(function(im){
+        return { kind:'image', thumb: im.thumb || im.fullsize,
+                 full: im.fullsize || im.thumb, alt: im.alt || '' };
+      });
+    }
+    if(t === 'app.bsky.embed.video#view'){
+      return [{ kind:'video', thumb: e.thumbnail || '',
+                playlist: e.playlist || '', alt: e.alt || '' }];
+    }
+    if(t === 'app.bsky.embed.recordWithMedia#view'){
+      return fromEmbed(e.media);
     }
     return [];
   }
 
-  function cell(im){
+  function linkOf(post){
+    var rkey = String(post.uri || '').split('/').pop();
+    var who  = (post.author && post.author.handle) || HANDLE;
+    return rkey ? 'https://bsky.app/profile/' + who + '/post/' + rkey : '';
+  }
+
+  function cell(m){
     var i = shots.length;
-    shots.push({ src: im.fullsize || im.thumb, alt: im.alt || '' });
+    shots.push(m);
 
     var a = document.createElement('a');
     a.className = 'bs-cell';
-    a.href = im.fullsize || im.thumb;
+    a.href = m.kind === 'video' ? (m.post || '#') : m.full;
     a.addEventListener('click', function(ev){ ev.preventDefault(); open(i); });
 
     var img = document.createElement('img');
-    img.src = im.thumb || im.fullsize;
-    img.alt = im.alt || '';
+    img.src = m.thumb;
+    img.alt = m.alt || '';
     img.loading = 'lazy';
     img.decoding = 'async';
     a.appendChild(img);
+
+    if(m.kind === 'video'){
+      var p = document.createElement('span');
+      p.className = 'bs-play';
+      p.textContent = '▶';
+      a.appendChild(p);
+    }
     return a;
   }
 
@@ -145,14 +186,16 @@
           if(item.reason) return;                 // 他の人の 投稿の ひろい上げ
           var post = item.post;
           if(!post) return;
-          // 他の人への 返信だけ のぞく（自分の 続き投稿は 残す）
-          if(item.reply){
+          if(item.reply){                         // 他の人への 返信だけ のぞく
             var p = item.reply.parent;
             var pd = p && p.author && p.author.did;
             if(!pd || pd !== (post.author && post.author.did)) return;
           }
-          imagesOf(post).forEach(function(im){
-            grid.appendChild(cell(im));
+          var link = linkOf(post);
+          mediaOf(post).forEach(function(m){
+            if(!m.thumb) return;
+            m.post = link;
+            grid.appendChild(cell(m));
             added++;
           });
         });
@@ -178,22 +221,108 @@
   }
 
   /* ===== 拡大 ===== */
-  function open(i){
-    at = i; show();
-    box.classList.add('on');
-    document.body.style.overflow = 'hidden';
+  function loadHls(){
+    if(hlsReady) return hlsReady;
+    hlsReady = new Promise(function(ok, ng){
+      var s = document.createElement('script');
+      s.src = HLSJS;
+      s.onload = ok;
+      s.onerror = function(){ ng(new Error('hls')); };
+      document.head.appendChild(s);
+    });
+    return hlsReady;
   }
-  function close(){
-    box.classList.remove('on');
-    boxImg.src = '';
-    document.body.style.overflow = '';
+
+  function onVidError(){
+    var m = shots[at];
+    var e = boxVid.error;
+    console.error('[bsky] video element error', e, m && m.playlist);
+    caption('動画を 流せません（code ' + (e ? e.code : '?') + '）', m);
   }
+
+  function stopVideo(){
+    boxVid.removeEventListener('error', onVidError);
+    if(hls){ hls.destroy(); hls = null; }
+    boxVid.pause();
+    boxVid.removeAttribute('src');
+    boxVid.load();
+  }
+
+  // 拡大の 下に 出す 字。うまく いかない ときは わけと 逃げ道も
+  function caption(text, m){
+    cap.textContent = (at + 1) + ' / ' + shots.length;
+    if(text){
+      cap.appendChild(document.createTextNode('　' + text));
+    }
+    if(m && m.kind === 'video' && m.post){
+      var a = document.createElement('a');
+      a.href = m.post; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = 'Bluesky で 見る';
+      cap.appendChild(a);
+    }
+  }
+
+  // その場で 流す 手だて。
+  // Android の Chrome は canPlayType に 「流せる」と 答えて おきながら
+  // じつは 流せない。なので hls.js が 使えるなら そちらを 先に 使う。
+  function nativeHls(){
+    return !!boxVid.canPlayType('application/vnd.apple.mpegurl');
+  }
+  function playNative(m){
+    boxVid.src = m.playlist;
+    boxVid.play().catch(function(){});
+  }
+
+  function playVideo(m){
+    loadHls().then(function(){
+      if(!window.Hls) throw new Error('hls.js を 読めません');
+      if(!window.Hls.isSupported()){
+        if(nativeHls()){ playNative(m); return; }   // 本物の Safari・iOS
+        throw new Error('この ブラウザは 対応外');
+      }
+
+      hls = new window.Hls({ enableWorker: true });
+      hls.on(window.Hls.Events.ERROR, function(_e, d){
+        if(!d || !d.fatal) return;
+        console.error('[bsky] hls error', d);
+        caption('動画を 流せません（' + (d.details || d.type) + '）', m);
+      });
+      hls.loadSource(m.playlist);
+      hls.attachMedia(boxVid);
+      boxVid.play().catch(function(){});
+    }).catch(function(err){
+      // hls.js が 読めなかった ときの 最後の 手だて
+      if(nativeHls()){ playNative(m); return; }
+      console.error('[bsky] video', err, m.playlist);
+      caption(String(err.message || err), m);
+    });
+  }
+
+  function open(i){ at = i; show(); box.classList.add('on');
+    document.body.style.overflow = 'hidden'; }
+  function close(){ stopVideo(); box.classList.remove('on');
+    boxImg.removeAttribute('src'); document.body.style.overflow = ''; }
+
   function show(){
     if(!shots.length) return;
+    stopVideo();
     at = (at + shots.length) % shots.length;
-    boxImg.src = shots[at].src;
-    boxImg.alt = shots[at].alt;
-    cap.textContent = (at + 1) + ' / ' + shots.length;
+    var m = shots[at];
+
+    if(m.kind === 'video' && m.playlist){
+      caption('', m);
+      boxImg.hidden = true;
+      boxVid.hidden = false;
+      boxVid.poster = m.thumb || '';
+      boxVid.addEventListener('error', onVidError);
+      playVideo(m);
+    }else{
+      caption('', m);
+      boxVid.hidden = true;
+      boxImg.hidden = false;
+      boxImg.src = m.full || m.thumb;
+      boxImg.alt = m.alt || '';
+    }
   }
 
   box.addEventListener('click', function(ev){

@@ -2,22 +2,23 @@
    重かったら render/gl.js（WebGL2）に差し替えられるよう、
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
-import { computeAll, cornersOf, drawOrder, isFolder, membersOf,
-         nearestFolder } from '../engine/layer.js?v=263';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=263';
-import { valuesAt } from '../engine/anim.js?v=263';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=263';
+import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
+         nearestFolder } from '../engine/layer.js?v=269';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=269';
+import { liveMasks } from '../engine/mask.js?v=269';
+import { valuesAt } from '../engine/anim.js?v=269';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=269';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=263';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=263';
-import { paintCanvas } from '../engine/paint.js?v=263';
-import { panoCanvas } from '../engine/pano.js?v=263';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=263';
-import { roomCanvas } from '../engine/room.js?v=263';
-import { talkCanvas } from '../engine/talk.js?v=263';
-import { homography, applyH } from '../engine/warp.js?v=263';
-import { drawCamView } from './camview.js?v=263';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=263';
+         meshSizeFor } from '../engine/puppet.js?v=269';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=269';
+import { paintCanvas } from '../engine/paint.js?v=269';
+import { panoCanvas } from '../engine/pano.js?v=269';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=269';
+import { roomCanvas } from '../engine/room.js?v=269';
+import { talkCanvas } from '../engine/talk.js?v=269';
+import { homography, applyH } from '../engine/warp.js?v=269';
+import { drawCamView } from './camview.js?v=269';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=269';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -653,7 +654,7 @@ function flatMesh(w, h){
     if(ballOn(l)) img0 = ballCanvas(l, pose.v, img0, asset.id || asset.name);
     /* ✂ マスクは 絵そのものを 先に ぬく。
        こうすると ゆがみ・ピン・立体の あとにも ついて まわる。 */
-    const img = maskedImage(l, asset, img0);
+    const img = maskedImage(l, asset, img0, pose.v);
     const v = pose.v;
     const alpha = Math.max(0, Math.min(1, v.opacity)) * (mul == null ? 1 : mul);
     if(alpha <= 0) return;
@@ -861,10 +862,11 @@ function flatMesh(w, h){
      まわしても 大きく しても、マスクは 絵に くっついて いく。
      しかも 絵そのものを 先に ぬいて しまう ので、
      ゆがみ・ピン・立体の あとにも ちゃんと ついて まわる。 */
-  let mkA = null, mkB = null;
+  const mkC = [];
   function maskCanvas(which, w, h){
-    let c = which ? mkB : mkA;
-    if(!c){ c = document.createElement('canvas'); which ? (mkB = c) : (mkA = c); }
+    const i = which | 0;
+    let c = mkC[i];
+    if(!c){ c = mkC[i] = document.createElement('canvas'); }
     if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
     const g = c.getContext('2d');
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -875,39 +877,80 @@ function flatMesh(w, h){
     return c;
   }
 
-  const maskOn = (l) => !!(l && l.mask && l.mask.on !== false
-                           && l.mask.pts && l.mask.pts.length >= 3);
+  const maskOn = (l) => liveMasks(l).length > 0;
 
-  /** かこった 形を ぬった 1まい（ぼかしも ここで） */
-  function maskShape(which, w, h, pts, feather){
-    const c = maskCanvas(which, w, h);
-    const g = c.getContext('2d');
-    if(feather > 0.2) g.filter = 'blur(' + feather + 'px)';
+  /** 形を 1つ ぬる（ぼかし・うら返しも ここで） */
+  function fillMask(g, pts, feather, invert, w, h, k){
+    g.save();
+    if(feather > 0.2) g.filter = 'blur(' + (feather * (k || 1)) + 'px)';
+    g.fillStyle = '#000';
+    if(invert){
+      /* うら返し … ぜんぶ ぬってから、形の 中を くりぬく */
+      g.fillRect(-w, -h, w * 3, h * 3);
+      g.globalCompositeOperation = 'destination-out';
+    }
     g.beginPath();
     g.moveTo(pts[0].x, pts[0].y);
     for(let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
     g.closePath();
-    g.fillStyle = '#000';
     g.fill();
-    g.filter = 'none';
+    g.restore();
+  }
+
+  /**
+   * マスク ぜんぶを かさねた 1まい（ぬける ところが すけて いる）。
+   *   ms  … マスクの ならび
+   *   pts … ピンで 動かした 形（無ければ もとの 形）
+   *   tf2 … 形の ざひょうを 紙に うつす ための 行列（フォルダ用）。無ければ そのまま
+   */
+  function maskShapes(which, w, h, ms, pts, tf2, k){
+    const c = maskCanvas(which, w, h);
+    const g = c.getContext('2d');
+    const tmp = maskCanvas(which + 1, w, h);
+    const gt = tmp.getContext('2d');
+
+    ms.forEach((m, i) => {
+      const p = (pts && pts[m._i != null ? m._i : i]) || m.pts;
+      if(!p || p.length < 3) return;
+      gt.setTransform(1, 0, 0, 1, 0, 0);
+      gt.clearRect(0, 0, w, h);
+      if(tf2) gt.setTransform(...tf2);
+      fillMask(gt, p, m.feather || 0, !!m.invert, w, h, k);
+      gt.setTransform(1, 0, 0, 1, 0, 0);
+
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalCompositeOperation = (m.mode === 'sub') ? 'destination-out' : 'source-over';
+      g.drawImage(tmp, 0, 0);
+      g.globalCompositeOperation = 'source-over';
+    });
     return c;
   }
 
   /** 絵を マスクで ぬいた 1まいを かえす（マスクが なければ そのまま） */
-  function maskedImage(l, asset, img){
-    if(!maskOn(l)) return img;
+  function maskedImage(l, asset, img, v){
+    const ms = liveMasks(l);
+    if(!ms.length) return img;
     const w = Math.max(1, Math.round(asset.w)), h = Math.max(1, Math.round(asset.h));
-    const m = l.mask;
-    const key = w + 'x' + h + ':' + (m.invert ? 1 : 0) + ':' + (m.feather || 0)
-              + ':' + m.pts.length + ':' + Math.round(m.pts[0].x) + ',' + Math.round(m.pts[0].y)
-              + ':' + (l._maskSrc === img ? 1 : 0);
+    const pts = (v && v.maskPts) || null;
+
+    /* しまって おいた ものを つかい回す ための 目じるし。
+       形が ピンで 動いて いる ときは 毎コマ 変わる ので、
+       いまの 形の さいしょの 点も 入れて おく。 */
+    let key = w + 'x' + h + ':' + ms.length;
+    ms.forEach((m, i) => {
+      const p = (pts && pts[i]) || m.pts;
+      key += '|' + (m.mode === 'sub' ? 's' : 'a') + (m.invert ? 'i' : '')
+           + ':' + (m.feather || 0) + ':' + p.length
+           + ':' + Math.round(p[0].x) + ',' + Math.round(p[0].y)
+           + ':' + Math.round(p[p.length - 1].x) + ',' + Math.round(p[p.length - 1].y);
+    });
     if(l._maskC && l._maskKey === key && l._maskSrc === img) return l._maskC;
 
-    const sh = maskShape(1, w, h, m.pts, (m.feather || 0));
+    const sh = maskShapes(1, w, h, ms, pts, null, 1);
     const c = maskCanvas(0, w, h);
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0, w, h);
-    g.globalCompositeOperation = m.invert ? 'destination-out' : 'destination-in';
+    g.globalCompositeOperation = 'destination-in';
     g.drawImage(sh, 0, 0);
     g.globalCompositeOperation = 'source-over';
 
@@ -923,6 +966,20 @@ function flatMesh(w, h){
     l._maskKey = key;
     l._maskSrc = img;
     return l._maskC;
+  }
+
+  /* 枠の そとの まくの 色（css から 1回だけ もらう） */
+  let veilCol = null;
+  function outsideVeil(){
+    if(veilCol == null){
+      let v = '';
+      try{
+        v = getComputedStyle(document.documentElement)
+              .getPropertyValue('--outside').trim();
+      }catch(_){}
+      veilCol = v || 'rgba(255,254,247,.72)';
+    }
+    return veilCol;
   }
 
   /* ---------- 魚眼の 紙と 貼り直し ---------- */
@@ -1453,21 +1510,12 @@ function flatMesh(w, h){
     /* フォルダの ✂ マスクは 画面の ざひょう（アフターエフェクトの
        プリコンポに かける マスクと 同じ）。中身は もう まとめて
        ある ので、その紙を ぬくだけ。 */
-    if(maskOn(f)){
+    const fms = liveMasks(f);
+    if(fms.length){
       const gm = c.getContext('2d');
-      const sh = maskCanvas(1, c.width, c.height);
-      const gs = sh.getContext('2d');
-      gs.setTransform(...tf);
-      if((f.mask.feather || 0) > 0.2) gs.filter = 'blur(' + (f.mask.feather * k) + 'px)';
-      gs.beginPath();
-      gs.moveTo(f.mask.pts[0].x, f.mask.pts[0].y);
-      for(let i = 1; i < f.mask.pts.length; i++) gs.lineTo(f.mask.pts[i].x, f.mask.pts[i].y);
-      gs.closePath();
-      gs.fillStyle = '#000';
-      gs.fill();
-      gs.filter = 'none';
+      const sh = maskShapes(1, c.width, c.height, fms, v.maskPts || null, tf, k);
       gm.setTransform(1, 0, 0, 1, 0, 0);
-      gm.globalCompositeOperation = f.mask.invert ? 'destination-out' : 'destination-in';
+      gm.globalCompositeOperation = 'destination-in';
       gm.drawImage(sh, 0, 0);
       gm.globalCompositeOperation = 'source-over';
     }
@@ -1688,6 +1736,107 @@ function flatMesh(w, h){
     return project.layers.filter(l => !nearestFolder(project, l));
   }
 
+  /* ---------- ちょうせいの かみ（AEの 調整レイヤー） ----------
+
+     自分は 見えない。ここまでに 描いた ものへ まとめて
+     色の 調整と ぼかしを かける。
+     かかる ところは この かみの 四角の 中だけ
+     （✂ マスクが あれば その 形の 中だけ）。 */
+  function applyAdjust(g, project, l, pose, tf){
+    const v = pose.v;
+    const k = Math.abs(tf[0]);
+    let f = colorFilter(v);
+    if(v.blur > 0.01) f += ' blur(' + (v.blur * k) + 'px)';
+    f = f.trim();
+    const alpha = Math.max(0, Math.min(1, v.opacity == null ? 1 : v.opacity));
+    if(!f || alpha <= 0.002) return;
+
+    // ① いま までの 絵を 写して、それに 効果を かける
+    const c = alloc(g.canvas), gx = c.getContext('2d');
+    gx.setTransform(1, 0, 0, 1, 0, 0);
+    gx.filter = f;
+    gx.drawImage(g.canvas, 0, 0);
+    gx.filter = 'none';
+
+    // ② この かみの 四角（と マスク）の 中だけ 残す
+    const w = l.pw || project.w, h = l.ph || project.h;
+    const q = cornersOf(l, pose.m, { w, h });
+    gx.save();
+    gx.setTransform(...tf);
+    gx.globalCompositeOperation = 'destination-in';
+    gx.fillStyle = '#000';
+    gx.beginPath();
+    gx.moveTo(q[0].x, q[0].y);
+    for(let i = 1; i < 4; i++) gx.lineTo(q[i].x, q[i].y);
+    gx.closePath();
+    gx.fill();
+    gx.restore();
+
+    // ③ もどす
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = alpha;
+    g.drawImage(c, 0, 0);
+    g.restore();
+    back(1);
+  }
+
+  /* ---------- トラックマット（AEと 同じ、すぐ上の レイヤーで ぬく） ----------
+
+     'alpha'    … 上の 絵が ある ところ だけ のこす
+     'alphaInv' … 上の 絵が ある ところ を 消す
+     'luma'     … 上の 絵の 明るい ところ ほど のこす
+     'lumaInv'  … 上の 絵の 暗い ところ ほど のこす
+     ぬき型に つかった レイヤーは、それじたいは 出さない（AEと 同じ）。 */
+  function matteAlpha(src, kind){
+    const w = src.width, h = src.height;
+    const c = maskCanvas(1, w, h);
+    const g = c.getContext('2d');
+    g.drawImage(src, 0, 0);
+    if(kind === 'alpha') return c;
+
+    const im = g.getImageData(0, 0, w, h);
+    const d = im.data;
+    for(let i = 0; i < d.length; i += 4){
+      let a = d[i + 3];
+      if(kind === 'luma' || kind === 'lumaInv'){
+        // 明るさ（すけて いる ところは 暗い あつかい）
+        const y = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) * (a / 255);
+        a = kind === 'luma' ? y : 255 - y;
+      } else {
+        a = 255 - a;                       // alphaInv
+      }
+      d[i] = d[i + 1] = d[i + 2] = 0;
+      d[i + 3] = a;
+    }
+    g.putImageData(im, 0, 0);
+    return c;
+  }
+
+  /** ぬき型を つかって 1まい 描く */
+  function paintWithMatte(g, project, l, matteL, poses, tf, subPoses){
+    const cM = alloc(g.canvas), cL = alloc(g.canvas);
+    const gM = cM.getContext('2d'), gL = cL.getContext('2d');
+    gM.setTransform(...tf);
+    gL.setTransform(...tf);
+    paintNode(gM, project, matteL, poses, tf, subPoses);
+    paintNode(gL, project, l, poses, tf, subPoses);
+
+    const sh = matteAlpha(cM, l.matte);
+    gL.setTransform(1, 0, 0, 1, 0, 0);
+    gL.globalCompositeOperation = 'destination-in';
+    gL.drawImage(sh, 0, 0);
+    gL.globalCompositeOperation = 'source-over';
+
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.drawImage(cL, 0, 0);
+    g.restore();
+    back(2);
+  }
+
+  const MATTES = ['alpha', 'alphaInv', 'luma', 'lumaInv'];
+
   /**
    * ならんだものを 奥から手前へ描く。
    * クリップは 同じ入れ物の中だけで はたらく。
@@ -1696,13 +1845,35 @@ function flatMesh(w, h){
     const W = canvas.width, H = canvas.height;
     const shown = (l) => l.visible && poses[l.id] && poses[l.id].vis !== false;
 
-    for(const grp of groupLayers(nodes)){
+    /* ぬき型に つかう レイヤーを 先に よけて おく
+       （すぐ 上の 1まい。それじたいは 出さない）。 */
+    const matteOf = {};
+    const usedAsMatte = new Set();
+    for(let i = 1; i < nodes.length; i++){
+      const l = nodes[i];
+      if(!l || MATTES.indexOf(l.matte) < 0) continue;
+      const m = nodes[i - 1];
+      if(!m || usedAsMatte.has(m.id) || MATTES.indexOf(m.matte) >= 0) continue;
+      matteOf[l.id] = m;
+      usedAsMatte.add(m.id);
+    }
+    const list = usedAsMatte.size ? nodes.filter(l => !usedAsMatte.has(l.id)) : nodes;
+
+    /** 1まい 描く（ぬき型・ちょうせい も ここで さばく） */
+    const one = (gg, l) => {
+      if(isAdjust(l)){ applyAdjust(gg, project, l, poses[l.id], tf); return; }
+      const m = matteOf[l.id];
+      if(m && shown(m)) paintWithMatte(gg, project, l, m, poses, tf, subPoses);
+      else paintNode(gg, project, l, poses, tf, subPoses);
+    };
+
+    for(const grp of groupLayers(list)){
       const base = grp.base;
       const drawBase = shown(base);
       const clippers = grp.clippers.filter(shown);
 
       if(!clippers.length){
-        if(drawBase) paintNode(g, project, base, poses, tf, subPoses);
+        if(drawBase) one(g, base);
         continue;
       }
 
@@ -1716,8 +1887,8 @@ function flatMesh(w, h){
       gB.setTransform(...tf);
       gC.setTransform(...tf);
 
-      if(drawBase) paintNode(gB, project, base, poses, tf, subPoses);
-      for(const c of clippers) paintNode(gC, project, c, poses, tf, subPoses);
+      if(drawBase) one(gB, base);
+      for(const c of clippers) one(gC, c);
 
       gC.setTransform(1, 0, 0, 1, 0, 0);
       gC.globalCompositeOperation = 'destination-in';
@@ -1930,7 +2101,11 @@ function flatMesh(w, h){
       const x0 = (0 - view.x) / view.z, y0 = (0 - view.y) / view.z;
       const x1 = (W - view.x) / view.z, y1 = (H - view.y) / view.z;
       ctx.save();
-      ctx.fillStyle = 'rgba(255,254,247,.72)';
+      /* 枠の そとに かける まく。
+         見た目（css）の --outside が あれば その色を つかう
+         ―― 見た目を さしかえた ときに ここだけ 前の 色で
+         のこって しまわない ように。 */
+      ctx.fillStyle = outsideVeil();
       const band = (a, b, c, d) => {
         if(c > a && d > b) ctx.fillRect(a, b, c - a, d - b);
       };

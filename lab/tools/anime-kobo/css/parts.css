@@ -114,6 +114,12 @@
   background:rgba(30,28,20,.45); pointer-events:none;
 }
 #ruler .rtick.big{ height:11px; background:var(--ink); width:1.5px; }
+/* 曲の 拍（音を 読みこむと 出る） */
+#ruler .btick{
+  position:absolute; top:0; width:1px; height:7px;
+  background:rgba(91,127,212,.55); pointer-events:none;
+}
+#ruler .btick.bar{ height:12px; width:2px; background:#5B7FD4; }
 
 /* ---------- タイムラインの行 ---------- */
 .trow{
@@ -224,6 +230,15 @@
   pointer-events:none;
 }
 .loopband.ping{ background:rgba(242,160,184,.5); }
+/* くりかえしを やめる つまみ（帯の 先） */
+.loopoff{
+  position:absolute; top:2px; width:20px; height:20px; padding:0;
+  border:2px solid var(--ink); border-radius:50%;
+  background:var(--paper); color:var(--ink);
+  font-size:11px; line-height:1; text-align:center;
+  transform:translateX(-10px);
+  z-index:3; cursor:pointer;
+}
 .looprest{
   position:absolute; top:3px; bottom:3px;
   background:repeating-linear-gradient(45deg,

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>動画工房</title>
+<link rel="manifest" href="manifest.webmanifest?v=67">
+<link rel="icon" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css?v=67">
+<link rel="stylesheet" href="css/layout.css?v=67">
+<link rel="stylesheet" href="css/parts.css?v=67">
+<!-- 共通の 見た目で つかう 字 -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<!-- はぁにラボ 共通の 見た目（さいごに 読む） -->
+<link rel="stylesheet" href="../skin/soft.css?v=11">
+<link rel="stylesheet" href="css/soft.css?v=67">
+<script type="module" src="../skin/icons.js?v=7"></script>
+</head>
+<body>
+
+<div id="app">
+
+  <div id="top">
+    <button class="name" id="home" title="さくひん えらびに もどる">動画工房</button>
+    <button class="size dot" id="docName" title="さくひんの 名前">むだい</button>
+    <button class="ver dot" id="ver" title="この版の ばんごう。おすと さいしんに します">v?</button>
+    <button class="size dot" id="docSize" title="動画の 大きさ・コマ数・ながさ">—</button>
+    <button class="size dot" id="qBtn" title="作業中の 画質。おすと かるく なります（書き出しは いつも きれい）">画質</button>
+    <span class="spacer"></span>
+    <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
+    <button id="redo" class="btn-sm" title="やりなおし（3本指で たたく）" aria-label="やりなおし" disabled>↷</button>
+    <button id="help" class="btn-sm" title="つかいかた" aria-label="つかいかた">？</button>
+    <button id="fit" class="btn-sm" title="タイムラインを 画面に あわせる" aria-label="画面にあわせる">⤢</button>
+    <button id="export" class="btn-sm btn-g" title="動画に して 書き出す">▶ 書き出す</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="stageCv" width="1280" height="720"></canvas>
+    <div id="drop"><span>ここに 動画・画像・音を おとす</span></div>
+    <button id="shot" title="いまの 絵を PNG で 出す" aria-label="いまの 絵を 出す">📷</button>
+    <div id="modebar" class="overbar" hidden>
+      <span class="dot" id="modeInfo"></span>
+      <button id="modeClose" class="btn-sm btn-g">おわり</button>
+    </div>
+  </div>
+
+  <div id="list">
+    <div id="playbar">
+      <button id="toStart" class="btn-sm" title="さいしょへ" aria-label="さいしょへ">⏮</button>
+      <button id="prevF" class="btn-sm" title="1コマ もどる" aria-label="1コマもどる">◂|</button>
+      <button id="play" class="btn-sm btn-y" title="さいせい" aria-label="さいせい">▶</button>
+      <button id="nextF" class="btn-sm" title="1コマ すすむ" aria-label="1コマすすむ">|▸</button>
+      <button id="toEnd" class="btn-sm" title="おわりへ" aria-label="おわりへ">⏭</button>
+      <button class="tnum dot" id="tnum" title="おして 秒と 小節を きりかえ"><span id="tnow">0.0</span>/<span id="tdur">0.0</span></button>
+      <button id="loop" class="btn-sm" title="えらんだ ところを くりかえす">🔁</button>
+      <span class="spacer"></span>
+      <button id="cut" class="btn-sm btn-y" title="いまの ところで 切る">✂ きる</button>
+      <button id="dup" class="btn-sm" title="ふだを ふやす">⧉</button>
+      <button id="del" class="btn-sm btn-p" title="ふだを けす">🗑</button>
+      <button id="snap" class="btn-sm on" title="ふだの はしに くっつく">🧲</button>
+      <button id="fold" class="btn-sm" title="タイムラインを たたむ" aria-label="たたむ">▾</button>
+    </div>
+
+    <div id="tlbody">
+      <div id="heads">
+        <div class="rhead">
+          <button id="tlOut" title="時間じくを ちぢめる" aria-label="ちぢめる">🔍－</button>
+          <button id="tlIn" title="時間じくを ひろげる" aria-label="ひろげる">🔍＋</button>
+        </div>
+        <div id="headsBody"></div>
+      </div>
+      <div id="scroll">
+        <div id="ruler"><canvas id="rulerCv" height="30"></canvas></div>
+        <div id="lanes">
+          <canvas id="beatCv"></canvas>
+          <div id="loopband"></div>
+          <div id="playhead"></div>
+          <div id="snapline"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tools">
+    <button class="tool" id="tAdd"><i>＋</i>ついか</button>
+    <button class="tool" id="tBin"><i>🗂</i>素材</button>
+    <button class="tool" id="tCut"><i>✂</i>きる</button>
+    <button class="tool" id="tPick"><i>☑</i>えらぶ</button>
+    <button class="tool" id="tText"><i>🅰</i>もじ</button>
+    <button class="tool" id="tLyric"><i>🎵</i>うた</button>
+    <button class="tool" id="tBeat"><i>🥁</i>はやさ</button>
+    <button class="tool" id="tForm"><i>⬛</i>ふだ</button>
+    <button class="tool" id="tMaster"><i>🎛</i>しあげ</button>
+    <button class="tool" id="tTrack"><i>⇳</i>だん</button>
+    <button class="tool" id="tFile"><i>📂</i>さくひん</button>
+  </div>
+
+  <div id="props">
+    <div id="propHead"><span class="title" id="propTtl">せってい</span><span class="spacer" style="flex:1"></span></div>
+    <div id="propBody"></div>
+  </div>
+</div>
+
+<div id="sheetBack"></div>
+<div id="sheet" role="dialog" aria-label="せってい"></div>
+
+<div id="busy"><div class="card">
+  <b id="busyMsg">書き出しています</b>
+  <div class="bar"><span id="busyFill"></span></div>
+  <span id="busyPct" class="dot">0%</span>
+  <button id="busyCancel" class="btn-sm">やめる</button>
+</div></div>
+
+<div id="start"></div>
+
+<!-- うまく 立ち上がらなかった ときの 知らせ。
+     中の ファイルが 新しいのと 古いので 混ざると ここに 出る。
+     「読みこみ直す」で ためこんだ ものを 捨てて 取り直す。 -->
+<div id="deadman"><div>
+  <b>うまく 読みこめませんでした</b>
+  <p id="deadwhy"></p>
+  <button id="deadfix" type="button">🔄 読みこみ直す</button>
+  <button id="deadhide" type="button">とじる</button>
+</div></div>
+<script>
+(function () {
+  var ok = false, shown = false;
+  window.__ready = function () {
+    ok = true;
+    var d = document.getElementById('deadman');
+    if (d) d.style.display = 'none';
+  };
+  function show(why) {
+    if (ok || shown) return;
+    shown = true;
+    var t = String(why || '').trim();
+    if (!t || t === 'Script error.') {
+      t = '中の ファイルが 前の ままに なって いる ようです。下の ボタンで 取り直すと 直ります。';
+    }
+    var d = document.getElementById('deadman');
+    var w = document.getElementById('deadwhy');
+    if (w) w.textContent = t.slice(0, 300);
+    if (d) d.style.display = 'flex';
+  }
+  window.addEventListener('error', function (e) {
+    var m = e && e.message;
+    if (!m && e && e.target && e.target.tagName === 'SCRIPT') {
+      m = '中の ファイルが 読めませんでした（' + String(e.target.src || '').split('/').pop() + '）';
+    }
+    show(m);
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) {
+    show(e && e.reason && (e.reason.message || e.reason));
+  });
+  setTimeout(function () { show('じかんが かかりすぎました'); }, 8000);
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var fix = document.getElementById('deadfix');
+    var hide = document.getElementById('deadhide');
+    if (hide) hide.onclick = function () { document.getElementById('deadman').style.display = 'none'; };
+    if (fix) fix.onclick = function () {
+      fix.textContent = 'かたづけ中…';
+      var jobs = [];
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.unregister(); }));
+        }));
+      }
+      if (window.caches && caches.keys) {
+        jobs.push(caches.keys().then(function (ks) {
+          return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+        }));
+      }
+      Promise.all(jobs).catch(function () {}).then(function () {
+        location.replace(location.pathname + '?r=' + Date.now());
+      });
+    };
+  });
+})();
+</script>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<input type="file" id="file" multiple hidden>
+<!-- Android の ファイル選びは accept の 拡張子を 見ない ことが ある ので しぼりこまない -->
+<input type="file" id="fileProj" hidden>
+<input type="file" id="fileSwap" hidden>
+<input type="file" id="filePack" hidden>
+<input type="file" id="fileFont" hidden>
+
+<script src="lib/mp4-muxer.js?v=67"></script>
+<script src="lib/jizura-engine.js?v=67"></script>
+<script type="module" src="js/main.js?v=67"></script>
+</body>
+</html>

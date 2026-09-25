@@ -1,24 +1,52 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=263';
-import { cleanPath } from '../engine/path.js?v=263';
+import { M, clamp } from '../engine/math.js?v=269';
+import { cleanPath } from '../engine/path.js?v=269';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=263';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=263';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=263';
+         keepChildren, cornersOf } from '../engine/layer.js?v=269';
+import { liveMasks } from '../engine/mask.js?v=269';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=269';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=269';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=263';
-import { createRenderer } from '../render/renderer.js?v=263';
-import { attachInput } from './input.js?v=263';
-import { newStroke, paintDirty } from '../engine/paint.js?v=263';
+         bendChain } from '../engine/puppet.js?v=269';
+import { createRenderer } from '../render/renderer.js?v=269';
+import { attachInput } from './input.js?v=269';
+import { newStroke, paintDirty } from '../engine/paint.js?v=269';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=263';
+         copyPts, setPts } from '../engine/warp.js?v=269';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=263';
-import { inCamView } from '../render/camview.js?v=263';
-import { ORBIT_MAX } from '../engine/camera.js?v=263';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=269';
+import { inCamView } from '../render/camview.js?v=269';
+import { ORBIT_MAX } from '../engine/camera.js?v=269';
+
+/* ---- 作業中の 画質 ----
+   絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
+   作って いる あいだだけ 小さく 描いて、画面で ひきのばす。
+   書き出す ときは 作品の 大きさで 焼くので、ここは 関係ない。 */
+export const QUAL = [
+  [1, 'きれい'], [0.75, 'ふつう'], [0.55, 'かるい'], [0.4, 'とても かるい']
+];
+const QKEY = 'anime-kobo.quality';
+let qual = 1;
+try{
+  const v = parseFloat(localStorage.getItem(QKEY));
+  if(v > 0.2 && v <= 1) qual = v;
+}catch(e){}
+export const quality = () => qual;
+export function setQuality(v){
+  qual = Math.min(1, Math.max(0.3, +v || 1));
+  try{ localStorage.setItem(QKEY, String(qual)); }catch(e){}
+}
+export function qualName(){
+  const hit = QUAL.find(x => Math.abs(x[0] - qual) < .02);
+  return hit ? hit[1] : 'きれい';
+}
+export function nextQuality(){
+  const i = QUAL.findIndex(x => Math.abs(x[0] - qual) < .02);
+  return QUAL[(i + 1 + QUAL.length) % QUAL.length][0];
+}
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -43,7 +71,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   /* ---- 画面と座標 ---- */
   function resize(){
     const r = host.getBoundingClientRect();
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, 2) * quality();
     canvas.width = Math.max(1, Math.round(r.width * dpr));
     canvas.height = Math.max(1, Math.round(r.height * dpr));
     canvas.style.width = r.width + 'px';
@@ -63,7 +91,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   });
 
   /* のぞき窓（右上の カメラの 小さい 図）を いま さわれるか。
-     お絵かき中・ゆがみ中 などは 出して いない ので さわれない。 */
+     ペイント中・ワープ中 などは 出して いない ので さわれない。 */
   function camWidget(){
     if(S.paintMode || S.warpMode || S.traceMode || S.pinMode) return null;
     return camOf(S.proj, S.time);
@@ -75,7 +103,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   /** 板を たおせる かぎり。真横まで 行くと 線に なって 見えなく なる */
   const TILT_MAX = 80;
 
-  /** カメラの ズームの かぎり（せっていの スライダーと そろえる） */
+  /** カメラの ズームの かぎり（設定の スライダーと そろえる） */
   const CAM_Z_MIN = 0.2, CAM_Z_MAX = 4;
 
   /* ホイールで 引き・アップ。
@@ -102,7 +130,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       drawPuppet(l);
       handles = null;                 // ピンモード中は枠のハンドルを出さない
     } else if(S.traceMode || S.paintMode || S.warpMode){
-      handles = null;                 // なぞり中・おえかき中も 枠は 出さない
+      handles = null;                 // なぞり中・ペイント中も 枠は 出さない
     } else {
       handles = l && l.visible ? R.drawSelection(S.proj, l, poses, S.view) : null;
     }
@@ -114,16 +142,16 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     /* カメラが ある あいだは、そとから 見た 図を すみに 出す。
        ここを なぞると カメラが まわりこむ ので、
        カメラの 行を えらんで いなくても つかえる ように して ある。
-       （お絵かき中・ゆがみ中 は 絵の じゃまに なる ので 出さない） */
+       （ペイント中・ワープ中 は 絵の じゃまに なる ので 出さない） */
     if(camWidget()) R.camView(S.proj, S.time, l ? l.id : null);
   }
 
   /* ---------- 🎥 カメラの みち ----------
 
-     カメラは 絵に 出ない ので、ピンを うっても
+     カメラは 絵に 出ない ので、キーフレームを うっても
      「どこを どう 通るのか」が まったく 見えなかった。
-     えらんで いる あいだ、通り道と ピンの 点を 出す。
-     点は つまんで 動かせる（ピンの 場所を 直に なおせる）。
+     えらんで いる あいだ、通り道と キーフレームの 点を 出す。
+     点は つまんで 動かせる（キーフレームの 場所を 直に なおせる）。
 
      出す のは よこ・たての 通り道。前後（ドリー）は
      右上の のぞき窓の ほうで 見える。 */
@@ -164,7 +192,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     ctx.lineWidth = 2.5 / z; ctx.strokeStyle = '#E1DD60'; ctx.stroke();
     ctx.setLineDash([]);
 
-    // ピンの 点。いまの 時こくに いちばん 近い ものは 大きく
+    // キーフレームの 点。いまの 時こくに いちばん 近い ものは 大きく
     const ts = camPinTimes(cam);
     ts.forEach(t => {
       const v = valuesAt(cam, t);
@@ -201,39 +229,44 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   /* えらんで いる レイヤーの ✂ マスクの 形を 点線で 出す。
      出して おかないと、どこを ぬいたのか あとで わからない。 */
   function drawMask(l){
-    const m = l.mask;
-    if(!m || m.on === false || !m.pts || m.pts.length < 3) return;
+    const ms = liveMasks(l);
+    if(!ms.length) return;
     const pose = poses[l.id];
     if(!pose) return;
-
-    let pts;
-    if(isFolder(l)){
-      pts = m.pts;                                  // 画面の ざひょう そのまま
-    } else {
-      const a = frameAsset(l, pose.v.frame);
-      if(!a) return;
-      const pvx = (l.pivot && l.pivot.x != null) ? l.pivot.x : 0.5;
-      const pvy = (l.pivot && l.pivot.y != null) ? l.pivot.y : 0.5;
-      pts = m.pts.map(p => M.apply(pose.m, p.x - a.w * pvx, p.y - a.h * pvy));
-    }
+    const anim = pose.v.maskPts || null;
 
     const ctx = R.ctx, z = S.view.z;
-    ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    ctx.closePath();
-    ctx.setLineDash([8 / z, 6 / z]);
-    ctx.lineWidth = 3 / z;
-    ctx.strokeStyle = 'rgba(255,254,247,.9)';
-    ctx.stroke();
-    ctx.lineWidth = 1.5 / z;
-    ctx.strokeStyle = '#5B7FD4';
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ms.forEach((m, mi) => {
+      const src = (anim && anim[mi]) || m.pts;
+      let pts;
+      if(isFolder(l)){
+        pts = src;                                  // 画面の ざひょう そのまま
+      } else {
+        const a = frameAsset(l, pose.v.frame);
+        if(!a) return;
+        const pvx = (l.pivot && l.pivot.x != null) ? l.pivot.x : 0.5;
+        const pvy = (l.pivot && l.pivot.y != null) ? l.pivot.y : 0.5;
+        pts = src.map(p => M.apply(pose.m, p.x - a.w * pvx, p.y - a.h * pvy));
+      }
+
+      ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.setLineDash([8 / z, 6 / z]);
+      ctx.lineWidth = 3 / z;
+      ctx.strokeStyle = 'rgba(255,254,247,.9)';
+      ctx.stroke();
+      ctx.lineWidth = 1.5 / z;
+      // ぬく マスクは 赤っぽく（たす ものと 見わけ が つくように）
+      ctx.strokeStyle = (m.mode === 'sub') ? '#D45B7F' : '#5B7FD4';
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
   }
 
-  /* ---------- ゆがみ・自由変形の かご ---------- */
+  /* ---------- ワープ・自由変形の かご ---------- */
   /** 筆の 太さ（絵の中の ドット） */
   function brushR(l){
     const cg = l.cage;
@@ -254,7 +287,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     const pose = poses[l.id] || livePoses()[l.id];
     if(!pose) return;
     const ctx = R.ctx;
-    /* ピンが うって あれば その 時こくの 形を 出す */
+    /* キーフレームが うって あれば その 時こくの 形を 出す */
     const cg = (pose.v.cagePts && S.warpDrag !== l.id)
       ? { w:l.cage.w, h:l.cage.h, cols:l.cage.cols, rows:l.cage.rows, pts: pose.v.cagePts }
       : l.cage;
@@ -450,7 +483,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     ctx.restore();
   }
 
-  /** ピンモード中の見た目：あみと、刺さっているピン */
+  /** ピンモード中の見た目：あみと、刺さっているパペットピン */
   function drawPuppet(l){
     const pose = poses[l.id]; if(!pose) return;
     const folder = isFolder(l);
@@ -459,7 +492,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     const ctx = R.ctx, z = S.view.z;
     const v = valuesAt(l, S.time);
 
-    /* ピンが 1本も 無いときは 何も 出ないので、どこを おせば よいか
+    /* パペットピンが 1本も 無いときは 何も 出ないので、どこを おせば よいか
        分からなかった。絵の わくを 点線で 出しておく。
        （フォルダは キャンバス ぜんたいが 絵） */
     ctx.save();
@@ -567,8 +600,8 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     const p = M.apply(inv, cp.x, cp.y);
     /* あみで ゆがめても、レイヤーの 中の ものさしは 変わらない。
        ゆがんだ 絵は「同じ ものさしの ちがう 場所」に 出ているだけ なので、
-       ここで 出る 数は そのまま ピンに つかえる
-       （ピンは ゆがめた あとの 形に ささる）。 */
+       ここで 出る 数は そのまま キーフレームに つかえる
+       （パペットピンは ゆがめた あとの 形に ささる）。 */
     return { x: p.x + asset.w * l.pivot.x, y: p.y + asset.h * l.pivot.y };
   }
 
@@ -581,13 +614,13 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     return M.apply(pose.m, ip.x - asset.w * l.pivot.x, ip.y - asset.h * l.pivot.y);
   }
 
-  /** ピンを刺すとき、まだあみが無ければ張る */
+  /** パペットピンを刺すとき、まだあみが無ければ張る */
   function ensureMesh(l){
     if(l.mesh) return true;
     if(isFolder(l)){
       /* フォルダは 絵を 持たないので、キャンバス ぜんたいを
          1まいの 絵と みなして あみを 張る。
-         ピンの ものさしは キャンバスの ドット。 */
+         パペットピンの ものさしは キャンバスの ドット。 */
       const long = Math.max(S.proj.w, S.proj.h);
       const n = 16;
       const cols = Math.max(2, Math.round(n * S.proj.w / long));
@@ -611,7 +644,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     return true;
   }
 
-  /** いま指の下にあるピン（画面上の距離で判定） */
+  /** いま指の下にあるキーフレーム（画面上の距離で判定） */
   function pickPin(l, pose, cp){
     if(!l.pins || !l.pins.length) return -1;
     const v = valuesAt(l, S.time);
@@ -638,7 +671,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     const i = pickPin(l, pose, cp);
     if(S.pinKind === 'del'){
       if(i < 0) return;
-      edit('ピンをけす', () => {
+      edit('キーフレームを削除', () => {
         const pin = l.pins[i];
         delete (l.tracks || {})[pinChX(pin.id)];
         delete (l.tracks || {})[pinChY(pin.id)];
@@ -650,7 +683,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       onChange();
       return;
     }
-    // 「かんせつ」でピンをおすと、そこが カクッと折れるように なる／もどる
+    // 「かんせつ」でパペットピンをおすと、そこが カクッと折れるように なる／もどる
     if(i >= 0 && S.pinKind === 'joint'){
       const pin = l.pins[i];
       edit(pin.joint ? 'かんせつを やめる' : 'かんせつにする', () => {
@@ -662,7 +695,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       onChange();
       return;
     }
-    if(i >= 0){ S.pinSel = i; onChange(); return; }   // すでにあるピンを選ぶだけ
+    if(i >= 0){ S.pinSel = i; onChange(); return; }   // すでにあるキーフレームを選ぶだけ
 
     const ip = toImage(l, pose, cp);
     if(!ip) return;
@@ -675,16 +708,16 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     }
     if(!ensureMesh(l)) return toast('絵を よみこみ中です');
 
-    edit('ピンをさす', () => {
+    edit('パペットピンをさす', () => {
       l.pins.push(newPin(ip.x, ip.y,
         S.pinKind === 'fix' ? 'fix' : 'move',
         S.pinKind === 'joint'));
       l.mesh.dirty = true;
     });
     S.pinSel = l.pins.length - 1;
-    toast(S.pinKind === 'fix'   ? 'とめるピンを さしました'
-        : S.pinKind === 'joint' ? 'かんせつピンを さしました（ここで折れる）'
-        : 'うごかすピンを さしました');
+    toast(S.pinKind === 'fix'   ? 'とめるパペットピンを さしました'
+        : S.pinKind === 'joint' ? 'かんせつパペットピンを さしました（ここで折れる）'
+        : 'うごかすパペットピンを さしました');
     onChange();
   }
 
@@ -721,7 +754,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     const dy = m.b * dax + m.d * day;
 
     /* じくを ずらすと レイヤーの位置も ずらして 見た目を止める。
-       ・うごきのピンが あるときは ピン ぜんぶを 同じだけ ずらす
+       ・うごきのキーフレームが あるときは キーフレーム ぜんぶを 同じだけ ずらす
          （いまの時間だけ 直すと、ほかの 時間で 場所が とぶ）
        ・子レイヤーは 親の場所を もとにしているので、
          いまの見た目を おぼえて あとで つじつまを合わせる */
@@ -748,8 +781,8 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     });
   }
 
-  /* 動かしている最中も見た目が追いつくように、ピンがあるレイヤーは
-     そのチャンネルのピンをいまの時間に置きながら動かす */
+  /* 動かしている最中も見た目が追いつくように、キーフレームがあるレイヤーは
+     そのチャンネルのキーフレームをいまの時間に置きながら動かす */
   function liveKey(l, chs){
     if(!l || !hasPins(l)) return;
     chs.forEach(c => setPin(l, c, S.time, l[c], 'smooth'));
@@ -761,15 +794,15 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       const cp = toCanvas(p);
       if(S.traceMode) return;             // なぞり中は 選択を 変えない
       if(S.pinMode) return;               // ピンモード中は選択を変えない
-      if(S.paintMode) return;             // おえかき中も 変えない
-      if(S.warpMode) return;              // ゆがみ中も 変えない
+      if(S.paintMode) return;             // ペイント中も 変えない
+      if(S.warpMode) return;              // ワープ中も 変えない
       if(hitHandle(cp)) return;           // ハンドルはドラッグ開始時に処理する
       const hit = pickPreferSelected(cp, livePoses());
       if(hit && hit.id !== S.sel){ S.sel = hit.id; onChange(); }
     },
 
     /* 2本指トン＝もどす、3本指トン＝やりなおし。
-       絵の上なら どこでも きく（お絵かき中・ゆがみ中 も おなじ）。 */
+       絵の上なら どこでも きく（ペイント中・ワープ中 も おなじ）。 */
     onMultiTap(n){
       if(onGesture) onGesture(n);
     },
@@ -798,7 +831,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       if(isCam(l) && !onCamWidget(p)){
         const t = hitCamPin(l, cp);
         if(t != null){
-          beginEdit('カメラの ピンを うごかす');
+          beginEdit('カメラの キーフレームを うごかす');
           const v0 = valuesAt(l, t);
           drag = { kind:'campin', l, t, cp0: cp, x0: v0.x, y0: v0.y };
           return;
@@ -812,7 +845,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         return;
       }
 
-      /* ゆがみ・自由変形。あみの目を つまんで 動かす。 */
+      /* ワープ・自由変形。あみの目を つまんで 動かす。 */
       if(S.warpMode === 'lock'){
         if(!l || !l.cage){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
         const ip = toImage(l, P[l.id], cp);
@@ -833,24 +866,24 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         const k = pickCagePoint(l, cp, S.warpMode === 'free');
         if(k < 0){ drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p }; return; }
         S.warpSel = k;
-        beginEdit(S.warpMode === 'free' ? '自由変形' : 'ゆがみ');
-        /* ピンが うって あれば、いま 見えている 形から いじる
+        beginEdit(S.warpMode === 'free' ? '自由変形' : 'ワープ');
+        /* キーフレームが うって あれば、いま 見えている 形から いじる
            （そうしないと 前の 形に もどって しまう） */
         if(cageHasKeys(l)) cageToTime(l, P[l.id] && P[l.id].v.cagePts);
         /* 引っぱって いる あいだは かごの 形を そのまま 見せる。
-           （ピンから 読むと、まだ 書いて いない ぶんが もどって しまう） */
+           （キーフレームから 読むと、まだ 書いて いない ぶんが もどって しまう） */
         S.warpDrag = l.id;
         drag = { kind:'cage', l, k, quad0: quadOf(l.cage) };
         onChange();
         return;
       }
 
-      /* お絵かき。えらんでいる おえかきレイヤーの 紙に 線を ひく。
+      /* ペイント。えらんでいる ペイントレイヤーの 紙に 線を ひく。
          レイヤーの 中の ざひょうで おぼえるので、
          あとから レイヤーを 動かしても 絵は ついてくる。 */
       if(S.paintMode){
         if(!l || l.kind !== 'paint'){
-          toast('おえかきレイヤーを えらんでね');
+          toast('ペイントレイヤーを えらんでね');
           drag = { kind:'pan', vx:S.view.x, vy:S.view.y, p0:p };
           return;
         }
@@ -893,7 +926,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         const i = pickPin(l, P[l.id], cp);
         if(i >= 0 && S.pinKind !== 'del'){
           S.pinSel = i;
-          beginEdit('ピンをうごかす');
+          beginEdit('キーフレームをうごかす');
           const pin = l.pins[i];
           const v = valuesAt(l, S.time).pins[i] || pin;
           const vv = valuesAt(l, S.time);
@@ -903,7 +936,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
                      const s = vv.pins[k] || p;
                      return { dx: s.dx, dy: s.dy };
                    }) };
-          // 曲げの計算はピンの現在値を見るので、いまの時間の値に合わせておく
+          // 曲げの計算はパペットピンの現在値を見るので、いまの時間の値に合わせておく
           l.pins.forEach((p, k) => { const s = vv.pins[k] || p; p.dx = s.dx; p.dy = s.dy; });
           onChange();
           return;
@@ -976,13 +1009,13 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         const pin = l.pins[drag.i];
 
         if(pin.type === 'fix'){
-          // とめるピンは支点なので、刺す場所そのものを動かす
+          // とめるパペットピンは支点なので、刺す場所そのものを動かす
           const ddx = ip.x - drag.ip0.x, ddy = ip.y - drag.ip0.y;
           pin.u = drag.u0 + ddx;
           pin.v = drag.v0 + ddy;
           if(l.mesh) l.mesh.dirty = true;
         } else {
-          // 骨を曲げる。支点より先のピンがぜんぶ付いてくる
+          // 骨を曲げる。支点より先のパペットピンがぜんぶ付いてくる
           l.pins.forEach((p, k) => { p.dx = drag.snap[k].dx; p.dy = drag.snap[k].dy; });
           bendChain(l.pins, drag.i, ip.x, ip.y);
           if(hasPins(l)){
@@ -1025,7 +1058,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         } else {
           movePoint(l.cage, drag.k, ip.x, ip.y, S.warpSoft);
         }
-        /* ここでは ピンを 書かない。
+        /* ここでは パペットピンを 書かない。
            あみの目は 3×3 でも 32本、8×8だと 162本 ある。
            指を うごかす たびに ぜんぶ 書き直すと 重くて
            止まって しまう。書くのは 指を はなした とき 1回だけ。 */
@@ -1078,7 +1111,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         setPin(l, 'x', drag.t, nx, 'smooth');
         setPin(l, 'y', drag.t, ny, 'smooth');
         /* いま その 時こくを 見て いるなら、素の 姿も そろえて おく
-           （ピンが 1本も 無い ところで 見た目が とばない ように） */
+           （パペットピンが 1本も 無い ところで 見た目が とばない ように） */
         if(Math.abs(drag.t - S.time) < 0.05){ l.x = nx; l.y = ny; }
         onChange();
         return;
@@ -1177,7 +1210,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         const l = drag.l;
         drag = null;
         S.warpDrag = null;
-        // ピンが うって あれば、いまの 時こくの ピンに する
+        // キーフレームが うって あれば、いまの 時こくの キーフレームに する
         if(cageHasKeys(l)) cageKeys(l, S.time);
         commitEdit();
         onChange();
@@ -1195,8 +1228,8 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       }
       if(drag && (drag.kind === 'puppet' || drag.kind === 'anchor')){ commitEdit(); drag = null; return; }
       if(drag && drag.kind !== 'pan'){
-        /* すでにピンが打たれているレイヤーなら、動かした結果を
-           いまの時間のピンとして残す（ピンが1つも無いうちは素の位置を変えるだけ）。 */
+        /* すでにキーフレームが打たれているレイヤーなら、動かした結果を
+           いまの時間のキーフレームとして残す（キーフレームが1つも無いうちは素の位置を変えるだけ）。 */
         const l = drag.l;
         if(l && hasPins(l)){
           const chs = drag.kind === 'campin' ? []
@@ -1225,7 +1258,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
 
       viewStart = { ...S.view, cx: g.cx, cy: g.cy, d: g.d };
 
-      /* ゆがみ中 で、筆で なぞった かたまりが あれば、
+      /* ワープ中 で、筆で なぞった かたまりが あれば、
          2本指は 画面では なく かたまりを うごかす。
          くいっと まわす・大きく する・ずらす が できる。 */
       const l = selected();
@@ -1327,7 +1360,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
       if(pinchCam){
         const cam = pinchCam.cam;
         pinchCam = null;
-        // すでに ピンが うって あれば、いまの 時こくに 残す
+        // すでに キーフレームが うって あれば、いまの 時こくに 残す
         if(hasPins(cam)) ['scaleX', 'scaleY'].forEach(
           c => setPin(cam, c, S.time, cam[c], 'smooth'));
         commitEdit();

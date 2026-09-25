@@ -1,0 +1,10 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SND test</title>
+<style>body{font-family:sans-serif;padding:12px}button{margin:3px;padding:6px 10px}</style></head><body>
+<h3>SE</h3><div id="se"></div><h3>BGM</h3><div id="bgm"></div>
+<p><button onclick="SND.stopBgm()">stop</button> bgm <input type="range" min="0" max="1" step="0.05" value="0.5" oninput="SND.setVolume({bgm:+this.value})"> se <input type="range" min="0" max="1" step="0.05" value="0.7" oninput="SND.setVolume({se:+this.value})"></p>
+<script src="js/audio.js"></script>
+<script>
+document.addEventListener('pointerdown',function(){SND.init()},{once:true});
+SND.list.se.forEach(function(n){var b=document.createElement('button');b.textContent=n;b.onclick=function(){SND.init();SND.se(n)};document.getElementById('se').appendChild(b)});
+SND.list.bgm.forEach(function(n){var b=document.createElement('button');b.textContent=n;b.onclick=function(){SND.init();SND.bgm(n)};document.getElementById('bgm').appendChild(b)});
+</script></body></html>

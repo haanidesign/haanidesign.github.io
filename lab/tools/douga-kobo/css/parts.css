@@ -1,0 +1,242 @@
+/* ---------- 道具ボタン ---------- */
+.tool{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:.1rem;
+  min-height:var(--tap);
+  padding:.25rem .2rem;
+  font-size:.58rem; line-height:1.25;
+  border-radius:11px;
+}
+.tool i{ font-style:normal; font-size:1.3rem; line-height:1.1; }
+
+/* ---------- 素材だな（下から出る幕の中） ---------- */
+.binlist{ display:flex; flex-wrap:wrap; gap:.4rem; }
+.mitem{
+  display:flex; flex-direction:column; align-items:stretch; gap:.15rem;
+  width:118px; padding:.25rem;
+  background:var(--paper); border:var(--bd2); border-radius:10px;
+  box-shadow:0 2.5px 0 var(--ink);
+}
+.mitem canvas, .mitem .ic{
+  width:100%; height:62px; border:var(--bd2); border-radius:7px;
+  background:var(--cream); display:flex; align-items:center; justify-content:center;
+  font-size:1.6rem;
+}
+.mitem .nm{
+  font-size:.58rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.mitem .sub{ font-size:.54rem; color:var(--gray); }
+.mitem button{ min-height:34px; font-size:.64rem; padding:.1rem .3rem; }
+
+/* ---------- タイムライン ---------- */
+.thead{
+  height:var(--lane-h);
+  border-bottom:var(--bd2);
+  display:flex; align-items:center; gap:.25rem;
+  padding:0 .3rem;
+}
+.thead.sel{ background:var(--main-soft); }
+.thead .ic{ font-size:1rem; flex:0 0 auto; }
+.thead .nm{
+  flex:1; min-width:0; font-size:.64rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.thead .tb{
+  flex:0 0 auto; min-height:30px; min-width:28px;
+  padding:0; font-size:.72rem; border-radius:8px; box-shadow:0 2px 0 var(--ink);
+}
+.thead .tb.off{ background:var(--pink); }
+
+.lane{
+  height:var(--lane-h);
+  border-bottom:var(--bd2);
+  position:relative;
+  background-image:radial-gradient(circle, rgba(30,28,20,.10) 1.2px, transparent 1.3px);
+  background-size:14px 14px;
+}
+.lane.audio{ background-color:#f6f4e2; }
+.lane.text{ background-color:#fdf4f7; }
+.lane.off{ opacity:.45; }
+
+.laneempty{
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  font-size:.6rem; font-weight:400; color:var(--gray); pointer-events:none;
+}
+.clip{
+  position:absolute; top:5px; height:calc(var(--lane-h) - 12px);
+  background:var(--paper); border:var(--bd2); border-radius:9px;
+  box-shadow:0 2.5px 0 var(--ink);
+  overflow:hidden; display:flex; flex-direction:column;
+  touch-action:none;
+}
+.clip.audio{ background:#eceabf; }
+.clip.text{ background:#fbe2ea; }
+.clip.sel{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px); }
+.clip .nm{
+  flex:0 0 auto; font-size:.58rem; padding:0 .3rem;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  border-bottom:2px solid rgba(30,28,20,.25);
+  background:rgba(255,254,247,.55);
+}
+.clip .body{ flex:1; position:relative; overflow:hidden; }
+.clip .body canvas{ position:absolute; inset:0; width:100%; height:100%; }
+.clip .fade{ position:absolute; top:0; bottom:0; background:rgba(30,28,20,.22); pointer-events:none; }
+
+/* つまみは 指で つかめる はば。本体の ふち に かぶせる */
+.grip{
+  position:absolute; top:0; bottom:0; width:18px; z-index:3;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(30,28,20,.10);
+}
+.grip::before{
+  content:''; width:4px; height:40%;
+  background:var(--ink); border-radius:100px; opacity:.55;
+}
+.grip.l{ left:0; border-right:2px solid rgba(30,28,20,.25); }
+.grip.r{ right:0; border-left:2px solid rgba(30,28,20,.25); }
+.clip.sel .grip{ background:rgba(30,28,20,.2); }
+
+#loopband{
+  position:absolute; top:0; background:rgba(122,196,160,.28);
+  border-left:3px solid var(--mint); border-right:3px solid var(--mint);
+  z-index:2; pointer-events:none; display:none;
+}
+#shot{
+  position:absolute; left:10px; bottom:10px; z-index:4;
+  min-width:44px; min-height:44px; padding:0; font-size:1.1rem; border-radius:12px;
+}
+#beatCv{ position:absolute; left:0; top:0; z-index:1; pointer-events:none; }
+#playhead{
+  position:absolute; top:0; bottom:0; width:3px;
+  background:var(--pink); z-index:8; pointer-events:none;
+  box-shadow:0 0 0 1px rgba(30,28,20,.45);
+}
+#playhead::before{
+  content:''; position:absolute; top:0; left:-9px;
+  width:21px; height:15px;
+  background:var(--pink); border:var(--bd2); border-radius:0 0 7px 7px;
+}
+#snapline{ position:absolute; top:0; bottom:0; width:2px; background:var(--ink); z-index:7; display:none; }
+
+.tnum{
+  font-size:.8rem; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.1rem .7rem; flex:0 0 auto;
+}
+
+/* ---------- せってい の 中身 ---------- */
+.pgroup{ margin-bottom:.7rem; }
+.pgroup > .title{ margin-bottom:.3rem; }
+.row{ display:flex; align-items:center; gap:.4rem; margin-bottom:.3rem; }
+.row > label{ flex:0 0 68px; font-size:.64rem; color:#5c5843; }
+.row > .val{ flex:0 0 46px; text-align:right; font-size:.62rem; }
+.row input[type=range]{ flex:1; width:auto; }
+.row .grid{ display:flex; flex-wrap:wrap; gap:.25rem; flex:1; }
+.row .grid button{ min-height:36px; font-size:.66rem; padding:.1rem .5rem; box-shadow:0 2.5px 0 var(--ink); }
+.empty{ font-size:.68rem; font-weight:400; color:var(--gray); text-align:center; padding:1.6rem .6rem; }
+.sheet-ttl{ display:flex; align-items:center; gap:.4rem; margin-bottom:.5rem; }
+.sheet-ttl .spacer{ flex:1; }
+kbd{
+  font-family:'DotGothic16',monospace; font-size:.66rem; background:var(--paper);
+  border:var(--bd2); border-radius:5px; padding:0 .3rem; box-shadow:0 2px 0 var(--ink);
+}
+.doc h3{ font-size:.78rem; margin:.7rem 0 .25rem; }
+.doc p, .doc li{ font-size:.7rem; font-weight:400; line-height:1.8; color:#3b3828; }
+.doc ul{ padding-left:1.2rem; }
+
+/* ---------- はじめの 画面 ---------- */
+#start{
+  position:fixed; inset:0; z-index:70; display:none;
+  background:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;
+  overflow-y:auto;
+  padding:calc(1rem + var(--safe-t)) 1rem calc(1rem + var(--safe-b));
+}
+#start.on{ display:block; }
+.startcard{
+  max-width:620px; margin:0 auto;
+  background:var(--paper); border:var(--bd); border-radius:18px;
+  box-shadow:0 5px 0 var(--ink); padding:1rem 1.1rem 1.2rem;
+}
+.startcard h1{ font-size:1.05rem; margin:.6rem 0 .2rem; }
+.startcard h1:first-child{ margin-top:0; }
+.startcard .sub{ font-size:.68rem; font-weight:400; color:#5c5843; margin-bottom:.6rem; }
+.docs{ display:flex; flex-direction:column; gap:.45rem; margin-bottom:.9rem; }
+.docitem{ display:flex; gap:.45rem; align-items:stretch; }
+.docopen{
+  flex:1; display:flex; align-items:center; gap:.55rem;
+  background:var(--mint); border:var(--bd); border-radius:12px;
+  box-shadow:0 3px 0 var(--ink); padding:.4rem .5rem; min-height:60px;
+  text-align:left; justify-content:flex-start;
+}
+.docopen:hover{ background:#8fd4b2; }
+.docopen img{
+  width:48px; height:48px; flex:0 0 auto; object-fit:cover;
+  border:var(--bd2); border-radius:9px; background:var(--cream);
+}
+.doctext{ display:flex; flex-direction:column; min-width:0; }
+.doctext b{ font-size:.82rem; }
+.doctext i{ font-style:normal; font-size:.62rem; font-weight:400; color:#2c3b33; }
+.docdel{ flex:0 0 auto; min-width:52px; border-radius:12px; font-size:1rem; }
+.sizes{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.7rem; }
+.sizebtn{
+  flex:1 1 130px; display:flex; flex-direction:column; align-items:center; gap:.2rem;
+  padding:.6rem .4rem; border-radius:12px; min-height:110px; justify-content:center;
+}
+.sizebtn .shape{ background:var(--main-soft); border:var(--bd2); border-radius:6px; display:block; }
+.sizebtn.on .shape{ background:var(--paper); }
+.sizebtn b{ font-size:.8rem; }
+.sizebtn i{ font-style:normal; font-size:.58rem; font-weight:400; color:#5c5843; }
+.fpsrow{ display:flex; align-items:center; gap:.4rem; margin-bottom:.9rem; }
+.gobtn{ width:100%; min-height:54px; font-size:.95rem; font-weight:800; }
+.demobtn{ margin-bottom:.9rem; background:var(--mint); }
+.demobtn:hover{ background:#8fd4b2; }
+
+/* ---------- 立ち上がらなかった ときの 知らせ ---------- */
+#deadman{
+  position:fixed; inset:0; z-index:200; display:none;
+  align-items:center; justify-content:center; padding:1rem;
+  background:rgba(251,250,236,.96);
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI',sans-serif; font-weight:700; color:#1E1C14;
+}
+#deadman > div{
+  background:#FFFEF7; border:2.5px solid #1E1C14; border-radius:16px;
+  box-shadow:0 5px 0 #1E1C14; padding:1rem 1.1rem; max-width:460px; width:100%;
+}
+#deadman b{ font-size:1rem; display:block; margin-bottom:.4rem; }
+#deadman p{
+  font-size:.68rem; font-weight:400; color:#5c5843; line-height:1.7;
+  margin:0 0 .7rem; word-break:break-all;
+}
+#deadman button{
+  min-height:48px; padding:0 1rem; margin-right:.4rem;
+  font:inherit; font-size:.85rem; cursor:pointer;
+  background:#E1DD60; border:2.5px solid #1E1C14; border-radius:12px;
+  box-shadow:0 3px 0 #1E1C14;
+}
+#deadman #deadhide{ background:#FFFEF7; font-size:.78rem; min-height:44px; }
+
+/* 1文字ずつ えらぶ 札 */
+.row .grid.chips{ gap:.2rem; }
+.chip1{
+  min-width:34px; min-height:34px; padding:0 .3rem;
+  font-size:.8rem; box-shadow:0 2px 0 var(--ink);
+}
+.chip1.moved{ background:var(--main-soft); }
+.chip1.moved.on{ background:var(--main); }
+
+/* つまみ：長おし中は「きりの いい 数字」だけを 通る。その あいだ めもりを 出す */
+input[type=range].coarse{
+  background-image:repeating-linear-gradient(90deg,
+    var(--ink) 0 2px, transparent 2px 12.5%);
+  background-repeat:no-repeat;
+  background-size:100% 6px;
+  background-position:0 50%;
+}
+/* 数の ところは おせる（打ちこみ・もどす） */
+button.val{ flex:0 0 54px;
+  border:var(--bd2); border-radius:7px; background:var(--paper);
+  padding:.1rem .25rem; min-height:26px; cursor:pointer;
+  font-weight:700; line-height:1.1;
+}
+button.val:active{ transform:translateY(1px); }

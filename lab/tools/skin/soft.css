@@ -1,0 +1,366 @@
+/* ================= はぁにラボ 共通の 見た目 =================
+
+   道具ごとに 書いてある もとの css の 上から かぶせる 1まい。
+   読みこむ 順は いちばん さいご。
+
+   ねらい
+     ・下じきは ひんやりした うすいグレー、部品は 白い カード
+     ・黒ぶち＋かたい かげ（レトロ）を やめて、うすい かげで 浮かせる
+     ・強調は 黒の ピル と ライム（黄緑）だけ
+     ・字は まるくない ゴシック（中学生から 上を 前提）
+
+   もとの css は さわって いない ので、この 1行を 外せば
+   いつでも 前の 見た目に もどる。
+
+   つかい方（道具の index.html の さいごに）
+     <link rel="stylesheet" href="../skin/soft.css?v=1"> */
+
+:root{
+  /* ---- 面 ---- */
+  --paper:     #FFFFFF;
+  --cream:     #E9E9EB;
+  --fill:      #F1F2F4;
+  --fill2:     #E7E9ED;
+  --line:      #ECEDF0;
+
+  /* ---- 文字 ---- */
+  --ink:       #101114;
+  --ink2:      #5E646E;
+  --gray:      #9AA0A8;
+
+  /* ---- 強調 ---- */
+  --main:      #E1DD60;
+  --main-deep: #C6EE3C;
+  --main-soft: #F2FDCB;
+  --pink:      #F05B4A;
+  --pink-soft: #FFE5E0;
+  --warn:      #F5A623;
+  --mint:      #7AC4A0;
+  --ok:        #4FB477;
+
+  /* 枠の そとに かける まく（絵を 描く 道具が 読む） */
+  --outside:   rgba(233,233,235,.88);
+
+  --shadow:    0 1px 2px rgba(16,17,20,.05), 0 10px 30px rgba(16,17,20,.07);
+  --shadow-sm: 0 1px 2px rgba(16,17,20,.05);
+
+  --bd:  none;
+  --bd2: none;
+  --r: 14px;
+}
+
+/* ---------- 字 ---------- */
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:'Inter','Noto Sans JP','Hiragino Sans','Yu Gothic UI',system-ui,sans-serif;
+  font-weight:500;
+  letter-spacing:.002em;
+}
+button,input,select,textarea,label{
+  font-family:'Inter','Noto Sans JP','Hiragino Sans','Yu Gothic UI',system-ui,sans-serif;
+}
+h1,h2,h3{ font-weight:700; letter-spacing:-.01em; }
+
+/* ---------- ボタン ---------- */
+button,.btn{
+  background:var(--fill);
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:10px;
+  box-shadow:none;
+  font-weight:600;
+  transition:background .15s, color .15s, border-color .15s, transform .08s;
+}
+button:hover,.btn:hover{ background:var(--fill2); }
+button:active,.btn:active{ transform:scale(.97); box-shadow:none; }
+button.on,.btn.on,button[aria-pressed="true"]{
+  background:var(--ink); color:#fff; border-color:var(--ink);
+  box-shadow:none; transform:none;
+}
+button:disabled{
+  opacity:1; background:var(--paper); color:#C2C6CD;
+  border-color:var(--line); box-shadow:none; transform:none;
+}
+button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+.btn-y,.primary{ background:var(--main); border-color:var(--main); color:var(--ink); }
+.btn-y:hover,.primary:hover{ background:var(--main-deep); border-color:var(--main-deep); }
+.btn-g,.dark{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.btn-g:hover,.dark:hover{ background:#000; }
+.btn-p{ background:var(--pink-soft); border-color:var(--pink-soft); color:#8E2A1C; }
+.btn-sm{ padding:.3rem .62rem; font-size:.74rem; box-shadow:none; }
+
+/* ---------- 入れもの ---------- */
+input,select,textarea{
+  background:var(--fill);
+  color:var(--ink);
+  border:1px solid transparent;
+  border-radius:10px;
+  box-shadow:none;
+}
+input:focus,select:focus,textarea:focus{ border-color:#D9DCE1; outline:none; }
+input[type=range]{ background:transparent; accent-color:var(--ink); }
+input[type=checkbox],input[type=radio]{ accent-color:var(--ink); }
+
+::-webkit-scrollbar{ width:8px; height:8px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{
+  background:#D2D5DB; border-radius:100px;
+  border:2px solid transparent; background-clip:padding-box;
+}
+
+/* ---------- よく ある 入れもの ---------- */
+.card,.panel,.box,.sheet,.modal,.dialog,.pane{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow-sm);
+}
+hr{ border:0; border-top:1px solid var(--line); }
+table{ border-color:var(--line); }
+th,td{ border-color:var(--line); }
+
+/* 見出しの 黒ピルは そのまま つかえる（色だけ 今ふう に） */
+.tag,.chip,.badge{
+  background:var(--fill); color:var(--ink2);
+  border:1px solid var(--line); border-radius:999px;
+}
+.tag.on,.chip.on,.badge.on{ background:var(--main); border-color:var(--main); color:var(--ink); }
+
+
+/* ================= レトロの なごりを 消す =================
+
+   どの 道具も 同じ ならわしで 書かれて いる
+   （.btn / .card / .bar / .hint / .chip / .grp …、
+     ふちは 2px solid var(--ink)、かげは 0 3px 0 var(--ink)）。
+   その ならわしの ぶんだけ、ここで まとめて 今ふうに する。 */
+
+.btn,.btn-sm,.btn-y,.btn-g,.btn-p,.chip,.tag,.sw,.chk,.tab,.mode,.tile,.dot{
+  border-width:1px !important;
+  border-style:solid !important;
+  border-color:var(--line) !important;
+  box-shadow:none !important;
+}
+.btn:active,.btn-sm:active,.btn.on,.btn-y.on,.btn-g.on{ transform:none !important; }
+.btn.on,.tab.on,.mode.on,.tile.on,.sw.on,.chk.on{
+  background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important;
+}
+.btn-y,.btn-y.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--main) !important; }
+.btn-g{ background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important; }
+
+.card,.panel,.pane,.sheet,.box,.item,.cell,.grp,.prop,.lay,.side,.list{
+  border-width:1px !important;
+  border-color:var(--line) !important;
+  box-shadow:var(--shadow-sm);
+  border-radius:14px;
+}
+.card{ background:var(--paper); }
+
+/* 上の バー・見出しの 帯（黒に する ぶんは 下の まとめで） */
+header,.head{
+  background:var(--paper) !important;
+  border-color:var(--line) !important;
+  box-shadow:none !important;
+}
+
+/* 説明の わく（黄色い 点線）は うすいグレーの 面に */
+.hint,.note,.memo,.desc{
+  background:#F7F8FA !important;
+  border:0 !important;
+  border-radius:10px !important;
+  color:var(--ink2) !important;
+}
+
+/* 行・リスト */
+.row,.lrow,.trow,.prow{ border-color:var(--line) !important; }
+.row.on,.lrow.on,.trow.on,.item.on{ background:var(--fill) !important; }
+
+/* 絵文字の アイコンは 色を 落として 字の じゃまを しない */
+.tool i,.ic,.emoji{ filter:grayscale(1); opacity:.78; }
+
+
+/* ================= 黒い 作業面 =================
+
+   絵を あつかう ところ（キャンバスの まわり・プレビュー）は 黒に する。
+   白い パネルの 中に うすい 灰色の 作業面が ある かたち。
+   絵が しまって 見えるし、道具の あいだで 見た目も そろう。 */
+:root{
+  --work:      #EDEEF1;
+  --work2:     #F4F5F7;
+  --work-line: rgba(16,17,20,.10);
+}
+#stage,.stage,.viewport,.view,.canvaswrap,.canvas-wrap,.preview,.board,.workspace{
+  background-color:var(--work) !important;
+  background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px);
+  background-size:18px 18px;
+}
+/* 作業面の 中に 置く 小さい 札は 白ぬき */
+#stage .chip,.stage .chip,#stage .hint,.stage .hint{
+  background:#fff !important; color:var(--ink) !important; border:1px solid var(--line) !important;
+}
+
+
+/* ---------- 道具の 大きな 面（どの 道具でも 名前が だいたい 同じ） ---------- */
+/* 上の バー … 白＋下に うすい 線 */
+#titlebar,#topbar,#top,.titlebar,.topbar,.appbar,#bar{
+  background:var(--paper) !important;
+  color:var(--ink) !important;
+  border-bottom:1px solid var(--line) !important;
+  box-shadow:none !important;
+}
+/* よこの 欄・下の 欄 … 白い パネル */
+#tree,#props,#sheet,#side,#left,#right,#empty,.dock,.side,.props,.tree{
+  background:var(--paper) !important;
+  border-color:var(--line) !important;
+}
+/* 絵を あつかう ところ … うすい 灰色の 作業面 */
+#view,#viewport,#canvasWrap,#canvaswrap,.viewport,.canvaswrap{
+  background-color:var(--work) !important;
+  background-image:radial-gradient(circle, rgba(16,17,20,.07) 1.3px, transparent 1.4px) !important;
+  background-size:18px 18px !important;
+}
+/* タイムライン … もっと うすい 灰色 */
+#timeline,.timeline,#tl,.tl{
+  background:var(--work2) !important;
+  border-color:var(--work-line) !important;
+  color:var(--ink) !important;
+}
+#timeline .lab,#timeline .name,.timeline .lab,.timeline .name{ color:var(--gray); }
+
+
+/* ---------- ライムの 文字を 読めるように ----------
+   レトロでは「黒い 面に ライムの 字」が よく つかわれて いた。
+   白い 面に なった いま、その ままだと 読めない ので 黒に する。
+   黒い 作業面の 中に ある ものだけ 白の まま。 */
+/* ライムの 字は 黒い ところでは そのまま、白い パネルの 中だけ 黒に する */
+.card .lbl,.panel .lbl,#sheet .lbl,
+.card .val,.panel .val,#sheet .val,.card .v,#sheet .v,
+.card summary,.panel summary,#sheet summary,#props summary,
+#status,#psdInfo,#drop,.card .num,#sheet .num{
+  color:var(--ink) !important;
+}
+.size,.tnum,.pill{
+  background:var(--fill) !important;
+  color:var(--ink2) !important;
+  border:1px solid var(--line) !important;
+  box-shadow:none !important;
+}
+/* 黒い ところ（作業面・黒ピル）の 中は 白い 字 */
+/* 小見出しの 黒い ピルは どこでも 黒地に 白 */
+.title{ background:var(--ink) !important; color:#fff !important; }
+.timeline .lbl,#timeline .lbl{ color:var(--ink) !important; }
+
+
+/* ---------- ライムで ぬられて いた 帯を 白に ----------
+   レトロでは 見出しの 帯を ライム（もとは 黄色）で ぬって いた。
+   今の かんがえ方では ライムは「いま ここ」を さす 点だけ に つかう。 */
+.viewbar,.tabbar,.tabs,#tabs,#tb,#helpBar,#log,.modebar,.segbar,.toolbar{
+  background:var(--paper) !important;
+  border-bottom:1px solid var(--line) !important;
+  color:var(--ink) !important;
+  box-shadow:none !important;
+}
+#log,.log{ background:#F7F8FA !important; color:var(--ink2) !important; border:0 !important; }
+
+
+
+/* ================= 黒は さし色 =================
+
+   まわりは 白いまま。黒は
+     ・えらんで いる ボタン
+     ・小見出しの ピル
+   だけ。下じきや 作業面には つかわない。 */
+
+/* えらんで いる もの＝黒ピル */
+button.on,.btn.on,a.btn.on,.tool.on,.mode.on,.tab.on{
+  background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important;
+  box-shadow:none !important;
+}
+/* いちばん したい こと＝ライム */
+.btn-y,.btn-y.on,.primary,.go,#export{
+  background:var(--main) !important; color:var(--ink) !important; border-color:var(--main) !important;
+}
+/* 小見出しの ピル */
+.title{ background:var(--ink) !important; color:#fff !important; }
+
+/* 白い バーの 中は 黒い 字 */
+#titlebar,#topbar,#top,.titlebar,.topbar,.appbar,#bar,.bar,
+.viewbar,.tabbar,.tabs,#tabs,#tb,#helpBar,.modebar,.segbar,.toolbar{
+  color:var(--ink) !important;
+}
+#bar .grp,.bar .grp,.topbar .grp,#tb .grp,.viewbar .grp{
+  background:var(--fill) !important; border-color:transparent !important; box-shadow:none !important;
+}
+#bar output,.bar output,.topbar output,#tb output{
+  background:#fff !important; color:var(--ink) !important; border:1px solid var(--line) !important;
+  box-shadow:none !important;
+}
+input,select,textarea{ color:var(--ink) !important; }
+
+/* ================= 目立つ ところは ライム =================
+   いちばん上の バーは ライム。中の 字は 黒。
+   ボタンは 白ぬき、えらんで いる ものだけ 黒ピル。 */
+#titlebar,#topbar,#top,.titlebar,.topbar,.appbar,header,#tb{
+  background:var(--main) !important;
+  color:var(--ink) !important;
+  border-bottom:1px solid rgba(16,17,20,.12) !important;
+}
+#titlebar *,#topbar *,#top *,.titlebar *,.topbar *,.appbar *,header *,#tb *{ color:var(--ink); }
+#head .crumb,.crumb{ color:rgba(16,17,20,.55) !important; }
+#titlebar button,#topbar button,#top button,.titlebar button,.topbar button,.appbar button,
+header button,#tb button,header a.btn,#tb a.btn,
+#titlebar a.btn,#topbar a.btn,#top a.btn,.titlebar a.btn,.topbar a.btn{
+  background:rgba(255,255,255,.72) !important;
+  color:var(--ink) !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+}
+#titlebar button:hover,#topbar button:hover,#top button:hover,
+.titlebar button:hover,.topbar button:hover,header button:hover,#tb button:hover{ background:#fff !important; }
+#titlebar button.on,#topbar button.on,#top button.on,.titlebar button.on,.topbar button.on,
+#titlebar .btn-y,#topbar .btn-y,#top .btn-y,.titlebar .btn-y,.topbar .btn-y,
+#titlebar .btn-g,#topbar .btn-g,#top .btn-g,.titlebar .btn-g,.topbar .btn-g,
+#titlebar .primary,#topbar .primary,#top .primary,#top #export,
+header button.on,header .btn-y,header .btn-g,#tb button.on,#tb .btn-y,#tb .btn-g{
+  background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important;
+}
+#titlebar .chip,#topbar .chip,#top .chip,.titlebar .chip,.topbar .chip,header .chip,#tb .chip{
+  background:rgba(255,255,255,.6) !important; border-color:transparent !important; color:var(--ink) !important;
+}
+#titlebar input,#topbar input,#top input,.titlebar input,.topbar input,
+#titlebar select,#topbar select,#top select,.titlebar select,.topbar select,
+header input,header select,#tb input,#tb select{
+  background:rgba(255,255,255,.8) !important; color:var(--ink) !important; border-color:transparent !important;
+}
+/* まどの 見出しも ライム */
+.modal .head,.modal header,.dlg .head,.sheet .head,#helpHead,.modal h2:first-child{
+  background:var(--main) !important; color:var(--ink) !important;
+}
+
+/* 白い パネルの 中の ライムの 字は 黒に（読みにくい ので） */
+.card .v,.card .val,.card .num,.card summary,.card .lab .v,
+#head + * .v,.panel .v,.panel summary,#props .v,#props summary,
+.card .dot,.panel .dot{ color:var(--ink2) !important; }
+
+/* ---------- 線の アイコン（icons.js が 入れる） ---------- */
+.ico{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:1.05em; height:1.05em; vertical-align:-.16em;
+  flex:0 0 auto;
+}
+.ico svg{ display:block; width:100%; height:100%; overflow:visible; }
+.ico + *{ margin-left:.1em; }
+button .ico,.btn .ico{ opacity:.9; }
+button.on .ico,.btn.on .ico,.tool.on .ico{ opacity:1; }
+/* 絵文字むけの 色おとしは アイコンには かけない */
+.tool i .ico{ filter:none !important; opacity:1 !important; }
+/* バーの 中の 黒ピルは 白い 字の まま */
+#titlebar .title,#topbar .title,#top .title,.titlebar .title,.topbar .title,header .title,#tb .title,
+#titlebar .dark,.titlebar .dark{ color:#fff !important; }
+/* 「BONE / MESH …」の ような 札は ライムの 上では 白ぬきに */
+#titlebar .tb-spec,.titlebar .tb-spec,#topbar .tb-spec{
+  background:rgba(255,255,255,.72) !important;
+  color:var(--ink) !important;
+  border-color:transparent !important;
+}
