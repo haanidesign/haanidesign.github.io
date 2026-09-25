@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=282';
+import { M } from './engine/math.js?v=283';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=282';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=283';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=282';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=282';
-import { createRenderer } from './render/renderer.js?v=282';
-import { createTimeline } from './ui/timeline.js?v=282';
-import { fmtTime, setPin } from './engine/anim.js?v=282';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=282';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=283';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=283';
+import { createRenderer } from './render/renderer.js?v=283';
+import { createTimeline } from './ui/timeline.js?v=283';
+import { fmtTime, setPin } from './engine/anim.js?v=283';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=283';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,24 +21,24 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=282';
+         setWarper } from './ui/sheet.js?v=283';
 
-import { showNewDoc } from './ui/newdoc.js?v=282';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=282';
-import { fitToCanvas, isBg } from './io/bg.js?v=282';
-import * as Audio from './io/audio.js?v=282';
-import { isTalk, blipTimes } from './engine/talk.js?v=282';
+import { showNewDoc } from './ui/newdoc.js?v=283';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=283';
+import { fitToCanvas, isBg } from './io/bg.js?v=283';
+import * as Audio from './io/audio.js?v=283';
+import { isTalk, blipTimes } from './engine/talk.js?v=283';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=282';
-import { importPsd } from './io/psd.js?v=282';
-import { splitTextChars } from './io/text.js?v=282';
-import { exportAE } from './io/ae.js?v=282';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=283';
+import { importPsd } from './io/psd.js?v=283';
+import { splitTextChars } from './io/text.js?v=283';
+import { exportAE } from './io/ae.js?v=283';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=282';
-import { pathKeys, pathLength } from './engine/path.js?v=282';
-import { paintDirty } from './engine/paint.js?v=282';
+         canUseWebCodecs } from './io/export.js?v=283';
+import { pathKeys, pathLength } from './engine/path.js?v=283';
+import { paintDirty } from './engine/paint.js?v=283';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=282';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=283';
 
 const $ = (s) => document.querySelector(s);
 
@@ -68,8 +68,21 @@ document.getElementById('qBtn').onclick = () => {
 showQual();
 
 /* 2本指トン＝もどす / 3本指トン＝やりなおし。
-   ボタンと おなじ ことを する（絵から 手を はなさずに やりなおせる）。 */
+   ボタンと おなじ ことを する（絵から 手を はなさずに やりなおせる）。
+
+   この トンを 見て いる ところは 2つ ある。
+     ・絵の 上（ポインタの できごと）
+     ・画面ぜんたい（タッチの できごと）
+   スマホは どちらも 送って くる ので、絵の 上で トンと すると
+   2つ とも 鳴って、2回 もどって しまった。
+   さいしょの 1回だけ 通して、すぐ あとの ぶんは 捨てる。 */
+let lastTapUndo = 0;
 function multiTap(n){
+  const now = performance.now();
+  if(now - lastTapUndo < 500) return;      // もう 鳴った ぶん
+  lastTapUndo = now;
+  /* つまみを なぞって いる とちゅう なら、そこまでを ひと区切りに する */
+  commitEdit();
   if(n === 2){
     const l = undo();
     toast(l ? '↩ もどした: ' + l : 'もどせる ものが ないよ');
@@ -1158,11 +1171,7 @@ $('#bg').addEventListener('click', () => {
     if(!quick || slid || many < 2 || many > 3) return;
     if(exporting) return;
 
-    /* つまみを なぞって いる とちゅう なら、そこまでを ひと区切りに する */
-    commitEdit();
-    const l = many === 2 ? undo() : redo();
-    toast(l ? (many === 2 ? 'もどした: ' : 'やりなおし: ') + l
-            : (many === 2 ? 'これいじょう もどせません' : 'やりなおす ものが ありません'));
+    multiTap(many);            // 絵の 上の ぶんと 二重に ならない ように 通す
   }, { passive: true, capture: true });
 
   document.addEventListener('touchcancel', reset, { passive: true, capture: true });
