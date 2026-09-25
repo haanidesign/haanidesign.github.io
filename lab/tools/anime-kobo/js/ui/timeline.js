@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=269';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=269';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=281';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=281';
 import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=269';
+         nearestFolder, setParent } from '../engine/layer.js?v=281';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=269';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=269';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=269';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=269';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=281';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=281';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=281';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=281';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -542,8 +542,10 @@ export function createTimeline(root, opts = {}){
       track.appendChild(wv);
     }
 
-    // ループの帯
-    if(l.loop){
+    /* ループの帯。
+       キーフレームが 1つも ない レイヤーでは ループは 何も しない ので、
+       帯も 出さない（もどした あとに 帯だけ のこって 見えた） */
+    if(l.loop && pinTimes(l).length){
       const band = document.createElement('div');
       band.className = 'loopband' + (l.loop.mode === 'pingpong' ? ' ping' : '');
       band.style.left = t2x(l.loop.from) + 'px';

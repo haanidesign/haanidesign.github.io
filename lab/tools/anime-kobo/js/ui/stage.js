@@ -1,25 +1,25 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=269';
-import { cleanPath } from '../engine/path.js?v=269';
+import { M, clamp } from '../engine/math.js?v=281';
+import { cleanPath } from '../engine/path.js?v=281';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=269';
-import { liveMasks } from '../engine/mask.js?v=269';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=269';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=269';
+         keepChildren, cornersOf } from '../engine/layer.js?v=281';
+import { liveMasks } from '../engine/mask.js?v=281';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=281';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=281';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=269';
-import { createRenderer } from '../render/renderer.js?v=269';
-import { attachInput } from './input.js?v=269';
-import { newStroke, paintDirty } from '../engine/paint.js?v=269';
+         bendChain } from '../engine/puppet.js?v=281';
+import { createRenderer } from '../render/renderer.js?v=281';
+import { attachInput } from './input.js?v=281';
+import { newStroke, paintDirty } from '../engine/paint.js?v=281';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=269';
+         copyPts, setPts } from '../engine/warp.js?v=281';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=269';
-import { inCamView } from '../render/camview.js?v=269';
-import { ORBIT_MAX } from '../engine/camera.js?v=269';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=281';
+import { inCamView } from '../render/camview.js?v=281';
+import { ORBIT_MAX } from '../engine/camera.js?v=281';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
