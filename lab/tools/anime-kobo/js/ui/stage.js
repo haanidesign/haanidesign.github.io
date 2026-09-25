@@ -1,25 +1,25 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=288';
-import { cleanPath } from '../engine/path.js?v=288';
+import { M, clamp } from '../engine/math.js?v=289';
+import { cleanPath } from '../engine/path.js?v=289';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, cornersOf } from '../engine/layer.js?v=288';
-import { liveMasks } from '../engine/mask.js?v=288';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=288';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=288';
+         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=289';
+import { liveMasks } from '../engine/mask.js?v=289';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=289';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=289';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=288';
-import { createRenderer } from '../render/renderer.js?v=288';
-import { attachInput } from './input.js?v=288';
-import { newStroke, paintDirty } from '../engine/paint.js?v=288';
+         bendChain } from '../engine/puppet.js?v=289';
+import { createRenderer } from '../render/renderer.js?v=289';
+import { attachInput } from './input.js?v=289';
+import { newStroke, paintDirty } from '../engine/paint.js?v=289';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=288';
+         copyPts, setPts } from '../engine/warp.js?v=289';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=288';
-import { inCamView } from '../render/camview.js?v=288';
-import { ORBIT_MAX } from '../engine/camera.js?v=288';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=289';
+import { inCamView } from '../render/camview.js?v=289';
+import { ORBIT_MAX } from '../engine/camera.js?v=289';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
@@ -765,19 +765,12 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
 
     const dax = (nx - l.pivot.x) * asset.w;
     const day = (ny - l.pivot.y) * asset.h;
-    const m = M.trs(0, 0, pose.v.rot, pose.v.scaleX, pose.v.scaleY);
-    const dx = m.a * dax + m.c * day;
-    const dy = m.b * dax + m.d * day;
 
-    /* じくを ずらすと レイヤーの位置も ずらして 見た目を止める。
-       ・うごきのキーフレームが あるときは キーフレーム ぜんぶを 同じだけ ずらす
-         （いまの時間だけ 直すと、ほかの 時間で 場所が とぶ）
-       ・子レイヤーは 親の場所を もとにしているので、
-         いまの見た目を おぼえて あとで つじつまを合わせる */
-    keepChildren(S.proj, l, S.time, () => {
-      l.x += dx; l.y += dy;
-      shiftTrack(l, 'x', dx);
-      shiftTrack(l, 'y', dy);
+    /* じくを ずらすと レイヤーの ものさしの 原点が ずれる。
+       絵も 子も 動かさない ように、その ぶんを うち消す。
+       まわりながら 動く ものは 時こくごとに うち消す 量が ちがう ので、
+       キーフレーム 1つ 1つで 出し直す（moveAnchorKeepAll の 中）。 */
+    moveAnchorKeepAll(S.proj, l, dax, day, S.time, () => {
       l.pivot.x = nx; l.pivot.y = ny;
     });
   }

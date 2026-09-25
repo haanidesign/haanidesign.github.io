@@ -153,8 +153,17 @@
   border-top:2px solid var(--ink); border-bottom:0;
   margin:0; background:var(--main-soft);
 }
-/* 絵が入っている日は、絵を 下まで 伸ばして、「休」は その上に 小さく 乗せる */
+/* 絵が入っている日は、絵を 下まで 伸ばして、
+   「休」と 祝日の名前は その上に 小さく 乗せる。
+   （行を取らせると、祝日の日だけ 絵が 小さくなって そろわないため） */
 .day{position:relative;}
+.day.filled .hol{
+  position:absolute; top:1.45rem; left:.3rem; right:.3rem; z-index:2;
+  width:fit-content; max-width:calc(100% - .6rem);
+  padding:0 .4rem; font-size:.5rem; line-height:1.7; color:var(--ink);
+  background:rgba(255,254,247,.92);
+  border:2px solid var(--ink); border-radius:999px;
+}
 .day.filled .off-mark{
   position:absolute; left:.25rem; bottom:.25rem; margin:0; z-index:2;
   font-size:.48rem; padding:0 .35rem; background:rgba(255,254,247,.92);
