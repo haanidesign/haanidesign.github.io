@@ -34,3 +34,9 @@ new J.Renderer().frame(ctx, plan, t, { scale: 1 });
 
 向こうの README に ある とおり、この しくみで 作った 動画や 画像の
 権利は 作った 人に あります。ソフトの ライセンスは 出力物には およびません。
+
+## 参考に した もの
+
+カット 1つだけ 中身を さしかえる やり方は
+[JIZURA for AviUtl2](https://github.com/SakiikaVR/JIZURA-AviUtl2)（SakiikaVR, MIT）の
+`bridge.js` を 参考に しました。エンジン じたいは 本家と 同じ ものです。

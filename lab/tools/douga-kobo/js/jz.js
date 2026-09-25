@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=65';
+import { S, toast } from './state.js?v=66';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -71,6 +71,113 @@ export function planOf(j) {
 }
 const num = (v, d) => (v === undefined || v === null || isNaN(+v) ? d : +v);
 
+/* ---------- カット 1つだけ 中身を さしかえる ----------
+   JIZURA-AviUtl2（SakiikaVR）の やり方を 借りた。
+   組み立てた plan の カットを 1つ 取りかえて、
+   ならべ方・登場・退場 などを その カットだけ 変える。
+   たねは そのまま なので、ほかの カットは 1ミリも 動かない。 */
+export const EDIT_GROUPS = [
+  ['layout', 'ならべ方'], ['enter', '登場'], ['hold', 'うごき'], ['exit', '退場'],
+  ['treat', '文字の 加工'], ['bg', 'うしろの 絵'], ['cam', 'カメラ'], ['trans', 'つなぎ']
+];
+
+/** その グループで えらべる もの [[key, 名まえ], …] */
+export function partList(group) {
+  const J = JZ();
+  if (!J || !J.registry) return [];
+  const reg = J.registry(group) || {};
+  return (J.order(group) || []).filter(k => reg[k]).map(k => [k, reg[k].name || k]);
+}
+
+/** この ふだが plan の 何番目の カットか（きざんだ ふだ だけ） */
+export function cutIndexOf(plan, j) {
+  if (!plan || !plan.cuts || !(j.cutDur > 0)) return -1;
+  const want = j.off || 0;
+  let best = -1, bd = .02;
+  plan.cuts.forEach((c, i) => { const d = Math.abs(c.start - want); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+
+const editCache = new Map();
+const editKey = (j, base) => JSON.stringify([keyOf(j), j.off || 0, j.edit]);
+
+/** edit が 入って いれば、その カットだけ さしかえた plan を かえす */
+function withEdit(base, j) {
+  const e = j.edit;
+  if (!base || !e || !Object.keys(e).some(k => e[k])) return base;
+  const J = JZ();
+  if (!J || !J.registry) return base;
+  const ck = editKey(j, base);
+  const hit = editCache.get(ck);
+  if (hit && hit.base === base) return hit.plan;
+
+  const i = cutIndexOf(base, j);
+  if (i < 0) return base;
+  const src = base.cuts[i];
+  const cut = Object.assign({}, src);
+
+  if (typeof e.text === 'string' && e.text.trim()) {
+    cut.text = e.text; cut.lineText = e.text;
+    try { cut.words = J.chunkText(e.text); } catch (x) { }
+  }
+  EDIT_GROUPS.forEach(([g]) => {
+    const v = e[g];
+    if (v === undefined || v === null || v === '') return;
+    const key = (g === 'trans' && v === 'none') ? null : v;
+    const old = cut[g];
+    cut[g] = key;
+    if (!key || key === old) return;
+    const def = (J.registry(g) || {})[key];
+    if (!def) { cut[g] = old; return; }
+    const rng = J.rng((cut.seed | 0) + 1);
+    try {
+      if (g === 'layout' && def.plan) {
+        cut.params = def.plan(rng, {
+          text: cut.text, n: J.glyphCount(cut.text),
+          W: base.W, H: base.H, dur: cut.dur
+        }, base.style);
+      }
+      if (['treat', 'bg', 'cam', 'trans'].includes(g)) cut[g + 'P'] = def.plan ? def.plan(rng, base.style) : {};
+    } catch (x) { }
+  });
+  if (typeof e.decor === 'string') {
+    const names = e.decor.split(/[、,\n]/).map(x => x.trim()).filter(Boolean);
+    cut.decor = names.map((id, k) => {
+      if (!(J.registry('decor') || {})[id]) return null;
+      return Object.assign({}, (src.decor && (src.decor[k] || src.decor[0])) || {}, { id, seed: (cut.seed + k + 1) | 0 });
+    }).filter(Boolean);
+  }
+  const cuts = base.cuts.slice();
+  cuts[i] = cut;
+  const plan = Object.assign(Object.create(Object.getPrototypeOf(base)), base, { cuts });
+  editCache.set(ck, { base, plan });
+  if (editCache.size > 24) editCache.delete(editCache.keys().next().value);
+  return plan;
+}
+
+/** その スタイルが じっさいに つかって いる 部品だけ（雰囲気を こわさない ため）*/
+export function partPool(j, group) {
+  const base = planOf(j);
+  if (!base || !base.cuts) return [];
+  const seen = [];
+  base.cuts.forEach(c => { const v = c[group]; if (v && !seen.includes(v)) seen.push(v); });
+  return seen;
+}
+
+/** さしかえこみの plan（えがく ときは いつも こちら） */
+export const planFor = j => withEdit(planOf(j), j);
+
+/** いま その カットが つかって いる 部品 {layout:'…', …} */
+export function cutNow(j) {
+  const base = planOf(j);
+  const i = cutIndexOf(base, j);
+  if (i < 0) return null;
+  const cut = (planFor(j).cuts || [])[i] || base.cuts[i];
+  const out = { text: cut.text || '', decor: (cut.decor || []).map(d => d.id).join('、') };
+  EDIT_GROUPS.forEach(([g]) => { out[g] = cut[g] || null; });
+  return out;
+}
+
 /** いちばん 近い 画面比を えらぶ */
 function aspectOf(W, H) {
   const r = W / H;
@@ -101,7 +208,7 @@ function offCv(w, h) {
 /** 1コマ えがく。g は すでに 画面の はしが 0,0 に なって いる こと */
 export function draw(g, j, local, W, H, fast) {
   const J = JZ();
-  const plan = planOf(j);
+  const plan = planFor(j);
   if (!J || !plan) return false;
   if (!renderer) renderer = new J.Renderer();
   const cv = offCv(plan.W, plan.H);
@@ -133,7 +240,7 @@ export function newJz(o = {}) {
     off: 0, noTrans: false, layer: null
   }, o);
 }
-export const clearCache = () => planCache.clear();
+export const clearCache = () => { planCache.clear(); editCache.clear(); };
 
 /** 歌詞の 行（空行と メタ行を のぞいた もの）。タップで 合わせる とき に つかう */
 export function linesOf(lyrics) {

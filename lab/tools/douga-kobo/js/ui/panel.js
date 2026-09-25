@@ -3,19 +3,20 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=65';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=65';
-import { storeOk } from '../store.js?v=65';
-import { bus } from '../bus.js?v=65';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=65';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=65';
-import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts } from '../jz.js?v=65';
+} from '../state.js?v=66';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=66';
+import { storeOk } from '../store.js?v=66';
+import { bus } from '../bus.js?v=66';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=66';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=66';
+import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
+  EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool } from '../jz.js?v=66';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=65';
+  offOf, setOff, clearOff } from '../text.js?v=66';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=65';
+} from '../edit.js?v=66';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -338,6 +339,7 @@ function binBody() {
 }
 
 function hint(t) { const h = el('div', 'hint'); h.innerHTML = t; return h; }
+const nameOf = (list, key) => { const f = list.find(x => x[0] === key); return f ? f[1] : (key || 'なし'); };
 
 /* --- ふだ --- */
 /* つながり（前後に ばらした 文字PV など）の 行。つながって いない 文字PV には つなぎ直す ボタンを 出す */
@@ -849,6 +851,54 @@ function jzEditBody(c) {
   }
 
   { const g = linkGroup(c); if (g) w.appendChild(g); }
+
+  /* --- この カットだけ 中身を 変える（カットごとに 切った ふだだけ） --- */
+  if (j.cutDur > 0) {
+    const now = jzCutNow(j);
+    if (now) {
+      const e = j.edit || (j.edit = {});
+      const hit = () => { jzClear(); pushUndo(); bus.all(); draw(); };
+      const rows = [];
+      rows.push(row('文字', (() => {
+        const i = el('input'); i.type = 'text'; i.value = e.text || now.text || '';
+        i.addEventListener('change', () => { e.text = i.value.trim(); hit(); });
+        return i;
+      })()));
+      /* ★ は この スタイルが じっさいに つかって いる もの。
+         そこから えらべば 雰囲気が こわれない。 */
+      const pools = {};
+      JZ_EDIT.forEach(([g, label]) => {
+        const list = jzParts(g);
+        if (!list.length) return;
+        const pool = jzPool(j, g);
+        pools[g] = pool;
+        const opts = [['', 'おまかせ（' + nameOf(list, now[g]) + '）']];
+        if (g === 'trans') opts.push(['none', 'なし']);
+        list.filter(x => pool.includes(x[0])).forEach(x => opts.push([x[0], '★ ' + x[1]]));
+        list.filter(x => !pool.includes(x[0])).forEach(x => opts.push(x));
+        rows.push(pick(label, opts, e[g] || '', v => { e[g] = v; hit(); }));
+      });
+      rows.push(grid(null, [
+        btn('🎲 この カットだけ ひき直す', 'btn-sm', () => {
+          // たねを 1つ ずらすと この カットの 中身だけ 引き直せる
+          // この スタイルが つかう ものの 中から だけ 引く（ちがう 雰囲気が 出て こない ように）
+          JZ_EDIT.forEach(([g]) => {
+            const pool = pools[g] || [];
+            if (pool.length < 2 || g === 'trans') return;
+            let v = e[g];
+            for (let k = 0; k < 8 && (!v || v === e[g]); k++) v = pool[Math.floor(Math.random() * pool.length)];
+            e[g] = v;
+          });
+          hit();
+        }),
+        btn('↺ おまかせに もどす', 'btn-sm btn-p', () => { j.edit = {}; hit(); })
+      ]));
+      rows.push(hint('この <b>1カットだけ</b> 中身を えらび直せます。ほかの カットは 動きません。<br>' +
+        '<b>★</b> は この スタイルが じっさいに つかって いる もの。<br>' +
+        'ここから えらぶと 雰囲気が こわれません。「おまかせ」で もとに もどります。'));
+      w.appendChild(group('この カットだけ 変える', rows));
+    }
+  }
 
   /* --- のばした ときの ふるまい（カットごとに 切った ふだだけ） --- */
   if (j.cutDur > 0) {
