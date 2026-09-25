@@ -202,11 +202,25 @@ async function psdIn(file, done) {
       dur: 5, w: cv.width, h: cv.height, poster: null, file: png
     };
     const el = new Image();
-    el.addEventListener('load', () => { makePoster(m); mark(file, 'よめた ' + m.w + '×' + m.h); }, { once: true });
-    el.src = url; m.el = el;
     MEDIA.set(m.id, m);
     psdMade.push(m);
-    bus.all();
+
+    /* 絵が そろう まで 待ってから 画面を 作り直す。
+       さきに 作り直すと、まだ 中身の ない 絵を 置く ことに なり、
+       画面には 何も 出ない まま 残る（保存を 読み直すまで 見えなかった）。 */
+    let fin = false;
+    const ready = (okText) => {
+      if (fin) return;
+      fin = true;
+      mark(file, okText);
+      bus.all();
+      done();
+    };
+    el.addEventListener('load', () => { makePoster(m); ready('よめた ' + m.w + '×' + m.h); }, { once: true });
+    el.addEventListener('error', () => ready('絵に できない'), { once: true });
+    setTimeout(() => ready('じかんぎれ'), 8000);
+    el.src = url; m.el = el;
+    return;
   } catch (e) {
     mark(file, 'PSD を ひらけません');
     toast(file.name + ' を ひらけませんでした', 3200);
