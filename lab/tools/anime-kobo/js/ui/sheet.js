@@ -1,46 +1,46 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=284';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=285';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=284';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=284';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=285';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=285';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=284';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=285';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=284';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=284';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=284';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=284';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=285';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=285';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=285';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=285';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=284';
+         addTextLayer } from '../io/text.js?v=285';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=284';
-import { PATTERN_NAMES } from '../io/pattern.js?v=284';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=285';
+import { PATTERN_NAMES } from '../io/pattern.js?v=285';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=284';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=284';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=284';
+         PITCH_MAX } from '../engine/pano.js?v=285';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=285';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=285';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=284';
-import { readAsDataURL, loadImage } from '../io/image.js?v=284';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=285';
+import { readAsDataURL, loadImage } from '../io/image.js?v=285';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=284';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=284';
-import { newHand } from '../engine/hand.js?v=284';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=284';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=285';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=285';
+import { newHand } from '../engine/hand.js?v=285';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=285';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=284';
+  from './colorwheel.js?v=285';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=284';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=285';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=284';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=285';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2764,7 +2764,8 @@ export function buildFaceSheet(box){
   if(l.frames.length < 2) return;
 
   l.blink = l.blink || { open:0, close:1, every:3, hold:0.09 };
-  l.talk  = l.talk  || { rate:8, len:2, closed:0 };
+  l.talk  = l.talk  || { rate:8, len:2, closed:0, open:null };
+  if(l.talk.open === undefined) l.talk.open = null;
 
   const frameSel = (label, get, set) => {
     const sel = document.createElement('select');
@@ -2779,6 +2780,38 @@ export function buildFaceSheet(box){
     sel.addEventListener('change', () => { set(+sel.value); onChange(); });
     return field(label, sel);
   };
+
+  /* 「おまかせ」も えらべる ほう。
+     あけた口を きめない ときは、とじた口 いがいの コマを
+     ぜんぶ つかう（これまでと 同じ うごき）。 */
+  const frameSelAuto = (label, get, set) => {
+    const sel = document.createElement('select');
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = 'おまかせ（のこりの コマ ぜんぶ）';
+    if(get() == null) o0.selected = true;
+    sel.appendChild(o0);
+    l.frames.forEach((_, i) => {
+      const o = document.createElement('option');
+      const a = S.proj.assets[l.frames[i]];
+      o.value = i;
+      o.textContent = (i + 1) + 'コマめ' + (a && a.name ? '（' + a.name + '）' : '');
+      if(i === get()) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      set(sel.value === '' ? null : +sel.value);
+      onChange();
+    });
+    return field(label, sel);
+  };
+
+  /* 口パクに つかう コマ。
+     あけた口を きめて あれば その 2まいだけ、
+     きめて いなければ ぜんぶ。 */
+  const mouthFrames = () => (l.talk.open != null && l.talk.open !== l.talk.closed)
+    ? [l.talk.closed, l.talk.open]
+    : l.frames.map((_, i) => i);
 
   const sub = (t) => {
     const d = document.createElement('div');
@@ -2850,10 +2883,13 @@ export function buildFaceSheet(box){
     box.appendChild(slider('口のはやさ', () => l.voice.rate, v => l.voice.rate = v, 4, 16, 1,
       v => Math.round(v) + '/秒'));
     box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));
+    box.appendChild(frameSelAuto('あけた口の絵', () => l.talk.open, v => l.talk.open = v));
+    box.appendChild(sub('あけた口を きめると、その 2まいだけで パクパクします。'
+      + NL + 'おまかせの ままだと、のこりの コマを 声の 大きさで つかい分けます。'));
     box.appendChild(btnRow(
       button('🎤 音から 口パクを つくる', () => {
         const r = voiceMouthKeys({
-          frames: l.frames.map((_, i) => i),
+          frames: mouthFrames(),
           closedFrame: l.talk.closed,
           rate: l.voice.rate, sense: l.voice.sense,
           shift: (S.proj.audio && S.proj.audio.offset) || 0,
@@ -2878,10 +2914,11 @@ export function buildFaceSheet(box){
   box.appendChild(slider('しゃべる長さ', () => l.talk.len, v => l.talk.len = v, 0.3, 8, 0.1,
     v => v.toFixed(1) + '秒'));
   box.appendChild(frameSel('とじた口の絵', () => l.talk.closed, v => l.talk.closed = v));
+  box.appendChild(frameSelAuto('あけた口の絵', () => l.talk.open, v => l.talk.open = v));
   box.appendChild(btnRow(
     button('👄 口パクを いれる', () => {
       const keys = talkKeys({
-        frames: l.frames.map((_, i) => i),
+        frames: mouthFrames(),
         rate: l.talk.rate, closedFrame: l.talk.closed,
         start: S.time, end: Math.min(S.proj.duration, S.time + l.talk.len)
       });
