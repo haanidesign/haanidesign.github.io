@@ -240,3 +240,18 @@ button.val{ flex:0 0 54px;
   font-weight:700; line-height:1.1;
 }
 button.val:active{ transform:translateY(1px); }
+
+/* 段の あたま: つまむ ところ と、動かして いる あいだの 見た目 */
+.thead .grip{
+  flex:0 0 auto; width:14px; text-align:center;
+  font-size:.7rem; color:var(--gray);
+  cursor:grab; touch-action:none; user-select:none;
+}
+.thead.dragging{ opacity:.75; box-shadow:0 0 0 2px var(--main) inset; }
+.thead .tb[disabled]{ opacity:.35; }
+
+/* えらぶと ボタンが 4つ ふえる。はみ出さない ように 小さく して、
+   なまえは つぶれても いい ことに する */
+.thead{ overflow:hidden; }
+.thead.sel .tb{ min-width:24px; font-size:.64rem; }
+.thead.sel .nm{ flex:1 1 30px; min-width:24px; }

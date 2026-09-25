@@ -2,11 +2,12 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked
-} from '../state.js?v=67';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=67';
-import { bus } from '../bus.js?v=67';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=67';
-import { durOf as jzDur } from '../jz.js?v=67';
+} from '../state.js?v=68';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=68';
+import { bus } from '../bus.js?v=68';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=68';
+import { durOf as jzDur } from '../jz.js?v=68';
+import { moveTrack, delTrack, renameTrack } from '../edit.js?v=68';
 
 const el = {};
 export function init() {
@@ -40,25 +41,104 @@ function drawHeads() {
   el.heads.innerHTML = '';
   S.tracks.forEach((tr, i) => {
     const d = document.createElement('div');
-    d.className = 'thead' + (S.selTrack === tr.id ? ' sel' : '');
+    const on = S.selTrack === tr.id;
+    d.className = 'thead' + (on ? ' sel' : '');
+    d.dataset.tid = tr.id;
     const ic = { video: '🎞', audio: '🎵', text: '🅰' }[tr.kind];
     /* 音の段に「目」は いらない。音けしと まぎらわしい ので 出さない */
     const eye = tr.kind === 'audio' ? '' :
       `<button class="tb ${tr.hidden ? 'off' : ''}" data-a="hide" title="出す／かくす">${tr.hidden ? '🚫' : '👁'}</button>`;
+    /* えらんだ 段だけ 上げ下げと ごみ箱を 出す。いつも 出すと ボタンだらけに なる */
+    const edit = on
+      ? `<button class="tb" data-a="name" title="なまえを かえる">✏</button>` +
+        `<button class="tb" data-a="up" title="ひとつ 上へ"${i === 0 ? ' disabled' : ''}>▲</button>` +
+        `<button class="tb" data-a="down" title="ひとつ 下へ"${i === S.tracks.length - 1 ? ' disabled' : ''}>▼</button>` +
+        `<button class="tb btn-p" data-a="del" title="この 段を けす">🗑</button>`
+      : '';
     d.innerHTML =
+      `<span class="grip" title="つまんで 上下に 動かすと ならびが かわります">⠿</span>` +
       `<span class="ic">${ic}</span><span class="nm"></span>` + eye +
       `<button class="tb ${tr.mute ? 'off' : ''}" data-a="mute" title="音を 出す／けす">${tr.mute ? '🔇' : '🔊'}</button>` +
-      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>`;
+      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>` +
+      edit;
     d.querySelector('.nm').textContent = tr.name;
     d.addEventListener('click', e => {
-      const a = e.target.dataset && e.target.dataset.a;
+      /* ボタンの 中身は アイコンに 置きかわる ので、
+         e.target では なく いちばん 近い [data-a] を 見る */
+      const hit = e.target.closest && e.target.closest('[data-a]');
+      const a = hit && d.contains(hit) ? hit.dataset.a : null;
       S.selTrack = tr.id;
       if (a === 'hide') tr.hidden = !tr.hidden;
       else if (a === 'mute') tr.mute = !tr.mute;
       else if (a === 'lock') tr.lock = !tr.lock;
+      else if (a === 'up') { moveTrack(tr.id, -1); return; }
+      else if (a === 'down') { moveTrack(tr.id, 1); return; }
+      else if (a === 'del') { delTrack(tr.id); return; }
+      else if (a === 'name') {
+        const v = prompt('この 段の なまえ', tr.name);
+        if (v && v.trim()) renameTrack(tr.id, v.trim());
+        bus.all(); return;
+      }
       if (a) { pushUndo(); bus.all(); } else bus.all();
     });
+    headDrag(d, tr);
     el.heads.appendChild(d);
+  });
+}
+
+/* 段の あたまを つまんで 上下に 動かすと ならびが かわる。
+   たてに 10px ほど 動かした ところで はじまる（よこは 見のがす）。
+   ボタンの 上から は はじまらない。 */
+let hdrag = null;
+function headDrag(d, tr) {
+  d.addEventListener('pointerdown', e => {
+    if (e.target.closest && e.target.closest('button')) return;
+    let armed = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    const begin = () => {
+      hdrag = { id: tr.id, y0: armed.y, el: d, moved: false };
+      d.classList.add('dragging');
+      buzz(12);
+    };
+    const move = ev => {
+      if (ev.pointerId !== armed.id) return;
+      if (!hdrag) {
+        const dy = ev.clientY - armed.y, dx = ev.clientX - armed.x;
+        if (Math.abs(dy) < 10 || Math.abs(dy) < Math.abs(dx)) return;
+        begin();
+      }
+      if (hdrag.id !== tr.id) return;
+      ev.preventDefault();
+      const h = (hdrag.el && hdrag.el.getBoundingClientRect().height) || 1;
+      const dy = ev.clientY - hdrag.y0;
+      /* 1だん ぶん（の 6わり）動かしたら 1つ 入れかえる。
+         半分で 入れかえると 指が ふるえた だけで ころころ 変わる */
+      if (Math.abs(dy) < h * 0.6) return;
+      const dir = dy > 0 ? 1 : -1;
+      const i = S.tracks.findIndex(x => x.id === tr.id);
+      const j = i + dir;
+      if (j < 0 || j >= S.tracks.length) { hdrag.y0 = ev.clientY; return; }
+      const [t2] = S.tracks.splice(i, 1);
+      S.tracks.splice(j, 0, t2);
+      hdrag.y0 += dir * h; hdrag.moved = true;
+      S.selTrack = tr.id;
+      drawHeads(); drawLanes();
+      const nd = el.heads.querySelector('.thead[data-tid="' + tr.id + '"]');
+      if (nd) { nd.classList.add('dragging'); hdrag.el = nd; }
+      buzz(8);
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', up);
+      if (!hdrag) return;
+      const moved = hdrag.moved;
+      if (hdrag.el) hdrag.el.classList.remove('dragging');
+      hdrag = null;
+      if (moved) { pushUndo(); bus.all(); }
+    };
+    document.addEventListener('pointermove', move, { passive: false });
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
   });
 }
 
