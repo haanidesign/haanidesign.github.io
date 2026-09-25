@@ -3,22 +3,22 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=286';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=286';
-import { liveMasks } from '../engine/mask.js?v=286';
-import { valuesAt } from '../engine/anim.js?v=286';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=286';
+         nearestFolder } from '../engine/layer.js?v=287';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=287';
+import { liveMasks } from '../engine/mask.js?v=287';
+import { valuesAt } from '../engine/anim.js?v=287';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=287';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=286';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=286';
-import { paintCanvas } from '../engine/paint.js?v=286';
-import { panoCanvas } from '../engine/pano.js?v=286';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=286';
-import { roomCanvas } from '../engine/room.js?v=286';
-import { talkCanvas } from '../engine/talk.js?v=286';
-import { homography, applyH } from '../engine/warp.js?v=286';
-import { drawCamView } from './camview.js?v=286';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=286';
+         meshSizeFor } from '../engine/puppet.js?v=287';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=287';
+import { paintCanvas } from '../engine/paint.js?v=287';
+import { panoCanvas } from '../engine/pano.js?v=287';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=287';
+import { roomCanvas } from '../engine/room.js?v=287';
+import { talkCanvas } from '../engine/talk.js?v=287';
+import { homography, applyH } from '../engine/warp.js?v=287';
+import { drawCamView } from './camview.js?v=287';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=287';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
