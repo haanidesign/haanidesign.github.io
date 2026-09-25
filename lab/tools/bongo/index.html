@@ -120,6 +120,14 @@ body.solo .exit{display:block}
     </div>
     <p class="note">タブレットは、ステージの上のマウス（ペン）位置にペン先がついてくる。</p>
 
+    <h2 class="sec">ペンを もつ手</h2>
+    <div class="seg" id="handSeg">
+      <button data-v="right" class="on">右きき</button>
+      <button data-v="left">左きき</button>
+    </div>
+    <p class="note">こちらから見て、右ききは <b>左がわの手</b>（キャラの右手）が持つ。
+      キーボードモードには関わらない。</p>
+
     <h2 class="sec">うごき</h2>
     <label class="chk"><input type="checkbox" id="bounce" checked>打った時にはずむ</label>
     <label class="chk"><input type="checkbox" id="blink" checked>まばたきする（はじめの絵だけ）</label>
@@ -243,7 +251,7 @@ const ADJ0={x:0,y:0,s:100,r:0,flip:false};
 /* ============================================================
    設定
    ============================================================ */
-const DEF={mode:'key',bounce:true,blink:true,arm:true,bAmt:12,bSpd:14,press:14,hold:120,
+const DEF={mode:'key',hand:'right',bounce:true,blink:true,arm:true,bAmt:12,bSpd:14,press:14,hold:120,
            scale:100,offX:0,offY:0,rMin:12,rMax:88,hSpd:22,handY:306,penLen:70,bg:'clear'};
 let cfg=Object.assign({},DEF);
 let adj={};                    // パーツごとの合わせ
@@ -455,7 +463,7 @@ function drawHands(){
       else g.appendChild(el('g'));        // 下の絵がなければ 上の絵を そのまま使う
       host.appendChild(g);
     });
-    if(side==='R'&&cfg.mode==='pen'){
+    if(side===penSide()&&cfg.mode==='pen'){
       const pen=el('g',{id:'penG'});
       if(art.pen){ pen.appendChild(imgNode('pen')); }
       else{
@@ -471,6 +479,7 @@ function drawHands(){
    毎フレーム
    ============================================================ */
 function xOf(t){ return (cfg.rMin/100 + t*(cfg.rMax-cfg.rMin)/100) * W; }
+function penSide(){ return cfg.hand==='left' ? 'R' : 'L'; }
 function penTip(){
   return {x:Math.max(xOf(.02),Math.min(xOf(.98),S.penX*W)), y:334+(S.penDown?5:0)};
 }
@@ -495,33 +504,37 @@ function tick(){
   const base=+cfg.handY;
   let lx,ly,rx,ry;
   if(cfg.mode==='pen'){
-    lx=xOf(.20); ly=base+24+S.ly;
-    const tip=penTip();
-    rx=Math.min(tip.x+26,xOf(1));
-    ry=Math.max(base-60, Math.min(base+16, tip.y-cfg.penLen*.72));
+    const tip=penTip(), pS=penSide(), dx=(pS==='L'?-26:26);
+    const px=Math.max(xOf(0),Math.min(xOf(1),tip.x+dx));
+    const py=Math.max(base-60, Math.min(base+16, tip.y-cfg.penLen*.72));
+    const qx=xOf(pS==='L'?.80:.20), qy=base+24+S.ly;
+    if(pS==='L'){ lx=px; ly=py; rx=qx; ry=qy; }
+    else        { rx=px; ry=py; lx=qx; ly=qy; }
   }else{
     lx=xOf(S.lx); ly=base+S.ly;
     rx=xOf(S.rx); ry=base+S.ry;
   }
   const now=performance.now(), HOLD=+cfg.hold;
-  const lDown = cfg.mode==='pen' ? false : (now-S.lHit<HOLD);
-  const rDown = cfg.mode==='pen' ? S.penDown : (now-S.rHit<HOLD);
+  const pS=penSide();
+  const lDown = cfg.mode==='pen' ? (pS==='L'&&S.penDown) : (now-S.lHit<HOLD);
+  const rDown = cfg.mode==='pen' ? (pS==='R'&&S.penDown) : (now-S.rHit<HOLD);
   hand('L',lx,ly,lDown); hand('R',rx,ry,rDown);
   arm('armL',262,300,lx,ly,-1); arm('armR',378,300,rx,ry,1);
 
   if(cfg.mode==='pen'){
     const tip=penTip(), pg=$('#penG');
+    const hx=(pS==='L'?lx:rx), hy=(pS==='L'?ly:ry);
     if(pg){
-      const dx=tip.x-rx, dy=tip.y-(ry+S.bob*.35);
+      const dx=tip.x-hx, dy=tip.y-(hy+S.bob*.35);
       if(art.pen){
         const a=A('pen'), an=ANCHOR.pen, im=art.pen;
         const s2=Math.min(an.w/im.w,an.h/im.h)*(a.s/100);
         const ang=Math.atan2(dy,dx)*180/Math.PI-90;
         pg.firstChild.setAttribute('transform',
-          `translate(${rx+a.x} ${ry+S.bob*.35+a.y}) rotate(${ang+a.r}) translate(0 ${im.h*s2/2})`);
+          `translate(${hx+a.x} ${hy+S.bob*.35+a.y}) rotate(${ang+a.r}) translate(0 ${im.h*s2/2})`);
       }else{
         const pb=$('#penBody'), pt=$('#penTip');
-        pb.setAttribute('x1',rx+6); pb.setAttribute('y1',ry+S.bob*.35+6);
+        pb.setAttribute('x1',hx+(pS==='L'?-6:6)); pb.setAttribute('y1',hy+S.bob*.35+6);
         pb.setAttribute('x2',tip.x); pb.setAttribute('y2',tip.y);
         pt.setAttribute('cx',tip.x); pt.setAttribute('cy',tip.y);
       }
@@ -642,6 +655,7 @@ function syncUI(){
   $('#bounce').checked=cfg.bounce; $('#blink').checked=cfg.blink; $('#arm').checked=cfg.arm;
   $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cfg.mode));
   $$('#bgSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cfg.bg));
+  $$('#handSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cfg.hand));
   box.className='stagebox '+cfg.bg;
   $('#modeTag').textContent=cfg.mode==='key'?'キーボード':'タブレット';
 }
@@ -656,6 +670,9 @@ $$('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{
   cfg.mode=b.dataset.v; saveCfg(); syncUI(); drawDesk(); drawHands();
 }));
 $$('#bgSeg button').forEach(b=>b.addEventListener('click',()=>{cfg.bg=b.dataset.v;saveCfg();syncUI();}));
+$$('#handSeg button').forEach(b=>b.addEventListener('click',()=>{
+  cfg.hand=b.dataset.v; saveCfg(); syncUI(); drawHands();
+}));
 $('#pickBtn').addEventListener('click',()=>$('#pick').click());
 $('#pick').addEventListener('change',e=>{ if(e.target.files.length) takeFiles(e.target.files); e.target.value=''; });
 $('#solo').addEventListener('click',()=>document.body.classList.add('solo'));
