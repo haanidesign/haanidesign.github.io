@@ -276,6 +276,17 @@ const TOOLS = [
     thumb: "thumbs/matome.svg",
     url: "tools/matome/index.html",
     status: "live"
+  },
+  {
+    no: 26,
+    slug: "nokoshi-iro",
+    title: "のこし色",
+    desc: "写真の中から 残す色を 1つ えらび、ほかを モノクロに する。色の はばと ぼかし、効かせる 範囲（円・四角・囲む・塗る）、モノクロの トーンを 決められる。カメラの 映像に かけながら 撮ることも できる。フレーム・色見本・カラーコード付きで、比率を えらんで 書き出す。",
+    tags: ["写真", "色", "モノクロ", "スマホ"],
+    cat: "other",
+    thumb: "thumbs/nokoshi-iro.svg",
+    url: "tools/nokoshi-iro/index.html",
+    status: "live"
   }
 ];
 
