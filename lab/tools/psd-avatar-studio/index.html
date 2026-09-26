@@ -1119,6 +1119,11 @@ function W(w, loop){
   return 2*Math.PI*n / D;
 }
 // 山型のまばたきカーブ (q:0→1 で 開→閉→開)
+function pulse(ph, start, d){ return (ph < start || ph > start + d) ? 0 : Math.sin((ph - start) / d * Math.PI); }
+function talkBurst(ph, start, d){
+  if(ph < start || ph > start + d) return 0;
+  return 0.18 + Math.max(0, Math.sin((ph - start) * Math.PI * 4)) * 0.55;
+}
 function blinkShape(q){ return q < 0.4 ? q/0.4 : 1-(q-0.4)/0.6; }
 
 /**
@@ -1147,9 +1152,15 @@ function step(t, dt, loop){
     headY += Math.sin(t*0.7+2)*0.18;
     headZ += Math.sin(t*0.5+1)*0.12;
   }
+  // マウス追従: 頭・視線に加えて体もついてくる。ウインクと口パクも時々入る
+  let winkL = 0, winkR = 0, mouseTalk = 0;
   if(T.mouseTrack && !loop){
-    headX += mouse.x*0.6; headY += mouse.y*0.4;
+    headX += mouse.x*0.6; headY += mouse.y*0.4; headZ += mouse.x*-0.12;
     gazeX += mouse.x*0.8; gazeY += mouse.y*0.8;
+    bodyTilt += mouse.x*0.35;
+    const ph = t % 9.6;
+    winkL = pulse(ph, 2.5, 0.3); winkR = pulse(ph, 5.3, 0.3);
+    mouseTalk = Math.max(talkBurst(ph, 1, 0.8), talkBurst(ph, 7, 0.7));
   }
   // モーション(演技)。ループ時は尺に整数回入るよう伸縮させる
   let eyeLv = P.eyeL, eyeRv = P.eyeR, smile = P.mouthSmile, browY = P.browY, bob = 0, talk = 0;
@@ -1161,6 +1172,12 @@ function step(t, dt, loop){
     if(mPh < 0) mPh += 1;
     const m = motionAt(MO, mPh), g = motion.gain;
     headX += m.hx*g; headY += m.hy*g; headZ += m.hz*g; bodyTilt += m.tilt*g;
+    // 下地の揺れ。ポーズで止まって見えないよう、ゆっくりした揺れを常に重ねる
+    // (StandRig の Showcase の考え方。Apache-2.0)
+    headX += Math.sin(t*W(0.55,loop))*0.12*g;
+    headY += Math.sin(t*W(0.43,loop)+1.1)*0.08*g;
+    headZ += Math.sin(t*W(0.37,loop))*0.1*g;
+    bodyTilt += Math.sin(t*W(0.33,loop))*0.12*g;
     gazeX = Math.max(-1, Math.min(1, gazeX + m.gx)); gazeY = Math.max(-1, Math.min(1, gazeY + m.gy));
     bob = m.bob * g * 14 * (psdH / 768);
     talk = m.talk;
@@ -1169,6 +1186,8 @@ function step(t, dt, loop){
     smile = abs(m.sm, smile); browY = abs(m.brow, browY);
     if(m.mo !== null) P_mouth = abs(m.mo, P.mouthOpen); else P_mouth = null;
   } else P_mouth = null;
+  eyeLv *= 1 - winkL; eyeRv *= 1 - winkR;
+  if(T.mouseTrack && !loop) bob += mouse.y * 10 * (psdH / 768);
   const breath = T.idle ? Math.sin(t*W(1.9,loop))*0.5+0.5 : 0;
 
   // まばたき: ループ時は等間隔、通常時はランダム間隔
@@ -1186,7 +1205,7 @@ function step(t, dt, loop){
   } else blink = 0;
 
   // リップ
-  let mouthOpen = P_mouth ?? P.mouthOpen;
+  let mouthOpen = Math.max(P_mouth ?? P.mouthOpen, mouseTalk);
   if(talk > 0.01 && MO){
     // 口パク。位相はモーションの周期に整数回入れる
     const K = Math.round(MO.len * 4.5), K2 = Math.round(MO.len * 1.3);
