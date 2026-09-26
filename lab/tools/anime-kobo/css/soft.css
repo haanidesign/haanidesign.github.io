@@ -386,3 +386,5 @@ hr,.sep{ border-color:var(--line); }
 }
 .tool.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--ink) !important; }
 .tool.on .ico{ color:var(--ink) !important; }
+/* 音を 切って いる あいだは ひと目で わかるように */
+#top #mute.on{ background:#fff !important; color:var(--ink) !important; font-weight:700; }

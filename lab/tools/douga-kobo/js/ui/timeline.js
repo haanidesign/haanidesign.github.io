@@ -1,12 +1,13 @@
 /* 下の タイムライン。ふだを つかむ・はしを のばす・段を うつる。 */
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
-  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked
-} from '../state.js?v=67';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=67';
-import { bus } from '../bus.js?v=67';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=67';
-import { durOf as jzDur } from '../jz.js?v=67';
+  allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
+} from '../state.js?v=73';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=73';
+import { bus } from '../bus.js?v=73';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=73';
+import { durOf as jzDur } from '../jz.js?v=73';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=73';
 
 const el = {};
 export function init() {
@@ -19,6 +20,7 @@ export function init() {
   el.snapline = $('#snapline');
   el.beat = $('#beatCv');
   el.loop = $('#loopband');
+  el.cbar = $('#clipbar');
   el.scroll.addEventListener('scroll', () => {
     el.heads.style.transform = `translateY(${-el.scroll.scrollTop}px)`;
   });
@@ -34,31 +36,190 @@ const MAXW = 30000;   // これより 大きい 絵は ブラウザが えがけ
 const width = () => Math.min(MAXW, Math.max(el.scroll.clientWidth + 160, t2x(Math.max(duration(), clipEnd())) + 360));
 
 /* ---------- えがく ---------- */
-export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); }
+export function drawAll() { drawHeads(); drawLanes(); drawRuler(); movePlayhead(); drawLoopBand(); drawClipBar(); }
 
 function drawHeads() {
   el.heads.innerHTML = '';
   S.tracks.forEach((tr, i) => {
     const d = document.createElement('div');
-    d.className = 'thead' + (S.selTrack === tr.id ? ' sel' : '');
+    const on = S.selTrack === tr.id;
+    d.className = 'thead' + (on ? ' sel' : '');
+    d.dataset.tid = tr.id;
     const ic = { video: '🎞', audio: '🎵', text: '🅰' }[tr.kind];
     /* 音の段に「目」は いらない。音けしと まぎらわしい ので 出さない */
     const eye = tr.kind === 'audio' ? '' :
       `<button class="tb ${tr.hidden ? 'off' : ''}" data-a="hide" title="出す／かくす">${tr.hidden ? '🚫' : '👁'}</button>`;
+    /* えらんだ 段だけ 上げ下げと ごみ箱を 出す。いつも 出すと ボタンだらけに なる */
+    const edit = on
+      ? `<button class="tb" data-a="name" title="なまえを かえる">✏</button>` +
+        `<button class="tb" data-a="up" title="ひとつ 上へ"${i === 0 ? ' disabled' : ''}>▲</button>` +
+        `<button class="tb" data-a="down" title="ひとつ 下へ"${i === S.tracks.length - 1 ? ' disabled' : ''}>▼</button>` +
+        `<button class="tb btn-p" data-a="del" title="この 段を けす">🗑</button>`
+      : '';
     d.innerHTML =
+      `<span class="grip" title="つまんで 上下に 動かすと ならびが かわります">⠿</span>` +
       `<span class="ic">${ic}</span><span class="nm"></span>` + eye +
       `<button class="tb ${tr.mute ? 'off' : ''}" data-a="mute" title="音を 出す／けす">${tr.mute ? '🔇' : '🔊'}</button>` +
-      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>`;
+      `<button class="tb ${tr.lock ? 'off' : ''}" data-a="lock" title="かぎを かける">${tr.lock ? '🔒' : '🔓'}</button>` +
+      edit;
     d.querySelector('.nm').textContent = tr.name;
     d.addEventListener('click', e => {
-      const a = e.target.dataset && e.target.dataset.a;
+      /* ボタンの 中身は アイコンに 置きかわる ので、
+         e.target では なく いちばん 近い [data-a] を 見る */
+      const hit = e.target.closest && e.target.closest('[data-a]');
+      const a = hit && d.contains(hit) ? hit.dataset.a : null;
       S.selTrack = tr.id;
+      /* 段を えらんだ ときは ふだの えらびを 外す（ごみ箱が 段に 効く ように） */
+      S.sel = null; S.selMany = [];
       if (a === 'hide') tr.hidden = !tr.hidden;
       else if (a === 'mute') tr.mute = !tr.mute;
       else if (a === 'lock') tr.lock = !tr.lock;
+      else if (a === 'up') { moveTrack(tr.id, -1); return; }
+      else if (a === 'down') { moveTrack(tr.id, 1); return; }
+      else if (a === 'del') { delTrack(tr.id); return; }
+      else if (a === 'name') {
+        const v = prompt('この 段の なまえ', tr.name);
+        if (v && v.trim()) renameTrack(tr.id, v.trim());
+        bus.all(); return;
+      }
       if (a) { pushUndo(); bus.all(); } else bus.all();
     });
+    headDrag(d, tr);
     el.heads.appendChild(d);
+  });
+}
+
+/* えらんだ ふだの 上に 出る 小さな ボタン。
+   ふだを えらんだ その場で、けす・となりへ ずらす・上下の 段へ 移す が できる。
+   ふだが 小さい ときは 中に ボタンを 入れられない ので 上に うかせる。 */
+function drawClipBar() {
+  const bar = el.cbar;
+  if (!bar) return;
+  const many = (S.selMany || []).length > 1 ? selectedAll().filter(x => !x.t.lock) : null;
+  const f = S.sel && findClip(S.sel);
+  if (!many && !f) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+
+  /* まとめて えらんで いる ときは、いちばん 上・いちばん 前の ふだの 上に 出す */
+  const head = many
+    ? many.slice().sort((x, y) => (S.tracks.indexOf(x.t) - S.tracks.indexOf(y.t)) || (x.c.start - y.c.start))[0]
+    : f;
+  if (!head) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const c = head.c, t = head.t;
+  const i = S.tracks.indexOf(t);
+  const list = many || [head];
+  /* ぜんぶの ふだが 動ける 行き先だけ 出す */
+  const canAll = nt => nt && list.every(x => fitsTrack(x.c, nt));
+  const up = S.tracks.slice(0, i).reverse().find(canAll);
+  const dn = S.tracks.slice(i + 1).find(canAll);
+  const lock = !many && t.lock;
+  const b = (a2, label, title, off) =>
+    `<button class="cb${off ? ' off' : ''}" data-c="${a2}" title="${title}"${off ? ' disabled' : ''}>${label}</button>`;
+  bar.innerHTML =
+    (many ? `<span class="cn">${many.length}まい</span>` : '') +
+    b('up', '⬆', 'ひとつ 上の 段へ', !up || lock) +
+    b('dn', '⬇', 'ひとつ 下の 段へ', !dn || lock) +
+    b('l', '◀', 'すこし 前へ', lock) +
+    b('r', '▶', 'すこし うしろへ', lock) +
+    (many ? '' : b('cut', '✂', 'いまの ところで 切る', lock) + b('dup', '⧉', 'ふやす', lock)) +
+    b('del', '🗑', many ? 'えらんだ ぶん ぜんぶ けす' : 'けす', lock);
+  bar.style.display = 'flex';
+  /* ふだの 左上に 出す。上に はみ出す ときは 下に 出す */
+  const laneH = (el.lanes.querySelector('.lane') || {}).offsetHeight || 64;
+  const top = i * laneH;
+  bar.style.left = Math.max(0, t2x(c.start)) + 'px';
+  bar.style.top = (top > 30 ? top - 30 : top + laneH - 2) + 'px';
+  bar.onclick = e => {
+    const hit = e.target.closest && e.target.closest('[data-c]');
+    if (!hit || !bar.contains(hit)) return;
+    e.stopPropagation();
+    const a2 = hit.dataset.c;
+    if (lock) { toast('この 段は かぎが かかって います'); return; }
+    if (a2 === 'del') {
+      if (many) {
+        list.forEach(x => { x.t.clips = x.t.clips.filter(y => y !== x.c); });
+        S.selMany = []; S.sel = null;
+        pushUndo(); bus.all(); buzz(18);
+        toast(`${list.length}まい けした`);
+      } else delSel();
+      return;
+    }
+    if (a2 === 'dup') { dupSel(); return; }
+    if (a2 === 'cut') { splitHere(); return; }
+    if (a2 === 'up' || a2 === 'dn') {
+      const nt = a2 === 'up' ? up : dn;
+      if (!nt) return;
+      list.forEach(x => {
+        x.t.clips = x.t.clips.filter(y => y !== x.c);
+        nt.clips.push(x.c);
+      });
+      S.selTrack = nt.id;
+      pushUndo(); bus.all(); buzz(14);
+      return;
+    }
+    if (a2 === 'l' || a2 === 'r') {
+      const st = beatOn() ? stepSec() : 1 / S.fps * 6;
+      let d = (a2 === 'l' ? -1 : 1) * st;
+      const minS = Math.min(...list.map(x => x.c.start));
+      if (minS + d < 0) d = -minS;
+      list.forEach(x => { x.c.start = Math.max(0, r2(x.c.start + d)); syncLinked(x.c); });
+      pushUndo(); bus.all(); buzz(10);
+    }
+  };
+}
+
+/* 段の あたまを つまんで 上下に 動かすと ならびが かわる。
+   たてに 10px ほど 動かした ところで はじまる（よこは 見のがす）。
+   ボタンの 上から は はじまらない。 */
+let hdrag = null;
+function headDrag(d, tr) {
+  d.addEventListener('pointerdown', e => {
+    if (e.target.closest && e.target.closest('button')) return;
+    let armed = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    const begin = () => {
+      hdrag = { id: tr.id, y0: armed.y, el: d, moved: false };
+      d.classList.add('dragging');
+      buzz(12);
+    };
+    const move = ev => {
+      if (ev.pointerId !== armed.id) return;
+      if (!hdrag) {
+        const dy = ev.clientY - armed.y, dx = ev.clientX - armed.x;
+        if (Math.abs(dy) < 10 || Math.abs(dy) < Math.abs(dx)) return;
+        begin();
+      }
+      if (hdrag.id !== tr.id) return;
+      ev.preventDefault();
+      const h = (hdrag.el && hdrag.el.getBoundingClientRect().height) || 1;
+      const dy = ev.clientY - hdrag.y0;
+      /* 1だん ぶん（の 6わり）動かしたら 1つ 入れかえる。
+         半分で 入れかえると 指が ふるえた だけで ころころ 変わる */
+      if (Math.abs(dy) < h * 0.6) return;
+      const dir = dy > 0 ? 1 : -1;
+      const i = S.tracks.findIndex(x => x.id === tr.id);
+      const j = i + dir;
+      if (j < 0 || j >= S.tracks.length) { hdrag.y0 = ev.clientY; return; }
+      const [t2] = S.tracks.splice(i, 1);
+      S.tracks.splice(j, 0, t2);
+      hdrag.y0 += dir * h; hdrag.moved = true;
+      S.selTrack = tr.id;
+      drawHeads(); drawLanes();
+      const nd = el.heads.querySelector('.thead[data-tid="' + tr.id + '"]');
+      if (nd) { nd.classList.add('dragging'); hdrag.el = nd; }
+      buzz(8);
+    };
+    const up = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      document.removeEventListener('pointercancel', up);
+      if (!hdrag) return;
+      const moved = hdrag.moved;
+      if (hdrag.el) hdrag.el.classList.remove('dragging');
+      hdrag = null;
+      if (moved) { pushUndo(); bus.all(); }
+    };
+    document.addEventListener('pointermove', move, { passive: false });
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', up);
   });
 }
 
@@ -382,6 +543,7 @@ document.addEventListener('pointermove', e => {
   const c = drag.f.c, dt = x2t(e.clientX - drag.x0);
   if (!drag.moved && (Math.abs(e.clientX - drag.x0) > 4 || Math.abs(e.clientY - drag.y0) > 4)) {
     drag.moved = true; buzz();
+    if (el.cbar) el.cbar.style.display = 'none';   // 動かして いる あいだは じゃまなので 引っこめる
   }
   if (!drag.moved) return;
   const m = c.mid ? MEDIA.get(c.mid) : null;
@@ -405,8 +567,7 @@ document.addEventListener('pointermove', e => {
     const lane = under && under.closest && under.closest('.lane');
     if (lane && lane.dataset.tid !== drag.f.t.id) {
       const nt = trackOf(lane.dataset.tid);
-      const kind = c.kind === 'image' ? 'video' : c.kind;
-      if (nt && nt.kind === kind) {
+      if (nt && fitsTrack(c, nt)) {
         drag.f.t.clips = drag.f.t.clips.filter(x => x !== c);
         nt.clips.push(c); drag.f.t = nt; S.selTrack = nt.id;
         drawLanes(); drawHeads();

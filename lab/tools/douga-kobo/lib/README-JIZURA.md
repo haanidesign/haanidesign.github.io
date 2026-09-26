@@ -6,7 +6,7 @@
 - もと: https://github.com/852wa/JIZURA
 - ライセンス: MIT License — Copyright (c) 2026 hakoniwa
 - 全文: `../LICENSE-JIZURA.txt`
-- 取りこんだ 時点: 2026-09-25（[nocore-dtm/JIZURA](https://github.com/nocore-dtm/JIZURA) `782fa7d`。本家と 同じ MIT・同じ 権利者で、
+- 取りこんだ 時点: 2026-09-26（[nocore-dtm/JIZURA](https://github.com/nocore-dtm/JIZURA) `cd55c90`、本家 v0.9.0 入り。本家と 同じ MIT・同じ 権利者で、
   行ごと・カットごとの さしかえ、[間奏] 行、カット数の 指定 などが 足された もの）
 
 ## 取りこむ にあたって したこと

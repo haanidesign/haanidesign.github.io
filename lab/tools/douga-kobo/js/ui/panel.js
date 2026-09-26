@@ -3,21 +3,22 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=67';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=67';
-import { storeOk } from '../store.js?v=67';
-import { bus } from '../bus.js?v=67';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=67';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=67';
+} from '../state.js?v=73';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=73';
+import { storeOk } from '../store.js?v=73';
+import { bus } from '../bus.js?v=73';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=73';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=73';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
-  techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv } from '../jz.js?v=67';
+  techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv,
+  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=73';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=67';
+  offOf, setOff, clearOff } from '../text.js?v=73';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=67';
+} from '../edit.js?v=73';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -642,6 +643,76 @@ function charGroup(T) {
   return group('1文字ずつ', nodes);
 }
 
+/* --- 部品の みほんカード ---
+   見えて いる カードだけ 1びょうに 14回 ほど 焼き直す。
+   パネルが 閉じたり 画面から 外れたら 止まる（おもく ならない ように）。 */
+let partOpen = null;
+const liveCards = new Set();
+let cardObs = null, cardRaf = 0, cardLast = 0, cardGap = 70;
+function watchCard(cv) {
+  if (!cardObs) {
+    cardObs = new IntersectionObserver(ents => {
+      ents.forEach(e => { if (e.isIntersecting) liveCards.add(e.target); else liveCards.delete(e.target); });
+      kickCards();
+    }, { rootMargin: '30px 0px', threshold: [0, .1] });
+  }
+  cardObs.observe(cv);
+}
+function kickCards() {
+  if (cardRaf) return;
+  const tick = now => {
+    cardRaf = 0;
+    if (document.hidden || S.exporting) return;
+    for (const cv of liveCards) if (!cv.isConnected) { liveCards.delete(cv); if (cardObs) cardObs.unobserve(cv); }
+    if (!liveCards.size) return;
+    /* 焼くのに かかった 時間の 3ばいは 休む。おそい タブレットでは 自然に コマが へる */
+    if (now - cardLast >= cardGap) {
+      cardLast = now;
+      const t0 = performance.now();
+      liveCards.forEach(cv => { if (cv._jz) jzPaint(cv, cv._jz, cv.dataset.g, cv.dataset.k, now); });
+      cardGap = Math.min(400, Math.max(70, (performance.now() - t0) * 3));
+    }
+    cardRaf = requestAnimationFrame(tick);
+  };
+  cardRaf = requestAnimationFrame(tick);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) kickCards(); });
+
+function partGrid(j, g, list, pool, cur, onPick) {
+  const wrap = el('div', 'partgrid');
+  const [tw, th] = jzPrevSize(j, 62);
+  const card = (key, name, star) => {
+    const c = el('button', 'pcard' + ((cur || '') === key ? ' on' : ''));
+    c.type = 'button';
+    if (key && key !== 'none') {
+      const cv = el('canvas');
+      cv.width = tw; cv.height = th;
+      cv.dataset.g = g; cv.dataset.k = key; cv._jz = j;
+      c.appendChild(cv);
+      jzPaint(cv, j, g, key, performance.now());
+      watchCard(cv);
+    } else {
+      const ph = el('div', 'pph', key === 'none' ? 'なし' : 'おまかせ');
+      ph.style.height = th + 'px';
+      c.appendChild(ph);
+    }
+    c.appendChild(el('span', 'pnm', (star ? '★ ' : '') + name));
+    c.addEventListener('click', () => onPick(key));
+    return c;
+  };
+  wrap.appendChild(card('', 'もとに もどす'));
+  if (g === 'trans') wrap.appendChild(card('none', 'つながない'));
+  list.filter(x => pool.includes(x[0])).forEach(x => wrap.appendChild(card(x[0], x[1], true)));
+  const rest = list.filter(x => !pool.includes(x[0]));
+  if (rest.length) {
+    const sep = el('div', 'psep', `ほかの スタイルの もの（${rest.length}）`);
+    wrap.appendChild(sep);
+    rest.forEach(x => wrap.appendChild(card(x[0], x[1], false)));
+  }
+  kickCards();
+  return wrap;
+}
+
 /* --- だん --- */
 function trackBody() {
   const w = el('div');
@@ -896,16 +967,20 @@ function jzEditBody(c) {
       const hit = () => { share(); jzClear(); pushUndo(); bus.all(); draw(); };
       const rows = [];
       const pools = {};
+      /* 1行 ＝ 1つの 部品。おすと その下に みほんの カードが ならぶ */
       JZ_EDIT.forEach(([g, label]) => {
         const list = jzParts(g);
         if (!list.length) return;
         const pool = jzPool(j, g);
         pools[g] = pool;
-        const opts = [['', 'おまかせ（' + nameOf(list, now[g]) + '）']];
-        if (g === 'trans') opts.push(['none', 'なし']);
-        list.filter(x => pool.includes(x[0])).forEach(x => opts.push([x[0], '★ ' + x[1]]));
-        list.filter(x => !pool.includes(x[0])).forEach(x => opts.push(x));
-        rows.push(pick(label, opts, tech[g] || '', v => { jzSetTech(j, g, v); hit(); }));
+        const cur = tech[g] || '';
+        const shown = cur === 'none' ? 'なし' : cur ? nameOf(list, cur) : 'おまかせ（' + nameOf(list, now[g]) + '）';
+        const open = partOpen === g;
+        const b = btn((open ? '▾ ' : '▸ ') + shown, 'btn-sm partbtn' + (cur ? ' on' : ''), () => {
+          partOpen = open ? null : g; draw();
+        });
+        rows.push(row(label, b));
+        if (open) rows.push(partGrid(j, g, list, pool, cur, v => { jzSetTech(j, g, v); hit(); }));
       });
       rows.push(grid(null, [
         btn('🎲 この カットだけ ひき直す', 'btn-sm', () => {

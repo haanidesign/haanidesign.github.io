@@ -3,9 +3,9 @@ import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
   freeSlot, laneFor, freeLane
-} from './state.js?v=67';
-import { MEDIA, hookAudio } from './media.js?v=67';
-import { bus } from './bus.js?v=67';
+} from './state.js?v=73';
+import { MEDIA, hookAudio } from './media.js?v=73';
+import { bus } from './bus.js?v=73';
 
 export function addFromMedia(m, at = 0, track = null) {
   if (!m) return null;
@@ -68,7 +68,11 @@ export function addLyrics(text, { from = 0, each = 2.5, gap = 0, size = 64, y = 
 }
 export function delSel() {
   const f = S.sel && findClip(S.sel);
-  if (!f) { toast('ふだを えらんでから'); return; }
+  /* ふだを えらんで いない ときは、えらんで いる 段を けす */
+  if (!f) {
+    if (S.selTrack && S.tracks.some(t => t.id === S.selTrack)) { delTrack(S.selTrack); return; }
+    toast('ふだか 段を えらんでから'); return;
+  }
   f.t.clips = f.t.clips.filter(c => c.id !== f.c.id);
   S.sel = null;
   pushUndo(); bus.all();
@@ -106,6 +110,8 @@ export function delTrack(id) {
   if (t.clips.length && !confirm('この段の ふだも いっしょに けします。いい？')) return;
   S.tracks = S.tracks.filter(x => x.id !== id);
   if (S.sel && !findClip(S.sel)) S.sel = null;
+  if (S.selTrack === id) S.selTrack = null;
+  toast('段を けした（もどす で 戻せます）');
   pushUndo(); bus.all();
 }
 export function renameTrack(id, name) {

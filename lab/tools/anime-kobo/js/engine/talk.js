@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=269';
-import { newLayer, newFolder } from './layer.js?v=269';
+import { S } from '../state.js?v=299';
+import { newLayer, newFolder } from './layer.js?v=299';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -339,12 +339,31 @@ export function talkMouthKeys(l, target, setPin){
   const s = talkStart(l);
   const nf = target.frames.length;
   const every = Math.max(1, Math.round(t.blipEvery || 2));
+
+  /* どの コマが とじた口／あけた口 かは、口の レイヤーが おぼえて いる
+     （「表情」の 口パクと 同じ ところを 見る）。
+       あけた口を きめて ある … その 2まいだけで パクパク する
+       きめて いない       … とじた口 いがいを 順ぐりに つかう */
+  const mt = target.talk || {};
+  const closed = Math.max(0, Math.min(nf - 1, mt.closed == null ? 0 : mt.closed));
+  const open = (mt.open == null || mt.open === closed) ? null
+             : Math.max(0, Math.min(nf - 1, mt.open));
+
+  let ladder;
+  if(open !== null){
+    ladder = [closed, open];
+  } else {
+    const opens = [];
+    for(let i = 0; i < nf; i++) if(i !== closed) opens.push(i);
+    /* 行って 帰って（0,1,2,1,0…）。口が 2まいの ときは そのまま 交ごに なる */
+    ladder = [closed, ...opens, ...opens.slice(0, -1).reverse()];
+  }
+
   let k = 0, put = 0;
   for(let i = 0; i < n; i += every){
-    const frame = nf === 2 ? (k % 2) : (k % (nf * 2 - 2) < nf ? k % nf : nf - 2 - (k % (nf * 2 - 2) - nf));
-    setPin(target, 'frame', s + i / cps, Math.max(0, Math.min(nf - 1, frame)), 'hold');
+    setPin(target, 'frame', s + i / cps, ladder[k % ladder.length], 'hold');
     k++; put++;
   }
-  setPin(target, 'frame', s + n / cps, 0, 'hold');       // さいごは 口を とじる
+  setPin(target, 'frame', s + n / cps, closed, 'hold');   // さいごは 口を とじる
   return put + 1;
 }

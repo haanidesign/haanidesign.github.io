@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=269';
-import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=269';
+import { M, uid, ptInQuad } from './math.js?v=299';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=299';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=269';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=269';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=269';
-import { handTime } from './hand.js?v=269';
-import { WORK_KEYS } from '../state.js?v=269';
+         withShake } from './camera.js?v=299';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=299';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=299';
+import { handTime } from './hand.js?v=299';
+import { WORK_KEYS } from '../state.js?v=299';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -937,6 +937,84 @@ export function splitFrames(project, layer, time){
  * 子の いまの見た目を おぼえてから 直す。
  * fn の中で 親の x/y/pivot を いじる。
  */
+/**
+ * じく（アンカー）を ずらす。絵も 子も 動かさない。
+ *
+ *   dax, day … 絵の 中で じくを どれだけ ずらすか（絵の ものさし）
+ *
+ * なぜ ここに 置くか
+ *   じくを ずらすと、その レイヤーの ものさしの 原点が ずれる。
+ *   見た目を 止めるには
+ *     ・自分   … まわり方・大きさを 通した ぶんだけ 場所を 反対に ずらす
+ *     ・子ども … 親の ものさしで ずれた ぶんだけ 反対に ずらす（いつも 同じ ぶん）
+ *   自分の ずらし ぶんは まわり方で 変わる ので、
+ *   うごきの キーフレーム 1つ 1つで 出し直す。
+ *   （いまの 時こく だけで 出すと、ほかの 時こくで 絵が ずれる）
+ */
+export function moveAnchorKeepAll(project, layer, dax, day, time, setPivot){
+  const tr = layer.tracks || {};
+  const has = (c) => !!(tr[c] && tr[c].length);
+  const moved = (c) => (tr[c] || []).map(k => k.t);
+
+  /* まわり方・大きさが 変わる ところ ぜんぶ。
+     ここで ずらし ぶんが 変わる。 */
+  const set = new Set([...moved('rot'), ...moved('scaleX'), ...moved('scaleY'),
+                       ...moved('x'), ...moved('y')]);
+  const times = [...set].sort((a, b) => a - b);
+
+  const worldShift = (t) => {
+    const v = evalAt(layer, t);
+    const m = M.trs(0, 0, v.rot, v.scaleX, v.scaleY);
+    return { dx: m.a * dax + m.c * day, dy: m.b * dax + m.d * day, v };
+  };
+
+  if(times.length && (has('rot') || has('scaleX') || has('scaleY'))){
+    /* まわりながら 動く ものは、キーフレームごとに 出し直す。
+       x・y の キーフレームが まだ 無い ところにも 打って、
+       その 時こくの 見た目を 止める。
+
+       キーフレームと キーフレームの あいだも 見て おく。
+       まわり方は なめらかな 線で つながって いる ので、
+       はしだけ 合わせても 間が すこし ずれる。
+       0.1秒 おきに 打って、間も そろえる。 */
+    const fine = [];
+    for(let i = 0; i < times.length; i++){
+      fine.push(times[i]);
+      const a = times[i], b = times[i + 1];
+      if(b == null) continue;
+      const n = Math.min(40, Math.floor((b - a) / 0.1));
+      for(let j = 1; j <= n; j++){
+        const t = +(a + (b - a) * j / (n + 1)).toFixed(3);
+        if(t > a && t < b) fine.push(t);
+      }
+    }
+    const want = fine.map(t => ({ t, ...worldShift(t) }));
+    want.forEach(({ t, dx, dy, v }) => {
+      setPin(layer, 'x', t, v.x + dx, 'smooth');
+      setPin(layer, 'y', t, v.y + dy, 'smooth');
+    });
+    const now = worldShift(time);
+    layer.x += now.dx; layer.y += now.dy;
+  } else {
+    const now = worldShift(time);
+    layer.x += now.dx; layer.y += now.dy;
+    shiftTrack(layer, 'x', now.dx);
+    shiftTrack(layer, 'y', now.dy);
+  }
+
+  setPivot();
+
+  /* 子どもは 親の ものさしの 中に いる。
+     原点が (dax, day) ずれた ので、同じだけ 反対に ずらせば
+     どの 時こくでも 動かない。 */
+  project.layers.forEach(k => {
+    if(k.parent !== layer.id) return;
+    k.x -= dax; k.y -= day;
+    shiftTrack(k, 'x', -dax);
+    shiftTrack(k, 'y', -day);
+  });
+}
+
 export function keepChildren(project, layer, time, fn){
   const kids = project.layers.filter(l => l.parent === layer.id);
   if(!kids.length){ fn(); return 0; }
@@ -984,15 +1062,42 @@ export function keepChildren(project, layer, time, fn){
  * フォルダを けすときは 中身も いっしょに。
  * ぶら下がっていた ほかのレイヤーは 親を はずして その場に のこす。
  */
-export function removeLayers(project, ids){
+/** けす ことに なる レイヤーを ぜんぶ 出す（けす 前に かぞえる ため） */
+export function willRemove(project, ids){
   const kill = new Set();
-  const add = (id) => {
+  const add = (id, deep) => {
     if(kill.has(id)) return;
     kill.add(id);
     const l = project.layers.find(x => x.id === id);
-    if(l && isFolder(l)) project.layers.forEach(x => { if(x.parent === id) add(x.id); });
+    const into = deep || (l && isFolder(l));
+    if(into) project.layers.forEach(x => { if(x.parent === id) add(x.id, true); });
   };
-  ids.forEach(add);
+  (ids || []).forEach(id => add(id, false));
+  return [...kill];
+}
+
+export function removeLayers(project, ids){
+  const kill = new Set();
+
+  /* フォルダを けす ときは、中身を ぜんぶ いっしょに けす。
+
+     ここで 気を つける ところ ―― 中身は フォルダの 直の 子 だけ とは かぎらない。
+     「うごき追加」で 入れた キャラは
+       フォルダ → 体 → 頭 → 前髪
+     の ように つながって いる。フォルダの 子（体）しか たどらないと、
+     頭より 先が 親なしで のこる（フォルダだけ ほどけた ように 見える）。
+     だから フォルダの 中は どこまでも たどる。
+
+     ふつうの レイヤーを けす ときは 子を のこす（AEと 同じ）。
+     下の 行で 親を 外して、その場に のこる。 */
+  const add = (id, deep) => {
+    if(kill.has(id)) return;
+    kill.add(id);
+    const l = project.layers.find(x => x.id === id);
+    const into = deep || (l && isFolder(l));
+    if(into) project.layers.forEach(x => { if(x.parent === id) add(x.id, true); });
+  };
+  ids.forEach(id => add(id, false));
 
   project.layers = project.layers.filter(l => !kill.has(l.id));
   project.layers.forEach(l => { if(l.parent && kill.has(l.parent)) l.parent = null; });

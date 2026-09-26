@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=67';
+import { bus } from './bus.js?v=73';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -85,6 +85,10 @@ export function selectedAll() {
   ids.forEach(id => { const f = findClip(id); if (f) out.push(f); });
   return out.sort((a, b) => a.c.start - b.c.start);
 }
+/* この ふだを その 段に 置けるか。
+   音の 段には 音だけ。そのほかの 段は 絵・文字PV・いろ・文字 どれでも 置ける */
+export const fitsTrack = (c, t) => (t.kind === 'audio') === (c.kind === 'audio');
+
 export const manyOn = () => (S.selMany || []).length > 1;
 
 /* --- つないだ ふだ（前後に ばらした 文字PV など） ---
