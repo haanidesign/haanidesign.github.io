@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=72';
+import { S, toast } from './state.js?v=73';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);

@@ -2,12 +2,12 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
-} from '../state.js?v=72';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=72';
-import { bus } from '../bus.js?v=72';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=72';
-import { durOf as jzDur } from '../jz.js?v=72';
-import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=72';
+} from '../state.js?v=73';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=73';
+import { bus } from '../bus.js?v=73';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=73';
+import { durOf as jzDur } from '../jz.js?v=73';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=73';
 
 const el = {};
 export function init() {
@@ -69,6 +69,8 @@ function drawHeads() {
       const hit = e.target.closest && e.target.closest('[data-a]');
       const a = hit && d.contains(hit) ? hit.dataset.a : null;
       S.selTrack = tr.id;
+      /* 段を えらんだ ときは ふだの えらびを 外す（ごみ箱が 段に 効く ように） */
+      S.sel = null; S.selMany = [];
       if (a === 'hide') tr.hidden = !tr.hidden;
       else if (a === 'mute') tr.mute = !tr.mute;
       else if (a === 'lock') tr.lock = !tr.lock;
