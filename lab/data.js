@@ -265,6 +265,17 @@ const TOOLS = [
     thumb: "thumbs/gb-loop.svg",
     url: "tools/gb-loop/index.html",
     status: "live"
+  },
+  {
+    no: 25,
+    slug: "matome",
+    title: "画像まとめ",
+    desc: "何枚でも画像を1枚にまとめる。A4・正方形などの大きさにすき間なく埋まるように並べる。PNG・JPGで書き出せる。",
+    tags: ["画像", "コラージュ", "PNG書き出し"],
+    cat: "other",
+    thumb: "thumbs/matome.svg",
+    url: "tools/matome/index.html",
+    status: "live"
   }
 ];
 
