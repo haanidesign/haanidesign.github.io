@@ -14,9 +14,9 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=297';
-import { setPin } from '../engine/anim.js?v=297';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=297';
+import { newSway } from '../engine/puppet.js?v=298';
+import { setPin } from '../engine/anim.js?v=298';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=298';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -91,14 +91,18 @@ function fitPeriod(period, loop){
  * ゆっくり ふくらんで しぼむ だけ。ループの 帯で くりかえす ので
  * キーフレームは 3つで すむ（何十秒 あっても おもく ならない）。
  */
-function breath(layer, depth, period){
+function breath(layer, depth, period, band){
   const d = depth == null ? 0.012 : depth;
   const p = Math.max(0.4, period == null ? 3.6 : period);
+  const full = Math.max(p, band || p);
+  const n = Math.max(1, Math.round(full / p));
   const sy = layer.scaleY || 1;
-  setPin(layer, 'scaleY', 0,     sy,           'smooth');
-  setPin(layer, 'scaleY', p / 2, sy * (1 + d), 'smooth');
-  setPin(layer, 'scaleY', p,     sy,           'smooth');
-  layer.loop = { from: 0, to: p, mode: 'loop' };
+  for(let i = 0; i < n; i++){
+    setPin(layer, 'scaleY', i * p,           sy,           'smooth');
+    setPin(layer, 'scaleY', i * p + p / 2,   sy * (1 + d), 'smooth');
+  }
+  setPin(layer, 'scaleY', n * p, sy, 'smooth');
+  layer.loop = { from: 0, to: n * p, mode: 'loop' };
 }
 
 /* ---------- あとから 直す ----------
@@ -108,9 +112,32 @@ function breath(layer, depth, period){
    その 数字を 変えて ここを 通せば、中身ぜんぶに かけ直せる。
    1まいずつ さわらなくて いい。 */
 
+/* ---------- うごきの えらび ----------
+
+   ゆれの 強さだけ では「ただ ゆれて いる」だけ に なる。
+   首を かたむける・うなずく・体が はねる ―― そういう 味つけを
+   ひとまとめに して えらべる ように する。
+
+     tilt … 頭を 左右に かたむける（度）
+     nod  … 頭が うなずく（たての ずれ・ドット）
+     bob  … 体が はねる（たての ずれ・ドット）
+     beat … ひとまわりの 中で 何回 くりかえすか */
+export const MOTIONS = {
+  'しぜん':      { gain:1.0, hair:1.0, face:1.0, breath:1.0 },
+  'にこにこ':    { gain:0.8, hair:0.9, face:0.8, breath:1.2, head:{ tilt:2.5, beat:1 } },
+  'きょろきょろ':{ gain:0.9, hair:1.1, face:0.7, breath:1.0, head:{ tilt:7,   beat:2 } },
+  'うなずき':    { gain:0.8, hair:1.0, face:0.7, breath:1.0, head:{ nod:9,    beat:2 } },
+  '元気':        { gain:1.6, hair:1.4, face:1.5, breath:1.5, body:{ bob:10,   beat:2 } },
+  'ノリノリ':    { gain:1.4, hair:1.7, face:1.2, breath:1.2,
+                   body:{ bob:18, beat:4 }, head:{ tilt:4, beat:4 } },
+  'なし':        { gain:0, hair:0, face:0, breath:0 }
+};
+export const MOTION_NAMES = Object.keys(MOTIONS);
+
 /** はじめの 数字 */
 export function newRigSet(){
   return {
+    motion: 'しぜん', // うごきの えらび
     loop: 4,        // 何秒で ひとまわり するか
     gain: 1,        // ゆれの 強さ（ぜんたい）
     hair: 1,        // 髪だけ 強さ
@@ -159,22 +186,73 @@ export function applyRig(project, root){
   };
   walk(root.id);
 
-  let swayed = 0, breathOn = null;
+  const M = MOTIONS[set.motion] || MOTIONS['しぜん'];
+  /* えらびの ぶんを かけた 強さ。つまみは その うえから かける。 */
+  const mix = {
+    loop: set.loop,
+    gain: set.gain * (M.gain == null ? 1 : M.gain),
+    hair: set.hair * (M.hair == null ? 1 : M.hair),
+    face: set.face * (M.face == null ? 1 : M.face),
+    breath: set.breath * (M.breath == null ? 1 : M.breath)
+  };
+
+  let swayed = 0, breathOn = null, headOn = null;
   kids.forEach(l => {
     if(!l.rigRole) return;
-    if(swayFor(l, set)) swayed++;
+    /* 前に つけた 味つけの キーフレームは 消してから */
+    if(l.tracks){ delete l.tracks.rot; delete l.tracks.y; }
+    if(l.rigRole !== 'body') l.loop = null;
+    if(swayFor(l, mix)) swayed++;
     if(l.rigRole === 'body') breathOn = l;
+    if(l.rigRole === 'head') headOn = l;
   });
-  if(!breathOn) breathOn = kids.find(l => l.rigRole === 'head') || null;
+  if(!breathOn) breathOn = headOn;
 
   if(breathOn){
     /* いきは キーフレーム。かけ直す ときは 前のを 消してから */
     if(breathOn.tracks) delete breathOn.tracks.scaleY;
     breathOn.loop = null;
-    const depth = 0.012 * set.breath;
-    if(depth > 0.0005) breath(breathOn, depth, fitPeriod(3.6, set.loop));
+    const depth = 0.012 * mix.breath;
+    if(depth > 0.0005) breath(breathOn, depth, fitPeriod(3.6, mix.loop), mix.loop);
   }
-  return { swayed, breath: breathOn ? breathOn.name : null };
+
+  /* ---- 味つけ（首ふり・うなずき・はね）----
+     ひとまわりの 中で ちょうど 何回か くりかえす 形に する ので、
+     はじめと おわりが ぴたりと つながる。 */
+  /* くりかえしの 帯は レイヤーに 1本だけ。
+     だから 味つけも いきも、ひとまわり ぜんぶを うめる ように 書く。
+     （帯を みじかく すると、そこで 切れて いきが 止まる） */
+  const wave = (l, ch, base, amp, beat, kind) => {
+    if(!l || !(amp > 0.01)) return;
+    const n = Math.max(1, Math.round(beat || 1));
+    const per = Math.max(0.2, mix.loop / n);
+    const a = amp * mix.gain;
+    for(let i = 0; i < n; i++){
+      const t0 = i * per;
+      if(kind === 'bob'){
+        /* はねる ―― 上で ためて、下で はずむ */
+        setPin(l, ch, t0,            base,     'smooth');
+        setPin(l, ch, t0 + per * 0.5, base - a, 'smooth');
+      } else {
+        setPin(l, ch, t0,             base,     'smooth');
+        setPin(l, ch, t0 + per * 0.25, base + a, 'smooth');
+        setPin(l, ch, t0 + per * 0.75, base - a, 'smooth');
+      }
+    }
+    setPin(l, ch, mix.loop, base, 'smooth');
+    l.loop = { from: 0, to: mix.loop, mode: 'loop' };
+  };
+
+  if(M.head && headOn){
+    if(M.head.tilt) wave(headOn, 'rot', headOn.rot || 0, M.head.tilt, M.head.beat, 'tilt');
+    if(M.head.turn) wave(headOn, 'rot', headOn.rot || 0, M.head.turn, M.head.beat, 'tilt');
+    if(M.head.nod)  wave(headOn, 'y',   headOn.y   || 0, M.head.nod,  M.head.beat, 'bob');
+  }
+  if(M.body && breathOn && breathOn.rigRole === 'body'){
+    if(M.body.bob) wave(breathOn, 'y', breathOn.y || 0, M.body.bob, M.body.beat, 'bob');
+  }
+
+  return { swayed, breath: breathOn ? breathOn.name : null, motion: set.motion };
 }
 
 /** えらんで いる ところから、まとめ役の フォルダを さがす */
@@ -285,7 +363,12 @@ export function autoRig(project, layers, assetOf, opt){
       roots.forEach(l => setParent(project, l, folder.id, 0));
       /* どう つけたか を フォルダに おぼえさせる。
          あとで「キャラのうごき」から まとめて 直せる。 */
-      folder.rig = Object.assign(newRigSet(), { loop: loop || 4 });
+      folder.rig = Object.assign(newRigSet(), {
+        loop: loop || 4,
+        motion: MOTIONS[o.motion] ? o.motion : 'しぜん'
+      });
+      /* えらんだ うごきを そのまま かける（首ふり・はね も ここで つく） */
+      applyRig(project, folder);
     }
   }
 
@@ -293,6 +376,7 @@ export function autoRig(project, layers, assetOf, opt){
     ok: true,
     n: roles.reduce((a, r) => a + found[r].length, 0),
     roles, linked, swayed, loop,
+    motion: folder ? folder.rig.motion : null,
     folder: folder ? folder.name : null,
     breath: breathOn ? breathOn.name : null
   };
@@ -311,5 +395,6 @@ export function rigReport(r){
     + 'おやこ ' + r.linked + 'か所、ゆれ ' + r.swayed + 'まい'
     + (r.breath ? '、いき は「' + r.breath + '」' : '') + NL
     + (r.folder ? 'フォルダ「' + r.folder + '」に まとめました。' + NL : '')
+    + (r.motion ? 'うごきは「' + r.motion + '」。' : '')
     + (r.loop ? r.loop + '秒 で ひとまわり する ように そろえました。' : '');
 }

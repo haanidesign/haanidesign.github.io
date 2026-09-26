@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=297';
+import { M } from './engine/math.js?v=298';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=297';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=298';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=297';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=297';
-import { createRenderer } from './render/renderer.js?v=297';
-import { createTimeline } from './ui/timeline.js?v=297';
-import { fmtTime, setPin } from './engine/anim.js?v=297';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=297';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=298';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=298';
+import { createRenderer } from './render/renderer.js?v=298';
+import { createTimeline } from './ui/timeline.js?v=298';
+import { fmtTime, setPin } from './engine/anim.js?v=298';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=298';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,25 +21,25 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=297';
+         setWarper } from './ui/sheet.js?v=298';
 
-import { showNewDoc } from './ui/newdoc.js?v=297';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=297';
-import { fitToCanvas, isBg } from './io/bg.js?v=297';
-import * as Audio from './io/audio.js?v=297';
-import { isTalk, blipTimes } from './engine/talk.js?v=297';
+import { showNewDoc } from './ui/newdoc.js?v=298';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=298';
+import { fitToCanvas, isBg } from './io/bg.js?v=298';
+import * as Audio from './io/audio.js?v=298';
+import { isTalk, blipTimes } from './engine/talk.js?v=298';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=297';
-import { importPsd } from './io/psd.js?v=297';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=297';
-import { splitTextChars } from './io/text.js?v=297';
-import { exportAE } from './io/ae.js?v=297';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=298';
+import { importPsd } from './io/psd.js?v=298';
+import { autoRig, rigReport, rigRootOf, MOTION_NAMES } from './io/rig.js?v=298';
+import { splitTextChars } from './io/text.js?v=298';
+import { exportAE } from './io/ae.js?v=298';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=297';
-import { pathKeys, pathLength } from './engine/path.js?v=297';
-import { paintDirty } from './engine/paint.js?v=297';
+         canUseWebCodecs } from './io/export.js?v=298';
+import { pathKeys, pathLength } from './engine/path.js?v=298';
+import { paintDirty } from './engine/paint.js?v=298';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=297';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=298';
 
 const $ = (s) => document.querySelector(s);
 
@@ -255,11 +255,15 @@ async function looksLikePsd(f){
 /* 「うごき つきで よみこむ」を おした あいだだけ true。
    PSD を 入れた あと、名前から あたりを つけて ゆれ・おやこ・じくを つける。 */
 let rigNext = false;
-let rigLoop = 4;          // 何秒で ひとまわり するか
+let rigLoop = 4;              // 何秒で ひとまわり するか
+let rigMotion = 'しぜん';      // どんな うごきに するか
 const RIG_KEY = 'anime-kobo.rigLoop';
+const RIG_M_KEY = 'anime-kobo.rigMotion';
 try{
   const v = parseFloat(localStorage.getItem(RIG_KEY));
   if(v > 0.5 && v <= 30) rigLoop = v;
+  const m = localStorage.getItem(RIG_M_KEY);
+  if(m && MOTION_NAMES.includes(m)) rigMotion = m;
 }catch(e){}
 
 async function handleFiles(files){
@@ -286,6 +290,7 @@ async function handleFiles(files){
         edit('うごきを つける', () => {
           rep = autoRig(S.proj, r.layers, (l) => frameAsset(l, 0), {
             loop: rigLoop,
+            motion: rigMotion,
             folder: true,
             folderName: psd[0].name.replace(/\.psd$/i, '') || 'キャラ'
           });
@@ -338,10 +343,23 @@ stageHost.addEventListener('drop', (e) => {
 /* ついか ＝ 絵をよみこむ。文字は となりの「もじ」ボタン。 */
 $('#add').addEventListener('click', () => { rigNext = false; fileInput.click(); });
 $('#addRig').addEventListener('click', () => {
+  const NL = String.fromCharCode(10);
+
+  /* どんな うごきに するか。番号で えらぶ（ならびは rig.js の MOTIONS）。 */
+  const menu = MOTION_NAMES.map((n, i) => (i + 1) + '… ' + n).join(NL);
+  const cur = Math.max(0, MOTION_NAMES.indexOf(rigMotion)) + 1;
+  const mv = prompt('どんな うごきに しますか？' + NL + NL + menu, String(cur));
+  if(mv === null) return;
+  const mi = parseInt(mv, 10);
+  if(mi >= 1 && mi <= MOTION_NAMES.length){
+    rigMotion = MOTION_NAMES[mi - 1];
+    try{ localStorage.setItem(RIG_M_KEY, rigMotion); }catch(e){}
+  }
+
   /* 何秒で ひとまわり するか。
      ゆれも いきも この 長さに きれいに 入る しゅうきに そろえる ので、
      つなぎ目で 絵が とばない。 */
-  const v = prompt('何秒で ひとまわり させますか？' + String.fromCharCode(10)
+  const v = prompt('何秒で ひとまわり させますか？' + NL
     + '（ゆれも いきも この 長さで きれいに つながります）', String(rigLoop));
   if(v === null) return;
   const n = parseFloat(v);
