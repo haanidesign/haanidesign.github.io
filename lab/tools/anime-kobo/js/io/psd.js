@@ -2,9 +2,9 @@
    位置・重なり順・不透明度をPSDのまま引き継ぐので、並べ直す作業が要らない。
    ミニSpine で実測済みの ag-psd をそのまま使う。 */
 
-import { S, addAsset, edit } from '../state.js?v=289';
-import { newLayer, newFolder, setParent } from '../engine/layer.js?v=289';
-import { contentBox, loadImage } from './image.js?v=289';
+import { S, addAsset, edit } from '../state.js?v=299';
+import { newLayer, newFolder, setParent } from '../engine/layer.js?v=299';
+import { contentBox, loadImage } from './image.js?v=299';
 
 /** 透明な余白を切り落として left/top を詰め直す */
 function trim(l){
@@ -155,6 +155,7 @@ export async function importPsd(file, opts = {}){
     prepared.push({ l, src, shrunk, img: await loadImage(src) });
   }
 
+  const madeLayers = [];        // つくった レイヤー（あとで うごきを つける ため）
   edit(file.name + ' をよみこみ', () => {
     const made = [];    // { lay, group }
     // 奥から手前の順で来るので、unshift で積むと手前が先頭になる
@@ -173,6 +174,7 @@ export async function importPsd(file, opts = {}){
       lay.x = offX + (l.left + wOrig / 2) * k;
       lay.y = offY + (l.top  + hOrig / 2) * k;
       S.proj.layers.unshift(lay);
+      madeLayers.push(lay);
       made.push({ lay, group: l.group || null });
     }
 
@@ -210,5 +212,5 @@ export async function importPsd(file, opts = {}){
     S.sel = S.proj.layers[0] ? S.proj.layers[0].id : null;
   });
 
-  return { count: layers.length, w: psd.width, h: psd.height };
+  return { count: layers.length, w: psd.width, h: psd.height, layers: madeLayers };
 }
