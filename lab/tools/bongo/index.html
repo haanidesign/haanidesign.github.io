@@ -193,8 +193,10 @@ body.solo #exit{display:inline-flex;}
         <button data-v="right" class="btn-sm on">右きき</button>
         <button data-v="left" class="btn-sm">左きき</button>
       </div>
+      <div class="row"><span>浮かす 高さ</span><input type="range" id="penLift" min="0" max="60"><span class="val" id="penLiftV"></span></div>
       <div class="row"><span>上下の ゆれ</span><input type="range" id="penBand" min="0" max="80"><span class="val" id="penBandV"></span></div>
       <div class="hint">ペン手は <b>右ききで</b> 描く。左ききに すると 左右が 入れかわる。
+        浮かす 高さは、タッチを やめた ときに ペンを タブレットから 上げる 量（0 で 浮かさない）。
         上下の ゆれは、マウスを 上下に 動かした ときに ペン先が ついてくる はば。</div>
     </div>
 
@@ -356,7 +358,7 @@ function guessPart(name){
    ============================================================ */
 const DEF={mode:'key',hand:'right',bounce:true,blink:true,arm:true,
   bAmt:12,bSpd:14,press:14,hold:120,hSpd:22,
-  scale:100,offX:0,offY:0,rMin:12,rMax:88,handY:306,tipY:334,penBand:24,idleSec:5,
+  scale:100,offX:0,offY:0,rMin:12,rMax:88,handY:306,tipY:334,penBand:24,penLift:14,idleSec:5,
   bg:'checker',rest:{right:{x:0,y:0},left:{x:0,y:0}}};
 let cfg=JSON.parse(JSON.stringify(DEF));
 let adj={};        // パーツごと {x,y,s,r,flip,u,v}
@@ -478,7 +480,7 @@ function takeFiles(list){
    ============================================================ */
 const S={lx:.30,ly:0,lxT:.30,lyT:0, rx:.70,ry:0,rxT:.70,ryT:0,
          bob:0,bobV:0,tilt:0,tiltT:0, lHit:-9e9,rHit:-9e9,
-         tipX:320,tipYc:334,tipXT:320,tipYT:334,penDown:false,
+         tipX:320,tipYc:334,tipXT:320,tipYT:334,penDown:false,lift:0,
          blinkT:0,blinkOn:false, lastIn:performance.now()};
 let lastHand='r';
 
@@ -745,7 +747,10 @@ function tick(){
     if(editing){ S.tipXT=xOf(.5); S.tipYT=cfg.tipY; }
     S.tipX+=(S.tipXT-S.tipX)*Math.min(.9,k*1.6);
     S.tipYc+=(S.tipYT-S.tipYc)*Math.min(.9,k*1.6);
-    const ty=S.tipYc;                       // 押しても 離しても 同じ 絵・同じ 高さ
+    // 絵は 同じ。タッチを やめたら タブレットから 浮かす
+    const liftT=(editing||S.penDown)?0:+cfg.penLift;
+    S.lift+=(liftT-S.lift)*Math.min(.9,k*1.4);
+    const ty=S.tipYc-S.lift;
     const po=placePen(G.penUp,'penUp',S.tipX,ty);
     // 休んで いる 手
     const rr=cfg.rest[cfg.hand]||{x:0,y:0};
@@ -1082,7 +1087,7 @@ $('#tipAuto').addEventListener('click',()=>{
   saveCfg(); build(); status('絵の いちばん 下を ペン先に した。');
 });
 
-const SLID=['bAmt','bSpd','press','hold','hSpd','penBand','idleSec','scale'];
+const SLID=['bAmt','bSpd','press','hold','hSpd','penBand','penLift','idleSec','scale'];
 const UNIT={scale:'%',idleSec:'秒',hold:'ms'};
 function syncUI(){
   SLID.forEach(k=>{ $('#'+k).value=cfg[k]; $('#'+k+'V').textContent=(k==='idleSec'&&!cfg[k])?'しない':cfg[k]+(UNIT[k]||''); });
