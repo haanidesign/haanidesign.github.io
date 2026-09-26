@@ -270,7 +270,7 @@ const TOOLS = [
     no: 25,
     slug: "matome",
     title: "画像まとめ",
-    desc: "何枚でも画像を1枚にまとめる。A4・正方形などの大きさにすき間なく埋まるように並べる。PNG・JPGで書き出せる。",
+    desc: "何枚でも画像を1枚にまとめる。A4・正方形などの大きさに絵を切らずに、すき間が少なくなるように並べる。PNG・JPGで書き出せる。",
     tags: ["画像", "コラージュ", "PNG書き出し"],
     cat: "other",
     thumb: "thumbs/matome.svg",
