@@ -27,6 +27,7 @@ header h1{font-size:1rem;margin:0}
 .btn-sm{padding:.3rem .7rem;font-size:.7rem;box-shadow:0 2.5px 0 var(--ink);border-width:2px}
 .bar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.5rem .8rem;border-bottom:var(--bd);background:var(--cream)}
 .grp{display:flex;align-items:center;gap:.35rem;background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:.25rem .5rem}
+.m-pic,.m-mov{display:contents}
 .grp label{font-size:.66rem}
 .grp output{font-size:.66rem;min-width:2em;text-align:center}
 input[type=range]{width:80px}
@@ -48,13 +49,18 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
 <body>
 <header>
   <h1>画像まとめ</h1>
+  <button class="btn btn-sm tab on" data-m="pic">🖼 1枚にまとめる</button>
+  <button class="btn btn-sm tab" data-m="mov">🎬 動画にする</button>
   <span style="flex:1"></span>
   <button class="btn btn-sm" id="bAdd">🖼 画像を足す</button>
   <button class="btn btn-sm" id="bShuffle">🔄 並びを変える</button>
   <button class="btn btn-sm" id="bClear">🗑 ぜんぶ消す</button>
-  <button class="btn btn-sm btn-g" id="bPng">⬇ PNG</button>
-  <button class="btn btn-sm btn-g" id="bJpg">⬇ JPG</button>
+  <span class="m-pic"><button class="btn btn-sm btn-g" id="bPng">⬇ PNG</button>
+  <button class="btn btn-sm btn-g" id="bJpg">⬇ JPG</button></span>
+  <span class="m-mov" hidden><button class="btn btn-sm" id="bPlay">▶ 見る</button>
+  <button class="btn btn-sm btn-g" id="bRec">⬇ 動画</button></span>
   <input type="file" id="fIn" accept="image/*" multiple hidden>
+  <input type="file" id="fAu" accept="audio/*" hidden>
 </header>
 <div class="bar">
   <div class="grp"><label>大きさ</label>
@@ -67,17 +73,31 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
       <option value="1920x1080">16:9 横</option>
       <option value="1080x1920">9:16 縦</option>
       <option value="1080x1350">4:5 縦</option>
+      <option value="1080x1440">3:4 縦</option>
       <option value="1500x500">X ヘッダー</option>
       <option value="custom">自分で決める</option>
     </select>
   </div>
   <div class="grp" id="gCustom" hidden><input type="number" id="cw" value="2000" min="100" max="10000"> × <input type="number" id="ch" value="1500" min="100" max="10000"> px</div>
+  <div class="grp"><label>余白を削る</label><input type="checkbox" id="trim"></div>
+  <div class="grp"><label>見切れ</label><input type="range" id="crop" min="0" max="50" value="0"><output id="oCrop">0%</output></div>
+  <div class="grp"><label>地の色</label><input type="color" id="bg" value="#ffffff"></div>
+  <span class="m-pic">
   <div class="grp"><label>すき間</label><input type="range" id="gap" min="0" max="60" value="8"><output id="oGap">8</output></div>
   <div class="grp"><label>ふち</label><input type="range" id="pad" min="0" max="120" value="0"><output id="oPad">0</output></div>
-  <div class="grp"><label>地の色</label><input type="color" id="bg" value="#ffffff"></div>
   <div class="grp"><label>並び</label>
     <select id="order"><option value="best">おまかせ（すき間が少ない順）</option><option value="keep">入れた順</option></select>
   </div>
+  </span>
+  <span class="m-mov" hidden>
+  <div class="grp"><label>1枚</label><input type="range" id="dur" min="3" max="50" value="17"><output id="oDur">1.7秒</output></div>
+  <div class="grp"><label>切りかえ</label>
+    <select id="tr"><option value="cover">かぶせる（サンプルふう）</option><option value="mix">かぶせる・向きいろいろ</option><option value="slide">横から押し出す</option><option value="wipe">横にぬぐう</option><option value="fade">ふわっと</option><option value="none">なし</option></select>
+  </div>
+  <div class="grp"><label>ゆっくり寄る</label><input type="checkbox" id="kb" checked></div>
+  <div class="grp"><label>切りかえの長さ</label><input type="range" id="trd" min="1" max="10" value="4"><output id="oTrd">0.4秒</output></div>
+  <div class="grp"><label>音</label><button class="btn btn-sm" id="bAu">🎵 えらぶ</button><span id="auName" style="font-size:.62rem"></span></div>
+  </span>
   <span id="info"></span>
 </div>
 <main>
@@ -89,10 +109,13 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
 <script>
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
-let imgs = [];      // {img, a(横/縦)}
-let order = [];     // imgs の並び
-let layout = [];    // {i,x,y,w,h}
+let mode = 'pic';
+let imgs = [];      // {img, r:{x,y,w,h} 使う範囲, a:横/縦}
+let order = [];
+let layout = [];
 let dragFrom = -1;
+let audio = null;   // {url, name}
+let playing = null; // {start, raf, rec}
 
 function getSize(){
   const v = $('size').value;
@@ -100,10 +123,41 @@ function getSize(){
   return v.split('x').map(Number);
 }
 
-// 並びを 段に 分ける。段の 高さ が 横幅に ぴったり 合う ように し、
-// 段数は 全体の 高さが 枠に 一番 近く なる ものを えらぶ。
+// ふちの 同じ色の 所を 見つけて、中身だけの 範囲を 返す
+function findTrim(img){
+  const S=200, k=Math.min(1,S/Math.max(img.naturalWidth,img.naturalHeight));
+  const w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const x=c.getContext('2d',{willReadFrequently:true}); x.drawImage(img,0,0,w,h);
+  const d=x.getImageData(0,0,w,h).data, px=i=>[d[i],d[i+1],d[i+2],d[i+3]], b=px(0);
+  const diff=(i)=>{const p=px(i); return Math.abs(p[0]-b[0])+Math.abs(p[1]-b[1])+Math.abs(p[2]-b[2])+Math.abs(p[3]-b[3])>60;};
+  let x0=w,y0=h,x1=-1,y1=-1;
+  for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++) if(diff((yy*w+xx)*4)){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy;}
+  if (x1<0) return {x:0,y:0,w:img.naturalWidth,h:img.naturalHeight};
+  const m=2;
+  x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(w-1,x1+m);y1=Math.min(h-1,y1+m);
+  return {x:x0/k,y:y0/k,w:(x1-x0+1)/k,h:(y1-y0+1)/k};
+}
+function applyTrim(){
+  for (const it of imgs){
+    it.r = $('trim').checked ? (it.t ||= findTrim(it.img)) : {x:0,y:0,w:it.img.naturalWidth,h:it.img.naturalHeight};
+    it.a = it.r.w/it.r.h;
+  }
+}
+
+// 画像を 枠に 描く。枠と 比率が ちがう 分は、見切れ の 割合までは 切って 大きく、残りは 地の色の 余白
+function drawFit(c, it, x, y, w, h, allow){
+  const ba=w/h, a=it.a, r=it.r;
+  // 切る量: 1-allow までは 画像を 狭めて よい
+  let sx=r.x, sy=r.y, sw=r.w, sh=r.h;
+  if (a>ba){ const nw=Math.max(sh*ba, sw*(1-allow)); sx+=(sw-nw)/2; sw=nw; }
+  else     { const nh=Math.max(sw/ba, sh*(1-allow)); sy+=(sh-nh)/2; sh=nh; }
+  const na=sw/sh; let dw=w, dh=h;
+  if (na>ba) dh=w/na; else dw=h*na;
+  c.drawImage(it.img, sx,sy,sw,sh, x+(w-dw)/2, y+(h-dh)/2, dw, dh);
+}
+
 function partition(as, k){
-  // as を 順番のまま k 段に 分けて、各段の 横長さの 和を そろえる（線形分割）
   const n = as.length, pre=[0];
   for (const a of as) pre.push(pre[pre.length-1]+a);
   const INF=1e18, dp=[...Array(k+1)].map(()=>new Array(n+1).fill(INF)), cut=[...Array(k+1)].map(()=>new Array(n+1).fill(0));
@@ -117,71 +171,171 @@ function partition(as, k){
   return rows;
 }
 
-function plan(seq, W, H, gap){
-  // seq: imgs の 番号の 並び。返り値: {rows, score}
+// 段の 高さを 見切れの 分まで のばす／ちぢめる と して、埋まりの いちばん 良い 段数を 選ぶ
+function plan(seq, W, H, gap, allow){
   const as = seq.map(i=>imgs[i].a), n=as.length;
   let best=null;
   for (let k=1;k<=n;k++){
     const rows = partition(as,k);
-    // 各段の 自然な 高さ
-    const hs = rows.map(([s,e])=>{
-      let sum=0; for(let t=s;t<e;t++) sum+=as[t];
-      return (W - gap*(e-s-1))/sum;
-    });
+    const hs = rows.map(([s,e])=>{ let sum=0; for(let t=s;t<e;t++) sum+=as[t]; return (W - gap*(e-s-1))/sum; });
     const total = hs.reduce((a,b)=>a+b,0), avail = H - gap*(k-1);
     if (avail<=0) break;
-    const stretch = avail/total;            // 1 に 近いほど 切れない
-    const score = Math.abs(Math.log(stretch));
-    if (!best || score<best.score) best={rows,hs,stretch,score};
+    const need = avail/total;
+    // 高さを のばすと 左右が、ちぢめると 上下が 切れる
+    const s = Math.min(Math.max(need, 1-allow), 1/(1-allow));
+    const used = Math.min(total*s/avail, avail/(total*s));
+    const score = -Math.log(used) + Math.abs(Math.log(s))*0.01;
+    if (!best || score<best.score) best={rows,hs,s,used,score};
     if (total > avail*3) break;
   }
   return best;
 }
 
+function allow(){ return +$('crop').value/100; }
+
 function build(){
-  const [W,H] = getSize();
-  const gap = +$('gap').value, pad = +$('pad').value;
+  let [W,H] = getSize();
+  if (mode==='mov'){ const k=Math.min(1,1920/Math.max(W,H)); W=Math.round(W*k/2)*2; H=Math.round(H*k/2)*2; }
   cv.width=W; cv.height=H;
+  if (mode==='mov'){ stopPlay(); drawFrame(0); info(); return; }
+  const gap = +$('gap').value, pad = +$('pad').value, al=allow();
   layout=[];
   if (imgs.length){
     const iw=W-pad*2, ih=H-pad*2;
-    const p = plan(order, iw, ih, gap);
-    // 絵は 切らない。段を 並べた 全体を 枠に 収まる まで 縮めて、まんなかに 置く
-    const g=[];
-    let y=0;
+    const p = plan(order, iw, ih, gap, al);
+    const g=[]; let y=0;
     p.rows.forEach(([st,e],r)=>{
-      const h=p.hs[r]; let x=0;
-      for (let t=st;t<e;t++){ const i=order[t], w=imgs[i].a*h; g.push({i,t,x,y,w,h}); x+=w+gap; }
+      const h=p.hs[r]*p.s; let x=0;
+      const nat=p.hs[r]; // 横幅は もとの 高さで 決める
+      for (let t=st;t<e;t++){ const i=order[t], w=imgs[i].a*nat; g.push({i,t,x,y,w,h}); x+=w+gap; }
       y+=h+gap;
     });
-    const ch=y-gap, f=Math.min(1, ih/ch), ox=pad+(iw-iw*f)/2, oy=pad+(ih-ch*f)/2;
+    const ch=y-gap, f=Math.min(1, ih/ch, 1), ox=pad+(iw-iw*f)/2, oy=pad+(ih-ch*f)/2;
     for (const q of g) layout.push({i:q.i,t:q.t,x:Math.round(ox+q.x*f),y:Math.round(oy+q.y*f),w:Math.round(q.w*f),h:Math.round(q.h*f)});
-    const used = Math.round(Math.min(p.stretch,1/p.stretch)*100);
-    $('info').textContent = `${imgs.length}枚 / ${p.rows.length}段 / ${W}×${H}px / 埋まり 約${used}%`;
-  } else $('info').textContent = `${W}×${H}px`;
+    $('info').textContent = `${imgs.length}枚 / ${p.rows.length}段 / ${W}×${H}px / 埋まり 約${Math.round(p.used*100)}%`;
+  } else info();
   draw();
+}
+function info(){
+  const W=cv.width,H=cv.height;
+  $('info').textContent = mode==='mov' && imgs.length ? `${imgs.length}枚 / ${W}×${H}px / ${(imgs.length*+$('dur').value/10).toFixed(1)}秒` : `${W}×${H}px`;
 }
 
 function draw(){
   ctx.fillStyle=$('bg').value; ctx.fillRect(0,0,cv.width,cv.height);
-  for (const L of layout){
-    ctx.drawImage(imgs[L.i].img,L.x,L.y,L.w,L.h);
-  }
+  for (const L of layout) drawFit(ctx, imgs[L.i], L.x,L.y,L.w,L.h, 1);
   $('drop').style.display = imgs.length?'none':'flex';
+}
+
+// ---- 動画 ----
+function drawFrame(t){
+  const W=cv.width,H=cv.height, bg=$('bg').value, al=allow();
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  $('drop').style.display = imgs.length?'none':'flex';
+  if (!imgs.length) return;
+  const per=+$('dur').value/10, td=Math.min(+$('trd').value/10, per*0.9), n=order.length, tr=$('tr').value;
+  const idx=Math.min(n-1, Math.floor(t/per)), local=t-idx*per;
+  // 1枚を 描く。出てからの 時間で ゆっくり 寄って、少し 流れる
+  const one=(i,x,y,a=1)=>{
+    ctx.save(); ctx.globalAlpha=a; ctx.translate(x,y);
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    if ($('kb').checked){
+      const since=Math.max(0, t-i*per), k=Math.min(1, since/(per+td));
+      const z=1.02+0.07*k, dx=(i%2?-1:1)*W*0.012*k, dy=-H*0.008*k;
+      ctx.translate(W/2+dx,H/2+dy); ctx.scale(z,z); ctx.translate(-W/2,-H/2);
+    }
+    drawFit(ctx, imgs[order[i]], 0,0,W,H, al);
+    ctx.restore();
+  };
+  if (idx===0 || local>=td || tr==='none'){ one(idx,0,0); return; }
+  const q=local/td;
+  const out=1-Math.pow(1-q,4);                      // 速く 入って すっと 止まる
+  const io=q<.5?4*q*q*q:1-Math.pow(-2*q+2,3)/2;
+  if (tr==='fade'){ one(idx-1,0,0); one(idx,0,0,io); return; }
+  if (tr==='slide'){ one(idx-1,-W*io,0); one(idx,W*(1-io),0); return; }
+  if (tr==='wipe'){ one(idx-1,0,0); ctx.save(); ctx.beginPath(); ctx.rect(W*(1-io),0,W*io,H); ctx.clip(); one(idx,0,0); ctx.restore(); return; }
+  // かぶせる: 前の 絵は そのまま、次の 絵が 上から すべりこむ。前の 端に 白い 線
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  const [ux,uy]= tr==='mix' ? dirs[(idx*7+3)%4] : dirs[0];
+  one(idx-1,-ux*W*0.04*out,-uy*H*0.04*out);
+  const x=ux*W*(1-out), y=uy*H*(1-out);
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,.35)'; ctx.shadowBlur=W*0.03; ctx.fillStyle=bg; ctx.fillRect(x,y,W,H); ctx.restore();
+  one(idx,x,y);
+  ctx.fillStyle='#fff'; const lw=Math.max(2,W*0.004);
+  if (ux) ctx.fillRect(ux>0?x-lw/2:x+W-lw/2,0,lw,H); else ctx.fillRect(0,uy>0?y-lw/2:y+H-lw/2,W,lw);
+}
+function total(){ return order.length*+$('dur').value/10; }
+function stopPlay(){
+  if (!playing) return;
+  cancelAnimationFrame(playing.raf);
+  if (playing.au){ playing.au.pause(); }
+  const rec=playing.rec; playing=null;
+  if (rec && rec.state!=='inactive') rec.stop();
+}
+function play(rec){
+  stopPlay();
+  if (!imgs.length) return;
+  let au=null;
+  if (audio){ au=new Audio(audio.url); au.currentTime=0; }
+  playing={start:performance.now(), rec, au};
+  const T=total();
+  const step=()=>{
+    if (!playing) return;
+    const t=(performance.now()-playing.start)/1000;
+    if (t>=T){ drawFrame(T-0.001); stopPlay(); return; }
+    drawFrame(t); playing.raf=requestAnimationFrame(step);
+  };
+  if (au) au.play().catch(()=>{});
+  step();
+  return au;
+}
+function record(){
+  if (!imgs.length) return;
+  const stream=cv.captureStream(30);
+  let au=null, actx=null;
+  if (audio){
+    actx=new AudioContext(); au=new Audio(audio.url);
+    const src=actx.createMediaElementSource(au), dst=actx.createMediaStreamDestination();
+    src.connect(dst); dst.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  }
+  const types=['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'];
+  const type=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+  const rec=new MediaRecorder(stream,{mimeType:type, videoBitsPerSecond:8e6});
+  const chunks=[]; rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  rec.onstop=()=>{
+    if (actx) actx.close();
+    const ext=type.includes('mp4')?'mp4':'webm';
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(chunks,{type:type||'video/webm'})); a.download='matome.'+ext; a.click();
+    $('info').textContent='書き出し おわり'; setTimeout(info,2500);
+  };
+  rec.start(500);
+  $('info').textContent='書き出し中…（終わるまで このまま）';
+  stopPlay();
+  playing={start:performance.now(), rec, au};
+  if (au) au.play().catch(()=>{});
+  const T=total();
+  const step=()=>{
+    if (!playing) return;
+    const t=(performance.now()-playing.start)/1000;
+    if (t>=T){ drawFrame(T-0.001); setTimeout(stopPlay,150); return; }
+    drawFrame(t); playing.raf=requestAnimationFrame(step);
+  };
+  step();
 }
 
 function arrange(){
   const n=imgs.length;
+  applyTrim();
   order=[...Array(n).keys()];
-  if ($('order').value==='best' && n>2){
-    const [W,H]=getSize(), gap=+$('gap').value, pad=+$('pad').value;
-    let best=plan(order,W-pad*2,H-pad*2,gap).score, bestO=order.slice();
+  if (mode==='pic' && $('order').value==='best' && n>2){
+    const [W,H]=getSize(), gap=+$('gap').value, pad=+$('pad').value, al=allow();
+    let best=plan(order,W-pad*2,H-pad*2,gap,al).score, bestO=order.slice();
     const tries = n>60?40:n>25?120:300;
     for (let k=0;k<tries;k++){
       const o=bestO.slice();
       if (k%3===0) o.sort(()=>Math.random()-.5);
       else { const a=Math.random()*n|0,b=Math.random()*n|0; [o[a],o[b]]=[o[b],o[a]]; }
-      const s=plan(o,W-pad*2,H-pad*2,gap).score;
+      const s=plan(o,W-pad*2,H-pad*2,gap,al).score;
       if (s<best){best=s;bestO=o;}
     }
     order=bestO;
@@ -190,44 +344,62 @@ function arrange(){
 }
 
 function addFiles(files){
-  const list=[...files].filter(f=>f.type.startsWith('image/'));
+  const list=[...files].filter(f=>f && f.type.startsWith('image/'));
   if (!list.length) return;
   let left=list.length;
   list.forEach(f=>{
     const img=new Image();
-    img.onload=()=>{ imgs.push({img,a:img.naturalWidth/img.naturalHeight}); if(--left===0) arrange(); };
+    img.onload=()=>{ imgs.push({img}); if(--left===0) arrange(); };
     img.onerror=()=>{ if(--left===0) arrange(); };
     img.src=URL.createObjectURL(f);
   });
 }
 
-// 並びかえ: 絵を つかんで 別の 絵に 落とすと 入れかわる
 function hit(e){
   const r=cv.getBoundingClientRect(), x=(e.clientX-r.left)*cv.width/r.width, y=(e.clientY-r.top)*cv.height/r.height;
   return layout.find(L=>x>=L.x&&x<L.x+L.w&&y>=L.y&&y<L.y+L.h);
 }
-cv.addEventListener('pointerdown',e=>{const L=hit(e); dragFrom=L?L.t:-1;});
+cv.addEventListener('pointerdown',e=>{ if(mode!=='pic')return; const L=hit(e); dragFrom=L?L.t:-1;});
 cv.addEventListener('pointerup',e=>{
+  if(mode!=='pic')return;
   const L=hit(e);
   if (dragFrom>=0 && L && L.t!==dragFrom){ [order[dragFrom],order[L.t]]=[order[L.t],order[dragFrom]]; build(); }
   dragFrom=-1;
 });
 cv.addEventListener('dblclick',e=>{
+  if(mode!=='pic')return;
   const L=hit(e); if(!L) return;
   if (!confirm('この画像を外す？')) return;
   const i=L.i; imgs.splice(i,1); order=order.filter(v=>v!==i).map(v=>v>i?v-1:v); build();
 });
 
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  mode=b.dataset.m;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.m-pic').forEach(x=>x.hidden=mode!=='pic');
+  document.querySelectorAll('.m-mov').forEach(x=>x.hidden=mode!=='mov');
+  if (mode==='mov' && $('size').value==='2048x2048') $('size').value='1080x1440';
+  arrange();
+});
 $('bAdd').onclick=()=>$('fIn').click();
 $('fIn').onchange=e=>{addFiles(e.target.files); e.target.value='';};
-$('bShuffle').onclick=()=>{ if($('order').value==='keep'){order.sort(()=>Math.random()-.5);build();} else arrange(); };
+$('bShuffle').onclick=()=>{ if(mode==='mov'||$('order').value==='keep'){order.sort(()=>Math.random()-.5);build();} else arrange(); };
 $('bClear').onclick=()=>{ if(imgs.length&&confirm('ぜんぶ消す？')){imgs=[];order=[];build();} };
 $('size').onchange=()=>{ $('gCustom').hidden=$('size').value!=='custom'; arrange(); };
 $('cw').onchange=$('ch').onchange=arrange;
 $('order').onchange=arrange;
+$('trim').onchange=arrange;
+$('crop').oninput=()=>{$('oCrop').textContent=$('crop').value+'%';};
+$('crop').onchange=arrange;
 $('gap').oninput=()=>{$('oGap').textContent=$('gap').value; build();};
 $('pad').oninput=()=>{$('oPad').textContent=$('pad').value; build();};
-$('bg').oninput=draw;
+$('bg').oninput=()=>mode==='pic'?draw():drawFrame(0);
+$('dur').oninput=()=>{$('oDur').textContent=($('dur').value/10).toFixed(1)+'秒'; info();};
+$('trd').oninput=()=>{$('oTrd').textContent=($('trd').value/10).toFixed(1)+'秒';};
+$('bPlay').onclick=()=>{ if(playing) stopPlay(); else play(); };
+$('bRec').onclick=record;
+$('bAu').onclick=()=>$('fAu').click();
+$('fAu').onchange=e=>{ const f=e.target.files[0]; if(!f) return; audio={url:URL.createObjectURL(f),name:f.name}; $('auName').textContent=f.name; };
 function save(type,ext){
   cv.toBlob(b=>{const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='matome.'+ext; a.click();},type,.92);
 }
