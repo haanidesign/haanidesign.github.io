@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="../../../favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/encoding-japanese@2.2.0/encoding.min.js"></script>
+<script src="lib/encoding.min.js"></script>
 <style>
 :root{
   --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
@@ -16,6 +16,7 @@
   --bd:2.5px solid var(--ink); --r:12px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+[hidden]{display:none !important;}
 body{
   font-family:'M PLUS Rounded 1c',sans-serif;font-weight:700;color:var(--ink);
   background-color:var(--cream);
@@ -143,15 +144,29 @@ td.thumb .ph{width:38px;height:38px;border:2px solid var(--ink);border-radius:7p
 </header>
 
 <main>
+  <div class="warnbox" id="fileWarn" hidden><span data-ic="warn"></span><span>このページは ファイルを 直接 開いても 動きません。フォルダの中の <b>start.bat</b> から 開いてください。</span></div>
 
   <details class="panel" id="setBox">
     <summary><span data-ic="gear"></span>設定<span class="chev" id="setState"></span></summary>
     <div class="grid">
-      <label class="f">Claude APIキー
+      <label class="f">読み取りAI
+        <select id="engine">
+          <option value="local">ローカル（Ollama・このパソコンの中だけ）</option>
+          <option value="claude">Claude（ネット・APIキーが要る）</option>
+        </select>
+      </label>
+      <label class="f" data-for="local">ローカルのモデル
+        <span style="display:flex;gap:.4rem"><select id="localModel"></select><button class="btn btn-ic" id="reloadModels" type="button" title="読みなおす"><span data-ic="load"></span></button></span>
+        <small id="localState">Ollama を さがしています…</small>
+      </label>
+      <label class="f" data-for="local">Ollama のアドレス
+        <input id="ollamaUrl" placeholder="http://localhost:11434">
+      </label>
+      <label class="f" data-for="claude">Claude APIキー
         <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
         <small>このブラウザの中にだけ保存。画像は Anthropic の API にだけ送られる。</small>
       </label>
-      <label class="f">モデル
+      <label class="f" data-for="claude">Claude のモデル
         <select id="model">
           <option value="claude-opus-5">Claude Opus 5（精度重視）</option>
           <option value="claude-sonnet-5">Claude Sonnet 5（安め）</option>
@@ -188,7 +203,7 @@ td.thumb .ph{width:38px;height:38px;border:2px solid var(--ink);border-radius:7p
       <button class="btn btn-y" id="pickBtn"><span data-ic="add"></span>ファイルを選ぶ</button>
       <button class="btn" id="camBtn"><span data-ic="cam"></span>カメラで撮る</button>
     </div>
-    <small>写真（JPG・PNG）と PDF。何枚でも まとめて 入れられる。</small>
+    <small>写真（JPG・PNG）と PDF。何枚でも まとめて 入れられる。ローカルは 1枚ずつ 順番に 読む。</small>
     <input type="file" id="pick" accept="image/*,application/pdf" multiple hidden>
     <input type="file" id="cam" accept="image/*" capture="environment" hidden>
   </section>
@@ -232,7 +247,6 @@ td.thumb .ph{width:38px;height:38px;border:2px solid var(--ink);border-radius:7p
 window.ICON={"up":"<path d=\"M4 12L4 14.5442C4 17.7892 4 19.4117 4.88607 20.5107C5.06508 20.7327 5.26731 20.9349 5.48933 21.1139C6.58831 22 8.21082 22 11.4558 22C12.1614 22 12.5141 22 12.8372 21.886C12.9044 21.8623 12.9702 21.835 13.0345 21.8043C13.3436 21.6564 13.593 21.407 14.0919 20.9081L18.8284 16.1716C19.4065 15.5935 19.6955 15.3045 19.8478 14.9369C20 14.5694 20 14.1606 20 13.3431V10C20 6.22876 20 4.34315 18.8284 3.17157C17.6569 2 15.7712 2 12 2M13 21.5V21C13 18.1716 13 16.7574 13.8787 15.8787C14.7574 15 16.1716 15 19 15H19.5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M10 5C9.41016 4.39316 7.84027 2 7 2C6.15973 2 4.58984 4.39316 4 5M7 3L7 10\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>","cam":"<path d=\"M12.6974 3.5H11.303C10.5884 3.5 10.2311 3.5 9.91067 3.612C9.71499 3.68039 9.53113 3.77879 9.36568 3.90367C9.09474 4.10816 8.89655 4.40544 8.50018 5L8.50017 5.00001C8.29717 5.30453 7.99794 5.75337 7.87867 5.87871C7.58314 6.18927 7.19563 6.39666 6.77329 6.47029C6.60284 6.5 6.41985 6.5 6.05387 6.5C5.07379 6.5 4.58376 6.5 4.18307 6.61342C3.18074 6.89716 2.39734 7.68055 2.1136 8.68289C2.00018 9.08357 2.00018 9.57361 2.00018 10.5537V14.5C2.00018 17.3284 2.00018 18.7426 2.87886 19.6213C3.75754 20.5 5.17176 20.5 8.00018 20.5H16.0002C18.8286 20.5 20.2428 20.5 21.1215 19.6213C22.0002 18.7426 22.0002 17.3284 22.0002 14.5V10.5537C22.0002 9.57361 22.0002 9.08357 21.8868 8.68289C21.603 7.68055 20.8196 6.89716 19.8173 6.61342C19.4166 6.5 18.9266 6.5 17.9465 6.5C17.5805 6.5 17.3975 6.5 17.2271 6.47029C16.8047 6.39666 16.4172 6.18927 16.1217 5.87871C16.0024 5.75336 15.7032 5.30451 15.5002 5C15.1038 4.40544 14.9056 4.10816 14.6347 3.90367C14.4692 3.77879 14.2854 3.68039 14.0897 3.612C13.7693 3.5 13.412 3.5 12.6974 3.5Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M16.0002 13C16.0002 15.2091 14.2093 17 12.0002 17C9.79104 17 8.00018 15.2091 8.00018 13C8.00018 10.7909 9.79104 9 12.0002 9C14.2093 9 16.0002 10.7909 16.0002 13Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M19.1252 9.5H19.0002M19.2502 9.5C19.2502 9.63807 19.1383 9.75 19.0002 9.75C18.8621 9.75 18.7502 9.63807 18.7502 9.5C18.7502 9.36193 18.8621 9.25 19.0002 9.25C19.1383 9.25 19.2502 9.36193 19.2502 9.5Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/>","dl":"<path d=\"M2.99969 17.0002C2.99969 17.9302 2.99969 18.3952 3.10192 18.7767C3.37932 19.8119 4.18796 20.6206 5.22324 20.898C5.60474 21.0002 6.06972 21.0002 6.99969 21.0002L16.9997 21.0002C17.9297 21.0002 18.3947 21.0002 18.7762 20.898C19.8114 20.6206 20.6201 19.8119 20.8975 18.7767C20.9997 18.3952 20.9997 17.9302 20.9997 17.0002\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M16.4998 11.5002C16.4998 11.5002 13.1856 16.0002 11.9997 16.0002C10.8139 16.0002 7.49976 11.5002 7.49976 11.5002M11.9997 15.0002V3.00016\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>","del":"<path d=\"M19.5 5.5L18.8803 15.5251C18.7219 18.0864 18.6428 19.3671 18.0008 20.2879C17.6833 20.7431 17.2747 21.1273 16.8007 21.416C15.8421 22 14.559 22 11.9927 22C9.42312 22 8.1383 22 7.17905 21.4149C6.7048 21.1257 6.296 20.7408 5.97868 20.2848C5.33688 19.3626 5.25945 18.0801 5.10461 15.5152L4.5 5.5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M3 5.5H21M16.0557 5.5L15.3731 4.09173C14.9196 3.15626 14.6928 2.68852 14.3017 2.39681C14.215 2.3321 14.1231 2.27454 14.027 2.2247C13.5939 2 13.0741 2 12.0345 2C10.9688 2 10.436 2 9.99568 2.23412C9.8981 2.28601 9.80498 2.3459 9.71729 2.41317C9.32164 2.7167 9.10063 3.20155 8.65861 4.17126L8.05292 5.5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M9.5 16.5L9.5 10.5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M14.5 16.5L14.5 10.5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/>","key":"<path d=\"M15.5 14.5C18.8137 14.5 21.5 11.8137 21.5 8.5C21.5 5.18629 18.8137 2.5 15.5 2.5C12.1863 2.5 9.5 5.18629 9.5 8.5C9.5 9.38041 9.68962 10.2165 10.0303 10.9697L2.5 18.5V21.5H5.5V19.5H7.5V17.5H9.5L13.0303 13.9697C13.7835 14.3104 14.6196 14.5 15.5 14.5Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M17.5 6.5L16.5 7.5\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>","gear":"<path d=\"M21.3175 7.14139L20.8239 6.28479C20.4506 5.63696 20.264 5.31305 19.9464 5.18388C19.6288 5.05472 19.2696 5.15664 18.5513 5.36048L17.3311 5.70418C16.8725 5.80994 16.3913 5.74994 15.9726 5.53479L15.6357 5.34042C15.2766 5.11043 15.0004 4.77133 14.8475 4.37274L14.5136 3.37536C14.294 2.71534 14.1842 2.38533 13.9228 2.19657C13.6615 2.00781 13.3143 2.00781 12.6199 2.00781H11.5051C10.8108 2.00781 10.4636 2.00781 10.2022 2.19657C9.94085 2.38533 9.83106 2.71534 9.61149 3.37536L9.27753 4.37274C9.12465 4.77133 8.84845 5.11043 8.48937 5.34042L8.15249 5.53479C7.73374 5.74994 7.25259 5.80994 6.79398 5.70418L5.57375 5.36048C4.85541 5.15664 4.49625 5.05472 4.17867 5.18388C3.86109 5.31305 3.67445 5.63696 3.30115 6.28479L2.80757 7.14139C2.45766 7.74864 2.2827 8.05227 2.31666 8.37549C2.35061 8.69871 2.58483 8.95918 3.05326 9.48012L4.0843 10.6328C4.3363 10.9518 4.51521 11.5078 4.51521 12.0077C4.51521 12.5078 4.33636 13.0636 4.08433 13.3827L3.05326 14.5354C2.58483 15.0564 2.35062 15.3168 2.31666 15.6401C2.2827 15.9633 2.45766 16.2669 2.80757 16.8741L3.30114 17.7307C3.67443 18.3785 3.86109 18.7025 4.17867 18.8316C4.49625 18.9608 4.85542 18.8589 5.57377 18.655L6.79394 18.3113C7.25263 18.2055 7.73387 18.2656 8.15267 18.4808L8.4895 18.6752C8.84851 18.9052 9.12464 19.2442 9.2775 19.6428L9.61149 20.6403C9.83106 21.3003 9.94085 21.6303 10.2022 21.8191C10.4636 22.0078 10.8108 22.0078 11.5051 22.0078H12.6199C13.3143 22.0078 13.6615 22.0078 13.9228 21.8191C14.1842 21.6303 14.294 21.3003 14.5136 20.6403L14.8476 19.6428C15.0004 19.2442 15.2765 18.9052 15.6356 18.6752L15.9724 18.4808C16.3912 18.2656 16.8724 18.2055 17.3311 18.3113L18.5513 18.655C19.2696 18.8589 19.6288 18.9608 19.9464 18.8316C20.264 18.7025 20.4506 18.3785 20.8239 17.7307L21.3175 16.8741C21.6674 16.2669 21.8423 15.9633 21.8084 15.6401C21.7744 15.3168 21.5402 15.0564 21.0718 14.5354L20.0407 13.3827C19.7887 13.0636 19.6098 12.5078 19.6098 12.0077C19.6098 11.5078 19.7888 10.9518 20.0407 10.6328L21.0718 9.48012C21.5402 8.95918 21.7744 8.69871 21.8084 8.37549C21.8423 8.05227 21.6674 7.74864 21.3175 7.14139Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M15.5195 12C15.5195 13.933 13.9525 15.5 12.0195 15.5C10.0865 15.5 8.51953 13.933 8.51953 12C8.51953 10.067 10.0865 8.5 12.0195 8.5C13.9525 8.5 15.5195 10.067 15.5195 12Z\" stroke=\"currentColor\" stroke-width=\"1.5\"/>","ok":"<path d=\"M22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12Z\" stroke=\"currentColor\" stroke-width=\"1.5\"/><path d=\"M8 12.5L10.5 15L16 9\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>","warn":"<path d=\"M13.9248 21H10.0752C5.44476 21 3.12955 21 2.27636 19.4939C1.42317 17.9879 2.60736 15.9914 4.97574 11.9985L6.90057 8.75333C9.17559 4.91778 10.3131 3 12 3C13.6869 3 14.8244 4.91777 17.0994 8.75332L19.0243 11.9985C21.3926 15.9914 22.5768 17.9879 21.7236 19.4939C20.8704 21 18.5552 21 13.9248 21Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M12 9V13\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M12.125 16.75H12M12.25 16.75C12.25 16.8881 12.1381 17 12 17C11.8619 17 11.75 16.8881 11.75 16.75C11.75 16.6119 11.8619 16.5 12 16.5C12.1381 16.5 12.25 16.6119 12.25 16.75Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>","load":"<path d=\"M12 3V6\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M12 18V21\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M21 12L18 12\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M6 12L3 12\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M18.3635 5.63672L16.2422 7.75804\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M7.75804 16.2422L5.63672 18.3635\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M18.3635 18.3635L16.2422 16.2422\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/><path d=\"M7.75804 7.75804L5.63672 5.63672\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.5\"/>","add":"<path d=\"M12.001 5.00003V19.002\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M19.002 12.002L4.99998 12.002\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>","doc":"<path d=\"M4 18.6458V8.05426C4 5.20025 4 3.77325 4.87868 2.88663C5.75736 2 7.17157 2 10 2H14C16.8284 2 18.2426 2 19.1213 2.88663C20 3.77325 20 5.20025 20 8.05426V18.6458C20 20.1575 20 20.9133 19.538 21.2108C18.7831 21.6971 17.6161 20.6774 17.0291 20.3073C16.5441 20.0014 16.3017 19.8485 16.0325 19.8397C15.7417 19.8301 15.4949 19.9768 14.9709 20.3073L13.06 21.5124C12.5445 21.8374 12.2868 22 12 22C11.7132 22 11.4555 21.8374 10.94 21.5124L9.02913 20.3073C8.54415 20.0014 8.30166 19.8485 8.03253 19.8397C7.74172 19.8301 7.49493 19.9768 6.97087 20.3073C6.38395 20.6774 5.21687 21.6971 4.46195 21.2108C4 20.9133 4 20.1575 4 18.6458Z\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M11 11H8\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/><path d=\"M14 7L8 7\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.5\"/>"};
 </script>
 <script type="module">
-import Anthropic from "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.128.0/+esm";
 
 /* ============ 定数 ============ */
 const ACCOUNTS=[
@@ -253,6 +267,7 @@ const LS="aoiroImport.v1";
 const load=()=>{try{return JSON.parse(localStorage.getItem(LS))||{};}catch{return {};}};
 const saved=load();
 const S={
+  engine:saved.engine||"local", ollamaUrl:saved.ollamaUrl||"http://localhost:11434", localModel:saved.localModel||"",
   apiKey:saved.apiKey||"", model:saved.model||"claude-opus-5", myName:saved.myName||"",
   taxMode:saved.taxMode||"exempt",
   acCash:saved.acCash||"事業主借", acCard:saved.acCard||"未払金",
@@ -277,13 +292,44 @@ const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("on");clearT
 const yen=n=>(Math.round(n)||0).toLocaleString("ja-JP");
 
 /* ============ 設定 ============ */
-for(const k of ["apiKey","model","myName","taxMode","acCash","acCard","acBank","acBill"]){
+for(const k of ["engine","ollamaUrl","apiKey","model","myName","taxMode","acCash","acCard","acBank","acBill"]){
   const el=$("#"+k); el.value=S[k];
-  el.addEventListener("change",()=>{S[k]=el.value.trim();save();setState();if(k==="taxMode"){rows.forEach(r=>{if(!r.taxEdited)r.tax=autoTax(r);});render();}});
+  el.addEventListener("change",()=>{S[k]=el.value.trim().replace(/\/+$/,"");save();setState();if(k==="engine"||k==="ollamaUrl")refreshModels();if(k==="taxMode"){rows.forEach(r=>{if(!r.taxEdited)r.tax=autoTax(r);});render();}});
 }
-const setState=()=>{$("#setState").textContent=S.apiKey?"APIキー あり":"APIキーを 入れてください";};
+const ready=()=>S.engine==="local"?!!S.localModel:!!S.apiKey;
+const setState=()=>{
+  document.querySelectorAll("[data-for]").forEach(e=>e.hidden=e.dataset.for!==S.engine);
+  $("#setState").textContent=S.engine==="local"
+    ?(S.localModel?`ローカル: ${S.localModel}`:"ローカルのモデルが ありません")
+    :(S.apiKey?"Claude: APIキー あり":"APIキーを 入れてください");
+};
+if(location.protocol==="file:") $("#fileWarn").hidden=false;
+
+/* Ollama に 入っている モデルを 並べる */
+async function refreshModels(){
+  const sel=$("#localModel"), st=$("#localState");
+  if(S.engine!=="local"){ setState(); return; }
+  st.textContent="Ollama を さがしています…";
+  try{
+    const r=await fetch(S.ollamaUrl+"/api/tags"); if(!r.ok) throw 0;
+    const names=((await r.json()).models||[]).map(m=>m.name);
+    // 画像が 読めそうな ものを 先に
+    const vis=n=>/vl|vision|llava|gemma3|minicpm-v|moondream|granite3\.2-vision|mistral-small3/i.test(n);
+    names.sort((a,b)=>vis(b)-vis(a));
+    sel.innerHTML=names.map(n=>`<option value="${esc(n)}">${esc(n)}${vis(n)?"":"（画像は 読めないかも）"}</option>`).join("");
+    if(!names.includes(S.localModel)) S.localModel=names[0]||"";
+    sel.value=S.localModel; save();
+    st.textContent=names.length?"Ollama OK":"モデルが ありません。setup.bat を 実行してください";
+  }catch{
+    sel.innerHTML=""; S.localModel="";
+    st.textContent="Ollama に つながりません。start.bat から 開いてください";
+  }
+  setState();
+}
+$("#localModel").addEventListener("change",e=>{S.localModel=e.target.value;save();setState();});
+$("#reloadModels").onclick=refreshModels;
 setState();
-if(!S.apiKey) $("#setBox").open=true;
+refreshModels().then(()=>{ if(!ready()||!S.myName) $("#setBox").open=true; });
 
 /* ============ 税区分 ============ */
 function autoTax(r,side="main"){
@@ -310,7 +356,7 @@ const drop=$("#drop");
 drop.addEventListener("drop",e=>addFiles(e.dataTransfer.files));
 
 function addFiles(list){
-  if(!S.apiKey){ $("#setBox").open=true; $("#apiKey").focus(); toast("さきに APIキーを 入れてください"); return; }
+  if(!ready()){ $("#setBox").open=true; toast(S.engine==="local"?"ローカルの モデルが 見つかりません":"さきに APIキーを 入れてください"); return; }
   for(const f of list){
     if(!(f.type.startsWith("image/")||f.type==="application/pdf")) continue;
     const it={id:++seq,file:f,name:f.name,state:"wait",thumb:f.type.startsWith("image/")?URL.createObjectURL(f):""};
@@ -331,7 +377,7 @@ function renderFiles(){
 /* 2 枚ずつ 読む */
 let running=0;
 function pump(){
-  while(running<2){
+  while(running<(S.engine==="local"?1:2)){
     const f=files.find(x=>x.state==="wait"); if(!f) break;
     running++; f.state="run"; renderFiles();
     readOne(f).then(()=>{f.state="done";}).catch(err=>{
@@ -340,19 +386,44 @@ function pump(){
   }
 }
 
-/* 画像は 長辺 1600px の JPEG に 縮める */
+/* 画像は 長辺 max px の JPEG に 縮める */
+function toJpeg(src,w,h,max){
+  const k=Math.min(1,max/Math.max(w,h));
+  const c=document.createElement("canvas"); c.width=Math.round(w*k); c.height=Math.round(h*k);
+  const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(src,0,0,c.width,c.height);
+  return c.toDataURL("image/jpeg",.88).split(",")[1];
+}
+async function imageB64(file,max){
+  let bmp;
+  try{ bmp=await createImageBitmap(file); }
+  catch{ throw new Error("この画像は 開けません（HEIC なら JPG にしてください）"); }
+  return toJpeg(bmp,bmp.width,bmp.height,max);
+}
+/* PDF は ページごとに 画像にする（ローカル用） */
+let pdfjs;
+async function pdfPages(file,max,limit=4){
+  if(!pdfjs){
+    pdfjs=await import("./lib/pdf.min.mjs");
+    pdfjs.GlobalWorkerOptions.workerSrc=new URL("./lib/pdf.worker.min.mjs",location.href).href;
+  }
+  const doc=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  const out=[];
+  for(let i=1;i<=Math.min(doc.numPages,limit);i++){
+    const page=await doc.getPage(i);
+    const v0=page.getViewport({scale:1});
+    const vp=page.getViewport({scale:Math.min(3,max/Math.max(v0.width,v0.height))});
+    const c=document.createElement("canvas"); c.width=Math.ceil(vp.width); c.height=Math.ceil(vp.height);
+    const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height);
+    await page.render({canvas:c,canvasContext:g,viewport:vp}).promise;
+    out.push(toJpeg(c,c.width,c.height,max));
+  }
+  return out;
+}
 async function toBlock(file){
   if(file.type==="application/pdf"){
     return {type:"document",source:{type:"base64",media_type:"application/pdf",data:await b64(file)}};
   }
-  let bmp;
-  try{ bmp=await createImageBitmap(file); }
-  catch{ throw new Error("この画像は 開けません（HEIC なら JPG にしてください）"); }
-  const k=Math.min(1,1600/Math.max(bmp.width,bmp.height));
-  const c=document.createElement("canvas"); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
-  const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(bmp,0,0,c.width,c.height);
-  const url=c.toDataURL("image/jpeg",.88);
-  return {type:"image",source:{type:"base64",media_type:"image/jpeg",data:url.split(",")[1]}};
+  return {type:"image",source:{type:"base64",media_type:"image/jpeg",data:await imageB64(file,1600)}};
 }
 function b64(file){
   return new Promise((ok,ng)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]);r.onerror=ng;r.readAsDataURL(file);});
@@ -393,7 +464,45 @@ function systemPrompt(){
 - 読めない・あやしい所は推測で埋めたうえで unsure に書く。`;
 }
 
+/* スキーマの 説明（ローカルの モデルには 文で 伝える） */
+const FIELD_GUIDE=`
+答えは JSON だけ。形: {"documents":[{...}]}
+- kind: "receipt"=支払い済みのレシート/領収書, "bill"=受け取った請求書(後払い), "sales_invoice"=自分が出した請求書
+- date: 取引日 "YYYY-MM-DD"（和暦は西暦に直す。読めなければ ""）
+- partner: 相手の店名・会社名（sales_invoice なら請求先）
+- registration_number: 登録番号 "T"+13桁。無ければ ""
+- summary: 何を買った/何の仕事か。全角15文字まで
+- account: 借方の勘定科目（sales_invoice なら "売上高"）
+- payment: "cash" | "card" | "bank" | "unknown"
+- lines: [{"rate":"10"|"8"|"exempt"|"none","amount":税込の整数}] 税率ごと
+- withholding_tax: 源泉徴収税額。無ければ 0
+- unsure: 自信がない所を短く。無ければ ""`;
+
+async function callOllama(images){
+  let r;
+  try{
+    r=await fetch(S.ollamaUrl+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      model:S.localModel,stream:false,format:SCHEMA,keep_alive:"10m",
+      options:{temperature:0,num_ctx:16384},
+      messages:[
+        {role:"system",content:systemPrompt()+"\n"+FIELD_GUIDE},
+        {role:"user",content:"この書類を 読み取って JSON で 答えてください。",images}
+      ]
+    })});
+  }catch{ throw new Error("Ollama に つながりません。start.bat から 開いてください"); }
+  if(!r.ok){
+    const t=await r.text().catch(()=>"");
+    if(/not found/i.test(t)) throw new Error(`モデル ${S.localModel} が ありません`);
+    throw new Error("Ollama のエラー: "+t.slice(0,120));
+  }
+  const j=await r.json();
+  try{ return JSON.parse(j.message.content); }
+  catch{ throw new Error("読み取り結果が こわれていました。もう一度 入れてください"); }
+}
+
+let Anthropic;
 async function callClaude(block){
+  if(!Anthropic) Anthropic=(await import("./lib/anthropic-sdk.min.mjs")).default;
   const client=new Anthropic({apiKey:S.apiKey,dangerouslyAllowBrowser:true});
   const base={
     model:S.model,max_tokens:16000,
@@ -416,10 +525,13 @@ async function callClaude(block){
 }
 
 async function readOne(f){
-  const block=await toBlock(f.file);
   let out;
-  try{ out=await callClaude(block); }
+  if(S.engine==="local"){
+    const images=f.file.type==="application/pdf"?await pdfPages(f.file,1280):[await imageB64(f.file,1280)];
+    out=await callOllama(images);
+  }else try{ out=await callClaude(await toBlock(f.file)); }
   catch(e){
+    if(!Anthropic) throw e;
     if(e instanceof Anthropic.AuthenticationError) throw new Error("APIキーが ちがいます");
     if(e instanceof Anthropic.RateLimitError) throw new Error("混んでいます。少し待って 入れなおしてください");
     if(e instanceof Anthropic.APIConnectionError) throw new Error("つながりません");
