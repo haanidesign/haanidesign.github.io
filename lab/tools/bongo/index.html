@@ -199,8 +199,8 @@ body.solo #exit{display:inline-flex;}
     <div class="box">
       <span class="title">待機</span>
       <div class="row"><span>待機まで</span><input type="range" id="idleSec" min="0" max="30"><span class="val" id="idleSecV"></span></div>
-      <div class="hint">キーも ペンも さわらない まま この秒数が たつと、「待機」の 絵 1枚に かわる。
-        さわると すぐ もどる。0 で しない。</div>
+      <div class="hint">キーも ペンも さわらない まま この秒数が たつと、からだと 手が「待機」の 絵に かわる。
+        キーボード・タブレットは そのまま 出て いる。さわると すぐ もどる。0 で しない。</div>
     </div>
 
     <div class="box">
@@ -293,7 +293,8 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
    ============================================================ */
 const PARTS=[
   {k:'base',     nm:'からだ',           sub:'あたま＋からだ 1枚',       g:'共通'},
-  {k:'idle',     nm:'待機',             sub:'なにも して いない 時',     g:'共通'},
+  {k:'idle',     nm:'待機',             sub:'なにも して いない 時（台の うしろ）', g:'共通'},
+  {k:'idleFront',nm:'待機の 手',        sub:'台の 前に 出す 手など（なくても いい）', g:'共通'},
   {k:'lhandUp',  nm:'左手（上）',       sub:'浮いている 時',             g:'キーボード'},
   {k:'lhandDown',nm:'左手（下）',       sub:'打っている 時',             g:'キーボード'},
   {k:'rhandUp',  nm:'右手（上）',       sub:'浮いている 時',             g:'キーボード'},
@@ -309,7 +310,8 @@ PNAME.rest='休んで いる 手';
 /* 置き場所。fit=bottom は 下はし中央、center は まん中が 基準 */
 const ANCHOR={
   base:     {x:320,y:366,w:300,h:320,fit:'bottom'},
-  idle:     {x:320,y:210,w:600,h:400,fit:'center'},
+  idle:     {x:320,y:366,w:300,h:320,fit:'bottom'},
+  idleFront:{x:320,y:326,w:380,h:140,fit:'center'},
   lhandUp:  {w:70,h:70,fit:'center'},  lhandDown:{w:70,h:70,fit:'center'},
   rhandUp:  {w:70,h:70,fit:'center'},  rhandDown:{w:70,h:70,fit:'center'},
   desk:     {x:320,y:344,w:380,h:110,fit:'center'},
@@ -322,6 +324,7 @@ const isPen=k=>k==='penUp'||k==='penDown';
 const RX={
   pen:/ペン|펜|stylus|(^|[^a-z])pen/i,
   touch:/タッチ|touch|down|下|押|터치|아래/i,
+  notouch:/ない|なし|無し|非|離|はな|浮|hover|off|(^|[^a-z])up|待機|대기|떼|안/i,
   idle:/待機|idle|대기|(^|[^a-z])wait/i,
   L:/左|left|왼|(^|[^a-z])l(?=hand|[-_ .]|$)/i,
   R:/右|right|오른|(^|[^a-z])r(?=hand|[-_ .]|$)/i,
@@ -335,8 +338,8 @@ const RX={
 function guessPart(name){
   const n=name.replace(/\.(png|gif|webp|jpe?g|psd)$/i,'');
   if(RX.guide.test(n)) return 'skip';
-  if(RX.pen.test(n)) return RX.touch.test(n)?'penDown':'penUp';
-  if(RX.idle.test(n)) return 'idle';
+  if(RX.pen.test(n)) return (RX.touch.test(n)&&!RX.notouch.test(n))?'penDown':'penUp';
+  if(RX.idle.test(n)) return RX.hand.test(n)||/前|front|앞/i.test(n)?'idleFront':'idle';
   if(RX.hand.test(n)){
     const s=RX.L.test(n)?'l':RX.R.test(n)?'r':null;
     if(s) return s+'hand'+(RX.down.test(n)?'Down':'Up');
@@ -491,8 +494,9 @@ function keyToX(c){
 }
 const xOf=t=>(cfg.rMin/100 + t*(cfg.rMax-cfg.rMin)/100)*W;
 const penSide=()=>cfg.hand==='left'?'R':'L';        // ペンを 持つ 手が 画面の どちら側か
-const restArt=()=>penSide()==='L'?'rhandUp':'lhandUp';
-const artKeyOf=k=>k==='rest'?restArt():k;
+const restArt=()=>upKey(penSide()==='L'?'rhand':'lhand');
+const artKeyOf=k=>k==='rest'?restArt():k==='lhandUp'?upKey('lhand'):k==='rhandUp'?upKey('rhand'):k==='penUp'?upKey('pen'):k;
+const moveKey=k=>k==='rest'?'rest':artKeyOf(k);     // 動かす ときに さわる 先
 
 /* ============================================================
    絵を 組む
@@ -500,6 +504,8 @@ const artKeyOf=k=>k==='rest'?restArt():k;
 function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 let G={};           // data-part → g
 
+/* 上／下（はなす／タッチ）の 片方しか ない ときは、ある方を 両方に 使う */
+function upKey(base){ return art[base+'Up']?base+'Up':(art[base+'Down']?base+'Down':base+'Up'); }
 function fitOf(k){ const a=art[k],an=ANCHOR[k]; return Math.min(an.w/a.w,an.h/a.h); }
 function partG(id,ak,drawDefault){
   const g=el('g',{'data-part':id});
@@ -594,7 +600,10 @@ function build(){
   bodyW.appendChild(partG('base','base',drawDefaultBase));
   if(!art.base) drawEyes();
 
-  const deskW=el('g',{id:'deskW',class:'fade'}); root.appendChild(deskW);
+  const idleW=el('g',{id:'idleW',class:'fade',style:'opacity:0;pointer-events:none'}); root.appendChild(idleW);
+  if(art.idle) idleW.appendChild(partG('idle','idle',null));
+
+  const deskW=el('g',{id:'deskW'}); root.appendChild(deskW);
   const dk=mode==='pen'?'deskPen':'desk';
   deskW.appendChild(partG(dk,dk,mode==='pen'?drawDefaultTablet:drawDefaultKeyboard));
 
@@ -609,17 +618,17 @@ function build(){
     ['L','R'].forEach(side=>{
       const hg=el('g',{id:'h'+side}); hands.appendChild(hg);
       const base=(side==='L'?'lhand':'rhand');
-      hg.appendChild(partG(base+'Up',base+'Up',drawPaw));
+      hg.appendChild(partG(base+'Up',upKey(base),drawPaw));
       hg.appendChild(partG(base+'Down',base+'Down',null));
     });
   }else{
     hands.appendChild(partG('rest',restArt(),drawPaw));
-    hands.appendChild(partG('penUp','penUp',drawPenPaw));
+    hands.appendChild(partG('penUp',upKey('pen'),drawPenPaw));
     hands.appendChild(partG('penDown','penDown',null));
   }
 
-  const idleW=el('g',{id:'idleW',class:'fade',style:'opacity:0;pointer-events:none'}); root.appendChild(idleW);
-  if(art.idle) idleW.appendChild(partG('idle','idle',null));
+  const idleF=el('g',{id:'idleF',class:'fade',style:'opacity:0;pointer-events:none'}); root.appendChild(idleF);
+  if(art.idleFront) idleF.appendChild(partG('idleFront','idleFront',null));
 
   const ov=el('g',{id:'ov'}); root.appendChild(ov);
   if(editing) buildOverlay(ov);
@@ -699,11 +708,14 @@ function tick(){
   root.setAttribute('transform',`translate(${cfg.offX} ${cfg.offY}) translate(${W/2} ${H}) scale(${sc}) translate(${-W/2} ${-H})`);
 
   /* 待機 */
-  const idleNow = art.idle && ((editing&&sel==='idle') ||
+  const hasIdle=!!(art.idle||art.idleFront);
+  const idleNow = hasIdle && ((editing&&(sel==='idle'||sel==='idleFront')) ||
     (!editing && cfg.idleSec>0 && now-S.lastIn>cfg.idleSec*1000));
-  const iw=$('#idleW'); iw.style.opacity=idleNow?1:0; iw.style.pointerEvents=idleNow?'':'none';
-  ['bodyW','deskW','arms','hands'].forEach(id=>{ const g=$('#'+id); g.style.opacity=idleNow?0:1; g.style.pointerEvents=idleNow?'none':''; });
+  ['idleW','idleF'].forEach(id=>{ const g=$('#'+id); g.style.opacity=idleNow?1:0; g.style.pointerEvents=idleNow?'':'none'; });
+  // 台は そのまま。からだ・うで・手 だけ 入れかえる
+  ['bodyW','arms','hands'].forEach(id=>{ const g=$('#'+id); g.style.opacity=idleNow?0:1; g.style.pointerEvents=idleNow?'none':''; });
   if(G.idle) placeG(G.idle,ANCHOR.idle.x,ANCHOR.idle.y,'idle');
+  if(G.idleFront) placeG(G.idleFront,ANCHOR.idleFront.x,ANCHOR.idleFront.y,'idleFront');
 
   $('#bodyW').setAttribute('transform',`translate(0 ${S.bob}) rotate(${S.tilt} 320 ${cfg.handY+40})`);
   placeG(G.base,ANCHOR.base.x,ANCHOR.base.y,'base');
@@ -719,7 +731,8 @@ function tick(){
     $('#hR').setAttribute('transform',`translate(${rx} ${ry+S.ry+hb})`);
     swapHand('lhand',!editing&&now-S.lHit<HOLD, editing&&sel==='lhandDown');
     swapHand('rhand',!editing&&now-S.rHit<HOLD, editing&&sel==='rhandDown');
-    ['lhandUp','lhandDown','rhandUp','rhandDown'].forEach(p=>placeG(G[p],0,0,p));
+    placeG(G.lhandUp,0,0,upKey('lhand')); placeG(G.rhandUp,0,0,upKey('rhand'));
+    placeG(G.lhandDown,0,0,'lhandDown'); placeG(G.rhandDown,0,0,'rhandDown');
     const a1=A('lhandUp'), a2=A('rhandUp');
     pL={x:lx+a1.x,y:ly+S.ly+hb+a1.y}; pR={x:rx+a2.x,y:ry+S.ry+hb+a2.y};
     if(editing) updateOverlay(cfg.handY,[{x:lx,y:ly},{x:rx,y:ry}]);
@@ -733,7 +746,7 @@ function tick(){
     const gu=G.penUp, gd=G.penDown;
     const useDown=down&&!!art.penDown;
     gu.style.display=useDown?'none':''; gd.style.display=useDown?'':'none';
-    const o1=placePen(gu,'penUp',S.tipX,ty);
+    const o1=placePen(gu,upKey('pen'),S.tipX,ty);
     const o2=placePen(gd,'penDown',S.tipX,ty);
     const po=useDown?o2:o1;
     // 休んで いる 手
@@ -781,7 +794,7 @@ addEventListener('keydown',e=>{
   if(editing){
     const m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
     if(m&&sel){ e.preventDefault(); const st=e.shiftKey?10:1;
-      movePart(sel,snap(sel),m[0]*st,m[1]*st); saveCfg(); syncAdj(); if(isPen(sel)) build(); }
+      const mk=moveKey(sel); movePart(mk,snap(mk),m[0]*st,m[1]*st); saveCfg(); syncAdj(); if(isPen(mk)) build(); }
     return;
   }
   if(cfg.mode!=='key'||e.repeat) return;
@@ -845,7 +858,8 @@ svg.addEventListener('pointerdown',e=>{
     if(pg){
       const k=pg.dataset.part;
       if(k!==sel){ sel=k; renderParts(); syncAdj(); build(); }
-      drag={type:'part',k,p0:p,s0:snap(k),last:{x:0,y:0}};
+      const mk=moveKey(k);
+      drag={type:'part',k:mk,p0:p,s0:snap(mk),last:{x:0,y:0}};
     }else drag={type:'pan',q0:q,c:{offX:cfg.offX,offY:cfg.offY}};
   }
   scr.classList.add('grab');
@@ -895,7 +909,7 @@ svg.addEventListener('wheel',e=>{
     const a=A(ak);
     if(e.shiftKey||e.altKey) a.r=clamp(Math.round(a.r+(up?3:-3)),-180,180);
     else a.s=clamp(Math.round(a.s*(up?1.06:1/1.06)),10,400);
-    if(isPen(k)){ const t=tipOf(k); a.u=t.u; a.v=t.v; }
+    if(isPen(ak)){ const t=tipOf(ak); a.u=t.u; a.v=t.v; }
     setA(ak,a);
   }else{
     cfg.scale=clamp(Math.round(cfg.scale*(up?1.05:1/1.05)),30,300);
@@ -960,20 +974,21 @@ function syncAdj(){
   $('#'+id).addEventListener('input',e=>{
     const v=+e.target.value, k=sel, ak=artKeyOf(k);
     if(k==='rest'&&(key==='x'||key==='y')){ cfg.rest[cfg.hand][key]=v; }
-    else{ const a=A(ak); if(isPen(k)){ const t=tipOf(k); a.u=t.u; a.v=t.v; } a[key]=v; setA(ak,a); }
+    else{ const a=A(ak); if(isPen(ak)){ const t=tipOf(ak); a.u=t.u; a.v=t.v; } a[key]=v; setA(ak,a); }
     $('#'+id+'V').textContent=v+(key==='s'?'%':key==='r'?'°':'');
     saveCfg();
   });
   $('#'+id).addEventListener('change',()=>{ if(editing) build(); });
 });
-$('#pF').addEventListener('change',e=>{ const ak=artKeyOf(sel), a=A(ak); if(isPen(sel)){const t=tipOf(sel);a.u=t.u;a.v=t.v;} a.flip=e.target.checked; setA(ak,a); saveCfg(); build(); });
+$('#pF').addEventListener('change',e=>{ const ak=artKeyOf(sel), a=A(ak); if(isPen(ak)){const t=tipOf(ak);a.u=t.u;a.v=t.v;} a.flip=e.target.checked; setA(ak,a); saveCfg(); build(); });
 $('#pReset').addEventListener('click',()=>{
   if(sel==='rest') cfg.rest[cfg.hand]={x:0,y:0}; else delete adj[artKeyOf(sel)];
   saveCfg(); syncAdj(); build();
 });
 $('#tipAuto').addEventListener('click',()=>{
-  if(!art[sel]){ status('ペン手の 絵が まだ ない。'); return; }
-  const a=A(sel); delete a.u; delete a.v; setA(sel,a); art[sel].tip=findTip(art[sel]);
+  const k=artKeyOf(sel);
+  if(!art[k]){ status('ペン手の 絵が まだ ない。'); return; }
+  const a=A(k); delete a.u; delete a.v; setA(k,a); art[k].tip=findTip(art[k]);
   saveCfg(); build(); status('絵の いちばん 下を ペン先に した。');
 });
 
