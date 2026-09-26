@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=293';
-import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=293';
+import { M, uid, ptInQuad } from './math.js?v=294';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=294';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=293';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=293';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=293';
-import { handTime } from './hand.js?v=293';
-import { WORK_KEYS } from '../state.js?v=293';
+         withShake } from './camera.js?v=294';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=294';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=294';
+import { handTime } from './hand.js?v=294';
+import { WORK_KEYS } from '../state.js?v=294';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -1062,15 +1062,42 @@ export function keepChildren(project, layer, time, fn){
  * フォルダを けすときは 中身も いっしょに。
  * ぶら下がっていた ほかのレイヤーは 親を はずして その場に のこす。
  */
-export function removeLayers(project, ids){
+/** けす ことに なる レイヤーを ぜんぶ 出す（けす 前に かぞえる ため） */
+export function willRemove(project, ids){
   const kill = new Set();
-  const add = (id) => {
+  const add = (id, deep) => {
     if(kill.has(id)) return;
     kill.add(id);
     const l = project.layers.find(x => x.id === id);
-    if(l && isFolder(l)) project.layers.forEach(x => { if(x.parent === id) add(x.id); });
+    const into = deep || (l && isFolder(l));
+    if(into) project.layers.forEach(x => { if(x.parent === id) add(x.id, true); });
   };
-  ids.forEach(add);
+  (ids || []).forEach(id => add(id, false));
+  return [...kill];
+}
+
+export function removeLayers(project, ids){
+  const kill = new Set();
+
+  /* フォルダを けす ときは、中身を ぜんぶ いっしょに けす。
+
+     ここで 気を つける ところ ―― 中身は フォルダの 直の 子 だけ とは かぎらない。
+     「うごき追加」で 入れた キャラは
+       フォルダ → 体 → 頭 → 前髪
+     の ように つながって いる。フォルダの 子（体）しか たどらないと、
+     頭より 先が 親なしで のこる（フォルダだけ ほどけた ように 見える）。
+     だから フォルダの 中は どこまでも たどる。
+
+     ふつうの レイヤーを けす ときは 子を のこす（AEと 同じ）。
+     下の 行で 親を 外して、その場に のこる。 */
+  const add = (id, deep) => {
+    if(kill.has(id)) return;
+    kill.add(id);
+    const l = project.layers.find(x => x.id === id);
+    const into = deep || (l && isFolder(l));
+    if(into) project.layers.forEach(x => { if(x.parent === id) add(x.id, true); });
+  };
+  ids.forEach(id => add(id, false));
 
   project.layers = project.layers.filter(l => !kill.has(l.id));
   project.layers.forEach(l => { if(l.parent && kill.has(l.parent)) l.parent = null; });

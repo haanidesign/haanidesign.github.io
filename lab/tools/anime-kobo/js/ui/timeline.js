@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=293';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=293';
-import { isFolder, treeRows, membersOf, removeLayers, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=293';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=294';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=294';
+import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
+         nearestFolder, setParent } from '../engine/layer.js?v=294';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=293';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=293';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=293';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=293';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=294';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=294';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=294';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=294';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -1358,12 +1358,14 @@ export function createTimeline(root, opts = {}){
 
   /** ☑ でえらんだ レイヤーを 削除 */
   function delPicked(){
-    const names = S.pick
-      .map(id => S.proj.layers.find(l => l.id === id))
-      .filter(Boolean).map(l => l.name);
-    if(!names.length) return;
+    const all = willRemove(S.proj, S.pick)
+      .map(id => S.proj.layers.find(l => l.id === id)).filter(Boolean);
+    if(!all.length) return;
     const nl = String.fromCharCode(10);
-    if(!confirm(names.length + 'まい けしますか？' + nl + nl + names.join('、'))) return;
+    const extra = all.length - S.pick.length;
+    if(!confirm(all.length + 'まい けしますか？'
+      + (extra > 0 ? '（フォルダの 中み ' + extra + 'まいも いっしょ）' : '')
+      + nl + nl + all.map(l => l.name).join('、'))) return;
     const r = { n: 0 };
     edit('レイヤーを削除', () => { r.n = removeLayers(S.proj, S.pick); });
     S.pick = [];
