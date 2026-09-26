@@ -165,6 +165,8 @@ body.solo #exit{display:inline-flex;}
       <button data-v="pen" class="btn-sm">タブレット</button>
     </div>
     <button id="editBtn" class="btn-sm">📐 配置を なおす</button>
+    <button id="undo" class="btn-sm" title="1つ 取り消す（Ctrl+Z ／ 2本指で タップ）" disabled>↶ 取り消し</button>
+    <button id="redo" class="btn-sm" title="1つ 進む（Ctrl+Shift+Z ／ 3本指で タップ）" disabled>↷ 進む</button>
     <label>背景 <select id="bg">
       <option value="checker">すけ</option><option value="green">緑</option>
       <option value="blue">青</option><option value="white">白</option>
@@ -223,7 +225,7 @@ body.solo #exit{display:inline-flex;}
       <svg id="cv" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
     <div id="editHint" class="hint" hidden>
-      <b>絵を つかんで</b> 動かす ／ <b>ホイール</b>で 大きさ ／ <b>Shift＋ホイール</b>で かたむき ／ <b>矢印キー</b>で 1ずつ（Shiftで 10ずつ）<br>
+      <b>2本指で タップ</b>で 1つ 取り消し（3本指で 進む）／ <b>絵を つかんで</b> 動かす ／ <b>ホイール</b>で 大きさ ／ <b>Shift＋ホイール</b>で かたむき ／ <b>矢印キー</b>で 1ずつ（Shiftで 10ずつ）<br>
       <b>赤い 点</b>は 指先・ペン先が 当たる 所。手の 絵を 動かして、指先や ペン先を 赤い 点に 合わせる。
       点線の <b>両はし</b>で 手の 動く はば、<b>まん中の つまみ</b>で 高さ。何も ない 所を つかむと ぜんぶ 動く。
     </div>
@@ -371,7 +373,7 @@ try{ const a=JSON.parse(localStorage.getItem('bongo.adj')||'null'); if(a) adj=a;
 function saveCfg(){ try{
   localStorage.setItem('bongo.cfg',JSON.stringify(cfg));
   localStorage.setItem('bongo.adj',JSON.stringify(adj));
-}catch(e){} }
+}catch(e){} commitSoon(); }
 function A(k){ return Object.assign({x:0,y:0,s:100,r:0,flip:false},adj[k]||{}); }
 function setA(k,a){ adj[k]=a; }
 
@@ -416,19 +418,20 @@ function findTip(a){
   }
   return {u:.5,v:1};
 }
-async function setArt(k,blob,silent){
+async function setArt(k,blob,silent,keepAdj){
   const url=URL.createObjectURL(blob);
   const m=await measure(url);
   if(!m){ status('この 絵は 読めなかった。'); return false; }
   if(art[k]) URL.revokeObjectURL(art[k].url);
-  if(isPen(k)){ m.tip=findTip(m); if(adj[k]){ delete adj[k].u; delete adj[k].v; } }
-  art[k]=m; await idbPut(k,blob);
+  if(isPen(k)){ m.tip=findTip(m); if(!keepAdj&&adj[k]){ delete adj[k].u; delete adj[k].v; } }
+  m.blob=blob; art[k]=m; await idbPut(k,blob);
   if(!silent){ build(); renderParts(); }
+  commitSoon();
   return true;
 }
 async function clearArt(k){
   if(art[k]) URL.revokeObjectURL(art[k].url);
-  delete art[k]; await idbDel(k); build(); renderParts();
+  delete art[k]; await idbDel(k); build(); renderParts(); commitSoon();
 }
 async function restoreArt(){
   const all=await idbAll();
@@ -438,7 +441,7 @@ async function restoreArt(){
   for(const k in all){
     if(!PK.includes(k)) continue;
     const m=await measure(URL.createObjectURL(all[k]));
-    if(m){ if(isPen(k)) m.tip=findTip(m); art[k]=m; }
+    if(m){ if(isPen(k)) m.tip=findTip(m); m.blob=all[k]; art[k]=m; }
   }
 }
 function tipOf(k){
@@ -783,6 +786,11 @@ function hit(code){
   status((KNAME[code]||code.replace(/^Key|^Digit/,''))+'  →  '+(h==='l'?'左の 手':'右の 手')+'  '+Math.round(t*100)+'%');
 }
 addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.target.matches('input[type=text],textarea')){
+    const kk=e.key.toLowerCase();
+    if(kk==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+    if(kk==='y'){ e.preventDefault(); redo(); return; }
+  }
   if(e.target.matches('input,select,textarea')) return;
   S.lastIn=performance.now();
   if(e.key==='Escape'){ document.body.classList.remove('solo'); return; }
@@ -839,12 +847,14 @@ function movePart(k,s0,dx,dy){
 let drag=null;
 svg.addEventListener('pointerdown',e=>{
   S.lastIn=performance.now();
+  if(e.pointerType==='touch'&&T.pts.size>1) return;
   if(!editing){
     if(cfg.mode==='pen'){ S.penDown=true; penAim(e);
       try{svg.setPointerCapture(e.pointerId);}catch(_){} }
     return;
   }
   e.preventDefault();
+  if(hTimer) commitNow();
   const h=e.target.closest('[data-h]');
   const p=toRoot(e), q=toSvg(e);
   if(h){ drag={type:h.dataset.h,p0:p,c:{rMin:cfg.rMin,rMax:cfg.rMax,handY:cfg.handY,tipY:cfg.tipY}}; }
@@ -911,6 +921,91 @@ svg.addEventListener('wheel',e=>{
   }
   saveCfg(); syncUI(); syncAdj(); build();
 },{passive:false});
+
+/* ============================================================
+   取り消し・進む
+   ============================================================ */
+const HIST=[]; let hIdx=-1, hTimer=0, hMute=true;
+const bidMap=new WeakMap(); let bidN=0;
+function blobId(b){ if(!b) return '-'; if(!bidMap.has(b)) bidMap.set(b,++bidN); return bidMap.get(b); }
+function snapNow(){
+  const arts={}; PK.forEach(k=>{ if(art[k]) arts[k]=art[k].blob; });
+  const js=JSON.stringify({cfg,adj});
+  return {js,arts,key:js+'|'+PK.map(k=>blobId(arts[k])).join(',')};
+}
+function commitNow(){
+  clearTimeout(hTimer); hTimer=0;
+  if(hMute) return;
+  const s=snapNow();
+  if(hIdx>=0&&HIST[hIdx].key===s.key) return;
+  HIST.splice(hIdx+1); HIST.push(s);
+  if(HIST.length>100) HIST.shift();
+  hIdx=HIST.length-1; syncHist();
+}
+/* スライダーや ホイールの 細かい 変化は 1つに まとめる */
+function commitSoon(){ if(hMute) return; clearTimeout(hTimer); hTimer=setTimeout(commitNow,350); }
+async function applySnap(s){
+  hMute=true;
+  const d=JSON.parse(s.js);
+  cfg=d.cfg;
+  for(const k of PK){
+    const b=s.arts[k];
+    if(b&&(!art[k]||art[k].blob!==b)) await setArt(k,b,true,true);
+    else if(!b&&art[k]){ URL.revokeObjectURL(art[k].url); delete art[k]; await idbDel(k); }
+  }
+  adj=JSON.parse(s.js).adj;
+  saveCfg(); hMute=false;
+  syncUI(); renderParts(); syncAdj(); build(); syncHist();
+}
+/* 絵の 読みなおしは 時間が かかるので、順番に 1つずつ 行う */
+let hChain=Promise.resolve();
+const queue=f=>(hChain=hChain.then(f).catch(()=>{}));
+function undo(){ queue(async()=>{
+  if(hTimer) commitNow();
+  if(drag){ drag=null; scr.classList.remove('grab'); }
+  if(hIdx<=0){ status('これより 前には もどれない。'); return; }
+  hIdx--; await applySnap(HIST[hIdx]);
+  status('1つ 取り消した。');
+}); }
+function redo(){ queue(async()=>{
+  if(hTimer) commitNow();
+  if(hIdx>=HIST.length-1){ status('これより 先は ない。'); return; }
+  hIdx++; await applySnap(HIST[hIdx]);
+  status('1つ 進めた。');
+}); }
+function syncHist(){ $('#undo').disabled=hIdx<=0; $('#redo').disabled=hIdx>=HIST.length-1; }
+$('#undo').addEventListener('click',undo);
+$('#redo').addEventListener('click',redo);
+
+/* 2本指で タップ ＝ 取り消し、3本指 ＝ 進む（動かさずに すぐ はなした 時だけ） */
+const T={pts:new Map(),start:0,max:0,moved:false};
+document.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='touch') return;
+  if(!T.pts.size){ T.start=performance.now(); T.max=0; T.moved=false; }
+  T.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  T.max=Math.max(T.max,T.pts.size);
+  if(T.pts.size===2&&drag){            // 1本目で つかんだ ものは なかった ことに
+    drag=null; scr.classList.remove('grab');
+    if(hIdx>=0){ const s0=HIST[hIdx]; queue(()=>applySnap(s0)); }
+  }
+  if(T.pts.size>=2) S.penDown=false;
+},true);
+document.addEventListener('pointermove',e=>{
+  const p=T.pts.get(e.pointerId); if(!p) return;
+  if(Math.hypot(e.clientX-p.x,e.clientY-p.y)>14) T.moved=true;
+},true);
+function touchEnd(e){
+  if(!T.pts.has(e.pointerId)) return;
+  T.pts.delete(e.pointerId);
+  if(T.pts.size) return;
+  const quick=performance.now()-T.start<450;
+  if(quick&&!T.moved){
+    if(T.max===2) undo();
+    else if(T.max===3) redo();
+  }
+}
+document.addEventListener('pointerup',touchEnd,true);
+document.addEventListener('pointercancel',touchEnd,true);
 
 /* ドロップ */
 function dz(elm,cls){
@@ -1153,6 +1248,7 @@ $('#psdGo').addEventListener('click',async()=>{
 (async()=>{
   await openDB(); await restoreArt();
   syncUI(); renderParts(); syncAdj(); build(); tick();
+  hMute=false; commitNow();
 })();
 </script>
 </body>
