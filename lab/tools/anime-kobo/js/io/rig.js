@@ -14,9 +14,9 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=292';
-import { setPin } from '../engine/anim.js?v=292';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=292';
+import { newSway } from '../engine/puppet.js?v=293';
+import { setPin } from '../engine/anim.js?v=293';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=293';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -99,6 +99,86 @@ function breath(layer, depth, period){
   setPin(layer, 'scaleY', p / 2, sy * (1 + d), 'smooth');
   setPin(layer, 'scaleY', p,     sy,           'smooth');
   layer.loop = { from: 0, to: p, mode: 'loop' };
+}
+
+/* ---------- あとから 直す ----------
+
+   「うごき追加」で 入れた キャラは、まとめ役の フォルダに
+   どう つけたか（rig）を 持って いる。
+   その 数字を 変えて ここを 通せば、中身ぜんぶに かけ直せる。
+   1まいずつ さわらなくて いい。 */
+
+/** はじめの 数字 */
+export function newRigSet(){
+  return {
+    loop: 4,        // 何秒で ひとまわり するか
+    gain: 1,        // ゆれの 強さ（ぜんたい）
+    hair: 1,        // 髪だけ 強さ
+    face: 1,        // 頭・うで・胸だけ 強さ
+    breath: 1       // いきの 深さ
+  };
+}
+
+const HAIR_ROLES = ['frontHair', 'backHair', 'hair'];
+
+/** その レイヤーの 役に あわせた ゆれを かけ直す */
+function swayFor(l, set){
+  const base = SWAY[l.rigRole];
+  if(!base) return false;
+  const k = (HAIR_ROLES.includes(l.rigRole) ? set.hair : set.face) * set.gain;
+  l.sway = Object.assign(newSway(), base, {
+    on: true,
+    angle: Math.max(0, base.angle * k),
+    period: fitPeriod(base.period, set.loop)
+  });
+  return true;
+}
+
+/**
+ * まとめ役の フォルダの 下 ぜんぶに、いまの 数字を かけ直す。
+ *   root … 「うごき追加」で できた フォルダ（rig を 持って いる）
+ */
+export function applyRig(project, root){
+  const set = Object.assign(newRigSet(), root.rig || {});
+  root.rig = set;
+
+  /* 下に ぶら下がって いる ものを ぜんぶ あつめる */
+  const kids = [];
+  const walk = (id) => {
+    project.layers.forEach(l => {
+      if(l.parent !== id) return;
+      kids.push(l);
+      walk(l.id);
+    });
+  };
+  walk(root.id);
+
+  let swayed = 0, breathOn = null;
+  kids.forEach(l => {
+    if(!l.rigRole) return;
+    if(swayFor(l, set)) swayed++;
+    if(l.rigRole === 'body') breathOn = l;
+  });
+  if(!breathOn) breathOn = kids.find(l => l.rigRole === 'head') || null;
+
+  if(breathOn){
+    /* いきは キーフレーム。かけ直す ときは 前のを 消してから */
+    if(breathOn.tracks) delete breathOn.tracks.scaleY;
+    breathOn.loop = null;
+    const depth = 0.012 * set.breath;
+    if(depth > 0.0005) breath(breathOn, depth, fitPeriod(3.6, set.loop));
+  }
+  return { swayed, breath: breathOn ? breathOn.name : null };
+}
+
+/** えらんで いる ところから、まとめ役の フォルダを さがす */
+export function rigRootOf(project, layer){
+  let cur = layer, guard = 0;
+  while(cur && guard++ < 64){
+    if(cur.rig) return cur;
+    cur = cur.parent ? project.layers.find(x => x.id === cur.parent) : null;
+  }
+  return null;
 }
 
 /**
@@ -197,6 +277,9 @@ export function autoRig(project, layers, assetOf, opt){
       folder.x = roots.reduce((a, k) => a + k.x, 0) / roots.length;
       folder.y = roots.reduce((a, k) => a + k.y, 0) / roots.length;
       roots.forEach(l => setParent(project, l, folder.id, 0));
+      /* どう つけたか を フォルダに おぼえさせる。
+         あとで「キャラのうごき」から まとめて 直せる。 */
+      folder.rig = Object.assign(newRigSet(), { loop: loop || 4 });
     }
   }
 
