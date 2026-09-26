@@ -14,9 +14,9 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=291';
-import { setPin } from '../engine/anim.js?v=291';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=291';
+import { newSway } from '../engine/puppet.js?v=292';
+import { setPin } from '../engine/anim.js?v=292';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=292';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
