@@ -14,9 +14,9 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=294';
-import { setPin } from '../engine/anim.js?v=294';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=294';
+import { newSway } from '../engine/puppet.js?v=295';
+import { setPin } from '../engine/anim.js?v=295';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=295';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -139,8 +139,14 @@ function swayFor(l, set){
  *   root … 「うごき追加」で できた フォルダ（rig を 持って いる）
  */
 export function applyRig(project, root){
-  const set = Object.assign(newRigSet(), root.rig || {});
-  root.rig = set;
+  /* いれものは 作り直さない。
+     作り直すと、つまみの 画面が 持って いる ものと 別ものに なり、
+     つまみを 動かしても 何も 変わらなく なる。
+     足りない ところだけ うめる。 */
+  if(!root.rig) root.rig = newRigSet();
+  const set = root.rig;
+  const def = newRigSet();
+  Object.keys(def).forEach(k => { if(set[k] == null) set[k] = def[k]; });
 
   /* 下に ぶら下がって いる ものを ぜんぶ あつめる */
   const kids = [];
