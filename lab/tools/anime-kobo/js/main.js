@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=289';
+import { M } from './engine/math.js?v=290';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=289';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=290';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=289';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=289';
-import { createRenderer } from './render/renderer.js?v=289';
-import { createTimeline } from './ui/timeline.js?v=289';
-import { fmtTime, setPin } from './engine/anim.js?v=289';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=289';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=290';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=290';
+import { createRenderer } from './render/renderer.js?v=290';
+import { createTimeline } from './ui/timeline.js?v=290';
+import { fmtTime, setPin } from './engine/anim.js?v=290';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=290';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,24 +21,25 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=289';
+         setWarper } from './ui/sheet.js?v=290';
 
-import { showNewDoc } from './ui/newdoc.js?v=289';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=289';
-import { fitToCanvas, isBg } from './io/bg.js?v=289';
-import * as Audio from './io/audio.js?v=289';
-import { isTalk, blipTimes } from './engine/talk.js?v=289';
+import { showNewDoc } from './ui/newdoc.js?v=290';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=290';
+import { fitToCanvas, isBg } from './io/bg.js?v=290';
+import * as Audio from './io/audio.js?v=290';
+import { isTalk, blipTimes } from './engine/talk.js?v=290';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=289';
-import { importPsd } from './io/psd.js?v=289';
-import { splitTextChars } from './io/text.js?v=289';
-import { exportAE } from './io/ae.js?v=289';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=290';
+import { importPsd } from './io/psd.js?v=290';
+import { autoRig, rigReport } from './io/rig.js?v=290';
+import { splitTextChars } from './io/text.js?v=290';
+import { exportAE } from './io/ae.js?v=290';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=289';
-import { pathKeys, pathLength } from './engine/path.js?v=289';
-import { paintDirty } from './engine/paint.js?v=289';
+         canUseWebCodecs } from './io/export.js?v=290';
+import { pathKeys, pathLength } from './engine/path.js?v=290';
+import { paintDirty } from './engine/paint.js?v=290';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=289';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=290';
 
 const $ = (s) => document.querySelector(s);
 
@@ -251,6 +252,10 @@ async function looksLikePsd(f){
   }catch(_){ return false; }
 }
 
+/* 「うごき つきで よみこむ」を おした あいだだけ true。
+   PSD を 入れた あと、名前から あたりを つけて ゆれ・おやこ・じくを つける。 */
+let rigNext = false;
+
 async function handleFiles(files){
   const all = [...files];
   const psd = [], imgs = [], other = [];
@@ -270,7 +275,14 @@ async function handleFiles(files){
     if(psd.length){
       busy(true, 'PSDをよみこみ中…');
       const r = await importPsd(psd[0]);
-      toast(`${r.count}まいのレイヤーをよみこみました`);
+      if(rigNext && r.layers && r.layers.length){
+        let rep = null;
+        edit('うごきを つける', () => { rep = autoRig(S.proj, r.layers, (l) => frameAsset(l, 0)); });
+        toast(`${r.count}まいのレイヤーをよみこみました`);
+        setTimeout(() => alert(rigReport(rep)), 320);
+      } else {
+        toast(`${r.count}まいのレイヤーをよみこみました`);
+      }
     }
     if(imgs.length){
       busy(true, '画像をよみこみ中…');
@@ -312,7 +324,8 @@ stageHost.addEventListener('drop', (e) => {
 
 /* ================= ボタン ================= */
 /* ついか ＝ 絵をよみこむ。文字は となりの「もじ」ボタン。 */
-$('#add').addEventListener('click', () => fileInput.click());
+$('#add').addEventListener('click', () => { rigNext = false; fileInput.click(); });
+$('#addRig').addEventListener('click', () => { rigNext = true; fileInput.click(); });
 
 /* もじ ＝ 文字を つくる／なおす。ここは 文字のことだけ。
    「決定」を おすまで 画面には 出ない。 */
