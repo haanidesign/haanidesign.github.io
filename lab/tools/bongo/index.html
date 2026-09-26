@@ -300,8 +300,7 @@ const PARTS=[
   {k:'rhandUp',  nm:'右手（上）',       sub:'浮いている 時',             g:'キーボード'},
   {k:'rhandDown',nm:'右手（下）',       sub:'打っている 時',             g:'キーボード'},
   {k:'desk',     nm:'台（キーボード）', sub:'',                          g:'キーボード'},
-  {k:'penUp',    nm:'ペン手（はなす）', sub:'ペン先が 浮いている 時',    g:'タブレット'},
-  {k:'penDown',  nm:'ペン手（タッチ）', sub:'ペン先が ついている 時',    g:'タブレット'},
+  {k:'penUp',    nm:'ペン手',           sub:'ペンを 持った 手',          g:'タブレット'},
   {k:'deskPen',  nm:'台（タブレット）', sub:'',                          g:'タブレット'}
 ];
 const PK=PARTS.map(p=>p.k);
@@ -316,9 +315,9 @@ const ANCHOR={
   rhandUp:  {w:70,h:70,fit:'center'},  rhandDown:{w:70,h:70,fit:'center'},
   desk:     {x:320,y:344,w:380,h:110,fit:'center'},
   deskPen:  {x:320,y:344,w:380,h:110,fit:'center'},
-  penUp:    {w:120,h:140,fit:'center'},penDown:  {w:120,h:140,fit:'center'}
+  penUp:    {w:120,h:140,fit:'center'}
 };
-const isPen=k=>k==='penUp'||k==='penDown';
+const isPen=k=>k==='penUp';
 
 /* ファイル名・レイヤー名 から パーツを あてる */
 const RX={
@@ -338,7 +337,7 @@ const RX={
 function guessPart(name){
   const n=name.replace(/\.(png|gif|webp|jpe?g|psd)$/i,'');
   if(RX.guide.test(n)) return 'skip';
-  if(RX.pen.test(n)) return (RX.touch.test(n)&&!RX.notouch.test(n))?'penDown':'penUp';
+  if(RX.pen.test(n)) return 'penUp';
   if(RX.idle.test(n)) return RX.hand.test(n)||/前|front|앞/i.test(n)?'idleFront':'idle';
   if(RX.hand.test(n)){
     const s=RX.L.test(n)?'l':RX.R.test(n)?'r':null;
@@ -433,6 +432,9 @@ async function clearArt(k){
 }
 async function restoreArt(){
   const all=await idbAll();
+  if(all.penDown&&!all.penUp){ all.penUp=all.penDown; await idbPut('penUp',all.penDown);
+    if(adj.penDown&&!adj.penUp){ adj.penUp=adj.penDown; } }
+  if(all.penDown){ delete all.penDown; await idbDel('penDown'); delete adj.penDown; saveCfg(); }
   for(const k in all){
     if(!PK.includes(k)) continue;
     const m=await measure(URL.createObjectURL(all[k]));
@@ -495,7 +497,7 @@ function keyToX(c){
 const xOf=t=>(cfg.rMin/100 + t*(cfg.rMax-cfg.rMin)/100)*W;
 const penSide=()=>cfg.hand==='left'?'R':'L';        // ペンを 持つ 手が 画面の どちら側か
 const restArt=()=>upKey(penSide()==='L'?'rhand':'lhand');
-const artKeyOf=k=>k==='rest'?restArt():k==='lhandUp'?upKey('lhand'):k==='rhandUp'?upKey('rhand'):k==='penUp'?upKey('pen'):k;
+const artKeyOf=k=>k==='rest'?restArt():k==='lhandUp'?upKey('lhand'):k==='rhandUp'?upKey('rhand'):k;
 const moveKey=k=>k==='rest'?'rest':artKeyOf(k);     // 動かす ときに さわる 先
 
 /* ============================================================
@@ -623,8 +625,7 @@ function build(){
     });
   }else{
     hands.appendChild(partG('rest',restArt(),drawPaw));
-    hands.appendChild(partG('penUp',upKey('pen'),drawPenPaw));
-    hands.appendChild(partG('penDown','penDown',null));
+    hands.appendChild(partG('penUp','penUp',drawPenPaw));
   }
 
   const idleF=el('g',{id:'idleF',class:'fade',style:'opacity:0;pointer-events:none'}); root.appendChild(idleF);
@@ -741,14 +742,8 @@ function tick(){
     if(editing){ S.tipXT=xOf(.5); S.tipYT=cfg.tipY; }
     S.tipX+=(S.tipXT-S.tipX)*Math.min(.9,k*1.6);
     S.tipYc+=(S.tipYT-S.tipYc)*Math.min(.9,k*1.6);
-    const down=editing?(sel==='penDown'):S.penDown;
-    const ty=S.tipYc+(down?0:-7);
-    const gu=G.penUp, gd=G.penDown;
-    const useDown=down&&!!art.penDown;
-    gu.style.display=useDown?'none':''; gd.style.display=useDown?'':'none';
-    const o1=placePen(gu,upKey('pen'),S.tipX,ty);
-    const o2=placePen(gd,'penDown',S.tipX,ty);
-    const po=useDown?o2:o1;
+    const ty=S.tipYc;                       // 押しても 離しても 同じ 絵・同じ 高さ
+    const po=placePen(G.penUp,'penUp',S.tipX,ty);
     // 休んで いる 手
     const rr=cfg.rest[cfg.hand]||{x:0,y:0};
     const rx=xOf(pS==='L'?.82:.18)+rr.x, ry=cfg.tipY-6+rr.y+hb;
@@ -845,7 +840,7 @@ let drag=null;
 svg.addEventListener('pointerdown',e=>{
   S.lastIn=performance.now();
   if(!editing){
-    if(cfg.mode==='pen'){ S.penDown=true; penAim(e); if(cfg.bounce) S.bobV-=cfg.bAmt*.3;
+    if(cfg.mode==='pen'){ S.penDown=true; penAim(e);
       try{svg.setPointerCapture(e.pointerId);}catch(_){} }
     return;
   }
@@ -1013,7 +1008,7 @@ $$('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{
   if(cfg.mode==='key'&&PARTS.find(p=>p.k===sel)?.g==='タブレット') sel='base';
   if(cfg.mode==='pen'&&PARTS.find(p=>p.k===sel)?.g==='キーボード') sel='base';
   saveCfg(); syncUI(); renderParts(); syncAdj(); build();
-  status(cfg.mode==='key'?'キーを 打つと、その 位置に 手が 行く。':'ステージの 上で マウスを 動かすと、ペン先が ついてくる。押すと タッチ。');
+  status(cfg.mode==='key'?'キーを 打つと、その 位置に 手が 行く。':'ステージの 上で マウスを 動かすと、ペン先が ついてくる。');
 }));
 $$('#handSeg button').forEach(b=>b.addEventListener('click',()=>{
   cfg.hand=b.dataset.v; saveCfg(); syncUI(); syncAdj(); build();
