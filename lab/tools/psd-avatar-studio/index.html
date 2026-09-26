@@ -350,6 +350,94 @@ const PRESETS = {
   "ウインク左":{eyeL:0, eyeR:1, mouthSmile:.5},
   "ウインク右":{eyeL:1, eyeR:0, mouthSmile:.5},
 };
+/* モーション: 首振り・体の揺れ・表情を時間で切り替える演技。
+   キーは [秒, 値]。最後のキーのあとは先頭のキーへ戻るので、そのままループする。
+   hx/hy/hz=頭の角度, tilt=体の傾き, bob=体の上下, gx/gy=視線 (足し込み・大きさで倍率)
+   eye/eyeL/eyeR/mo/sm/brow=表情 (書いたものだけ上書き。無ければスライダーの値)
+   talk=口パクの強さ */
+const MOTIONS = {
+  "なし": null,
+  "元気ポーズ": {len:10, keys:[
+    [0,   {hz:-.35, tilt:-.2, mo:.55, sm:.9, brow:.3}],
+    [1.4, {hz:.2, hx:.15, tilt:.05, mo:.5, sm:.9, brow:.3}],
+    [2.8, {hz:.4, tilt:.25, bob:-.4, eye:.1, mo:.3, sm:1, brow:.3}],
+    [4.2, {hz:.4, tilt:.25, bob:-.4, eye:.1, mo:.3, sm:1, brow:.3}],
+    [5.0, {hy:-.2, gy:-.3, eye:1.1, mo:.4, sm:-.2, brow:.6}],
+    [6.2, {hz:-.2, hx:-.35, gx:-.7, eye:1.1, mo:.4, sm:-.2, brow:.6}],
+    [7.6, {hz:.15, hx:.3, gx:.6, eye:1.1, mo:.4, sm:-.2, brow:.6}],
+    [8.8, {hz:-.35, tilt:-.2, mo:.55, sm:.9, brow:.3}],
+  ]},
+  "にこにこ": {len:8, keys:[
+    [0,   {}],
+    [1.2, {hz:.5, hx:.25, tilt:.4, eye:.12, mo:.35, sm:1, brow:.3}],
+    [3.0, {hz:.5, hx:.25, tilt:.4, eye:.12, mo:.35, sm:1, brow:.3}],
+    [3.8, {}],
+    [5.0, {hz:-.45, hx:-.2, tilt:-.35, mo:.45, sm:.8, brow:.4}],
+    [6.8, {hz:-.45, hx:-.2, tilt:-.35, mo:.45, sm:.8, brow:.4}],
+  ]},
+  "きょろきょろ": {len:6, keys:[
+    [0,   {}],
+    [0.5, {hx:-.6, hz:-.15, gx:-1}],
+    [1.8, {hx:-.6, hz:-.15, gx:-1}],
+    [2.3, {hx:.6, hz:.15, gx:1}],
+    [3.6, {hx:.6, hz:.15, gx:1}],
+    [4.1, {hy:-.3, gy:-.6, eye:1.15, mo:.5, sm:0, brow:.8}],
+    [5.3, {hy:-.3, gy:-.6, eye:1.15, mo:.5, sm:0, brow:.8}],
+  ]},
+  "うなずき": {len:4, keys:[
+    [0,   {sm:.6}],
+    [0.35,{hy:.5, bob:.3, eye:.6, sm:.8}],
+    [0.8, {hy:-.05, sm:.7}],
+    [1.15,{hy:.5, bob:.3, eye:.6, sm:.8}],
+    [1.7, {sm:.6}],
+    [2.6, {hz:.2, hx:.1, sm:.6}],
+  ]},
+  "おしゃべり": {len:6, keys:[
+    [0,   {talk:1, sm:.3}],
+    [1.4, {talk:1, hz:.2, hx:.2, sm:.3}],
+    [2.0, {talk:0, hz:.25, hx:.25, sm:.6}],
+    [2.6, {talk:1, hy:.25, sm:.3}],
+    [4.2, {talk:1, hz:-.25, hx:-.2, sm:.3}],
+    [5.2, {talk:0, sm:.7, eye:.5}],
+  ]},
+  "ノリノリ": {len:4, keys: Array.from({length:16}, (_, i)=>{
+    const beat = Math.floor(i/2), s = beat % 2 ? 1 : -1;
+    return i % 2 ? [i*0.25, {bob:-1, hz:s*.35, tilt:s*.3, hx:s*.15, mo:.35, sm:1}]
+                 : [i*0.25, {bob:.3, hz:s*.2, tilt:s*.15, hx:s*.05, mo:.2, sm:1}];
+  })},
+};
+const MOTION_ADD = ["hx","hy","hz","tilt","bob","gx","gy","talk"];
+const MOTION_ABS = ["eyeL","eyeR","mo","sm","brow"];
+const motion = {name:"なし", gain:1};
+function setMotion(name, fitDuration){
+  if(!(name in MOTIONS)) name = "なし";
+  motion.name = name;
+  const m = MOTIONS[name];
+  if(fitDuration && m) $("dur").value = m.len;
+  const s = $("motionSel"); if(s) s.value = name;
+  try{ localStorage.setItem("psdMotion", JSON.stringify(motion)); }catch(e){}
+}
+/** モーションの位相 ph(0..1) での各チャンネルの値。無いチャンネルは null */
+function motionAt(m, ph){
+  const L = m.len, ks = m.keys, tau = ph * L;
+  let i = ks.length - 1;
+  for(let j = 0; j < ks.length; j++){ if(ks[j][0] <= tau) i = j; else break; }
+  const a = ks[i], nx = i + 1 < ks.length ? ks[i+1] : [L + ks[0][0], ks[0][1]];
+  const span = nx[0] - a[0];
+  let w = span > 0 ? (tau - a[0]) / span : 0;
+  w = w*w*(3 - 2*w);
+  const get = (k, c)=>{
+    if(c === "eyeL" || c === "eyeR") return k[c] ?? k.eye ?? null;
+    return k[c] ?? null;
+  };
+  const out = {};
+  MOTION_ADD.forEach(c=>{ out[c] = (get(a[1],c) ?? 0) + ((get(nx[1],c) ?? 0) - (get(a[1],c) ?? 0)) * w; });
+  MOTION_ABS.forEach(c=>{
+    const x = get(a[1],c), y = get(nx[1],c);
+    out[c] = (x === null && y === null) ? null : {x, y, w};
+  });
+  return out;
+}
 const ROLES = ["auto","body","head","frontHair","backHair","chest","arm",
                "eyeWhite","iris","eyelash","eyeClose","brow",
                "mouth","mouthClose","mouthOpen","hide"];
@@ -391,6 +479,25 @@ const controlsEl = $("controls");
     bd.appendChild(b);
   });
   controlsEl.appendChild(bd);
+}
+{
+  const h = document.createElement("h3"); h.textContent = "モーション";
+  controlsEl.appendChild(h);
+  const row = document.createElement("div"); row.className = "row";
+  const lab = document.createElement("label"); lab.textContent = "動き";
+  const sel = document.createElement("select"); sel.id = "motionSel"; sel.style.flex = "1";
+  Object.keys(MOTIONS).forEach(n=>{ const o = document.createElement("option"); o.value = o.textContent = n; sel.appendChild(o); });
+  sel.onchange = ()=> setMotion(sel.value, true);
+  row.append(lab, sel);
+  const row2 = document.createElement("div"); row2.className = "row";
+  const lab2 = document.createElement("label"); lab2.textContent = "大きさ";
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.id = "motionGain"; inp.min = 0; inp.max = 2; inp.step = 0.01; inp.value = 1;
+  const val = document.createElement("span"); val.className = "val"; val.textContent = "1.0";
+  inp.oninput = ()=>{ motion.gain = +inp.value; val.textContent = motion.gain.toFixed(1);
+    try{ localStorage.setItem("psdMotion", JSON.stringify(motion)); }catch(e){} };
+  row2.append(lab2, inp, val);
+  controlsEl.append(row, row2);
 }
 const sliderEls = {};
 PARAM_DEFS.forEach(d=>{
@@ -997,7 +1104,8 @@ async function startMic(){
 
 /* ---------------- アニメーション ---------------- */
 let blink = 0, blinkTimer = 2.5;   // 0=開 1=閉
-let prevHead = {x:0, y:0};
+let prevHead = {x:0, y:0, b:0};
+let P_mouth = null;   // モーションが口の開きを決めているときの値
 let lipPhase = 0;
 
 function smooth(cur, tgt, dt, speed){ return cur + (tgt - cur) * Math.min(1, dt*speed); }
@@ -1043,6 +1151,24 @@ function step(t, dt, loop){
     headX += mouse.x*0.6; headY += mouse.y*0.4;
     gazeX += mouse.x*0.8; gazeY += mouse.y*0.8;
   }
+  // モーション(演技)。ループ時は尺に整数回入るよう伸縮させる
+  let eyeLv = P.eyeL, eyeRv = P.eyeR, smile = P.mouthSmile, browY = P.browY, bob = 0, talk = 0;
+  const MO = MOTIONS[motion.name];
+  let mPh = 0;
+  if(MO){
+    const D = durVal();
+    mPh = loop ? ((t / D) * Math.max(1, Math.round(D / MO.len))) % 1 : (t / MO.len) % 1;
+    if(mPh < 0) mPh += 1;
+    const m = motionAt(MO, mPh), g = motion.gain;
+    headX += m.hx*g; headY += m.hy*g; headZ += m.hz*g; bodyTilt += m.tilt*g;
+    gazeX = Math.max(-1, Math.min(1, gazeX + m.gx)); gazeY = Math.max(-1, Math.min(1, gazeY + m.gy));
+    bob = m.bob * g * 14 * (psdH / 768);
+    talk = m.talk;
+    const abs = (v, base)=> v === null ? base : (v.x ?? base) + ((v.y ?? base) - (v.x ?? base)) * v.w;
+    eyeLv = abs(m.eyeL, eyeLv); eyeRv = abs(m.eyeR, eyeRv);
+    smile = abs(m.sm, smile); browY = abs(m.brow, browY);
+    if(m.mo !== null) P_mouth = abs(m.mo, P.mouthOpen); else P_mouth = null;
+  } else P_mouth = null;
   const breath = T.idle ? Math.sin(t*W(1.9,loop))*0.5+0.5 : 0;
 
   // まばたき: ループ時は等間隔、通常時はランダム間隔
@@ -1060,7 +1186,13 @@ function step(t, dt, loop){
   } else blink = 0;
 
   // リップ
-  let mouthOpen = P.mouthOpen;
+  let mouthOpen = P_mouth ?? P.mouthOpen;
+  if(talk > 0.01 && MO){
+    // 口パク。位相はモーションの周期に整数回入れる
+    const K = Math.round(MO.len * 4.5), K2 = Math.round(MO.len * 1.3);
+    const flap = (0.5 - 0.5*Math.cos(mPh*Math.PI*2*K)) * (0.65 + 0.35*Math.sin(mPh*Math.PI*2*K2));
+    mouthOpen = Math.max(mouthOpen, talk * flap * 0.85);
+  }
   if(T.randomLip && !loop){
     lipPhase += dt * (4 + Math.sin(t*0.8)*2);
     mouthOpen = Math.max(mouthOpen, (Math.sin(lipPhase)*0.5+0.5) * (Math.sin(t*0.47)*0.5+0.5) * 0.9);
@@ -1069,8 +1201,9 @@ function step(t, dt, loop){
 
   // 物理入力: 頭の移動速度を揺れ物へ伝える
   const hx = headX*30, hy = headY*20;
-  const velX = (hx - prevHead.x)/Math.max(dt,1e-4), velY = (hy - prevHead.y)/Math.max(dt,1e-4);
-  prevHead = {x:hx, y:hy};
+  const velX = (hx - prevHead.x)/Math.max(dt,1e-4);
+  const velY = (hy - prevHead.y + (bob - prevHead.b)*0.6)/Math.max(dt,1e-4);
+  prevHead = {x:hx, y:hy, b:bob};
   const soft = P.softness;
   const gain = P.swayGain;
   const hk = 90/(1 + soft*0.9), hc = 2*Math.sqrt(hk)*0.4;
@@ -1102,7 +1235,8 @@ function step(t, dt, loop){
   // ボーンの位相。尺で正規化した 0..1 なので、整数周期なら必ずループする。
   const u = ((t / durVal()) % 1 + 1) % 1;
 
-  return {headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink, u};
+  return {headX, headY, headZ, bodyTilt, gazeX, gazeY, mouthOpen, breath, blink, u,
+          eyeL:eyeLv, eyeR:eyeRv, mouthSmile:smile, browY, bob};
 }
 
 /* ---------------- ボーン ---------------- */
@@ -1327,7 +1461,7 @@ function draw(S){
 
   const px = facePivot.x, py = facePivot.y;      // 首ピボット
   const bx = psdW/2, by = psdH;                  // 体ピボット(下端)
-  const eyeOpen = {L: P.eyeL*(1-S.blink), R: P.eyeR*(1-S.blink)};
+  const eyeOpen = {L: S.eyeL*(1-S.blink), R: S.eyeR*(1-S.blink)};
 
   /* 閉じ目・開き口の差分絵があるときは、変形ではなく差し替えで表現する。
      無ければ従来どおり(まぶたを縦に潰す / 口を縦に伸ばす)。 */
@@ -1343,7 +1477,7 @@ function draw(S){
   const bSy = 1 + br * 0.011 * bd;    // 胸が持ち上がる
   const bSx = 1 + br * 0.004 * bd;    // 息を吸って横に膨らむ
   const bBob = -br * 3.4 * bd;        // 体ごとわずかに浮く(px)
-  const G = mul(mTranslate(0, bBob),
+  const G = mul(mTranslate(0, bBob + S.bob),
                 mAround(mul(mRotate(S.bodyTilt*0.09), mScale(bSx, bSy)), bx, by));
 
   // グループ追従: 頭系は首ピボットで回転+視差、それ以外はわずかに追従
@@ -1381,16 +1515,16 @@ function draw(S){
       // 肩(上端)を支点に振る
       return mAround(mRotate(springs.arm.x*0.0016), cx, l.top);
     }
-    if(role === "brow") return mTranslate(0, P.browY*-7);
+    if(role === "brow") return mTranslate(0, S.browY*-7);
     if(role === "mouth"){
-      return mAround(mScale(1 + P.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4), cx, cy);
+      return mAround(mScale(1 + S.mouthSmile*0.35 - S.mouthOpen*0.1, 1 + S.mouthOpen*1.4), cx, cy);
     }
     // 差分絵は形が既に描かれているので、笑いの横幅だけ効かせる
-    if(role === "mouthClose") return mAround(mScale(1 + P.mouthSmile*0.35, 1), cx, cy);
+    if(role === "mouthClose") return mAround(mScale(1 + S.mouthSmile*0.35, 1), cx, cy);
     if(role === "mouthOpen"){
       // 開き具合で縦だけ連続的に変える(パクパクの強弱)
       const k = 0.45 + 0.55*Math.min(1, S.mouthOpen);
-      return mAround(mScale(1 + P.mouthSmile*0.35, k), cx, cy);
+      return mAround(mScale(1 + S.mouthSmile*0.35, k), cx, cy);
     }
     if(role === "iris") return mTranslate(S.gazeX*7, S.gazeY*4);
     return IDENT;
@@ -2155,6 +2289,10 @@ function syncFormatUI(){
 $("fmt").onchange = syncFormatUI;
 syncFormatUI();
 syncCropUI();
+try{
+  const m = JSON.parse(localStorage.getItem("psdMotion") || "null");
+  if(m){ $("motionGain").value = +m.gain || 1; $("motionGain").oninput(); setMotion(m.name, false); }
+}catch(e){}
 
 /* ---------------- 設定の保存 / 読み込み ---------------- */
 $("saveJson").onclick = ()=>{
@@ -2168,6 +2306,7 @@ $("saveJson").onclick = ()=>{
     rig: Object.fromEntries(layers.map(l=>[l.name, rigOf(l)])),
     globalBone: {bone: globalBone.bone.map(p=>({x:Math.round(p.x), y:Math.round(p.y)})), bprm: {...globalBone.bprm}},
     crop: {...crop},
+    motion: {...motion},
   };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:"application/json"}));
@@ -2185,6 +2324,7 @@ $("loadJson").onclick = ()=>{
       if(d.duration) $("dur").value = d.duration;
       if(d.fps) $("fps").value = d.fps;
       if(d.blinkInterval) $("bi").value = d.blinkInterval;
+      if(d.motion){ $("motionGain").value = +d.motion.gain || 1; $("motionGain").oninput(); setMotion(d.motion.name, false); }
       if(d.roles){
         const ov = roleOverrides();
         let hit = 0;
@@ -2250,6 +2390,7 @@ $("resetBtn").onclick = ()=>{
   PARAM_DEFS.filter(d=>d.id).forEach(d=>{ P[d.id] = d.def; target[d.id] = null; });
   TOGGLES.forEach(t=> T[t.id] = t.def);
   $("dur").value = 3; $("fps").value = 30; $("bi").value = 2.5;
+  $("motionGain").value = 1; $("motionGain").oninput(); setMotion("なし", false);
   $("fmt").value = "webm"; $("gifW").value = "480";
   document.querySelector('#bgBtns [data-bg="transparent"]').click();
   loopPreview = false; $("loopBtn").classList.remove("on");
