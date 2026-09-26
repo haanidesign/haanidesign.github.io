@@ -90,11 +90,12 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
   </div>
   </span>
   <span class="m-mov" hidden>
-  <div class="grp"><label>1枚</label><input type="range" id="dur" min="3" max="50" value="15"><output id="oDur">1.5秒</output></div>
+  <div class="grp"><label>1枚</label><input type="range" id="dur" min="3" max="50" value="17"><output id="oDur">1.7秒</output></div>
   <div class="grp"><label>切りかえ</label>
-    <select id="tr"><option value="slide">横から入る</option><option value="wipe">横にぬぐう</option><option value="fade">ふわっと</option><option value="none">なし</option></select>
+    <select id="tr"><option value="cover">かぶせる（サンプルふう）</option><option value="mix">かぶせる・向きいろいろ</option><option value="slide">横から押し出す</option><option value="wipe">横にぬぐう</option><option value="fade">ふわっと</option><option value="none">なし</option></select>
   </div>
-  <div class="grp"><label>切りかえの長さ</label><input type="range" id="trd" min="1" max="10" value="3"><output id="oTrd">0.3秒</output></div>
+  <div class="grp"><label>ゆっくり寄る</label><input type="checkbox" id="kb" checked></div>
+  <div class="grp"><label>切りかえの長さ</label><input type="range" id="trd" min="1" max="10" value="4"><output id="oTrd">0.4秒</output></div>
   <div class="grp"><label>音</label><button class="btn btn-sm" id="bAu">🎵 えらぶ</button><span id="auName" style="font-size:.62rem"></span></div>
   </span>
   <span id="info"></span>
@@ -232,15 +233,36 @@ function drawFrame(t){
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   $('drop').style.display = imgs.length?'none':'flex';
   if (!imgs.length) return;
-  const per=+$('dur').value/10, td=Math.min(+$('trd').value/10, per*0.9), n=order.length;
+  const per=+$('dur').value/10, td=Math.min(+$('trd').value/10, per*0.9), n=order.length, tr=$('tr').value;
   const idx=Math.min(n-1, Math.floor(t/per)), local=t-idx*per;
-  const one=(i,x,a=1)=>{ ctx.save(); ctx.globalAlpha=a; ctx.fillStyle=bg; ctx.fillRect(x,0,W,H); drawFit(ctx, imgs[order[i]], x,0,W,H, al); ctx.restore(); };
-  if (idx===0 || local>=td || $('tr').value==='none'){ one(idx,0); return; }
-  let p=local/td; p=p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;
-  const tr=$('tr').value;
-  if (tr==='fade'){ one(idx-1,0); one(idx,0,p); }
-  else if (tr==='slide'){ one(idx-1,-W*p); one(idx,W*(1-p)); }
-  else { one(idx-1,0); ctx.save(); ctx.beginPath(); ctx.rect(W*(1-p),0,W*p,H); ctx.clip(); one(idx,0); ctx.restore(); }
+  // 1枚を 描く。出てからの 時間で ゆっくり 寄って、少し 流れる
+  const one=(i,x,y,a=1)=>{
+    ctx.save(); ctx.globalAlpha=a; ctx.translate(x,y);
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    if ($('kb').checked){
+      const since=Math.max(0, t-i*per), k=Math.min(1, since/(per+td));
+      const z=1.02+0.07*k, dx=(i%2?-1:1)*W*0.012*k, dy=-H*0.008*k;
+      ctx.translate(W/2+dx,H/2+dy); ctx.scale(z,z); ctx.translate(-W/2,-H/2);
+    }
+    drawFit(ctx, imgs[order[i]], 0,0,W,H, al);
+    ctx.restore();
+  };
+  if (idx===0 || local>=td || tr==='none'){ one(idx,0,0); return; }
+  const q=local/td;
+  const out=1-Math.pow(1-q,4);                      // 速く 入って すっと 止まる
+  const io=q<.5?4*q*q*q:1-Math.pow(-2*q+2,3)/2;
+  if (tr==='fade'){ one(idx-1,0,0); one(idx,0,0,io); return; }
+  if (tr==='slide'){ one(idx-1,-W*io,0); one(idx,W*(1-io),0); return; }
+  if (tr==='wipe'){ one(idx-1,0,0); ctx.save(); ctx.beginPath(); ctx.rect(W*(1-io),0,W*io,H); ctx.clip(); one(idx,0,0); ctx.restore(); return; }
+  // かぶせる: 前の 絵は そのまま、次の 絵が 上から すべりこむ。前の 端に 白い 線
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  const [ux,uy]= tr==='mix' ? dirs[(idx*7+3)%4] : dirs[0];
+  one(idx-1,-ux*W*0.04*out,-uy*H*0.04*out);
+  const x=ux*W*(1-out), y=uy*H*(1-out);
+  ctx.save(); ctx.shadowColor='rgba(0,0,0,.35)'; ctx.shadowBlur=W*0.03; ctx.fillStyle=bg; ctx.fillRect(x,y,W,H); ctx.restore();
+  one(idx,x,y);
+  ctx.fillStyle='#fff'; const lw=Math.max(2,W*0.004);
+  if (ux) ctx.fillRect(ux>0?x-lw/2:x+W-lw/2,0,lw,H); else ctx.fillRect(0,uy>0?y-lw/2:y+H-lw/2,W,lw);
 }
 function total(){ return order.length*+$('dur').value/10; }
 function stopPlay(){
