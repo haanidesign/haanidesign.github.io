@@ -272,3 +272,22 @@ button.val:active{ transform:translateY(1px); }
   align-self:center; padding:0 .25rem;
   font-size:.6rem; color:var(--gray); white-space:nowrap;
 }
+
+/* 部品の みほんカード（文字PV の カットごとの さしかえ） */
+.partbtn{ flex:1; justify-content:flex-start; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.partgrid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(112px, 1fr));
+  gap:6px; padding:4px 0 8px;
+}
+.pcard{
+  display:flex; flex-direction:column; align-items:stretch; gap:3px;
+  padding:3px; min-height:0; border-radius:8px; font-size:.58rem;
+}
+.pcard canvas{ width:100%; height:auto; display:block; border-radius:5px; background:#131316; }
+.pcard .pph{
+  display:flex; align-items:center; justify-content:center;
+  border-radius:5px; background:var(--fill, #EEE); color:var(--gray); font-size:.64rem;
+}
+.pcard .pnm{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
+.pcard.on{ outline:2px solid var(--main); outline-offset:1px; }
+.partgrid .psep{ grid-column:1 / -1; font-size:.6rem; color:var(--gray); padding:6px 2px 0; }
