@@ -76,7 +76,7 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
   <div class="grp"><label>ふち</label><input type="range" id="pad" min="0" max="120" value="0"><output id="oPad">0</output></div>
   <div class="grp"><label>地の色</label><input type="color" id="bg" value="#ffffff"></div>
   <div class="grp"><label>並び</label>
-    <select id="order"><option value="best">おまかせ（切れが少ない順）</option><option value="keep">入れた順</option></select>
+    <select id="order"><option value="best">おまかせ（すき間が少ない順）</option><option value="keep">入れた順</option></select>
   </div>
   <span id="info"></span>
 </div>
@@ -146,21 +146,18 @@ function build(){
   if (imgs.length){
     const iw=W-pad*2, ih=H-pad*2;
     const p = plan(order, iw, ih, gap);
-    let y=pad;
-    p.rows.forEach(([s,e],r)=>{
-      const h = p.hs[r]*p.stretch;
-      // 段の 中の 横幅は 比率どおり、最後の 1枚で 端を そろえる
-      let x=pad;
-      for (let t=s;t<e;t++){
-        const i=order[t];
-        let w = t===e-1 ? (pad+iw - x) : imgs[i].a*p.hs[r];
-        layout.push({i,t,x:Math.round(x),y:Math.round(y),w:Math.round(x+w)-Math.round(x),h:Math.round(y+h)-Math.round(y)});
-        x+=w+gap;
-      }
+    // 絵は 切らない。段を 並べた 全体を 枠に 収まる まで 縮めて、まんなかに 置く
+    const g=[];
+    let y=0;
+    p.rows.forEach(([st,e],r)=>{
+      const h=p.hs[r]; let x=0;
+      for (let t=st;t<e;t++){ const i=order[t], w=imgs[i].a*h; g.push({i,t,x,y,w,h}); x+=w+gap; }
       y+=h+gap;
     });
-    const cut = Math.round(Math.abs(1-p.stretch)*100);
-    $('info').textContent = `${imgs.length}枚 / ${p.rows.length}段 / ${W}×${H}px / はみ出して切れる分 約${cut}%`;
+    const ch=y-gap, f=Math.min(1, ih/ch), ox=pad+(iw-iw*f)/2, oy=pad+(ih-ch*f)/2;
+    for (const q of g) layout.push({i:q.i,t:q.t,x:Math.round(ox+q.x*f),y:Math.round(oy+q.y*f),w:Math.round(q.w*f),h:Math.round(q.h*f)});
+    const used = Math.round(Math.min(p.stretch,1/p.stretch)*100);
+    $('info').textContent = `${imgs.length}枚 / ${p.rows.length}段 / ${W}×${H}px / 埋まり 約${used}%`;
   } else $('info').textContent = `${W}×${H}px`;
   draw();
 }
@@ -168,11 +165,7 @@ function build(){
 function draw(){
   ctx.fillStyle=$('bg').value; ctx.fillRect(0,0,cv.width,cv.height);
   for (const L of layout){
-    const im=imgs[L.i].img, a=imgs[L.i].a, ba=L.w/L.h;
-    // はみ出す 分は まんなかで 切る
-    let sw=im.naturalWidth, sh=im.naturalHeight, sx=0, sy=0;
-    if (a>ba){ sw=sh*ba; sx=(im.naturalWidth-sw)/2; } else { sh=sw/ba; sy=(im.naturalHeight-sh)/2; }
-    ctx.drawImage(im,sx,sy,sw,sh,L.x,L.y,L.w,L.h);
+    ctx.drawImage(imgs[L.i].img,L.x,L.y,L.w,L.h);
   }
   $('drop').style.display = imgs.length?'none':'flex';
 }
