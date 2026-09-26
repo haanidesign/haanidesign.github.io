@@ -14,9 +14,9 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=290';
-import { setPin } from '../engine/anim.js?v=290';
-import { setParent, moveAnchorKeepAll } from '../engine/layer.js?v=290';
+import { newSway } from '../engine/puppet.js?v=291';
+import { setPin } from '../engine/anim.js?v=291';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=291';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -74,6 +74,18 @@ const PIVOT = {
 const ON_HEAD = ['frontHair', 'backHair', 'hair', 'brow', 'eye', 'mouth'];
 const ON_BODY = ['head', 'arm', 'chest'];
 
+/* ループの 長さに きれいに 入る しゅうきに そろえる。
+
+   たとえば ループ 6秒 で もとの しゅうきが 2.8秒 なら、
+   6 ÷ 2.8 ≒ 2.1 → 2回 に して 3.0秒 に する。
+   こう すると ループの おわりと はじめが ぴたりと つながる
+   （はんぱだと つなぎ目で 絵が とぶ）。 */
+function fitPeriod(period, loop){
+  if(!loop || loop <= 0) return period;
+  const n = Math.max(1, Math.round(loop / period));
+  return loop / n;
+}
+
 /**
  * いき（呼吸）を つける。
  * ゆっくり ふくらんで しぼむ だけ。ループの 帯で くりかえす ので
@@ -81,7 +93,7 @@ const ON_BODY = ['head', 'arm', 'chest'];
  */
 function breath(layer, depth, period){
   const d = depth == null ? 0.012 : depth;
-  const p = period == null ? 3.6 : period;
+  const p = Math.max(0.4, period == null ? 3.6 : period);
   const sy = layer.scaleY || 1;
   setPin(layer, 'scaleY', 0,     sy,           'smooth');
   setPin(layer, 'scaleY', p / 2, sy * (1 + d), 'smooth');
@@ -94,7 +106,9 @@ function breath(layer, depth, period){
  *   layers … いま 入れた ぶんの レイヤー（手前が さき）
  * 戻り値 … 何を つけたか の おしらせ
  */
-export function autoRig(project, layers, assetOf){
+export function autoRig(project, layers, assetOf, opt){
+  const o = opt || {};
+  const loop = o.loop > 0 ? o.loop : 0;      // 0 … そろえない
   const found = {};
   layers.forEach(l => {
     const r = roleOf(l.name);
@@ -158,18 +172,39 @@ export function autoRig(project, layers, assetOf){
   layers.forEach(l => {
     const s = SWAY[l.rigRole];
     if(!s) return;
-    l.sway = Object.assign(newSway(), s, { on: true });
+    l.sway = Object.assign(newSway(), s, {
+      on: true,
+      period: fitPeriod(s.period, loop)
+    });
     swayed++;
   });
 
   /* いき。体（なければ 頭）に だけ。 */
   const breathOn = body || head;
-  if(breathOn) breath(breathOn, body ? 0.012 : 0.008, 3.6);
+  if(breathOn) breath(breathOn, body ? 0.012 : 0.008, loop ? fitPeriod(3.6, loop) : 3.6);
+
+  /* ぜんぶ ひとまとめの フォルダに 入れる。
+     入れるのは「親の いない もの」だけ ―― 子は 親に ついて 入る。
+     こう しないと おやこ（頭は 体の 子）が こわれる。 */
+  let folder = null;
+  if(o.folder){
+    folder = newFolder(o.folderName || 'キャラ');
+    const roots = layers.filter(l => !l.parent);
+    if(roots.length){
+      const at = Math.min(...roots.map(l => project.layers.indexOf(l)));
+      project.layers.splice(Math.max(0, at), 0, folder);
+      /* じくは 中身の まん中。setParent が 見た目を 保つ。 */
+      folder.x = roots.reduce((a, k) => a + k.x, 0) / roots.length;
+      folder.y = roots.reduce((a, k) => a + k.y, 0) / roots.length;
+      roots.forEach(l => setParent(project, l, folder.id, 0));
+    }
+  }
 
   return {
     ok: true,
     n: roles.reduce((a, r) => a + found[r].length, 0),
-    roles, linked, swayed,
+    roles, linked, swayed, loop,
+    folder: folder ? folder.name : null,
     breath: breathOn ? breathOn.name : null
   };
 }
@@ -185,5 +220,7 @@ export function rigReport(r){
   return r.n + 'まいに うごきを つけました（'
     + r.roles.map(x => nm[x] || x).join('・') + '）' + NL
     + 'おやこ ' + r.linked + 'か所、ゆれ ' + r.swayed + 'まい'
-    + (r.breath ? '、いき は「' + r.breath + '」' : '');
+    + (r.breath ? '、いき は「' + r.breath + '」' : '') + NL
+    + (r.folder ? 'フォルダ「' + r.folder + '」に まとめました。' + NL : '')
+    + (r.loop ? r.loop + '秒 で ひとまわり する ように そろえました。' : '');
 }
