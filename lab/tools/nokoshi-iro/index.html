@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>のこし色 — えらんだ色だけ のこす</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470; --pink:#F2A0B8;
+  --bd:2.5px solid var(--ink); --r:12px; --tap:44px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--cream); color:var(--ink);
+  font-family:'M PLUS Rounded 1c','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif;
+  font-weight:700; overflow:hidden; user-select:none; -webkit-user-select:none;
+}
+.dotbg{
+  background-color:var(--cream);
+  background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
+  background-size:16px 16px;
+}
+.ic{width:20px; height:20px; flex:none; display:block;}
+.dot{font-family:'DotGothic16',monospace; font-weight:400;}
+.screen{position:fixed; inset:0; display:flex; flex-direction:column;}
+.screen.hide{display:none;}
+
+.bar{
+  display:flex; align-items:center; gap:.35rem; flex:none;
+  background:var(--main); border-bottom:var(--bd); padding:.35rem .5rem;
+  padding-top:calc(.35rem + env(safe-area-inset-top));
+}
+.bar h1{margin:0; font-size:.9rem; white-space:nowrap;}
+.bar .grow{flex:1; min-width:0;}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.3rem;
+  min-height:var(--tap); background:var(--paper); color:var(--ink);
+  border:var(--bd); border-radius:var(--r); padding:.35rem .65rem;
+  font:inherit; font-size:.76rem; box-shadow:0 3px 0 var(--ink); cursor:pointer;
+  white-space:nowrap; transition:transform .08s, box-shadow .08s, background .15s;
+}
+.btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink);}
+.btn-y{background:var(--main);}
+.btn-g{background:var(--ink); color:var(--main);}
+.btn-ic{width:var(--tap); padding:0;}
+.btn:disabled{opacity:.4;}
+
+/* 色の ふだ（上の まんなか） */
+.swchip{
+  display:flex; align-items:center; gap:.4rem; min-height:36px; max-width:100%;
+  background:var(--paper); border:2px solid var(--ink); border-radius:100px;
+  padding:.15rem .7rem .15rem .25rem; box-shadow:0 2.5px 0 var(--ink); cursor:pointer;
+  font:inherit; color:var(--ink);
+}
+.swchip i{width:24px; height:24px; border-radius:50%; border:2px solid var(--ink); flex:none;
+  background:repeating-linear-gradient(45deg,#ccc 0 4px,#fff 4px 8px);}
+.swchip span{font-size:.8rem;}
+
+/* ---------- はじめの 画面 ---------- */
+#home{align-items:center; justify-content:center; padding:1rem;}
+#home .card{
+  width:min(100%,24rem); background:var(--paper); border:var(--bd); border-radius:18px;
+  box-shadow:0 4px 0 var(--ink); padding:1.2rem 1.1rem 1.1rem; text-align:center;
+}
+#home .logo{
+  width:96px; height:96px; margin:0 auto .7rem; border:var(--bd); border-radius:24px;
+  box-shadow:0 3px 0 var(--ink); overflow:hidden;
+}
+#home h1{margin:0 0 .15rem; font-size:1.35rem;}
+#home p{margin:0 0 1rem; font-size:.72rem; font-weight:400; color:#5c5843; line-height:1.8;}
+#home .btn{width:100%; margin-top:.55rem; min-height:52px; font-size:.86rem;}
+#home .back{position:absolute; left:.6rem; top:calc(.6rem + env(safe-area-inset-top));
+  font-size:.66rem; color:var(--ink); text-decoration:none; background:var(--paper);
+  border:2px solid var(--ink); border-radius:100px; padding:.2rem .7rem; box-shadow:0 2px 0 var(--ink);}
+#drophint{font-size:.6rem; font-weight:400; color:var(--gray); margin-top:.7rem;}
+body.drag #home .card{background:var(--main-soft);}
+
+/* ---------- へんしゅう ---------- */
+.stage{flex:1; position:relative; min-height:0; overflow:hidden; touch-action:none;}
+#view{position:absolute; display:block; border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink);
+  background:#fff; image-rendering:auto;}
+#ov{position:absolute; inset:0; width:100%; height:100%; pointer-events:none;}
+#loupe{
+  position:absolute; width:92px; height:92px; border-radius:50%; border:3px solid var(--ink);
+  box-shadow:0 3px 0 var(--ink); overflow:hidden; pointer-events:none; display:none; z-index:5;
+  background:#fff;
+}
+#loupe canvas{width:100%; height:100%; display:block;}
+#loupe::after{content:""; position:absolute; left:50%; top:50%; width:10px; height:10px;
+  margin:-5px 0 0 -5px; border:2px solid #fff; outline:2px solid var(--ink); border-radius:50%;}
+#loupe b{position:absolute; left:0; right:0; bottom:6px; text-align:center; font-size:.55rem;
+  font-family:'DotGothic16',monospace; font-weight:400;}
+#loupe b span{background:var(--paper); border:2px solid var(--ink); border-radius:100px; padding:0 .35rem;}
+.tip{
+  position:absolute; left:50%; top:.6rem; transform:translateX(-50%); z-index:4;
+  background:rgba(30,28,20,.82); color:var(--paper); border-radius:12px;
+  padding:.4rem .75rem; font-size:.62rem; font-weight:400; line-height:1.7; text-align:center;
+  pointer-events:none; white-space:nowrap; transition:opacity .4s;
+}
+.tip.hide{opacity:0;}
+#zoomtag{position:absolute; right:.5rem; bottom:.5rem; z-index:4; pointer-events:none;
+  background:rgba(251,250,236,.92); border:2px solid var(--ink); border-radius:9px;
+  padding:.02rem .35rem; font-size:.6rem;}
+
+.dock{
+  flex:none; background:var(--cream); border-top:var(--bd);
+  padding:.45rem .55rem; padding-bottom:calc(.45rem + env(safe-area-inset-bottom));
+}
+.panel{background:var(--paper); border:2px solid var(--ink); border-radius:var(--r);
+  box-shadow:0 2.5px 0 var(--ink); padding:.35rem .55rem .5rem; margin-bottom:.5rem;}
+.phead{display:flex; align-items:center; gap:.35rem; font-size:.74rem; min-height:32px; cursor:pointer;}
+.phead .grow{flex:1;}
+.phead .chev{transition:transform .2s;}
+.dock.fold .phead .chev{transform:rotate(180deg);}
+.dock.fold .pbody{display:none;}
+.pbody{display:flex; flex-direction:column; gap:.4rem; max-height:34vh; overflow-y:auto; padding-top:.15rem;}
+.pbody.hide{display:none;}
+
+.tabs{display:flex; gap:.4rem;}
+.tabs button{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:.1rem;
+  background:var(--paper); border:2px solid var(--ink); border-radius:var(--r);
+  box-shadow:0 2.5px 0 var(--ink); font:inherit; font-size:.6rem; padding:.3rem 0 .25rem; cursor:pointer; color:var(--ink);
+}
+.tabs button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
+
+.seg{display:flex; gap:.28rem;}
+.seg button{
+  flex:1; min-height:34px; background:var(--paper); border:2px solid var(--ink); color:var(--ink);
+  border-radius:9px; font:inherit; font-size:.64rem; box-shadow:0 2.5px 0 var(--ink); cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.05rem; padding:.15rem 0;
+}
+.seg button .ic{width:18px; height:18px;}
+.seg button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
+.seg.small button{min-height:30px; font-size:.6rem;}
+
+.sl{display:flex; flex-direction:column; gap:0;}
+.sl .lab{display:flex; justify-content:space-between; font-size:.6rem; font-weight:400; color:#5c5843;}
+.sl .lab b{font-family:'DotGothic16',monospace; font-weight:400; color:var(--ink);}
+input[type=range]{
+  -webkit-appearance:none; appearance:none; width:100%; height:30px; background:transparent; margin:0;
+}
+input[type=range]::-webkit-slider-runnable-track{height:8px; background:var(--cream); border:2px solid var(--ink); border-radius:100px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:22px; height:22px; margin-top:-9px;
+  background:var(--main); border:2.5px solid var(--ink); border-radius:50%; box-shadow:0 2px 0 var(--ink);}
+input[type=range]::-moz-range-track{height:6px; background:var(--cream); border:2px solid var(--ink); border-radius:100px;}
+input[type=range]::-moz-range-thumb{width:18px; height:18px; background:var(--main); border:2.5px solid var(--ink); border-radius:50%;}
+
+.recent{display:flex; gap:.4rem; align-items:center; min-height:34px; overflow-x:auto; padding:.1rem 0 .2rem;}
+.recent button{width:30px; height:30px; flex:none; border-radius:50%; border:2px solid var(--ink);
+  box-shadow:0 2px 0 var(--ink); cursor:pointer; padding:0;}
+.recent button.on{outline:3px solid var(--ink); outline-offset:2px;}
+.recent .none{font-size:.6rem; font-weight:400; color:var(--gray);}
+.rowb{display:flex; gap:.35rem; align-items:center;}
+.rowb .btn{flex:1; min-height:36px; font-size:.64rem; box-shadow:0 2.5px 0 var(--ink); padding:.2rem .4rem;}
+.hint{
+  background:var(--main-soft); border:2px dashed var(--ink); border-radius:10px;
+  padding:.3rem .45rem; font-size:.58rem; font-weight:400; color:#5c5843; line-height:1.65;
+}
+
+/* ---------- ライブ ---------- */
+#live .stage{background:#1E1C14;}
+#lv{position:absolute; display:block;}
+#live .dock{display:flex; flex-direction:column; gap:.45rem;}
+.shootrow{display:flex; align-items:center; justify-content:space-around;}
+#bShoot{
+  width:70px; height:70px; border-radius:50%; background:var(--paper); border:3px solid var(--ink);
+  box-shadow:0 4px 0 var(--ink); cursor:pointer; position:relative;
+}
+#bShoot::after{content:""; position:absolute; inset:7px; border-radius:50%; background:var(--main); border:2.5px solid var(--ink);}
+#bShoot:active{transform:translateY(4px); box-shadow:0 0 0 var(--ink);}
+#flash{position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .3s; z-index:6;}
+#camerr{position:absolute; inset:0; display:none; align-items:center; justify-content:center; padding:1.2rem; z-index:7;}
+#camerr div{background:var(--paper); border:var(--bd); border-radius:var(--r); padding:1rem; font-size:.72rem; font-weight:400; line-height:1.8; max-width:22rem;}
+
+/* ---------- 書き出し ---------- */
+#exp{z-index:10;}
+#exp .pv{flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:.8rem;}
+#ec{max-width:100%; max-height:100%; display:block; border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink);}
+#exp .dock{max-height:52vh; overflow-y:auto; display:flex; flex-direction:column; gap:.5rem;}
+.lbl{font-size:.64rem; display:flex; align-items:center; gap:.4rem;}
+.lbl .grow{flex:1;}
+.toggles{display:grid; grid-template-columns:repeat(4,1fr); gap:.35rem;}
+.tg{
+  display:flex; flex-direction:column; align-items:center; gap:.2rem; font:inherit; font-size:.58rem;
+  background:none; border:0; padding:0; cursor:pointer; color:var(--ink);
+}
+.tg i{width:44px; height:24px; border-radius:100px; border:2px solid var(--ink); background:var(--cream); position:relative; transition:background .15s;}
+.tg i::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+  background:var(--paper); border:2px solid var(--ink); transition:left .15s;}
+.tg.on i{background:var(--main);}
+.tg.on i::after{left:21px;}
+.tg:disabled{opacity:.35;}
+.ratios{display:grid; grid-template-columns:repeat(7,1fr); gap:.3rem;}
+.ratios button{
+  min-height:32px; background:var(--paper); border:2px solid var(--ink); border-radius:8px;
+  box-shadow:0 2px 0 var(--ink); font-family:'DotGothic16',monospace; font-size:.62rem; cursor:pointer; color:var(--ink); padding:0;
+}
+.ratios button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2px);}
+.q2 button{flex-direction:column; min-height:44px;}
+.q2 small{font-size:.5rem; font-weight:400; color:#5c5843;}
+.toast{
+  position:fixed; left:50%; bottom:calc(1.2rem + env(safe-area-inset-bottom)); transform:translateX(-50%);
+  background:var(--ink); color:var(--main); border-radius:100px; padding:.45rem 1rem; font-size:.72rem;
+  z-index:50; opacity:0; transition:opacity .25s; pointer-events:none; white-space:nowrap;
+}
+.toast.show{opacity:1;}
+@media (min-width:760px){
+  .dock{padding-left:max(.55rem,calc(50vw - 300px)); padding-right:max(.55rem,calc(50vw - 300px));}
+  .pbody{max-height:26vh;}
+}
+</style>
+</head>
+<body>
+<!-- アイコン … Hugeicons の ただの ぶん（MIT）https://hugeicons.com -->
+
+<!-- はじめ -->
+<section id="home" class="screen dotbg">
+  <a class="back" href="../../index.html">← ラボ</a>
+  <div class="card">
+    <div class="logo">
+      <svg viewBox="0 0 96 96" width="100%" height="100%">
+        <rect width="96" height="96" fill="#2b2a24"/>
+        <path d="M34 -4 L96 -4 L96 70 Z" fill="#e9e7df"/>
+        <path d="M0 78 L96 60 L96 96 L0 96Z" fill="#8f8c82"/>
+        <ellipse cx="58" cy="70" rx="12" ry="3" fill="#1E1C14" opacity=".5"/>
+        <circle cx="56" cy="60" r="10" fill="#E03A2F" stroke="#1E1C14" stroke-width="2"/>
+      </svg>
+    </div>
+    <h1>のこし色</h1>
+    <p>えらんだ色だけ のこして、ほかを モノクロに する。</p>
+    <button class="btn btn-y" id="bPick"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg>写真を えらぶ</button>
+    <button class="btn" id="bLive"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M12.6974 3.5H11.303C10.5884 3.5 10.2311 3.5 9.91067 3.612C9.71499 3.68039 9.53113 3.77879 9.36568 3.90367C9.09474 4.10816 8.89655 4.40544 8.50018 5L8.50017 5.00001C8.29717 5.30453 7.99794 5.75337 7.87867 5.87871C7.58314 6.18927 7.19563 6.39666 6.77329 6.47029C6.60284 6.5 6.41985 6.5 6.05387 6.5C5.07379 6.5 4.58376 6.5 4.18307 6.61342C3.18074 6.89716 2.39734 7.68055 2.1136 8.68289C2.00018 9.08357 2.00018 9.57361 2.00018 10.5537V14.5C2.00018 17.3284 2.00018 18.7426 2.87886 19.6213C3.75754 20.5 5.17176 20.5 8.00018 20.5H16.0002C18.8286 20.5 20.2428 20.5 21.1215 19.6213C22.0002 18.7426 22.0002 17.3284 22.0002 14.5V10.5537C22.0002 9.57361 22.0002 9.08357 21.8868 8.68289C21.603 7.68055 20.8196 6.89716 19.8173 6.61342C19.4166 6.5 18.9266 6.5 17.9465 6.5C17.5805 6.5 17.3975 6.5 17.2271 6.47029C16.8047 6.39666 16.4172 6.18927 16.1217 5.87871C16.0024 5.75336 15.7032 5.30451 15.5002 5C15.1038 4.40544 14.9056 4.10816 14.6347 3.90367C14.4692 3.77879 14.2854 3.68039 14.0897 3.612C13.7693 3.5 13.412 3.5 12.6974 3.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M16.0002 13C16.0002 15.2091 14.2093 17 12.0002 17C9.79104 17 8.00018 15.2091 8.00018 13C8.00018 10.7909 9.79104 9 12.0002 9C14.2093 9 16.0002 10.7909 16.0002 13Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M19.1252 9.5H19.0002M19.2502 9.5C19.2502 9.63807 19.1383 9.75 19.0002 9.75C18.8621 9.75 18.7502 9.63807 18.7502 9.5C18.7502 9.36193 18.8621 9.25 19.0002 9.25C19.1383 9.25 19.2502 9.36193 19.2502 9.5Z" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>カメラで 見ながら とる</button>
+    <div id="drophint">画像を ここに ドロップしても ひらけます</div>
+  </div>
+  <input type="file" id="file" accept="image/*" hidden>
+</section>
+
+<!-- へんしゅう -->
+<section id="edit" class="screen hide">
+  <div class="bar">
+    <button class="btn btn-ic" id="bBack" aria-label="もどる"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M15 6C15 6 9.00001 10.4189 9 12C8.99999 13.5812 15 18 15 18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></button>
+    <div class="grow" style="display:flex;justify-content:center;">
+      <button class="swchip" id="chip"><i id="chipDot"></i><span class="dot" id="chipHex">色を えらぶ</span></button>
+    </div>
+    <button class="btn btn-ic" id="bCmp" aria-label="押している間 元の写真"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M2 8C2 8 6.47715 3 12 3C17.5228 3 22 8 22 8" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M21.544 13.045C21.848 13.4713 22 13.6845 22 14C22 14.3155 21.848 14.5287 21.544 14.955C20.1779 16.8706 16.6892 21 12 21C7.31078 21 3.8221 16.8706 2.45604 14.955C2.15201 14.5287 2 14.3155 2 14C2 13.6845 2.15201 13.4713 2.45604 13.045C3.8221 11.1294 7.31078 7 12 7C16.6892 7 20.1779 11.1294 21.544 13.045Z" stroke="currentColor" stroke-width="1.7"/><path d="M15 14C15 12.3431 13.6569 11 12 11C10.3431 11 9 12.3431 9 14C9 15.6569 10.3431 17 12 17C13.6569 17 15 15.6569 15 14Z" stroke="currentColor" stroke-width="1.7"/></svg></button>
+    <button class="btn btn-ic btn-g" id="bExp" aria-label="書き出す"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M21 6.5C21 8.15685 19.6569 9.5 18 9.5C16.3431 9.5 15 8.15685 15 6.5C15 4.84315 16.3431 3.5 18 3.5C19.6569 3.5 21 4.84315 21 6.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 12C9 13.6569 7.65685 15 6 15C4.34315 15 3 13.6569 3 12C3 10.3431 4.34315 9 6 9C7.65685 9 9 10.3431 9 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M21 17.5C21 19.1569 19.6569 20.5 18 20.5C16.3431 20.5 15 19.1569 15 17.5C15 15.8431 16.3431 14.5 18 14.5C19.6569 14.5 21 15.8431 21 17.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M8.72852 10.7495L15.2285 7.75M8.72852 13.25L15.2285 16.2495" stroke="currentColor" stroke-width="1.7"/></svg></button>
+  </div>
+  <div class="stage dotbg" id="stage">
+    <canvas id="view"></canvas>
+    <canvas id="ov"></canvas>
+    <div id="loupe"><canvas id="lc" width="92" height="92"></canvas><b><span id="lhex">#000000</span></b></div>
+    <div class="tip" id="tip">写真を タップ・なぞって 色を えらぶ<br>2本指で 拡大／目のボタンを 押している間は 元の写真</div>
+    <div id="zoomtag" class="dot">100%</div>
+  </div>
+  <div class="dock" id="dock">
+    <div class="panel">
+      <div class="phead" id="phead"><span id="ptIcon"></span><span id="ptName">アクセント</span><span class="grow"></span><span class="chev"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></span></div>
+
+      <div class="pbody" data-p="accent">
+        <div class="recent" id="recent"></div>
+        <div class="sl"><div class="lab">残す色の幅<b id="vRange">30</b></div><input type="range" id="sRange" min="0" max="100" value="30"></div>
+        <div class="sl"><div class="lab">境界の ぼかし<b id="vSoft">40</b></div><input type="range" id="sSoft" min="0" max="100" value="40"></div>
+      </div>
+
+      <div class="pbody hide" data-p="range">
+        <div class="seg" id="segArea"><button data-v="all" class="on">全体</button><button data-v="part">部分</button></div>
+        <div id="partUI" style="display:none;flex-direction:column;gap:.4rem;">
+          <div class="seg small" id="segTool">
+            <button data-v="circle" class="on"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-linejoin="round" stroke-width="1.7"/></svg>円</button>
+            <button data-v="rect"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/></svg>四角</button>
+            <button data-v="lasso"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M17.3003 15.5116C20.3416 12.9804 22.6484 9.95901 21.8354 6.92985C20.7852 3.01732 15.5349 1.02232 10.1083 2.4739C4.68179 3.92547 1.13402 8.27394 2.18415 12.1865C3.03697 15.3638 5.88849 16.9746 10.3503 16.42M17.3003 15.5116C15.9161 11.5244 9.71766 12.8164 10.002 15.5116C10.2129 17.5105 14.9298 17.5105 17.3003 15.5116ZM17.3003 15.5116C18.1269 18.2959 16.2449 21.4457 12.9572 22" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>囲む</button>
+            <button data-v="brush"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M3.89089 20.8727L3 21L3.12727 20.1091C3.32086 18.754 3.41765 18.0764 3.71832 17.4751C4.01899 16.8738 4.50296 16.3898 5.47091 15.4218L16.9827 3.91009C17.4062 3.48654 17.618 3.27476 17.8464 3.16155C18.2811 2.94615 18.7914 2.94615 19.2261 3.16155C19.4546 3.27476 19.6663 3.48654 20.0899 3.91009C20.5135 4.33365 20.7252 4.54543 20.8385 4.77389C21.0539 5.20856 21.0539 5.71889 20.8385 6.15356C20.7252 6.38201 20.5135 6.59379 20.0899 7.01735L8.57816 18.5291C7.61022 19.497 7.12625 19.981 6.52491 20.2817C5.92357 20.5823 5.246 20.6791 3.89089 20.8727Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M6 15L9 18M8.5 12.5L11.5 15.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>塗る</button>
+          </div>
+          <div class="rowb">
+            <div class="seg small" id="segMode" style="flex:1.4"><button data-v="add" class="on">足す</button><button data-v="sub">消す</button></div>
+            <button class="btn" id="bUndoOp"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C8.66873 3 5.76018 4.80989 4.20404 7.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M3 3V4.27816C3 6.47004 3 7.56599 3.70725 8.16512C4.4145 8.76425 5.49553 8.58408 7.6576 8.22373L9 8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>戻す</button>
+            <button class="btn" id="bClearOp"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M19.5 5.5L18.8803 15.5251C18.7219 18.0864 18.6428 19.3671 18.0008 20.2879C17.6833 20.7431 17.2747 21.1273 16.8007 21.416C15.8421 22 14.559 22 11.9927 22C9.42312 22 8.1383 22 7.17905 21.4149C6.7048 21.1257 6.296 20.7408 5.97868 20.2848C5.33688 19.3626 5.25945 18.0801 5.10461 15.5152L4.5 5.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M3 5.5H21M16.0557 5.5L15.3731 4.09173C14.9196 3.15626 14.6928 2.68852 14.3017 2.39681C14.215 2.3321 14.1231 2.27454 14.027 2.2247C13.5939 2 13.0741 2 12.0345 2C10.9688 2 10.436 2 9.99568 2.23412C9.8981 2.28601 9.80498 2.3459 9.71729 2.41317C9.32164 2.7167 9.10063 3.20155 8.65861 4.17126L8.05292 5.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M9.5 16.5L9.5 10.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M14.5 16.5L14.5 10.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>ぜんぶ</button>
+          </div>
+          <div class="sl" id="brushSl" style="display:none"><div class="lab">ふでの 太さ<b id="vBrush">40</b></div><input type="range" id="sBrush" min="4" max="100" value="40"></div>
+          <div class="sl"><div class="lab">ふちの ぼかし<b id="vFeather">20</b></div><input type="range" id="sFeather" min="0" max="100" value="20"></div>
+          <div class="hint" id="toolHint">写真の上で ドラッグして 円を 作る。つまみで 大きさ、なかを つかんで 移動。</div>
+        </div>
+      </div>
+
+      <div class="pbody hide" data-p="mono">
+        <div class="seg small" id="segPreset">
+          <button data-v="standard" class="on">Standard</button><button data-v="soft">Soft</button>
+          <button data-v="deep">Deep</button><button data-v="high">High</button>
+        </div>
+        <div class="sl"><div class="lab">Tone<b id="vTone">0</b></div><input type="range" id="sTone" min="-100" max="100" value="0"></div>
+        <div class="sl"><div class="lab">Contrast<b id="vCon">0</b></div><input type="range" id="sCon" min="-100" max="100" value="0"></div>
+      </div>
+    </div>
+    <div class="tabs" id="tabs">
+      <button data-t="accent" class="on"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M17.5798 9.71016C17.0765 9.57314 16.5468 9.5 16 9.5C13.4668 9.5 11.3002 11.0699 10.4202 13.2898M17.5798 9.71016C20.1271 10.4036 22 12.7331 22 15.5C22 18.8137 19.3137 21.5 16 21.5C14.4633 21.5 13.0615 20.9223 12 19.9722M17.5798 9.71016C17.851 9.02618 18 8.2805 18 7.5C18 4.18629 15.3137 1.5 12 1.5C8.68629 1.5 6 4.18629 6 7.5C6 8.2805 6.14903 9.02618 6.42018 9.71016M10.4202 13.2898C10.149 13.9738 10 14.7195 10 15.5C10 17.277 10.7725 18.8736 12 19.9722M10.4202 13.2898C8.59146 12.792 7.11029 11.451 6.42018 9.71016M6.42018 9.71016C3.87294 10.4036 2 12.7331 2 15.5C2 18.8137 4.68629 21.5 8 21.5C9.53671 21.5 10.9385 20.9223 12 19.9722" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>アクセント</button>
+      <button data-t="range"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M17 12C17 14.7614 14.7614 17 12 17C9.23858 17 7 14.7614 7 12C7 9.23858 9.23858 7 12 7" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M14 2.20004C13.3538 2.06886 12.6849 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12C22 11.3151 21.9311 10.6462 21.8 10" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M12.0303 11.9625L16.5832 7.4096M19.7404 4.34462L19.1872 2.35748C19.0853 2.03011 18.6914 1.89965 18.4259 2.11662C16.9898 3.29018 15.4254 4.87091 16.703 7.36419C19.2771 8.56455 20.7466 6.94584 21.8733 5.5853C22.0975 5.3146 21.9623 4.90767 21.6247 4.81005L19.7404 4.34462Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>範囲</button>
+      <button data-t="mono"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M12 22V2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M12 7L20.5 7" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M12 17L20.5 17" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M12 12H22" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg>モノクロ</button>
+    </div>
+  </div>
+  <input type="color" id="colorIn" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;left:50%;top:40px;">
+</section>
+
+<!-- ライブ -->
+<section id="live" class="screen hide">
+  <div class="bar">
+    <button class="btn btn-ic" id="lBack" aria-label="もどる"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M15 6C15 6 9.00001 10.4189 9 12C8.99999 13.5812 15 18 15 18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></button>
+    <div class="grow" style="display:flex;justify-content:center;">
+      <div class="swchip" id="lchip"><i id="lDot"></i><span class="dot" id="lHex">タップで 色を えらぶ</span></div>
+    </div>
+    <button class="btn btn-ic" id="lCmp" aria-label="押している間 元の映像"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M2 8C2 8 6.47715 3 12 3C17.5228 3 22 8 22 8" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/><path d="M21.544 13.045C21.848 13.4713 22 13.6845 22 14C22 14.3155 21.848 14.5287 21.544 14.955C20.1779 16.8706 16.6892 21 12 21C7.31078 21 3.8221 16.8706 2.45604 14.955C2.15201 14.5287 2 14.3155 2 14C2 13.6845 2.15201 13.4713 2.45604 13.045C3.8221 11.1294 7.31078 7 12 7C16.6892 7 20.1779 11.1294 21.544 13.045Z" stroke="currentColor" stroke-width="1.7"/><path d="M15 14C15 12.3431 13.6569 11 12 11C10.3431 11 9 12.3431 9 14C9 15.6569 10.3431 17 12 17C13.6569 17 15 15.6569 15 14Z" stroke="currentColor" stroke-width="1.7"/></svg></button>
+  </div>
+  <div class="stage" id="lstage">
+    <canvas id="lv"></canvas>
+    <video id="vid" playsinline muted autoplay style="display:none"></video>
+    <div id="flash"></div>
+    <div id="camerr"><div id="camerrMsg"></div></div>
+  </div>
+  <div class="dock">
+    <div class="recent" id="lrecent"></div>
+    <div class="sl"><div class="lab">残す色の幅<b id="lvRange">30</b></div><input type="range" id="lsRange" min="0" max="100" value="30"></div>
+    <div class="shootrow">
+      <button class="btn btn-ic" id="lPhoto" aria-label="写真を えらぶ"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg></button>
+      <button id="bShoot" aria-label="とる"></button>
+      <button class="btn btn-ic" id="lFlip" aria-label="カメラを 切りかえ"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M13 8.5H11C9.59987 8.5 8.8998 8.5 8.36502 8.77248C7.89462 9.01217 7.51217 9.39462 7.27248 9.86502C7 10.3998 7 11.0999 7 12.5C7 13.9001 7 14.6002 7.27248 15.135C7.51217 15.6054 7.89462 15.9878 8.36502 16.2275C8.8998 16.5 9.59987 16.5 11 16.5H13C14.4001 16.5 15.1002 16.5 15.635 16.2275C16.1054 15.9878 16.4878 15.6054 16.7275 15.135C17 14.6002 17 13.9001 17 12.5C17 11.0999 17 10.3998 16.7275 9.86502C16.4878 9.39462 16.1054 9.01217 15.635 8.77248C15.1002 8.5 14.4001 8.5 13 8.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M10 8.5L10.2236 8.05279C10.393 7.714 10.7393 7.5 11.118 7.5H12.882C13.2607 7.5 13.607 7.714 13.7764 8.05279L14 8.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M12.2001 4L10.2001 2.20004C10.8463 2.06886 11.5151 2 12.2001 2C17.038 2 21.0735 5.43552 22 10M11.8 20L13.8 21.8C13.1538 21.9311 12.4849 22 11.8 22C6.96208 22 2.92657 18.5645 2.00003 14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M12 12V12.5M13 12.5C13 13.0523 12.5523 13.5 12 13.5C11.4477 13.5 11 13.0523 11 12.5C11 11.9477 11.4477 11.5 12 11.5C12.5523 11.5 13 11.9477 13 12.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<!-- 書き出し -->
+<section id="exp" class="screen hide">
+  <div class="bar">
+    <button class="btn btn-ic" id="eBack" aria-label="もどる"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M15 6C15 6 9.00001 10.4189 9 12C8.99999 13.5812 15 18 15 18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></button>
+    <h1 class="grow" style="text-align:center">書き出し プレビュー</h1>
+    <button class="btn btn-ic" id="eHome" aria-label="ホーム"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M3 11.9896V14.5C3 17.7998 3 19.4497 4.02513 20.4749C5.05025 21.5 6.70017 21.5 10 21.5H14C17.2998 21.5 18.9497 21.5 19.9749 20.4749C21 19.4497 21 17.7998 21 14.5V11.9896C21 10.3083 21 9.46773 20.6441 8.74005C20.2882 8.01237 19.6247 7.49628 18.2976 6.46411L16.2976 4.90855C14.2331 3.30285 13.2009 2.5 12 2.5C10.7991 2.5 9.76689 3.30285 7.70242 4.90855L5.70241 6.46411C4.37533 7.49628 3.71179 8.01237 3.3559 8.74005C3 9.46773 3 10.3083 3 11.9896Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></button>
+  </div>
+  <div class="pv dotbg"><canvas id="ec"></canvas></div>
+  <div class="dock">
+    <div class="lbl">フレーム<span class="grow"></span>
+      <div class="seg small" id="segFrame" style="flex:3">
+        <button data-v="white" class="on">White</button><button data-v="black">Black</button>
+        <button data-v="accent">Accent</button><button data-v="custom">Custom</button>
+      </div>
+    </div>
+    <input type="color" id="frameIn" value="#F2F0BE" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;">
+    <div class="toggles">
+      <button class="tg on" data-k="frame"><i></i>フレーム</button>
+      <button class="tg on" data-k="swatch"><i></i>色見本</button>
+      <button class="tg on" data-k="code"><i></i>カラーコード</button>
+      <button class="tg" data-k="palette"><i></i>色構成</button>
+    </div>
+    <div class="lbl">アスペクト比</div>
+    <div class="ratios" id="ratios"></div>
+    <div class="sl"><div class="lab">余白<b id="vMargin">50</b></div><input type="range" id="sMargin" min="0" max="100" value="50"></div>
+    <div class="lbl">画質</div>
+    <div class="seg q2" id="segQ">
+      <button data-v="std" class="on">標準<small>長辺 2,048px</small></button>
+      <button data-v="max">最大<small>元の画質</small></button>
+    </div>
+    <div class="rowb">
+      <button class="btn btn-y" id="bSave" style="min-height:46px;font-size:.78rem"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M16.9504 12.1817C17.1981 12.814 16.5076 13.5726 15.1267 15.0899C13.6702 16.6902 12.9201 17.4904 12 17.5C11.0799 17.4904 10.3298 16.6902 8.87331 15.0899C7.49239 13.5726 6.80193 12.814 7.04964 12.1817C7.05868 12.1586 7.06851 12.1359 7.0791 12.1135C7.34928 11.542 8.24477 11.5029 10 11.5002V4.99998C10 4.53501 10 4.30253 10.0511 4.11179C10.1898 3.59414 10.5941 3.1898 11.1118 3.05111C11.3025 3 11.535 3 12 3C12.4649 3 12.6974 3 12.8882 3.05111C13.4058 3.1898 13.8102 3.59414 13.9489 4.11179C14 4.30253 14 4.53501 14 4.99998V11.5002C15.7552 11.5029 16.6507 11.542 16.9209 12.1135C16.9315 12.1359 16.9413 12.1586 16.9504 12.1817Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M5.00006 21H19.0001" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg>保存</button>
+      <button class="btn" id="bShare" style="min-height:46px;font-size:.78rem"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M21 6.5C21 8.15685 19.6569 9.5 18 9.5C16.3431 9.5 15 8.15685 15 6.5C15 4.84315 16.3431 3.5 18 3.5C19.6569 3.5 21 4.84315 21 6.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 12C9 13.6569 7.65685 15 6 15C4.34315 15 3 13.6569 3 12C3 10.3431 4.34315 9 6 9C7.65685 9 9 10.3431 9 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M21 17.5C21 19.1569 19.6569 20.5 18 20.5C16.3431 20.5 15 19.1569 15 17.5C15 15.8431 16.3431 14.5 18 14.5C19.6569 14.5 21 15.8431 21 17.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M8.72852 10.7495L15.2285 7.75M8.72852 13.25L15.2285 16.2495" stroke="currentColor" stroke-width="1.7"/></svg>共有</button>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const hex = (c) => '#' + c.map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+const fromHex = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800); }
+function store(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
+
+/* ============ 色の 計算（シェーダーと 同じ 式） ============ */
+function lin(c){ c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+function oklab(rgb){
+  const r = lin(rgb[0]), g = lin(rgb[1]), b = lin(rgb[2]);
+  const l = Math.cbrt(0.4122214708*r + 0.5363325363*g + 0.0514459929*b);
+  const m = Math.cbrt(0.2119034982*r + 0.6806995451*g + 0.1073969566*b);
+  const s = Math.cbrt(0.0883024619*r + 0.2817188376*g + 0.6299787005*b);
+  return [0.2104542553*l + 0.7936177850*m - 0.0040720468*s,
+          1.9779984951*l - 2.4285922050*m + 0.4505937099*s,
+          0.0259040371*l + 0.7827717662*m - 0.8086757660*s];
+}
+const thrOf = (r) => 0.012 + Math.pow(r / 100, 1.25) * 0.24;
+const softOf = (f) => 0.004 + (f / 100) * 0.12;
+
+/* ============ WebGL で 描く ============ */
+const VS = `attribute vec2 p; varying vec2 uv;
+void main(){ uv = vec2(p.x*.5+.5, .5-p.y*.5); gl_Position = vec4(p,0.,1.); }`;
+const FS = `precision highp float; varying vec2 uv;
+uniform sampler2D img, msk;
+uniform vec3 tgt; uniform float hasC, thr, soft, useM, orig;
+uniform float gam, con, lift, tone;
+vec3 toLin(vec3 c){ return mix(c/12.92, pow((c+.055)/1.055, vec3(2.4)), step(.04045, c)); }
+vec3 ok(vec3 c){
+  c = toLin(c);
+  float l = pow(max(dot(c, vec3(.4122214708,.5363325363,.0514459929)),0.), 1./3.);
+  float m = pow(max(dot(c, vec3(.2119034982,.6806995451,.1073969566)),0.), 1./3.);
+  float s = pow(max(dot(c, vec3(.0883024619,.2817188376,.6299787005)),0.), 1./3.);
+  return vec3(.2104542553*l+.7936177850*m-.0040720468*s, 1.9779984951*l-2.4285922050*m+.4505937099*s, .0259040371*l+.7827717662*m-.8086757660*s);
+}
+void main(){
+  vec3 c = texture2D(img, uv).rgb;
+  if(orig > .5){ gl_FragColor = vec4(c,1.); return; }
+  vec3 d = ok(c) - tgt;
+  float dist = length(vec3(d.x*.45, d.y, d.z));
+  float keep = hasC * (1. - smoothstep(thr, thr+soft, dist));
+  if(useM > .5) keep *= texture2D(msk, uv).r;
+  float y = dot(c, vec3(.2126,.7152,.0722));
+  y = pow(max(y,0.), gam);
+  y = (y-.5)*con + .5 + tone;
+  y = lift + (1.-lift)*y;
+  gl_FragColor = vec4(mix(vec3(clamp(y,0.,1.)), c, keep), 1.);
+}`;
+class Renderer{
+  constructor(cv){
+    this.cv = cv;
+    const gl = this.gl = cv.getContext('webgl', {preserveDrawingBuffer:true, premultipliedAlpha:false, antialias:false});
+    if(!gl) throw new Error('WebGL が 使えません');
+    const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o);
+      if(!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const pr = this.pr = gl.createProgram();
+    gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(pr); gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    const a = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+    this.u = {};
+    for(const n of ['img','msk','tgt','hasC','thr','soft','useM','orig','gam','con','lift','tone']) this.u[n] = gl.getUniformLocation(pr, n);
+    this.tImg = this.tex(); this.tMsk = this.tex();
+    gl.bindTexture(gl.TEXTURE_2D, this.tMsk);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([255]));
+    gl.uniform1i(this.u.img, 0); gl.uniform1i(this.u.msk, 1);
+    this.max = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  }
+  tex(){ const gl = this.gl, t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    for(const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR],[gl.TEXTURE_MAG_FILTER, gl.LINEAR],[gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]])
+      gl.texParameteri(gl.TEXTURE_2D, k, v);
+    return t; }
+  size(w, h){ if(this.cv.width !== w) this.cv.width = w; if(this.cv.height !== h) this.cv.height = h; }
+  image(src){ const gl = this.gl; gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tImg);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); }
+  mask(data, w, h){ const gl = this.gl; gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.tMsk);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, w, h, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, data); }
+  draw(P){
+    const gl = this.gl, u = this.u;
+    gl.viewport(0, 0, this.cv.width, this.cv.height);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.tImg);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.tMsk);
+    const mp = MONO[P.preset];
+    gl.uniform3fv(u.tgt, P.color ? oklab(P.color) : [0,0,0]);
+    gl.uniform1f(u.hasC, P.color ? 1 : 0);
+    gl.uniform1f(u.thr, thrOf(P.range)); gl.uniform1f(u.soft, softOf(P.soft));
+    gl.uniform1f(u.useM, P.useMask ? 1 : 0); gl.uniform1f(u.orig, P.orig ? 1 : 0);
+    gl.uniform1f(u.gam, mp.gam); gl.uniform1f(u.con, Math.max(0, mp.con * (1 + P.con / 100)));
+    gl.uniform1f(u.lift, mp.lift); gl.uniform1f(u.tone, P.tone / 100 * 0.35 + mp.off);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+}
+const MONO = {
+  standard:{gam:1,    con:1,    lift:0,   off:0},
+  soft:    {gam:.9,   con:.78,  lift:.05, off:.02},
+  deep:    {gam:1.35, con:1.12, lift:0,   off:-.02},
+  high:    {gam:1.05, con:1.5,  lift:0,   off:0},
+};
+
+/* ============ じょうたい ============ */
+const S = {
+  color:null, range:30, soft:40,
+  preset:'standard', tone:0, con:0,
+  area:'all', tool:'circle', mode:'add', brush:40, feather:20,
+  ops:[], active:null,
+  view:{z:1, x:0, y:0},
+  orig:false, tab:'accent',
+};
+let SRC = null;     // 元の 画像（ImageBitmap か canvas）
+let SW = 0, SH = 0; // 元の 大きさ
+let PV = null, pctx = null, PD = null; // 下書き用に 小さくした 画像と その 画素
+let R = null;       // 画面の Renderer
+const view = $('#view'), ov = $('#ov'), octx = ov.getContext('2d'), stage = $('#stage');
+
+try{ R = new Renderer(view); }catch(e){ alert('この ブラウザでは 動きません（WebGL が 使えない）'); }
+
+/* ============ 画像を ひらく ============ */
+$('#bPick').onclick = () => $('#file').click();
+$('#lPhoto').onclick = () => $('#file').click();
+$('#file').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if(f) openFile(f); };
+addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('drag'); });
+addEventListener('dragleave', () => document.body.classList.remove('drag'));
+addEventListener('drop', (e) => { e.preventDefault(); document.body.classList.remove('drag');
+  const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/')); if(f) openFile(f); });
+
+async function openFile(f){
+  let img;
+  try{ img = await createImageBitmap(f, {imageOrientation:'from-image'}); }
+  catch(e){
+    img = await new Promise((ok, ng) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ng; i.src = URL.createObjectURL(f); })
+      .catch(() => null);
+  }
+  if(!img){ toast('この 画像は ひらけません'); return; }
+  setSource(img, img.width || img.naturalWidth, img.height || img.naturalHeight);
+}
+function setSource(img, w, h){
+  stopLive();
+  SRC = img; SW = w; SH = h;
+  const L = Math.min(1600, R.max);
+  const k = Math.min(1, L / Math.max(w, h));
+  PV = document.createElement('canvas');
+  PV.width = Math.max(1, Math.round(w * k)); PV.height = Math.max(1, Math.round(h * k));
+  pctx = PV.getContext('2d', {willReadFrequently:true});
+  pctx.drawImage(img, 0, 0, PV.width, PV.height);
+  PD = pctx.getImageData(0, 0, PV.width, PV.height).data;
+  R.size(PV.width, PV.height); R.image(PV);
+  S.ops = []; S.active = null; S.view = {z:1, x:0, y:0};
+  maskDirty = true;
+  show('edit');
+  $('#tip').classList.toggle('hide', !!S.color);
+  layout(); dirty();
+}
+function show(id){ for(const s of ['home','edit','live','exp']) $('#' + s).classList.toggle('hide', s !== id); }
+
+/* ============ 画面の 位置あわせ ============ */
+// 画像の 単位 … 長いほうの 辺を 1 とする
+const imgU = () => { const L = Math.max(SW, SH); return [SW / L, SH / L]; };
+let k0 = 1, stW = 0, stH = 0;
+function geom(){
+  const [wu, hu] = imgU(), k = k0 * S.view.z;
+  return {k, left:(stW - wu * k) / 2 + S.view.x, top:(stH - hu * k) / 2 + S.view.y, wu, hu};
+}
+function layout(){
+  if(!SRC) return;
+  const r = stage.getBoundingClientRect(); stW = r.width; stH = r.height;
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  ov.width = Math.round(stW * dpr); ov.height = Math.round(stH * dpr);
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const [wu, hu] = imgU();
+  k0 = Math.min((stW - 28) / wu, (stH - 28) / hu);
+  place();
+}
+function place(){
+  const g = geom();
+  Object.assign(view.style, {left:g.left - 2 + 'px', top:g.top - 2 + 'px', width:g.wu * g.k + 4 + 'px', height:g.hu * g.k + 4 + 'px'});
+  $('#zoomtag').textContent = Math.round(S.view.z * 100) + '%';
+  drawOv();
+}
+addEventListener('resize', () => { layout(); if(!$('#live').classList.contains('hide')) liveLayout(); if(!$('#exp').classList.contains('hide')) expDraw(); });
+const toImg = (sx, sy) => { const g = geom(); return [(sx - g.left) / g.k, (sy - g.top) / g.k]; };
+const toScr = (u, v) => { const g = geom(); return [g.left + u * g.k, g.top + v * g.k]; };
+
+/* ============ 描く ============ */
+let rq = 0;
+function dirty(){ if(!rq) rq = requestAnimationFrame(renderNow); }
+function renderNow(){
+  rq = 0; if(!SRC) return;
+  if(S.area === 'part' && maskDirty) buildMask();
+  R.draw({...S, useMask:S.area === 'part'});
+}
+
+/* ============ 範囲（マスク） ============ */
+let maskDirty = true;
+function rasterMask(w, h){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', {willReadFrequently:true});
+  const L = Math.max(w, h);  // 画像単位 → ピクセル
+  x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+  x.lineCap = x.lineJoin = 'round';
+  for(const o of S.ops){
+    x.globalCompositeOperation = o.sub ? 'destination-out' : 'source-over';
+    x.fillStyle = x.strokeStyle = '#fff';
+    x.beginPath();
+    if(o.t === 'circle'){ x.ellipse(o.x * L, o.y * L, Math.max(.5, o.rx * L), Math.max(.5, o.ry * L), 0, 0, Math.PI * 2); x.fill(); }
+    else if(o.t === 'rect'){ x.rect(o.x * L, o.y * L, o.w * L, o.h * L); x.fill(); }
+    else if(o.t === 'lasso'){ o.pts.forEach((p, i) => i ? x.lineTo(p[0] * L, p[1] * L) : x.moveTo(p[0] * L, p[1] * L)); x.closePath(); x.fill(); }
+    else if(o.t === 'brush'){
+      x.lineWidth = o.size * L;
+      o.pts.forEach((p, i) => i ? x.lineTo(p[0] * L, p[1] * L) : x.moveTo(p[0] * L, p[1] * L));
+      if(o.pts.length === 1) x.lineTo(o.pts[0][0] * L + .01, o.pts[0][1] * L);
+      x.stroke();
+    }
+  }
+  const d = x.getImageData(0, 0, w, h).data, m = new Uint8Array(w * h);
+  // destination-out は 透明に なるので、白さ × 不透明さ で 読む
+  for(let i = 0; i < m.length; i++) m[i] = d[i * 4] * d[i * 4 + 3] / 255;
+  const r = Math.round(S.feather / 100 * 0.06 * L);
+  if(r > 0) blur(m, w, h, r);
+  return m;
+}
+function blur(m, w, h, r){
+  // 箱ぼかしを 3回 … ガウスに 近い
+  const t = new Uint8Array(m.length), rr = Math.max(1, Math.round(r / 1.7));
+  for(let n = 0; n < 3; n++){ box(m, t, w, h, rr, true); box(t, m, w, h, rr, false); }
+}
+function box(src, dst, w, h, r, horiz){
+  const len = horiz ? w : h, lines = horiz ? h : w, st = horiz ? 1 : w, ls = horiz ? w : 1, div = r * 2 + 1;
+  for(let l = 0; l < lines; l++){
+    const b = l * ls; let acc = 0;
+    for(let i = -r; i <= r; i++) acc += src[b + clamp(i, 0, len - 1) * st];
+    for(let i = 0; i < len; i++){
+      dst[b + i * st] = acc / div;
+      acc += src[b + Math.min(len - 1, i + r + 1) * st] - src[b + Math.max(0, i - r) * st];
+    }
+  }
+}
+function buildMask(){
+  const k = Math.min(1, 1024 / Math.max(PV.width, PV.height));
+  const w = Math.max(1, Math.round(PV.width * k)), h = Math.max(1, Math.round(PV.height * k));
+  S.maskData = rasterMask(w, h); S.maskW = w; S.maskH = h;
+  R.mask(S.maskData, w, h); maskDirty = false;
+}
+function maskChanged(){ maskDirty = true; dirty(); drawOv(); }
+
+/* 画面の 上に 形の わくと つまみを 描く */
+let lassoPts = null, brushAt = null;
+function handles(o){
+  if(o.t === 'circle') return [[o.x + o.rx, o.y, 'r'], [o.x - o.rx, o.y, 'l'], [o.x, o.y + o.ry, 'b'], [o.x, o.y - o.ry, 't']];
+  return [[o.x, o.y, 'tl'], [o.x + o.w, o.y, 'tr'], [o.x, o.y + o.h, 'bl'], [o.x + o.w, o.y + o.h, 'br']];
+}
+function drawOv(){
+  octx.clearRect(0, 0, stW, stH);
+  if(!SRC || S.tab !== 'range' || S.area !== 'part') return;
+  const g = geom();
+  octx.lineWidth = 2;
+  const o = S.active;
+  if(o && S.ops.includes(o)){
+    octx.save(); octx.setLineDash([6, 5]); octx.strokeStyle = o.sub ? '#F2A0B8' : '#FFFEF7';
+    octx.shadowColor = 'rgba(30,28,20,.9)'; octx.shadowBlur = 0; octx.shadowOffsetY = 1.5;
+    octx.beginPath();
+    if(o.t === 'circle'){ const [cx, cy] = toScr(o.x, o.y); octx.ellipse(cx, cy, o.rx * g.k, o.ry * g.k, 0, 0, Math.PI * 2); }
+    else { const [x, y] = toScr(o.x, o.y); octx.rect(x, y, o.w * g.k, o.h * g.k); }
+    octx.stroke(); octx.restore();
+    for(const [u, v] of handles(o)){
+      const [x, y] = toScr(u, v);
+      octx.beginPath(); octx.arc(x, y, 8, 0, Math.PI * 2);
+      octx.fillStyle = '#FFFEF7'; octx.fill(); octx.strokeStyle = '#1E1C14'; octx.lineWidth = 2.5; octx.stroke();
+    }
+    const [cx, cy] = o.t === 'circle' ? toScr(o.x, o.y) : toScr(o.x + o.w / 2, o.y + o.h / 2);
+    octx.beginPath(); octx.arc(cx, cy, 5, 0, Math.PI * 2); octx.fillStyle = '#E1DD60'; octx.fill(); octx.strokeStyle = '#1E1C14'; octx.stroke();
+  }
+  if(lassoPts && lassoPts.length > 1){
+    octx.save(); octx.setLineDash([6, 5]); octx.strokeStyle = S.mode === 'sub' ? '#F2A0B8' : '#FFFEF7'; octx.lineWidth = 2.5;
+    octx.shadowColor = 'rgba(30,28,20,.9)'; octx.shadowOffsetY = 1.5;
+    octx.beginPath(); lassoPts.forEach((p, i) => { const [x, y] = toScr(p[0], p[1]); i ? octx.lineTo(x, y) : octx.moveTo(x, y); });
+    octx.stroke(); octx.restore();
+  }
+  if(brushAt){
+    const [x, y] = toScr(brushAt[0], brushAt[1]);
+    octx.beginPath(); octx.arc(x, y, brushSize() * g.k / 2, 0, Math.PI * 2);
+    octx.strokeStyle = '#1E1C14'; octx.lineWidth = 2; octx.stroke();
+    octx.beginPath(); octx.arc(x, y, brushSize() * g.k / 2 - 2, 0, Math.PI * 2);
+    octx.strokeStyle = '#FFFEF7'; octx.lineWidth = 1.5; octx.stroke();
+  }
+}
+const brushSize = () => (S.brush / 100) * 0.25 / S.view.z * 1.0;
+
+/* ============ 指の あつかい ============ */
+const ptrs = new Map();
+let act = null;   // いまの 1本指の 動作
+let pinch = null;
+let lastTap = 0;
+stage.addEventListener('pointerdown', (e) => {
+  if(!SRC) return;
+  stage.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, pos(e));
+  if(ptrs.size === 2){ cancelAct(); startPinch(); return; }
+  if(ptrs.size > 2) return;
+  const now = performance.now();
+  if(now - lastTap < 280 && S.tab !== 'range'){ S.view = {z:1, x:0, y:0}; place(); lastTap = 0; return; }
+  lastTap = now;
+  startAct(pos(e));
+});
+stage.addEventListener('pointermove', (e) => {
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, pos(e));
+  if(pinch && ptrs.size >= 2) movePinch();
+  else if(act) moveAct(pos(e));
+});
+const endPtr = (e) => {
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if(pinch){ if(ptrs.size < 2) pinch = null; return; }
+  if(act) endAct();
+};
+stage.addEventListener('pointerup', endPtr);
+stage.addEventListener('pointercancel', endPtr);
+stage.addEventListener('wheel', (e) => {
+  if(!SRC) return; e.preventDefault();
+  const p = pos(e), [u, v] = toImg(p[0], p[1]);
+  S.view.z = clamp(S.view.z * Math.exp(-e.deltaY * 0.0015), 0.5, 10);
+  anchor(u, v, p); place();
+}, {passive:false});
+function pos(e){ const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function anchor(u, v, p){ // 画像の (u,v) が 画面の p に 来るように ずらす
+  const [wu, hu] = imgU(), k = k0 * S.view.z;
+  S.view.x = p[0] - u * k - (stW - wu * k) / 2;
+  S.view.y = p[1] - v * k - (stH - hu * k) / 2;
+}
+function startPinch(){
+  const [a, b] = [...ptrs.values()];
+  const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  pinch = {d:Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z:S.view.z, uv:toImg(mid[0], mid[1])};
+}
+function movePinch(){
+  const [a, b] = [...ptrs.values()];
+  const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  S.view.z = clamp(pinch.z * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.d, 0.5, 10);
+  anchor(pinch.uv[0], pinch.uv[1], mid); place();
+}
+
+function startAct(p){
+  const uv = toImg(p[0], p[1]);
+  if(S.tab === 'range' && S.area === 'part'){
+    const g = geom(), o = S.active;
+    if(S.tool === 'circle' || S.tool === 'rect'){
+      if(o && S.ops.includes(o)){
+        for(const [u, v, h] of handles(o)){
+          const [x, y] = toScr(u, v);
+          if(Math.hypot(x - p[0], y - p[1]) < 24){ act = {k:'handle', h, o}; return; }
+        }
+        if(inside(o, uv)){ act = {k:'move', o, from:uv, st:{...o}}; return; }
+      }
+      act = {k:'new', from:uv, o:null}; return;
+    }
+    if(S.tool === 'lasso'){ lassoPts = [uv]; act = {k:'lasso'}; drawOv(); return; }
+    if(S.tool === 'brush'){
+      const op = {t:'brush', pts:[uv], size:brushSize(), sub:S.mode === 'sub'};
+      S.ops.push(op); S.active = null; act = {k:'brush', op}; brushAt = uv; maskChanged(); return;
+    }
+    return;
+  }
+  act = {k:'pick'}; pickAt(p, uv);
+}
+function moveAct(p){
+  const uv = toImg(p[0], p[1]);
+  if(act.k === 'pick'){ pickAt(p, uv); return; }
+  if(act.k === 'new'){
+    const [u0, v0] = act.from, dx = uv[0] - u0, dy = uv[1] - v0;
+    if(!act.o){
+      if(Math.hypot(dx, dy) * geom().k < 8) return;
+      act.o = S.tool === 'circle' ? {t:'circle', x:0, y:0, rx:0, ry:0, sub:S.mode === 'sub'} : {t:'rect', x:0, y:0, w:0, h:0, sub:S.mode === 'sub'};
+      S.ops.push(act.o); S.active = act.o;
+    }
+    const o = act.o;
+    if(o.t === 'circle'){ o.x = u0 + dx / 2; o.y = v0 + dy / 2; o.rx = Math.abs(dx) / 2; o.ry = Math.abs(dy) / 2; }
+    else { o.x = Math.min(u0, uv[0]); o.y = Math.min(v0, uv[1]); o.w = Math.abs(dx); o.h = Math.abs(dy); }
+    maskChanged(); return;
+  }
+  if(act.k === 'move'){
+    act.o.x = act.st.x + uv[0] - act.from[0]; act.o.y = act.st.y + uv[1] - act.from[1]; maskChanged(); return;
+  }
+  if(act.k === 'handle'){
+    const o = act.o, h = act.h;
+    if(o.t === 'circle'){
+      if(h === 'r' || h === 'l') o.rx = Math.max(.005, Math.abs(uv[0] - o.x));
+      else o.ry = Math.max(.005, Math.abs(uv[1] - o.y));
+    } else {
+      const x2 = o.x + o.w, y2 = o.y + o.h;
+      const fx = h.includes('l') ? x2 : o.x, fy = h.includes('t') ? y2 : o.y;
+      o.x = Math.min(fx, uv[0]); o.w = Math.max(.005, Math.abs(uv[0] - fx));
+      o.y = Math.min(fy, uv[1]); o.h = Math.max(.005, Math.abs(uv[1] - fy));
+    }
+    maskChanged(); return;
+  }
+  if(act.k === 'lasso'){ lassoPts.push(uv); drawOv(); return; }
+  if(act.k === 'brush'){ act.op.pts.push(uv); brushAt = uv; maskChanged(); return; }
+}
+function endAct(){
+  if(act.k === 'pick'){ $('#loupe').style.display = 'none'; if(S.color) addRecent(S.color); }
+  if(act.k === 'lasso'){
+    if(lassoPts.length > 2) S.ops.push({t:'lasso', pts:lassoPts, sub:S.mode === 'sub'});
+    lassoPts = null; maskChanged();
+  }
+  if(act.k === 'brush'){ brushAt = null; drawOv(); }
+  act = null;
+}
+function cancelAct(){
+  if(!act) return;
+  if(act.k === 'pick') $('#loupe').style.display = 'none';
+  if(act.k === 'lasso'){ lassoPts = null; drawOv(); }
+  if(act.k === 'brush'){ brushAt = null; drawOv(); }
+  act = null;
+}
+function inside(o, [u, v]){
+  if(o.t === 'circle') return ((u - o.x) / o.rx) ** 2 + ((v - o.y) / o.ry) ** 2 <= 1;
+  return u >= o.x && u <= o.x + o.w && v >= o.y && v <= o.y + o.h;
+}
+
+/* 色を ひろう */
+function sampleAt(u, v){
+  const L = Math.max(PV.width, PV.height);
+  const cx = Math.round(u * L), cy = Math.round(v * L);
+  let r = 0, g = 0, b = 0, n = 0;
+  for(let y = cy - 2; y <= cy + 2; y++) for(let x = cx - 2; x <= cx + 2; x++){
+    if(x < 0 || y < 0 || x >= PV.width || y >= PV.height) continue;
+    const i = (y * PV.width + x) * 4; r += PD[i]; g += PD[i + 1]; b += PD[i + 2]; n++;
+  }
+  return n ? [r / n, g / n, b / n] : null;
+}
+function pickAt(p, uv){
+  const c = sampleAt(uv[0], uv[1]);
+  const lp = $('#loupe');
+  if(!c){ lp.style.display = 'none'; return; }
+  setColor(c.map(Math.round));
+  // ルーペ
+  lp.style.display = 'block';
+  let lx = p[0] - 46, ly = p[1] - 130;
+  if(ly < 4) ly = p[1] + 40;
+  lp.style.left = clamp(lx, 4, stW - 96) + 'px'; lp.style.top = ly + 'px';
+  lp.style.borderColor = hex(c);
+  const lc = $('#lc').getContext('2d'), L = Math.max(PV.width, PV.height), sz = 18;
+  lc.imageSmoothingEnabled = false;
+  lc.fillStyle = '#FFFEF7'; lc.fillRect(0, 0, 92, 92);
+  lc.drawImage(PV, uv[0] * L - sz / 2, uv[1] * L - sz / 2, sz, sz, 0, 0, 92, 92);
+  $('#lhex').textContent = hex(c);
+  $('#tip').classList.add('hide');
+}
+function setColor(c){
+  S.color = c;
+  for(const [d, h] of [['#chipDot', '#chipHex'], ['#lDot', '#lHex']]){
+    $(d).style.background = c ? hex(c) : ''; $(h).textContent = c ? hex(c) : $(h).textContent;
+  }
+  drawRecent(); dirty();
+}
+
+/* 最近の 色 */
+let RECENT = store('nokoshi-iro-recent') || [];
+function addRecent(c){
+  const h = hex(c);
+  RECENT = [h, ...RECENT.filter(x => x !== h)].slice(0, 10);
+  store('nokoshi-iro-recent', RECENT); drawRecent();
+}
+function drawRecent(){
+  for(const id of ['#recent', '#lrecent']){
+    const el = $(id); el.innerHTML = '';
+    if(!RECENT.length){ el.innerHTML = '<span class="none">写真を タップすると ここに 色が たまります</span>'; continue; }
+    const cur = S.color ? hex(S.color) : '';
+    for(const h of RECENT){
+      const b = document.createElement('button');
+      b.style.background = h; b.title = h; if(h === cur) b.className = 'on';
+      b.onclick = () => { setColor(fromHex(h)); addRecent(fromHex(h)); $('#tip').classList.add('hide'); };
+      el.appendChild(b);
+    }
+  }
+}
+drawRecent();
+
+/* 上の 色の ふだを 押すと 色を 選べる */
+$('#chip').onclick = () => { const i = $('#colorIn'); if(S.color) i.value = hex(S.color).toLowerCase(); i.click(); };
+$('#colorIn').oninput = (e) => setColor(fromHex(e.target.value.toUpperCase()));
+$('#colorIn').onchange = (e) => addRecent(fromHex(e.target.value.toUpperCase()));
+
+/* 元の 写真を 見る（押している 間） */
+function holdCmp(el, on){
+  const set = (v) => (e) => { e.preventDefault(); on(v); };
+  el.addEventListener('pointerdown', set(true));
+  for(const t of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(t, set(false));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+holdCmp($('#bCmp'), (v) => { S.orig = v; dirty(); });
+
+/* ============ パネル ============ */
+const TABS = {accent:['accent', 'アクセント'], range:['range', '範囲'], mono:['mono', 'モノクロ']};
+function setTab(t){
+  S.tab = t;
+  $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $$('.pbody').forEach(p => p.classList.toggle('hide', p.dataset.p !== t));
+  $('#ptIcon').innerHTML = $(`#tabs button[data-t="${t}"] svg`).outerHTML;
+  $('#ptName').textContent = TABS[t][1];
+  $('#dock').classList.remove('fold');
+  drawOv(); setTimeout(layout, 0);
+}
+$$('#tabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
+$('#phead').onclick = () => { $('#dock').classList.toggle('fold'); setTimeout(layout, 0); };
+setTab('accent');
+
+function seg(id, key, after){
+  $$(id + ' button').forEach(b => b.onclick = () => {
+    $$(id + ' button').forEach(x => x.classList.toggle('on', x === b));
+    S[key] = b.dataset.v; after && after(); dirty();
+  });
+}
+function slider(id, vid, key, after){
+  const el = $(id);
+  el.oninput = () => { S[key] = +el.value; $(vid).textContent = el.value; after && after(); dirty(); };
+}
+slider('#sRange', '#vRange', 'range', () => { $('#lsRange').value = S.range; $('#lvRange').textContent = S.range; });
+slider('#lsRange', '#lvRange', 'range', () => { $('#sRange').value = S.range; $('#vRange').textContent = S.range; });
+slider('#sSoft', '#vSoft', 'soft');
+slider('#sTone', '#vTone', 'tone');
+slider('#sCon', '#vCon', 'con');
+slider('#sBrush', '#vBrush', 'brush');
+slider('#sFeather', '#vFeather', 'feather', () => { maskDirty = true; });
+seg('#segPreset', 'preset');
+seg('#segMode', 'mode');
+seg('#segArea', 'area', () => {
+  $('#partUI').style.display = S.area === 'part' ? 'flex' : 'none';
+  if(S.area === 'part' && !S.ops.length){
+    const [wu, hu] = imgU(), r = Math.min(wu, hu) * 0.28;
+    const o = {t:'circle', x:wu / 2, y:hu / 2, rx:r, ry:r, sub:false};
+    S.ops.push(o); S.active = o;
+  }
+  maskChanged(); setTimeout(layout, 0);
+});
+const TOOL_HINT = {
+  circle:'写真の上で ドラッグして 円を 作る。つまみで 大きさ、なかを つかんで 移動。',
+  rect:'写真の上で ドラッグして 四角を 作る。つまみで 大きさ、なかを つかんで 移動。',
+  lasso:'写真の上を 指で ぐるっと 囲む。はなすと 閉じる。',
+  brush:'写真の上を なぞって 塗る。「消す」にすると 塗った所を けずれる。',
+};
+seg('#segTool', 'tool', () => {
+  $('#brushSl').style.display = S.tool === 'brush' ? '' : 'none';
+  $('#toolHint').textContent = TOOL_HINT[S.tool];
+  drawOv();
+});
+$('#bUndoOp').onclick = () => { S.ops.pop(); S.active = [...S.ops].reverse().find(o => o.t === 'circle' || o.t === 'rect') || null; maskChanged(); };
+$('#bClearOp').onclick = () => { S.ops = []; S.active = null; maskChanged(); };
+
+$('#bBack').onclick = () => { show('home'); };
+
+/* ============ ライブ ============ */
+const vid = $('#vid'), lv = $('#lv');
+let LR = null, stream = null, facing = 'environment', liveRaf = 0, liveOrig = false, lvScale = 1, lvLeft = 0, lvTop = 0;
+const samp = document.createElement('canvas'); samp.width = samp.height = 7;
+const sctx = samp.getContext('2d', {willReadFrequently:true});
+$('#bLive').onclick = startLive;
+$('#lBack').onclick = () => { stopLive(); show(SRC ? 'edit' : 'home'); };
+$('#lFlip').onclick = () => { facing = facing === 'environment' ? 'user' : 'environment'; startLive(); };
+holdCmp($('#lCmp'), (v) => { liveOrig = v; });
+async function startLive(){
+  show('live'); $('#camerr').style.display = 'none';
+  if(!LR){ try{ LR = new Renderer(lv); }catch(e){ camErr('WebGL が 使えません'); return; } }
+  if(stream) stream.getTracks().forEach(t => t.stop());
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:facing, width:{ideal:1920}, height:{ideal:1080}}});
+  }catch(e){
+    camErr('カメラを ひらけませんでした。<br>ブラウザの 設定で カメラを 許可してから もう一度 ためしてください。');
+    return;
+  }
+  vid.srcObject = stream; await vid.play().catch(() => {});
+  cancelAnimationFrame(liveRaf); liveLoop();
+}
+function camErr(m){ $('#camerrMsg').innerHTML = m; $('#camerr').style.display = 'flex'; }
+function stopLive(){
+  cancelAnimationFrame(liveRaf); liveRaf = 0;
+  if(stream){ stream.getTracks().forEach(t => t.stop()); stream = null; }
+}
+function liveLayout(){
+  const r = $('#lstage').getBoundingClientRect(), vw = vid.videoWidth, vh = vid.videoHeight;
+  if(!vw) return;
+  lvScale = Math.min(r.width / vw, r.height / vh);
+  lvLeft = (r.width - vw * lvScale) / 2; lvTop = (r.height - vh * lvScale) / 2;
+  Object.assign(lv.style, {left:lvLeft + 'px', top:lvTop + 'px', width:vw * lvScale + 'px', height:vh * lvScale + 'px'});
+}
+function liveLoop(){
+  liveRaf = requestAnimationFrame(liveLoop);
+  if(vid.readyState < 2 || !vid.videoWidth) return;
+  const vw = vid.videoWidth, vh = vid.videoHeight, k = Math.min(1, 1280 / Math.max(vw, vh));
+  LR.size(Math.round(vw * k), Math.round(vh * k));
+  liveLayout();
+  LR.image(vid);
+  LR.draw({...S, useMask:false, orig:liveOrig});
+}
+let livePicking = false;
+$('#lstage').addEventListener('pointerdown', (e) => { livePicking = true; $('#lstage').setPointerCapture(e.pointerId); livePick(e); });
+$('#lstage').addEventListener('pointermove', (e) => { if(livePicking) livePick(e); });
+$('#lstage').addEventListener('pointerup', () => { if(livePicking && S.color) addRecent(S.color); livePicking = false; });
+function livePick(e){
+  if(!vid.videoWidth) return;
+  const r = $('#lstage').getBoundingClientRect();
+  const x = (e.clientX - r.left - lvLeft) / lvScale, y = (e.clientY - r.top - lvTop) / lvScale;
+  if(x < 0 || y < 0 || x >= vid.videoWidth || y >= vid.videoHeight) return;
+  sctx.drawImage(vid, x - 3, y - 3, 7, 7, 0, 0, 7, 7);
+  const d = sctx.getImageData(1, 1, 5, 5).data; let c = [0, 0, 0];
+  for(let i = 0; i < d.length; i += 4){ c[0] += d[i]; c[1] += d[i + 1]; c[2] += d[i + 2]; }
+  setColor(c.map(v => Math.round(v / 25)));
+}
+$('#bShoot').onclick = () => {
+  if(!vid.videoWidth) return;
+  const c = document.createElement('canvas'); c.width = vid.videoWidth; c.height = vid.videoHeight;
+  c.getContext('2d').drawImage(vid, 0, 0);
+  const f = $('#flash'); f.style.transition = 'none'; f.style.opacity = 1;
+  requestAnimationFrame(() => { f.style.transition = ''; f.style.opacity = 0; });
+  setTimeout(() => setSource(c, c.width, c.height), 120);
+};
+
+/* ============ 書き出し ============ */
+const RATIOS = [['元', 0], ['1:1', 1], ['4:5', 4/5], ['5:4', 5/4], ['3:4', 3/4], ['4:3', 4/3], ['6:7', 6/7],
+  ['7:6', 7/6], ['3:2', 3/2], ['2:3', 2/3], ['9:16', 9/16], ['16:9', 16/9], ['2.39:1', 2.39], ['1.91:1', 1.91]];
+const E = {bg:'white', custom:'#F2F0BE', frame:true, swatch:true, code:true, palette:false, ratio:4/5, margin:50, q:'std', pal:[]};
+Object.assign(E, store('nokoshi-iro-exp') || {});
+const ec = $('#ec');
+function saveE(){ const {pal, ...rest} = E; store('nokoshi-iro-exp', rest); }
+function expUI(){
+  const box = $('#ratios'); box.innerHTML = '';
+  for(const [l, v] of RATIOS){
+    const b = document.createElement('button'); b.textContent = l; b.classList.toggle('on', v === E.ratio);
+    b.onclick = () => { E.ratio = v; expUI(); expDraw(); saveE(); }; box.appendChild(b);
+  }
+  $$('#segFrame button').forEach(b => b.classList.toggle('on', b.dataset.v === E.bg));
+  $$('.tg').forEach(b => { b.classList.toggle('on', !!E[b.dataset.k]); });
+  $$('#segQ button').forEach(b => b.classList.toggle('on', b.dataset.v === E.q));
+  $('#sMargin').value = E.margin; $('#vMargin').textContent = E.margin;
+  $('#sMargin').disabled = !E.frame;
+  $$('#segFrame button').forEach(b => b.disabled = !E.frame);
+}
+$$('#segFrame button').forEach(b => b.onclick = () => {
+  E.bg = b.dataset.v;
+  if(E.bg === 'custom'){ $('#frameIn').value = E.custom; $('#frameIn').click(); }
+  expUI(); expDraw(); saveE();
+});
+$('#frameIn').oninput = (e) => { E.custom = e.target.value; E.bg = 'custom'; expUI(); expDraw(); saveE(); };
+$$('.tg').forEach(b => b.onclick = () => { E[b.dataset.k] = !E[b.dataset.k]; expUI(); expDraw(); saveE(); });
+$$('#segQ button').forEach(b => b.onclick = () => { E.q = b.dataset.v; expUI(); saveE(); });
+$('#sMargin').oninput = (e) => { E.margin = +e.target.value; $('#vMargin').textContent = E.margin; expDraw(); saveE(); };
+$('#bExp').onclick = () => {
+  if(!SRC) return;
+  E.pal = palette();
+  show('exp'); expUI(); document.fonts.ready.then(expDraw); expDraw();
+};
+$('#eBack').onclick = () => { show('edit'); layout(); };
+$('#eHome').onclick = () => { show('home'); };
+
+/* のこった 色の 中で 多い 色（色構成） */
+function palette(){
+  if(!S.color) return [];
+  const T = oklab(S.color), thr = thrOf(S.range), soft = softOf(S.soft), cnt = new Map();
+  const w = PV.width, h = PV.height, step = Math.max(1, Math.round(Math.sqrt(w * h / 60000)));
+  for(let y = 0; y < h; y += step) for(let x = 0; x < w; x += step){
+    const i = (y * w + x) * 4, c = [PD[i], PD[i + 1], PD[i + 2]];
+    let k = keepOf(c, T, thr, soft);
+    if(S.area === 'part' && S.maskData) k *= S.maskData[Math.min(S.maskH - 1, Math.floor(y / h * S.maskH)) * S.maskW + Math.min(S.maskW - 1, Math.floor(x / w * S.maskW))] / 255;
+    if(k < .5) continue;
+    const key = (c[0] >> 4) << 8 | (c[1] >> 4) << 4 | (c[2] >> 4);
+    const e = cnt.get(key) || [0, 0, 0, 0]; e[0] += c[0]; e[1] += c[1]; e[2] += c[2]; e[3]++; cnt.set(key, e);
+  }
+  const list = [...cnt.values()].sort((a, b) => b[3] - a[3]).map(e => [e[0] / e[3], e[1] / e[3], e[2] / e[3]]);
+  const out = [];
+  for(const c of list){
+    const L = oklab(c);
+    if(out.every(o => { const M = oklab(o); return Math.hypot(L[0] - M[0], L[1] - M[1], L[2] - M[2]) > .06; })) out.push(c);
+    if(out.length >= 5) break;
+  }
+  return out.length ? out : [S.color];
+}
+function keepOf(c, T, thr, soft){
+  const L = oklab(c), d = Math.hypot((L[0] - T[0]) * .45, L[1] - T[1], L[2] - T[2]);
+  const t = clamp((d - thr) / soft, 0, 1); return 1 - t * t * (3 - 2 * t);
+}
+
+/* 並べかた。W×H の 紙に 写真と ラベルを どう置くか */
+function plan(W, H, pw, ph){
+  const m = Math.min(W, H), labels = !!S.color && (E.swatch || E.code) || (E.palette && E.pal.length);
+  if(!E.frame){
+    const s = Math.max(W / pw, H / ph), cw = W / s, ch = H / s;
+    return {dx:0, dy:0, dw:W, dh:H, sx:(pw - cw) / 2, sy:(ph - ch) / 2, sw:cw, sh:ch, labels, pill:true, unit:m * .032};
+  }
+  const mg = E.margin / 100 * .14 * m, band = labels ? m * .085 : 0;
+  const bw = Math.max(1, W - mg * 2), bh = Math.max(1, H - mg * 2 - band);
+  const s = Math.min(bw / pw, bh / ph), dw = pw * s, dh = ph * s;
+  const dx = (W - dw) / 2, dy = mg + (bh - dh) / 2;
+  return {dx, dy, dw, dh, sx:0, sy:0, sw:pw, sh:ph, labels, ly:dy + dh + band / 2 + mg * .15, unit:m * .03};
+}
+function sizeFor(long, pw, ph){
+  const ar = E.ratio || pw / ph;
+  return ar >= 1 ? [long, Math.round(long / ar)] : [Math.round(long * ar), long];
+}
+function bgColor(){
+  return {white:'#FFFFFF', black:'#141414', accent:S.color ? hex(S.color) : '#FFFFFF', custom:E.custom}[E.bg];
+}
+function lum(h){ const c = fromHex(h); return (c[0] * .299 + c[1] * .587 + c[2] * .114) / 255; }
+function compose(cv, W, H, photo, pw, ph){
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d'), P = plan(W, H, pw, ph);
+  x.imageSmoothingQuality = 'high';
+  x.fillStyle = E.frame ? bgColor() : '#000'; x.fillRect(0, 0, W, H);
+  x.drawImage(photo, P.sx, P.sy, P.sw, P.sh, P.dx, P.dy, P.dw, P.dh);
+  if(!P.labels) return;
+  const u = P.unit, items = [];
+  const font = `800 ${u}px "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif`;
+  x.font = font;
+  if(S.color && E.swatch) items.push({w:u * 1.1, draw:(px, cy) => { x.beginPath(); x.arc(px + u * .55, cy, u * .55, 0, Math.PI * 2); x.fillStyle = hex(S.color); x.fill(); x.lineWidth = u * .08; x.strokeStyle = ink; x.stroke(); }});
+  if(S.color && E.code){ const t = hex(S.color), tw = x.measureText(t).width; items.push({w:tw, draw:(px, cy) => { x.fillStyle = ink; x.textBaseline = 'middle'; x.font = font; x.fillText(t, px, cy + u * .04); }}); }
+  if(E.palette && E.pal.length){ const q = u * .8, g = u * .15;
+    items.push({w:E.pal.length * q + (E.pal.length - 1) * g, draw:(px, cy) => E.pal.forEach((c, i) => {
+      x.fillStyle = hex(c); x.fillRect(px + i * (q + g), cy - q / 2, q, q);
+      x.lineWidth = u * .06; x.strokeStyle = ink; x.strokeRect(px + i * (q + g), cy - q / 2, q, q); })});
+  }
+  var ink;
+  const gap = u * .5, tot = items.reduce((a, b) => a + b.w, 0) + gap * (items.length - 1);
+  let px, cy;
+  if(P.pill){
+    const pad = u * .6, bx = u, by = H - u - u * 1.8, bw = tot + pad * 2, bh = u * 1.8;
+    x.fillStyle = 'rgba(255,254,247,.92)';
+    x.beginPath(); x.roundRect ? x.roundRect(bx, by, bw, bh, bh / 2) : x.rect(bx, by, bw, bh); x.fill();
+    ink = '#1E1C14'; px = bx + pad; cy = by + bh / 2;
+  } else {
+    ink = lum(bgColor()) > .55 ? '#1E1C14' : '#F5F4EC';
+    px = (W - tot) / 2; cy = P.ly;
+  }
+  for(const it of items){ it.draw(px, cy); px += it.w + gap; }
+}
+function expDraw(){
+  if(!SRC || $('#exp').classList.contains('hide')) return;
+  renderNow(); // いまの 仕上がりを view に 描いておく
+  const box = $('#exp .pv').getBoundingClientRect();
+  const long = Math.round(Math.min(1400, Math.max(box.width, box.height) * Math.min(2, devicePixelRatio || 1)));
+  const [W, H] = sizeFor(long, view.width, view.height);
+  compose(ec, W, H, view, view.width, view.height);
+  const s = Math.min((box.width - 26) / W, (box.height - 26) / H);
+  ec.style.width = W * s + 'px'; ec.style.height = H * s + 'px';
+}
+
+/* 本番の 大きさで 焼く */
+let XR = null;
+async function renderFull(){
+  await document.fonts.ready;
+  if(!XR) XR = new Renderer(document.createElement('canvas'));
+  // まず 1000px で 並べて、写真が どれだけの 大きさで 描かれるか を 見る
+  const [W0, H0] = sizeFor(1000, SW, SH), P0 = plan(W0, H0, SW, SH);
+  let f;
+  if(E.q === 'std') f = 2048 / 1000;
+  else f = (P0.sw / P0.dw);           // 写真が 元の 画素 1:1 に なる 倍率
+  f = Math.min(f, Math.sqrt(16e6 / (W0 * H0)), 8192 / 1000);
+  const W = Math.round(W0 * f), H = Math.round(H0 * f);
+  // 写真を 描く 大きさ（元より 大きくは しない）
+  const pk = Math.min(1, (P0.dw * f) / P0.sw, XR.max / Math.max(SW, SH));
+  const pw = Math.max(1, Math.round(SW * pk)), ph = Math.max(1, Math.round(SH * pk));
+  const pc = document.createElement('canvas'); pc.width = pw; pc.height = ph;
+  pc.getContext('2d').drawImage(SRC, 0, 0, pw, ph);
+  XR.size(pw, ph); XR.image(pc);
+  if(S.area === 'part'){
+    const k = Math.min(1, 2048 / Math.max(pw, ph)), mw = Math.round(pw * k), mh = Math.round(ph * k);
+    XR.mask(rasterMask(mw, mh), mw, mh);
+  }
+  XR.draw({...S, useMask:S.area === 'part', orig:false});
+  const out = document.createElement('canvas');
+  compose(out, W, H, XR.cv, pw, ph);
+  pc.width = pc.height = 1;
+  return new Promise(ok => out.toBlob(ok, 'image/jpeg', .94));
+}
+const fname = () => { const d = new Date(), p = (n) => String(n).padStart(2, '0');
+  return `nokoshi-iro-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.jpg`; };
+async function busy(btn, fn){
+  btn.disabled = true;
+  try{ await fn(); }catch(e){ if(e && e.name !== 'AbortError') toast('うまく いきませんでした'); console.error(e); }
+  btn.disabled = false;
+}
+$('#bSave').onclick = () => busy($('#bSave'), async () => {
+  const blob = await renderFull(), name = fname();
+  const file = new File([blob], name, {type:'image/jpeg'});
+  // iPhone は 共有シートから「画像を保存」で 写真に 入る
+  if(/iPhone|iPad|iPod/.test(navigator.userAgent) && navigator.canShare && navigator.canShare({files:[file]})){
+    await navigator.share({files:[file]}); return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('保存しました');
+});
+$('#bShare').onclick = () => busy($('#bShare'), async () => {
+  const blob = await renderFull(), file = new File([blob], fname(), {type:'image/jpeg'});
+  if(navigator.canShare && navigator.canShare({files:[file]})) await navigator.share({files:[file]});
+  else toast('この ブラウザは 共有に 対応していません');
+});
+</script>
+</body>
+</html>

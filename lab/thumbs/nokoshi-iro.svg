@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs>
+    <pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/>
+    </pattern>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3935"/><stop offset="1" stop-color="#d9d8d2"/>
+    </linearGradient>
+    <clipPath id="ph"><rect x="208" y="52" width="184" height="196"/></clipPath>
+  </defs>
+  <rect width="600" height="400" fill="#FBFAEC"/>
+  <rect width="600" height="400" fill="url(#dots)"/>
+
+  <!-- 紙の わく -->
+  <rect x="186" y="34" width="228" height="300" rx="6" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3"/>
+  <g clip-path="url(#ph)">
+    <rect x="208" y="52" width="184" height="196" fill="url(#sky)"/>
+    <path d="M208 178 Q260 164 300 172 T392 168 V248 H208Z" fill="#5d5c57"/>
+    <g fill="#8d8c86">
+      <circle cx="226" cy="206" r="9"/><circle cx="262" cy="222" r="11"/><circle cx="338" cy="214" r="10"/>
+      <circle cx="372" cy="232" r="12"/><circle cx="300" cy="238" r="9"/><circle cx="244" cy="238" r="7"/>
+    </g>
+    <!-- のこった 色 -->
+    <g fill="#FFAC03" stroke="#1E1C14" stroke-width="1.5">
+      <circle cx="300" cy="140" r="17"/>
+      <circle cx="246" cy="196" r="8"/><circle cx="318" cy="200" r="9"/><circle cx="356" cy="190" r="7"/>
+      <circle cx="282" cy="214" r="7"/>
+    </g>
+    <circle cx="300" cy="140" r="6" fill="#4a3a26"/>
+    <path d="M300 157 V180" stroke="#2e2d29" stroke-width="3"/>
+  </g>
+  <rect x="208" y="52" width="184" height="196" fill="none" stroke="#1E1C14" stroke-width="2"/>
+  <circle cx="254" cy="290" r="10" fill="#FFAC03" stroke="#1E1C14" stroke-width="2.5"/>
+  <text x="272" y="297" font-family="DotGothic16, monospace" font-size="20" fill="#1E1C14">#FFAC03</text>
+
+  <!-- スポイト -->
+  <g transform="translate(430 96) rotate(35)">
+    <rect x="-9" y="0" width="18" height="70" rx="8" fill="#E1DD60" stroke="#1E1C14" stroke-width="3"/>
+    <path d="M-5 70 L0 96 L5 70Z" fill="#FFFEF7" stroke="#1E1C14" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="-13" y="-22" width="26" height="24" rx="10" fill="#1E1C14"/>
+  </g>
+</svg>
