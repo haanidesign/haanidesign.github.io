@@ -3,7 +3,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './state.js?v=70';
+import { S, toast } from './state.js?v=71';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -27,14 +27,9 @@ const keyOf = j => JSON.stringify([
   j.extra, j.wa, j.lineScale, j.snap, j.tail, j.lineTimes, j.beatOffset, j.ov
 ]);
 
-/** ふだの 中身から 組み立てる */
-export function planOf(j) {
+/** ふだの 中身から JIZURA の project を 作る */
+function projectOf(j) {
   const J = JZ();
-  if (!J) return null;
-  const k = keyOf(j);
-  const hit = planCache.get(k);
-  if (hit) return hit;
-
   const pr = J.defaultProject();
   pr.lyrics = j.lyrics || '';
   pr.style = j.style || 'noir';
@@ -59,6 +54,19 @@ export function planOf(j) {
     tail: num(j.tail, .9),
     lineTimes: j.lineTimes || {}
   });
+
+  return pr;
+}
+
+/** ふだの 中身から 組み立てる */
+export function planOf(j) {
+  const J = JZ();
+  if (!J) return null;
+  const k = keyOf(j);
+  const hit = planCache.get(k);
+  if (hit) return hit;
+
+  const pr = projectOf(j);
 
   const audio = j.bpm > 0 ? { beats: J.beatGrid(j.bpm, j.beatOffset || 0, 900) } : null;
   let plan = null;
@@ -163,6 +171,50 @@ export function cutNow(j) {
   return out;
 }
 
+/* ---------- 部品の みほん（小さな うごく 絵） ----------
+   nocore-dtm/JIZURA の 手法カードと 同じ しくみ。
+   その 部品 1つだけを 見せる 1カットの 小さな 組み立てを エンジンに 作らせて、
+   見えて いる カードだけ 少しずつ 焼く。 */
+const prevPlans = new Map();
+let prevR = null;
+function previewPlanOf(j, group, key) {
+  const J = JZ();
+  if (!J || !J.previewPlan) return null;
+  const id = [j.style, j.W, j.H, group, key].join('|');
+  let pl = prevPlans.get(id);
+  if (pl) return pl;
+  try { pl = J.previewPlan(projectOf(j), group, key); } catch (e) { pl = null; }
+  if (!pl) return null;
+  prevPlans.set(id, pl);
+  if (prevPlans.size > 400) prevPlans.delete(prevPlans.keys().next().value);
+  return pl;
+}
+/** いつを 見せるか。登場は 入り、退場は 出、そのほかは カット ぜんぶを くり返す */
+function previewTime(pl, group, now) {
+  const c = pl.cuts[pl.cuts.length - 1];
+  const u = now / 1000;
+  if (group === 'enter') return c.start + ((u % 1.5) / 1.5) * Math.max(.3, c.inDur || .5);
+  if (group === 'exit') { const od = Math.max(.3, c.outDur || .5); return c.end - od + ((u % 1.5) / 1.5) * od; }
+  if (group === 'trans') return c.start + ((u % 1.7) / 1.7) * (c.transDur || .35);
+  const span = Math.max(1.6, c.dur * .96);
+  return c.start + ((u % span) / span) * (c.dur * .96);
+}
+/** 小さな キャンバスに 1コマ 焼く */
+export function paintPreview(cv, j, group, key, now) {
+  const J = JZ();
+  const pl = previewPlanOf(j, group, key);
+  const g = cv.getContext('2d');
+  if (!J || !pl) { g.fillStyle = '#131316'; g.fillRect(0, 0, cv.width, cv.height); return false; }
+  if (!prevR) prevR = new J.Renderer();
+  try {
+    prevR.frame(g, pl, previewTime(pl, group, now || performance.now()),
+      { scale: cv.width / pl.W, fast: true, noHud: true, noGhost: true });
+  } catch (e) { g.fillStyle = '#131316'; g.fillRect(0, 0, cv.width, cv.height); return false; }
+  return true;
+}
+/** みほんの 大きさ（画面比に 合わせる） */
+export const previewSize = (j, h = 66) => [Math.max(80, Math.round(h * (j.W || 16) / (j.H || 9))), h];
+
 /** その スタイルが じっさいに つかって いる 部品だけ（雰囲気を こわさない ため）*/
 export function partPool(j, group) {
   const base = planOf(j);
@@ -235,7 +287,8 @@ export function newJz(o = {}) {
     off: 0, noTrans: false, layer: null, ov: {}
   }, o);
 }
-export const clearCache = () => planCache.clear();
+export const clearCache = () => { planCache.clear(); };
+export const clearPreview = () => prevPlans.clear();
 
 /** 歌詞の 行（空行と メタ行を のぞいた もの）。タップで 合わせる とき に つかう */
 export function linesOf(lyrics) {
