@@ -2,351 +2,479 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ぼんご — キーボードに合わせて手が動く配信用オーバーレイ</title>
-<meta name="description" content="打ったキーの位置に合わせて手が動くキャラクターの台。自分の絵をドロップすると差し替わり、パーツごとに位置と大きさを合わせられる。タブレットモードではペン先がマウスについてくる。">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ぼんご</title>
+<meta name="description" content="打ったキーの位置に合わせて手が動くキャラクターの台。タブレットモードではペンを持った手がマウスについてくる。PSDやPNGで自分の絵に差し替え、ステージの上でつかんで位置を合わせる。">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#12131a; --panel:#1b1d27; --panel2:#22242f; --line:#2e3140;
-  --ink:#e8e6df; --dim:#8b8fa3;
-  --acc:#8b7cff; --acc2:#4fd1c5; --ng:#ff5d6c; --ok:#7ddc8c;
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470; --pink:#F2A0B8;
+  --bd:2.5px solid var(--ink); --r:12px;
 }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
-header{padding:11px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-h1{font-size:16px;margin:0;letter-spacing:.14em;font-family:ui-monospace,Menlo,monospace}
-h1 b{color:var(--acc)}
-header span{font-size:12px;color:var(--dim)}
-header .sp{flex:1}
-.wrap{display:flex;align-items:stretch;min-height:calc(100vh - 48px);flex-wrap:wrap}
-.side{width:330px;flex:0 0 330px;border-right:1px solid var(--line);padding:14px;background:var(--panel)}
-.side.r{border-right:none;border-left:1px solid var(--line);width:300px;flex:0 0 300px}
-.main{flex:1 1 380px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:300px}
-@media(max-width:1150px){.side,.side.r{width:100%;flex:0 0 auto;border:none;border-bottom:1px solid var(--line)}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+[hidden]{display:none!important;}
+html,body{height:100%;}
+body{
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI','Meiryo',sans-serif;
+  font-weight:700;color:var(--ink);background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow:hidden;
+}
 
-h2.sec{font-size:11px;letter-spacing:.14em;color:var(--acc);margin:16px 0 8px;
-  font-family:ui-monospace,monospace;border-bottom:1px solid var(--line);padding-bottom:5px}
-h2.sec:first-child{margin-top:0}
-.row{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12px}
-.row label{color:var(--dim);flex:0 0 92px}
-.row .val{margin-left:auto;font-family:ui-monospace,monospace;color:var(--acc2);font-size:11px;
-  flex:0 0 46px;text-align:right}
-input[type=range]{flex:1;accent-color:var(--acc);min-width:50px}
-select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
-  border-radius:6px;padding:5px 6px;font:inherit;font-size:12px;width:100%}
-.seg{display:flex;gap:6px;flex-wrap:wrap}
-.seg button{flex:1;min-width:60px;background:var(--panel2);color:var(--dim);border:1px solid var(--line);
-  border-radius:6px;padding:6px 4px;font:inherit;font-size:12px;cursor:pointer}
-.seg button.on{background:var(--acc);border-color:var(--acc);color:#12131a;font-weight:700}
-.chk{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin:7px 0;cursor:pointer}
-.chk input{accent-color:var(--acc)}
-.btn{width:100%;background:var(--acc);color:#12131a;border:none;border-radius:6px;
-  padding:9px;font:inherit;font-weight:700;font-size:12px;cursor:pointer;margin-top:8px}
-.btn.sub{background:var(--panel2);color:var(--dim);border:1px solid var(--line);font-weight:400}
-.note{font-size:11px;color:var(--dim);line-height:1.7;margin:8px 0 0}
-.note code{color:var(--acc2);font-size:10.5px}
+button,.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
+  background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:var(--r);
+  padding:.35rem .75rem;font:inherit;font-size:.74rem;font-weight:700;text-decoration:none;
+  box-shadow:0 3px 0 var(--ink);cursor:pointer;
+  transition:transform .07s,box-shadow .07s,background .13s;white-space:nowrap;
+}
+button:hover,.btn:hover{background:var(--main);}
+button:active,.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink);}
+button.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+.btn-sm{padding:.2rem .55rem;font-size:.68rem;box-shadow:0 2.5px 0 var(--ink);border-radius:9px;}
+.btn-y{background:var(--main);}
+.btn-y:hover{background:var(--main-deep);}
+.btn-g{background:var(--ink);color:var(--main);}
+.btn-g:hover{background:#000;color:var(--main);}
+button.danger:hover{background:var(--pink);}
 
-/* パーツ一覧 */
-.parts{display:flex;flex-direction:column;gap:5px}
-.part{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
-  border-radius:7px;padding:5px 7px;font-size:11.5px;cursor:pointer}
-.part.sel{border-color:var(--acc)}
-.part .pv{width:34px;height:34px;flex:0 0 34px;border-radius:5px;background:#15161e;
-  background-image:linear-gradient(45deg,#262835 25%,transparent 25%,transparent 75%,#262835 75%),
-    linear-gradient(45deg,#262835 25%,transparent 25%,transparent 75%,#262835 75%);
-  background-size:12px 12px;background-position:0 0,6px 6px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden}
-.part .pv img{max-width:100%;max-height:100%;display:block}
-.part .nm{flex:1;line-height:1.35}
-.part .nm i{display:block;font-style:normal;color:var(--dim);font-size:10px}
-.part .st{font-size:10px;color:var(--dim)}
-.part .st.has{color:var(--ok)}
-.part .x{background:none;border:1px solid var(--line);color:var(--dim);border-radius:5px;
-  padding:1px 6px;font-size:11px;cursor:pointer}
+input,select{
+  font:inherit;font-size:.72rem;font-weight:700;color:var(--ink);
+  background:var(--paper);border:2px solid var(--ink);border-radius:8px;padding:.12rem .4rem;
+}
+input[type=checkbox]{accent-color:var(--main-deep);width:auto;}
+input[type=range]{padding:0;border:none;background:transparent;height:16px;accent-color:var(--main-deep);width:100%;}
+select{cursor:pointer;}
 
-/* PSD レイヤー一覧 */
-.layers{display:flex;flex-direction:column;gap:3px;max-height:260px;overflow:auto;margin:8px 0}
-.layers:empty{display:none}
-.lay{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);
-  border-radius:6px;padding:3px 5px;font-size:11px}
-.lay .pv{width:26px;height:26px;flex:0 0 26px;background:#15161e;border-radius:4px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden}
-.lay .pv img{max-width:100%;max-height:100%}
-.lay .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
-.lay select{width:104px;flex:0 0 104px;padding:2px 3px;font-size:10.5px}
+#app{
+  display:grid;height:calc(100% - 16px);margin:8px;
+  grid-template-columns:250px 1fr 300px;
+  grid-template-rows:auto 1fr;
+  grid-template-areas:"tb tb tb" "side main detail";
+  border:var(--bd);border-radius:18px;background:var(--paper);
+  box-shadow:0 6px 0 var(--ink);overflow:hidden;
+}
+#tb{grid-area:tb;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
+  background:var(--main);border-bottom:var(--bd);padding:.45rem .8rem;}
+#tb h1{font-size:.95rem;font-weight:800;margin-right:.4rem;}
+#tb h1 a{color:inherit;text-decoration:none;}
+#tb .grow{flex:1;}
+#tb label{font-size:.7rem;display:flex;align-items:center;gap:.3rem;}
+.seg{display:flex;gap:.35rem;}
+.seg button{flex:1;}
 
-/* ---- ステージ ---- */
-.stagebox{border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative;background:#2b2d3a}
-#stage{display:block;width:100%;height:auto;touch-action:none}
-.stagebox.green{background:#00b140}
-.stagebox.blue{background:#0047bb}
-.stagebox.clear{background:
-  linear-gradient(45deg,#3a3d4d 25%,transparent 25%,transparent 75%,#3a3d4d 75%),
-  linear-gradient(45deg,#3a3d4d 25%,transparent 25%,transparent 75%,#3a3d4d 75%) 10px 10px,#2b2d3a;
-  background-size:20px 20px}
-.stagebox.drop::after{content:"ここに絵を落とす";position:absolute;inset:6px;border:2px dashed var(--acc);
-  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;
-  color:var(--acc);background:rgba(18,19,26,.55);pointer-events:none}
-.hint{font-size:11px;color:var(--dim);line-height:1.8}
-.hint b{color:var(--ink)}
-.keylog{font-family:ui-monospace,monospace;font-size:11px;color:var(--acc2);min-height:1.4em}
+.panel{overflow:auto;padding:.7rem;display:flex;flex-direction:column;gap:.7rem;background:var(--cream);}
+#side{grid-area:side;border-right:var(--bd);}
+#detail{grid-area:detail;border-left:var(--bd);}
+#main{grid-area:main;min-width:0;min-height:0;padding:.8rem;display:flex;flex-direction:column;gap:.5rem;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);background-size:16px 16px;}
 
-body.solo header,body.solo .side,body.solo .hint,body.solo .keylog{display:none}
-body.solo{background:#000}
-body.solo .main{padding:0}
-body.solo .stagebox{border:none;border-radius:0;height:100vh}
-body.solo #stage{height:100vh;width:100%}
-.exit{display:none;position:fixed;right:10px;bottom:10px;z-index:9;opacity:.25;width:auto;padding:6px 12px}
-body.solo .exit{display:block}
-.exit:hover{opacity:1}
+.box{background:var(--paper);border:2px solid var(--ink);border-radius:var(--r);padding:.55rem .6rem;
+  display:flex;flex-direction:column;gap:.45rem;box-shadow:0 3px 0 var(--ink);}
+.title{align-self:flex-start;background:var(--ink);color:var(--main);border-radius:100px;padding:.08rem .7rem;font-size:.66rem;}
+.row{display:flex;align-items:center;gap:.4rem;font-size:.7rem;flex-wrap:wrap;}
+.row > span:first-child{min-width:5.6em;}
+.row .val{min-width:2.6em;text-align:right;font-size:.66rem;}
+.row input[type=range]{flex:1;width:auto;min-width:60px;}
+.row label{display:flex;align-items:center;gap:.35rem;cursor:pointer;}
+.hint{background:var(--main-soft);border:2px dashed var(--ink);border-radius:10px;
+  padding:.4rem .5rem;font-size:.62rem;font-weight:400;color:#5c5843;line-height:1.6;}
+.hint b{font-weight:700;color:var(--ink);}
+
+#drop{border:2.5px dashed var(--ink);border-radius:var(--r);padding:.7rem .5rem;text-align:center;
+  font-size:.72rem;cursor:pointer;background:var(--paper);}
+#drop.over{background:var(--main-soft);}
+#drop small{display:block;font-weight:400;font-size:.6rem;}
+
+/* パーツの ならび */
+.plist{display:flex;flex-direction:column;gap:.3rem;}
+.plist .gl{font-size:.6rem;color:var(--gray);margin-top:.25rem;}
+.item{display:flex;align-items:center;gap:.45rem;background:var(--paper);border:2px solid var(--ink);
+  border-radius:9px;padding:.2rem .4rem;box-shadow:0 2.5px 0 var(--ink);cursor:pointer;font-size:.7rem;
+  transition:transform .07s,box-shadow .07s,background .13s;}
+.item:hover{background:var(--main-soft);}
+.item.sel{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2.5px);}
+.item .pv{width:30px;height:30px;flex:0 0 30px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;background:repeating-conic-gradient(#E8E5CF 0 25%,#FFFEF7 0 50%) 0 0/10px 10px;}
+.item .pv img{max-width:100%;max-height:100%;display:block;}
+.item .nm{flex:1;line-height:1.3;min-width:0;}
+.item .nm i{display:block;font-style:normal;font-weight:400;font-size:.58rem;color:var(--gray);}
+.item .st{font-size:.58rem;color:var(--gray);}
+.item .x{padding:.02rem .38rem;font-size:.62rem;box-shadow:0 2px 0 var(--ink);border-radius:7px;}
+
+/* PSD の レイヤー */
+.lays{display:flex;flex-direction:column;gap:.25rem;max-height:250px;overflow:auto;}
+.lay{display:flex;align-items:center;gap:.35rem;font-size:.64rem;background:var(--paper);
+  border:2px solid var(--ink);border-radius:8px;padding:.15rem .3rem;}
+.lay canvas{width:24px;height:24px;flex:0 0 24px;}
+.lay .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lay select{width:112px;flex:0 0 112px;font-size:.6rem;padding:.05rem .2rem;}
+
+/* ステージ */
+#screen{position:relative;flex:1;min-height:260px;border:var(--bd);border-radius:14px;overflow:hidden;}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;user-select:none;}
+#screen.bg-checker{background:repeating-conic-gradient(#E8E5CF 0 25%,#FFFEF7 0 50%) 0 0/20px 20px;}
+#screen.bg-green{background:#00B140;}
+#screen.bg-blue{background:#0047BB;}
+#screen.bg-white{background:#fff;}
+#screen.edit #cv{cursor:grab;}
+#screen.edit.grab #cv{cursor:grabbing;}
+#screen.over::after{content:"ここに 絵を おとす";position:absolute;inset:8px;border:2.5px dashed var(--ink);
+  border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.9rem;
+  background:rgba(242,240,190,.85);pointer-events:none;}
+#cv .fade{transition:opacity .25s;}
+#cv [data-part]{cursor:inherit;}
+#status{font-size:.66rem;font-weight:400;color:#5c5843;min-height:1.3em;}
+
+/* 配信用 */
+body.solo{background:#000;}
+body.solo #tb,body.solo #side,body.solo #detail,body.solo #status,body.solo #editHint{display:none!important;}
+body.solo #app{grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"main";
+  margin:0;height:100%;border:0;border-radius:0;box-shadow:none;}
+body.solo #main{padding:0;background:none;}
+body.solo #screen{border:0;border-radius:0;}
+#exit{display:none;position:fixed;right:10px;bottom:10px;z-index:9;opacity:.25;}
+body.solo #exit{display:inline-flex;}
+#exit:hover{opacity:1;}
+
+@media (max-width:980px){
+  body{overflow:auto;}
+  #app{height:auto;min-height:calc(100% - 16px);grid-template-columns:1fr;grid-template-rows:auto;
+    grid-template-areas:"tb" "main" "detail" "side";}
+  #side{border-right:none;border-top:var(--bd);}
+  #detail{border-left:none;border-top:var(--bd);}
+  #screen{min-height:0;flex:none;aspect-ratio:640/420;}
+}
 </style>
+<!-- 共通の 見た目で つかう 字 -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<!-- はぁにラボ 共通の 見た目（さいごに 読む） -->
+<link rel="stylesheet" href="../skin/soft.css?v=11">
+<script type="module" src="../skin/icons.js?v=7"></script>
 </head>
 <body>
-<header>
-  <h1>BON<b>GO</b></h1>
-  <span>打ったキーの所に手が行く。タブレットではペン先がマウスにつく。</span>
-  <div class="sp"></div>
-  <span id="modeTag">キーボード</span>
-</header>
-
-<div class="wrap">
-  <!-- ============ 左：うごき ============ -->
-  <div class="side">
-    <h2 class="sec">入力モード</h2>
+<div id="app">
+  <div id="tb">
+    <h1><a href="../../index.html">ぼんご</a></h1>
     <div class="seg" id="modeSeg">
-      <button data-v="key" class="on">キーボード</button>
-      <button data-v="pen">タブレット</button>
+      <button data-v="key" class="btn-sm on">キーボード</button>
+      <button data-v="pen" class="btn-sm">タブレット</button>
     </div>
-    <p class="note">タブレットは、ステージの上のマウス（ペン）位置にペン先がついてくる。</p>
+    <button id="editBtn" class="btn-sm">📐 配置を なおす</button>
+    <label>背景 <select id="bg">
+      <option value="checker">すけ</option><option value="green">緑</option>
+      <option value="blue">青</option><option value="white">白</option>
+    </select></label>
+    <span class="grow"></span>
+    <button id="solo" class="btn-g btn-sm">🖥 配信用に 大きく</button>
+  </div>
 
-    <h2 class="sec">ペンを もつ手</h2>
-    <div class="seg" id="handSeg">
-      <button data-v="right" class="on">右きき</button>
-      <button data-v="left">左きき</button>
-    </div>
-    <p class="note">こちらから見て、右ききは <b>左がわの手</b>（キャラの右手）が持つ。
-      キーボードモードには関わらない。</p>
-
-    <h2 class="sec">うごき</h2>
-    <label class="chk"><input type="checkbox" id="bounce" checked>打った時にはずむ</label>
-    <label class="chk"><input type="checkbox" id="blink" checked>まばたきする（はじめの絵だけ）</label>
-    <label class="chk"><input type="checkbox" id="arm" checked>うでの線をひく</label>
-    <div class="row"><label>はずむ強さ</label><input type="range" id="bAmt" min="0" max="30" value="12"><span class="val" id="bAmtV">12</span></div>
-    <div class="row"><label>もどる速さ</label><input type="range" id="bSpd" min="4" max="30" value="14"><span class="val" id="bSpdV">14</span></div>
-    <div class="row"><label>手の下がり</label><input type="range" id="press" min="0" max="40" value="14"><span class="val" id="pressV">14</span></div>
-    <div class="row"><label>打つ絵の長さ</label><input type="range" id="hold" min="50" max="400" step="10" value="120"><span class="val" id="holdV">120</span></div>
-
-    <h2 class="sec">全体の 大きさ</h2>
-    <div class="row"><label>大きさ</label><input type="range" id="scale" min="40" max="200" value="100"><span class="val" id="scaleV">100%</span></div>
-    <div class="row"><label>上下の位置</label><input type="range" id="offY" min="-160" max="160" value="0"><span class="val" id="offYV">0</span></div>
-    <div class="row"><label>左右の位置</label><input type="range" id="offX" min="-160" max="160" value="0"><span class="val" id="offXV">0</span></div>
-
-    <h2 class="sec">手の うごく はば</h2>
-    <div class="row"><label>いちばん左</label><input type="range" id="rMin" min="0" max="45" value="12"><span class="val" id="rMinV">12%</span></div>
-    <div class="row"><label>いちばん右</label><input type="range" id="rMax" min="55" max="100" value="88"><span class="val" id="rMaxV">88%</span></div>
-    <div class="row"><label>手のはやさ</label><input type="range" id="hSpd" min="5" max="40" value="22"><span class="val" id="hSpdV">22</span></div>
-    <div class="row"><label>手の高さ</label><input type="range" id="handY" min="200" max="380" value="306"><span class="val" id="handYV">306</span></div>
-    <div class="row"><label>ペンの長さ</label><input type="range" id="penLen" min="30" max="140" value="70"><span class="val" id="penLenV">70</span></div>
-
-    <h2 class="sec">背景</h2>
-    <div class="seg" id="bgSeg">
-      <button data-v="clear" class="on">すけ</button>
-      <button data-v="green">緑</button>
-      <button data-v="blue">青</button>
+  <!-- ============ 左：うごき ============ -->
+  <div id="side" class="panel">
+    <div class="box">
+      <span class="title">うごき</span>
+      <div class="row"><label><input type="checkbox" id="bounce"> 打った時に はずむ</label></div>
+      <div class="row"><span>はずむ強さ</span><input type="range" id="bAmt" min="0" max="30"><span class="val" id="bAmtV"></span></div>
+      <div class="row"><span>もどる速さ</span><input type="range" id="bSpd" min="4" max="30"><span class="val" id="bSpdV"></span></div>
+      <div class="row"><span>手の下がり</span><input type="range" id="press" min="0" max="40"><span class="val" id="pressV"></span></div>
+      <div class="row"><span>打つ絵の長さ</span><input type="range" id="hold" min="50" max="400" step="10"><span class="val" id="holdV"></span></div>
+      <div class="row"><span>手の はやさ</span><input type="range" id="hSpd" min="5" max="40"><span class="val" id="hSpdV"></span></div>
     </div>
 
-    <button class="btn" id="solo">配信用に大きく出す</button>
-    <button class="btn sub" id="reset">はじめの設定にもどす</button>
+    <div class="box">
+      <span class="title">ペン</span>
+      <div class="seg" id="handSeg">
+        <button data-v="right" class="btn-sm on">右きき</button>
+        <button data-v="left" class="btn-sm">左きき</button>
+      </div>
+      <div class="row"><span>上下の ゆれ</span><input type="range" id="penBand" min="0" max="80"><span class="val" id="penBandV"></span></div>
+      <div class="hint">ペン手は <b>右ききで</b> 描く。左ききに すると 左右が 入れかわる。
+        上下の ゆれは、マウスを 上下に 動かした ときに ペン先が ついてくる はば。</div>
+    </div>
+
+    <div class="box">
+      <span class="title">待機</span>
+      <div class="row"><span>待機まで</span><input type="range" id="idleSec" min="0" max="30"><span class="val" id="idleSecV"></span></div>
+      <div class="hint">キーも ペンも さわらない まま この秒数が たつと、「待機」の 絵 1枚に かわる。
+        さわると すぐ もどる。0 で しない。</div>
+    </div>
+
+    <div class="box">
+      <span class="title">はじめの 絵</span>
+      <div class="row"><label><input type="checkbox" id="arm"> うでの 線を ひく</label></div>
+      <div class="row"><label><input type="checkbox" id="blink"> まばたき する</label></div>
+      <div class="hint">自分の 絵を 入れた パーツには かからない。</div>
+    </div>
+
+    <div class="box">
+      <span class="title">ぜんたい</span>
+      <div class="row"><span>大きさ</span><input type="range" id="scale" min="30" max="300"><span class="val" id="scaleV"></span></div>
+      <button id="reset" class="btn-sm">↶ 設定を はじめに もどす</button>
+    </div>
   </div>
 
   <!-- ============ 中：ステージ ============ -->
-  <div class="main">
-    <div class="stagebox clear" id="stagebox">
-      <svg id="stage" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="main">
+    <div id="screen" class="bg-checker">
+      <svg id="cv" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
-    <div class="keylog" id="keylog">キーを打つと、その位置に手が行く。</div>
-    <p class="hint"><b>PSD</b>＝そのままステージにドロップすると、レイヤーを見て振り分ける。<br>
-      <b>キーボードモード</b>＝押したキーの横の位置で、左手・右手の行き先が決まる。左半分は左手、右半分は右手。<br>
-      <b>タブレットモード</b>＝ステージの上でマウスを動かすとペン先がついてくる。押している間は下がる。<br>
-      <b>自分の絵</b>＝ステージに画像をドロップ。まとめて落とすと、ファイル名でパーツに振り分ける。</p>
-    <button class="btn exit" id="exit">もどる</button>
+    <div id="editHint" class="hint" hidden>
+      <b>絵を つかんで</b> 動かす ／ <b>ホイール</b>で 大きさ ／ <b>Shift＋ホイール</b>で かたむき ／ <b>矢印キー</b>で 1ずつ（Shiftで 10ずつ）<br>
+      <b>赤い 点</b>は 指先・ペン先が 当たる 所。手の 絵を 動かして、指先や ペン先を 赤い 点に 合わせる。
+      点線の <b>両はし</b>で 手の 動く はば、<b>まん中の つまみ</b>で 高さ。何も ない 所を つかむと ぜんぶ 動く。
+    </div>
+    <div id="status">キーを 打つと、その 位置に 手が 行く。</div>
   </div>
 
-  <!-- ============ 右：自分の絵 ============ -->
-  <div class="side r">
-    <h2 class="sec">自分の絵を入れる</h2>
-    <div class="parts" id="parts"></div>
-    <input type="file" id="pick" accept="image/*" multiple hidden>
-    <button class="btn" id="pickBtn">絵をえらぶ（まとめて可）</button>
-    <p class="note">透過PNG・GIF・WebP。ステージに直接ドロップしてもいい。<br>
-      まとめて落とすときのファイル名の目印：<br>
-      <code>base / body</code>（からだ）、<code>lhand-up / lhand-down</code>（左手）、
-      <code>rhand-up / rhand-down</code>（右手）、<code>pen</code>、<code>desk / key</code>（キーボード）、<code>tablet / 板</code>（タブレット）。<br>
-      目印がない名前は、上から空いているパーツに順に入る。</p>
+  <!-- ============ 右：絵 ============ -->
+  <div id="detail" class="panel">
+    <div class="box">
+      <span class="title">絵を 入れる</span>
+      <div id="drop">PNG か PSD を ここへ<small>（クリックでも えらべる・ステージに おとしても いい）</small></div>
+      <input type="file" id="pick" accept="image/*,.psd" multiple hidden>
+      <a class="btn btn-sm" id="tplBtn" href="template/bongo-template.psd" download>⬇ ひな形の PSD</a>
+      <div class="plist" id="plist"></div>
+    </div>
 
-    <h2 class="sec">PSD から 取り込む</h2>
-    <button class="btn sub" id="psdBtn">PSDをえらぶ</button>
-    <input type="file" id="psdFile" accept=".psd,image/vnd.adobe.photoshop" hidden>
-    <a class="btn sub" id="tplBtn" href="template/bongo-template.psd" download
-       style="display:block;text-align:center;text-decoration:none;line-height:1.4">
-       ひな形のPSDを もらう</a>
-    <div id="psdInfo" class="note"></div>
-    <div class="layers" id="layers"></div>
-    <button class="btn" id="psdGo" hidden>この わりあてで 作る</button>
-    <p class="note">レイヤー名に <code>手 / hand / 손</code>、<code>ペン / pen / 펜</code>、
-      <code>キーボード / desk / 키보드</code> などが入っていれば、自動でそこに入る。
-      わりあてなしのレイヤーは、まとめて「からだ」1枚になる（重なり順そのまま）。<br>
-      フォルダは中身をばらして読む。非表示レイヤーは はじめから外してある。<br>ひな形は 1920×1260（ステージの3倍）。名前と枠だけ合っていれば、大きさは自由。</p>
+    <div class="box" id="psdBox" hidden>
+      <span class="title">PSD の わりあて</span>
+      <div id="psdInfo" style="font-size:.66rem"></div>
+      <div class="lays" id="lays"></div>
+      <button id="psdGo" class="btn-y">この わりあてで 作る</button>
+      <div class="hint">わりあての ない レイヤーは、かさね順の まま「からだ」1枚に なる。
+        フォルダは ばらして 読む。<b>非表示の レイヤーも 名前が 合えば 使う</b>（差分は 非表示の まま で いい）。
+        名前の 合わない 非表示レイヤーと「ガイド」「下書き」は 使わない。</div>
+    </div>
 
-    <h2 class="sec">えらんだパーツを 合わせる</h2>
-    <div class="row"><label>左右</label><input type="range" id="pX" min="-200" max="200" value="0"><span class="val" id="pXV">0</span></div>
-    <div class="row"><label>上下</label><input type="range" id="pY" min="-200" max="200" value="0"><span class="val" id="pYV">0</span></div>
-    <div class="row"><label>大きさ</label><input type="range" id="pS" min="10" max="300" value="100"><span class="val" id="pSV">100%</span></div>
-    <div class="row"><label>かたむき</label><input type="range" id="pR" min="-180" max="180" value="0"><span class="val" id="pRV">0°</span></div>
-    <label class="chk"><input type="checkbox" id="pF">左右を反転する</label>
-    <button class="btn sub" id="pReset">このパーツの合わせを消す</button>
+    <div class="box">
+      <span class="title">えらんだ パーツ</span>
+      <div id="selName" style="font-size:.74rem"></div>
+      <div id="xyRows">
+        <div class="row"><span>左右</span><input type="range" id="pX" min="-320" max="320"><span class="val" id="pXV"></span></div>
+        <div class="row"><span>上下</span><input type="range" id="pY" min="-320" max="320"><span class="val" id="pYV"></span></div>
+      </div>
+      <div class="row"><span>大きさ</span><input type="range" id="pS" min="10" max="400"><span class="val" id="pSV"></span></div>
+      <div class="row"><span>かたむき</span><input type="range" id="pR" min="-180" max="180"><span class="val" id="pRV"></span></div>
+      <div class="row"><label><input type="checkbox" id="pF"> 左右を 反転</label></div>
+      <div id="tipRows" hidden>
+        <div class="hint">ペン手は、絵を 動かして <b>ペン先を 赤い 点に</b> 合わせる。</div>
+        <button id="tipAuto" class="btn-sm">🎯 ペン先を 自動で さがす</button>
+      </div>
+      <button id="pReset" class="btn-sm">↶ この パーツの 位置を もどす</button>
+    </div>
 
-    <h2 class="sec">とっておく</h2>
-    <button class="btn sub" id="save">まるごと書き出す（.json）</button>
-    <button class="btn sub" id="load">書き出したものを読む</button>
-    <input type="file" id="loadFile" accept="application/json,.json" hidden>
-    <p class="note">絵と設定は、このブラウザの中（IndexedDB）に残る。
-      別のPCでも同じにしたい時だけ、書き出したJSONを持っていく。</p>
-    <p class="note">OBS では「ウィンドウキャプチャ」でこのページを取り、背景を緑にしてクロマキーで抜くのが早い。
-      ブラウザソースだとキー入力を拾えない。</p>
+    <div class="box">
+      <span class="title">とっておく</span>
+      <div class="row">
+        <button id="save" class="btn-sm">💾 まるごと 書き出す</button>
+        <button id="load" class="btn-sm">📂 読む</button>
+      </div>
+      <input type="file" id="loadFile" accept=".json,application/json" hidden>
+      <div class="hint">絵と 設定は この ブラウザの 中に 残る。別の PC に 持っていく ときだけ 書き出す。<br>
+        OBS では「ウィンドウキャプチャ」で この ページを 取り、背景を 緑に して クロマキーで ぬく。
+        ブラウザソースだと キーが 拾えない。</div>
+    </div>
   </div>
 </div>
+<button id="exit" class="btn-sm">もどる</button>
 
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const svg=$('#stage'), NS='http://www.w3.org/2000/svg', W=640, H=420;
+const NS='http://www.w3.org/2000/svg', W=640, H=420;
+const svg=$('#cv'), scr=$('#screen');
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 /* ============================================================
-   パーツの決まり
+   パーツ
    ============================================================ */
 const PARTS=[
-  {k:'base',     nm:'からだ',      sub:'あたま＋からだ 1枚',      re:/base|body|chara|char|head|からだ|あたま|体|顔/i},
-  {k:'lhandUp',  nm:'左手（上）',  sub:'浮いている時',            re:/(l|left|左).*(up|上)|^lup/i},
-  {k:'lhandDown',nm:'左手（下）',  sub:'打っている時',            re:/(l|left|左).*(down|下|press|打)|^ldown/i},
-  {k:'rhandUp',  nm:'右手（上）',  sub:'浮いている時',            re:/(r|right|右).*(up|上)|^rup/i},
-  {k:'rhandDown',nm:'右手（下）',  sub:'打っている時',            re:/(r|right|右).*(down|下|press|打)|^rdown/i},
-  {k:'pen',      nm:'ペン',        sub:'タブレットの時だけ',      re:/pen|ペン|stylus/i},
-  {k:'desk',     nm:'台（キーボード）', sub:'キーボードモードの時', re:/desk|keyb|keyboard|キーボード|台|机/i},
-  {k:'deskPen',  nm:'台（タブレット）', sub:'タブレットモードの時', re:/tab|tablet|타블렛|板|下敷/i}
+  {k:'base',     nm:'からだ',           sub:'あたま＋からだ 1枚',       g:'共通'},
+  {k:'idle',     nm:'待機',             sub:'なにも して いない 時',     g:'共通'},
+  {k:'lhandUp',  nm:'左手（上）',       sub:'浮いている 時',             g:'キーボード'},
+  {k:'lhandDown',nm:'左手（下）',       sub:'打っている 時',             g:'キーボード'},
+  {k:'rhandUp',  nm:'右手（上）',       sub:'浮いている 時',             g:'キーボード'},
+  {k:'rhandDown',nm:'右手（下）',       sub:'打っている 時',             g:'キーボード'},
+  {k:'desk',     nm:'台（キーボード）', sub:'',                          g:'キーボード'},
+  {k:'penUp',    nm:'ペン手（はなす）', sub:'ペン先が 浮いている 時',    g:'タブレット'},
+  {k:'penDown',  nm:'ペン手（タッチ）', sub:'ペン先が ついている 時',    g:'タブレット'},
+  {k:'deskPen',  nm:'台（タブレット）', sub:'',                          g:'タブレット'}
 ];
-// パーツの置き場所（合わせのもと）。x,y はステージ座標、w は入れる箱の幅
+const PK=PARTS.map(p=>p.k);
+const PNAME=Object.fromEntries(PARTS.map(p=>[p.k,p.nm]));
+PNAME.rest='休んで いる 手';
+/* 置き場所。fit=bottom は 下はし中央、center は まん中が 基準 */
 const ANCHOR={
   base:     {x:320,y:366,w:300,h:320,fit:'bottom'},
-  lhandUp:  {x:0,y:0,w:70,h:70,fit:'center'},
-  lhandDown:{x:0,y:0,w:70,h:70,fit:'center'},
-  rhandUp:  {x:0,y:0,w:70,h:70,fit:'center'},
-  rhandDown:{x:0,y:0,w:70,h:70,fit:'center'},
-  pen:      {x:0,y:0,w:36,h:120,fit:'center'},
+  idle:     {x:320,y:210,w:600,h:400,fit:'center'},
+  lhandUp:  {w:70,h:70,fit:'center'},  lhandDown:{w:70,h:70,fit:'center'},
+  rhandUp:  {w:70,h:70,fit:'center'},  rhandDown:{w:70,h:70,fit:'center'},
   desk:     {x:320,y:344,w:380,h:110,fit:'center'},
-  deskPen:  {x:320,y:344,w:380,h:110,fit:'center'}
+  deskPen:  {x:320,y:344,w:380,h:110,fit:'center'},
+  penUp:    {w:120,h:140,fit:'center'},penDown:  {w:120,h:140,fit:'center'}
 };
-const ADJ0={x:0,y:0,s:100,r:0,flip:false};
+const isPen=k=>k==='penUp'||k==='penDown';
+
+/* ファイル名・レイヤー名 から パーツを あてる */
+const RX={
+  pen:/ペン|펜|stylus|(^|[^a-z])pen/i,
+  touch:/タッチ|touch|down|下|押|터치|아래/i,
+  idle:/待機|idle|대기|(^|[^a-z])wait/i,
+  L:/左|left|왼|(^|[^a-z])l(?=hand|[-_ .]|$)/i,
+  R:/右|right|오른|(^|[^a-z])r(?=hand|[-_ .]|$)/i,
+  hand:/手|hand|손/i,
+  down:/下|down|press|打|아래|タッチ/i,
+  tab:/(^|[^a-z])tab|타블렛|板|下敷/i,
+  desk:/desk|(^|[^a-z])key|キーボード|키보드|台|机|책상/i,
+  base:/base|body|chara|からだ|体|몸/i,
+  guide:/ガイド|guide|下書き|ラフ|rough|메모|가이드/i
+};
+function guessPart(name){
+  const n=name.replace(/\.(png|gif|webp|jpe?g|psd)$/i,'');
+  if(RX.guide.test(n)) return 'skip';
+  if(RX.pen.test(n)) return RX.touch.test(n)?'penDown':'penUp';
+  if(RX.idle.test(n)) return 'idle';
+  if(RX.hand.test(n)){
+    const s=RX.L.test(n)?'l':RX.R.test(n)?'r':null;
+    if(s) return s+'hand'+(RX.down.test(n)?'Down':'Up');
+  }
+  if(RX.tab.test(n)) return 'deskPen';
+  if(RX.desk.test(n)) return 'desk';
+  if(RX.base.test(n)) return 'base';
+  return '';
+}
 
 /* ============================================================
    設定
    ============================================================ */
-const DEF={mode:'key',hand:'right',bounce:true,blink:true,arm:true,bAmt:12,bSpd:14,press:14,hold:120,
-           scale:100,offX:0,offY:0,rMin:12,rMax:88,hSpd:22,handY:306,penLen:70,bg:'clear'};
-let cfg=Object.assign({},DEF);
-let adj={};                    // パーツごとの合わせ
-let art={};                    // k -> {url,w,h}
+const DEF={mode:'key',hand:'right',bounce:true,blink:true,arm:true,
+  bAmt:12,bSpd:14,press:14,hold:120,hSpd:22,
+  scale:100,offX:0,offY:0,rMin:12,rMax:88,handY:306,tipY:334,penBand:24,idleSec:5,
+  bg:'checker',rest:{right:{x:0,y:0},left:{x:0,y:0}}};
+let cfg=JSON.parse(JSON.stringify(DEF));
+let adj={};        // パーツごと {x,y,s,r,flip,u,v}
+let art={};        // k -> {url,w,h,img,tip}
 let sel='base';
+let editing=false;
 
-try{ const s=JSON.parse(localStorage.getItem('bongo.cfg')||'null'); if(s)Object.assign(cfg,s); }catch(e){}
-try{ const a=JSON.parse(localStorage.getItem('bongo.adj')||'null'); if(a)adj=a; }catch(e){}
+try{
+  const s=JSON.parse(localStorage.getItem('bongo.cfg')||'null');
+  if(s){ Object.assign(cfg,s); if(cfg.bg==='clear') cfg.bg='checker';
+         if(!cfg.rest||!cfg.rest.right) cfg.rest=JSON.parse(JSON.stringify(DEF.rest)); }
+}catch(e){}
+try{ const a=JSON.parse(localStorage.getItem('bongo.adj')||'null'); if(a) adj=a; }catch(e){}
 function saveCfg(){ try{
   localStorage.setItem('bongo.cfg',JSON.stringify(cfg));
   localStorage.setItem('bongo.adj',JSON.stringify(adj));
 }catch(e){} }
-function A(k){ return Object.assign({},ADJ0,adj[k]||{}); }
+function A(k){ return Object.assign({x:0,y:0,s:100,r:0,flip:false},adj[k]||{}); }
+function setA(k,a){ adj[k]=a; }
 
 /* ============================================================
-   絵のしまい場所（IndexedDB — localStorage より ずっと入る）
+   絵の しまい場所（IndexedDB）
    ============================================================ */
 let db=null;
-function openDB(){
-  return new Promise(res=>{
+function openDB(){ return new Promise(res=>{
+  try{
     const rq=indexedDB.open('bongo',1);
     rq.onupgradeneeded=()=>rq.result.createObjectStore('art');
     rq.onsuccess=()=>{db=rq.result;res(db);};
     rq.onerror=()=>res(null);
-  });
-}
-function idbPut(k,blob){ return new Promise(res=>{
-  if(!db)return res(); const t=db.transaction('art','readwrite');
-  t.objectStore('art').put(blob,k); t.oncomplete=()=>res(); t.onerror=()=>res();
+  }catch(e){ res(null); }
 });}
-function idbDel(k){ return new Promise(res=>{
-  if(!db)return res(); const t=db.transaction('art','readwrite');
-  t.objectStore('art').delete(k); t.oncomplete=()=>res(); t.onerror=()=>res();
-});}
-function idbGetAll(){ return new Promise(res=>{
-  if(!db)return res({});
-  const out={},st=db.transaction('art','readonly').objectStore('art'),rq=st.openCursor();
+function idbPut(k,b){ return new Promise(res=>{ if(!db)return res();
+  const t=db.transaction('art','readwrite'); t.objectStore('art').put(b,k); t.oncomplete=t.onerror=()=>res(); });}
+function idbDel(k){ return new Promise(res=>{ if(!db)return res();
+  const t=db.transaction('art','readwrite'); t.objectStore('art').delete(k); t.oncomplete=t.onerror=()=>res(); });}
+function idbAll(){ return new Promise(res=>{ if(!db)return res({});
+  const out={}, rq=db.transaction('art','readonly').objectStore('art').openCursor();
   rq.onsuccess=()=>{const c=rq.result; if(!c)return res(out); out[c.key]=c.value; c.continue();};
-  rq.onerror=()=>res(out);
-});}
+  rq.onerror=()=>res(out); });}
 
 function measure(url){ return new Promise(res=>{
   const im=new Image();
-  im.onload=()=>res({url,w:im.naturalWidth||100,h:im.naturalHeight||100});
+  im.onload=()=>res({url,w:im.naturalWidth||100,h:im.naturalHeight||100,img:im});
   im.onerror=()=>res(null);
   im.src=url;
 });}
-async function setArt(k,blob){
+/* ペン先 ＝ 絵の いちばん 下に ある 点、と みなす */
+function findTip(a){
+  const sc=Math.min(1,300/Math.max(a.w,a.h));
+  const cw=Math.max(1,Math.round(a.w*sc)), ch=Math.max(1,Math.round(a.h*sc));
+  const c=document.createElement('canvas'); c.width=cw; c.height=ch;
+  const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(a.img,0,0,cw,ch);
+  const d=g.getImageData(0,0,cw,ch).data;
+  for(let y=ch-1;y>=0;y--){
+    let sx=0,n=0;
+    for(let x=0;x<cw;x++) if(d[(y*cw+x)*4+3]>40){sx+=x;n++;}
+    if(n) return {u:(sx/n+.5)/cw, v:(y+.5)/ch};
+  }
+  return {u:.5,v:1};
+}
+async function setArt(k,blob,silent){
   const url=URL.createObjectURL(blob);
   const m=await measure(url);
-  if(!m){ alert('この絵は読めなかった。'); return; }
+  if(!m){ status('この 絵は 読めなかった。'); return false; }
   if(art[k]) URL.revokeObjectURL(art[k].url);
-  art[k]=m; await idbPut(k,blob); build(); renderParts();
+  if(isPen(k)){ m.tip=findTip(m); if(adj[k]){ delete adj[k].u; delete adj[k].v; } }
+  art[k]=m; await idbPut(k,blob);
+  if(!silent){ build(); renderParts(); }
+  return true;
 }
 async function clearArt(k){
   if(art[k]) URL.revokeObjectURL(art[k].url);
   delete art[k]; await idbDel(k); build(); renderParts();
 }
 async function restoreArt(){
-  const all=await idbGetAll();
+  const all=await idbAll();
   for(const k in all){
+    if(!PK.includes(k)) continue;
     const m=await measure(URL.createObjectURL(all[k]));
-    if(m) art[k]=m;
+    if(m){ if(isPen(k)) m.tip=findTip(m); art[k]=m; }
   }
 }
-
-/* ファイル名から どのパーツか あてる */
-function assign(files){
-  const rest=[];
-  const used={};
-  [...files].forEach(f=>{
-    const n=f.name;
-    const hit=PARTS.find(p=>!used[p.k]&&!art[p.k]&&p.re.test(n))||PARTS.find(p=>p.re.test(n)&&!used[p.k]);
-    if(hit){ used[hit.k]=f; } else rest.push(f);
-  });
-  // 目印なしは 空いている所へ 順に
-  PARTS.forEach(p=>{ if(!used[p.k]&&!art[p.k]&&rest.length) used[p.k]=rest.shift(); });
-  return used;
+function tipOf(k){
+  const a=adj[k]||{};
+  if(a.u!=null&&a.v!=null) return {u:a.u,v:a.v};
+  return (art[k]&&art[k].tip)||{u:.5,v:1};
 }
-async function takeFiles(files){
-  const map=assign(files);
-  for(const k in map) await setArt(k,map[k]);
-  const n=Object.keys(map).length;
-  $('#keylog').textContent=n?`${n}個のパーツを入れた。ずれていたら「合わせる」で直す。`:'入れられる所がなかった。×で消してから入れ直す。';
+
+/* PNG を まとめて 入れる */
+async function takeImages(files){
+  const used={}, rest=[];
+  [...files].forEach(f=>{
+    const k=guessPart(f.name);
+    if(k==='skip') return;
+    if(k&&!used[k]) used[k]=f; else rest.push(f);
+  });
+  PK.forEach(k=>{ if(!used[k]&&!art[k]&&rest.length) used[k]=rest.shift(); });
+  for(const k in used) await setArt(k,used[k],true);
+  build(); renderParts();
+  const n=Object.keys(used).length;
+  status(n?`${n}個の パーツを 入れた。「📐 配置を なおす」で 位置を 合わせる。`:'入れる 所が なかった。× で 消してから 入れなおす。');
+  if(n){ sel=Object.keys(used)[0]; renderParts(); syncAdj(); }
+}
+function takeFiles(list){
+  const all=[...list];
+  const psd=all.find(f=>/\.psd$/i.test(f.name));
+  if(psd){ readPsdFile(psd); return; }
+  const imgs=all.filter(f=>/^image\//.test(f.type)||/\.(png|gif|webp|jpe?g)$/i.test(f.name));
+  if(imgs.length) takeImages(imgs);
 }
 
 /* ============================================================
-   うごきの状態
+   うごきの 状態
    ============================================================ */
 const S={lx:.30,ly:0,lxT:.30,lyT:0, rx:.70,ry:0,rxT:.70,ryT:0,
-         bob:0,bobV:0, penX:.5,penY:.5,penDown:false, lHit:-9e9,rHit:-9e9,
-         blinkT:0,blinkOn:false, tilt:0,tiltT:0};
+         bob:0,bobV:0,tilt:0,tiltT:0, lHit:-9e9,rHit:-9e9,
+         tipX:320,tipYc:334,tipXT:320,tipYT:334,penDown:false,
+         blinkT:0,blinkOn:false, lastIn:performance.now()};
 let lastHand='r';
 
-/* キーの並び → 横の位置 0..1 */
+/* キーの ならび → 横の 位置 0..1 */
 const ROWS=[
   {off:0,  keys:['Backquote','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal','Backspace']},
   {off:.5, keys:['Tab','KeyQ','KeyW','KeyE','KeyR','KeyT','KeyY','KeyU','KeyI','KeyO','KeyP','BracketLeft','BracketRight','Backslash']},
@@ -355,69 +483,71 @@ const ROWS=[
   {off:1.5,keys:['ControlLeft','MetaLeft','AltLeft','Space','Space','Space','Space','Space','Space','AltRight','MetaRight','ControlRight']}
 ];
 const KEYX={};
-ROWS.forEach(r=>r.keys.forEach((k,i)=>{
-  if(KEYX[k]===undefined) KEYX[k]=Math.min(1,Math.max(0,(r.off+i+.5)/14.5));
-}));
+ROWS.forEach(r=>r.keys.forEach((k,i)=>{ if(KEYX[k]===undefined) KEYX[k]=clamp((r.off+i+.5)/14.5,0,1); }));
 function keyToX(c){
   if(KEYX[c]!==undefined) return KEYX[c];
   if(/^Arrow|^Numpad|^Page|Home|End|Insert|Delete/.test(c)) return .93;
   return .5;
 }
+const xOf=t=>(cfg.rMin/100 + t*(cfg.rMax-cfg.rMin)/100)*W;
+const penSide=()=>cfg.hand==='left'?'R':'L';        // ペンを 持つ 手が 画面の どちら側か
+const restArt=()=>penSide()==='L'?'rhandUp':'lhandUp';
+const artKeyOf=k=>k==='rest'?restArt():k;
 
 /* ============================================================
-   絵を組む
+   絵を 組む
    ============================================================ */
 function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
-function imgNode(k){
-  const a=art[k]; if(!a) return null;
-  const an=ANCHOR[k], ad=A(k);
-  const sc=Math.min(an.w/a.w, an.h/a.h)*(ad.s/100);
-  const w=a.w*sc, h=a.h*sc;
-  const g=el('g',{class:'part-'+k});
-  const im=el('image',{href:a.url,x:-w/2,y:(an.fit==='bottom'?-h:-h/2),width:w,height:h});
-  g.appendChild(im);
-  g.dataset.tx=ad.x; g.dataset.ty=ad.y; g.dataset.rot=ad.r; g.dataset.fl=ad.flip?-1:1;
+let G={};           // data-part → g
+
+function fitOf(k){ const a=art[k],an=ANCHOR[k]; return Math.min(an.w/a.w,an.h/a.h); }
+function partG(id,ak,drawDefault){
+  const g=el('g',{'data-part':id});
+  const inner=el('g',{class:'in'});
+  const a=art[ak];
+  if(a){
+    const an=ANCHOR[ak], f=fitOf(ak), w=a.w*f, h=a.h*f;
+    inner.appendChild(el('image',{href:a.url,x:-w/2,y:an.fit==='bottom'?-h:-h/2,width:w,height:h}));
+  }else if(drawDefault) drawDefault(inner);
+  g.appendChild(inner);
+  G[id]=g;
   return g;
 }
-function posNode(g,x,y){
+/* ふつうの パーツ：基準点＋ずらし・かたむき・大きさ・反転 */
+function placeG(g,ax,ay,k,ox,oy,mir=1){
   if(!g) return;
-  const tx=+g.dataset.tx||0, ty=+g.dataset.ty||0, rot=+g.dataset.rot||0, fl=+g.dataset.fl||1;
-  g.setAttribute('transform',`translate(${x+tx} ${y+ty}) rotate(${rot}) scale(${fl} 1)`);
+  const a=A(k), s=a.s/100, fl=(a.flip?-1:1)*mir;
+  const x=ax+(ox!=null?ox:a.x), y=ay+(oy!=null?oy:a.y);
+  g.setAttribute('transform',`translate(${x} ${y}) rotate(${a.r}) scale(${fl*s} ${s})`);
+}
+/* ペン手：ペン先の 点が (tx,ty) に 来るように 置く */
+const DEF_TIP={x:22,y:62};
+function penLocal(k){
+  if(!art[k]) return {x:DEF_TIP.x,y:DEF_TIP.y};
+  const f=fitOf(k), w=art[k].w*f, h=art[k].h*f, t=tipOf(k);
+  return {x:(t.u-.5)*w, y:(t.v-.5)*h};
+}
+function placePen(g,k,tx,ty){
+  if(!g) return {x:tx,y:ty};
+  const a=A(k), s=a.s/100, fl=(a.flip?-1:1)*(cfg.hand==='left'?-1:1), r=a.r*Math.PI/180;
+  const l=penLocal(k), px=fl*s*l.x, py=s*l.y;
+  const wx=Math.cos(r)*px-Math.sin(r)*py, wy=Math.sin(r)*px+Math.cos(r)*py;
+  const ox=tx-wx, oy=ty-wy;
+  g.setAttribute('transform',`translate(${ox} ${oy}) rotate(${a.r}) scale(${fl*s} ${s})`);
+  return {x:ox,y:oy};
 }
 
-function build(){
-  svg.innerHTML='';
-  const defs=el('defs');
-  defs.innerHTML=`<radialGradient id="cheek"><stop offset="0" stop-color="#ff9db4" stop-opacity=".75"/>
-    <stop offset="1" stop-color="#ff9db4" stop-opacity="0"/></radialGradient>`;
-  svg.appendChild(defs);
-  const g=el('g',{id:'root'}); svg.appendChild(g);
-  g.appendChild(el('g',{id:'body'}));
-  g.appendChild(el('g',{id:'desk'}));
-  g.appendChild(el('g',{id:'arms'}));
-  const arms=$('#arms');
-  ['armL','armR'].forEach(id=>{
-    arms.appendChild(el('path',{id,fill:'none',stroke:'#1e1c14','stroke-width':13,'stroke-linecap':'round'}));
-    arms.appendChild(el('path',{id:id+'i',fill:'none',stroke:'#fff8f2','stroke-width':8,'stroke-linecap':'round'}));
-  });
-  g.appendChild(el('g',{id:'hands'}));
-  $('#hands').appendChild(el('g',{id:'hL'}));
-  $('#hands').appendChild(el('g',{id:'hR'}));
-  drawBody(); drawDesk(); drawHands();
-}
-
-function drawBody(){
-  const b=$('#body'); b.innerHTML='';
-  if(art.base){ b.appendChild(imgNode('base')); posNode(b.firstChild,ANCHOR.base.x,ANCHOR.base.y); return; }
-  b.appendChild(el('path',{d:'M262 300 q58 -34 116 0 v60 h-116 Z',fill:'#dfe6ef',stroke:'#1e1c14','stroke-width':4}));
+/* はじめの 絵 */
+function drawDefaultBase(g){
+  const b=el('g',{transform:'translate(-320 -366)'}); g.appendChild(b);
+  b.appendChild(el('path',{d:'M262 300 q58 -34 116 0 v66 h-116 Z',fill:'#dfe6ef',stroke:'#1e1c14','stroke-width':4}));
   b.appendChild(el('ellipse',{cx:320,cy:212,rx:112,ry:104,fill:'#fdeee4',stroke:'#1e1c14','stroke-width':4}));
   b.appendChild(el('path',{d:'M262 188 q22 -12 44 -2',fill:'none',stroke:'#1e1c14','stroke-width':5,'stroke-linecap':'round'}));
   b.appendChild(el('path',{d:'M334 186 q22 -10 44 2',fill:'none',stroke:'#1e1c14','stroke-width':5,'stroke-linecap':'round'}));
   b.appendChild(el('g',{id:'eyes'}));
-  b.appendChild(el('ellipse',{cx:258,cy:262,rx:22,ry:14,fill:'url(#cheek)'}));
-  b.appendChild(el('ellipse',{cx:382,cy:262,rx:22,ry:14,fill:'url(#cheek)'}));
+  b.appendChild(el('ellipse',{cx:258,cy:262,rx:22,ry:14,fill:'#F2A0B8',opacity:.45}));
+  b.appendChild(el('ellipse',{cx:382,cy:262,rx:22,ry:14,fill:'#F2A0B8',opacity:.45}));
   b.appendChild(el('path',{d:'M310 274 q10 8 20 0',fill:'none',stroke:'#1e1c14','stroke-width':4,'stroke-linecap':'round'}));
-  drawEyes();
 }
 function drawEyes(){
   const e=$('#eyes'); if(!e) return; e.innerHTML='';
@@ -431,62 +561,130 @@ function drawEyes(){
     e.appendChild(el('ellipse',{cx:cx-8,cy:243,rx:4,ry:4,fill:'#fff',opacity:.7}));
   });
 }
-function drawDesk(){
-  const d=$('#desk'); d.innerHTML='';
-  const dk = (cfg.mode==='pen' && art.deskPen) ? 'deskPen' : (art.desk ? 'desk' : (art.deskPen?'deskPen':null));
-  if(dk){ d.appendChild(imgNode(dk)); posNode(d.firstChild,ANCHOR[dk].x,ANCHOR[dk].y); return; }
-  if(cfg.mode==='pen'){
-    d.appendChild(el('rect',{x:140,y:336,width:360,height:26,rx:8,fill:'#1e1c14'}));
-    d.appendChild(el('rect',{x:148,y:340,width:344,height:8,rx:4,fill:'#3a3730'}));
+function drawDefaultKeyboard(g){
+  const d=el('g',{transform:'translate(-320 -344)'}); g.appendChild(d);
+  d.appendChild(el('rect',{x:130,y:322,width:380,height:44,rx:9,fill:'#E1DD60',stroke:'#1e1c14','stroke-width':4}));
+  for(let r=0;r<2;r++)for(let i=0;i<12;i++)
+    d.appendChild(el('rect',{x:142+i*30+r*6,y:330+r*16,width:22,height:12,rx:3,fill:'#FFFEF7',stroke:'#1e1c14','stroke-width':2}));
+  d.appendChild(el('rect',{x:130,y:360,width:380,height:10,rx:5,fill:'#1e1c14'}));
+}
+function drawDefaultTablet(g){
+  const d=el('g',{transform:'translate(-320 -344)'}); g.appendChild(d);
+  d.appendChild(el('rect',{x:140,y:336,width:360,height:28,rx:9,fill:'#3a3730',stroke:'#1e1c14','stroke-width':4}));
+  d.appendChild(el('rect',{x:152,y:341,width:336,height:8,rx:4,fill:'#57534a'}));
+}
+function drawPaw(g){
+  g.appendChild(el('ellipse',{cx:0,cy:0,rx:26,ry:21,fill:'#fdeee4',stroke:'#1e1c14','stroke-width':4}));
+  g.appendChild(el('ellipse',{cx:-9,cy:-4,rx:5,ry:6,fill:'#F2A0B8'}));
+  g.appendChild(el('ellipse',{cx:0,cy:-7,rx:5,ry:6,fill:'#F2A0B8'}));
+  g.appendChild(el('ellipse',{cx:9,cy:-4,rx:5,ry:6,fill:'#F2A0B8'}));
+}
+function drawPenPaw(g){          // 右ききの 形で 描く（左ききは 反転）
+  g.appendChild(el('line',{x1:-16,y1:-44,x2:DEF_TIP.x,y2:DEF_TIP.y,stroke:'#1e1c14','stroke-width':10,'stroke-linecap':'round'}));
+  g.appendChild(el('line',{x1:-15,y1:-42,x2:DEF_TIP.x-3,y2:DEF_TIP.y-8,stroke:'#57534a','stroke-width':4,'stroke-linecap':'round'}));
+  drawPaw(g);
+}
+
+function build(){
+  svg.innerHTML=''; G={};
+  const root=el('g',{id:'root'}); svg.appendChild(root);
+  const mode=cfg.mode;
+
+  const bodyW=el('g',{id:'bodyW',class:'fade'}); root.appendChild(bodyW);
+  bodyW.appendChild(partG('base','base',drawDefaultBase));
+  if(!art.base) drawEyes();
+
+  const deskW=el('g',{id:'deskW',class:'fade'}); root.appendChild(deskW);
+  const dk=mode==='pen'?'deskPen':'desk';
+  deskW.appendChild(partG(dk,dk,mode==='pen'?drawDefaultTablet:drawDefaultKeyboard));
+
+  const arms=el('g',{id:'arms',class:'fade',style:'pointer-events:none'}); root.appendChild(arms);
+  ['armL','armR'].forEach(id=>{
+    arms.appendChild(el('path',{id,fill:'none',stroke:'#1e1c14','stroke-width':13,'stroke-linecap':'round'}));
+    arms.appendChild(el('path',{id:id+'i',fill:'none',stroke:'#fdeee4','stroke-width':8,'stroke-linecap':'round'}));
+  });
+
+  const hands=el('g',{id:'hands',class:'fade'}); root.appendChild(hands);
+  if(mode==='key'){
+    ['L','R'].forEach(side=>{
+      const hg=el('g',{id:'h'+side}); hands.appendChild(hg);
+      const base=(side==='L'?'lhand':'rhand');
+      hg.appendChild(partG(base+'Up',base+'Up',drawPaw));
+      hg.appendChild(partG(base+'Down',base+'Down',null));
+    });
   }else{
-    d.appendChild(el('rect',{x:130,y:322,width:380,height:44,rx:9,fill:'#8e93a3',stroke:'#1e1c14','stroke-width':4}));
-    for(let r=0;r<2;r++)for(let i=0;i<12;i++)
-      d.appendChild(el('rect',{x:142+i*30+r*6,y:330+r*16,width:22,height:12,rx:3,fill:'#d7dae3',stroke:'#1e1c14','stroke-width':2}));
-    d.appendChild(el('rect',{x:130,y:360,width:380,height:10,rx:5,fill:'#1e1c14'}));
+    hands.appendChild(partG('rest',restArt(),drawPaw));
+    hands.appendChild(partG('penUp','penUp',drawPenPaw));
+    hands.appendChild(partG('penDown','penDown',null));
+  }
+
+  const idleW=el('g',{id:'idleW',class:'fade',style:'opacity:0;pointer-events:none'}); root.appendChild(idleW);
+  if(art.idle) idleW.appendChild(partG('idle','idle',null));
+
+  const ov=el('g',{id:'ov'}); root.appendChild(ov);
+  if(editing) buildOverlay(ov);
+}
+
+/* 配置の ための しるし */
+function buildOverlay(ov){
+  const st={'vector-effect':'non-scaling-stroke'};
+  ov.appendChild(el('line',Object.assign({id:'rl',stroke:'#1e1c14','stroke-width':2,'stroke-dasharray':'6 5',style:'pointer-events:none'},st)));
+  const grip=el('g',{id:'rg','data-h':'rail',style:'cursor:ns-resize'});
+  grip.appendChild(el('line',Object.assign({x1:0,y1:-44,x2:0,y2:-9,stroke:'#1e1c14','stroke-width':1.5,'stroke-dasharray':'3 3',style:'pointer-events:none'},st)));
+  grip.appendChild(el('rect',Object.assign({x:-26,y:-9,width:52,height:18,rx:9,fill:'#E1DD60',stroke:'#1e1c14','stroke-width':2},st)));
+  grip.appendChild(el('path',Object.assign({d:'M-8 -3 h16 M-8 3 h16',stroke:'#1e1c14','stroke-width':2},st)));
+  ov.appendChild(grip);
+  ['min','max'].forEach(h=>{
+    const g=el('g',{id:'r'+h,'data-h':h,style:'cursor:ew-resize'});
+    g.appendChild(el('rect',Object.assign({x:-7,y:-14,width:14,height:28,rx:5,fill:'#FFFEF7',stroke:'#1e1c14','stroke-width':2},st)));
+    ov.appendChild(g);
+  });
+  const lab=el('text',{id:'rtx','font-size':11,'font-weight':700,fill:'#1e1c14','text-anchor':'middle',
+    style:'pointer-events:none;paint-order:stroke;stroke:#FFFEF7;stroke-width:3px'});
+  ov.appendChild(lab);
+  // 指先・ペン先の 点
+  const mk=id=>{
+    const g=el('g',{id,style:'pointer-events:none'});
+    g.appendChild(el('circle',Object.assign({r:6,fill:'#F05B4A',stroke:'#fff','stroke-width':2},st)));
+    g.appendChild(el('path',Object.assign({d:'M-13 0 h7 M6 0 h7 M0 -13 v7 M0 6 v7',stroke:'#F05B4A','stroke-width':2},st)));
+    ov.appendChild(g);
+  };
+  if(cfg.mode==='key'){ mk('aL'); mk('aR'); } else mk('aT');
+  // えらんで いる パーツの わく
+  const g=G[sel];
+  if(g){
+    const inner=g.querySelector('.in');
+    try{
+      const b=inner.getBBox();
+      if(b.width&&b.height) g.appendChild(el('rect',{x:b.x-4,y:b.y-4,width:b.width+8,height:b.height+8,rx:6,
+        fill:'none',stroke:'#1e1c14','stroke-width':2,'stroke-dasharray':'5 4','vector-effect':'non-scaling-stroke',
+        style:'pointer-events:none'}));
+    }catch(e){}
   }
 }
-function defaultPaw(g){
-  g.appendChild(el('ellipse',{cx:0,cy:0,rx:26,ry:21,fill:'#fdeee4',stroke:'#1e1c14','stroke-width':4}));
-  g.appendChild(el('ellipse',{cx:-9,cy:-4,rx:5,ry:6,fill:'#f2b8c6'}));
-  g.appendChild(el('ellipse',{cx:0,cy:-7,rx:5,ry:6,fill:'#f2b8c6'}));
-  g.appendChild(el('ellipse',{cx:9,cy:-4,rx:5,ry:6,fill:'#f2b8c6'}));
-}
-function drawHands(){
-  ['L','R'].forEach(side=>{
-    const host=$('#h'+side); host.innerHTML='';
-    ['Up','Down'].forEach(st=>{
-      const k=(side==='L'?'lhand':'rhand')+st;
-      const g=el('g',{id:'h'+side+st});
-      const n=imgNode(k);
-      if(n) g.appendChild(n);
-      else if(st==='Up') defaultPaw(g);
-      else g.appendChild(el('g'));        // 下の絵がなければ 上の絵を そのまま使う
-      host.appendChild(g);
-    });
-    if(side===penSide()&&cfg.mode==='pen'){
-      const pen=el('g',{id:'penG'});
-      if(art.pen){ pen.appendChild(imgNode('pen')); }
-      else{
-        pen.appendChild(el('line',{id:'penBody',x1:0,y1:0,x2:0,y2:0,stroke:'#1e1c14','stroke-width':9,'stroke-linecap':'round'}));
-        pen.appendChild(el('circle',{id:'penTip',r:4,fill:'#1e1c14'}));
-      }
-      host.appendChild(pen);
-    }
-  });
+function updateOverlay(railY,ancs){
+  const rl=$('#rl'); if(!rl) return;
+  const x0=xOf(0), x1=xOf(1);
+  rl.setAttribute('x1',x0); rl.setAttribute('x2',x1); rl.setAttribute('y1',railY); rl.setAttribute('y2',railY);
+  $('#rg').setAttribute('transform',`translate(${(x0+x1)/2} ${railY+44})`);
+  $('#rmin').setAttribute('transform',`translate(${x0} ${railY})`);
+  $('#rmax').setAttribute('transform',`translate(${x1} ${railY})`);
+  const t=$('#rtx'); t.setAttribute('x',(x0+x1)/2); t.setAttribute('y',railY+68);
+  t.textContent=cfg.mode==='key'?'指先が 当たる 線':'ペン先が 動く 線';
+  if(cfg.mode==='key'){
+    $('#aL').setAttribute('transform',`translate(${ancs[0].x} ${ancs[0].y})`);
+    $('#aR').setAttribute('transform',`translate(${ancs[1].x} ${ancs[1].y})`);
+  }else $('#aT').setAttribute('transform',`translate(${ancs[0].x} ${ancs[0].y})`);
 }
 
 /* ============================================================
    毎フレーム
    ============================================================ */
-function xOf(t){ return (cfg.rMin/100 + t*(cfg.rMax-cfg.rMin)/100) * W; }
-function penSide(){ return cfg.hand==='left' ? 'R' : 'L'; }
-function penTip(){
-  return {x:Math.max(xOf(.02),Math.min(xOf(.98),S.penX*W)), y:334+(S.penDown?5:0)};
-}
 function tick(){
-  const k=Math.min(.85,cfg.hSpd/100*3);
+  const now=performance.now();
+  const k=Math.min(.85,cfg.hSpd/100*3), kd=Math.min(.9,k*1.8);
+  if(editing){ S.lxT=.30; S.rxT=.70; S.lyT=S.ryT=0; S.bob=S.bobV=0; S.tilt=S.tiltT=0; }
   S.lx+=(S.lxT-S.lx)*k; S.rx+=(S.rxT-S.rx)*k;
-  const kd=Math.min(.9,k*1.8);
   S.ly+=(S.lyT-S.ly)*kd; S.ry+=(S.ryT-S.ry)*kd;
   S.lyT*=.80; S.ryT*=.80;
   S.tilt+=(S.tiltT-S.tilt)*.12; S.tiltT*=.90;
@@ -496,244 +694,381 @@ function tick(){
     if(--S.blinkT<0){ S.blinkOn=!S.blinkOn; S.blinkT=S.blinkOn?7:120+Math.random()*180; drawEyes(); }
   }else if(S.blinkOn){ S.blinkOn=false; drawEyes(); }
 
+  const root=$('#root'); if(!root){ requestAnimationFrame(tick); return; }
   const sc=cfg.scale/100;
-  $('#root').setAttribute('transform',
-    `translate(${W/2+ +cfg.offX} ${H}) scale(${sc}) translate(${-W/2} ${-H+ +cfg.offY})`);
-  $('#body').setAttribute('transform',`translate(0 ${S.bob}) rotate(${S.tilt} 320 ${+cfg.handY+40})`);
+  root.setAttribute('transform',`translate(${cfg.offX} ${cfg.offY}) translate(${W/2} ${H}) scale(${sc}) translate(${-W/2} ${-H})`);
 
-  const base=+cfg.handY;
-  let lx,ly,rx,ry;
-  if(cfg.mode==='pen'){
-    const tip=penTip(), pS=penSide(), dx=(pS==='L'?-26:26);
-    const px=Math.max(xOf(0),Math.min(xOf(1),tip.x+dx));
-    const py=Math.max(base-60, Math.min(base+16, tip.y-cfg.penLen*.72));
-    const qx=xOf(pS==='L'?.80:.20), qy=base+24+S.ly;
-    if(pS==='L'){ lx=px; ly=py; rx=qx; ry=qy; }
-    else        { rx=px; ry=py; lx=qx; ly=qy; }
+  /* 待機 */
+  const idleNow = art.idle && ((editing&&sel==='idle') ||
+    (!editing && cfg.idleSec>0 && now-S.lastIn>cfg.idleSec*1000));
+  const iw=$('#idleW'); iw.style.opacity=idleNow?1:0; iw.style.pointerEvents=idleNow?'':'none';
+  ['bodyW','deskW','arms','hands'].forEach(id=>{ const g=$('#'+id); g.style.opacity=idleNow?0:1; g.style.pointerEvents=idleNow?'none':''; });
+  if(G.idle) placeG(G.idle,ANCHOR.idle.x,ANCHOR.idle.y,'idle');
+
+  $('#bodyW').setAttribute('transform',`translate(0 ${S.bob}) rotate(${S.tilt} 320 ${cfg.handY+40})`);
+  placeG(G.base,ANCHOR.base.x,ANCHOR.base.y,'base');
+  const dk=cfg.mode==='pen'?'deskPen':'desk';
+  placeG(G[dk],ANCHOR[dk].x,ANCHOR[dk].y,dk);
+
+  const hb=S.bob*.35;
+  let pL,pR;                      // 画面の 左・右の 手の 付け根（うでの 線の 行き先）
+  if(cfg.mode==='key'){
+    const HOLD=+cfg.hold;
+    const lx=xOf(S.lx), rx=xOf(S.rx), ly=cfg.handY, ry=cfg.handY;
+    $('#hL').setAttribute('transform',`translate(${lx} ${ly+S.ly+hb})`);
+    $('#hR').setAttribute('transform',`translate(${rx} ${ry+S.ry+hb})`);
+    swapHand('lhand',!editing&&now-S.lHit<HOLD, editing&&sel==='lhandDown');
+    swapHand('rhand',!editing&&now-S.rHit<HOLD, editing&&sel==='rhandDown');
+    ['lhandUp','lhandDown','rhandUp','rhandDown'].forEach(p=>placeG(G[p],0,0,p));
+    const a1=A('lhandUp'), a2=A('rhandUp');
+    pL={x:lx+a1.x,y:ly+S.ly+hb+a1.y}; pR={x:rx+a2.x,y:ry+S.ry+hb+a2.y};
+    if(editing) updateOverlay(cfg.handY,[{x:lx,y:ly},{x:rx,y:ry}]);
   }else{
-    lx=xOf(S.lx); ly=base+S.ly;
-    rx=xOf(S.rx); ry=base+S.ry;
+    const pS=penSide();
+    if(editing){ S.tipXT=xOf(.5); S.tipYT=cfg.tipY; }
+    S.tipX+=(S.tipXT-S.tipX)*Math.min(.9,k*1.6);
+    S.tipYc+=(S.tipYT-S.tipYc)*Math.min(.9,k*1.6);
+    const down=editing?(sel==='penDown'):S.penDown;
+    const ty=S.tipYc+(down?0:-7);
+    const gu=G.penUp, gd=G.penDown;
+    const useDown=down&&!!art.penDown;
+    gu.style.display=useDown?'none':''; gd.style.display=useDown?'':'none';
+    const o1=placePen(gu,'penUp',S.tipX,ty);
+    const o2=placePen(gd,'penDown',S.tipX,ty);
+    const po=useDown?o2:o1;
+    // 休んで いる 手
+    const rr=cfg.rest[cfg.hand]||{x:0,y:0};
+    const rx=xOf(pS==='L'?.82:.18)+rr.x, ry=cfg.tipY-6+rr.y+hb;
+    placeG(G.rest,rx,ry,restArt(),0,0);
+    if(pS==='L'){ pL=po; pR={x:rx,y:ry}; } else { pR=po; pL={x:rx,y:ry}; }
+    if(editing) updateOverlay(cfg.tipY,[{x:S.tipX,y:ty}]);
   }
-  const now=performance.now(), HOLD=+cfg.hold;
-  const pS=penSide();
-  const lDown = cfg.mode==='pen' ? (pS==='L'&&S.penDown) : (now-S.lHit<HOLD);
-  const rDown = cfg.mode==='pen' ? (pS==='R'&&S.penDown) : (now-S.rHit<HOLD);
-  hand('L',lx,ly,lDown); hand('R',rx,ry,rDown);
-  arm('armL',262,300,lx,ly,-1); arm('armR',378,300,rx,ry,1);
-
-  if(cfg.mode==='pen'){
-    const tip=penTip(), pg=$('#penG');
-    const hx=(pS==='L'?lx:rx), hy=(pS==='L'?ly:ry);
-    if(pg){
-      const dx=tip.x-hx, dy=tip.y-(hy+S.bob*.35);
-      if(art.pen){
-        const a=A('pen'), an=ANCHOR.pen, im=art.pen;
-        const s2=Math.min(an.w/im.w,an.h/im.h)*(a.s/100);
-        const ang=Math.atan2(dy,dx)*180/Math.PI-90;
-        pg.firstChild.setAttribute('transform',
-          `translate(${hx+a.x} ${hy+S.bob*.35+a.y}) rotate(${ang+a.r}) translate(0 ${im.h*s2/2})`);
-      }else{
-        const pb=$('#penBody'), pt=$('#penTip');
-        pb.setAttribute('x1',hx+(pS==='L'?-6:6)); pb.setAttribute('y1',hy+S.bob*.35+6);
-        pb.setAttribute('x2',tip.x); pb.setAttribute('y2',tip.y);
-        pt.setAttribute('cx',tip.x); pt.setAttribute('cy',tip.y);
-      }
-    }
-  }
+  arm('armL',262,300,pL,-1); arm('armR',378,300,pR,1);
   requestAnimationFrame(tick);
 }
-function hand(side,x,y,pressed){
-  const up=$('#h'+side+'Up'), dn=$('#h'+side+'Down');
-  if(!up) return;
-  const key=(side==='L'?'lhand':'rhand');
-  const hasDown = !!art[key+'Down'];
-  up.style.display = (pressed&&hasDown)?'none':'';
-  dn.style.display = (pressed&&hasDown)?'':'none';
-  const yy=y+S.bob*.35;
-  [up,dn].forEach(g=>{
-    const inner=g.firstChild;
-    if(inner&&inner.dataset&&inner.dataset.tx!==undefined) posNode(inner,0,0);
-    g.setAttribute('transform',`translate(${x} ${yy})`);
-  });
+function swapHand(base,pressed,forceDown){
+  const up=G[base+'Up'], dn=G[base+'Down']; if(!up||!dn) return;
+  const has=!!art[base+'Down'];
+  const d=(pressed||forceDown)&&has;
+  up.style.display=d?'none':''; dn.style.display=d?'':'none';
 }
-function arm(id,sx,sy,hx,hy,dir){
-  const p=$('#'+id), pi=$('#'+id+'i');
-  if(!p) return;
-  if(!cfg.arm||art.base){ p.setAttribute('d',''); pi.setAttribute('d',''); return; }
-  const y2=hy+S.bob*.35, cx=(sx+hx)/2+dir*18, cy=Math.min(sy,y2)-26;
-  const d=`M${sx} ${sy+S.bob} Q${cx} ${cy} ${hx} ${y2}`;
-  p.setAttribute('d',d); pi.setAttribute('d',d);
+function arm(id,sx,sy,p,dir){
+  const a=$('#'+id), ai=$('#'+id+'i'); if(!a) return;
+  if(!cfg.arm||art.base||!p){ a.setAttribute('d',''); ai.setAttribute('d',''); return; }
+  const cx=(sx+p.x)/2+dir*18, cy=Math.min(sy,p.y)-26;
+  const d=`M${sx} ${sy+S.bob} Q${cx} ${cy} ${p.x} ${p.y}`;
+  a.setAttribute('d',d); ai.setAttribute('d',d);
 }
 
 /* ============================================================
    入力
    ============================================================ */
-const NAME={Space:'space',Enter:'enter',Backspace:'bs',ShiftLeft:'shift',ShiftRight:'shift',Tab:'tab'};
+const KNAME={Space:'space',Enter:'enter',Backspace:'bs',ShiftLeft:'shift',ShiftRight:'shift',Tab:'tab'};
+function status(t){ $('#status').textContent=t; }
 function hit(code){
   const t=keyToX(code);
-  let h = t<.42?'l' : t>.58?'r' : (lastHand==='l'?'r':'l');
+  const h=t<.42?'l':t>.58?'r':(lastHand==='l'?'r':'l');
   lastHand=h;
   const now=performance.now();
   if(h==='l'){ S.lxT=t; S.lyT=+cfg.press; S.lHit=now; } else { S.rxT=t; S.ryT=+cfg.press; S.rHit=now; }
   if(cfg.bounce){ S.bobV-=cfg.bAmt*.55; S.tiltT=(h==='l'?2.2:-2.2); }
-  $('#keylog').textContent=(NAME[code]||code.replace(/^Key|^Digit/,''))+'  →  '+(h==='l'?'左手':'右手')+'  '+Math.round(t*100)+'%';
+  status((KNAME[code]||code.replace(/^Key|^Digit/,''))+'  →  '+(h==='l'?'左の 手':'右の 手')+'  '+Math.round(t*100)+'%');
 }
 addEventListener('keydown',e=>{
   if(e.target.matches('input,select,textarea')) return;
+  S.lastIn=performance.now();
+  if(e.key==='Escape'){ document.body.classList.remove('solo'); return; }
+  if(editing){
+    const m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+    if(m&&sel){ e.preventDefault(); const st=e.shiftKey?10:1;
+      movePart(sel,snap(sel),m[0]*st,m[1]*st); saveCfg(); syncAdj(); if(isPen(sel)) build(); }
+    return;
+  }
   if(cfg.mode!=='key'||e.repeat) return;
   hit(e.code);
 });
-const box=$('#stagebox');
-function penMove(e){
-  if(cfg.mode!=='pen') return;
-  const r=box.getBoundingClientRect();
-  S.penX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
-  S.penY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
-  $('#keylog').textContent='ペン  '+Math.round(S.penX*100)+'% , '+Math.round(S.penY*100)+'%';
+
+function toRoot(e){
+  const r=$('#root'); const m=r.getScreenCTM(); if(!m) return {x:0,y:0};
+  const p=svg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY;
+  return p.matrixTransform(m.inverse());
 }
-box.addEventListener('pointermove',penMove);
-box.addEventListener('pointerdown',e=>{
-  if(cfg.mode!=='pen') return;
-  S.penDown=true; penMove(e);
-  if(cfg.bounce) S.bobV-=cfg.bAmt*.35;
+function toSvg(e){
+  const m=svg.getScreenCTM(); const p=svg.createSVGPoint(); p.x=e.clientX; p.y=e.clientY;
+  return p.matrixTransform(m.inverse());
+}
+
+/* ペン */
+function penAim(e){
+  const p=toRoot(e);
+  S.tipXT=clamp(p.x,xOf(0),xOf(1));
+  S.tipYT=clamp(p.y,cfg.tipY-cfg.penBand,cfg.tipY);
+}
+
+/* パーツを うごかす（ずらしの もとから dx,dy） */
+function snap(k){
+  if(k==='rest') return {rest:Object.assign({},cfg.rest[cfg.hand])};
+  const a=A(k); if(isPen(k)){ const t=tipOf(k); a.u=t.u; a.v=t.v; } return {a};
+}
+function movePart(k,s0,dx,dy){
+  if(k==='rest'){ cfg.rest[cfg.hand]={x:Math.round(s0.rest.x+dx),y:Math.round(s0.rest.y+dy)}; return; }
+  const a=Object.assign({},s0.a);
+  if(isPen(k)){
+    if(!art[k]) return;
+    // 絵を (dx,dy) 動かす ＝ ペン先の 点を 絵の 中で 逆に ずらす
+    const s=a.s/100, fl=(a.flip?-1:1)*(cfg.hand==='left'?-1:1), r=-a.r*Math.PI/180;
+    const rx=Math.cos(r)*dx-Math.sin(r)*dy, ry=Math.sin(r)*dx+Math.cos(r)*dy;
+    const f=fitOf(k), w=art[k].w*f, h=art[k].h*f;
+    const lx=(a.u-.5)*w - rx*fl/s, ly=(a.v-.5)*h - ry/s;
+    a.u=clamp(lx/w+.5,-.5,1.5); a.v=clamp(ly/h+.5,-.5,1.5);
+    setA(k,a); if(s0.a){ s0.a=a; }
+    return;
+  }
+  a.x=Math.round(s0.a.x+dx); a.y=Math.round(s0.a.y+dy);
+  setA(k,a); s0.a=a;
+}
+
+let drag=null;
+svg.addEventListener('pointerdown',e=>{
+  S.lastIn=performance.now();
+  if(!editing){
+    if(cfg.mode==='pen'){ S.penDown=true; penAim(e); if(cfg.bounce) S.bobV-=cfg.bAmt*.3;
+      try{svg.setPointerCapture(e.pointerId);}catch(_){} }
+    return;
+  }
+  e.preventDefault();
+  const h=e.target.closest('[data-h]');
+  const p=toRoot(e), q=toSvg(e);
+  if(h){ drag={type:h.dataset.h,p0:p,c:{rMin:cfg.rMin,rMax:cfg.rMax,handY:cfg.handY,tipY:cfg.tipY}}; }
+  else{
+    const pg=e.target.closest('[data-part]');
+    if(pg){
+      const k=pg.dataset.part;
+      if(k!==sel){ sel=k; renderParts(); syncAdj(); build(); }
+      drag={type:'part',k,p0:p,s0:snap(k),last:{x:0,y:0}};
+    }else drag={type:'pan',q0:q,c:{offX:cfg.offX,offY:cfg.offY}};
+  }
+  scr.classList.add('grab');
+  try{svg.setPointerCapture(e.pointerId);}catch(_){}
 });
-addEventListener('pointerup',()=>{S.penDown=false;});
+svg.addEventListener('pointermove',e=>{
+  if(!editing){
+    if(cfg.mode==='pen'){ S.lastIn=performance.now(); penAim(e); }
+    return;
+  }
+  if(!drag) return;
+  if(drag.type==='pan'){
+    const q=toSvg(e); cfg.offX=Math.round(drag.c.offX+q.x-drag.q0.x); cfg.offY=Math.round(drag.c.offY+q.y-drag.q0.y);
+    return;
+  }
+  const p=toRoot(e), dx=p.x-drag.p0.x, dy=p.y-drag.p0.y;
+  if(drag.type==='part'){
+    // ペン手は 1回ずつ 差分で（ペン先が 動くと 基準も 動くため）
+    if(isPen(drag.k)){ movePart(drag.k,drag.s0,dx-drag.last.x,dy-drag.last.y); drag.last={x:dx,y:dy}; }
+    else if(drag.k==='rest'){ const s0={rest:Object.assign({},drag.s0.rest)}; movePart('rest',s0,dx,dy); }
+    else movePart(drag.k,{a:drag.s0.a},dx,dy);
+    syncAdj();
+  }else if(drag.type==='min'){ cfg.rMin=Math.round(clamp(p.x/W*100,0,cfg.rMax-15)); }
+  else if(drag.type==='max'){ cfg.rMax=Math.round(clamp(p.x/W*100,cfg.rMin+15,100)); }
+  else if(drag.type==='rail'){
+    if(cfg.mode==='key') cfg.handY=Math.round(clamp(drag.c.handY+dy,120,410));
+    else cfg.tipY=Math.round(clamp(drag.c.tipY+dy,120,410));
+  }
+});
+function endDrag(){
+  if(cfg.mode==='pen') S.penDown=false;
+  if(drag){ drag=null; scr.classList.remove('grab'); saveCfg(); syncAdj(); if(editing) build(); }
+}
+svg.addEventListener('pointerup',endDrag);
+svg.addEventListener('pointercancel',endDrag);
+addEventListener('pointerup',()=>{ if(cfg.mode==='pen') S.penDown=false; });
+
+svg.addEventListener('wheel',e=>{
+  if(!editing) return;
+  e.preventDefault();
+  const dv=e.deltaY||e.deltaX; if(!dv) return;
+  const up=dv<0;
+  const pg=e.target.closest('[data-part]');
+  if(pg){
+    const k=pg.dataset.part, ak=artKeyOf(k);
+    if(k!==sel){ sel=k; renderParts(); }
+    const a=A(ak);
+    if(e.shiftKey||e.altKey) a.r=clamp(Math.round(a.r+(up?3:-3)),-180,180);
+    else a.s=clamp(Math.round(a.s*(up?1.06:1/1.06)),10,400);
+    if(isPen(k)){ const t=tipOf(k); a.u=t.u; a.v=t.v; }
+    setA(ak,a);
+  }else{
+    cfg.scale=clamp(Math.round(cfg.scale*(up?1.05:1/1.05)),30,300);
+  }
+  saveCfg(); syncUI(); syncAdj(); build();
+},{passive:false});
 
 /* ドロップ */
-['dragenter','dragover'].forEach(t=>box.addEventListener(t,e=>{e.preventDefault();box.classList.add('drop');}));
-['dragleave','drop'].forEach(t=>box.addEventListener(t,e=>{e.preventDefault();box.classList.remove('drop');}));
-box.addEventListener('drop',e=>{
-  const all=[...(e.dataTransfer.files||[])];
-  const psd=all.find(f=>/\.psd$/i.test(f.name));
-  if(psd){ readPsdFile(psd); return; }
-  const fs=all.filter(f=>/^image\//.test(f.type));
-  if(fs.length) takeFiles(fs);
-});
+function dz(elm,cls){
+  ['dragenter','dragover'].forEach(t=>elm.addEventListener(t,e=>{e.preventDefault();elm.classList.add(cls);}));
+  ['dragleave','drop'].forEach(t=>elm.addEventListener(t,e=>{e.preventDefault();elm.classList.remove(cls);}));
+  elm.addEventListener('drop',e=>takeFiles(e.dataTransfer.files||[]));
+}
+dz(scr,'over'); dz($('#drop'),'over');
+$('#drop').addEventListener('click',()=>$('#pick').click());
+$('#pick').addEventListener('change',e=>{ if(e.target.files.length) takeFiles(e.target.files); e.target.value=''; });
 
 /* ============================================================
    パネル
    ============================================================ */
 function renderParts(){
-  const host=$('#parts'); host.innerHTML='';
+  const host=$('#plist'); host.innerHTML='';
+  let grp='';
   PARTS.forEach(p=>{
+    if(p.g!==grp){ grp=p.g; const d=document.createElement('div'); d.className='gl'; d.textContent=grp; host.appendChild(d); }
     const d=document.createElement('div');
-    d.className='part'+(sel===p.k?' sel':'');
-    d.innerHTML=`<div class="pv">${art[p.k]?`<img src="${art[p.k].url}" alt="">`:''}</div>
-      <div class="nm">${p.nm}<i>${p.sub}</i></div>
-      <span class="st${art[p.k]?' has':''}">${art[p.k]?'入':'—'}</span>`;
+    d.className='item'+(sel===p.k?' sel':'');
+    const pv=document.createElement('div'); pv.className='pv';
+    if(art[p.k]){ const im=document.createElement('img'); im.src=art[p.k].url; im.alt=''; pv.appendChild(im); }
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=p.nm;
+    if(p.sub){ const i=document.createElement('i'); i.textContent=p.sub; nm.appendChild(i); }
+    const st=document.createElement('span'); st.className='st'; st.textContent=art[p.k]?'':'なし';
+    d.append(pv,nm,st);
     if(art[p.k]){
-      const x=document.createElement('button'); x.className='x'; x.textContent='×';
-      x.onclick=ev=>{ev.stopPropagation();clearArt(p.k);};
+      const x=document.createElement('button'); x.className='x'; x.textContent='✕'; x.title='消す';
+      x.onclick=ev=>{ev.stopPropagation(); clearArt(p.k);};
       d.appendChild(x);
     }
-    d.onclick=()=>{ sel=p.k; renderParts(); syncAdj(); };
+    d.onclick=()=>{
+      sel=p.k;
+      if(p.g==='キーボード'&&cfg.mode!=='key'){ cfg.mode='key'; saveCfg(); syncUI(); }
+      if(p.g==='タブレット'&&cfg.mode!=='pen'){ cfg.mode='pen'; saveCfg(); syncUI(); }
+      renderParts(); syncAdj(); build();
+    };
     host.appendChild(d);
   });
 }
 function syncAdj(){
-  const a=A(sel);
-  $('#pX').value=a.x; $('#pXV').textContent=a.x;
-  $('#pY').value=a.y; $('#pYV').textContent=a.y;
+  const k=sel, ak=artKeyOf(k), a=A(ak);
+  $('#selName').textContent=PNAME[k]||k;
+  const pen=isPen(k);
+  $('#xyRows').hidden=pen; $('#tipRows').hidden=!pen;
+  let x=a.x,y=a.y;
+  if(k==='rest'){ const r=cfg.rest[cfg.hand]; x=r.x; y=r.y; }
+  $('#pX').value=x; $('#pXV').textContent=x;
+  $('#pY').value=y; $('#pYV').textContent=y;
   $('#pS').value=a.s; $('#pSV').textContent=a.s+'%';
   $('#pR').value=a.r; $('#pRV').textContent=a.r+'°';
   $('#pF').checked=!!a.flip;
 }
-['x','y','s','r'].forEach((key,i)=>{
-  const id=['pX','pY','pS','pR'][i], unit=['','','%','°'][i];
+[['pX','x'],['pY','y'],['pS','s'],['pR','r']].forEach(([id,key])=>{
   $('#'+id).addEventListener('input',e=>{
-    const a=A(sel); a[key]=+e.target.value; adj[sel]=a; saveCfg();
-    $('#'+id+'V').textContent=e.target.value+unit; build();
+    const v=+e.target.value, k=sel, ak=artKeyOf(k);
+    if(k==='rest'&&(key==='x'||key==='y')){ cfg.rest[cfg.hand][key]=v; }
+    else{ const a=A(ak); if(isPen(k)){ const t=tipOf(k); a.u=t.u; a.v=t.v; } a[key]=v; setA(ak,a); }
+    $('#'+id+'V').textContent=v+(key==='s'?'%':key==='r'?'°':'');
+    saveCfg();
   });
+  $('#'+id).addEventListener('change',()=>{ if(editing) build(); });
 });
-$('#pF').addEventListener('change',e=>{ const a=A(sel); a.flip=e.target.checked; adj[sel]=a; saveCfg(); build(); });
-$('#pReset').addEventListener('click',()=>{ delete adj[sel]; saveCfg(); syncAdj(); build(); });
+$('#pF').addEventListener('change',e=>{ const ak=artKeyOf(sel), a=A(ak); if(isPen(sel)){const t=tipOf(sel);a.u=t.u;a.v=t.v;} a.flip=e.target.checked; setA(ak,a); saveCfg(); build(); });
+$('#pReset').addEventListener('click',()=>{
+  if(sel==='rest') cfg.rest[cfg.hand]={x:0,y:0}; else delete adj[artKeyOf(sel)];
+  saveCfg(); syncAdj(); build();
+});
+$('#tipAuto').addEventListener('click',()=>{
+  if(!art[sel]){ status('ペン手の 絵が まだ ない。'); return; }
+  const a=A(sel); delete a.u; delete a.v; setA(sel,a); art[sel].tip=findTip(art[sel]);
+  saveCfg(); build(); status('絵の いちばん 下を ペン先に した。');
+});
 
-const SLID=['bAmt','bSpd','press','hold','scale','offX','offY','rMin','rMax','hSpd','handY','penLen'];
-const UNIT={scale:'%',rMin:'%',rMax:'%'};
+const SLID=['bAmt','bSpd','press','hold','hSpd','penBand','idleSec','scale'];
+const UNIT={scale:'%',idleSec:'秒',hold:'ms'};
 function syncUI(){
-  SLID.forEach(k=>{ $('#'+k).value=cfg[k]; $('#'+k+'V').textContent=cfg[k]+(UNIT[k]||''); });
-  $('#bounce').checked=cfg.bounce; $('#blink').checked=cfg.blink; $('#arm').checked=cfg.arm;
+  SLID.forEach(k=>{ $('#'+k).value=cfg[k]; $('#'+k+'V').textContent=(k==='idleSec'&&!cfg[k])?'しない':cfg[k]+(UNIT[k]||''); });
+  ['bounce','blink','arm'].forEach(k=>$('#'+k).checked=!!cfg[k]);
   $$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cfg.mode));
-  $$('#bgSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cfg.bg));
   $$('#handSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===cfg.hand));
-  box.className='stagebox '+cfg.bg;
-  $('#modeTag').textContent=cfg.mode==='key'?'キーボード':'タブレット';
+  $('#bg').value=cfg.bg;
+  scr.className='bg-'+cfg.bg+(editing?' edit':'');
+  $('#editBtn').classList.toggle('on',editing);
+  $('#editHint').hidden=!editing;
 }
 SLID.forEach(k=>$('#'+k).addEventListener('input',e=>{
-  let v=+e.target.value;
-  if(k==='rMin'&&v>cfg.rMax-20) v=cfg.rMax-20;
-  if(k==='rMax'&&v<cfg.rMin+20) v=cfg.rMin+20;
-  cfg[k]=v; e.target.value=v; $('#'+k+'V').textContent=v+(UNIT[k]||''); saveCfg();
+  cfg[k]=+e.target.value; $('#'+k+'V').textContent=(k==='idleSec'&&!cfg[k])?'しない':cfg[k]+(UNIT[k]||''); saveCfg();
 }));
 ['bounce','blink','arm'].forEach(k=>$('#'+k).addEventListener('change',e=>{cfg[k]=e.target.checked;saveCfg();}));
 $$('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{
-  cfg.mode=b.dataset.v; saveCfg(); syncUI(); drawDesk(); drawHands();
+  cfg.mode=b.dataset.v; S.lastIn=performance.now();
+  if(cfg.mode==='key'&&PARTS.find(p=>p.k===sel)?.g==='タブレット') sel='base';
+  if(cfg.mode==='pen'&&PARTS.find(p=>p.k===sel)?.g==='キーボード') sel='base';
+  saveCfg(); syncUI(); renderParts(); syncAdj(); build();
+  status(cfg.mode==='key'?'キーを 打つと、その 位置に 手が 行く。':'ステージの 上で マウスを 動かすと、ペン先が ついてくる。押すと タッチ。');
 }));
-$$('#bgSeg button').forEach(b=>b.addEventListener('click',()=>{cfg.bg=b.dataset.v;saveCfg();syncUI();}));
 $$('#handSeg button').forEach(b=>b.addEventListener('click',()=>{
-  cfg.hand=b.dataset.v; saveCfg(); syncUI(); drawHands();
+  cfg.hand=b.dataset.v; saveCfg(); syncUI(); syncAdj(); build();
 }));
-$('#pickBtn').addEventListener('click',()=>$('#pick').click());
-$('#pick').addEventListener('change',e=>{ if(e.target.files.length) takeFiles(e.target.files); e.target.value=''; });
-$('#solo').addEventListener('click',()=>document.body.classList.add('solo'));
+$('#bg').addEventListener('change',e=>{ cfg.bg=e.target.value; saveCfg(); syncUI(); });
+$('#editBtn').addEventListener('click',()=>{
+  editing=!editing; syncUI(); build();
+  status(editing?'配置を なおして いる 間は、キーや ペンに 反応しない。おわったら もう一度 押す。':'');
+});
+$('#solo').addEventListener('click',()=>{ if(editing){ editing=false; syncUI(); build(); } document.body.classList.add('solo'); });
 $('#exit').addEventListener('click',()=>document.body.classList.remove('solo'));
-addEventListener('keydown',e=>{ if(e.key==='Escape') document.body.classList.remove('solo'); });
-$('#reset').addEventListener('click',()=>{ cfg=Object.assign({},DEF); saveCfg(); syncUI(); build(); });
+$('#reset').addEventListener('click',()=>{
+  const keep={mode:cfg.mode,hand:cfg.hand,bg:cfg.bg};
+  cfg=Object.assign(JSON.parse(JSON.stringify(DEF)),keep); saveCfg(); syncUI(); build();
+  status('うごきと 全体の 位置を もどした（パーツごとの 位置は そのまま）。');
+});
 
-/* 書き出し・読み込み */
+/* ============================================================
+   書き出し・読み込み
+   ============================================================ */
 function blobToDataURL(b){ return new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b);}); }
 $('#save').addEventListener('click',async()=>{
-  const all=await idbGetAll(), imgs={};
-  for(const k in all) imgs[k]=await blobToDataURL(all[k]);
-  const json=JSON.stringify({v:1,cfg,adj,imgs},null,1);
+  const all=await idbAll(), imgs={};
+  for(const k in all) if(PK.includes(k)) imgs[k]=await blobToDataURL(all[k]);
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({v:2,cfg,adj,imgs})],{type:'application/json'}));
   a.download='bongo-setting.json'; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 });
 $('#load').addEventListener('click',()=>$('#loadFile').click());
 $('#loadFile').addEventListener('change',async e=>{
   const f=e.target.files[0]; e.target.value=''; if(!f) return;
-  let d; try{ d=JSON.parse(await f.text()); }catch(err){ return alert('読めないファイルだった。'); }
-  if(!d||!d.cfg) return alert('ぼんごの設定ファイルではないみたい。');
-  cfg=Object.assign({},DEF,d.cfg); adj=d.adj||{}; saveCfg(); syncUI();
+  let d; try{ d=JSON.parse(await f.text()); }catch(err){ status('読めない ファイルだった。'); return; }
+  if(!d||!d.cfg){ status('ぼんごの 設定ファイルでは ない みたい。'); return; }
+  cfg=Object.assign(JSON.parse(JSON.stringify(DEF)),d.cfg); adj=d.adj||{};
   for(const k in (d.imgs||{})){
-    try{ await setArt(k, await (await fetch(d.imgs[k])).blob()); }catch(err){}
+    if(!PK.includes(k)) continue;
+    try{ await setArt(k,await (await fetch(d.imgs[k])).blob(),true); }catch(err){}
   }
-  build(); renderParts(); syncAdj();
-  $('#keylog').textContent='読みこんだ。';
+  adj=d.adj||{};           // setArt が ペン先を 消すので もう一度
+  saveCfg(); syncUI(); build(); renderParts(); syncAdj();
+  status('読みこんだ。');
 });
 
-
 /* ============================================================
-   PSD から 取り込む（ag-psd は psd-avatar-studio のものを借りる）
+   PSD（ag-psd は psd-avatar-studio の ものを 借りる）
    ============================================================ */
-const SLOTS=[{k:'',nm:'からだへ'},...PARTS.map(p=>({k:p.k,nm:p.nm})),{k:'skip',nm:'使わない'}];
-const KOR={base:/base|body|chara|몸|몸통|캐릭|얼굴|머리|からだ|あたま|体|顔|胴/i,
-           lhandUp:/(왼|left|l[-_ ]?|左).*(손|hand|手)(?!.*(down|아래|下|press))/i,
-           lhandDown:/(왼|left|left|左).*(손|hand|手).*(down|아래|下|press|打)/i,
-           rhandUp:/(오른|right|r[-_ ]?|右).*(손|hand|手)(?!.*(down|아래|下|press))/i,
-           rhandDown:/(오른|right|右).*(손|hand|手).*(down|아래|下|press|打)/i,
-           pen:/pen|펜|ペン|stylus|붓/i,
-           desk:/desk|key|keyboard|키보드|台|机|책상/i,
-           deskPen:/tab|tablet|타블렛|板|いた|下敷/i};
 let psdW=0,psdH=0,psdLayers=[];
-
 function loadAgPsd(){
   if(window.agPsd) return Promise.resolve(true);
   return new Promise(res=>{
     const sc=document.createElement('script');
     sc.src='../psd-avatar-studio/lib/ag-psd.js';
-    sc.onload=()=>res(!!window.agPsd);
-    sc.onerror=()=>res(false);
+    sc.onload=()=>res(!!window.agPsd); sc.onerror=()=>res(false);
     document.head.appendChild(sc);
   });
 }
-function flattenPsd(node,out){
+function flattenPsd(node,out,path=[],hid=false){
   (node.children||[]).forEach(c=>{
-    if(c.children&&c.children.length) flattenPsd(c,out);
-    else if(c.canvas&&!c.hidden) out.push(c);
+    const h=hid||!!c.hidden, pth=[...path,c.name||''];
+    if(c.children&&c.children.length) flattenPsd(c,out,pth,h);
+    else if(c.canvas) out.push({l:c,path:pth,hidden:h});
   });
+}
+/* 自分の 名前 → 入っている フォルダの 名前（内がわから）の 順に 見る */
+function guessLayer(path,hidden){
+  let k='';
+  for(let i=path.length-1;i>=0;i--){ k=guessPart(path[i]); if(k) break; }
+  if(hidden&&(k===''||k==='base')) return 'skip';     // 名前の ない 非表示は 下書き あつかい
+  return k;
 }
 function contentBox(c){
   const d=c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,c.width,c.height).data;
@@ -743,52 +1078,41 @@ function contentBox(c){
   }
   return x1<0?null:[x0,y0,x1,y1];
 }
-function guessSlot(name){
-  for(const k of ['lhandDown','rhandDown','lhandUp','rhandUp','pen','deskPen','desk'])
-    if(KOR[k].test(name)) return k;
-  return '';                    // からだ へ
-}
 async function readPsdFile(f){
-  $('#psdInfo').textContent='PSDを読んでいる…';
+  $('#psdBox').hidden=false; $('#psdInfo').textContent='PSD を 読んで いる…'; $('#lays').innerHTML='';
   const ok=await loadAgPsd();
-  if(!ok){ $('#psdInfo').textContent='PSDを読む部品が見つからなかった。PNGで入れてほしい。'; return; }
+  if(!ok){ $('#psdInfo').textContent='PSD を 読む 部品が 見つからなかった。PNG で 入れて ほしい。'; return; }
   let psd;
   try{ psd=agPsd.readPsd(await f.arrayBuffer(),{skipCompositeImageData:true,skipThumbnail:true}); }
-  catch(err){ $('#psdInfo').textContent='このPSDは読めなかった（'+err.message+'）'; return; }
+  catch(err){ $('#psdInfo').textContent='この PSD は 読めなかった（'+err.message+'）'; return; }
   psdW=psd.width; psdH=psd.height;
   const flat=[]; flattenPsd(psd,flat);
-  psdLayers=flat.map(l=>({
-    name:l.name||'?', canvas:l.canvas,
-    left:l.left||0, top:l.top||0,
-    w:(l.right||0)-(l.left||0), h:(l.bottom||0)-(l.top||0),
-    slot:guessSlot(l.name||'')
-  })).filter(l=>l.w>0&&l.h>0);
+  psdLayers=flat.map(({l,path,hidden})=>({name:path.filter(Boolean).join(' / ')||'?',canvas:l.canvas,
+    left:l.left||0,top:l.top||0,w:(l.right||0)-(l.left||0),h:(l.bottom||0)-(l.top||0),
+    hidden,slot:guessLayer(path,hidden)}))
+    .filter(l=>l.w>0&&l.h>0);
   $('#psdInfo').textContent=`${f.name} — ${psdLayers.length}レイヤー（${psdW}×${psdH}）`;
   renderLayers();
-  $('#psdGo').hidden=psdLayers.length===0;
+  $('#psdGo').hidden=!psdLayers.length;
 }
 function renderLayers(){
-  const host=$('#layers'); host.innerHTML='';
+  const host=$('#lays'); host.innerHTML='';
+  const opts=[{k:'',nm:'からだへ'},...PARTS.filter(p=>p.k!=='base').map(p=>({k:p.k,nm:p.nm})),{k:'skip',nm:'使わない'}];
   psdLayers.forEach((l,i)=>{
     const d=document.createElement('div'); d.className='lay';
-    const pv=document.createElement('div'); pv.className='pv';
-    try{
-      const th=document.createElement('canvas'); th.width=th.height=26;
-      const r=Math.min(26/l.canvas.width,26/l.canvas.height);
-      th.getContext('2d').drawImage(l.canvas,0,0,l.canvas.width*r,l.canvas.height*r);
-      pv.appendChild(th);
-    }catch(e){}
-    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=l.name; nm.title=l.name;
+    const th=document.createElement('canvas'); th.width=th.height=24;
+    try{ const r=Math.min(24/l.canvas.width,24/l.canvas.height);
+      th.getContext('2d').drawImage(l.canvas,(24-l.canvas.width*r)/2,(24-l.canvas.height*r)/2,l.canvas.width*r,l.canvas.height*r); }catch(e){}
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=(l.hidden?'（非表示）':'')+l.name; nm.title=l.name;
+    if(l.hidden) nm.style.color='var(--gray)';
     const sl=document.createElement('select');
-    SLOTS.forEach(o=>{
-      const op=document.createElement('option'); op.value=o.k; op.textContent=o.nm;
-      if(o.k===l.slot) op.selected=true; sl.appendChild(op);
-    });
+    opts.forEach(o=>{ const op=document.createElement('option'); op.value=o.k; op.textContent=o.nm;
+      if(o.k===(l.slot==='base'?'':l.slot)) op.selected=true; sl.appendChild(op); });
     sl.onchange=()=>{ psdLayers[i].slot=sl.value; };
-    d.append(pv,nm,sl); host.appendChild(d);
+    d.append(th,nm,sl); host.appendChild(d);
   });
 }
-function compositeSlot(list){
+function composite(list){
   if(!list.length) return null;
   const c=document.createElement('canvas'); c.width=psdW; c.height=psdH;
   const g=c.getContext('2d',{willReadFrequently:true});
@@ -799,25 +1123,23 @@ function compositeSlot(list){
   o.getContext('2d').drawImage(c,x0,y0,w,h,0,0,w,h);
   return o;
 }
-function canvasBlob(c){ return new Promise(r=>c.toBlob(r,'image/png')); }
-async function applyPsdAssign(){
-  const groups={base:[]};
-  PARTS.forEach(p=>groups[p.k]=[]);
-  psdLayers.forEach(l=>{ if(l.slot==='skip')return; (groups[l.slot||'base']).push(l); });
+const toBlob=c=>new Promise(r=>c.toBlob(r,'image/png'));
+$('#psdGo').addEventListener('click',async()=>{
+  const groups={}; PK.forEach(k=>groups[k]=[]);
+  psdLayers.forEach(l=>{ if(l.slot==='skip') return; groups[l.slot||'base'].push(l); });
   let n=0;
-  for(const k in groups){
-    const c=compositeSlot(groups[k]);
-    if(!c) continue;
-    await setArt(k,await canvasBlob(c)); n++;
+  for(const k of PK){
+    const c=composite(groups[k]); if(!c) continue;
+    await setArt(k,await toBlob(c),true); n++;
   }
-  $('#psdInfo').textContent=`${n}パーツを作った。ずれていたら「合わせる」で直す。`;
-  $('#keylog').textContent='PSDから'+n+'パーツ入れた。';
-}
-$('#psdBtn').addEventListener('click',()=>$('#psdFile').click());
-$('#psdFile').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) readPsdFile(f); });
-$('#psdGo').addEventListener('click',applyPsdAssign);
+  build(); renderParts(); syncAdj();
+  $('#psdInfo').textContent=`${n}パーツ 作った。`;
+  status(`PSD から ${n}パーツ 入れた。「📐 配置を なおす」で 位置を 合わせる。`);
+});
 
-/* はじめ */
+/* ============================================================
+   はじめ
+   ============================================================ */
 (async()=>{
   await openDB(); await restoreArt();
   syncUI(); renderParts(); syncAdj(); build(); tick();
