@@ -83,7 +83,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=7');
+    E = await loadEngine('engine.wasm?v=8');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -160,6 +160,7 @@ function afterDocLoaded() {
   selectBrushForTool();
   bulkRender();
   refreshSel();
+  refreshMaskView();
   symState().cx = null;
   applySym();
 }
@@ -238,6 +239,7 @@ function changed(opts = {}) {
   else thumbSoon();
   kick();
   recordFrame();
+  if (S.info && S.info.edit_mask) maskViewSoon();
 }
 
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { commitFloat(); saveSettings.now(); saveNow(); } });
@@ -631,6 +633,7 @@ function startAction(e, x, y) {
   if (tool === 'pick') { input.pickId = e.pointerId; pickAt(x, y, false); return; }
   const [dx, dy] = toDoc(x, y);
   if (symHandleHit(x, y) && !eraserEnd) { input.symDrag = { id: e.pointerId }; return; }
+  if (maskEditing() && ['dot', 'move', 'text', 'verase', 'vwidth'].includes(tool)) { toast('マスクを 描いて いる 間は 使えません（ペン・消しゴム・塗り・囲って塗る が 使えます）'); return; }
   if (tool === 'dot') {
     if (!layerPaintable()) { layerBlockedToast(); return; }
     E.checkpoint();
@@ -1551,6 +1554,7 @@ function refreshLayers() {
       <span class="lind" style="width:${l.depth * 14 + (l.clipping ? 8 : 0)}px"></span>
       ${l.folder ? `<button class="lchev" title="ひらく／たたむ">${icon('aright', 15)}</button><span class="lfoldic">${icon('folder', 24)}</span>`
         : `<canvas class="lthumb" width="36" height="36"></canvas>`}
+      ${l.mask ? `<canvas class="lmask" width="36" height="36" title="マスク"></canvas>` : ''}
       ${l.vector ? `<span class="ltype" title="ベクター">${icon('pen', 15)}</span>` : ''}
       <div class="ltext"><div class="lmeta dot">${Math.round(l.opacity * 100)}% ${BLEND_NAMES[l.blend]}</div><div class="lname">${escapeHtml(l.name)}</div></div>
       <span class="lmarks">${marks.join('')}</span>
@@ -1566,6 +1570,9 @@ function refreshLayers() {
     let lastTap = 0;
     row.onclick = async ev => {
       if (ev.target.closest('.lgrip')) return;
+      // 絵 か マスク か、どちらに 描くかを えらぶ
+      if (ev.target.closest('.lmask')) { commitFloat(); if (i !== S.info.selected) E.layerSelect(i); E.setEditMask(true); refreshLayers(); refreshMaskView(); return; }
+      if (ev.target.closest('.lthumb') && l.mask) { commitFloat(); if (i !== S.info.selected) E.layerSelect(i); E.setEditMask(false); refreshLayers(); refreshMaskView(); return; }
       const now = performance.now();
       if (now - lastTap < 350 && i === S.info.selected) {
         const n = await promptText('レイヤーの 名前', l.name);
@@ -1573,12 +1580,18 @@ function refreshLayers() {
         return;
       }
       lastTap = now;
-      if (i !== S.info.selected) { commitFloat(); E.layerSelect(i); refreshLayers(); }
+      if (i !== S.info.selected) { commitFloat(); E.layerSelect(i); E.setEditMask(false); refreshLayers(); refreshMaskView(); }
     };
     setupGrip(row.querySelector('.lgrip'), i, row);
     list.appendChild(row);
-    const cv = row.querySelector('canvas');
+    const cv = row.querySelector('canvas.lthumb');
     if (cv) drawLayerThumb(i, cv);
+    const mc = row.querySelector('canvas.lmask');
+    if (mc) {
+      drawMaskThumb(i, mc);
+      if (l.mask_off) row.classList.add('maskoff');
+      if (i === S.info.selected) (S.info.edit_mask && !l.mask_off ? mc : cv) && (S.info.edit_mask && !l.mask_off ? mc : cv).classList.add('tgt');
+    }
   }
   list.scrollTop = keepScroll;
   syncLayerHead();
@@ -1595,6 +1608,7 @@ function syncLayerHead() {
   $('#lTone').classList.toggle('on', !!l.tone);
   $('#lSketch').classList.toggle('on', !!l.sketch);
   $('#lAlpha').classList.toggle('on', !!l.alpha_lock);
+  $('#lMask').classList.toggle('on', !!l.mask);
   $('#lTone').disabled = l.folder;
 }
 /* ドラッグで 並べかえ（≡ を つかむ）。上の 3分の1 … 上に、下 … 下に、フォルダーの まん中 … 中へ */
@@ -1693,7 +1707,7 @@ function openLayerSettings() {
 }
 function setupLayerPanel() {
   const ic = (id, name) => setIcon($(id), name, 17);
-  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil'); ic('#lAlpha', 'alpha');
+  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil'); ic('#lAlpha', 'alpha'); ic('#lMask', 'mask');
   ic('#lAdd', 'layeradd'); ic('#lVec', 'pen'); ic('#lFolder', 'folder'); ic('#lImage', 'image');
   ic('#lDup', 'copy'); ic('#lMerge', 'merge'); ic('#lSet', 'settings'); ic('#lDel', 'trash');
   const cur = () => [S.info.selected, S.info.layers[S.info.selected]];
@@ -1702,6 +1716,7 @@ function setupLayerPanel() {
   $('#lLock').onclick = toggle('locked');
   $('#lTone').onclick = toggle('tone');
   $('#lSketch').onclick = toggle('sketch');
+  $('#lMask').onclick = e => { e.stopPropagation(); openMaskMenu($('#lMask')); };
   $('#lAlpha').onclick = () => { const [i, l] = cur(); E.layerSet(i, 'alpha_lock', l.alpha_lock ? 0 : 1); changed({ layers: true }); toast(l.alpha_lock ? '透明度保護を はずしました' : '透明度保護: 色の ある ところ だけ 塗れます'); };
   $('#lBlend').onchange = e => { const [i] = cur(); E.checkpoint(); E.layerSet(i, 'blend', +e.target.value); changed({ layers: true }); };
   const op = $('#lOp');
@@ -2574,6 +2589,8 @@ const MENUS = () => [
     ['ロック', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'locked', l.locked ? 0 : 1); changed({ layers: true }); })],
     ['下の レイヤーで クリップ', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'clipping', l.clipping ? 0 : 1); changed({ layers: true }); })],
     ['トーンに する', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'tone', l.tone ? 0 : 1); changed({ layers: true }); })],
+    '-',
+    ['レイヤーマスク…', '', () => openMaskMenu($('#lMask'))],
   ]],
   ['選択範囲', [
     ['すべて 選択', 'Ctrl+A', () => { E.selOp(0); refreshSel(); }],
@@ -3050,6 +3067,84 @@ function drawDotGuide() {
     octx.lineWidth = 1; octx.strokeStyle = '#101114'; octx.stroke();
   }
   octx.restore();
+}
+
+/* ================================================================ レイヤーマスク */
+function maskEditing() { return !!(S.info && S.info.edit_mask && S.info.layers[S.info.selected] && S.info.layers[S.info.selected].mask && !S.info.layers[S.info.selected].mask_off); }
+function drawMaskThumb(i, cv) {
+  const W = S.info.width, H = S.info.height, Z = cv.width;
+  const k = Z / Math.max(W, H);
+  const tw = Math.max(1, Math.round(W * k)), th = Math.max(1, Math.round(H * k));
+  const px = E.maskThumb(i, tw, th);
+  if (!px) return;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#E4E6EB'; x.fillRect(0, 0, Z, Z);
+  x.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), tw, th), Math.round((Z - tw) / 2), Math.round((Z - th) / 2));
+}
+const maskCv = $('#maskCv');
+const maskViewSoon = debounce(() => refreshMaskView(), 250);
+function refreshMaskView() {
+  if (!E) return;
+  S.info = E.info();
+  const on = maskEditing();
+  const banner = $('#maskBanner');
+  banner.hidden = !on;
+  if (on && !banner.dataset.built) {
+    banner.dataset.built = '1';
+    banner.innerHTML = `<span>${icon('mask', 15)} マスクを 描いて います … ペン: 見せる ／ 消しゴム: かくす</span><button class="btn-sm" id="mbBack">絵に もどる</button>`;
+    $('#mbBack').onclick = () => { E.setEditMask(false); refreshLayers(); refreshMaskView(); };
+  }
+  maskCv.hidden = !on;
+  if (!on) return;
+  const px = E.maskPreview(1200);
+  if (!px) { maskCv.hidden = true; return; }
+  const dv = new DataView(px.buffer);
+  const w = dv.getUint32(0, true), h = dv.getUint32(4, true);
+  const m = px.subarray(8);
+  maskCv.width = w; maskCv.height = h;
+  maskCv.style.width = S.info.width + 'px';
+  maskCv.style.height = S.info.height + 'px';
+  const img = new ImageData(w, h), d = img.data;
+  // かくれて いる ところを うすい むらさきで
+  for (let i = 0; i < w * h; i++) { const v = m[i]; if (!v) continue; d[i * 4] = 120; d[i * 4 + 1] = 90; d[i * 4 + 2] = 220; d[i * 4 + 3] = Math.round(v * 0.45); }
+  maskCv.getContext('2d').putImageData(img, 0, 0);
+}
+function openMaskMenu(btn) {
+  closeMenus();
+  const l = S.info.layers[S.info.selected];
+  if (!l) return;
+  const pop = document.createElement('div');
+  pop.className = 'mpop';
+  const add = (label, fn, on, dis) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="ck">${on ? '✓' : ''}</span><span>${label}</span>`;
+    b.disabled = !!dis;
+    b.onclick = () => { closeMenus(); commitFloat(); fn(); refreshLayers(); refreshMaskView(); };
+    pop.appendChild(b);
+  };
+  const hasSel = E.selActive();
+  if (!l.mask) {
+    if (l.folder || l.locked) { toast('この レイヤーには マスクを つくれません'); return; }
+    add('マスクを つくる（ぜんぶ 見せる）', () => { if (E.maskCreate(0)) { changed({ layers: true }); toast('マスクを 描いて います … 消しゴムで かくす'); } });
+    add('選択範囲だけ 見せる マスク', () => { if (E.maskCreate(1)) changed({ layers: true }); }, false, !hasSel);
+    add('ぜんぶ かくす マスク', () => { if (E.maskCreate(2)) changed({ layers: true }); });
+  } else {
+    add('マスクを 描く', () => E.setEditMask(true), S.info.edit_mask && !l.mask_off, l.mask_off);
+    add('絵を 描く', () => E.setEditMask(false), !S.info.edit_mask || l.mask_off);
+    pop.appendChild(document.createElement('hr'));
+    add('選択範囲を かくす', () => { if (E.maskFromSelection(true)) changed({ layers: true }); }, false, !hasSel || l.mask_off);
+    add('選択範囲を 見せる', () => { if (E.maskFromSelection(false)) changed({ layers: true }); }, false, !hasSel || l.mask_off);
+    add('マスクを 反転', () => { if (E.maskOp(3)) changed({ layers: true }); }, false, l.mask_off);
+    add('マスクを 一時 オフ', () => { E.maskOp(2); changed({ layers: true }); }, l.mask_off);
+    pop.appendChild(document.createElement('hr'));
+    add('マスクを 適用（かくした ところを 消す）', () => { if (E.maskOp(1)) changed({ layers: true }); }, false, l.mask_off);
+    add('マスクを 削除', () => { if (E.maskOp(0)) changed({ layers: true }); });
+  }
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  pop.style.top = Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8) + 'px';
+  menuPop = pop;
 }
 
 /* ================================================================ キーボード */

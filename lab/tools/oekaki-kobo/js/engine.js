@@ -106,6 +106,12 @@ class Engine {
   filterApply(kind, a = 0, b = 0) { return this.x.filter_apply(kind, a, b) === 1; }
   setSymmetry(mode, n, cx, cy) { this.x.set_symmetry(mode, n, cx, cy); }
   dotLine(x0, y0, x1, y1, cell, size, shape, mode, dither) { return this.x.dot_line(x0, y0, x1, y1, cell, size, shape, mode, dither) === 1; }
+  maskCreate(mode) { return this.x.mask_create(mode) === 1; }
+  maskOp(op) { return this.x.mask_op(op) === 1; }
+  setEditMask(on) { this.x.set_edit_mask(on ? 1 : 0); }
+  maskFromSelection(hide) { return this.x.mask_from_selection(hide ? 1 : 0) === 1; }
+  maskThumb(i, w, h) { const n = this.x.mask_thumb(i, w, h); return n ? this.outCopy() : null; }
+  maskPreview(max) { const n = this.x.mask_preview(max); return n ? this.outCopy() : null; }
   setVectorWhole(on) { this.x.set_vector_whole(on ? 1 : 0); }
   layerSelect(i) { this.x.layer_select(i); }
   layerDelete(i) { this.x.layer_delete(i); }

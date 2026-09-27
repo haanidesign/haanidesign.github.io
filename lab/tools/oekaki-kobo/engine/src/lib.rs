@@ -50,6 +50,8 @@ struct Snapshot {
 }
 
 struct Stroke {
+    /// マスクを 描いて いる ときの ほんとうの レイヤー（stroke.layer は 見えない 作業用）。
+    mask_of: Option<usize>,
     /// 透明度保護の ときの 塗れる ところ（レイヤーの アルファ × 選択範囲）。
     mask: Option<Vec<u8>>,
     brush: usize,
@@ -95,6 +97,10 @@ struct App {
     sym_mode: u32,
     sym_n: u32,
     sym_center: [f32; 2],
+    /// マスクを 描く（見せる・かくす）ところに して いる。
+    edit_mask: bool,
+    /// 一時 オフに した マスク（レイヤーの id → マスク）。
+    masks_off: std::collections::HashMap<u64, TilePixels>,
 }
 
 /// 切りとって 浮かせた 絵（動かす・大きさ・回転の あいだ）。
@@ -216,6 +222,8 @@ fn install(doc: Document, selected: usize) {
             sym_mode: 0,
             sym_n: 6,
             sym_center: [0.0, 0.0],
+            edit_mask: false,
+            masks_off: Default::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: BTreeSet::new(),
@@ -340,6 +348,7 @@ pub extern "C" fn doc_save_quick() -> usize {
                     "tone": l.tone,
                     "alpha_lock": app.alpha_locked.contains(&l.id),
                     "tiles": l.pixels.tile_keys(),
+                    "mask": l.mask.as_ref().or(app.masks_off.get(&l.id)).map(|m| m.tile_keys()),
                 })
             })
             .collect();
@@ -354,6 +363,13 @@ pub extern "C" fn doc_save_quick() -> usize {
             for key in l.pixels.tile_keys() {
                 if let Some(t) = l.pixels.tile_data(key.0, key.1) {
                     body.extend_from_slice(t);
+                }
+            }
+            if let Some(m) = l.mask.as_ref().or(app.masks_off.get(&l.id)) {
+                for key in m.tile_keys() {
+                    if let Some(t) = m.tile_data(key.0, key.1) {
+                        body.extend_from_slice(t);
+                    }
                 }
             }
         }
@@ -416,6 +432,17 @@ pub extern "C" fn doc_load_quick(ptr: *const u8, len: usize) -> i32 {
                 let tile = layer.pixels.tile_mut(tx, ty);
                 tile.copy_from_slice(data);
             }
+            if let Some(keys) = l["mask"].as_array() {
+                let mut m = TilePixels::new(width, height);
+                for key in keys {
+                    let tx = key[0].as_u64()? as u32;
+                    let ty = key[1].as_u64()? as u32;
+                    let data = body.get(at..at + tile_bytes)?;
+                    at += tile_bytes;
+                    m.tile_mut(tx, ty).copy_from_slice(data);
+                }
+                layer.mask = Some(m);
+            }
             doc.layers.push(layer);
         }
         if doc.layers.is_empty() {
@@ -468,6 +495,8 @@ pub extern "C" fn doc_info() -> usize {
                     "vector": l.vector.is_some(),
                     "expanded": l.expanded,
                     "alpha_lock": app.alpha_locked.contains(&l.id),
+                    "mask": l.mask.is_some() || app.masks_off.contains_key(&l.id),
+                    "mask_off": app.masks_off.contains_key(&l.id),
                     "sketch": l.sketch,
                     "parent": l.parent_id.and_then(|p| app.doc.layers.iter().position(|x| x.id == p)),
                     "depth": depth,
@@ -482,6 +511,7 @@ pub extern "C" fn doc_info() -> usize {
             "width": app.doc.width, "height": app.doc.height, "dpi": app.doc.dpi,
             "selected": app.selected, "layers": layers,
             "undo": app.undo.len(), "redo": app.redo.len(),
+            "edit_mask": app.edit_mask,
         });
         set_out_str(&info.to_string())
     })
@@ -553,6 +583,15 @@ impl App {
             } else {
                 for key in a.pixels.tiles_changed_since(&b.pixels) {
                     self.mark_tile(key);
+                }
+                match (&a.mask, &b.mask) {
+                    (Some(x), Some(y)) => {
+                        for key in x.tiles_changed_since(y) {
+                            self.mark_tile(key);
+                        }
+                    }
+                    (None, None) => {}
+                    _ => self.mark_all(),
                 }
             }
         }
@@ -1296,10 +1335,16 @@ pub extern "C" fn stroke_begin(x: f32, y: f32) -> i32 {
         };
         let mut history = History::default();
         history.begin();
-        let alpha_mask = app.alpha_mask_for(app.selected);
+        let (alpha_mask, mask_of, layer) = if app.edit_mask && app.doc.layers[app.selected].mask.is_some() {
+            let tmp = app.mask_work_layer(app.selected);
+            app.doc.layers.push(tmp);
+            (None, Some(app.selected), app.doc.layers.len() - 1)
+        } else {
+            (app.alpha_mask_for(app.selected), None, app.selected)
+        };
         app.stroke = Some(Stroke {
             brush: app.brush,
-            layer: app.selected,
+            layer,
             builder: StrokeBuilder::new(params),
             raster,
             history,
@@ -1309,9 +1354,10 @@ pub extern "C" fn stroke_begin(x: f32, y: f32) -> i32 {
             min: [f32::MAX; 2],
             max: [f32::MIN; 2],
             pushed: 0,
-            vector: app.doc.layers[app.selected].vector.is_some(),
+            vector: mask_of.is_none() && app.doc.layers[app.selected].vector.is_some(),
             vindex: None,
             mask: alpha_mask,
+            mask_of,
         });
         1
     })
@@ -1341,6 +1387,7 @@ pub extern "C" fn stroke_push(
         if !update.committed.is_empty() {
             app.restore_provisional();
             app.paint_dabs(&update.committed);
+            app.sync_mask_stroke();
         }
     })
 }
@@ -1354,7 +1401,7 @@ pub extern "C" fn stroke_flush() {
             return;
         };
         let pending = std::mem::take(&mut stroke.pending);
-        if pending.is_empty() || stroke.vector {
+        if pending.is_empty() || stroke.vector || stroke.mask_of.is_some() {
             return;
         }
         let layer = stroke.layer;
@@ -1381,6 +1428,15 @@ pub extern "C" fn stroke_end() {
         let brush_index = stroke.brush;
         app.stroke = Some(stroke);
         app.paint_dabs(&tail);
+        if app.stroke.as_ref().is_some_and(|s| s.mask_of.is_some()) {
+            app.sync_mask_stroke();
+            let stroke = app.stroke.take().unwrap();
+            app.doc.layers.truncate(stroke.layer);
+            if stroke.pushed == 0 {
+                app.undo.pop();
+            }
+            return;
+        }
         let mut stroke = app.stroke.take().unwrap();
         if stroke.vector {
             app.vector_finish(layer, stroke.vindex);
@@ -2129,6 +2185,9 @@ pub extern "C" fn fill_at(x: f32, y: f32, tolerance: u32, all: u32, grow: u32) -
         app.checkpoint();
         let mut mask = std::mem::take(&mut sel.mask);
         app.clip_to_selection(&mut mask);
+        if app.edit_mask && app.doc.layers[app.selected].mask.is_some() {
+            return app.mask_region(&mask, false) as i32;
+        }
         let bbox = mask_bbox(&mask, w, h);
         app.apply_mask(&mask, bbox, false);
         1
@@ -2160,6 +2219,9 @@ pub extern "C" fn lasso(points_ptr: *const u8, count: u32, erase: u32) -> i32 {
         app.checkpoint();
         let mut mask = std::mem::take(&mut sel.mask);
         app.clip_to_selection(&mut mask);
+        if app.edit_mask && app.doc.layers[app.selected].mask.is_some() {
+            return app.mask_region(&mask, erase != 0) as i32;
+        }
         let bbox = mask_bbox(&mask, w, h);
         app.apply_mask(&mask, bbox, erase != 0);
         1
@@ -3238,5 +3300,259 @@ pub extern "C" fn dot_line(x0: f32, y0: f32, x1: f32, y1: f32, cell: u32, size: 
             app.mark_rect(bx0 as f32, by0 as f32, bx1 as f32, by1 as f32);
         }
         1
+    })
+}
+
+// ---------------------------------------------------------------- layer mask
+//
+// Efude の マスクは 1画素の はじめの 値（0 で かくれる）。タイルが なければ 見える。
+// 描く ときは「見える こさ = アルファ」の 見えない 作業レイヤーを つくって
+// ふつうの ブラシで 描き（ペン … 見せる、消しゴム … かくす）、描いた ぶんを マスクへ うつす。
+
+impl App {
+    fn mask_work_layer(&self, index: usize) -> Layer {
+        let (w, h) = (self.doc.width, self.doc.height);
+        let mut l = Layer::new(u64::MAX - 7, "", w, h);
+        l.visible = false;
+        l.pixels.fill_shared([255, 255, 255, 255]);
+        if let Some(mask) = &self.doc.layers[index].mask {
+            for ((tx, ty), data) in mask.tiles() {
+                let t = l.pixels.tile_mut(tx, ty);
+                for (px, m) in t.chunks_exact_mut(4).zip(data.chunks_exact(4)) {
+                    px[3] = m[0];
+                }
+            }
+        }
+        l
+    }
+    /// 作業レイヤーに 描いた ぶんを マスクへ（描いた はんい だけ）。
+    fn sync_mask_stroke(&mut self) {
+        let Some(stroke) = self.stroke.as_ref() else { return };
+        let Some(target) = stroke.mask_of else { return };
+        if stroke.min[0] > stroke.max[0] {
+            return;
+        }
+        let (w, h) = (self.doc.width, self.doc.height);
+        let x0 = (stroke.min[0].floor().max(0.0) as u32).min(w);
+        let y0 = (stroke.min[1].floor().max(0.0) as u32).min(h);
+        let x1 = (stroke.max[0].ceil().max(0.0) as u32 + 1).min(w);
+        let y1 = (stroke.max[1].ceil().max(0.0) as u32 + 1).min(h);
+        let work = self.doc.layers[stroke.layer].pixels.clone();
+        let Some(mask) = self.doc.layers[target].mask.as_mut() else { return };
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let v = work.pixel(x, y)[3];
+                let old = mask.pixel_or_tile_default(x, y, [255, 255, 255, 255])[0];
+                if v == old {
+                    continue;
+                }
+                if !mask.has_tile(x, y) {
+                    mask.ensure_tile_filled(x, y, [255, 255, 255, 255]);
+                }
+                mask.set_pixel(x, y, [v, v, v, 255]);
+            }
+        }
+        if x1 > x0 && y1 > y0 {
+            self.mark_rect(x0 as f32, y0 as f32, x1 as f32, y1 as f32);
+        }
+    }
+    /// マスクの はんい（1画素 1バイト の 強さ）を 見せる／かくす。
+    fn mask_region(&mut self, region: &[u8], hide: bool) -> bool {
+        let i = self.selected;
+        let (w, h) = (self.doc.width, self.doc.height);
+        let bbox = mask_bbox(region, w, h);
+        if bbox[0] > bbox[2] {
+            return false;
+        }
+        let Some(mask) = self.doc.layers[i].mask.as_mut() else { return false };
+        for y in bbox[1]..=bbox[3] {
+            for x in bbox[0]..=bbox[2] {
+                let k = region[(y * w + x) as usize] as f32 / 255.0;
+                if k <= 0.0 {
+                    continue;
+                }
+                let old = mask.pixel_or_tile_default(x, y, [255, 255, 255, 255])[0] as f32;
+                let v = if hide { old * (1.0 - k) } else { old + (255.0 - old) * k }.round() as u8;
+                if v as f32 == old {
+                    continue;
+                }
+                if !mask.has_tile(x, y) {
+                    mask.ensure_tile_filled(x, y, [255, 255, 255, 255]);
+                }
+                mask.set_pixel(x, y, [v, v, v, 255]);
+            }
+        }
+        self.mark_rect(bbox[0] as f32, bbox[1] as f32, bbox[2] as f32 + 1.0, bbox[3] as f32 + 1.0);
+        true
+    }
+}
+
+/// マスクを つくる。mode: 0 ぜんぶ 見せる 1 選択範囲だけ 見せる 2 ぜんぶ かくす
+#[unsafe(no_mangle)]
+pub extern "C" fn mask_create(mode: u32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        let (w, h) = (app.doc.width, app.doc.height);
+        if app.doc.layers.get(i).is_none_or(|l| l.mask.is_some() || l.locked) {
+            return 0;
+        }
+        app.checkpoint();
+        let id = app.doc.layers[i].id;
+        app.masks_off.remove(&id);
+        let mut m = TilePixels::new(w, h);
+        match mode {
+            1 if app.selection.active => {
+                m.fill_shared([0, 0, 0, 255]);
+                for y in 0..h {
+                    for x in 0..w {
+                        let v = app.selection.mask[(y * w + x) as usize];
+                        if v != 0 {
+                            m.set_pixel(x, y, [v, v, v, 255]);
+                        }
+                    }
+                }
+            }
+            2 => m.fill_shared([0, 0, 0, 255]),
+            _ => {}
+        }
+        app.doc.layers[i].mask = Some(m);
+        app.edit_mask = true;
+        app.mark_all();
+        1
+    })
+}
+
+/// マスクを どうするか。op: 0 消す 1 適用（かくした ところを ほんとうに 消す） 2 一時オフ／オン 3 反転
+#[unsafe(no_mangle)]
+pub extern "C" fn mask_op(op: u32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        let Some(l) = app.doc.layers.get(i) else { return 0 };
+        let id = l.id;
+        let (w, h) = (app.doc.width, app.doc.height);
+        match op {
+            0 => {
+                if l.mask.is_none() && !app.masks_off.contains_key(&id) {
+                    return 0;
+                }
+                app.checkpoint();
+                app.doc.layers[i].mask = None;
+                app.masks_off.remove(&id);
+                app.edit_mask = false;
+            }
+            1 => {
+                let Some(mask) = l.mask.clone() else { return 0 };
+                app.checkpoint();
+                let px = &mut app.doc.layers[i].pixels;
+                for key in px.tile_keys() {
+                    let Some(m) = mask.tile_data(key.0, key.1).map(|d| d.to_vec()) else { continue };
+                    let t = px.tile_mut(key.0, key.1);
+                    for (p, mv) in t.chunks_exact_mut(4).zip(m.chunks_exact(4)) {
+                        p[3] = ((p[3] as u32 * mv[0] as u32 + 127) / 255) as u8;
+                        if p[3] == 0 {
+                            p.copy_from_slice(&[0, 0, 0, 0]);
+                        }
+                    }
+                }
+                px.prune_empty_tiles();
+                app.doc.layers[i].mask = None;
+                app.edit_mask = false;
+            }
+            2 => {
+                if let Some(m) = app.masks_off.remove(&id) {
+                    app.doc.layers[i].mask = Some(m);
+                } else if let Some(m) = app.doc.layers[i].mask.take() {
+                    app.masks_off.insert(id, m);
+                    app.edit_mask = false;
+                } else {
+                    return 0;
+                }
+            }
+            3 => {
+                let Some(mask) = l.mask.clone() else { return 0 };
+                app.checkpoint();
+                let mut m = TilePixels::new(w, h);
+                m.fill_shared([0, 0, 0, 255]);
+                for key in mask.tile_keys() {
+                    let d = mask.tile_data(key.0, key.1).unwrap().to_vec();
+                    let t = m.tile_mut(key.0, key.1);
+                    for (p, v) in t.chunks_exact_mut(4).zip(d.chunks_exact(4)) {
+                        let x = 255 - v[0];
+                        p.copy_from_slice(&[x, x, x, 255]);
+                    }
+                }
+                app.doc.layers[i].mask = Some(m);
+            }
+            _ => return 0,
+        }
+        app.mark_all();
+        1
+    })
+}
+
+/// マスクを 描く ところに するか（1）、絵に もどすか（0）。
+#[unsafe(no_mangle)]
+pub extern "C" fn set_edit_mask(on: u32) {
+    with_app((), |app| app.edit_mask = on != 0)
+}
+
+/// マスクを 選択範囲で: hide 1 … かくす、0 … 見せる
+#[unsafe(no_mangle)]
+pub extern "C" fn mask_from_selection(hide: u32) -> i32 {
+    with_app(0, |app| {
+        if !app.selection.active || app.doc.layers[app.selected].mask.is_none() {
+            return 0;
+        }
+        app.checkpoint();
+        let region = app.selection.mask.clone();
+        app.mask_region(&region, hide != 0) as i32
+    })
+}
+
+/// マスクの 小さな 絵（白 … 見える、黒 … かくれる）。RGBA
+#[unsafe(no_mangle)]
+pub extern "C" fn mask_thumb(index: u32, tw: u32, th: u32) -> usize {
+    with_app(0, |app| {
+        let Some(l) = app.doc.layers.get(index as usize) else { return 0 };
+        let mask = match (&l.mask, app.masks_off.get(&l.id)) {
+            (Some(m), _) => m,
+            (None, Some(m)) => m,
+            _ => return 0,
+        };
+        let (w, h) = (app.doc.width, app.doc.height);
+        let (tw, th) = (tw.clamp(1, 256), th.clamp(1, 256));
+        let mut out = vec![0u8; (tw * th * 4) as usize];
+        for y in 0..th {
+            for x in 0..tw {
+                let sx = (((x as f32 + 0.5) / tw as f32) * w as f32) as u32;
+                let sy = (((y as f32 + 0.5) / th as f32) * h as f32) as u32;
+                let v = mask.pixel_or_tile_default(sx.min(w - 1), sy.min(h - 1), [255; 4])[0];
+                let i = ((y * tw + x) * 4) as usize;
+                out[i..i + 4].copy_from_slice(&[v, v, v, 255]);
+            }
+        }
+        set_out(out)
+    })
+}
+
+/// マスクの かくれた ところ（見せる 用、小さく）。w,h(u32) + 1画素 1バイト（255 … かくれる）
+#[unsafe(no_mangle)]
+pub extern "C" fn mask_preview(max: u32) -> usize {
+    with_app(0, |app| {
+        let Some(mask) = app.doc.layers.get(app.selected).and_then(|l| l.mask.as_ref()) else { return 0 };
+        let (w, h) = (app.doc.width, app.doc.height);
+        let k = (max.max(16) as f32 / w.max(h) as f32).min(1.0);
+        let (pw, ph) = (((w as f32 * k).ceil() as u32).max(1), ((h as f32 * k).ceil() as u32).max(1));
+        let mut out = Vec::with_capacity((8 + pw * ph) as usize);
+        out.extend_from_slice(&pw.to_le_bytes());
+        out.extend_from_slice(&ph.to_le_bytes());
+        for y in 0..ph {
+            for x in 0..pw {
+                let sx = ((x as f32 + 0.5) / k) as u32;
+                let sy = ((y as f32 + 0.5) / k) as u32;
+                out.push(255 - mask.pixel_or_tile_default(sx.min(w - 1), sy.min(h - 1), [255; 4])[0]);
+            }
+        }
+        set_out(out)
     })
 }

@@ -62,3 +62,32 @@ fn cross_erase() {
     println!("cross {a} -> {b}");
     assert!(a - b > 1500 && a - b < 3000);
 }
+
+#[test]
+fn mask_paint() {
+    doc_new(800, 600, 350.0, 0);
+    brush_select(0);
+    stroke_begin(50.0, 300.0);
+    for i in 0..=100 { stroke_push(50.0 + i as f32 * 7.0, 300.0, 0.9, 0.0, 0.0, 0.0, i as f64 * 5.0); }
+    stroke_end();
+    let a = dark_t();
+    assert_eq!(mask_create(0), 1);
+    brush_select(7); // 消しゴム = かくす
+    stroke_begin(400.0, 200.0);
+    for i in 0..=50 { stroke_push(400.0, 200.0 + i as f32 * 4.0, 1.0, 0.0, 0.0, 0.0, i as f64 * 5.0); }
+    stroke_end();
+    let b = dark_t();
+    mask_op(2); // オフ
+    let c = dark_t();
+    mask_op(2);
+    mask_op(1); // 適用
+    let d = dark_t();
+    println!("mask {a} {b} {c} {d}");
+    assert!(b < a && c == a && d == b);
+}
+fn dark_t() -> usize {
+    doc_export_rgba(1);
+    let n = out_len();
+    let p = unsafe { std::slice::from_raw_parts(out_ptr(), n) };
+    p.chunks(4).filter(|c| c[3] > 128).count()
+}

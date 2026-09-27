@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=Noto+Serif+JP:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=7">
 <link rel="stylesheet" href="../skin/soft.css?v=11">
-<link rel="stylesheet" href="css/soft.css?v=2">
+<link rel="stylesheet" href="css/soft.css?v=3">
 </head>
 <body>
 <div id="app">
@@ -81,7 +81,7 @@
   </nav>
 
   <main id="stage">
-    <div id="sheet"><canvas id="doc" width="1" height="1"></canvas><canvas id="floatCv" hidden></canvas><canvas id="selCv" hidden></canvas></div>
+    <div id="sheet"><canvas id="doc" width="1" height="1"></canvas><canvas id="floatCv" hidden></canvas><canvas id="maskCv" hidden></canvas><canvas id="selCv" hidden></canvas></div>
     <canvas id="over"></canvas>
     <div id="toolOpts" class="float"></div>
     <div id="viewPill" class="float">
@@ -90,6 +90,7 @@
       <button id="vFit" class="ib sm" title="全体を 見る"></button>
       <span id="vZoom" class="dot">100%</span>
     </div>
+    <div id="maskBanner" class="float" hidden></div>
     <div id="toast"></div>
     <div id="boot" class="boot"><div class="boot-card"><div class="ttl">おえかき工房</div><div class="dot" id="bootMsg">よみこみ中…</div></div></div>
   </main>
@@ -167,6 +168,7 @@
         <button id="lTone" class="lb" title="トーンに する"></button>
         <button id="lSketch" class="lb" title="下描き"></button>
         <button id="lAlpha" class="lb" title="透明度保護（色の ある ところ だけ 塗る）"></button>
+        <button id="lMask" class="lb" title="レイヤーマスク"></button>
         <span class="lsep"></span>
         <button id="lAdd" class="lb" title="新しい ラスターレイヤー"></button>
         <button id="lVec" class="lb" title="新しい ベクターレイヤー"></button>
