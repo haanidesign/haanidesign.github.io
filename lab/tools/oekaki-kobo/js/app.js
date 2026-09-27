@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   fingerDraw: false, gamma: 1, lefty: false, tapUndo: true, penButtonErase: true,
   fillAll: true, fillTol: 24, fillGrow: 1, lassoErase: false, pickLayer: false, panel: true,
   folds: {}, pmini: false, smini: false,
+  selMode: 'lasso', selOp: 0, selTol: 24, selAll: true,
   vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
 const S = {
@@ -78,7 +79,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=3');
+    E = await loadEngine('engine.wasm?v=4');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -123,7 +124,8 @@ function buildStaticIcons() {
   iconText($('#bExport'), 'download', '書き出す');
   setIcon($('#bSettings'), 'settings');
   setIcon($('#bPanel'), 'layers');
-  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
+  setupCommands();
+  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', select: 'lassosel', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
   for (const b of $$('.tool')) setIcon(b, toolIcons[b.dataset.tool], 26);
   setIcon($('#vFlip'), 'flip', 18);
   setIcon($('#vRot'), 'rotl', 18);
@@ -157,6 +159,7 @@ function afterDocLoaded() {
   E.setColor(...S.color);
   selectBrushForTool();
   bulkRender();
+  refreshSel();
 }
 
 function newWork({ w, h, dpi, paper, name }) {
@@ -367,7 +370,7 @@ function drawOverlay() {
     octx.beginPath();
     input.lasso.forEach(([px, py], i) => { const [x, y] = toScreen(px, py); i ? octx.lineTo(x, y) : octx.moveTo(x, y); });
     octx.closePath();
-    octx.fillStyle = S.settings.lassoErase ? 'rgba(242,160,184,.25)' : 'rgba(225,221,96,.3)';
+    octx.fillStyle = input.lassoSel ? 'rgba(242,160,184,.18)' : S.settings.lassoErase ? 'rgba(242,160,184,.25)' : 'rgba(225,221,96,.3)';
     octx.fill();
     octx.lineWidth = 2;
     octx.strokeStyle = '#1E1C14';
@@ -652,8 +655,21 @@ function startAction(e, x, y) {
     drawOverlay();
     return;
   }
+  if (tool === 'select') {
+    const st = S.settings;
+    if (st.selMode === 'wand') { E.selWand(dx, dy, Math.round(st.selTol * 2.55), st.selAll, st.selOp); refreshSel(); return; }
+    input.lassoMove = false;
+    input.lassoSel = true;
+    input.lasso = [[dx, dy]];
+    input.lassoId = e.pointerId;
+    input.lassoType = e.pointerType;
+    input.drawStart = performance.now();
+    drawOverlay();
+    return;
+  }
   if (tool === 'lasso') {
     if (!layerPaintable()) { layerBlockedToast(); return; }
+    input.lassoSel = false;
     input.lassoMove = false;
     input.lasso = [[dx, dy]];
     input.lassoId = e.pointerId;
@@ -741,6 +757,13 @@ function endLasso() {
   input.lasso = null;
   input.lassoId = null;
   drawOverlay();
+  if (input.lassoSel) {
+    input.lassoSel = false;
+    if (pts && pts.length >= 3) E.selLasso(pts, S.settings.selOp);
+    else if (S.settings.selOp === 0) E.selOp(1);
+    refreshSel();
+    return;
+  }
   if (input.lassoMove) {
     input.lassoMove = false;
     // ほとんど 動かさなかったら レイヤー全体
@@ -925,6 +948,7 @@ function commitFloat() {
   floatCv.hidden = true;
   floatCv.width = 1; floatCv.height = 1;
   input.floatDrag = null;
+  if (E.selActive()) { E.selOp(1); refreshSel(); }
   changed();
   if (S.tool === 'move') renderToolOpts();
 }
@@ -1007,6 +1031,19 @@ function renderToolOpts() {
     } else {
       el.innerHTML = `<span>動かしたい ところを 囲む（タップだけで レイヤー全体）</span>`;
     }
+  } else if (S.tool === 'select') {
+    const m = st.selMode, o = st.selOp;
+    el.innerHTML = `<button class="btn-sm ${m === 'lasso' ? 'on' : ''}" data-sm="lasso">囲う</button>
+      <button class="btn-sm ${m === 'wand' ? 'on' : ''}" data-sm="wand">${icon('wand', 14)}自動選択</button>
+      <button class="btn-sm ${o === 0 ? 'on' : ''}" data-so="0">新しく</button>
+      <button class="btn-sm ${o === 1 ? 'on' : ''}" data-so="1">足す</button>
+      <button class="btn-sm ${o === 2 ? 'on' : ''}" data-so="2">引く</button>
+      ${m === 'wand' ? `<label>色の はば <input type="range" id="oST" min="0" max="100" value="${st.selTol}"></label>
+      <label><input type="checkbox" id="oSA" ${st.selAll ? 'checked' : ''}>見えている 絵</label>` : ''}`;
+    for (const b of $$('[data-sm]', el)) b.onclick = () => { st.selMode = b.dataset.sm; saveSettings(); renderToolOpts(); };
+    for (const b of $$('[data-so]', el)) b.onclick = () => { st.selOp = +b.dataset.so; saveSettings(); renderToolOpts(); };
+    if ($('#oST', el)) $('#oST', el).oninput = e => { st.selTol = +e.target.value; saveSettings(); };
+    if ($('#oSA', el)) $('#oSA', el).onchange = e => { st.selAll = e.target.checked; saveSettings(); };
   } else if (S.tool === 'verase') {
     const m = st.veMode;
     el.innerHTML = `<button class="btn-sm ${m === 0 ? 'on' : ''}" data-vm="0">触れた ところ</button>
@@ -2255,18 +2292,263 @@ function applyFolds() {
   drawNav(true);
 }
 
+/* ================================================================ 選択範囲の 表示 */
+const selCv = $('#selCv');
+function refreshSel() {
+  const px = E && E.selPreview(1400);
+  const on = !!px;
+  selCv.hidden = !on;
+  for (const id of ['#cSelNone', '#cSelInv', '#cSelFill', '#cClearOut']) { const b = $(id); if (b) b.disabled = !on; }
+  if (!on) return;
+  const dv = new DataView(px.buffer);
+  const w = dv.getUint32(0, true), h = dv.getUint32(4, true);
+  const m = px.subarray(8);
+  selCv.width = w; selCv.height = h;
+  selCv.style.width = S.info.width + 'px';
+  selCv.style.height = S.info.height + 'px';
+  const img = new ImageData(w, h);
+  const d = img.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    const inside = m[i] > 127;
+    const edge = inside && (x === 0 || y === 0 || x === w - 1 || y === h - 1 || m[i - 1] <= 127 || m[i + 1] <= 127 || m[i - w] <= 127 || m[i + w] <= 127);
+    const o = i * 4;
+    if (edge) { const k = ((x + y) >> 2) & 1; d[o] = k ? 30 : 255; d[o + 1] = k ? 28 : 254; d[o + 2] = k ? 20 : 247; d[o + 3] = 255; }
+    else if (!inside) { d[o] = 30; d[o + 1] = 28; d[o + 2] = 20; d[o + 3] = 40; } // 外を 少し 暗く
+  }
+  selCv.getContext('2d').putImageData(img, 0, 0);
+}
+
+/* ================================================================ 上の 列（コマンド と メニュー） */
+function cmdClear() {
+  const l = S.info.layers[S.info.selected];
+  if (!l || l.locked || l.folder) { layerBlockedToast(); return; }
+  if (E.selActive()) { if (E.selApply(0)) changed(); else layerBlockedToast(); }
+  else { E.layerClear(S.info.selected); changed({ layers: true }); }
+}
+function cmdTransform() {
+  if (!layerPaintable()) { layerBlockedToast(); return; }
+  selectTool('move');
+  if (!S.float) beginFloat([]);
+}
+function selNeed(fn) { return () => { if (!E.selActive()) { toast('選択範囲が ありません'); return; } fn(); }; }
+const selCmd = {
+  fill: selNeed(() => { if (E.selApply(2)) { addRecent(S.color); changed(); } else layerBlockedToast(); }),
+  clearOut: selNeed(() => { if (E.selApply(1)) changed(); else layerBlockedToast(); }),
+};
+async function askNumber(title, value) {
+  const v = await promptText(title, String(value));
+  const n = parseFloat(v);
+  return isFinite(n) ? n : null;
+}
+function setupCommands() {
+  const ic = (id, name) => setIcon($(id), name, 20);
+  ic('#cNew', 'newfile'); ic('#cOpen', 'open'); ic('#cSave', 'save');
+  ic('#cJpg', 'jpg'); ic('#cPng', 'png'); ic('#cPsd', 'filetype');
+  ic('#cSelNone', 'selnone'); ic('#cSelInv', 'seldash'); ic('#cSelFill', 'fill');
+  ic('#cClear', 'clean'); ic('#cClearOut', 'scissor'); ic('#cTransform', 'transform');
+  ic('#cHelp', 'help'); ic('#cFull', 'full');
+  $('#cNew').onclick = () => { commitFloat(); openNewDialog(); };
+  $('#cOpen').onclick = () => pickFile('.efude,.psd,.efudebrushes,image/*', openFile);
+  $('#cSave').onclick = async () => { commitFloat(); S.unsaved = true; await saveNow(); toast('しまいました'); };
+  $('#cJpg').onclick = () => exportAs('jpg');
+  $('#cPng').onclick = () => exportAs('png');
+  $('#cPsd').onclick = () => exportAs('psd');
+  $('#cSelNone').onclick = () => { E.selOp(1); refreshSel(); };
+  $('#cSelInv').onclick = () => { E.selOp(2); refreshSel(); };
+  $('#cSelFill').onclick = selCmd.fill;
+  $('#cClear').onclick = cmdClear;
+  $('#cClearOut').onclick = selCmd.clearOut;
+  $('#cTransform').onclick = cmdTransform;
+  $('#cHelp').onclick = openHelp;
+  $('#cFull').onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen().catch(() => toast('全画面に できませんでした'));
+  };
+  buildMenus();
+}
+function layerCmd(fn) { return () => { commitFloat(); fn(S.info.selected, S.info.layers[S.info.selected]); }; }
+function toggleFold(key) {
+  S.settings.folds[key] = !S.settings.folds[key];
+  if (!S.settings.folds[key]) { S.settings.pmini = false; S.settings.smini = false; }
+  applyFolds(); saveSettings();
+}
+const MENUS = () => [
+  ['ファイル', [
+    ['新しい 紙', '', () => $('#cNew').click()],
+    ['作品の 一覧', '', openMenu],
+    ['ファイルを ひらく', '', () => $('#cOpen').click()],
+    ['今すぐ しまう', 'Ctrl+S', () => $('#cSave').click()],
+    '-',
+    ['書き出す…', '', openExport],
+    ['JPG で 書き出す', '', () => exportAs('jpg')],
+    ['PNG で 書き出す', '', () => exportAs('png')],
+    ['透明 PNG で 書き出す', '', () => exportAs('png-t')],
+    ['PSD で 書き出す', '', () => exportAs('psd')],
+    ['.efude で 書き出す', '', () => exportAs('efude')],
+    '-',
+    ['Efude の ブラシを 読む', '', () => pickFile('.efudebrushes', openFile)],
+  ]],
+  ['編集', [
+    ['取り消し', 'Ctrl+Z', doUndo],
+    ['やり直し', 'Ctrl+Y', doRedo],
+    '-',
+    ['消去', 'Del', cmdClear],
+    ['選択範囲の 外を 消す', '', selCmd.clearOut],
+    ['選択範囲を 塗る', '', selCmd.fill],
+    ['拡大・縮小・回転', 'Ctrl+T', cmdTransform],
+    '-',
+    ['紙の 向きを かえる…', '', openRotateDialog],
+  ]],
+  ['レイヤー', [
+    ['新しい ラスターレイヤー', '', () => $('#lAdd').click()],
+    ['新しい ベクターレイヤー', '', () => $('#lVec').click()],
+    ['画像を レイヤーに', '', () => $('#lImage').click()],
+    '-',
+    ['複製', '', layerCmd(i => { E.layerDuplicate(i); changed({ layers: true }); })],
+    ['下と 結合', '', layerCmd(i => { if (E.layerMergeDown(i)) changed({ layers: true }); else toast('結合できません'); })],
+    ['ラスターに する', '', layerCmd((i, l) => { if (!l.vector) { toast('ベクターレイヤーでは ありません'); return; } E.layerRasterize(i); changed({ layers: true }); })],
+    ['削除', '', layerCmd(async (i, l) => { if (await confirmBox(`「${l.name}」を 削除しますか？`)) { E.layerDelete(i); changed({ layers: true }); } })],
+    '-',
+    ['表示・非表示', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'visible', l.visible ? 0 : 1); changed({ layers: true }); })],
+    ['ロック', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'locked', l.locked ? 0 : 1); changed({ layers: true }); })],
+    ['下の レイヤーで クリップ', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'clipping', l.clipping ? 0 : 1); changed({ layers: true }); })],
+    ['トーンに する', '', layerCmd((i, l) => { E.checkpoint(); E.layerSet(i, 'tone', l.tone ? 0 : 1); changed({ layers: true }); })],
+  ]],
+  ['選択範囲', [
+    ['すべて 選択', 'Ctrl+A', () => { E.selOp(0); refreshSel(); }],
+    ['選択を 解除', 'Ctrl+D', () => { E.selOp(1); refreshSel(); }],
+    ['選択範囲を 反転', 'Ctrl+Shift+I', () => { E.selOp(2); refreshSel(); }],
+    ['レイヤーの 絵から 選択', '', () => { E.selOp(6); refreshSel(); }],
+    '-',
+    ['選択範囲を 広げる…', '', selNeed(async () => { const n = await askNumber('広げる 画素数', 4); if (n) { E.selOp(3, n); refreshSel(); } })],
+    ['選択範囲を せばめる…', '', selNeed(async () => { const n = await askNumber('せばめる 画素数', 4); if (n) { E.selOp(4, n); refreshSel(); } })],
+    ['選択範囲を ぼかす…', '', selNeed(async () => { const n = await askNumber('ぼかす 画素数', 4); if (n) { E.selOp(5, n); refreshSel(); } })],
+    '-',
+    ['選択の 道具に する', 'S', () => selectTool('select')],
+  ]],
+  ['フィルター', [
+    ['ぼかし…', '', () => openFilter(0)],
+    ['シャープ…', '', () => openFilter(1)],
+    ['色相・彩度…', '', () => openFilter(2)],
+    ['明るさ・コントラスト…', '', () => openFilter(3)],
+    '-',
+    ['自動レベル補正', '', () => runFilter(4)],
+    ['色の 反転', '', () => runFilter(5)],
+    ['モノクロ', '', () => runFilter(6)],
+  ]],
+  ['表示', [
+    ['全体を 見る', '0', fitView],
+    ['100%', '', () => { const r = stage.getBoundingClientRect(); zoomAt(1 / S.view.s, r.width / 2, r.height / 2); }],
+    ['拡大', '', () => { const r = stage.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); }],
+    ['縮小', '', () => { const r = stage.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); }],
+    ['左右反転（見た目だけ）', 'H', toggleFlip],
+    ['回転を もどす', '', resetRotation],
+  ]],
+  ['ウィンドウ', [
+    ...[['blist', 'ブラシ'], ['bprops', 'ブラシの 設定'], ['nav', 'ナビゲーター'], ['layers', 'レイヤー'], ['lprops', 'レイヤーの 設定'], ['sizes', '太さの 列']]
+      .map(([k, n]) => [n, '', () => toggleFold(k), () => !S.settings.folds[k]]),
+    '-',
+    ['ブラシの 列を 細く', '', () => { S.settings.pmini = !S.settings.pmini; applyFolds(); saveSettings(); }, () => S.settings.pmini],
+    ['レイヤーの 列を 細く', '', () => { S.settings.smini = !S.settings.smini; applyFolds(); saveSettings(); }, () => S.settings.smini],
+    ['パネルを しまう', 'Tab', () => $('#bPanel').click(), () => !S.settings.panel],
+    ['左手モード', '', () => { S.settings.lefty = !S.settings.lefty; applySettings(); saveSettings(); }, () => S.settings.lefty],
+  ]],
+  ['ヘルプ', [
+    ['使いかた', '', openHelp],
+    ['設定・この アプリに ついて', '', openSettings],
+  ]],
+];
+let menuPop = null, menuOpen = null;
+function closeMenus() { if (menuPop) { menuPop.remove(); menuPop = null; } menuOpen = null; for (const b of $$('.mbtn')) b.classList.remove('on'); }
+function buildMenus() {
+  const bar = $('#menus');
+  bar.innerHTML = '';
+  for (const [name] of MENUS()) {
+    const b = document.createElement('button');
+    b.className = 'mbtn';
+    b.textContent = name;
+    b.onclick = e => { e.stopPropagation(); if (menuOpen === name) { closeMenus(); return; } showMenu(name, b); };
+    bar.appendChild(b);
+  }
+  document.addEventListener('pointerdown', e => { if (menuPop && !menuPop.contains(e.target) && !e.target.closest('.mbtn')) closeMenus(); });
+}
+function showMenu(name, btn) {
+  closeMenus();
+  const items = MENUS().find(m => m[0] === name)[1];
+  menuOpen = name;
+  btn.classList.add('on');
+  const pop = document.createElement('div');
+  pop.className = 'mpop';
+  for (const it of items) {
+    if (it === '-') { pop.appendChild(document.createElement('hr')); continue; }
+    const [label, key, fn, check] = it;
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="ck">${check ? (check() ? '✓' : '') : ''}</span><span>${label}</span><span class="k">${key || ''}</span>`;
+    b.onclick = () => { closeMenus(); fn(); };
+    pop.appendChild(b);
+  }
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  pop.style.top = (r.bottom + 4) + 'px';
+  menuPop = pop;
+}
+
+/* ---------- フィルター ---------- */
+const FILTERS = [
+  ['ぼかし', [['a', 'はんい', 1, 40, 4, 1]]],
+  ['シャープ', [['a', '強さ', 0.1, 3, 0.8, 0.05]]],
+  ['色相・彩度', [['a', '色相', -180, 180, 0, 1], ['b', '彩度', 0, 3, 1, 0.01]]],
+  ['明るさ・コントラスト', [['a', '明るさ', -1, 1, 0, 0.01], ['b', 'コントラスト', -1, 1, 0, 0.01]]],
+];
+function runFilter(kind, a = 0, b = 0) {
+  commitFloat();
+  if (!layerPaintable()) { layerBlockedToast(); return; }
+  toast('かけています…', 4000);
+  setTimeout(() => { if (E.filterApply(kind, a, b)) { changed({ layers: true }); toast('かけました'); } }, 30);
+}
+function openFilter(kind) {
+  const [name, params] = FILTERS[kind];
+  const vals = {};
+  openModal(`<div class="fdlg"><h2>${icon('filter')}${name}<span class="grow"></span><button class="ib sm" id="fClose">${icon('close', 18)}</button></h2>
+    ${params.map(([k, label, min, max, def, step]) => { vals[k] = def; return `<div class="prow"><span>${label}</span><input type="range" data-k="${k}" min="${min}" max="${max}" step="${step}" value="${def}"><span class="v dot" id="fv${k}">${def}</span></div>`; }).join('')}
+    <p class="small">${E.selActive() ? '選択範囲の 中だけに かけます。' : '今の レイヤー ぜんたいに かけます。'}かけた あとでも 取り消せます。</p>
+    <div class="btnrow"><button class="btn-y" id="fOk">かける</button><button id="fNo">やめる</button></div></div>`);
+  for (const r of $$('input[type=range]', card)) r.oninput = () => { vals[r.dataset.k] = +r.value; $('#fv' + r.dataset.k).textContent = (+r.value).toFixed(+r.step < 1 ? 2 : 0); };
+  $('#fOk').onclick = () => { closeModal(); runFilter(kind, vals.a || 0, vals.b ?? 0); };
+  $('#fNo').onclick = closeModal;
+  $('#fClose').onclick = closeModal;
+}
+
+/* ---------- 使いかた ---------- */
+function openHelp() {
+  openModal(`<h2>${icon('help')}使いかた<span class="grow"></span><button class="ib sm" id="hClose">${icon('close', 18)}</button></h2>
+    <div class="hint">ペン … 描く ／ 指1本 … 動かす（長押しで 色を とる）／ 指2本 … 拡大・回転、タップで 取り消し ／ 指3本タップ … やり直し</div>
+    <div class="title">選択範囲</div>
+    <p class="small">左の「選択範囲」の 道具で 囲うか、自動選択で 色の つながった ところを 選びます。選んで いる 間は、描く・塗る・消す・フィルター・拡大縮小回転 が その 中だけに かかります。上の 列の ボタンで 解除・反転・塗る・消す が できます。</p>
+    <div class="title">キーボード</div>
+    <p class="small">Ctrl+Z 取り消し ／ Ctrl+Y やり直し ／ Ctrl+A すべて選択 ／ Ctrl+D 選択解除 ／ Ctrl+Shift+I 反転 ／ Ctrl+T 拡大縮小回転 ／ Del 消去 ／ B 描く ／ E 消す ／ G 塗る ／ S 選択 ／ L 囲って塗る ／ M 動かす ／ V ベクター消しゴム ／ W 線幅 ／ I スポイト ／ [ ] 太さ ／ H 左右反転 ／ 0 全体 ／ Tab パネル</p>`);
+  $('#hClose').onclick = closeModal;
+}
+
 /* ================================================================ キーボード */
 window.addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
   if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); doRedo(); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 'a') { e.preventDefault(); E.selOp(0); refreshSel(); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 'd') { e.preventDefault(); E.selOp(1); refreshSel(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && k === 'i') { e.preventDefault(); E.selOp(2); refreshSel(); return; }
+  if ((e.ctrlKey || e.metaKey) && k === 't') { e.preventDefault(); cmdTransform(); return; }
+  if (k === 'delete' || k === 'backspace') { e.preventDefault(); cmdClear(); return; }
   if ((e.ctrlKey || e.metaKey) && k === 's') { e.preventDefault(); S.unsaved = true; saveNow(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (k === ' ') { input.space = true; e.preventDefault(); return; }
   if (k === 'enter' && S.float) { commitFloat(); return; }
   if (k === 'escape' && S.float) { cancelFloat(); return; }
-  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', l: 'lasso', m: 'move', v: 'verase', w: 'vwidth', i: 'pick' };
+  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', s: 'select', l: 'lasso', m: 'move', v: 'verase', w: 'vwidth', i: 'pick' };
   if (tools[k]) { selectTool(tools[k]); return; }
   if (k === '[' || k === ']') {
     const i = currentBrushIndex();

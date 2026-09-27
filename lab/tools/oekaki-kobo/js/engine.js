@@ -91,6 +91,17 @@ class Engine {
   layerRasterize(i) { this.x.layer_rasterize(i); }
   vectorWidth(x, y, r, f) { return this.x.vector_width(x, y, r, f) === 1; }
   vectorErase(x, y, r, mode) { return this.x.vector_erase(x, y, r, mode) === 1; }
+  selLasso(points, mode) {
+    const f = new Float32Array(points.length * 2);
+    points.forEach((p, i) => { f[i * 2] = p[0]; f[i * 2 + 1] = p[1]; });
+    return this.withBytes(new Uint8Array(f.buffer), (p) => this.x.sel_lasso(p, points.length, mode)) === 1;
+  }
+  selWand(x, y, tol, all, mode) { return this.x.sel_wand(x, y, tol, all ? 1 : 0, mode) === 1; }
+  selOp(op, n = 0) { return this.x.sel_op(op, n) === 1; }
+  selActive() { return this.x.sel_active() === 1; }
+  selPreview(max) { const n = this.x.sel_preview(max); return n ? this.outCopy() : null; }
+  selApply(op) { return this.x.sel_apply(op) === 1; }
+  filterApply(kind, a = 0, b = 0) { return this.x.filter_apply(kind, a, b) === 1; }
   setVectorWhole(on) { this.x.set_vector_whole(on ? 1 : 0); }
   layerSelect(i) { this.x.layer_select(i); }
   layerDelete(i) { this.x.layer_delete(i); }

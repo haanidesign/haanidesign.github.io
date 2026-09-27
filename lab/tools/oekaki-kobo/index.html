@@ -17,17 +17,38 @@
 </head>
 <body>
 <div id="app">
-  <header id="bar">
-    <button id="bMenu" class="ib" title="作品・ファイル"></button>
+  <div id="menubar">
     <div class="ttl">おえかき工房</div>
+    <nav id="menus"></nav>
+    <div class="grow"></div>
     <button id="docName" class="chip" title="名前を かえる">無題</button>
     <span id="saveState" class="state dot"></span>
-    <div class="grow"></div>
+  </div>
+  <header id="bar">
+    <button id="bMenu" class="ib" title="作品"></button>
+    <span class="sep"></span>
+    <button id="cNew" class="ib" title="新しい 紙"></button>
+    <button id="cOpen" class="ib" title="ファイルを ひらく"></button>
+    <button id="cSave" class="ib" title="今すぐ しまう"></button>
+    <span class="sep"></span>
+    <button id="cJpg" class="ib" title="JPG で 書き出す"></button>
+    <button id="cPng" class="ib" title="PNG で 書き出す"></button>
+    <button id="cPsd" class="ib" title="PSD で 書き出す"></button>
+    <span class="sep"></span>
     <button id="bUndo" class="ib" title="取り消し（二本指タップ）"></button>
     <button id="bRedo" class="ib" title="やり直し（三本指タップ）"></button>
     <span class="sep"></span>
+    <button id="cSelNone" class="ib" title="選択を 解除"></button>
+    <button id="cSelInv" class="ib" title="選択範囲を 反転"></button>
+    <button id="cSelFill" class="ib" title="選択範囲を 塗る"></button>
+    <button id="cClear" class="ib" title="消去（選択範囲が あれば その 中）"></button>
+    <button id="cClearOut" class="ib" title="選択範囲の 外を 消す"></button>
+    <button id="cTransform" class="ib" title="拡大・縮小・回転"></button>
+    <div class="grow"></div>
     <button id="bExport" class="btn-sm" title="書き出す"></button>
+    <button id="cHelp" class="ib" title="使いかた"></button>
     <button id="bSettings" class="ib" title="設定"></button>
+    <button id="cFull" class="ib" title="全画面"></button>
     <button id="bPanel" class="ib on" title="パネルを しまう"></button>
   </header>
 
@@ -36,6 +57,7 @@
       <button class="tool on" data-tool="draw" title="描く（B）"></button>
       <button class="tool" data-tool="erase" title="消す（E）"></button>
       <button class="tool" data-tool="fill" title="塗りつぶし（G）"></button>
+      <button class="tool" data-tool="select" title="選択範囲（S）"></button>
       <button class="tool" data-tool="lasso" title="囲って塗る（L）"></button>
       <button class="tool" data-tool="move" title="囲って動かす（M）"></button>
       <button class="tool" data-tool="verase" title="ベクター消しゴム（V）"></button>
@@ -51,7 +73,7 @@
   </nav>
 
   <main id="stage">
-    <div id="sheet"><canvas id="doc" width="1" height="1"></canvas><canvas id="floatCv" hidden></canvas></div>
+    <div id="sheet"><canvas id="doc" width="1" height="1"></canvas><canvas id="floatCv" hidden></canvas><canvas id="selCv" hidden></canvas></div>
     <canvas id="over"></canvas>
     <div id="toolOpts" class="float"></div>
     <div id="viewPill" class="float">

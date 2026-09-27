@@ -85,6 +85,8 @@ struct App {
     floating: Option<Floating>,
     /// ベクター消しゴムで ふれた 線を まるごと 消す。
     vector_whole: bool,
+    /// 選択範囲（1画素 1バイト）。描く・塗る・消す・動かす・フィルターは この 中だけ。
+    selection: Selection,
 }
 
 /// 切りとって 浮かせた 絵（動かす・大きさ・回転の あいだ）。
@@ -201,6 +203,7 @@ fn install(doc: Document, selected: usize) {
             stroke: None,
             floating: None,
             vector_whole: false,
+            selection: Selection::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: BTreeSet::new(),
@@ -1073,7 +1076,7 @@ impl App {
         let mut target = DabTarget {
             doc: &mut self.doc,
             layer: stroke.layer,
-            selection: None,
+            selection: self.selection.active.then_some(self.selection.mask.as_slice()),
             history: &mut stroke.history,
         };
         let batch = engine::accelerator_can_paint(style);
@@ -1366,7 +1369,7 @@ pub extern "C" fn stroke_end() {
             let mut target = DabTarget {
                 doc: &mut app.doc,
                 layer,
-                selection: None,
+                selection: app.selection.active.then_some(app.selection.mask.as_slice()),
                 history: &mut stroke.history,
             };
             stroke.raster.finish_stroke(&mut target, brush);
@@ -2077,7 +2080,8 @@ pub extern "C" fn fill_at(x: f32, y: f32, tolerance: u32, all: u32, grow: u32) -
             sel.expand(w, h, grow.min(16));
         }
         app.checkpoint();
-        let mask = std::mem::take(&mut sel.mask);
+        let mut mask = std::mem::take(&mut sel.mask);
+        app.clip_to_selection(&mut mask);
         let bbox = mask_bbox(&mask, w, h);
         app.apply_mask(&mask, bbox, false);
         1
@@ -2107,7 +2111,8 @@ pub extern "C" fn lasso(points_ptr: *const u8, count: u32, erase: u32) -> i32 {
             return 0;
         }
         app.checkpoint();
-        let mask = std::mem::take(&mut sel.mask);
+        let mut mask = std::mem::take(&mut sel.mask);
+        app.clip_to_selection(&mut mask);
         let bbox = mask_bbox(&mask, w, h);
         app.apply_mask(&mask, bbox, erase != 0);
         1
@@ -2154,6 +2159,7 @@ pub extern "C" fn doc_transform(mode: u32) -> i32 {
         }
         app.doc.width = nw;
         app.doc.height = nh;
+        app.selection.clear();
         if mode <= 1 {
             // 大きさが かわるので 取り消しは できなくする。
             app.undo.clear();
@@ -2189,7 +2195,11 @@ pub extern "C" fn float_begin(points_ptr: *const u8, count: u32) -> i32 {
         let mask: Option<Vec<u8>> = if pts.len() >= 3 {
             let mut sel = Selection::default();
             sel.polygon(w, h, &pts);
-            Some(sel.mask)
+            let mut m = sel.mask;
+            app.clip_to_selection(&mut m);
+            Some(m)
+        } else if app.selection.active {
+            Some(app.selection.mask.clone())
         } else {
             None
         };
@@ -2571,4 +2581,371 @@ fn erase_to_intersections(strokes: &mut Vec<vector::VectorStroke>, x: f32, y: f3
         }
     }
     bounds
+}
+
+// ---------------------------------------------------------------- selection
+
+impl App {
+    fn clip_to_selection(&self, mask: &mut [u8]) {
+        if !self.selection.active {
+            return;
+        }
+        for (m, s) in mask.iter_mut().zip(&self.selection.mask) {
+            *m = ((*m as u32 * *s as u32 + 127) / 255) as u8;
+        }
+    }
+    fn sel_len(&self) -> usize {
+        (self.doc.width * self.doc.height) as usize
+    }
+    /// 新しい 選択を 今の 選択に 合わせる。mode: 0 新しく 1 足す 2 引く
+    fn sel_combine(&mut self, new: Vec<u8>, mode: u32) {
+        let n = self.sel_len();
+        if mode == 0 || !self.selection.active {
+            if mode == 2 {
+                return;
+            }
+            self.selection.mask = new;
+        } else {
+            self.selection.mask.resize(n, 0);
+            for (m, v) in self.selection.mask.iter_mut().zip(new) {
+                *m = if mode == 1 { (*m).max(v) } else { ((*m as u32 * (255 - v as u32) + 127) / 255) as u8 };
+            }
+        }
+        self.selection.active = self.selection.mask.iter().any(|&v| v != 0);
+        if !self.selection.active {
+            self.selection.mask.clear();
+        }
+    }
+}
+
+/// 囲って 選ぶ。mode: 0 新しく 1 足す 2 引く
+#[unsafe(no_mangle)]
+pub extern "C" fn sel_lasso(points_ptr: *const u8, count: u32, mode: u32) -> i32 {
+    let raw = bytes_from(points_ptr, count as usize * 8);
+    let pts: Vec<(i32, i32)> = raw
+        .chunks_exact(8)
+        .map(|c| {
+            let x = f32::from_le_bytes(c[0..4].try_into().unwrap());
+            let y = f32::from_le_bytes(c[4..8].try_into().unwrap());
+            (x.round() as i32, y.round() as i32)
+        })
+        .collect();
+    with_app(0, |app| {
+        if pts.len() < 3 {
+            return 0;
+        }
+        let mut sel = Selection::default();
+        sel.polygon(app.doc.width, app.doc.height, &pts);
+        app.sel_combine(sel.mask, mode);
+        app.selection.active as i32
+    })
+}
+
+/// 色で 選ぶ（自動選択）。all: 見えている 絵を 見る
+#[unsafe(no_mangle)]
+pub extern "C" fn sel_wand(x: f32, y: f32, tolerance: u32, all: u32, mode: u32) -> i32 {
+    with_app(0, |app| {
+        let (w, h) = (app.doc.width, app.doc.height);
+        if x < 0.0 || y < 0.0 || x >= w as f32 || y >= h as f32 {
+            return 0;
+        }
+        let pixels = app.fill_reference(all != 0);
+        let mask = flood(&pixels, w, h, x as u32, y as u32, tolerance.min(255));
+        app.sel_combine(mask, mode);
+        app.selection.active as i32
+    })
+}
+
+/// 0 すべて選択 1 選択解除 2 反転 3 広げる(n) 4 せばめる(n) 5 ぼかす(n) 6 今の レイヤーの 絵の ある ところ
+#[unsafe(no_mangle)]
+pub extern "C" fn sel_op(op: u32, n: u32) -> i32 {
+    with_app(0, |app| {
+        let (w, h) = (app.doc.width, app.doc.height);
+        let len = app.sel_len();
+        match op {
+            0 => {
+                app.selection.mask = vec![255; len];
+                app.selection.active = true;
+            }
+            1 => app.selection.clear(),
+            2 => {
+                app.selection.invert(w, h);
+                app.selection.active = app.selection.mask.iter().any(|&v| v != 0);
+            }
+            3 => app.selection.expand(w, h, n.clamp(1, 64)),
+            4 => app.selection.shrink(w, h, n.clamp(1, 64)),
+            5 => app.selection.feather(w, h, n.clamp(1, 64)),
+            6 => {
+                let l = &app.doc.layers[app.selected];
+                let mut m = vec![0u8; len];
+                for ((tx, ty), data) in l.pixels.tiles() {
+                    for ly in 0..TILE_SIZE {
+                        let y = ty * TILE_SIZE + ly;
+                        if y >= h {
+                            break;
+                        }
+                        for lx in 0..TILE_SIZE {
+                            let x = tx * TILE_SIZE + lx;
+                            if x >= w {
+                                break;
+                            }
+                            m[(y * w + x) as usize] = data[((ly * TILE_SIZE + lx) * 4 + 3) as usize];
+                        }
+                    }
+                }
+                app.sel_combine(m, 0);
+            }
+            _ => return 0,
+        }
+        app.selection.active as i32
+    })
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn sel_active() -> i32 {
+    with_app(0, |app| app.selection.active as i32)
+}
+
+/// 選択範囲を 小さく した 絵（1画素 1バイト）。`out` に w,h(u32) + 中み。
+#[unsafe(no_mangle)]
+pub extern "C" fn sel_preview(max: u32) -> usize {
+    with_app(0, |app| {
+        if !app.selection.active {
+            return 0;
+        }
+        let (w, h) = (app.doc.width, app.doc.height);
+        let k = (max.max(16) as f32 / w.max(h) as f32).min(1.0);
+        let (pw, ph) = (((w as f32 * k).ceil() as u32).max(1), ((h as f32 * k).ceil() as u32).max(1));
+        let mut out = Vec::with_capacity((8 + pw * ph) as usize);
+        out.extend_from_slice(&pw.to_le_bytes());
+        out.extend_from_slice(&ph.to_le_bytes());
+        for y in 0..ph {
+            for x in 0..pw {
+                let sx = ((x as f32 + 0.5) / k) as u32;
+                let sy = ((y as f32 + 0.5) / k) as u32;
+                out.push(app.selection.mask[(sy.min(h - 1) * w + sx.min(w - 1)) as usize]);
+            }
+        }
+        set_out(out)
+    })
+}
+
+/// 選択範囲で: 0 中を 消す 1 外を 消す 2 中を 今の 色で 塗る
+#[unsafe(no_mangle)]
+pub extern "C" fn sel_apply(op: u32) -> i32 {
+    with_app(0, |app| {
+        if !app.selection.active || !app.paintable(app.selected) {
+            return 0;
+        }
+        let (w, h) = (app.doc.width, app.doc.height);
+        let mask: Vec<u8> = if op == 1 { app.selection.mask.iter().map(|v| 255 - v).collect() } else { app.selection.mask.clone() };
+        app.checkpoint();
+        let bbox = mask_bbox(&mask, w, h);
+        app.apply_mask(&mask, bbox, op != 2);
+        1
+    })
+}
+
+// ---------------------------------------------------------------- filters
+
+/// フィルター。kind: 0 ぼかし(a=半径) 1 シャープ(a=強さ) 2 色相・彩度(a=色相 度, b=彩度 倍)
+/// 3 明るさ・コントラスト(a, b は -1..1) 4 自動レベル補正 5 色の 反転 6 モノクロ
+#[unsafe(no_mangle)]
+pub extern "C" fn filter_apply(kind: u32, a: f32, b: f32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        if !app.paintable(i) {
+            return 0;
+        }
+        let (w, h) = (app.doc.width, app.doc.height);
+        app.checkpoint();
+        let before = app.doc.layers[i].pixels.clone();
+        let layer = &mut app.doc.layers[i];
+        match kind {
+            0 => fast_blur(layer, w, h, a.clamp(1.0, 64.0)),
+            1 => fast_sharpen(layer, w, h, a.clamp(0.0, 4.0)),
+            2 => efude_canvas::hue_saturation(layer, a, b.clamp(0.0, 4.0)),
+            3 => efude_canvas::color_adjust(layer, a.clamp(-1.0, 1.0), b.clamp(-1.0, 1.0), 1.0, 1.0),
+            4 => efude_canvas::auto_levels(layer),
+            5 | 6 => {
+                for key in layer.pixels.tile_keys() {
+                    let t = layer.pixels.tile_mut(key.0, key.1);
+                    for px in t.chunks_exact_mut(4) {
+                        if px[3] == 0 {
+                            continue;
+                        }
+                        if kind == 5 {
+                            for c in &mut px[..3] {
+                                *c = 255 - *c;
+                            }
+                        } else {
+                            let l = (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32).round() as u8;
+                            px[..3].fill(l);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        // 選択範囲が あれば その 中だけ
+        if app.selection.active {
+            let sel = &app.selection.mask;
+            let after = std::mem::replace(&mut app.doc.layers[i].pixels, before.clone());
+            let mut keys: Vec<(u32, u32)> = after.tile_keys();
+            keys.extend(before.tile_keys());
+            keys.sort_unstable();
+            keys.dedup();
+            let px = &mut app.doc.layers[i].pixels;
+            for (tx, ty) in keys {
+                for ly in 0..TILE_SIZE {
+                    let y = ty * TILE_SIZE + ly;
+                    if y >= h {
+                        break;
+                    }
+                    for lx in 0..TILE_SIZE {
+                        let x = tx * TILE_SIZE + lx;
+                        if x >= w {
+                            break;
+                        }
+                        let k = sel[(y * w + x) as usize] as f32 / 255.0;
+                        if k <= 0.0 {
+                            continue;
+                        }
+                        let (p0, p1) = (before.pixel(x, y), after.pixel(x, y));
+                        let mix: [u8; 4] = std::array::from_fn(|c| (p0[c] as f32 + (p1[c] as f32 - p0[c] as f32) * k).round() as u8);
+                        if mix != p0 {
+                            px.set_pixel(x, y, mix);
+                        }
+                    }
+                }
+            }
+        }
+        app.doc.layers[i].pixels.prune_empty_tiles();
+        let copy = app.doc.layers[i].clone();
+        app.mark_layer(&copy);
+        let beforel = Layer { pixels: before, ..copy };
+        app.mark_layer(&beforel);
+        1
+    })
+}
+
+/// ぼかし（箱ぼかし 3回 ≒ ガウス）。絵の ある はんい だけ、乗算済みで 計算する。
+fn fast_blur(layer: &mut Layer, w: u32, h: u32, radius: f32) {
+    let keys = layer.pixels.tile_keys();
+    if keys.is_empty() {
+        return;
+    }
+    let r = (radius * 0.6).round().max(1.0) as i64;
+    let pad = (r * 3 + 2) as u32;
+    let x0 = (keys.iter().map(|k| k.0).min().unwrap() * TILE_SIZE).saturating_sub(pad);
+    let y0 = (keys.iter().map(|k| k.1).min().unwrap() * TILE_SIZE).saturating_sub(pad);
+    let x1 = ((keys.iter().map(|k| k.0).max().unwrap() + 1) * TILE_SIZE + pad).min(w);
+    let y1 = ((keys.iter().map(|k| k.1).max().unwrap() + 1) * TILE_SIZE + pad).min(h);
+    let (bw, bh) = ((x1 - x0) as usize, (y1 - y0) as usize);
+    let mut buf = vec![0f32; bw * bh * 4];
+    for ((tx, ty), data) in layer.pixels.tiles() {
+        for ly in 0..TILE_SIZE {
+            let y = ty * TILE_SIZE + ly;
+            if y < y0 || y >= y1 {
+                continue;
+            }
+            for lx in 0..TILE_SIZE {
+                let x = tx * TILE_SIZE + lx;
+                if x < x0 || x >= x1 {
+                    continue;
+                }
+                let s = ((ly * TILE_SIZE + lx) * 4) as usize;
+                let al = data[s + 3] as f32 / 255.0;
+                if al == 0.0 {
+                    continue;
+                }
+                let d = (((y - y0) as usize) * bw + (x - x0) as usize) * 4;
+                buf[d] = data[s] as f32 * al;
+                buf[d + 1] = data[s + 1] as f32 * al;
+                buf[d + 2] = data[s + 2] as f32 * al;
+                buf[d + 3] = al;
+            }
+        }
+    }
+    let mut tmp = vec![0f32; buf.len()];
+    let n = (2 * r + 1) as f32;
+    for _ in 0..3 {
+        // よこ
+        for y in 0..bh {
+            let row = y * bw * 4;
+            let mut acc = [0f32; 4];
+            for x in -r..=r {
+                let xi = x.clamp(0, bw as i64 - 1) as usize;
+                for c in 0..4 {
+                    acc[c] += buf[row + xi * 4 + c];
+                }
+            }
+            for x in 0..bw as i64 {
+                for c in 0..4 {
+                    tmp[row + x as usize * 4 + c] = acc[c] / n;
+                }
+                let add = (x + r + 1).clamp(0, bw as i64 - 1) as usize;
+                let sub = (x - r).clamp(0, bw as i64 - 1) as usize;
+                for c in 0..4 {
+                    acc[c] += buf[row + add * 4 + c] - buf[row + sub * 4 + c];
+                }
+            }
+        }
+        // たて
+        for x in 0..bw {
+            let mut acc = [0f32; 4];
+            for y in -r..=r {
+                let yi = y.clamp(0, bh as i64 - 1) as usize;
+                for c in 0..4 {
+                    acc[c] += tmp[(yi * bw + x) * 4 + c];
+                }
+            }
+            for y in 0..bh as i64 {
+                for c in 0..4 {
+                    buf[(y as usize * bw + x) * 4 + c] = acc[c] / n;
+                }
+                let add = (y + r + 1).clamp(0, bh as i64 - 1) as usize;
+                let sub = (y - r).clamp(0, bh as i64 - 1) as usize;
+                for c in 0..4 {
+                    acc[c] += tmp[(add * bw + x) * 4 + c] - tmp[(sub * bw + x) * 4 + c];
+                }
+            }
+        }
+    }
+    for y in 0..bh {
+        for x in 0..bw {
+            let d = (y * bw + x) * 4;
+            let al = buf[d + 3];
+            let (px, py) = (x0 + x as u32, y0 + y as u32);
+            if al < 0.5 / 255.0 {
+                if layer.pixels.tile_data(px / TILE_SIZE, py / TILE_SIZE).is_some() {
+                    layer.pixels.set_pixel(px, py, [0, 0, 0, 0]);
+                }
+                continue;
+            }
+            let v = |c: usize| (buf[d + c] / al).round().clamp(0.0, 255.0) as u8;
+            layer.pixels.set_pixel(px, py, [v(0), v(1), v(2), (al * 255.0).round().clamp(0.0, 255.0) as u8]);
+        }
+    }
+}
+
+/// シャープ（ぼかした 絵との 差を 足す）。
+fn fast_sharpen(layer: &mut Layer, w: u32, h: u32, amount: f32) {
+    let mut soft = layer.clone();
+    fast_blur(&mut soft, w, h, 2.0);
+    for key in layer.pixels.tile_keys() {
+        let Some(b) = soft.pixels.tile_data(key.0, key.1).map(|d| d.to_vec()) else {
+            continue;
+        };
+        let t = layer.pixels.tile_mut(key.0, key.1);
+        for (px, bl) in t.chunks_exact_mut(4).zip(b.chunks_exact(4)) {
+            if px[3] == 0 {
+                continue;
+            }
+            for c in 0..3 {
+                let v = px[c] as f32 + amount * (px[c] as f32 - bl[c] as f32);
+                px[c] = v.round().clamp(0.0, 255.0) as u8;
+            }
+        }
+    }
 }
