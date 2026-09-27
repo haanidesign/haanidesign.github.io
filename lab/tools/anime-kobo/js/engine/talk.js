@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=300';
-import { newLayer, newFolder } from './layer.js?v=300';
+import { S } from '../state.js?v=301';
+import { newLayer, newFolder } from './layer.js?v=301';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -171,12 +171,12 @@ function rimPoint(cx, cy, rx, ry, px, py){
   return { x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, a };
 }
 
-function drawBubble(g, l, t, n, w, h){
-  const ink = t.bInk || '#1E1C14';
-  const fill = t.bFill || '#FFFFFF';
+/* 吹き出しの 大きさと 場所。描く ときも、絵の 上で つかむ ときも これを つかう。 */
+let _measure = null;
+export function bubbleGeom(t, w, h, gIn){
+  const g = gIn || (_measure || (_measure = document.createElement('canvas').getContext('2d')));
   const size = Math.round(t.size);
   g.font = size + 'px system-ui, sans-serif';
-
   /* 字の かたまりの 大きさ（ぜんぶの 字で はかる） */
   const maxW = Math.max(size * 3, w * (t.bw || 0.62) * 0.72);
   const lines = wrapLines(g, t.text, maxW);
@@ -185,16 +185,22 @@ function drawBubble(g, l, t, n, w, h){
   lines.forEach(s => { tw = Math.max(tw, g.measureText(s).width); });
   tw = Math.max(tw, size * 2);
   const th = Math.max(lineH, lines.length * lineH);
-
   /* 楕円は 四角を ぴったり つつむ 大きさ（√2 ばい）＋ すこし よゆう */
   const cx = w * (t.bx == null ? 0.5 : t.bx);
   const cy = h * (t.by == null ? 0.28 : t.by);
   const rx = tw / 2 * 1.42 + size * 0.7;
   const ry = th / 2 * 1.42 + size * 0.6;
-  const lw = Math.max(2, h / 360);
-
   const tipX = w * (t.tx == null ? 0.5 : t.tx);
   const tipY = h * (t.ty == null ? 0.52 : t.ty);
+  return { size, lines, lineH, th, cx, cy, rx, ry, tipX, tipY };
+}
+
+function drawBubble(g, l, t, n, w, h){
+  const ink = t.bInk || '#1E1C14';
+  const fill = t.bFill || '#FFFFFF';
+  const { size, lines, lineH, th, cx, cy, rx, ry, tipX, tipY } = bubbleGeom(t, w, h, g);
+  g.font = size + 'px system-ui, sans-serif';
+  const lw = Math.max(2, h / 360);
   const tail = Math.hypot(tipX - cx, tipY - cy) > Math.min(rx, ry) * 1.05;
 
   g.lineJoin = 'round';

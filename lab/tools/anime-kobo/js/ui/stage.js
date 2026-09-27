@@ -1,25 +1,26 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=300';
-import { cleanPath } from '../engine/path.js?v=300';
+import { M, clamp } from '../engine/math.js?v=301';
+import { cleanPath } from '../engine/path.js?v=301';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=300';
-import { liveMasks } from '../engine/mask.js?v=300';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=300';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=300';
+         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=301';
+import { liveMasks } from '../engine/mask.js?v=301';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=301';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=301';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=300';
-import { createRenderer } from '../render/renderer.js?v=300';
-import { attachInput } from './input.js?v=300';
-import { newStroke, paintDirty } from '../engine/paint.js?v=300';
+         bendChain } from '../engine/puppet.js?v=301';
+import { createRenderer } from '../render/renderer.js?v=301';
+import { attachInput } from './input.js?v=301';
+import { bubbleGeom } from '../engine/talk.js?v=301';
+import { newStroke, paintDirty } from '../engine/paint.js?v=301';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=300';
+         copyPts, setPts } from '../engine/warp.js?v=301';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=300';
-import { inCamView } from '../render/camview.js?v=300';
-import { ORBIT_MAX } from '../engine/camera.js?v=300';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=301';
+import { inCamView } from '../render/camview.js?v=301';
+import { ORBIT_MAX } from '../engine/camera.js?v=301';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
@@ -138,6 +139,38 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     onChange();
   }
 
+  /* 💬 吹き出しの つまみ。からだの まん中と しっぽの さきに 小さな まる。
+     ここを つかめば 動かせる、と わかる ように する。 */
+  function drawBubbleGrips(l){
+    if(l.kind !== 'talk' || !l.talk || l.talk.shape !== 'bubble') return;
+    const pose = poses[l.id];
+    if(!pose) return;
+    const asset = frameAsset(l, 0);
+    if(!asset) return;
+    const G = bubbleGeom(l.talk, asset.w, asset.h);
+    const ctx = R.ctx;
+    const toScreen = (x, y) => {
+      const q = M.apply(pose.m, x - asset.w * l.pivot.x, y - asset.h * l.pivot.y);
+      return { x: q.x * S.view.z + S.view.x, y: q.y * S.view.z + S.view.y };
+    };
+    const dpr = canvas.width / Math.max(1, canvas.clientWidth || canvas.width);
+    const r = 8 * dpr;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.lineWidth = 2 * dpr;
+    const dot = (pt, color) => {
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = '#1E1C14'; ctx.stroke();
+    };
+    /* からだの つまみは 字に かからない ように 上の ふちに 置く
+       （からだの どこを つかんでも 動く。これは 目じるし） */
+    const c = toScreen(G.cx, G.cy - G.ry), tip = toScreen(G.tipX, G.tipY);
+    dot(c, '#FFFFFF');
+    dot(tip, '#E1DD60');
+    ctx.restore();
+  }
+
   /* ---- 描画 ---- */
   function draw(){
     poses = R.draw(S.proj, S.imgs, S.time, S.view);
@@ -152,6 +185,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     }
     if(S.warpMode && l) drawCage(l);
     if(l) drawMask(l);
+    if(l && !S.pinMode && !S.traceMode && !S.paintMode && !S.warpMode) drawBubbleGrips(l);
     if(isCam(l)) drawCamPath(l);
     if(S.traceMode) drawTraceZone();
     if(S.tracePts) drawTrace();
@@ -954,6 +988,29 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
         return;
       }
 
+      /* 💬 吹き出し。えらんで いる セリフが 吹き出しなら、
+         絵の 上で「しっぽの さき」か「からだ」を つかんで 動かす。
+         しっぽの さきを 先に 見る（からだの 中に あっても つかめる ように）。 */
+      if(l && l.kind === 'talk' && l.talk && l.talk.shape === 'bubble' && P[l.id]){
+        const ip = toImage(l, P[l.id], cp);
+        const W = l.pw || S.proj.w, H = l.ph || S.proj.h;
+        if(ip){
+          const G = bubbleGeom(l.talk, W, H);
+          const grab = Math.max(G.size * 1.4, 40 / Math.max(0.05, S.view.z));
+          const nearTip = Math.hypot(ip.x - G.tipX, ip.y - G.tipY) < grab;
+          const inBody = ((ip.x - G.cx) / G.rx) ** 2 + ((ip.y - G.cy) / G.ry) ** 2 <= 1.15;
+          if(nearTip || inBody){
+            beginEdit(nearTip ? 'しっぽを うごかす' : '吹き出しを うごかす');
+            drag = { kind: nearTip ? 'btail' : 'bubble', l, ip0: ip, W, H,
+                     bx0: l.talk.bx == null ? 0.5 : l.talk.bx,
+                     by0: l.talk.by == null ? 0.28 : l.talk.by,
+                     tx0: l.talk.tx == null ? 0.5 : l.talk.tx,
+                     ty0: l.talk.ty == null ? 0.52 : l.talk.ty };
+            return;
+          }
+        }
+      }
+
       const h = hitHandle(cp);
 
       if(l && h === 'anchor'){
@@ -1009,6 +1066,25 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     onDrag(p){
       if(!drag) return;
       const cp = toCanvas(p);
+
+      /* 💬 吹き出しを 動かす。からだを 動かしても しっぽの さきは その まま
+         （しゃべって いる 人の 口もとから はなれない ように）。 */
+      if(drag.kind === 'bubble' || drag.kind === 'btail'){
+        const l = drag.l;
+        const pose = poses[l.id] || livePoses()[l.id];
+        const ip = pose ? toImage(l, pose, cp) : null;
+        if(!ip) return;
+        const dx = (ip.x - drag.ip0.x) / drag.W, dy = (ip.y - drag.ip0.y) / drag.H;
+        if(drag.kind === 'bubble'){
+          l.talk.bx = clamp(drag.bx0 + dx, -0.1, 1.1);
+          l.talk.by = clamp(drag.by0 + dy, -0.1, 1.1);
+        } else {
+          l.talk.tx = clamp(drag.tx0 + dx, -0.2, 1.2);
+          l.talk.ty = clamp(drag.ty0 + dy, -0.2, 1.2);
+        }
+        onChange();
+        return;
+      }
 
       if(drag.kind === 'puppet'){
         const l = drag.l;
