@@ -304,3 +304,39 @@ select{cursor:pointer;}
 #pane-side .llist{flex:none;max-height:none;overflow:visible;}
 #pane-side .lprops{max-height:none;}
 .layerbox .llist{min-height:170px;} .layerbox .lprops{max-height:42%;}
+
+/* たためる パレット（クリスタの ように） */
+.fold{display:flex;flex-direction:column;min-height:0;}
+.fold.fgrow{flex:1;}
+.fold.folded{flex:none !important;}
+.fold.folded>:not(.fhead){display:none !important;}
+.fhead{
+  display:flex;align-items:center;gap:.35rem;width:100%;justify-content:flex-start;flex:none;
+  background:var(--ink);color:var(--main);border:none;border-radius:100px;box-shadow:none;
+  padding:.18rem .75rem;margin:.35rem 0 .35rem;font-size:.7rem;
+}
+.fhead:active{transform:none;}
+.fhead .ic{transition:transform .15s;}
+.fold.folded>.fhead .ic{transform:rotate(-90deg);}
+#sizes.fold{flex-direction:row;}
+#sizes>.fhead{width:auto;margin:0;padding:.3rem .55rem;writing-mode:vertical-rl;border-radius:10px;}
+#sizes.folded{padding:.2rem .5rem;}
+#sizes.folded>.fhead{writing-mode:horizontal-tb;}
+.navbox .title,.layerbox>.title{display:none;}
+.bprops{max-height:none;border-top:none;padding-top:0;}
+.fold[data-fold="bprops"]:not(.folded){max-height:46%;overflow:auto;}
+.fold[data-fold="lprops"]:not(.folded){max-height:42%;overflow:auto;}
+.layerbox{gap:0;}
+.layerbox .lprops{max-height:none;}
+
+/* 列を 細く たたむ */
+.colbtn{flex:none;}
+.sidehead{display:flex;justify-content:flex-end;padding:.4rem .5rem 0;}
+.ministrip{display:none;flex-direction:column;align-items:center;gap:.4rem;padding:.5rem 0;}
+.ministrip button{width:40px;height:40px;padding:0;border-radius:10px;}
+#app.pmini{--panel:52px;}
+#app.smini{--side:52px;}
+#app.pmini #panel>:not(.ministrip),#app.smini #side>:not(.ministrip){display:none !important;}
+#app.pmini #panelStrip,#app.smini #sideStrip{display:flex;}
+#app.nopanel.pmini{--panel:0px;}
+#app.nopanel.smini,#app.narrow.smini{--side:0px;}

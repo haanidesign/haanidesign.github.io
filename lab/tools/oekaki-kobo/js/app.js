@@ -15,6 +15,7 @@ let E = null; // engine
 const DEFAULT_SETTINGS = {
   fingerDraw: false, gamma: 1, lefty: false, tapUndo: true, penButtonErase: true,
   fillAll: true, fillTol: 24, fillGrow: 1, lassoErase: false, pickLayer: false, panel: true,
+  folds: {}, pmini: false, smini: false,
   vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
 const S = {
@@ -114,6 +115,7 @@ async function boot() {
 
 function buildStaticIcons() {
   buildSizeRow();
+  setupFolds();
   watchRanges();
   setIcon($('#bMenu'), 'menu');
   setIcon($('#bUndo'), 'undo');
@@ -232,7 +234,7 @@ function changed(opts = {}) {
   kick();
 }
 
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { commitFloat(); saveNow(); } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { commitFloat(); saveSettings.now(); saveNow(); } });
 window.addEventListener('pagehide', () => { commitFloat(); saveNow(); });
 
 /* ================================================================ 表示 */
@@ -1833,6 +1835,7 @@ function applySettings() {
   $('#bPanel').classList.toggle('on', !!st.panel);
   if (E) { E.setPressureGamma(1); E.setVectorWhole(!!st.vectorWhole); }
   checkNarrow();
+  applyFolds();
 }
 const saveSettings = debounce(() => store.set('settings', S.settings).catch(() => {}), 500);
 const prefsSoon = debounce(() => store.set('prefs', {
@@ -2193,6 +2196,63 @@ function refZoomAt(k, sx, sy) {
     if (REF.cur >= 0) await selectRef(REF.cur); else { REF.img = null; renderRefList(); drawRef(); }
   };
   new ResizeObserver(() => { if (S.tab === 'ref') drawRef(); }).observe(refView);
+}
+
+/* ================================================================ たたむ（クリスタの パレットの ように） */
+function setupFolds() {
+  for (const f of $$('.fold[data-fold]')) {
+    const h = document.createElement('button');
+    h.className = 'fhead';
+    h.innerHTML = icon('down', 14) + '<span>' + f.dataset.ft + '</span>';
+    h.title = 'たたむ／ひらく';
+    h.onclick = () => {
+      const key = f.dataset.fold;
+      S.settings.folds[key] = !f.classList.contains('folded');
+      applyFolds();
+      saveSettings();
+      if (!S.settings.folds[key]) { if (key === 'nav') drawNav(true); if (key === 'blist') renderBrushPanel(); }
+    };
+    f.prepend(h);
+  }
+  const strip = (el, items, expand) => {
+    el.innerHTML = '';
+    const b = document.createElement('button');
+    b.innerHTML = icon('aleft', 20); b.title = 'ひらく';
+    b.onclick = () => expand(null);
+    el.appendChild(b);
+    for (const [ic, title, what] of items) {
+      const x = document.createElement('button');
+      x.innerHTML = icon(ic, 20); x.title = title;
+      x.onclick = () => expand(what);
+      el.appendChild(x);
+    }
+  };
+  strip($('#panelStrip'), [['brush', 'ブラシ', 'brush'], ['palette', '色', 'color'], ['image', '資料', 'ref']], what => {
+    S.settings.pmini = false; applyFolds(); saveSettings();
+    if (what) openTab(what); else openTab(S.tab);
+  });
+  strip($('#sideStrip'), [['fit', 'ナビゲーター', 'nav'], ['layers', 'レイヤー', 'layers']], what => {
+    S.settings.smini = false;
+    if (what) S.settings.folds[what] = false;
+    applyFolds(); saveSettings(); drawNav(true); refreshLayers(true);
+  });
+  $('#panelFold').innerHTML = icon('aright', 18);
+  $('#panelFold').onclick = () => { S.settings.pmini = true; applyFolds(); saveSettings(); };
+  $('#sideFold').innerHTML = icon('aright', 18);
+  $('#sideFold').onclick = () => { S.settings.smini = true; applyFolds(); saveSettings(); };
+}
+function applyFolds() {
+  const st = S.settings;
+  for (const f of $$('.fold[data-fold]')) f.classList.toggle('folded', !!st.folds[f.dataset.fold]);
+  const app = $('#app');
+  const lefty = !!st.lefty;
+  app.classList.toggle('pmini', !!st.pmini);
+  app.classList.toggle('smini', !!st.smini);
+  // 左手モードでは 矢印を 逆に
+  for (const id of ['#panelFold', '#sideFold']) $(id).innerHTML = icon(lefty ? 'aleft' : 'aright', 18);
+  for (const el of $$('.ministrip>button:first-child')) el.innerHTML = icon(lefty ? 'aright' : 'aleft', 20);
+  resizeOverlay();
+  drawNav(true);
 }
 
 /* ================================================================ キーボード */

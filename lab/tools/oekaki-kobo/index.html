@@ -64,7 +64,7 @@
     <div id="boot" class="boot"><div class="boot-card"><div class="ttl">おえかき工房</div><div class="dot" id="bootMsg">よみこみ中…</div></div></div>
   </main>
 
-  <div id="sizes">
+  <div id="sizes" class="fold" data-fold="sizes" data-ft="太さ">
     <div id="sizeRow" class="sizerow"></div>
     <div class="stab">
       <span class="lbl">補正</span>
@@ -75,15 +75,17 @@
   </div>
 
   <aside id="panel">
+    <div class="ministrip" id="panelStrip"></div>
     <div class="tabs">
+      <button class="ib sm colbtn" id="panelFold" title="この 列を たたむ"></button>
       <button class="tab on" data-tab="brush">ブラシ</button>
       <button class="tab" data-tab="color">色</button>
       <button class="tab" data-tab="ref">資料</button>
       <button class="tab narrow-only" data-tab="side">レイヤー</button>
     </div>
     <section class="pane on" id="pane-brush">
-      <div id="brushList" class="blist"></div>
-      <div id="brushProps" class="bprops"></div>
+      <div class="fold fgrow" data-fold="blist" data-ft="ブラシ"><div id="brushList" class="blist"></div></div>
+      <div class="fold" data-fold="bprops" data-ft="ブラシの 設定"><div id="brushProps" class="bprops"></div></div>
     </section>
     <section class="pane" id="pane-color">
       <div class="picker">
@@ -111,8 +113,9 @@
   </aside>
 
   <aside id="side">
-    <section class="navbox">
-      <div class="title">ナビゲーター</div>
+    <div class="ministrip" id="sideStrip"></div>
+    <div class="sidehead"><button class="ib sm colbtn" id="sideFold" title="この 列を たたむ"></button></div>
+    <section class="navbox fold" data-fold="nav" data-ft="ナビゲーター">
       <div id="navView" class="navview"><canvas id="navCv"></canvas></div>
       <div class="navctl">
         <span class="lbl">拡大</span><input type="range" id="nZoom" min="-3" max="3.5" step="0.01" value="0"><span class="dot" id="nZoomV">100%</span>
@@ -122,7 +125,7 @@
       </div>
     </section>
     <section class="layerbox" id="pane-layer">
-      <div class="title">レイヤー</div>
+      <div class="fold fgrow" data-fold="layers" data-ft="レイヤー">
       <div class="lbar">
         <button id="lAdd" class="btn-sm" title="ラスターレイヤーを 足す"></button>
         <button id="lVec" class="btn-sm" title="ベクターレイヤーを 足す"></button>
@@ -132,7 +135,8 @@
         <button id="lDown" class="ib sm" title="下へ"></button>
       </div>
       <div id="layerList" class="llist"></div>
-      <div id="layerProps" class="lprops"></div>
+      </div>
+      <div class="fold" data-fold="lprops" data-ft="レイヤーの 設定"><div id="layerProps" class="lprops"></div></div>
     </section>
   </aside>
 </div>
