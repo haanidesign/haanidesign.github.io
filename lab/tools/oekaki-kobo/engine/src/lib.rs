@@ -14,6 +14,7 @@ use efude_brush::engine::{
     self, CpuCover, DabGeometry, DabStyle, DabTarget, Dynamics, StrokeRaster,
 };
 use efude_brush::{Brush, BrushKind, DynamicSource};
+use efude_canvas::vector;
 use efude_canvas::{
     BlendMode, Document, DotShape, History, Layer, LayerKind, Selection, TILE_SIZE, TilePixels,
 };
@@ -62,6 +63,9 @@ struct Stroke {
     min: [f32; 2],
     max: [f32; 2],
     pushed: usize,
+    /// ベクターレイヤーに かいて いる とき、いま のびて いる 線の 番号。
+    vector: bool,
+    vindex: Option<usize>,
 }
 
 struct App {
@@ -79,6 +83,8 @@ struct App {
     next_id: u64,
     grain_seed: u64,
     floating: Option<Floating>,
+    /// ベクター消しゴムで ふれた 線を まるごと 消す。
+    vector_whole: bool,
 }
 
 /// 切りとって 浮かせた 絵（動かす・大きさ・回転の あいだ）。
@@ -194,6 +200,7 @@ fn install(doc: Document, selected: usize) {
             pressure_gamma,
             stroke: None,
             floating: None,
+            vector_whole: false,
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: BTreeSet::new(),
@@ -1036,8 +1043,19 @@ impl App {
             .is_some_and(|l| l.kind == LayerKind::Raster && !l.locked && l.vector.is_none())
     }
 
+    fn drawable(&self, layer: usize) -> bool {
+        self.doc
+            .layers
+            .get(layer)
+            .is_some_and(|l| l.kind == LayerKind::Raster && !l.locked)
+    }
+
     /// 点を 実際に 紙へ おく（Efude の dab_many と 同じ 流れ）。
     fn paint_dabs(&mut self, points: &[InkPoint]) {
+        if self.stroke.as_ref().is_some_and(|s| s.vector) {
+            self.vector_dabs(points);
+            return;
+        }
         let Some(stroke) = self.stroke.as_mut() else {
             return;
         };
@@ -1104,6 +1122,91 @@ impl App {
         }
     }
 
+    /// ベクターレイヤー: 点を 線に たす（消しゴムなら 線を けずる）。
+    fn vector_dabs(&mut self, points: &[InkPoint]) {
+        let Some(stroke) = self.stroke.as_mut() else {
+            return;
+        };
+        let brush = &self.brushes[stroke.brush];
+        let eraser = matches!(brush.kind, BrushKind::Eraser);
+        let style = DabStyle {
+            brush,
+            kind: brush.kind,
+            eraser,
+            color: self.color,
+            size: brush.size,
+        };
+        let (w, h) = (self.doc.width, self.doc.height);
+        let layer = &mut self.doc.layers[stroke.layer];
+        let strokes = layer.vector.get_or_insert_with(Vec::new);
+        let mut dirty: Option<vector::PixelRect> = None;
+        for point in points {
+            let mut p = *point;
+            p.pressure = brush.map_pressure(p.pressure.clamp(0.0, 1.0).powf(self.pressure_gamma));
+            let dynamics = engine::dynamics(brush, &p, stroke.raster.last_dab, self.view_scale);
+            let g = DabGeometry::new(style, &dynamics, &p);
+            stroke.raster.last_dab = Some(p);
+            if eraser {
+                let d = vector::erase_circle(strokes, (g.center.x, g.center.y), g.radius, self.vector_whole);
+                dirty = vector::union_rect(dirty, d);
+                stroke.vindex = None;
+                continue;
+            }
+            let vp = vector::VectorPoint { x: g.center.x, y: g.center.y, width: (g.radius * 2.0).max(0.5) };
+            let i = match stroke.vindex {
+                Some(i) if i < strokes.len() => i,
+                _ => {
+                    let c = self.color;
+                    let alpha = (c[3] as f32 * brush.opacity.clamp(0.0, 1.0)).round() as u8;
+                    strokes.push(vector::VectorStroke {
+                        points: Vec::new(),
+                        color: [c[0], c[1], c[2], alpha],
+                        hardness: brush.hardness,
+                        anchors: Vec::new(),
+                    });
+                    stroke.vindex = Some(strokes.len() - 1);
+                    strokes.len() - 1
+                }
+            };
+            let prev = strokes[i].points.last().copied().unwrap_or(vp);
+            strokes[i].points.push(vp);
+            let r = vp.width.max(prev.width) * 0.5 + 3.0;
+            let rect = [
+                (vp.x.min(prev.x) - r).floor() as i32,
+                (vp.y.min(prev.y) - r).floor() as i32,
+                (vp.x.max(prev.x) + r).ceil() as i32,
+                (vp.y.max(prev.y) + r).ceil() as i32,
+            ];
+            dirty = vector::union_rect(dirty, Some(rect));
+        }
+        if let Some(rect) = dirty {
+            render_vector(layer, w, h, rect);
+            self.mark_rect(rect[0] as f32, rect[1] as f32, rect[2] as f32, rect[3] as f32);
+        }
+    }
+
+    /// ベクターの 線を かきおえた: 曲線に ととのえて かきなおす。
+    fn vector_finish(&mut self, layer: usize, index: Option<usize>) {
+        let (w, h) = (self.doc.width, self.doc.height);
+        let l = &mut self.doc.layers[layer];
+        let Some(strokes) = l.vector.as_mut() else {
+            return;
+        };
+        let Some(i) = index.filter(|&i| i < strokes.len()) else {
+            return;
+        };
+        let old = strokes[i].bounds();
+        let s = &strokes[i];
+        let fitted = vector::VectorStroke::fitted(s.points.clone(), s.color, s.hardness);
+        let new = fitted.bounds();
+        strokes[i] = fitted;
+        if let Some(rect) = vector::union_rect(old, new) {
+            let rect = [rect[0] - 2, rect[1] - 2, rect[2] + 2, rect[3] + 2];
+            render_vector(l, w, h, rect);
+            self.mark_rect(rect[0] as f32, rect[1] as f32, rect[2] as f32, rect[3] as f32);
+        }
+    }
+
     fn restore_provisional(&mut self) {
         let Some(stroke) = self.stroke.as_mut() else {
             return;
@@ -1133,7 +1236,7 @@ fn stroke_spacing(brush: &Brush) -> f32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn stroke_begin(x: f32, y: f32) -> i32 {
     with_app(0, |app| {
-        if app.stroke.is_some() || !app.paintable(app.selected) {
+        if app.stroke.is_some() || !app.drawable(app.selected) {
             return 0;
         }
         app.checkpoint();
@@ -1174,6 +1277,8 @@ pub extern "C" fn stroke_begin(x: f32, y: f32) -> i32 {
             min: [f32::MAX; 2],
             max: [f32::MIN; 2],
             pushed: 0,
+            vector: app.doc.layers[app.selected].vector.is_some(),
+            vindex: None,
         });
         1
     })
@@ -1216,7 +1321,7 @@ pub extern "C" fn stroke_flush() {
             return;
         };
         let pending = std::mem::take(&mut stroke.pending);
-        if pending.is_empty() {
+        if pending.is_empty() || stroke.vector {
             return;
         }
         let layer = stroke.layer;
@@ -1244,6 +1349,13 @@ pub extern "C" fn stroke_end() {
         app.stroke = Some(stroke);
         app.paint_dabs(&tail);
         let mut stroke = app.stroke.take().unwrap();
+        if stroke.vector {
+            app.vector_finish(layer, stroke.vindex);
+            if stroke.pushed == 0 {
+                app.undo.pop();
+            }
+            return;
+        }
         let brush = &app.brushes[brush_index];
         if brush.settle
             && !matches!(
@@ -1387,6 +1499,48 @@ pub extern "C" fn layer_add() {
     })
 }
 
+/// ベクターレイヤーを 足す（線を あとから けずれる）。
+#[unsafe(no_mangle)]
+pub extern "C" fn layer_add_vector() {
+    with_app((), |app| {
+        app.checkpoint();
+        let mut n = 1;
+        let name = loop {
+            let name = format!("ベクター {n}");
+            if !app.doc.layers.iter().any(|l| l.name == name) {
+                break name;
+            }
+            n += 1;
+        };
+        let mut layer = blank_layer(app, &name);
+        layer.vector = Some(Vec::new());
+        let at = app.selected + 1;
+        layer.parent_id = app.doc.layers.get(app.selected).and_then(|l| {
+            if l.kind == LayerKind::Folder { Some(l.id) } else { l.parent_id }
+        });
+        app.doc.layers.insert(at.min(app.doc.layers.len()), layer);
+        app.selected = at.min(app.doc.layers.len() - 1);
+    })
+}
+
+/// ベクター消しゴムで 線を まるごと 消すか（1）、ふれた ところだけか（0）。
+#[unsafe(no_mangle)]
+pub extern "C" fn set_vector_whole(on: u32) {
+    with_app((), |app| app.vector_whole = on != 0)
+}
+
+/// レイヤー全体を ラスターに する（ベクターの 線を 絵に かためる）。
+#[unsafe(no_mangle)]
+pub extern "C" fn layer_rasterize(index: u32) {
+    with_app((), |app| {
+        let i = index as usize;
+        if app.doc.layers.get(i).is_some_and(|l| l.vector.is_some()) {
+            app.checkpoint();
+            app.doc.layers[i].vector = None;
+        }
+    })
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn layer_select(index: u32) {
     with_app((), |app| {
@@ -1516,6 +1670,7 @@ pub extern "C" fn layer_merge_down(index: u32) -> i32 {
         merged.prune_empty_tiles();
         let upper_copy = app.doc.layers[i].clone();
         app.doc.layers[i - 1].pixels = merged;
+        app.doc.layers[i - 1].vector = None;
         app.doc.layers.remove(i);
         app.mark_layer(&upper_copy);
         let lower_copy = app.doc.layers[i - 1].clone();
@@ -1529,12 +1684,15 @@ pub extern "C" fn layer_merge_down(index: u32) -> i32 {
 pub extern "C" fn layer_clear(index: u32) {
     with_app((), |app| {
         let i = index as usize;
-        if !app.paintable(i) {
+        if !app.drawable(i) {
             return;
         }
         app.checkpoint();
         let copy = app.doc.layers[i].clone();
         app.mark_layer(&copy);
+        if let Some(v) = &mut app.doc.layers[i].vector {
+            v.clear();
+        }
         app.doc.layers[i].pixels.clear_tiles();
     })
 }
@@ -2231,4 +2389,75 @@ pub extern "C" fn float_cancel() {
 #[unsafe(no_mangle)]
 pub extern "C" fn float_active() -> i32 {
     with_app(0, |app| app.floating.is_some() as i32)
+}
+
+/// ベクターの 線を はんい だけ かきなおす。
+/// Efude の render_region は 線の なくなった タイルを 消さない ことが あるので、先に 消しておく。
+fn render_vector(layer: &mut Layer, w: u32, h: u32, rect: vector::PixelRect) {
+    let x0 = rect[0].max(0) as u32;
+    let y0 = rect[1].max(0) as u32;
+    let x1 = (rect[2].max(0) as u32).min(w);
+    let y1 = (rect[3].max(0) as u32).min(h);
+    if x1 > x0 && y1 > y0 {
+        for ty in y0 / TILE_SIZE..=(y1 - 1) / TILE_SIZE {
+            for tx in x0 / TILE_SIZE..=(x1 - 1) / TILE_SIZE {
+                if layer.pixels.tile_data(tx, ty).is_none() {
+                    continue;
+                }
+                let (ox, oy) = (tx * TILE_SIZE, ty * TILE_SIZE);
+                let (lx0, lx1) = (x0.max(ox) - ox, x1.min(ox + TILE_SIZE) - ox);
+                let (ly0, ly1) = (y0.max(oy) - oy, y1.min(oy + TILE_SIZE) - oy);
+                let tile = layer.pixels.tile_mut(tx, ty);
+                for ly in ly0..ly1 {
+                    let a = ((ly * TILE_SIZE + lx0) * 4) as usize;
+                    let b = ((ly * TILE_SIZE + lx1) * 4) as usize;
+                    tile[a..b].fill(0);
+                }
+            }
+        }
+    }
+    vector::render_region(layer, w, h, rect, None);
+    layer.pixels.prune_empty_tiles();
+}
+
+/// ベクターの 線幅を かえる。(x,y) から 半径 r の 中の 点の 太さを factor 倍（r が 0 以下なら レイヤー全体）。
+#[unsafe(no_mangle)]
+pub extern "C" fn vector_width(x: f32, y: f32, r: f32, factor: f32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        let (w, h) = (app.doc.width, app.doc.height);
+        if app.doc.layers.get(i).is_none_or(|l| l.locked || l.vector.is_none()) || !factor.is_finite() {
+            return 0;
+        }
+        let l = &mut app.doc.layers[i];
+        let strokes = l.vector.as_mut().unwrap();
+        let mut dirty: Option<vector::PixelRect> = None;
+        for st in strokes.iter_mut() {
+            let hit = r <= 0.0
+                || st.points.iter().any(|p| (p.x - x).hypot(p.y - y) < r + p.width * 0.5);
+            if !hit {
+                continue;
+            }
+            let before = st.bounds();
+            let near = |px: f32, py: f32| r <= 0.0 || (px - x).hypot(py - y) < r;
+            for p in st.points.iter_mut() {
+                if near(p.x, p.y) {
+                    p.width = (p.width * factor).clamp(0.3, 600.0);
+                }
+            }
+            for a in st.anchors.iter_mut() {
+                if near(a.x, a.y) {
+                    a.width = (a.width * factor).clamp(0.3, 600.0);
+                }
+            }
+            dirty = vector::union_rect(dirty, vector::union_rect(before, st.bounds()));
+        }
+        let Some(rect) = dirty else {
+            return 0;
+        };
+        let rect = [rect[0] - 2, rect[1] - 2, rect[2] + 2, rect[3] + 2];
+        render_vector(l, w, h, rect);
+        app.mark_rect(rect[0] as f32, rect[1] as f32, rect[2] as f32, rect[3] as f32);
+        1
+    })
 }

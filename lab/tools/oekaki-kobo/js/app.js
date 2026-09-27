@@ -3,6 +3,7 @@
 import { loadEngine } from './engine.js';
 import { store, askPersist } from './store.js';
 import { icon } from './icons.js';
+import { watchRanges } from './rslider.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -14,6 +15,7 @@ let E = null; // engine
 const DEFAULT_SETTINGS = {
   fingerDraw: false, gamma: 1, lefty: false, tapUndo: true, penButtonErase: true,
   fillAll: true, fillTol: 24, fillGrow: 1, lassoErase: false, pickLayer: false, panel: true,
+  vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
 const S = {
   tool: 'draw',
@@ -75,7 +77,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=1');
+    E = await loadEngine('engine.wasm?v=2');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -111,19 +113,25 @@ async function boot() {
 }
 
 function buildStaticIcons() {
+  buildSizeRow();
+  watchRanges();
   setIcon($('#bMenu'), 'menu');
   setIcon($('#bUndo'), 'undo');
   setIcon($('#bRedo'), 'redo');
   iconText($('#bExport'), 'download', '書き出す');
   setIcon($('#bSettings'), 'settings');
   setIcon($('#bPanel'), 'layers');
-  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', lasso: 'lasso', move: 'move', pick: 'picker' };
+  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', lasso: 'lasso', move: 'move', vwidth: 'sliders', pick: 'picker' };
   for (const b of $$('.tool')) setIcon(b, toolIcons[b.dataset.tool], 26);
   setIcon($('#vFlip'), 'flip', 18);
   setIcon($('#vRot'), 'rotl', 18);
   setIcon($('#vFit'), 'fit', 18);
-  iconText($('#lAdd'), 'add', '足す', 16);
-  iconText($('#lImage'), 'image', '画像', 16);
+  iconText($('#lAdd'), 'add', 'ラスター', 16);
+  iconText($('#lVec'), 'pen', 'ベクター', 16);
+  setIcon($('#lImage'), 'image', 18);
+  iconText($('#rAdd'), 'image', '資料を 読む', 16);
+  setIcon($('#rPick'), 'picker', 18);
+  setIcon($('#rDel'), 'trash', 18);
   setIcon($('#lUp'), 'up', 18);
   setIcon($('#lDown'), 'down', 18);
 }
@@ -241,6 +249,7 @@ function applyView() {
   $('#vRot').classList.toggle('on', deg % 360 !== 0);
   if (E) E.setViewScale(v.s);
   drawOverlay();
+  navSync();
 }
 /* 紙の 点 → 画面の 点 */
 function toScreen(px, py) {
@@ -326,7 +335,7 @@ function frame() {
     if (!drawDirty(input.drawing ? 32 : 96)) break;
   }
   if (E.dirtyCount() > 0) kick();
-  else bulk = false;
+  else { bulk = false; navSoon(); }
   drawOverlay();
 }
 function drawDirty(max) {
@@ -384,6 +393,11 @@ function drawOverlay() {
     q.forEach(([x, y]) => knob(x, y, false));
     knob(rx, ry, true);
     octx.restore();
+  }
+  if (input.cursor && S.tool === 'vwidth') {
+    const [x, y] = input.cursor;
+    octx.beginPath(); octx.arc(x, y, S.settings.vwRange, 0, Math.PI * 2);
+    octx.setLineDash([5, 4]); octx.lineWidth = 2; octx.strokeStyle = '#1E1C14'; octx.stroke(); octx.setLineDash([]);
   }
   if (input.cursor && (S.tool === 'draw' || S.tool === 'erase')) {
     const b = S.brushes[currentBrushIndex()];
@@ -508,7 +522,7 @@ function onMove(e) {
   const [x, y] = stageXY(e);
   const p = input.pointers.get(e.pointerId);
   if (p) { p.x = x; p.y = y; }
-  if (e.pointerType !== 'touch' && (S.tool === 'draw' || S.tool === 'erase')) {
+  if (e.pointerType !== 'touch' && (S.tool === 'draw' || S.tool === 'erase' || S.tool === 'vwidth')) {
     input.cursor = [x, y];
     if (!input.drawing) drawOverlay();
   }
@@ -535,6 +549,7 @@ function onMove(e) {
   }
   if (input.pickId === e.pointerId) { pickAt(x, y, false); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { dragFloat(x, y); return; }
+  if (input.vw && input.vw.id === e.pointerId) { widthAt(x, y); return; }
   if (input.gesture && p && p.type === 'touch') moveGesture();
 }
 
@@ -552,6 +567,11 @@ function onUp(e) {
   if (input.lasso && e.pointerId === input.lassoId) { endLasso(); return; }
   if (input.pickId === e.pointerId) { input.pickId = null; addRecent(S.color); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { input.floatDrag = null; renderToolOpts(); return; }
+  if (input.vw && input.vw.id === e.pointerId) {
+    const any = input.vw.any; input.vw = null;
+    if (any) changed(); else { E.undo(); refreshUndo(); }
+    return;
+  }
   if (input.gesture && p && p.type === 'touch') {
     if (touchCount() === 0) endGesture(true);
     else rebaseGesture();
@@ -591,6 +611,15 @@ function startAction(e, x, y) {
     if (ok) { addRecent(S.color); changed(); }
     return;
   }
+  if (tool === 'vwidth') {
+    const l = S.info && S.info.layers[S.info.selected];
+    if (!l || !l.vector) { toast('ベクターレイヤーを えらんで ください'); return; }
+    if (l.locked) { layerBlockedToast(); return; }
+    E.checkpoint();
+    input.vw = { id: e.pointerId, t: 0, any: false };
+    widthAt(x, y);
+    return;
+  }
   if (tool === 'move') {
     if (S.float) { startFloatDrag(e, x, y); return; }
     if (!layerPaintable()) { layerBlockedToast(); return; }
@@ -617,7 +646,7 @@ function pushPoint(ev) {
   const [sx, sy] = stageXY(ev);
   const [dx, dy] = toDoc(sx, sy);
   let pr;
-  if (ev.pointerType === 'pen') pr = ev.pressure > 0 ? ev.pressure : (input.drawPoints ? 0.01 : 0.2);
+  if (ev.pointerType === 'pen') pr = penPressure(ev.pressure > 0 ? ev.pressure : (input.drawPoints ? 0.01 : 0.2));
   else pr = 1;
   const tx = (ev.tiltX || 0) / 90, ty = (ev.tiltY || 0) / 90;
   const tw = (ev.twist || 0) * Math.PI / 180;
@@ -627,6 +656,34 @@ function pushPoint(ev) {
   if (ev.pointerType !== 'touch') input.cursor = [sx, sy];
 }
 
+/* 筆圧カーブ（アプリ全体）。Efude と 同じ 3次ベジェで 入力 → 出力。 */
+function curveAt(c, x) {
+  const [x1, y1, x2, y2] = c;
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 14; i++) {
+    const t = (lo + hi) / 2, u = 1 - t;
+    const bx = 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t;
+    if (bx < x) lo = t; else hi = t;
+  }
+  const t = (lo + hi) / 2, u = 1 - t;
+  return clamp(3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t, 0, 1);
+}
+function penPressure(p) {
+  const st = S.settings;
+  const v = curveAt(st.curve, clamp(p, 0, 1));
+  return st.minPressure + (1 - st.minPressure) * v;
+}
+/* ベクターの 線幅: なぞった ところの 線を 少しずつ 太く／細く */
+function widthAt(x, y) {
+  const st = S.settings, now = performance.now();
+  if (now - input.vw.t < 16) return;
+  input.vw.t = now;
+  const [dx, dy] = toDoc(x, y);
+  const k = 1 + st.vwPower / 100;
+  const r = st.vwRange / S.view.s;
+  if (E.vectorWidth(dx, dy, r, st.vwThick ? k : 1 / k)) { input.vw.any = true; kick(); }
+  input.cursor = [x, y];
+}
 function endDraw() {
   E.strokeEnd();
   input.drawing = false;
@@ -673,7 +730,7 @@ function layerBlockedToast() {
   const l = S.info && S.info.layers[S.info.selected];
   if (l && l.locked) toast('ロック中の レイヤーです');
   else if (l && l.folder) toast('フォルダには かけません');
-  else if (l && l.vector) toast('ベクターレイヤーには まだ かけません');
+  else if (l && l.vector) toast('ベクターレイヤーでは 描く・消す だけ です（ラスターに すると 使えます）');
   else toast('この レイヤーには かけません');
 }
 
@@ -913,6 +970,19 @@ function renderToolOpts() {
     } else {
       el.innerHTML = `<span>動かしたい ところを 囲む（タップだけで レイヤー全体）</span>`;
     }
+  } else if (S.tool === 'vwidth') {
+    el.innerHTML = `<button class="btn-sm ${st.vwThick ? 'on' : ''}" id="oWT">太く</button>
+      <button class="btn-sm ${!st.vwThick ? 'on' : ''}" id="oWN">細く</button>
+      <label>強さ <input type="range" id="oWP" min="1" max="20" step="1" value="${st.vwPower}"></label>
+      <label>はんい <input type="range" id="oWR" min="10" max="150" step="1" value="${st.vwRange}"></label>
+      <button class="btn-sm" id="oWAllT">線 ぜんぶ 太く</button><button class="btn-sm" id="oWAllN">線 ぜんぶ 細く</button>`;
+    $('#oWT', el).onclick = () => { st.vwThick = true; saveSettings(); renderToolOpts(); };
+    $('#oWN', el).onclick = () => { st.vwThick = false; saveSettings(); renderToolOpts(); };
+    $('#oWP', el).oninput = e => { st.vwPower = +e.target.value; saveSettings(); };
+    $('#oWR', el).oninput = e => { st.vwRange = +e.target.value; saveSettings(); drawOverlay(); };
+    const all = f => { const l = S.info.layers[S.info.selected]; if (!l || !l.vector) { toast('ベクターレイヤーを えらんで ください'); return; } E.checkpoint(); if (E.vectorWidth(0, 0, 0, f)) changed(); else E.undo(); };
+    $('#oWAllT', el).onclick = () => all(1.15);
+    $('#oWAllN', el).onclick = () => all(1 / 1.15);
   } else if (S.tool === 'pick') {
     el.innerHTML = `<button class="btn-sm ${!st.pickLayer ? 'on' : ''}" id="oPA">見えている 色</button>
       <button class="btn-sm ${st.pickLayer ? 'on' : ''}" id="oPL">この レイヤーの 色</button>`;
@@ -927,25 +997,30 @@ const SIZE_MIN = 0.5, SIZE_MAX = 1000;
 const sizeToT = s => Math.log(s / SIZE_MIN) / Math.log(SIZE_MAX / SIZE_MIN);
 const tToSize = t => SIZE_MIN * Math.pow(SIZE_MAX / SIZE_MIN, t);
 function vslider(el, onChange, onEnd) {
+  let cur = 0;
   const set = (t) => {
     t = clamp(t, 0, 1);
+    cur = t;
     const h = el.clientHeight - 6;
     el.querySelector('.vs-fill').style.height = (t * h) + 'px';
     el.querySelector('.vs-knob').style.top = (3 + (1 - t) * h) + 'px';
   };
-  let dragging = false;
-  const fromEvent = e => {
-    const r = el.getBoundingClientRect();
-    return 1 - (e.clientY - r.top - 3) / (r.height - 6);
-  };
+  // 触った だけでは 動かさない。ドラッグした ぶん だけ 動く。
+  let drag = null;
   el.addEventListener('pointerdown', e => {
     e.preventDefault();
-    dragging = true;
     el.setPointerCapture(e.pointerId);
-    const t = clamp(fromEvent(e), 0, 1); set(t); onChange(t);
+    drag = { y: e.clientY, t: cur, moved: false };
   });
-  el.addEventListener('pointermove', e => { if (!dragging) return; const t = clamp(fromEvent(e), 0, 1); set(t); onChange(t); });
-  const up = () => { if (dragging) { dragging = false; onEnd && onEnd(); } };
+  el.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dy = drag.y - e.clientY;
+    if (!drag.moved && Math.abs(dy) < 4) return;
+    drag.moved = true;
+    const t = clamp(drag.t + dy / Math.max(60, el.clientHeight - 6), 0, 1);
+    set(t); onChange(t);
+  });
+  const up = () => { if (drag) { const m = drag.moved; drag = null; if (m && onEnd) onEnd(); } };
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
   return { set, label: txt => { el.querySelector('.vs-val').textContent = txt; } };
@@ -971,6 +1046,7 @@ function syncSliders() {
   if (!b) return;
   sizeSl.set(sizeToT(b.size)); sizeSl.label(fmtSize(b.size));
   opSl.set(b.opacity); opSl.label(Math.round(b.opacity * 100) + '%');
+  syncSizeRow();
 }
 function showSizePreview() {
   const r = stage.getBoundingClientRect();
@@ -1055,7 +1131,22 @@ function pickerDrag(el, fn) {
   el.addEventListener('pointercancel', () => { on = false; });
 }
 pickerDrag(svBox, (x, y) => { hsv.s = x; hsv.v = 1 - y; setColor([...hsv2rgb(hsv.h, hsv.s, hsv.v), S.color[3]], true); });
-pickerDrag(hueBar, x => { hsv.h = Math.min(359.9, x * 360); setColor([...hsv2rgb(hsv.h, hsv.s, hsv.v), S.color[3]], true); });
+{
+  // 色相の バーも 触った だけでは 動かさない
+  let d = null;
+  hueBar.addEventListener('pointerdown', e => { hueBar.setPointerCapture(e.pointerId); d = { x: e.clientX, h: hsv.h, moved: false }; });
+  hueBar.addEventListener('pointermove', e => {
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    if (!d.moved && Math.abs(dx) < 4) return;
+    d.moved = true;
+    hsv.h = clamp(d.h + dx / hueBar.getBoundingClientRect().width * 360, 0, 359.9);
+    setColor([...hsv2rgb(hsv.h, hsv.s, hsv.v), S.color[3]], true);
+  });
+  const end = () => { if (d && d.moved) addRecent(S.color); d = null; };
+  hueBar.addEventListener('pointerup', end);
+  hueBar.addEventListener('pointercancel', end);
+}
 $('#alphaR').oninput = e => setColor([S.color[0], S.color[1], S.color[2], +e.target.value], true);
 $('#hexIn').onchange = e => { const c = parseHex(e.target.value); if (c) { setColor([...c, S.color[3]]); addRecent(S.color); } else drawPicker(); };
 const PALETTE = ['#1E1C14', '#4A463A', '#8A8470', '#C9C4AE', '#FFFFFF', '#FFFEF7', '#E1DD60', '#F2A0B8',
@@ -1079,14 +1170,16 @@ function renderSwatches() {
 
 /* ================================================================ パネル */
 function openTab(t) {
-  if (t === 'layer') commitFloat();
+  if (t === 'layer') t = narrow ? 'side' : 'brush';
+  if (t === 'side') commitFloat();
   S.tab = t;
   if (!S.settings.panel) { S.settings.panel = true; applySettings(); }
   for (const b of $$('.tab')) b.classList.toggle('on', b.dataset.tab === t);
   for (const p of $$('.pane')) p.classList.toggle('on', p.id === 'pane-' + t);
   if (t === 'brush') renderBrushPanel();
   if (t === 'color') { drawPicker(); renderSwatches(); }
-  if (t === 'layer') refreshLayers(true);
+  if (t === 'side') { refreshLayers(true); drawNav(true); }
+  if (t === 'ref') showRef();
 }
 for (const b of $$('.tab')) b.onclick = () => openTab(b.dataset.tab);
 $('#bPanel').onclick = () => { S.settings.panel = !S.settings.panel; applySettings(); saveSettings(); };
@@ -1277,7 +1370,7 @@ const BLEND_NAMES = ['通常', '乗算', 'スクリーン', 'オーバーレイ'
 const TONE_SHAPES = ['丸', '四角', 'ひし形', '線', '十字', '砂目'];
 function refreshLayers(full) {
   S.info = E.info();
-  if (S.tab !== 'layer' && !full) return;
+
   const list = $('#layerList');
   list.innerHTML = '';
   const L = S.info.layers;
@@ -1320,7 +1413,7 @@ function drawLayerThumb(i, cv) {
   x.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), tw, th), Math.round((44 - tw) / 2), Math.round((44 - th) / 2));
 }
 const thumbSoon = debounce(() => {
-  if (S.tab !== 'layer' || !S.info) return;
+  if (!S.info) return;
   const i = S.info.selected;
   const rows = $$('.litem');
   const row = rows[S.info.layers.length - 1 - i];
@@ -1338,6 +1431,8 @@ function renderLayerProps() {
     <div class="prow"><span>合成</span><select id="lpBlend" style="grid-column:span 2">${BLEND_NAMES.map((n, k) => `<option value="${k}" ${k === l.blend ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
     <div class="prow chk"><span>ロック</span><input type="checkbox" id="lpLock" ${l.locked ? 'checked' : ''}></div>
     <div class="prow chk"><span>下の レイヤーで クリップ</span><input type="checkbox" id="lpClip" ${l.clipping ? 'checked' : ''}></div>
+    ${l.vector ? `<div class="prow chk"><span>ベクター消しゴムで 線ごと 消す</span><input type="checkbox" id="lpWhole" ${S.settings.vectorWhole ? 'checked' : ''}></div>
+      <div class="hint">ベクターレイヤー … 描いた 線を 形の まま しまいます。消しゴムで 線の 一部だけ・線ごと 消せます。塗りつぶし・囲って塗る・動かす は ラスターに してから。</div>` : ''}
     ${l.folder ? '' : `<div class="prow chk"><span>トーンに する（濃さを 網点で 出す）</span><input type="checkbox" id="lpTone" ${t ? 'checked' : ''}></div>`}
     ${t ? `
     <div class="prow"><span>線数</span><input type="range" id="lpLpi" min="10" max="150" step="1" value="${t.lpi}"><span class="v dot" id="lpLpiV">${Math.round(t.lpi)}線</span></div>
@@ -1347,6 +1442,7 @@ function renderLayerProps() {
       <button class="btn-sm" id="lpDup">${icon('copy', 16)}複製</button>
       <button class="btn-sm" id="lpMerge">${icon('merge', 16)}下と 結合</button>
       <button class="btn-sm" id="lpClear">${icon('clean', 16)}中を 消す</button>
+      ${l.vector ? `<button class="btn-sm" id="lpThick">線を 太く</button><button class="btn-sm" id="lpThin">線を 細く</button><button class="btn-sm" id="lpRaster">ラスターに する</button>` : ''}
       <button class="btn-sm danger" id="lpDel">${icon('trash', 16)}削除</button>
     </div>`;
   const setProp = (key, v, withCheckpoint = true) => { if (withCheckpoint) E.checkpoint(); E.layerSet(i, key, v); changed({ layers: true }); };
@@ -1370,15 +1466,21 @@ function renderLayerProps() {
     live('#lpAng', 'tone_angle', v => v + '°');
     $('#lpShape').onchange = e => setProp('tone_shape', +e.target.value);
   }
+  if ($('#lpWhole')) $('#lpWhole').onchange = e => { S.settings.vectorWhole = e.target.checked; E.setVectorWhole(S.settings.vectorWhole); saveSettings(); };
+  const vwAll = f => { E.checkpoint(); if (E.vectorWidth(0, 0, 0, f)) changed(); else E.undo(); };
+  if ($('#lpThick')) $('#lpThick').onclick = () => vwAll(1.15);
+  if ($('#lpThin')) $('#lpThin').onclick = () => vwAll(1 / 1.15);
+  if ($('#lpRaster')) $('#lpRaster').onclick = () => { E.layerRasterize(i); changed({ layers: true }); };
   $('#lpDup').onclick = () => { E.layerDuplicate(i); changed({ layers: true }); };
   $('#lpMerge').onclick = () => { if (E.layerMergeDown(i)) changed({ layers: true }); else toast('結合できません'); };
-  $('#lpClear').onclick = () => { if (!layerPaintable()) { layerBlockedToast(); return; } E.layerClear(i); changed({ layers: true }); };
+  $('#lpClear').onclick = () => { if (l.locked || l.folder) { layerBlockedToast(); return; } E.layerClear(i); changed({ layers: true }); };
   $('#lpDel').onclick = async () => {
     if (!await confirmBox(`「${l.name}」を 削除しますか？`)) return;
     E.layerDelete(i); changed({ layers: true });
   };
 }
 $('#lAdd').onclick = () => { commitFloat(); E.layerAdd(); changed({ layers: true }); };
+$('#lVec').onclick = () => { commitFloat(); E.layerAddVector(); changed({ layers: true }); toast('ベクターレイヤーを 足しました'); };
 $('#lUp').onclick = () => { if (E.layerMove(S.info.selected, 1)) changed({ layers: true }); };
 $('#lDown').onclick = () => { if (E.layerMove(S.info.selected, -1)) changed({ layers: true }); };
 $('#lImage').onclick = () => pickFile('image/*', async f => { await importImageAsLayer(f); });
@@ -1645,8 +1747,17 @@ async function openSettings() {
   let est = '';
   try { const e = await navigator.storage.estimate(); est = `${(e.usage / 1e6).toFixed(0)}MB 使用 ／ のこり 約${((e.quota - e.usage) / 1e9).toFixed(1)}GB`; } catch (_) {}
   openModal(`<h2>${icon('settings')}設定<span class="grow"></span><button class="ib sm" id="sClose">${icon('close', 18)}</button></h2>
-    <div class="prow" style="grid-template-columns:9em 1fr 3.4em"><span>筆圧の かかり</span><input type="range" id="sGamma" min="0.4" max="2.5" step="0.05" value="${st.gamma}"><span class="v dot" id="sGammaV">${(+st.gamma).toFixed(2)}</span></div>
-    <p class="small">小さく すると 軽い 力で 太く、大きく すると しっかり おさないと 太く なりません。</p>
+    <div class="title">ペンの 筆圧</div>
+    <div class="penset">
+      <div><canvas id="curveCv" width="220" height="220"></canvas>
+        <div class="btnrow"><button class="btn-sm" data-cp="soft">やわらかい</button><button class="btn-sm" data-cp="mid">ふつう</button><button class="btn-sm" data-cp="hard">かたい</button></div></div>
+      <div style="flex:1;min-width:0">
+        <p class="small">黄色い つまみを ドラッグして 筆圧の かかりかたを きめます（触った だけでは 動きません）。左上に 寄せると 軽い 力で 太く、右下に 寄せると しっかり 押した ときだけ 太く なります。</p>
+        <div class="prow"><span>いちばん 弱い とき</span><input type="range" id="sMinP" min="0" max="0.6" step="0.01" value="${st.minPressure}"><span class="v dot" id="sMinPV">${Math.round(st.minPressure * 100)}%</span></div>
+        <div class="small">ためし 書き（ペンで なぞる）</div>
+        <canvas id="testCv" width="360" height="110"></canvas>
+      </div>
+    </div>
     <div class="prow chk"><span>指でも 描く（ふだんは ペンだけ）</span><input type="checkbox" id="sFinger" ${st.fingerDraw ? 'checked' : ''}></div>
     <div class="prow chk"><span>二本指タップで 取り消し・三本指で やり直し</span><input type="checkbox" id="sTap" ${st.tapUndo ? 'checked' : ''}></div>
     <div class="prow chk"><span>ペンの ボタン・おしりで 消しゴム</span><input type="checkbox" id="sPenBtn" ${st.penButtonErase ? 'checked' : ''}></div>
@@ -1662,7 +1773,8 @@ async function openSettings() {
       オープンソースの お絵かきアプリ <a href="https://github.com/852wa/Efude" target="_blank" rel="noopener">Efude</a> の エンジンを
       WebAssembly に して そのまま 使っています（MIT / Apache-2.0）。標準の ブラシセットは Efude に 入っている もの（MPL-2.0）です。
       Efude の 作者とは 関係の ない、個人の ための 画面です。<a href="NOTICE.txt" target="_blank">ライセンス</a> ／ アイコン: Hugeicons（MIT）</p>`);
-  $('#sGamma').oninput = e => { st.gamma = +e.target.value; $('#sGammaV').textContent = st.gamma.toFixed(2); E.setPressureGamma(st.gamma); saveSettings(); };
+  setupCurveEditor();
+  $('#sMinP').oninput = e => { st.minPressure = +e.target.value; $('#sMinPV').textContent = Math.round(st.minPressure * 100) + '%'; drawCurve(); saveSettings(); };
   $('#sFinger').onchange = e => { st.fingerDraw = e.target.checked; saveSettings(); };
   $('#sTap').onchange = e => { st.tapUndo = e.target.checked; saveSettings(); };
   $('#sPenBtn').onchange = e => { st.penButtonErase = e.target.checked; saveSettings(); };
@@ -1676,7 +1788,8 @@ function applySettings() {
   $('#app').classList.toggle('lefty', !!st.lefty);
   $('#app').classList.toggle('nopanel', !st.panel);
   $('#bPanel').classList.toggle('on', !!st.panel);
-  if (E) E.setPressureGamma(st.gamma);
+  if (E) { E.setPressureGamma(1); E.setVectorWhole(!!st.vectorWhole); }
+  checkNarrow();
 }
 const saveSettings = debounce(() => store.set('settings', S.settings).catch(() => {}), 500);
 const prefsSoon = debounce(() => store.set('prefs', {
@@ -1687,6 +1800,357 @@ const prefsSoon = debounce(() => store.set('prefs', {
 $('#vFlip').onclick = toggleFlip;
 $('#vRot').onclick = resetRotation;
 $('#vFit').onclick = fitView;
+
+/* ================================================================ 筆圧カーブの 画面 */
+function drawCurve() {
+  const cv = $('#curveCv');
+  if (!cv) return;
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height, P = 14;
+  const st = S.settings, c = st.curve;
+  const X = v => P + v * (W - P * 2), Y = v => H - P - v * (H - P * 2);
+  x.clearRect(0, 0, W, H);
+  x.fillStyle = '#FFFEF7'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = 'rgba(30,28,20,.15)'; x.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { x.beginPath(); x.moveTo(X(i / 4), Y(0)); x.lineTo(X(i / 4), Y(1)); x.moveTo(X(0), Y(i / 4)); x.lineTo(X(1), Y(i / 4)); x.stroke(); }
+  x.strokeStyle = '#1E1C14'; x.lineWidth = 2; x.strokeRect(X(0), Y(1), W - P * 2, H - P * 2);
+  x.beginPath();
+  for (let i = 0; i <= 60; i++) { const p = i / 60; const v = st.minPressure + (1 - st.minPressure) * curveAt(c, p); i ? x.lineTo(X(p), Y(v)) : x.moveTo(X(p), Y(v)); }
+  x.lineWidth = 3; x.stroke();
+  x.setLineDash([4, 4]); x.lineWidth = 1.5;
+  x.beginPath(); x.moveTo(X(0), Y(0)); x.lineTo(X(c[0]), Y(c[1])); x.moveTo(X(1), Y(1)); x.lineTo(X(c[2]), Y(c[3])); x.stroke();
+  x.setLineDash([]);
+  for (const [hx, hy] of [[c[0], c[1]], [c[2], c[3]]]) {
+    x.beginPath(); x.arc(X(hx), Y(hy), 9, 0, Math.PI * 2);
+    x.fillStyle = '#E1DD60'; x.fill(); x.lineWidth = 2.5; x.strokeStyle = '#1E1C14'; x.stroke();
+  }
+}
+function setupCurveEditor() {
+  const cv = $('#curveCv'), st = S.settings;
+  drawCurve();
+  const P = 14;
+  let drag = null;
+  cv.style.touchAction = 'none';
+  cv.addEventListener('pointerdown', e => {
+    const r = cv.getBoundingClientRect(), k = cv.width / r.width;
+    const px = (e.clientX - r.left) * k, py = (e.clientY - r.top) * k;
+    const W = cv.width - P * 2;
+    const hs = [[st.curve[0], st.curve[1]], [st.curve[2], st.curve[3]]].map(([a, b]) => Math.hypot(P + a * W - px, cv.height - P - b * W - py));
+    const idx = hs[0] <= hs[1] ? 0 : 1;
+    if (hs[idx] > 30) return;
+    cv.setPointerCapture(e.pointerId);
+    drag = { idx, x: e.clientX, y: e.clientY, c: st.curve.slice(), k: k / W };
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = (e.clientX - drag.x) * drag.k, dy = -(e.clientY - drag.y) * drag.k;
+    const i = drag.idx * 2;
+    st.curve[i] = clamp(drag.c[i] + dx, 0, 1);
+    st.curve[i + 1] = clamp(drag.c[i + 1] + dy, 0, 1);
+    drawCurve();
+  });
+  const up = () => { if (drag) { drag = null; saveSettings(); } };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  const presets = { soft: [0.1, 0.45, 0.45, 0.95], mid: [0.25, 0.25, 0.75, 0.75], hard: [0.55, 0.05, 0.9, 0.55] };
+  for (const b of $$('[data-cp]')) b.onclick = () => { st.curve = presets[b.dataset.cp].slice(); drawCurve(); saveSettings(); };
+  // ためし 書き
+  const t = $('#testCv'), tx = t.getContext('2d');
+  t.style.touchAction = 'none';
+  const clear = () => { tx.fillStyle = '#FFFEF7'; tx.fillRect(0, 0, t.width, t.height); };
+  clear();
+  let last = null;
+  t.addEventListener('pointerdown', e => { t.setPointerCapture(e.pointerId); last = null; if (e.pointerType !== 'pen') { clear(); } });
+  t.addEventListener('pointermove', e => {
+    if (!(e.buttons & 1)) return;
+    const r = t.getBoundingClientRect(), k = t.width / r.width;
+    for (const ev of (e.getCoalescedEvents ? e.getCoalescedEvents() : [e])) {
+      const x = (ev.clientX - r.left) * k, y = (ev.clientY - r.top) * k;
+      const p = ev.pointerType === 'pen' ? penPressure(ev.pressure) : 1;
+      const w = 1 + p * 14;
+      if (last) { tx.beginPath(); tx.moveTo(last[0], last[1]); tx.lineTo(x, y); tx.lineWidth = w; tx.lineCap = 'round'; tx.strokeStyle = '#1E1C14'; tx.stroke(); }
+      last = [x, y];
+    }
+  });
+  t.addEventListener('pointerup', () => { last = null; });
+  t.addEventListener('dblclick', clear);
+}
+
+/* ================================================================ 太さの 列 ・ 補正 */
+const SIZE_PRESETS = [0.7, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 70, 100, 150, 200, 300, 500, 1000];
+function buildSizeRow() {
+  const row = $('#sizeRow');
+  row.innerHTML = '';
+  for (const v of SIZE_PRESETS) {
+    const b = document.createElement('button');
+    b.className = 'sz';
+    b.dataset.v = v;
+    const d = clamp(Math.sqrt(v) * 2.6, 2, 30);
+    b.innerHTML = `<i style="width:${d}px;height:${d}px"></i><span>${v}</span>`;
+    b.onclick = () => setBrushSize(v);
+    row.appendChild(b);
+  }
+  $('#stMinus').onclick = () => stepStab(-1);
+  $('#stPlus').onclick = () => stepStab(1);
+}
+function setBrushSize(v) {
+  const i = currentBrushIndex();
+  E.brushSet(i, 'size', v);
+  S.brushes[i].size = v;
+  syncSliders();
+  brushesChanged();
+  if (S.tab === 'brush') renderBrushProps();
+}
+function stepStab(d) {
+  const i = currentBrushIndex();
+  const v = clamp((S.brushes[i].stabilization | 0) + d, 0, 15);
+  E.brushSet(i, 'stabilization', v);
+  S.brushes[i].stabilization = v;
+  syncSizeRow();
+  brushesChanged();
+  if (S.tab === 'brush') renderBrushProps();
+}
+function syncSizeRow() {
+  const b = S.brushes[currentBrushIndex()];
+  if (!b) return;
+  let best = null, bd = 1e9;
+  for (const el of $$('.sz')) { const d = Math.abs(Math.log(+el.dataset.v / b.size)); if (d < bd) { bd = d; best = el; } }
+  for (const el of $$('.sz')) el.classList.toggle('on', el === best && bd < 0.06);
+  $('#stVal').textContent = b.stabilization | 0;
+}
+
+/* ================================================================ 細い 画面（レイヤーを タブに まとめる） */
+let narrow = false;
+function checkNarrow() {
+  const want = window.innerWidth < 1100;
+  if (want === narrow && document.querySelector('#pane-side')) return;
+  narrow = want;
+  $('#app').classList.toggle('narrow', narrow);
+  let pane = $('#pane-side');
+  if (!pane) { pane = document.createElement('section'); pane.className = 'pane'; pane.id = 'pane-side'; $('#panel').appendChild(pane); }
+  const nav = $('.navbox'), lay = $('.layerbox');
+  if (narrow) { pane.append(nav, lay); }
+  else { $('#side').append(nav, lay); if (S.tab === 'side') openTab('brush'); }
+  drawNav(true);
+}
+window.addEventListener('resize', () => checkNarrow());
+
+/* ================================================================ ナビゲーター */
+const navCv = $('#navCv'), navView = $('#navView');
+let navImg = null, navT = 0;
+const navSoon = () => { clearTimeout(navT); navT = setTimeout(() => drawNav(true), 250); };
+function navLayout() {
+  const r = navView.getBoundingClientRect();
+  if (!S.info || !r.width) return null;
+  const k = Math.min((r.width - 12) / S.info.width, (r.height - 12) / S.info.height);
+  return { k, ox: (r.width - S.info.width * k) / 2, oy: (r.height - S.info.height * k) / 2, w: r.width, h: r.height };
+}
+function drawNav(refresh) {
+  const L = navLayout();
+  if (!L) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (navCv.width !== Math.round(L.w * dpr)) { navCv.width = Math.round(L.w * dpr); navCv.height = Math.round(L.h * dpr); refresh = true; }
+  if (refresh || !navImg) {
+    navImg = navImg || document.createElement('canvas');
+    navImg.width = Math.max(1, Math.round(S.info.width * L.k * dpr));
+    navImg.height = Math.max(1, Math.round(S.info.height * L.k * dpr));
+    const x = navImg.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, navImg.width, navImg.height);
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(docCv, 0, 0, navImg.width, navImg.height);
+  }
+  const x = navCv.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, L.w, L.h);
+  x.drawImage(navImg, L.ox, L.oy, S.info.width * L.k, S.info.height * L.k);
+  x.lineWidth = 2; x.strokeStyle = '#1E1C14';
+  x.strokeRect(L.ox, L.oy, S.info.width * L.k, S.info.height * L.k);
+  // いま 見えて いる はんい
+  const r = stage.getBoundingClientRect();
+  const pts = [[0, 0], [r.width, 0], [r.width, r.height], [0, r.height]].map(([sx, sy]) => toDoc(sx, sy));
+  x.beginPath();
+  pts.forEach(([px, py], i) => { const X = L.ox + px * L.k, Y = L.oy + py * L.k; i ? x.lineTo(X, Y) : x.moveTo(X, Y); });
+  x.closePath();
+  x.fillStyle = 'rgba(242,160,184,.18)'; x.fill();
+  x.lineWidth = 2.5; x.strokeStyle = '#F2A0B8'; x.stroke();
+}
+function navSync() {
+  drawNav(false);
+  const z = $('#nZoom'), rr = $('#nRot');
+  if (z && !navDragging) {
+    z.value = Math.log2(S.view.s);
+    $('#nZoomV').textContent = Math.round(S.view.s * 100) + '%';
+    let deg = Math.round(S.view.r * 180 / Math.PI) % 360;
+    if (deg > 180) deg -= 360; if (deg < -180) deg += 360;
+    rr.value = deg;
+    $('#nRotV').textContent = deg + '°';
+  }
+}
+let navDragging = false;
+{
+  // ナビゲーターの 中を ドラッグ すると 見る 場所が 動く（触った だけでは とばない）
+  let d = null;
+  navView.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    navView.setPointerCapture(e.pointerId);
+    const r = stage.getBoundingClientRect();
+    d = { x: e.clientX, y: e.clientY, c: toDoc(r.width / 2, r.height / 2), moved: false };
+  });
+  navView.addEventListener('pointermove', e => {
+    if (!d) return;
+    const L = navLayout(); if (!L) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.moved && Math.hypot(dx, dy) < 4) return;
+    d.moved = true;
+    const r = stage.getBoundingClientRect();
+    pinDoc(d.c[0] + dx / L.k, d.c[1] + dy / L.k, r.width / 2, r.height / 2);
+    applyView();
+  });
+  const up = () => { d = null; };
+  navView.addEventListener('pointerup', up);
+  navView.addEventListener('pointercancel', up);
+  const centerKeep = fn => { const r = stage.getBoundingClientRect(); const [px, py] = toDoc(r.width / 2, r.height / 2); fn(); pinDoc(px, py, r.width / 2, r.height / 2); applyView(); };
+  const z = $('#nZoom'), rr = $('#nRot');
+  z.addEventListener('pointerdown', () => { navDragging = true; });
+  z.oninput = () => { navDragging = true; centerKeep(() => { S.view.s = clamp(Math.pow(2, +z.value), 0.02, 32); }); $('#nZoomV').textContent = Math.round(S.view.s * 100) + '%'; };
+  z.onchange = () => { navDragging = false; navSync(); };
+  rr.oninput = () => { navDragging = true; centerKeep(() => { S.view.r = +rr.value * Math.PI / 180; }); $('#nRotV').textContent = rr.value + '°'; };
+  rr.onchange = () => { navDragging = false; navSync(); };
+}
+new ResizeObserver(() => drawNav(true)).observe(navView);
+
+/* ================================================================ 資料（いろんな 画像を 見る） */
+const refCv = $('#refCv'), refView = $('#refView');
+const REF = { list: [], cur: -1, img: null, v: { x: 0, y: 0, s: 1 }, pick: false, urls: [] };
+async function loadRefs() {
+  REF.list = (await store.get('refs').catch(() => null)) || [];
+  renderRefList();
+  if (REF.list.length) await selectRef(Math.min(REF.list.length - 1, Math.max(0, REF.cur)));
+}
+function renderRefList() {
+  REF.urls.forEach(u => URL.revokeObjectURL(u));
+  REF.urls = [];
+  const el = $('#refList');
+  el.innerHTML = '';
+  REF.list.forEach((r, i) => {
+    const u = URL.createObjectURL(r.blob);
+    REF.urls.push(u);
+    const b = document.createElement('button');
+    b.className = i === REF.cur ? 'on' : '';
+    b.innerHTML = `<img src="${u}" alt="">`;
+    b.onclick = () => selectRef(i);
+    el.appendChild(b);
+  });
+  $('#refEmpty').hidden = REF.list.length > 0;
+}
+async function selectRef(i) {
+  REF.cur = i;
+  const r = REF.list[i];
+  REF.img = r ? await createImageBitmap(r.blob).catch(() => null) : null;
+  renderRefList();
+  refFit();
+}
+function refFit() {
+  const r = refView.getBoundingClientRect();
+  if (!REF.img || !r.width) { drawRef(); return; }
+  const s = Math.min(r.width / REF.img.width, r.height / REF.img.height);
+  REF.v = { s, x: (r.width - REF.img.width * s) / 2, y: (r.height - REF.img.height * s) / 2 };
+  drawRef();
+}
+function drawRef() {
+  const r = refView.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  refCv.width = Math.round(r.width * dpr); refCv.height = Math.round(r.height * dpr);
+  const x = refCv.getContext('2d');
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.clearRect(0, 0, r.width, r.height);
+  if (REF.img) {
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(REF.img, REF.v.x, REF.v.y, REF.img.width * REF.v.s, REF.img.height * REF.v.s);
+  }
+  const z = $('#rZoom');
+  if (z && REF.img) { z.value = Math.log2(REF.v.s); $('#rZoomV').textContent = Math.round(REF.v.s * 100) + '%'; }
+}
+function showRef() { if (!REF.loaded) { REF.loaded = true; loadRefs(); } else refFit(); }
+function refZoomAt(k, sx, sy) {
+  const v = REF.v;
+  const ns = clamp(v.s * k, 0.02, 20);
+  v.x = sx - (sx - v.x) * ns / v.s; v.y = sy - (sy - v.y) * ns / v.s; v.s = ns;
+  drawRef();
+}
+{
+  const pts = new Map();
+  let base = null;
+  refView.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    refView.setPointerCapture(e.pointerId);
+    const r = refView.getBoundingClientRect();
+    pts.set(e.pointerId, [e.clientX - r.left, e.clientY - r.top]);
+    base = { v: { ...REF.v }, p: [...pts.values()].map(p => p.slice()), moved: false };
+  });
+  refView.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId) || !base) return;
+    const r = refView.getBoundingClientRect();
+    pts.set(e.pointerId, [e.clientX - r.left, e.clientY - r.top]);
+    const q = [...pts.values()];
+    if (q.length >= 2 && base.p.length >= 2) {
+      const [a, b] = base.p, [c, d] = q;
+      const k = (Math.hypot(d[0] - c[0], d[1] - c[1]) || 1) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1);
+      const m0 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], m1 = [(c[0] + d[0]) / 2, (c[1] + d[1]) / 2];
+      const s = clamp(base.v.s * k, 0.02, 20);
+      REF.v = { s, x: m1[0] - (m0[0] - base.v.x) * s / base.v.s, y: m1[1] - (m0[1] - base.v.y) * s / base.v.s };
+      base.moved = true;
+    } else {
+      const dx = q[0][0] - base.p[0][0], dy = q[0][1] - base.p[0][1];
+      if (!base.moved && Math.hypot(dx, dy) < 5) return;
+      base.moved = true;
+      REF.v = { ...base.v, x: base.v.x + dx, y: base.v.y + dy };
+    }
+    drawRef();
+  });
+  const up = e => {
+    const p = pts.get(e.pointerId);
+    pts.delete(e.pointerId);
+    if (base && !base.moved && REF.pick && REF.img && p) {
+      // 資料から 色を とる
+      const u = (p[0] - REF.v.x) / REF.v.s, v = (p[1] - REF.v.y) / REF.v.s;
+      if (u >= 0 && v >= 0 && u < REF.img.width && v < REF.img.height) {
+        const c = document.createElement('canvas'); c.width = 1; c.height = 1;
+        const x = c.getContext('2d'); x.drawImage(REF.img, -Math.floor(u), -Math.floor(v));
+        const d = x.getImageData(0, 0, 1, 1).data;
+        setColor([d[0], d[1], d[2], 255]); addRecent(S.color); toast('資料から 色を とりました');
+      }
+    }
+    const q = [...pts.values()].map(p => p.slice());
+    base = q.length ? { v: { ...REF.v }, p: q, moved: true } : null;
+  };
+  refView.addEventListener('pointerup', up);
+  refView.addEventListener('pointercancel', up);
+  refView.addEventListener('wheel', e => { e.preventDefault(); const r = refView.getBoundingClientRect(); refZoomAt(Math.exp(-e.deltaY * 0.002), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  const z = $('#rZoom');
+  z.oninput = () => { const r = refView.getBoundingClientRect(); refZoomAt(Math.pow(2, +z.value) / REF.v.s, r.width / 2, r.height / 2); };
+  $('#rFit').onclick = refFit;
+  $('#rPick').onclick = () => { REF.pick = !REF.pick; $('#rPick').classList.toggle('on', REF.pick); toast(REF.pick ? '資料を タップすると 色を とります' : '色とりを やめました'); };
+  $('#rAdd').onclick = () => {
+    const inp = $('#fileIn');
+    inp.value = ''; inp.accept = 'image/*'; inp.multiple = true;
+    inp.onchange = async () => {
+      const files = [...inp.files];
+      inp.multiple = false;
+      for (const f of files) REF.list.push({ id: uid(), name: f.name, blob: f });
+      await store.set('refs', REF.list).catch(() => toast('資料を しまえませんでした'));
+      await selectRef(REF.list.length - 1);
+    };
+    inp.click();
+  };
+  $('#rDel').onclick = async () => {
+    if (REF.cur < 0 || !REF.list[REF.cur]) return;
+    if (!await confirmBox('この 資料を はずしますか？')) return;
+    REF.list.splice(REF.cur, 1);
+    await store.set('refs', REF.list).catch(() => {});
+    REF.cur = Math.min(REF.cur, REF.list.length - 1);
+    if (REF.cur >= 0) await selectRef(REF.cur); else { REF.img = null; renderRefList(); drawRef(); }
+  };
+  new ResizeObserver(() => { if (S.tab === 'ref') drawRef(); }).observe(refView);
+}
 
 /* ================================================================ キーボード */
 window.addEventListener('keydown', e => {
@@ -1699,7 +2163,7 @@ window.addEventListener('keydown', e => {
   if (k === ' ') { input.space = true; e.preventDefault(); return; }
   if (k === 'enter' && S.float) { commitFloat(); return; }
   if (k === 'escape' && S.float) { cancelFloat(); return; }
-  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', l: 'lasso', m: 'move', i: 'pick' };
+  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', l: 'lasso', m: 'move', w: 'vwidth', i: 'pick' };
   if (tools[k]) { selectTool(tools[k]); return; }
   if (k === '[' || k === ']') {
     const i = currentBrushIndex();

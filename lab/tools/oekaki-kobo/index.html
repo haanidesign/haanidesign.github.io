@@ -38,6 +38,7 @@
       <button class="tool" data-tool="fill" title="塗りつぶし（G）"></button>
       <button class="tool" data-tool="lasso" title="囲って塗る（L）"></button>
       <button class="tool" data-tool="move" title="囲って動かす（M）"></button>
+      <button class="tool" data-tool="vwidth" title="ベクターの 線幅（W）"></button>
       <button class="tool" data-tool="pick" title="スポイト（I）"></button>
     </div>
     <div class="vs" id="sizeSl" title="太さ"><div class="vs-fill"></div><div class="vs-knob"></div><span class="vs-val dot"></span></div>
@@ -62,11 +63,22 @@
     <div id="boot" class="boot"><div class="boot-card"><div class="ttl">おえかき工房</div><div class="dot" id="bootMsg">よみこみ中…</div></div></div>
   </main>
 
+  <div id="sizes">
+    <div id="sizeRow" class="sizerow"></div>
+    <div class="stab">
+      <span class="lbl">補正</span>
+      <button id="stMinus" class="ib sm">－</button>
+      <span id="stVal" class="dot">0</span>
+      <button id="stPlus" class="ib sm">＋</button>
+    </div>
+  </div>
+
   <aside id="panel">
     <div class="tabs">
       <button class="tab on" data-tab="brush">ブラシ</button>
       <button class="tab" data-tab="color">色</button>
-      <button class="tab" data-tab="layer">レイヤー</button>
+      <button class="tab" data-tab="ref">資料</button>
+      <button class="tab narrow-only" data-tab="side">レイヤー</button>
     </div>
     <section class="pane on" id="pane-brush">
       <div id="brushList" class="blist"></div>
@@ -84,10 +96,36 @@
       <div class="title">さいきん 使った 色</div>
       <div id="recent" class="pal"></div>
     </section>
-    <section class="pane" id="pane-layer">
+    <section class="pane" id="pane-ref">
       <div class="lbar">
-        <button id="lAdd" class="btn-sm" title="レイヤーを 足す"></button>
-        <button id="lImage" class="btn-sm" title="画像を レイヤーに"></button>
+        <button id="rAdd" class="btn-sm"></button>
+        <div class="grow"></div>
+        <button id="rPick" class="ib sm" title="この 絵から 色を とる"></button>
+        <button id="rDel" class="ib sm danger" title="この 資料を はずす"></button>
+      </div>
+      <div id="refView" class="refview"><canvas id="refCv"></canvas><div class="small" id="refEmpty">絵を 読みこむと ここに 出ます。指で 動かす・広げる ことが できます。</div></div>
+      <div class="rzoom"><button id="rFit" class="btn-sm">全体</button><input type="range" id="rZoom" min="-3" max="3" step="0.01" value="0"><span class="dot" id="rZoomV">100%</span></div>
+      <div id="refList" class="reflist"></div>
+    </section>
+  </aside>
+
+  <aside id="side">
+    <section class="navbox">
+      <div class="title">ナビゲーター</div>
+      <div id="navView" class="navview"><canvas id="navCv"></canvas></div>
+      <div class="navctl">
+        <span class="lbl">拡大</span><input type="range" id="nZoom" min="-3" max="3.5" step="0.01" value="0"><span class="dot" id="nZoomV">100%</span>
+      </div>
+      <div class="navctl">
+        <span class="lbl">回転</span><input type="range" id="nRot" min="-180" max="180" step="1" value="0"><span class="dot" id="nRotV">0°</span>
+      </div>
+    </section>
+    <section class="layerbox" id="pane-layer">
+      <div class="title">レイヤー</div>
+      <div class="lbar">
+        <button id="lAdd" class="btn-sm" title="ラスターレイヤーを 足す"></button>
+        <button id="lVec" class="btn-sm" title="ベクターレイヤーを 足す"></button>
+        <button id="lImage" class="ib sm" title="画像を レイヤーに"></button>
         <div class="grow"></div>
         <button id="lUp" class="ib sm" title="上へ"></button>
         <button id="lDown" class="ib sm" title="下へ"></button>

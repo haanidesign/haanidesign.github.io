@@ -5,7 +5,7 @@
   --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470;
   --pink:#F2A0B8;
   --bd:2.5px solid var(--ink); --r:12px;
-  --bar:52px; --rail:72px; --panel:300px;
+  --bar:52px; --rail:72px; --panel:280px; --side:260px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;overscroll-behavior:none;}
@@ -63,17 +63,61 @@ select{cursor:pointer;}
 /* ---------- 全体の 並び ---------- */
 #app{
   position:fixed;inset:0;display:grid;
-  grid-template-columns:var(--rail) 1fr var(--panel);
-  grid-template-rows:var(--bar) 1fr;
-  grid-template-areas:"bar bar bar" "rail stage panel";
+  grid-template-columns:var(--rail) minmax(0,1fr) var(--panel) var(--side);
+  grid-template-rows:var(--bar) minmax(0,1fr) auto;
+  grid-template-areas:"bar bar bar bar" "rail stage panel side" "rail sizes panel side";
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
-#app.nopanel{grid-template-columns:var(--rail) 1fr 0;}
-#app.nopanel #panel{display:none;}
-#app.lefty{grid-template-columns:var(--panel) 1fr var(--rail);grid-template-areas:"bar bar bar" "panel stage rail";}
-#app.lefty.nopanel{grid-template-columns:0 1fr var(--rail);}
+#app.narrow{--side:0px;}
+#app.narrow #side{display:none;}
+.tab.narrow-only{display:none;}
+#app.narrow .tab.narrow-only{display:inline-flex;}
+#app.nopanel{--panel:0px;--side:0px;}
+#app.nopanel #panel,#app.nopanel #side{display:none;}
+#app.lefty{grid-template-columns:var(--side) var(--panel) minmax(0,1fr) var(--rail);
+  grid-template-areas:"bar bar bar bar" "side panel stage rail" "side panel sizes rail";}
 #app.lefty #rail{border-right:none;border-left:var(--bd);}
 #app.lefty #panel{border-left:none;border-right:var(--bd);}
+#app.lefty #side{border-left:none;border-right:var(--bd);}
+
+/* 太さの 列（クリスタの ブラシサイズ パレットの かわり） */
+#sizes{grid-area:sizes;display:flex;align-items:center;gap:.5rem;background:var(--cream);border-top:var(--bd);padding:.3rem .5rem;min-width:0;z-index:4;}
+.sizerow{flex:1;display:flex;gap:.25rem;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;min-width:0;}
+.sizerow::-webkit-scrollbar{display:none;}
+.sz{flex:none;width:44px;height:52px;padding:2px 0 0;flex-direction:column;gap:2px;border-radius:10px;box-shadow:0 2.5px 0 var(--ink);}
+.sz i{display:block;border-radius:50%;background:var(--ink);}
+.sz span{font-size:.6rem;font-family:'DotGothic16',monospace;font-weight:400;}
+.stab{display:flex;align-items:center;gap:.3rem;flex:none;font-size:.72rem;}
+#stVal{min-width:1.6em;text-align:center;}
+
+/* ナビゲーターと レイヤー */
+#side{grid-area:side;background:var(--cream);border-left:var(--bd);display:flex;flex-direction:column;min-height:0;z-index:4;}
+#panel .pane#pane-side{display:none;}
+#panel .pane#pane-side.on{display:flex;flex-direction:column;}
+.navbox{padding:.1rem .55rem .5rem;border-bottom:var(--bd);flex:none;}
+.navbox .title,.layerbox>.title{margin:.45rem 0 .3rem;}
+.navview{position:relative;height:150px;background:#E4E1CB;border:2px solid var(--ink);border-radius:10px;overflow:hidden;touch-action:none;}
+#navCv{position:absolute;inset:0;width:100%;height:100%;}
+.navctl{display:grid;grid-template-columns:2.6em 1fr 3.4em;align-items:center;gap:.35rem;font-size:.7rem;margin-top:.25rem;}
+.layerbox{display:flex;flex-direction:column;gap:.45rem;padding:0 .55rem .55rem;flex:1;min-height:0;}
+
+/* 資料 */
+.refview{position:relative;height:46%;min-height:200px;background:#E4E1CB;border:2px solid var(--ink);border-radius:10px;overflow:hidden;touch-action:none;margin-top:.45rem;}
+#refCv{position:absolute;inset:0;width:100%;height:100%;}
+#refEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;text-align:center;}
+.rzoom{display:grid;grid-template-columns:auto 1fr 3.4em;gap:.35rem;align-items:center;margin:.4rem 0;font-size:.7rem;}
+.reflist{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;}
+.reflist button{padding:0;aspect-ratio:1;overflow:hidden;border-radius:8px;box-shadow:0 2px 0 var(--ink);}
+.reflist button.on{outline:3px solid var(--main-deep);}
+.reflist img{width:100%;height:100%;object-fit:cover;}
+#pane-ref.on{display:flex;flex-direction:column;}
+
+/* 触った だけでは 動かない つまみ（ドラッグした ぶん だけ 動く） */
+.rs{position:relative;height:30px;touch-action:none;cursor:ew-resize;min-width:60px;}
+.rs-track{position:absolute;left:0;right:0;top:50%;height:10px;margin-top:-5px;background:var(--paper);border:2px solid var(--ink);border-radius:100px;}
+.rs-fill{position:absolute;left:0;top:0;bottom:0;background:var(--main);border-radius:100px;}
+.rs-knob{position:absolute;top:50%;width:18px;height:24px;margin:-12px 0 0 -9px;background:var(--paper);border:2px solid var(--ink);border-radius:7px;box-shadow:0 2px 0 var(--ink);}
+.rs.drag .rs-knob{background:var(--main);}
 
 #bar{
   grid-area:bar;background:var(--main);border-bottom:var(--bd);
@@ -90,7 +134,7 @@ select{cursor:pointer;}
   overflow:hidden;
 }
 .tools{display:flex;flex-direction:column;gap:.4rem;}
-.tool{width:50px;height:44px;padding:0;border-radius:12px;}
+.tool{width:50px;height:40px;padding:0;border-radius:12px;}
 .vs{
   position:relative;flex:1;min-height:90px;max-height:230px;width:30px;
   background:var(--paper);border:2px solid var(--ink);border-radius:100px;
@@ -246,3 +290,17 @@ select{cursor:pointer;}
   :root{--panel:260px;--rail:64px;}
   #bar .ttl{display:none;}
 }
+.sz.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+
+/* 筆圧の 設定 */
+.penset{display:flex;gap:.8rem;flex-wrap:wrap;align-items:flex-start;}
+#curveCv{width:220px;height:220px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);}
+#testCv{width:100%;height:110px;border:2px dashed var(--ink);border-radius:10px;background:var(--paper);margin-top:.3rem;}
+#toolOpts .rs{width:110px;}
+.lbar .btn-sm{padding:.3rem .5rem;}
+#refEmpty[hidden]{display:none;}
+.lbar{flex-wrap:wrap;}
+#pane-side .layerbox{flex:none;}
+#pane-side .llist{flex:none;max-height:none;overflow:visible;}
+#pane-side .lprops{max-height:none;}
+.layerbox .llist{min-height:170px;} .layerbox .lprops{max-height:42%;}

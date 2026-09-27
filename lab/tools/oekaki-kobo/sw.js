@@ -1,9 +1,9 @@
 /* ホーム画面から ひらく ための しくみ。
    つないで いる ときは 新しいのを 取りに 行き、取れたら 手もとにも しまう。
    つながらない ときだけ 手もとの ものを 出す。 */
-const BOX = 'oekaki-kobo-v1';
+const BOX = 'oekaki-kobo-v2';
 const CORE = ['./', './index.html', './css/style.css', './js/app.js', './js/engine.js', './js/store.js',
-  './js/icons.js', './engine.wasm', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png'];
+  './js/icons.js', './js/rslider.js', './engine.wasm', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(BOX).then(c => c.addAll(CORE)).catch(() => {}).then(() => self.skipWaiting()));
