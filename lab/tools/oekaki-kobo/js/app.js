@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   fingerDraw: false, gamma: 1, lefty: false, tapUndo: true, penButtonErase: true,
   fillAll: true, fillTol: 24, fillGrow: 1, lassoErase: false, pickLayer: false, panel: true,
   folds: {}, pmini: false, smini: false,
+  dotCell: 8, dotSize: 1, dotShape: 0, dotErase: false, dotDither: 0, dotGrid: true,
   shapeKind: 'line', shapeFill: false, shapePressure: 0.8,
   textSize: 60, textVertical: true, textBold: false, textFont: 0, textOutline: 0, textLast: '',
   timelapse: true, timelapseSec: 20, sym: null,
@@ -82,7 +83,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=6');
+    E = await loadEngine('engine.wasm?v=7');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -128,7 +129,7 @@ function buildStaticIcons() {
   setIcon($('#bSettings'), 'settings');
   setIcon($('#bPanel'), 'layers');
   setupCommands();
-  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', select: 'lassosel', shape: 'shapes', text: 'text', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
+  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', select: 'lassosel', dot: 'pixel', shape: 'shapes', text: 'text', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
   for (const b of $$('.tool')) setIcon(b, toolIcons[b.dataset.tool], 26);
   setIcon($('#vFlip'), 'flip', 18);
   setIcon($('#vRot'), 'rotl', 18);
@@ -408,6 +409,7 @@ function drawOverlay() {
   }
   drawSymGuide();
   drawShapePreview();
+  drawDotGuide();
   if (input.cursor && (S.tool === 'draw' || S.tool === 'erase')) {
     const b = S.brushes[currentBrushIndex()];
     const size = b ? b.size : 10;
@@ -531,7 +533,7 @@ function onMove(e) {
   const [x, y] = stageXY(e);
   const p = input.pointers.get(e.pointerId);
   if (p) { p.x = x; p.y = y; }
-  if (e.pointerType !== 'touch' && (S.tool === 'draw' || S.tool === 'erase' || S.tool === 'vwidth' || S.tool === 'verase')) {
+  if (e.pointerType !== 'touch' && (S.tool === 'draw' || S.tool === 'erase' || S.tool === 'vwidth' || S.tool === 'verase' || S.tool === 'dot')) {
     input.cursor = [x, y];
     if (!input.drawing) drawOverlay();
   }
@@ -562,6 +564,13 @@ function onMove(e) {
   if (input.symDrag && input.symDrag.id === e.pointerId) {
     const [dx, dy] = toDoc(x, y); const y2 = symState(); y2.cx = dx; y2.cy = dy; applySym(); return;
   }
+  if (input.dot && input.dot.id === e.pointerId) {
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const ev of (evs.length ? evs : [e])) { const [sx, sy] = stageXY(ev); const [dx, dy] = toDoc(sx, sy); dotTo(dx, dy); }
+    input.cursor = [x, y];
+    kick();
+    return;
+  }
   if (input.shape && input.shape.id === e.pointerId) {
     input.shape.b = toDoc(x, y); input.shape.square = e.shiftKey; drawOverlay(); return;
   }
@@ -588,6 +597,11 @@ function onUp(e) {
   if (input.pickId === e.pointerId) { input.pickId = null; addRecent(S.color); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { input.floatDrag = null; renderToolOpts(); return; }
   if (input.symDrag && input.symDrag.id === e.pointerId) { input.symDrag = null; saveSettings(); return; }
+  if (input.dot && input.dot.id === e.pointerId) {
+    const any = input.dot.any; input.dot = null;
+    if (any) { addRecent(S.color); changed(); } else { E.undo(); refreshUndo(); }
+    return;
+  }
   if (input.shape && input.shape.id === e.pointerId) { const sh = input.shape; input.shape = null; drawOverlay(); shapeEnd(sh); return; }
   if (input.ve && input.ve.id === e.pointerId) {
     const any = input.ve.any; input.ve = null;
@@ -617,6 +631,13 @@ function startAction(e, x, y) {
   if (tool === 'pick') { input.pickId = e.pointerId; pickAt(x, y, false); return; }
   const [dx, dy] = toDoc(x, y);
   if (symHandleHit(x, y) && !eraserEnd) { input.symDrag = { id: e.pointerId }; return; }
+  if (tool === 'dot') {
+    if (!layerPaintable()) { layerBlockedToast(); return; }
+    E.checkpoint();
+    input.dot = { id: e.pointerId, last: [dx, dy], erase: S.settings.dotErase || !!eraserEnd, any: false };
+    dotTo(dx, dy);
+    return;
+  }
   if (tool === 'shape') {
     input.shape = { id: e.pointerId, kind: S.settings.shapeKind, a: [dx, dy], b: [dx, dy], square: false };
     return;
@@ -1049,6 +1070,24 @@ function renderToolOpts() {
     } else {
       el.innerHTML = `<span>動かしたい ところを 囲む（タップだけで レイヤー全体）</span>`;
     }
+  } else if (S.tool === 'dot') {
+    el.innerHTML = `<label>ドットの 大きさ <input type="range" id="oDC" min="1" max="64" step="1" value="${st.dotCell}"><span class="dot" id="oDCV">${st.dotCell}px</span></label>
+      <label>ペンの 太さ <input type="range" id="oDS" min="1" max="16" step="1" value="${st.dotSize}"><span class="dot" id="oDSV">${st.dotSize}</span></label>
+      <button class="btn-sm ${st.dotShape === 0 ? 'on' : ''}" data-ds="0">四角</button>
+      <button class="btn-sm ${st.dotShape === 1 ? 'on' : ''}" data-ds="1">丸</button>
+      <button class="btn-sm ${!st.dotErase ? 'on' : ''}" id="oDP">塗る</button>
+      <button class="btn-sm ${st.dotErase ? 'on' : ''}" id="oDE">消す</button>
+      <button class="btn-sm ${st.dotDither === 0 ? 'on' : ''}" data-dd="0">ベタ</button>
+      <button class="btn-sm ${st.dotDither === 1 ? 'on' : ''}" data-dd="1">市松</button>
+      <button class="btn-sm ${st.dotDither === 2 ? 'on' : ''}" data-dd="2">あらい 市松</button>
+      <button class="btn-sm ${st.dotGrid ? 'on' : ''}" id="oDG">ます目</button>`;
+    $('#oDC', el).oninput = e => { st.dotCell = +e.target.value; $('#oDCV').textContent = st.dotCell + 'px'; saveSettings(); drawOverlay(); };
+    $('#oDS', el).oninput = e => { st.dotSize = +e.target.value; $('#oDSV').textContent = st.dotSize; saveSettings(); drawOverlay(); };
+    for (const b of $$('[data-ds]', el)) b.onclick = () => { st.dotShape = +b.dataset.ds; saveSettings(); renderToolOpts(); };
+    for (const b of $$('[data-dd]', el)) b.onclick = () => { st.dotDither = +b.dataset.dd; saveSettings(); renderToolOpts(); };
+    $('#oDP', el).onclick = () => { st.dotErase = false; saveSettings(); renderToolOpts(); };
+    $('#oDE', el).onclick = () => { st.dotErase = true; saveSettings(); renderToolOpts(); };
+    $('#oDG', el).onclick = () => { st.dotGrid = !st.dotGrid; saveSettings(); renderToolOpts(); drawOverlay(); };
   } else if (S.tool === 'shape') {
     const k = st.shapeKind;
     el.innerHTML = `<button class="btn-sm ${k === 'line' ? 'on' : ''}" data-sk="line">直線</button>
@@ -2977,6 +3016,42 @@ async function openTimelapse() {
   };
 }
 
+/* ================================================================ ドットペン */
+function dotTo(dx, dy) {
+  const st = S.settings, d = input.dot;
+  if (E.dotLine(d.last[0], d.last[1], dx, dy, st.dotCell, st.dotSize, st.dotShape, d.erase ? 1 : 0, st.dotDither)) d.any = true;
+  d.last = [dx, dy];
+}
+function drawDotGuide() {
+  if (S.tool !== 'dot' || !S.info) return;
+  const st = S.settings, c = st.dotCell;
+  const r = stage.getBoundingClientRect();
+  octx.save();
+  // ます目（ドットが 画面で 5px 以上 の とき）
+  if (st.dotGrid && c * S.view.s >= 5) {
+    const pts = [[0, 0], [r.width, 0], [r.width, r.height], [0, r.height]].map(([x, y]) => toDoc(x, y));
+    const minX = Math.max(0, Math.floor(Math.min(...pts.map(p => p[0])) / c) * c), maxX = Math.min(S.info.width, Math.max(...pts.map(p => p[0])));
+    const minY = Math.max(0, Math.floor(Math.min(...pts.map(p => p[1])) / c) * c), maxY = Math.min(S.info.height, Math.max(...pts.map(p => p[1])));
+    if ((maxX - minX) / c + (maxY - minY) / c < 600) {
+      octx.beginPath();
+      for (let x = minX; x <= maxX; x += c) { const [a, b] = toScreen(x, minY), [e, f] = toScreen(x, maxY); octx.moveTo(a, b); octx.lineTo(e, f); }
+      for (let y = minY; y <= maxY; y += c) { const [a, b] = toScreen(minX, y), [e, f] = toScreen(maxX, y); octx.moveTo(a, b); octx.lineTo(e, f); }
+      octx.lineWidth = 1; octx.strokeStyle = 'rgba(16,17,20,.13)'; octx.stroke();
+    }
+  }
+  // ペン先の ます
+  if (input.cursor) {
+    const [dx, dy] = toDoc(input.cursor[0], input.cursor[1]);
+    const n = st.dotSize, lo = -Math.floor(n / 2);
+    const gx = (Math.floor(dx / c) + lo) * c, gy = (Math.floor(dy / c) + lo) * c;
+    const q = [[gx, gy], [gx + n * c, gy], [gx + n * c, gy + n * c], [gx, gy + n * c]].map(([x, y]) => toScreen(x, y));
+    octx.beginPath(); q.forEach(([x, y], i) => i ? octx.lineTo(x, y) : octx.moveTo(x, y)); octx.closePath();
+    octx.lineWidth = 2; octx.strokeStyle = '#fff'; octx.stroke();
+    octx.lineWidth = 1; octx.strokeStyle = '#101114'; octx.stroke();
+  }
+  octx.restore();
+}
+
 /* ================================================================ キーボード */
 window.addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
@@ -2993,7 +3068,7 @@ window.addEventListener('keydown', e => {
   if (k === ' ') { input.space = true; e.preventDefault(); return; }
   if (k === 'enter' && S.float) { commitFloat(); return; }
   if (k === 'escape' && S.float) { cancelFloat(); return; }
-  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', s: 'select', l: 'lasso', m: 'move', u: 'shape', t: 'text', v: 'verase', w: 'vwidth', i: 'pick' };
+  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', s: 'select', l: 'lasso', m: 'move', d: 'dot', u: 'shape', t: 'text', v: 'verase', w: 'vwidth', i: 'pick' };
   if (tools[k]) { selectTool(tools[k]); return; }
   if (k === '[' || k === ']') {
     const i = currentBrushIndex();

@@ -3129,3 +3129,114 @@ pub extern "C" fn set_symmetry(mode: u32, n: u32, cx: f32, cy: f32) {
         app.sym_center = [cx, cy];
     })
 }
+
+// ---------------------------------------------------------------- dot pen
+
+/// ドットペン: (x0,y0)→(x1,y1) を ます目に そって 塗る。
+/// cell … ドット 1つの 大きさ（紙の 画素）、size … ペンの 太さ（ドットの 数）、
+/// shape … 0 四角 1 丸、mode … 0 塗る 1 消す、dither … 0 なし 1 市松 2 あらい 市松
+#[unsafe(no_mangle)]
+pub extern "C" fn dot_line(x0: f32, y0: f32, x1: f32, y1: f32, cell: u32, size: u32, shape: u32, mode: u32, dither: u32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        if !app.paintable(i) {
+            return 0;
+        }
+        let cell = cell.clamp(1, 256) as i64;
+        let size = size.clamp(1, 64) as i64;
+        let (w, h) = (app.doc.width as i64, app.doc.height as i64);
+        let to_cell = |v: f32| (v as i64).div_euclid(cell);
+        let (mut cx, mut cy) = (to_cell(x0), to_cell(y0));
+        let (ex, ey) = (to_cell(x1), to_cell(y1));
+        let color = app.color;
+        let erase = mode == 1;
+        let sel = app.selection.active.then(|| app.selection.mask.clone());
+        let alpha = app.alpha_mask_for(i);
+        let (mut bx0, mut by0, mut bx1, mut by1) = (i64::MAX, i64::MAX, i64::MIN, i64::MIN);
+        // ペンの 形（ます目の ずれ）
+        let r = size as f32 / 2.0;
+        let mut offs = Vec::new();
+        let lo = -(size / 2);
+        for oy in lo..lo + size {
+            for ox in lo..lo + size {
+                if shape == 1 && size > 2 {
+                    let c = (size - 1) as f32 / 2.0;
+                    let (fx, fy) = ((ox - lo) as f32 - c, (oy - lo) as f32 - c);
+                    if fx * fx + fy * fy > r * r + 0.25 {
+                        continue;
+                    }
+                }
+                offs.push((ox, oy));
+            }
+        }
+        let mut plot = |gx: i64, gy: i64, app: &mut App| {
+            for &(ox, oy) in &offs {
+                let (qx, qy) = (gx + ox, gy + oy);
+                let pass = match dither {
+                    1 => (qx + qy).rem_euclid(2) == 0,
+                    2 => (qx.rem_euclid(2) == 0) && (qy.rem_euclid(2) == 0),
+                    _ => true,
+                };
+                if !pass {
+                    continue;
+                }
+                let (px0, py0) = (qx * cell, qy * cell);
+                if px0 >= w || py0 >= h || px0 + cell <= 0 || py0 + cell <= 0 {
+                    continue;
+                }
+                for py in py0.max(0)..(py0 + cell).min(h) {
+                    for px in px0.max(0)..(px0 + cell).min(w) {
+                        let idx = (py * w + px) as usize;
+                        let k = match (&sel, &alpha) {
+                            (_, Some(a)) => a[idx],
+                            (Some(s), None) => s[idx],
+                            _ => 255,
+                        };
+                        if k < 128 {
+                            continue;
+                        }
+                        let (ux, uy) = (px as u32, py as u32);
+                        if erase {
+                            app.doc.layers[i].pixels.set_pixel(ux, uy, [0, 0, 0, 0]);
+                        } else if alpha.is_some() {
+                            let old = app.doc.layers[i].pixels.pixel(ux, uy);
+                            app.doc.layers[i].pixels.set_pixel(ux, uy, [color[0], color[1], color[2], old[3]]);
+                        } else {
+                            app.doc.layers[i].pixels.set_pixel(ux, uy, color);
+                        }
+                    }
+                }
+                bx0 = bx0.min(px0);
+                by0 = by0.min(py0);
+                bx1 = bx1.max(px0 + cell);
+                by1 = by1.max(py0 + cell);
+            }
+        };
+        // ます目の 線（ブレゼンハム）
+        let (dx, dy) = ((ex - cx).abs(), -(ey - cy).abs());
+        let (sx, sy) = (if cx < ex { 1 } else { -1 }, if cy < ey { 1 } else { -1 });
+        let mut err = dx + dy;
+        loop {
+            plot(cx, cy, app);
+            if cx == ex && cy == ey {
+                break;
+            }
+            let e2 = 2 * err;
+            if e2 >= dy {
+                err += dy;
+                cx += sx;
+            }
+            if e2 <= dx {
+                err += dx;
+                cy += sy;
+            }
+        }
+        if erase {
+            app.doc.layers[i].pixels.prune_empty_tiles();
+        }
+        if bx0 <= bx1 {
+            app.mark_rect(bx0 as f32, by0 as f32, bx1 as f32, by1 as f32);
+        }
+        1
+    })
+}
