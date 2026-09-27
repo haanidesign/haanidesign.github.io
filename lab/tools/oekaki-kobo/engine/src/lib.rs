@@ -448,6 +448,9 @@ pub extern "C" fn doc_info() -> usize {
                     "blend": BLENDS.iter().position(|b| *b == l.blend).unwrap_or(0),
                     "folder": l.kind == LayerKind::Folder,
                     "vector": l.vector.is_some(),
+                    "expanded": l.expanded,
+                    "sketch": l.sketch,
+                    "parent": l.parent_id.and_then(|p| app.doc.layers.iter().position(|x| x.id == p)),
                     "depth": depth,
                     "tone": l.tone.map(|t| serde_json::json!({
                         "lpi": t.lines_per_inch, "angle": t.angle_degrees,
@@ -1497,8 +1500,10 @@ pub extern "C" fn layer_add() {
                 l.parent_id
             }
         });
+        let id = layer.id;
         app.doc.layers.insert(at.min(app.doc.layers.len()), layer);
-        app.selected = at.min(app.doc.layers.len() - 1);
+        efude_canvas::tidy_layer_order(&mut app.doc.layers);
+        app.selected = app.doc.layers.iter().position(|l| l.id == id).unwrap_or(0);
     })
 }
 
@@ -1521,8 +1526,10 @@ pub extern "C" fn layer_add_vector() {
         layer.parent_id = app.doc.layers.get(app.selected).and_then(|l| {
             if l.kind == LayerKind::Folder { Some(l.id) } else { l.parent_id }
         });
+        let id = layer.id;
         app.doc.layers.insert(at.min(app.doc.layers.len()), layer);
-        app.selected = at.min(app.doc.layers.len() - 1);
+        efude_canvas::tidy_layer_order(&mut app.doc.layers);
+        app.selected = app.doc.layers.iter().position(|l| l.id == id).unwrap_or(0);
     })
 }
 
@@ -1716,6 +1723,8 @@ pub extern "C" fn layer_set(index: u32, key_ptr: *const u8, key_len: usize, valu
             "opacity" => layer.opacity = value.clamp(0.0, 1.0),
             "locked" => layer.locked = on,
             "clipping" => layer.clipping = on,
+            "expanded" => layer.expanded = on,
+            "sketch" => layer.sketch = on,
             "blend" => layer.blend = BLENDS[(value.max(0.0) as usize).min(BLENDS.len() - 1)],
             "tone" => {
                 layer.tone = if on {
@@ -2948,4 +2957,59 @@ fn fast_sharpen(layer: &mut Layer, w: u32, h: u32, amount: f32) {
             }
         }
     }
+}
+
+/// フォルダーを 足す（今の レイヤーの 上）。
+#[unsafe(no_mangle)]
+pub extern "C" fn layer_add_folder() {
+    with_app((), |app| {
+        app.checkpoint();
+        let mut n = 1;
+        let name = loop {
+            let name = format!("フォルダー {n}");
+            if !app.doc.layers.iter().any(|l| l.name == name) {
+                break name;
+            }
+            n += 1;
+        };
+        let mut layer = blank_layer(app, &name);
+        layer.kind = LayerKind::Folder;
+        layer.parent_id = app.doc.layers.get(app.selected).and_then(|l| l.parent_id);
+        let id = layer.id;
+        let at = (app.selected + 1).min(app.doc.layers.len());
+        app.doc.layers.insert(at, layer);
+        efude_canvas::tidy_layer_order(&mut app.doc.layers);
+        app.selected = app.doc.layers.iter().position(|l| l.id == id).unwrap_or(0);
+    })
+}
+
+/// レイヤーを 動かす。place: 0 target の 上 / 1 下 / 2 フォルダーの 中
+#[unsafe(no_mangle)]
+pub extern "C" fn layer_place(index: u32, target: u32, place: u32) -> i32 {
+    with_app(0, |app| {
+        let (i, t) = (index as usize, target as usize);
+        if i >= app.doc.layers.len() || t >= app.doc.layers.len() || i == t {
+            return 0;
+        }
+        let (id, tid) = (app.doc.layers[i].id, app.doc.layers[t].id);
+        let placement = match place {
+            0 => efude_canvas::LayerPlacement::Above,
+            1 => efude_canvas::LayerPlacement::Below,
+            _ => efude_canvas::LayerPlacement::Into,
+        };
+        let before = app.doc.layers.clone();
+        let snapshot = Snapshot { layers: before.clone(), selected: app.selected };
+        let mut h = History::default();
+        if !h.place_layer(&mut app.doc.layers, id, tid, placement) {
+            return 0;
+        }
+        app.undo.push(snapshot);
+        if app.undo.len() > UNDO_LIMIT {
+            app.undo.remove(0);
+        }
+        app.redo.clear();
+        app.selected = app.doc.layers.iter().position(|l| l.id == id).unwrap_or(0);
+        app.mark_diff(&before);
+        1
+    })
 }

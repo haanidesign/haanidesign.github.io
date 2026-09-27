@@ -148,17 +148,28 @@
     </section>
     <section class="layerbox" id="pane-layer">
       <div class="fold fgrow" data-fold="layers" data-ft="レイヤー">
-      <div class="lbar">
-        <button id="lAdd" class="btn-sm" title="ラスターレイヤーを 足す"></button>
-        <button id="lVec" class="btn-sm" title="ベクターレイヤーを 足す"></button>
-        <button id="lImage" class="ib sm" title="画像を レイヤーに"></button>
-        <div class="grow"></div>
-        <button id="lUp" class="ib sm" title="上へ"></button>
-        <button id="lDown" class="ib sm" title="下へ"></button>
+      <div class="lhead">
+        <select id="lBlend" title="合成モード"></select>
+        <input type="range" id="lOp" min="0" max="100" step="1" value="100">
+        <span id="lOpV" class="dot">100</span>
+      </div>
+      <div class="lbtns">
+        <button id="lClip" class="lb" title="下の レイヤーで クリップ"></button>
+        <button id="lLock" class="lb" title="ロック"></button>
+        <button id="lTone" class="lb" title="トーンに する"></button>
+        <button id="lSketch" class="lb" title="下描き"></button>
+        <span class="lsep"></span>
+        <button id="lAdd" class="lb" title="新しい ラスターレイヤー"></button>
+        <button id="lVec" class="lb" title="新しい ベクターレイヤー"></button>
+        <button id="lFolder" class="lb" title="新しい フォルダー"></button>
+        <button id="lImage" class="lb" title="画像を レイヤーに"></button>
+        <button id="lDup" class="lb" title="複製"></button>
+        <button id="lMerge" class="lb" title="下と 結合"></button>
+        <button id="lSet" class="lb" title="レイヤーの 設定"></button>
+        <button id="lDel" class="lb" title="削除"></button>
       </div>
       <div id="layerList" class="llist"></div>
       </div>
-      <div class="fold" data-fold="lprops" data-ft="レイヤーの 設定"><div id="layerProps" class="lprops"></div></div>
     </section>
   </aside>
 </div>

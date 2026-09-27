@@ -1,7 +1,7 @@
 /* ホーム画面から ひらく ための しくみ。
    つないで いる ときは 新しいのを 取りに 行き、取れたら 手もとにも しまう。
    つながらない ときだけ 手もとの ものを 出す。 */
-const BOX = 'oekaki-kobo-v5';
+const BOX = 'oekaki-kobo-v6';
 const CORE = ['./', './index.html', './css/style.css', './js/app.js', './js/engine.js', './js/store.js',
   './js/icons.js', './js/rslider.js', './engine.wasm', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png'];
 

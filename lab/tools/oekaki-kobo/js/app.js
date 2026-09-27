@@ -79,7 +79,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=4');
+    E = await loadEngine('engine.wasm?v=5');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -130,14 +130,10 @@ function buildStaticIcons() {
   setIcon($('#vFlip'), 'flip', 18);
   setIcon($('#vRot'), 'rotl', 18);
   setIcon($('#vFit'), 'fit', 18);
-  iconText($('#lAdd'), 'add', 'ラスター', 16);
-  iconText($('#lVec'), 'pen', 'ベクター', 16);
-  setIcon($('#lImage'), 'image', 18);
+  setupLayerPanel();
   iconText($('#rAdd'), 'image', '資料を 読む', 16);
   setIcon($('#rPick'), 'picker', 18);
   setIcon($('#rDel'), 'trash', 18);
-  setIcon($('#lUp'), 'up', 18);
-  setIcon($('#lDown'), 'down', 18);
 }
 
 /* ================================================================ 作品 */
@@ -1450,93 +1446,158 @@ function refreshBrushListValues() { S.brushes = S.brushes.map((b, i) => ({ ...b,
 /* ---------- レイヤー ---------- */
 const BLEND_NAMES = ['通常', '乗算', 'スクリーン', 'オーバーレイ', '比較（暗）', '比較（明）', '覆い焼き', '焼き込み', 'ハードライト', 'ソフトライト', '差の絶対値', '除外', '加算', '減算'];
 const TONE_SHAPES = ['丸', '四角', 'ひし形', '線', '十字', '砂目'];
-function refreshLayers(full) {
+function layerHidden(L, l) {
+  // たたまれた フォルダーの 中は 出さない
+  let p = l.parent;
+  let guard = 0;
+  while (p != null && guard++ < 64) {
+    if (!L[p] || !L[p].expanded) return true;
+    p = L[p].parent;
+  }
+  return false;
+}
+function refreshLayers() {
   S.info = E.info();
-
   const list = $('#layerList');
+  const keepScroll = list.scrollTop;
   list.innerHTML = '';
   const L = S.info.layers;
   for (let i = L.length - 1; i >= 0; i--) {
     const l = L[i];
+    if (layerHidden(L, l)) continue;
     const row = document.createElement('div');
-    row.className = 'litem' + (i === S.info.selected ? ' sel' : '') + (l.visible ? '' : ' hid') + (l.clipping ? ' clip' : '') + (l.folder ? ' folder' : '');
-    row.style.marginLeft = (l.depth * 12 + (l.clipping ? 14 : 0)) + 'px';
-    const badges = [];
-    if (l.locked) badges.push('ロック');
-    if (l.tone) badges.push('トーン');
-    if (l.folder) badges.push('フォルダ');
-    if (l.vector) badges.push('ベクター');
-    row.innerHTML = `<button class="eye">${icon(l.visible ? 'eye' : 'eyeoff', 18)}</button>
-      <canvas width="44" height="44"></canvas>
-      <div style="flex:1;min-width:0"><div class="lname">${escapeHtml(l.name)}</div>
-      <div class="lsub dot">${Math.round(l.opacity * 100)}% ${BLEND_NAMES[l.blend]}</div></div>
-      <div class="badges">${badges.map(b => `<span class="badge">${b}</span>`).join('')}</div>`;
-    row.querySelector('.eye').onclick = ev => {
+    row.className = 'lrow' + (i === S.info.selected ? ' sel' : '') + (l.visible ? '' : ' hid') + (l.clipping ? ' clip' : '') + (l.folder ? ' folder' : '') + (l.expanded ? ' open' : '');
+    row.dataset.i = i;
+    const marks = [];
+    if (l.locked) marks.push(icon('lock', 13));
+    if (l.tone) marks.push(icon('tone', 13));
+    if (l.sketch) marks.push(icon('pencil', 13));
+    row.innerHTML = `<button class="leye" title="表示">${icon(l.visible ? 'eye' : 'eyeoff', 17)}</button>
+      <span class="ledit">${i === S.info.selected ? icon('pencil', 13) : ''}</span>
+      <span class="lind" style="width:${l.depth * 14 + (l.clipping ? 8 : 0)}px"></span>
+      ${l.folder ? `<button class="lchev" title="ひらく／たたむ">${icon('aright', 15)}</button><span class="lfoldic">${icon('folder', 24)}</span>`
+        : `<canvas class="lthumb" width="36" height="36"></canvas>`}
+      ${l.vector ? `<span class="ltype" title="ベクター">${icon('pen', 15)}</span>` : ''}
+      <div class="ltext"><div class="lmeta dot">${Math.round(l.opacity * 100)}% ${BLEND_NAMES[l.blend]}</div><div class="lname">${escapeHtml(l.name)}</div></div>
+      <span class="lmarks">${marks.join('')}</span>
+      <span class="lgrip" title="ドラッグで 並べかえ">${icon('menu', 16)}</span>`;
+    row.querySelector('.leye').onclick = ev => {
       ev.stopPropagation();
       E.checkpoint();
       E.layerSet(i, 'visible', l.visible ? 0 : 1);
       changed({ layers: true });
     };
-    row.onclick = () => { commitFloat(); E.layerSelect(i); refreshLayers(true); };
+    const chev = row.querySelector('.lchev');
+    if (chev) chev.onclick = ev => { ev.stopPropagation(); E.layerSet(i, 'expanded', l.expanded ? 0 : 1); refreshLayers(); };
+    let lastTap = 0;
+    row.onclick = async ev => {
+      if (ev.target.closest('.lgrip')) return;
+      const now = performance.now();
+      if (now - lastTap < 350 && i === S.info.selected) {
+        const n = await promptText('レイヤーの 名前', l.name);
+        if (n) { E.layerRename(i, n); changed({ layers: true }); }
+        return;
+      }
+      lastTap = now;
+      if (i !== S.info.selected) { commitFloat(); E.layerSelect(i); refreshLayers(); }
+    };
+    setupGrip(row.querySelector('.lgrip'), i, row);
     list.appendChild(row);
-    drawLayerThumb(i, row.querySelector('canvas'));
+    const cv = row.querySelector('canvas');
+    if (cv) drawLayerThumb(i, cv);
   }
-  renderLayerProps();
+  list.scrollTop = keepScroll;
+  syncLayerHead();
 }
+function syncLayerHead() {
+  const l = S.info.layers[S.info.selected];
+  if (!l) return;
+  const bl = $('#lBlend');
+  if (!bl.options.length) bl.innerHTML = BLEND_NAMES.map((n, k) => `<option value="${k}">${n}</option>`).join('');
+  bl.value = l.blend;
+  if (!layerOpDrag) { $('#lOp').value = Math.round(l.opacity * 100); $('#lOpV').textContent = Math.round(l.opacity * 100); }
+  $('#lClip').classList.toggle('on', l.clipping);
+  $('#lLock').classList.toggle('on', l.locked);
+  $('#lTone').classList.toggle('on', !!l.tone);
+  $('#lSketch').classList.toggle('on', !!l.sketch);
+  $('#lTone').disabled = l.folder;
+}
+/* ドラッグで 並べかえ（≡ を つかむ）。上の 3分の1 … 上に、下 … 下に、フォルダーの まん中 … 中へ */
+function setupGrip(grip, index, row) {
+  let drag = null;
+  const clear = () => { for (const r of $$('.lrow')) r.classList.remove('drop-above', 'drop-below', 'drop-into'); };
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    grip.setPointerCapture(e.pointerId);
+    drag = { y: e.clientY, moved: false, target: null, place: 0 };
+  });
+  grip.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.abs(e.clientY - drag.y) < 6) return;
+    drag.moved = true;
+    row.classList.add('dragging');
+    clear();
+    const list = $('#layerList');
+    const lr = list.getBoundingClientRect();
+    if (e.clientY < lr.top + 20) list.scrollTop -= 8;
+    if (e.clientY > lr.bottom - 20) list.scrollTop += 8;
+    const over = $$('.lrow').find(r => { const b = r.getBoundingClientRect(); return e.clientY >= b.top && e.clientY < b.bottom; });
+    if (!over || over === row) { drag.target = null; return; }
+    const b = over.getBoundingClientRect();
+    const t = (e.clientY - b.top) / b.height;
+    const isFolder = over.classList.contains('folder');
+    drag.place = isFolder && t > 0.3 && t < 0.7 ? 2 : (t < 0.5 ? 0 : 1);
+    drag.target = +over.dataset.i;
+    over.classList.add(['drop-above', 'drop-below', 'drop-into'][drag.place]);
+  });
+  const end = () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    row.classList.remove('dragging');
+    clear();
+    if (d.moved && d.target != null) {
+      commitFloat();
+      if (E.layerPlace(index, d.target, d.place)) changed({ layers: true });
+    }
+  };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+}
+let layerOpDrag = false;
 function drawLayerThumb(i, cv) {
   if (!S.info) return;
   const W = S.info.width, H = S.info.height;
-  const k = 44 / Math.max(W, H);
+  const Z = cv.width;
+  const k = Z / Math.max(W, H);
   const tw = Math.max(1, Math.round(W * k)), th = Math.max(1, Math.round(H * k));
   const px = E.layerThumb(i, tw, th);
   if (!px) return;
   const x = cv.getContext('2d');
-  x.clearRect(0, 0, 44, 44);
-  x.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), tw, th), Math.round((44 - tw) / 2), Math.round((44 - th) / 2));
+  x.clearRect(0, 0, Z, Z);
+  x.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), tw, th), Math.round((Z - tw) / 2), Math.round((Z - th) / 2));
 }
 const thumbSoon = debounce(() => {
   if (!S.info) return;
   const i = S.info.selected;
-  const rows = $$('.litem');
-  const row = rows[S.info.layers.length - 1 - i];
-  if (row) drawLayerThumb(i, row.querySelector('canvas'));
+  const cv = $(`.lrow[data-i="${i}"] canvas`);
+  if (cv) drawLayerThumb(i, cv);
 }, 350);
-function renderLayerProps() {
-  const el = $('#layerProps');
+function openLayerSettings() {
   const i = S.info.selected;
   const l = S.info.layers[i];
-  if (!l) { el.innerHTML = ''; return; }
+  if (!l) return;
   const t = l.tone;
-  el.innerHTML = `
+  openModal(`<h2>${icon('settings')}レイヤーの 設定<span class="grow"></span><button class="ib sm" id="lsClose">${icon('close', 18)}</button></h2>
     <div class="prow"><span>名前</span><input id="lpName" value="${escapeHtml(l.name)}" style="grid-column:span 2"></div>
-    <div class="prow"><span>不透明度</span><input type="range" id="lpOp" min="0" max="100" value="${Math.round(l.opacity * 100)}"><span class="v dot" id="lpOpV">${Math.round(l.opacity * 100)}%</span></div>
-    <div class="prow"><span>合成</span><select id="lpBlend" style="grid-column:span 2">${BLEND_NAMES.map((n, k) => `<option value="${k}" ${k === l.blend ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
-    <div class="prow chk"><span>ロック</span><input type="checkbox" id="lpLock" ${l.locked ? 'checked' : ''}></div>
-    <div class="prow chk"><span>下の レイヤーで クリップ</span><input type="checkbox" id="lpClip" ${l.clipping ? 'checked' : ''}></div>
     ${l.vector ? `<div class="prow chk"><span>ベクター消しゴムで 線ごと 消す</span><input type="checkbox" id="lpWhole" ${S.settings.vectorWhole ? 'checked' : ''}></div>
-      <div class="hint">ベクターレイヤー … 描いた 線を 形の まま しまいます。消しゴムで 線の 一部だけ・線ごと 消せます。塗りつぶし・囲って塗る・動かす は ラスターに してから。</div>` : ''}
-    ${l.folder ? '' : `<div class="prow chk"><span>トーンに する（濃さを 網点で 出す）</span><input type="checkbox" id="lpTone" ${t ? 'checked' : ''}></div>`}
-    ${t ? `
+      <div class="btnrow"><button class="btn-sm" id="lpThick">線を 太く</button><button class="btn-sm" id="lpThin">線を 細く</button><button class="btn-sm" id="lpRaster">ラスターに する</button></div>` : ''}
+    ${t ? `<div class="title">トーン</div>
     <div class="prow"><span>線数</span><input type="range" id="lpLpi" min="10" max="150" step="1" value="${t.lpi}"><span class="v dot" id="lpLpiV">${Math.round(t.lpi)}線</span></div>
     <div class="prow"><span>角度</span><input type="range" id="lpAng" min="0" max="90" step="1" value="${t.angle}"><span class="v dot" id="lpAngV">${Math.round(t.angle)}°</span></div>
     <div class="prow"><span>形</span><select id="lpShape" style="grid-column:span 2">${TONE_SHAPES.map((n, k) => `<option value="${k}" ${k === t.shape ? 'selected' : ''}>${n}</option>`).join('')}</select></div>` : ''}
-    <div class="btnrow">
-      <button class="btn-sm" id="lpDup">${icon('copy', 16)}複製</button>
-      <button class="btn-sm" id="lpMerge">${icon('merge', 16)}下と 結合</button>
-      <button class="btn-sm" id="lpClear">${icon('clean', 16)}中を 消す</button>
-      ${l.vector ? `<button class="btn-sm" id="lpThick">線を 太く</button><button class="btn-sm" id="lpThin">線を 細く</button><button class="btn-sm" id="lpRaster">ラスターに する</button>` : ''}
-      <button class="btn-sm danger" id="lpDel">${icon('trash', 16)}削除</button>
-    </div>`;
-  const setProp = (key, v, withCheckpoint = true) => { if (withCheckpoint) E.checkpoint(); E.layerSet(i, key, v); changed({ layers: true }); };
+    <div class="btnrow"><button class="btn-sm" id="lpClear">${icon('clean', 16)}中を 消す</button></div>`);
+  $('#lsClose').onclick = closeModal;
   $('#lpName').onchange = e => { E.layerRename(i, e.target.value); changed({ layers: true }); };
-  const op = $('#lpOp');
-  op.onpointerdown = () => E.checkpoint();
-  op.oninput = () => { E.layerSet(i, 'opacity', op.value / 100); $('#lpOpV').textContent = op.value + '%'; kick(); };
-  op.onchange = () => changed({ layers: true });
-  $('#lpBlend').onchange = e => setProp('blend', +e.target.value);
-  $('#lpLock').onchange = e => setProp('locked', e.target.checked ? 1 : 0);
-  $('#lpClip').onchange = e => setProp('clipping', e.target.checked ? 1 : 0);
-  if ($('#lpTone')) $('#lpTone').onchange = e => setProp('tone', e.target.checked ? 1 : 0);
   if (t) {
     const live = (id, key, fmt) => {
       const r = $(id);
@@ -1546,26 +1607,44 @@ function renderLayerProps() {
     };
     live('#lpLpi', 'tone_lpi', v => v + '線');
     live('#lpAng', 'tone_angle', v => v + '°');
-    $('#lpShape').onchange = e => setProp('tone_shape', +e.target.value);
+    $('#lpShape').onchange = e => { E.checkpoint(); E.layerSet(i, 'tone_shape', +e.target.value); changed({ layers: true }); };
   }
   if ($('#lpWhole')) $('#lpWhole').onchange = e => { S.settings.vectorWhole = e.target.checked; E.setVectorWhole(S.settings.vectorWhole); saveSettings(); };
   const vwAll = f => { E.checkpoint(); if (E.vectorWidth(0, 0, 0, f)) changed(); else E.undo(); };
   if ($('#lpThick')) $('#lpThick').onclick = () => vwAll(1.15);
   if ($('#lpThin')) $('#lpThin').onclick = () => vwAll(1 / 1.15);
-  if ($('#lpRaster')) $('#lpRaster').onclick = () => { E.layerRasterize(i); changed({ layers: true }); };
-  $('#lpDup').onclick = () => { E.layerDuplicate(i); changed({ layers: true }); };
-  $('#lpMerge').onclick = () => { if (E.layerMergeDown(i)) changed({ layers: true }); else toast('結合できません'); };
+  if ($('#lpRaster')) $('#lpRaster').onclick = () => { E.layerRasterize(i); changed({ layers: true }); closeModal(); };
   $('#lpClear').onclick = () => { if (l.locked || l.folder) { layerBlockedToast(); return; } E.layerClear(i); changed({ layers: true }); };
-  $('#lpDel').onclick = async () => {
+}
+function setupLayerPanel() {
+  const ic = (id, name) => setIcon($(id), name, 17);
+  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil');
+  ic('#lAdd', 'layeradd'); ic('#lVec', 'pen'); ic('#lFolder', 'folder'); ic('#lImage', 'image');
+  ic('#lDup', 'copy'); ic('#lMerge', 'merge'); ic('#lSet', 'settings'); ic('#lDel', 'trash');
+  const cur = () => [S.info.selected, S.info.layers[S.info.selected]];
+  const toggle = key => () => { const [i, l] = cur(); commitFloat(); E.checkpoint(); E.layerSet(i, key, (key === 'tone' ? !!l.tone : l[key]) ? 0 : 1); changed({ layers: true }); };
+  $('#lClip').onclick = toggle('clipping');
+  $('#lLock').onclick = toggle('locked');
+  $('#lTone').onclick = toggle('tone');
+  $('#lSketch').onclick = toggle('sketch');
+  $('#lBlend').onchange = e => { const [i] = cur(); E.checkpoint(); E.layerSet(i, 'blend', +e.target.value); changed({ layers: true }); };
+  const op = $('#lOp');
+  op.addEventListener('pointerdown', () => { layerOpDrag = true; E.checkpoint(); });
+  op.oninput = () => { const [i] = cur(); E.layerSet(i, 'opacity', op.value / 100); $('#lOpV').textContent = op.value; kick(); };
+  op.onchange = () => { layerOpDrag = false; changed({ layers: true }); };
+  $('#lAdd').onclick = () => { commitFloat(); E.layerAdd(); changed({ layers: true }); };
+  $('#lVec').onclick = () => { commitFloat(); E.layerAddVector(); changed({ layers: true }); toast('ベクターレイヤーを 足しました'); };
+  $('#lFolder').onclick = () => { commitFloat(); E.layerAddFolder(); changed({ layers: true }); };
+  $('#lImage').onclick = () => pickFile('image/*', async f => { await importImageAsLayer(f); });
+  $('#lDup').onclick = () => { commitFloat(); E.layerDuplicate(S.info.selected); changed({ layers: true }); };
+  $('#lMerge').onclick = () => { commitFloat(); if (E.layerMergeDown(S.info.selected)) changed({ layers: true }); else toast('結合できません'); };
+  $('#lSet').onclick = openLayerSettings;
+  $('#lDel').onclick = async () => {
+    const [i, l] = cur();
     if (!await confirmBox(`「${l.name}」を 削除しますか？`)) return;
-    E.layerDelete(i); changed({ layers: true });
+    commitFloat(); E.layerDelete(i); changed({ layers: true });
   };
 }
-$('#lAdd').onclick = () => { commitFloat(); E.layerAdd(); changed({ layers: true }); };
-$('#lVec').onclick = () => { commitFloat(); E.layerAddVector(); changed({ layers: true }); toast('ベクターレイヤーを 足しました'); };
-$('#lUp').onclick = () => { if (E.layerMove(S.info.selected, 1)) changed({ layers: true }); };
-$('#lDown').onclick = () => { if (E.layerMove(S.info.selected, -1)) changed({ layers: true }); };
-$('#lImage').onclick = () => pickFile('image/*', async f => { await importImageAsLayer(f); });
 
 /* ================================================================ ファイル */
 function pickFile(accept, fn) {
@@ -2403,6 +2482,8 @@ const MENUS = () => [
   ['レイヤー', [
     ['新しい ラスターレイヤー', '', () => $('#lAdd').click()],
     ['新しい ベクターレイヤー', '', () => $('#lVec').click()],
+    ['新しい フォルダー', '', () => $('#lFolder').click()],
+    ['レイヤーの 設定…', '', openLayerSettings],
     ['画像を レイヤーに', '', () => $('#lImage').click()],
     '-',
     ['複製', '', layerCmd(i => { E.layerDuplicate(i); changed({ layers: true }); })],
@@ -2446,7 +2527,7 @@ const MENUS = () => [
     ['回転を もどす', '', resetRotation],
   ]],
   ['ウィンドウ', [
-    ...[['blist', 'ブラシ'], ['bprops', 'ブラシの 設定'], ['nav', 'ナビゲーター'], ['layers', 'レイヤー'], ['lprops', 'レイヤーの 設定'], ['sizes', '太さの 列']]
+    ...[['blist', 'ブラシ'], ['bprops', 'ブラシの 設定'], ['nav', 'ナビゲーター'], ['layers', 'レイヤー'], ['sizes', '太さの 列']]
       .map(([k, n]) => [n, '', () => toggleFold(k), () => !S.settings.folds[k]]),
     '-',
     ['ブラシの 列を 細く', '', () => { S.settings.pmini = !S.settings.pmini; applyFolds(); saveSettings(); }, () => S.settings.pmini],

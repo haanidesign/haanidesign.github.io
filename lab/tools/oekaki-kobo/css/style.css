@@ -362,3 +362,40 @@ select{cursor:pointer;}
 #selCv{position:absolute;left:0;top:0;pointer-events:none;image-rendering:pixelated;opacity:.9;}
 #selCv[hidden]{display:none;}
 .fdlg .prow{grid-template-columns:8em 1fr 4em;}
+
+/* レイヤー（クリスタの ように ぎゅっと） */
+.lhead{display:grid;grid-template-columns:7.2em 1fr 2.4em;gap:.35rem;align-items:center;margin-bottom:.3rem;}
+.lhead select{font-size:.72rem;padding:.15rem .3rem;}
+#lOpV{font-size:.78rem;text-align:right;}
+.lbtns{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:.35rem;}
+.lb{width:30px;height:30px;padding:0;border-radius:8px;border-width:2px;box-shadow:0 2px 0 var(--ink);}
+.lb.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+.lsep{width:6px;}
+.llist{gap:0 !important;border:2px solid var(--ink);border-radius:10px;background:var(--paper);overflow:auto;padding:0 !important;}
+.lrow{position:relative;display:flex;align-items:center;gap:4px;height:46px;flex:none;padding:0 4px 0 2px;border-bottom:1.5px solid rgba(30,28,20,.22);cursor:pointer;}
+.lrow:last-child{border-bottom:none;}
+.lrow.sel{background:var(--main);}
+.lrow.hid .lthumb,.lrow.hid .ltext{opacity:.4;}
+.lrow .leye{width:30px;height:30px;padding:0;border:none;box-shadow:none;background:transparent;border-radius:8px;flex:none;}
+.lrow .leye:active{transform:none;background:var(--main-soft);}
+.lrow .ledit{width:16px;flex:none;display:flex;justify-content:center;}
+.lrow .lind{flex:none;}
+.lrow .lchev{width:22px;height:30px;padding:0;border:none;box-shadow:none;background:transparent;flex:none;}
+.lrow .lchev .ic{transition:transform .15s;}
+.lrow.open .lchev .ic{transform:rotate(90deg);}
+.lrow .lchev:active{transform:none;}
+.lthumb{width:36px;height:36px;flex:none;border:1.5px solid var(--ink);border-radius:5px;
+  background-color:#fff;background-image:linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%),linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%);
+  background-size:8px 8px;background-position:0 0,4px 4px;}
+.lfoldic{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;}
+.ltype{flex:none;display:flex;}
+.ltext{flex:1;min-width:0;line-height:1.25;}
+.lmeta{font-size:.62rem;}
+.lname{font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lmarks{display:flex;gap:1px;flex:none;}
+.lgrip{width:26px;height:40px;display:flex;align-items:center;justify-content:center;flex:none;touch-action:none;cursor:grab;opacity:.7;}
+.lrow.clip::before{content:"";position:absolute;left:34px;top:4px;bottom:4px;width:4px;border-radius:4px;background:var(--pink);}
+.lrow.dragging{opacity:.4;}
+.lrow.drop-above{box-shadow:inset 0 3px 0 var(--pink);}
+.lrow.drop-below{box-shadow:inset 0 -3px 0 var(--pink);}
+.lrow.drop-into{outline:3px solid var(--pink);outline-offset:-3px;}

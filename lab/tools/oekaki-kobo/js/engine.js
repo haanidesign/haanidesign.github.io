@@ -87,6 +87,8 @@ class Engine {
 
   /* ---- レイヤー ---- */
   layerAdd() { this.x.layer_add(); }
+  layerAddFolder() { this.x.layer_add_folder(); }
+  layerPlace(i, t, place) { return this.x.layer_place(i, t, place) === 1; }
   layerAddVector() { this.x.layer_add_vector(); }
   layerRasterize(i) { this.x.layer_rasterize(i); }
   vectorWidth(x, y, r, f) { return this.x.vector_width(x, y, r, f) === 1; }
