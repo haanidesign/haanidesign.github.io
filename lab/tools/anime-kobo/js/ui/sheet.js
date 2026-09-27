@@ -1,48 +1,48 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=299';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=300';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=299';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=299';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=300';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=300';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=299';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=300';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=299';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=299';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=299';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=299';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES } from '../io/rig.js?v=299';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=299';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=300';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=300';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=300';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=300';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES } from '../io/rig.js?v=300';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=300';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=299';
+         addTextLayer } from '../io/text.js?v=300';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=299';
-import { PATTERN_NAMES } from '../io/pattern.js?v=299';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=300';
+import { PATTERN_NAMES } from '../io/pattern.js?v=300';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=299';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=299';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=299';
+         PITCH_MAX } from '../engine/pano.js?v=300';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=300';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=300';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=299';
-import { readAsDataURL, loadImage } from '../io/image.js?v=299';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=300';
+import { readAsDataURL, loadImage } from '../io/image.js?v=300';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=299';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=299';
-import { newHand } from '../engine/hand.js?v=299';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=299';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=300';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=300';
+import { newHand } from '../engine/hand.js?v=300';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=300';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=299';
+  from './colorwheel.js?v=300';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=299';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=300';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=299';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=300';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -3423,9 +3423,69 @@ function talkRow(box, l, closeFn){
     + '（' + talkStart(l).toFixed(1) + '秒 〜 ' + talkOut(l).toFixed(1) + '秒）';
   box.appendChild(tn);
 
+  /* ---- 見た目：帯 か 吹き出し か ---- */
+  {
+    const isB = t.shape === 'bubble';
+    const bBand = button((isB ? '⬜' : '✅') + ' 下の 帯', () => {
+      edit('帯に する', () => { t.shape = 'band'; dirty(); });
+      onChange();
+    });
+    const bBub = button((isB ? '✅' : '⬜') + ' 💬 吹き出し', () => {
+      edit('吹き出しに する', () => {
+        t.shape = 'bubble';
+        if(t.bx == null){ t.bx = 0.5; t.by = 0.28; t.bw = 0.62; t.tx = 0.5; t.ty = 0.52; }
+        if(!t.bKind) t.bKind = 'round';
+        if(!t.bFill) t.bFill = '#FFFFFF';
+        if(!t.bInk) t.bInk = '#1E1C14';
+        dirty();
+      });
+      onChange();
+    });
+    bBand.classList.toggle('on', !isB);
+    bBub.classList.toggle('on', isB);
+    box.appendChild(btnRow(bBand, bBub));
+  }
+
   box.appendChild(slider('文字の 大きさ', () => t.size,
     v => { t.size = Math.round(v); dirty(); }, 16, Math.round(S.proj.h / 10), 1,
     v => Math.round(v) + 'px'));
+
+  if(t.shape === 'bubble'){
+    /* ---- 💬 吹き出し ---- */
+    const ksel = document.createElement('select');
+    [['round', 'ふつう（まる）'], ['shout', 'さけび（とげとげ）'], ['think', 'こころの 声（くも）']]
+      .forEach(([v, lab]) => {
+        const op = document.createElement('option');
+        op.value = v; op.textContent = lab;
+        if((t.bKind || 'round') === v) op.selected = true;
+        ksel.appendChild(op);
+      });
+    ksel.addEventListener('change', () => {
+      edit('吹き出しの 形', () => { t.bKind = ksel.value; dirty(); });
+      onChange();
+    });
+    box.appendChild(field('かたち', ksel));
+
+    const pct = v => Math.round(v * 100) + '%';
+    box.appendChild(slider('吹き出し よこ', () => t.bx, v => { t.bx = v; dirty(); }, 0, 1, 0.01, pct));
+    box.appendChild(slider('吹き出し たて', () => t.by, v => { t.by = v; dirty(); }, 0, 1, 0.01, pct));
+    box.appendChild(slider('いちばん 広い はば', () => t.bw, v => { t.bw = v; dirty(); }, 0.2, 0.95, 0.01, pct));
+    box.appendChild(slider('しっぽの さき よこ', () => t.tx, v => { t.tx = v; dirty(); }, -0.1, 1.1, 0.01, pct));
+    box.appendChild(slider('しっぽの さき たて', () => t.ty, v => { t.ty = v; dirty(); }, -0.1, 1.1, 0.01, pct));
+    box.appendChild(colorPick('吹き出しの 中', () => t.bFill || '#FFFFFF',
+      v => { t.bFill = v; dirty(); }));
+    box.appendChild(colorPick('線と 字', () => t.bInk || '#1E1C14',
+      v => { t.bInk = v; dirty(); }));
+
+    const bnote = document.createElement('div');
+    bnote.className = 'empty';
+    bnote.style.textAlign = 'left';
+    bnote.textContent = 'しっぽの さきを しゃべって いる 人の 口もとに 合わせてね。' + NL
+      + '大きさは 文の 長さで きまります（出とちゅうで ふくらまない）。' + NL
+      + 'はばを せまく すると 行が かわって たてに 長く なります。';
+    box.appendChild(bnote);
+  } else {
+
   box.appendChild(slider('帯の たかさ', () => t.hRatio,
     v => { t.hRatio = v; dirty(); }, 0.12, 0.6, 0.01,
     v => Math.round(v * 100) + '%'));
@@ -3442,6 +3502,7 @@ function talkRow(box, l, closeFn){
       onChange(); if(closeFn) closeFn();
     })
   ));
+  }   // 帯 の ときだけ
 
   /* ---- ぽぽぽ ---- */
   box.appendChild(heading('🔈 ポップ音'));
