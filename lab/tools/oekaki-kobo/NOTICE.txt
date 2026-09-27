@@ -1,0 +1,27 @@
+おえかき工房 で 使っている もの
+================================
+
+■ Efude（描画エンジン）
+  https://github.com/852wa/Efude  （コミット ca3e3a414d603663723bed8c6ef8db6f89deab1f）
+  Copyright 2026 Hakoniwa
+
+  engine.wasm には Efude の エンジン部分
+  （efude-core / efude-stroke / efude-brush / efude-canvas / efude-io）が 入っています。
+  これらは MIT OR Apache-2.0 です。efude-io は ファイルの かわりに バイト列で
+  読み書きする ように 手を 入れて います（engine/efude-io-mem）。
+  ライセンス全文: engine/LICENSE-MIT, engine/LICENSE-APACHE
+
+  標準の ブラシセット（engine/assets/default.efudebrushes）は Efude の
+  assets/brushes/default.efudebrushes を そのまま 使っています。MPL-2.0 です。
+  ライセンス全文: engine/LICENSE-MPL
+  もとの ファイル: https://github.com/852wa/Efude/blob/ca3e3a414d603663723bed8c6ef8db6f89deab1f/assets/brushes/default.efudebrushes
+
+  「Efude」の 名前と ロゴは Efude の もの です。この アプリは Efude の
+  公式の ものでは なく、作者とも 関係 ありません。
+
+■ Hugeicons（アイコン）
+  https://hugeicons.com  Copyright (c) 2025 Hugeicons  MIT License
+
+■ そのほか（engine.wasm の 中）
+  glam, serde, serde_json, half, zip, png, image, lz4_flex, ron, postcard ほか
+  Rust の ライブラリ（MIT / Apache-2.0 など）。一覧は engine/Cargo.lock。

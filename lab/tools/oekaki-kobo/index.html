@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>おえかき工房</title>
+<meta name="theme-color" content="#E1DD60">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="bar">
+    <button id="bMenu" class="ib" title="作品・ファイル"></button>
+    <div class="ttl">おえかき工房</div>
+    <button id="docName" class="chip" title="名前を かえる">無題</button>
+    <span id="saveState" class="state dot"></span>
+    <div class="grow"></div>
+    <button id="bUndo" class="ib" title="取り消し（二本指タップ）"></button>
+    <button id="bRedo" class="ib" title="やり直し（三本指タップ）"></button>
+    <span class="sep"></span>
+    <button id="bExport" class="btn-sm" title="書き出す"></button>
+    <button id="bSettings" class="ib" title="設定"></button>
+    <button id="bPanel" class="ib on" title="パネルを しまう"></button>
+  </header>
+
+  <nav id="rail">
+    <div class="tools">
+      <button class="tool on" data-tool="draw" title="描く（B）"></button>
+      <button class="tool" data-tool="erase" title="消す（E）"></button>
+      <button class="tool" data-tool="fill" title="塗りつぶし（G）"></button>
+      <button class="tool" data-tool="lasso" title="囲って塗る（L）"></button>
+      <button class="tool" data-tool="move" title="囲って動かす（M）"></button>
+      <button class="tool" data-tool="pick" title="スポイト（I）"></button>
+    </div>
+    <div class="vs" id="sizeSl" title="太さ"><div class="vs-fill"></div><div class="vs-knob"></div><span class="vs-val dot"></span></div>
+    <div class="vs" id="opSl" title="濃さ"><div class="vs-fill"></div><div class="vs-knob"></div><span class="vs-val dot"></span></div>
+    <div class="swatches">
+      <button id="swMain" class="sw main" title="描く色"></button>
+      <button id="swSub" class="sw sub" title="サブの色（おすと 入れかえ）"></button>
+    </div>
+  </nav>
+
+  <main id="stage">
+    <div id="sheet"><canvas id="doc" width="1" height="1"></canvas><canvas id="floatCv" hidden></canvas></div>
+    <canvas id="over"></canvas>
+    <div id="toolOpts" class="float"></div>
+    <div id="viewPill" class="float">
+      <button id="vFlip" class="ib sm" title="左右反転（見た目だけ）"></button>
+      <button id="vRot" class="ib sm" title="回転を もどす"></button>
+      <button id="vFit" class="ib sm" title="全体を 見る"></button>
+      <span id="vZoom" class="dot">100%</span>
+    </div>
+    <div id="toast"></div>
+    <div id="boot" class="boot"><div class="boot-card"><div class="ttl">おえかき工房</div><div class="dot" id="bootMsg">よみこみ中…</div></div></div>
+  </main>
+
+  <aside id="panel">
+    <div class="tabs">
+      <button class="tab on" data-tab="brush">ブラシ</button>
+      <button class="tab" data-tab="color">色</button>
+      <button class="tab" data-tab="layer">レイヤー</button>
+    </div>
+    <section class="pane on" id="pane-brush">
+      <div id="brushList" class="blist"></div>
+      <div id="brushProps" class="bprops"></div>
+    </section>
+    <section class="pane" id="pane-color">
+      <div class="picker">
+        <canvas id="svBox" width="256" height="256"></canvas>
+        <canvas id="hueBar" width="256" height="24"></canvas>
+        <div class="row"><span class="lbl">透明度</span><input type="range" id="alphaR" min="0" max="255" value="255"></div>
+        <div class="row"><span class="lbl">色の番号</span><input id="hexIn" class="dot" maxlength="7" spellcheck="false"></div>
+      </div>
+      <div class="title">パレット</div>
+      <div id="palette" class="pal"></div>
+      <div class="title">さいきん 使った 色</div>
+      <div id="recent" class="pal"></div>
+    </section>
+    <section class="pane" id="pane-layer">
+      <div class="lbar">
+        <button id="lAdd" class="btn-sm" title="レイヤーを 足す"></button>
+        <button id="lImage" class="btn-sm" title="画像を レイヤーに"></button>
+        <div class="grow"></div>
+        <button id="lUp" class="ib sm" title="上へ"></button>
+        <button id="lDown" class="ib sm" title="下へ"></button>
+      </div>
+      <div id="layerList" class="llist"></div>
+      <div id="layerProps" class="lprops"></div>
+    </section>
+  </aside>
+</div>
+
+<div id="modal" class="modal" hidden><div class="card" id="modalCard"></div></div>
+<input type="file" id="fileIn" hidden>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
