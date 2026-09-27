@@ -1,0 +1,177 @@
+/* ================= おえかき工房 の やわらかい 見た目 =================
+   動画工房 と そろえる。共通の ../skin/soft.css の あとに 読む。
+   ・下じき … うすいグレー、部品 … 白い カード、かげは ほんの 少し
+   ・えらんで いる もの … ライム＋黒の ふち（小さい ものは 黒ピル）
+   ・字 … まるくない ゴシック
+   この 1まいと skin を 外せば、もとの レトロな 見た目に もどる。 */
+
+:root{
+  --r: 12px;
+  --sel-bg: #FBFAEC;
+  --sel-line: #DED8A4;
+}
+body{ font-size:15px; }
+.dot{ font-family:'Inter','Noto Sans JP',system-ui,sans-serif; font-weight:600; font-variant-numeric:tabular-nums; }
+#app .dot,.mpop .dot,.modal .dot,#toolOpts .dot{ border:0 !important; background:transparent !important; box-shadow:none !important; }
+.ic{ filter:none !important; opacity:1 !important; }
+
+/* ---------- ボタン（黒ぶち・かたい かげ を 消す） ---------- */
+.ib,.tool,.lb,.sz,.btn-sm,.work .wbtns button,.presets button,.menu-grid button,.reflist button,.pal button,.eye,
+.ministrip button,.colbtn,.tab,#rail button,#panel button,#side button,.modal button{
+  border:1px solid var(--line) !important;
+  box-shadow:none !important;
+}
+.ib:active,.tool:active,.lb:active,.sz:active,.btn-sm:active,.tab:active{ transform:scale(.96) !important; }
+.ib.on,.lb.on{ background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important; transform:none !important; }
+.btn-y{ background:var(--main) !important; border-color:var(--main) !important; color:var(--ink) !important; }
+button.danger:hover{ background:var(--pink-soft) !important; color:#8E2A1C !important; }
+
+/* ---------- メニューの 列 ・ 上の バー ---------- */
+#menubar{
+  background:var(--paper); border-bottom:1px solid var(--line);
+}
+#menubar .ttl{ font-weight:800; letter-spacing:-.02em; font-size:.92rem; }
+.mbtn{ font-weight:600; color:var(--ink2); border:0 !important; background:transparent !important; border-radius:8px; }
+.mbtn:hover{ background:var(--fill) !important; color:var(--ink); }
+.mbtn.on{ background:var(--ink) !important; color:#fff !important; }
+.mpop{
+  border:1px solid var(--line); border-radius:14px;
+  box-shadow:0 12px 36px rgba(16,17,20,.16), 0 1px 2px rgba(16,17,20,.06);
+  padding:.35rem;
+}
+.mpop button{ font-weight:500; border:0 !important; background:transparent !important; }
+.mpop button:hover{ background:var(--fill) !important; }
+.mpop button:active{ background:var(--main) !important; }
+.mpop hr{ border-top:1px solid var(--line); margin:.25rem .4rem; }
+#menubar .chip{ background:var(--fill) !important; border:0 !important; font-weight:600; }
+.state{ color:var(--gray); font-weight:500; }
+
+#bar{ padding:0 .6rem; gap:.3rem; }
+#bar .ib{ border-radius:999px !important; background:rgba(255,255,255,.72) !important; border-color:transparent !important; }
+#bar .ib:hover{ background:#fff !important; }
+#bar .ib:disabled{ background:rgba(255,255,255,.35) !important; color:rgba(16,17,20,.3) !important; }
+#bar .ib.on{ background:var(--ink) !important; color:#fff !important; }
+#bar .sep{ background:rgba(16,17,20,.18); width:1px; height:22px; opacity:1; }
+#bar #bExport{ background:var(--ink) !important; color:#fff !important; border-color:var(--ink) !important; border-radius:10px !important; padding:.35rem .9rem; }
+
+/* ---------- 左の 道具 ---------- */
+#rail{ background:var(--paper) !important; border-right:1px solid var(--line) !important; }
+#app.lefty #rail{ border-left:1px solid var(--line) !important; }
+.tool{ background:var(--paper) !important; border-radius:12px !important; color:var(--ink2); box-shadow:var(--shadow-sm) !important; }
+.tool:hover{ background:#fff !important; color:var(--ink); box-shadow:var(--shadow) !important; }
+.tool.on{ background:var(--main) !important; color:var(--ink) !important; border-color:var(--ink) !important; }
+.vs{ background:var(--fill); border:0; width:26px; }
+.vs-fill{ background:var(--main); left:4px; right:4px; bottom:4px; }
+.vs-knob{ background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 2px 6px rgba(16,17,20,.18); width:34px; margin-left:-17px; }
+.vs-val{ color:var(--ink2); font-weight:600; }
+.sw{ border-radius:12px !important; border:1px solid var(--line) !important; box-shadow:var(--shadow-sm) !important; background:#fff !important; }
+.sw.main{ box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--ink) !important; }
+
+/* ---------- 絵の まわり ---------- */
+#stage{ background-color:var(--work) !important; }
+#doc{ box-shadow:0 0 0 var(--frame,1px) rgba(16,17,20,.14), 0 calc(var(--frame,1px) * 3) calc(var(--frame,1px) * 18) rgba(16,17,20,.12) !important; }
+.float,#viewPill,#toolOpts{
+  background:rgba(255,255,255,.92) !important; border:1px solid var(--line) !important;
+  box-shadow:var(--shadow) !important; backdrop-filter:blur(8px);
+}
+#viewPill{ border-radius:999px; }
+#viewPill .ib{ border-radius:999px !important; background:var(--fill) !important; border-color:transparent !important; }
+#toolOpts{ border-radius:14px; }
+#toast{ background:var(--ink); color:#fff; box-shadow:var(--shadow); font-weight:600; }
+.boot{ background:var(--cream); }
+.boot-card{ border:0; border-radius:22px; box-shadow:var(--shadow); }
+
+/* ---------- 太さの 列 ---------- */
+#sizes{ background:var(--paper); border-top:1px solid var(--line); }
+.sz{ background:var(--paper) !important; border-radius:12px !important; }
+.sz i{ background:var(--ink); }
+.sz span{ font-family:'Inter',system-ui,sans-serif; font-weight:600; color:var(--ink2); }
+.sz.on{ background:var(--sel-bg) !important; border-color:var(--ink) !important; transform:none !important; }
+.stab .ib{ background:var(--fill) !important; border-color:transparent !important; }
+
+/* ---------- 右の パネル ---------- */
+#panel,#side{ background:var(--paper) !important; border-color:var(--line) !important; }
+#panel{ border-left:1px solid var(--line) !important; }
+#side{ border-left:1px solid var(--line) !important; }
+.tabs{ background:var(--paper) !important; border-bottom:1px solid var(--line) !important; padding:.5rem !important; gap:.25rem; }
+.tab{ border-radius:999px !important; background:var(--fill) !important; border-color:transparent !important; font-weight:600; color:var(--ink2); }
+.tab.on{ background:var(--ink) !important; color:#fff !important; }
+.pane{ background:transparent !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+.navbox{ border-bottom:1px solid var(--line); }
+.colbtn,.ministrip button{ background:var(--fill) !important; border-color:transparent !important; }
+
+/* たためる 見出し … 黒ピル を やめて ライムの たて線＋太字 */
+.fhead{
+  background:transparent !important; color:var(--ink) !important;
+  border:0 !important; border-radius:8px !important;
+  padding:.35rem .25rem !important; font-size:.76rem !important; font-weight:700;
+}
+.fhead::before{ content:''; width:3px; height:14px; border-radius:2px; background:var(--main); order:-1; }
+.fhead .ic{ order:3; margin-left:auto; color:var(--gray); }
+.fhead:hover{ background:var(--fill) !important; }
+#sizes>.fhead{ background:var(--fill) !important; }
+.title{ background:transparent !important; color:var(--ink) !important; padding:0 !important; font-size:.76rem; font-weight:700; }
+
+/* ブラシの 一覧 */
+.bitem{ border:1px solid var(--line); border-radius:12px; box-shadow:none; background:#fff; }
+.bitem:hover{ background:var(--fill); }
+.bitem.sel{ background:var(--sel-bg); border-color:var(--sel-line); border-left:3px solid var(--main); box-shadow:none; transform:none; }
+.bitem canvas{ border:0; background:var(--work2); border-radius:8px; }
+.bprops{ border-top:0; }
+.prow{ color:var(--ink2); font-weight:500; }
+.prow .v{ color:var(--ink); }
+
+/* 色 */
+#svBox{ border:0; border-radius:14px; box-shadow:var(--shadow-sm); }
+#hueBar{ border:0; box-shadow:var(--shadow-sm); }
+.pal button{ border-radius:10px !important; border:1px solid rgba(16,17,20,.08) !important; }
+
+/* 資料・ナビゲーター */
+.refview,.navview{ border:0; border-radius:14px; background:var(--work); box-shadow:inset 0 0 0 1px var(--line); }
+.reflist button.on{ outline:2px solid var(--ink); outline-offset:1px; }
+
+/* レイヤー */
+.lhead select{ background:var(--fill); border:0; font-weight:600; }
+.lb{ background:var(--fill) !important; border-color:transparent !important; border-radius:9px !important; color:var(--ink2); }
+.lb:hover{ background:var(--fill2) !important; color:var(--ink); }
+.llist{ border:1px solid var(--line) !important; border-radius:14px !important; box-shadow:none !important; background:#fff !important; }
+.lrow{ border-bottom:1px solid var(--line) !important; }
+.lrow:hover{ background:#FAFAFB; }
+.lrow.sel{ background:var(--sel-bg) !important; box-shadow:inset 3px 0 0 var(--main); }
+.lrow .leye{ border:0 !important; background:transparent !important; color:var(--ink2); }
+.lrow .lchev{ border:0 !important; background:transparent !important; }
+.lthumb{ border:1px solid var(--line); border-radius:7px; }
+.lmeta{ color:var(--gray); }
+.lname{ font-weight:600; }
+.lgrip{ color:var(--gray); }
+.lrow.clip::before{ background:var(--main); }
+.lrow.drop-above{ box-shadow:inset 0 3px 0 var(--ink); }
+.lrow.drop-below{ box-shadow:inset 0 -3px 0 var(--ink); }
+.lrow.drop-into{ outline:2px solid var(--ink); }
+
+/* つまみ（触った だけでは 動かない もの） */
+.rs-track{ background:var(--fill2); border:0; height:6px; margin-top:-3px; }
+.rs-fill{ background:var(--ink); }
+.rs-knob{ width:20px; height:20px; margin:-10px 0 0 -10px; border:0; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(16,17,20,.3), 0 0 0 1px rgba(16,17,20,.06); }
+.rs.drag .rs-knob{ background:var(--main); }
+
+/* ---------- ダイアログ ---------- */
+.modal{ background:rgba(16,17,20,.28) !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; backdrop-filter:blur(3px); }
+.card{ border:0 !important; border-radius:22px !important; box-shadow:0 24px 60px rgba(16,17,20,.22) !important; }
+.modal h2:first-child,.card h2{ background:transparent !important; font-size:1.02rem; letter-spacing:-.01em; }
+.work{ border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-sm); background:#fff; }
+.work.cur{ background:var(--sel-bg); border-color:var(--sel-line); }
+.work img{ border:0; border-radius:10px; background:var(--work2); }
+.presets button,.menu-grid button{ background:#fff !important; border-radius:14px !important; }
+.presets button:hover,.menu-grid button:hover{ background:var(--fill) !important; }
+.presets .psub,.small{ color:var(--gray); }
+.hint{ line-height:1.8; }
+#curveCv,#testCv{ border:0; border-radius:14px; box-shadow:inset 0 0 0 1px var(--line); }
+input,select{ border:0; }
+
+/* 上の バーは ライム（動画工房と 同じ） */
+#bar{ background:var(--main) !important; border-bottom:1px solid rgba(16,17,20,.12) !important; }
+#bar #bExport,#bar #bExport *,#bar .ib.on,#bar .ib.on *{ color:#fff !important; }
+/* 太さの 列の 見出しは 小さく */
+#sizes>.fhead{ writing-mode:horizontal-tb !important; padding:.3rem .5rem !important; font-size:.7rem !important; }
+#sizes>.fhead::before{ display:none; }

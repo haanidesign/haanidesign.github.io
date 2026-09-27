@@ -2131,8 +2131,8 @@ function drawNav(refresh) {
   x.beginPath();
   pts.forEach(([px, py], i) => { const X = L.ox + px * L.k, Y = L.oy + py * L.k; i ? x.lineTo(X, Y) : x.moveTo(X, Y); });
   x.closePath();
-  x.fillStyle = 'rgba(242,160,184,.18)'; x.fill();
-  x.lineWidth = 2.5; x.strokeStyle = '#F2A0B8'; x.stroke();
+  x.fillStyle = 'rgba(225,221,96,.22)'; x.fill();
+  x.lineWidth = 2; x.strokeStyle = '#101114'; x.stroke();
 }
 function navSync() {
   drawNav(false);
