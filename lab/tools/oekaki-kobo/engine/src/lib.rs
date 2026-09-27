@@ -2461,3 +2461,114 @@ pub extern "C" fn vector_width(x: f32, y: f32, r: f32, factor: f32) -> i32 {
         1
     })
 }
+
+/// ベクター消しゴム。mode: 0 触れた ところ / 1 交点まで / 2 線ごと。r は 紙の 画素。
+#[unsafe(no_mangle)]
+pub extern "C" fn vector_erase(x: f32, y: f32, r: f32, mode: u32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        let (w, h) = (app.doc.width, app.doc.height);
+        if app.doc.layers.get(i).is_none_or(|l| l.locked || l.vector.is_none()) {
+            return 0;
+        }
+        let l = &mut app.doc.layers[i];
+        let strokes = l.vector.as_mut().unwrap();
+        let dirty = match mode {
+            0 => vector::erase_circle(strokes, (x, y), r, false),
+            2 => vector::erase_circle(strokes, (x, y), r, true),
+            _ => erase_to_intersections(strokes, x, y, r),
+        };
+        let Some(rect) = dirty else {
+            return 0;
+        };
+        let rect = [rect[0] - 2, rect[1] - 2, rect[2] + 2, rect[3] + 2];
+        render_vector(l, w, h, rect);
+        app.mark_rect(rect[0] as f32, rect[1] as f32, rect[2] as f32, rect[3] as f32);
+        1
+    })
+}
+
+/// 2つの 線分の 交わる ところ（線分 a の 上の 位置 0..1）。
+fn seg_cross(a0: (f32, f32), a1: (f32, f32), b0: (f32, f32), b1: (f32, f32)) -> Option<f32> {
+    let d = (a1.0 - a0.0) * (b1.1 - b0.1) - (a1.1 - a0.1) * (b1.0 - b0.0);
+    if d.abs() < 1e-9 {
+        return None;
+    }
+    let t = ((b0.0 - a0.0) * (b1.1 - b0.1) - (b0.1 - a0.1) * (b1.0 - b0.0)) / d;
+    let u = ((b0.0 - a0.0) * (a1.1 - a0.1) - (b0.1 - a0.1) * (a1.0 - a0.0)) / d;
+    ((0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u)).then_some(t)
+}
+
+/// 触れた 線を、ほかの 線（と 自分）と 交わる ところ から ところ まで 消す。
+fn erase_to_intersections(strokes: &mut Vec<vector::VectorStroke>, x: f32, y: f32, r: f32) -> Option<vector::PixelRect> {
+    // いちばん 近い 線と その 位置（線分の 番号 + 0..1）
+    let mut best: Option<(usize, f32, f32)> = None;
+    for (si, s) in strokes.iter().enumerate() {
+        let n = s.points.len();
+        for k in 0..n.saturating_sub(1).max(1) {
+            let a = s.points[k];
+            let b = s.points[(k + 1).min(n - 1)];
+            let (dx, dy) = (b.x - a.x, b.y - a.y);
+            let len2 = dx * dx + dy * dy;
+            let t = if len2 > 1e-9 { (((x - a.x) * dx + (y - a.y) * dy) / len2).clamp(0.0, 1.0) } else { 0.0 };
+            let dist = (a.x + dx * t - x).hypot(a.y + dy * t - y) - a.width.max(b.width) * 0.5;
+            if dist < r && best.is_none_or(|b| dist < b.2) {
+                best = Some((si, k as f32 + t, dist));
+            }
+        }
+    }
+    let (si, pos, _) = best?;
+    let s = &strokes[si];
+    let n = s.points.len();
+    if n < 2 {
+        let bounds = s.bounds();
+        strokes.remove(si);
+        return bounds;
+    }
+    // この 線の 上の 交点を ぜんぶ あつめる
+    let mut cuts: Vec<f32> = Vec::new();
+    for (oi, o) in strokes.iter().enumerate() {
+        for k in 0..n - 1 {
+            let a0 = (s.points[k].x, s.points[k].y);
+            let a1 = (s.points[k + 1].x, s.points[k + 1].y);
+            for m in 0..o.points.len().saturating_sub(1) {
+                if oi == si && (m as i64 - k as i64).abs() <= 1 {
+                    continue;
+                }
+                let b0 = (o.points[m].x, o.points[m].y);
+                let b1 = (o.points[m + 1].x, o.points[m + 1].y);
+                if let Some(t) = seg_cross(a0, a1, b0, b1) {
+                    cuts.push(k as f32 + t);
+                }
+            }
+        }
+    }
+    let lo = cuts.iter().copied().filter(|&c| c < pos).fold(f32::MIN, f32::max);
+    let hi = cuts.iter().copied().filter(|&c| c > pos).fold(f32::MAX, f32::min);
+    let bounds = s.bounds();
+    let lerp = |c: f32| {
+        let k = (c.floor() as usize).min(n - 2);
+        let t = c - k as f32;
+        let (a, b) = (s.points[k], s.points[k + 1]);
+        vector::VectorPoint { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, width: a.width + (b.width - a.width) * t }
+    };
+    let mut pieces: Vec<Vec<vector::VectorPoint>> = Vec::new();
+    if lo > f32::MIN {
+        let mut p: Vec<_> = s.points[..=(lo.floor() as usize).min(n - 1)].to_vec();
+        p.push(lerp(lo));
+        pieces.push(p);
+    }
+    if hi < f32::MAX {
+        let mut p = vec![lerp(hi)];
+        p.extend_from_slice(&s.points[((hi.floor() as usize) + 1).min(n)..]);
+        pieces.push(p);
+    }
+    let (color, hardness) = (s.color, s.hardness);
+    strokes.remove(si);
+    for p in pieces {
+        if p.len() >= 2 {
+            strokes.push(vector::VectorStroke::fitted(p, color, hardness));
+        }
+    }
+    bounds
+}

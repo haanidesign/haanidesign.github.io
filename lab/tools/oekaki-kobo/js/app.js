@@ -15,7 +15,7 @@ let E = null; // engine
 const DEFAULT_SETTINGS = {
   fingerDraw: false, gamma: 1, lefty: false, tapUndo: true, penButtonErase: true,
   fillAll: true, fillTol: 24, fillGrow: 1, lassoErase: false, pickLayer: false, panel: true,
-  vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
+  vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
 const S = {
   tool: 'draw',
@@ -77,7 +77,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=2');
+    E = await loadEngine('engine.wasm?v=3');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -121,7 +121,7 @@ function buildStaticIcons() {
   iconText($('#bExport'), 'download', '書き出す');
   setIcon($('#bSettings'), 'settings');
   setIcon($('#bPanel'), 'layers');
-  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', lasso: 'lasso', move: 'move', vwidth: 'sliders', pick: 'picker' };
+  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
   for (const b of $$('.tool')) setIcon(b, toolIcons[b.dataset.tool], 26);
   setIcon($('#vFlip'), 'flip', 18);
   setIcon($('#vRot'), 'rotl', 18);
@@ -394,9 +394,9 @@ function drawOverlay() {
     knob(rx, ry, true);
     octx.restore();
   }
-  if (input.cursor && S.tool === 'vwidth') {
+  if (input.cursor && (S.tool === 'vwidth' || S.tool === 'verase')) {
     const [x, y] = input.cursor;
-    octx.beginPath(); octx.arc(x, y, S.settings.vwRange, 0, Math.PI * 2);
+    octx.beginPath(); octx.arc(x, y, S.tool === 'verase' ? S.settings.veRange : S.settings.vwRange, 0, Math.PI * 2);
     octx.setLineDash([5, 4]); octx.lineWidth = 2; octx.strokeStyle = '#1E1C14'; octx.stroke(); octx.setLineDash([]);
   }
   if (input.cursor && (S.tool === 'draw' || S.tool === 'erase')) {
@@ -522,7 +522,7 @@ function onMove(e) {
   const [x, y] = stageXY(e);
   const p = input.pointers.get(e.pointerId);
   if (p) { p.x = x; p.y = y; }
-  if (e.pointerType !== 'touch' && (S.tool === 'draw' || S.tool === 'erase' || S.tool === 'vwidth')) {
+  if (e.pointerType !== 'touch' && (S.tool === 'draw' || S.tool === 'erase' || S.tool === 'vwidth' || S.tool === 'verase')) {
     input.cursor = [x, y];
     if (!input.drawing) drawOverlay();
   }
@@ -550,6 +550,11 @@ function onMove(e) {
   if (input.pickId === e.pointerId) { pickAt(x, y, false); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { dragFloat(x, y); return; }
   if (input.vw && input.vw.id === e.pointerId) { widthAt(x, y); return; }
+  if (input.ve && input.ve.id === e.pointerId) {
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const ev of (evs.length ? evs : [e])) { const [sx, sy] = stageXY(ev); eraseVecAt(sx, sy); }
+    return;
+  }
   if (input.gesture && p && p.type === 'touch') moveGesture();
 }
 
@@ -567,6 +572,11 @@ function onUp(e) {
   if (input.lasso && e.pointerId === input.lassoId) { endLasso(); return; }
   if (input.pickId === e.pointerId) { input.pickId = null; addRecent(S.color); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { input.floatDrag = null; renderToolOpts(); return; }
+  if (input.ve && input.ve.id === e.pointerId) {
+    const any = input.ve.any; input.ve = null;
+    if (any) changed(); else { E.undo(); refreshUndo(); }
+    return;
+  }
   if (input.vw && input.vw.id === e.pointerId) {
     const any = input.vw.any; input.vw = null;
     if (any) changed(); else { E.undo(); refreshUndo(); }
@@ -609,6 +619,15 @@ function startAction(e, x, y) {
     const st = S.settings;
     const ok = E.fill(dx, dy, Math.round(st.fillTol * 2.55), st.fillAll, st.fillGrow);
     if (ok) { addRecent(S.color); changed(); }
+    return;
+  }
+  if (tool === 'verase') {
+    const l = S.info && S.info.layers[S.info.selected];
+    if (!l || !l.vector) { toast('ベクターレイヤーを えらんで ください'); return; }
+    if (l.locked) { layerBlockedToast(); return; }
+    E.checkpoint();
+    input.ve = { id: e.pointerId, any: false, last: null };
+    eraseVecAt(x, y);
     return;
   }
   if (tool === 'vwidth') {
@@ -672,6 +691,22 @@ function penPressure(p) {
   const st = S.settings;
   const v = curveAt(st.curve, clamp(p, 0, 1));
   return st.minPressure + (1 - st.minPressure) * v;
+}
+/* ベクター消しゴム: 触れた ところ／交点まで／線ごと */
+function eraseVecAt(x, y) {
+  const st = S.settings;
+  const [dx, dy] = toDoc(x, y);
+  const r = st.veRange / S.view.s;
+  const last = input.ve.last;
+  // 速く 動かしても すきまが できない ように 間を うめる
+  const steps = last ? Math.max(1, Math.ceil(Math.hypot(dx - last[0], dy - last[1]) / Math.max(1, r * 0.6))) : 1;
+  for (let i = 1; i <= steps; i++) {
+    const px = last ? last[0] + (dx - last[0]) * i / steps : dx, py = last ? last[1] + (dy - last[1]) * i / steps : dy;
+    if (E.vectorErase(px, py, r, st.veMode)) input.ve.any = true;
+  }
+  input.ve.last = [dx, dy];
+  input.cursor = [x, y];
+  kick();
 }
 /* ベクターの 線幅: なぞった ところの 線を 少しずつ 太く／細く */
 function widthAt(x, y) {
@@ -970,6 +1005,14 @@ function renderToolOpts() {
     } else {
       el.innerHTML = `<span>動かしたい ところを 囲む（タップだけで レイヤー全体）</span>`;
     }
+  } else if (S.tool === 'verase') {
+    const m = st.veMode;
+    el.innerHTML = `<button class="btn-sm ${m === 0 ? 'on' : ''}" data-vm="0">触れた ところ</button>
+      <button class="btn-sm ${m === 1 ? 'on' : ''}" data-vm="1">交点まで</button>
+      <button class="btn-sm ${m === 2 ? 'on' : ''}" data-vm="2">線ごと</button>
+      <label>大きさ <input type="range" id="oVR" min="4" max="80" step="1" value="${st.veRange}"></label>`;
+    for (const b of $$('[data-vm]', el)) b.onclick = () => { st.veMode = +b.dataset.vm; saveSettings(); renderToolOpts(); };
+    $('#oVR', el).oninput = e => { st.veRange = +e.target.value; saveSettings(); drawOverlay(); };
   } else if (S.tool === 'vwidth') {
     el.innerHTML = `<button class="btn-sm ${st.vwThick ? 'on' : ''}" id="oWT">太く</button>
       <button class="btn-sm ${!st.vwThick ? 'on' : ''}" id="oWN">細く</button>
@@ -2163,7 +2206,7 @@ window.addEventListener('keydown', e => {
   if (k === ' ') { input.space = true; e.preventDefault(); return; }
   if (k === 'enter' && S.float) { commitFloat(); return; }
   if (k === 'escape' && S.float) { cancelFloat(); return; }
-  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', l: 'lasso', m: 'move', w: 'vwidth', i: 'pick' };
+  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', l: 'lasso', m: 'move', v: 'verase', w: 'vwidth', i: 'pick' };
   if (tools[k]) { selectTool(tools[k]); return; }
   if (k === '[' || k === ']') {
     const i = currentBrushIndex();

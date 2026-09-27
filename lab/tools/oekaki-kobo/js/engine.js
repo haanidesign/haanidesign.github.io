@@ -90,6 +90,7 @@ class Engine {
   layerAddVector() { this.x.layer_add_vector(); }
   layerRasterize(i) { this.x.layer_rasterize(i); }
   vectorWidth(x, y, r, f) { return this.x.vector_width(x, y, r, f) === 1; }
+  vectorErase(x, y, r, mode) { return this.x.vector_erase(x, y, r, mode) === 1; }
   setVectorWhole(on) { this.x.set_vector_whole(on ? 1 : 0); }
   layerSelect(i) { this.x.layer_select(i); }
   layerDelete(i) { this.x.layer_delete(i); }

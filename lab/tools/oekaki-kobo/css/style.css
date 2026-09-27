@@ -134,7 +134,7 @@ select{cursor:pointer;}
   overflow:hidden;
 }
 .tools{display:flex;flex-direction:column;gap:.4rem;}
-.tool{width:50px;height:40px;padding:0;border-radius:12px;}
+.tool{width:50px;height:38px;padding:0;border-radius:12px;}
 .vs{
   position:relative;flex:1;min-height:90px;max-height:230px;width:30px;
   background:var(--paper);border:2px solid var(--ink);border-radius:100px;
