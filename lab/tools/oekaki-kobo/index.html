@@ -13,10 +13,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=Noto+Serif+JP:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=7">
 <link rel="stylesheet" href="../skin/soft.css?v=11">
-<link rel="stylesheet" href="css/soft.css?v=1">
+<link rel="stylesheet" href="css/soft.css?v=2">
 </head>
 <body>
 <div id="app">
@@ -49,6 +49,8 @@
     <button id="cTransform" class="ib" title="拡大・縮小・回転"></button>
     <div class="grow"></div>
     <button id="bExport" class="btn-sm" title="書き出す"></button>
+    <button id="cRuler" class="ib" title="対称定規"></button>
+    <button id="cFilm" class="ib" title="タイムラプス動画"></button>
     <button id="cHelp" class="ib" title="使いかた"></button>
     <button id="bSettings" class="ib" title="設定"></button>
     <button id="cFull" class="ib" title="全画面"></button>
@@ -65,6 +67,8 @@
       <button class="tool" data-tool="move" title="囲って動かす（M）"></button>
       <button class="tool" data-tool="verase" title="ベクター消しゴム（V）"></button>
       <button class="tool" data-tool="vwidth" title="ベクターの 線幅（W）"></button>
+      <button class="tool" data-tool="shape" title="図形（U）"></button>
+      <button class="tool" data-tool="text" title="テキスト（T）"></button>
       <button class="tool" data-tool="pick" title="スポイト（I）"></button>
     </div>
     <div class="vs" id="sizeSl" title="太さ"><div class="vs-fill"></div><div class="vs-knob"></div><span class="vs-val dot"></span></div>
@@ -161,6 +165,7 @@
         <button id="lLock" class="lb" title="ロック"></button>
         <button id="lTone" class="lb" title="トーンに する"></button>
         <button id="lSketch" class="lb" title="下描き"></button>
+        <button id="lAlpha" class="lb" title="透明度保護（色の ある ところ だけ 塗る）"></button>
         <span class="lsep"></span>
         <button id="lAdd" class="lb" title="新しい ラスターレイヤー"></button>
         <button id="lVec" class="lb" title="新しい ベクターレイヤー"></button>

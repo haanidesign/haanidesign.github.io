@@ -9,12 +9,13 @@ let dbp = null;
 function open() {
   if (dbp) return dbp;
   dbp = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('data')) db.createObjectStore('data');
       if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+      if (!db.objectStoreNames.contains('frames')) db.createObjectStore('frames');
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -52,11 +53,17 @@ export const store = {
   },
   async putMeta(meta) { return tx(['meta'], 'readwrite', t => { t.objectStore('meta').put(meta); }); },
   async remove(id) {
+    await this.clearFrames(id).catch(() => {});
     return tx(['meta', 'data'], 'readwrite', t => {
       t.objectStore('meta').delete(id);
       t.objectStore('data').delete(id);
     });
   },
+  /* タイムラプスの コマ（キーは 作品id:番号） */
+  async addFrame(id, n, blob) { return tx(['frames'], 'readwrite', t => { t.objectStore('frames').put(blob, id + ':' + String(n).padStart(6, '0')); }); },
+  async frameKeys(id) { return tx(['frames'], 'readonly', t => req(t.objectStore('frames').getAllKeys(IDBKeyRange.bound(id + ':', id + ':\uffff')))); },
+  async frame(key) { return tx(['frames'], 'readonly', t => req(t.objectStore('frames').get(key))); },
+  async clearFrames(id) { return tx(['frames'], 'readwrite', t => { t.objectStore('frames').delete(IDBKeyRange.bound(id + ':', id + ':\uffff')); }); },
   async get(key) { return tx(['kv'], 'readonly', t => req(t.objectStore('kv').get(key))); },
   async set(key, value) { return tx(['kv'], 'readwrite', t => { t.objectStore('kv').put(value, key); }); },
   async del(key) { return tx(['kv'], 'readwrite', t => { t.objectStore('kv').delete(key); }); },

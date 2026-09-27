@@ -50,6 +50,8 @@ struct Snapshot {
 }
 
 struct Stroke {
+    /// 透明度保護の ときの 塗れる ところ（レイヤーの アルファ × 選択範囲）。
+    mask: Option<Vec<u8>>,
     brush: usize,
     layer: usize,
     builder: StrokeBuilder,
@@ -87,6 +89,12 @@ struct App {
     vector_whole: bool,
     /// 選択範囲（1画素 1バイト）。描く・塗る・消す・動かす・フィルターは この 中だけ。
     selection: Selection,
+    /// 透明度保護（色の ある ところ だけ 塗る）レイヤーの id。
+    alpha_locked: std::collections::HashSet<u64>,
+    /// 対称定規: 0 なし 1 左右 2 上下 3 上下左右 4 放射
+    sym_mode: u32,
+    sym_n: u32,
+    sym_center: [f32; 2],
 }
 
 /// 切りとって 浮かせた 絵（動かす・大きさ・回転の あいだ）。
@@ -204,6 +212,10 @@ fn install(doc: Document, selected: usize) {
             floating: None,
             vector_whole: false,
             selection: Selection::default(),
+            alpha_locked: Default::default(),
+            sym_mode: 0,
+            sym_n: 6,
+            sym_center: [0.0, 0.0],
             undo: Vec::new(),
             redo: Vec::new(),
             dirty: BTreeSet::new(),
@@ -326,6 +338,7 @@ pub extern "C" fn doc_save_quick() -> usize {
                     "reference": l.reference, "blend": l.blend, "linear_blend": l.linear_blend,
                     "kind": l.kind, "parent_id": l.parent_id, "expanded": l.expanded,
                     "tone": l.tone,
+                    "alpha_lock": app.alpha_locked.contains(&l.id),
                     "tiles": l.pixels.tile_keys(),
                 })
             })
@@ -357,6 +370,7 @@ fn lz4_flex_compress(data: &[u8]) -> Vec<u8> {
 #[unsafe(no_mangle)]
 pub extern "C" fn doc_load_quick(ptr: *const u8, len: usize) -> i32 {
     let bytes = bytes_from(ptr, len);
+    let mut locked: Vec<u64> = Vec::new();
     let result = (|| -> Option<(Document, usize)> {
         if bytes.len() < 4 || &bytes[..4] != b"OKK1" {
             return None;
@@ -391,6 +405,9 @@ pub extern "C" fn doc_load_quick(ptr: *const u8, len: usize) -> i32 {
             layer.parent_id = l["parent_id"].as_u64();
             layer.expanded = l["expanded"].as_bool().unwrap_or(true);
             layer.tone = serde_json::from_value(l["tone"].clone()).unwrap_or(None);
+            if l["alpha_lock"].as_bool().unwrap_or(false) {
+                locked.push(layer.id);
+            }
             for key in l["tiles"].as_array()? {
                 let tx = key[0].as_u64()? as u32;
                 let ty = key[1].as_u64()? as u32;
@@ -410,6 +427,7 @@ pub extern "C" fn doc_load_quick(ptr: *const u8, len: usize) -> i32 {
     match result {
         Some((doc, selected)) => {
             install(doc, selected);
+            with_app((), |app| app.alpha_locked.extend(locked));
             0
         }
         None => -1,
@@ -449,6 +467,7 @@ pub extern "C" fn doc_info() -> usize {
                     "folder": l.kind == LayerKind::Folder,
                     "vector": l.vector.is_some(),
                     "expanded": l.expanded,
+                    "alpha_lock": app.alpha_locked.contains(&l.id),
                     "sketch": l.sketch,
                     "parent": l.parent_id.and_then(|p| app.doc.layers.iter().position(|x| x.id == p)),
                     "depth": depth,
@@ -1079,9 +1098,13 @@ impl App {
         let mut target = DabTarget {
             doc: &mut self.doc,
             layer: stroke.layer,
-            selection: self.selection.active.then_some(self.selection.mask.as_slice()),
+            selection: match &stroke.mask {
+                Some(m) => Some(m.as_slice()),
+                None => self.selection.active.then_some(self.selection.mask.as_slice()),
+            },
             history: &mut stroke.history,
         };
+        let sym = (self.sym_mode, self.sym_n, self.sym_center);
         let batch = engine::accelerator_can_paint(style);
         let mut stamps = Vec::with_capacity(points.len());
         for point in points {
@@ -1089,27 +1112,29 @@ impl App {
             p.pressure = brush.map_pressure(p.pressure.clamp(0.0, 1.0).powf(gamma));
             let dynamics: Dynamics =
                 engine::dynamics(brush, &p, stroke.raster.last_dab, view_scale);
-            let g = DabGeometry::new(style, &dynamics, &p);
-            let r = g.max_radius + 3.0;
-            rects.push([
-                g.center.x - r,
-                g.center.y - r,
-                g.center.x + r,
-                g.center.y + r,
-            ]);
-            stroke.min = [
-                stroke.min[0].min(g.center.x - r),
-                stroke.min[1].min(g.center.y - r),
-            ];
-            stroke.max = [
-                stroke.max[0].max(g.center.x + r),
-                stroke.max[1].max(g.center.y + r),
-            ];
-            if batch {
-                stamps.push((p, dynamics));
-            } else {
-                // 下の 色を 拾う ブラシは 1つずつ 塗る。
-                stroke.raster.stamp(&mut target, style, &dynamics, p);
+            for q in symmetric(p, sym) {
+                let g = DabGeometry::new(style, &dynamics, &q);
+                let r = g.max_radius + 3.0;
+                rects.push([
+                    g.center.x - r,
+                    g.center.y - r,
+                    g.center.x + r,
+                    g.center.y + r,
+                ]);
+                stroke.min = [
+                    stroke.min[0].min(g.center.x - r),
+                    stroke.min[1].min(g.center.y - r),
+                ];
+                stroke.max = [
+                    stroke.max[0].max(g.center.x + r),
+                    stroke.max[1].max(g.center.y + r),
+                ];
+                if batch {
+                    stamps.push((q, dynamics));
+                } else {
+                    // 下の 色を 拾う ブラシは 1つずつ 塗る。
+                    stroke.raster.stamp(&mut target, style, &dynamics, q);
+                }
             }
             stroke.raster.finish_dab(style, p);
         }
@@ -1271,6 +1296,7 @@ pub extern "C" fn stroke_begin(x: f32, y: f32) -> i32 {
         };
         let mut history = History::default();
         history.begin();
+        let alpha_mask = app.alpha_mask_for(app.selected);
         app.stroke = Some(Stroke {
             brush: app.brush,
             layer: app.selected,
@@ -1285,6 +1311,7 @@ pub extern "C" fn stroke_begin(x: f32, y: f32) -> i32 {
             pushed: 0,
             vector: app.doc.layers[app.selected].vector.is_some(),
             vindex: None,
+            mask: alpha_mask,
         });
         1
     })
@@ -1372,7 +1399,10 @@ pub extern "C" fn stroke_end() {
             let mut target = DabTarget {
                 doc: &mut app.doc,
                 layer,
-                selection: app.selection.active.then_some(app.selection.mask.as_slice()),
+                selection: match &stroke.mask {
+                    Some(m) => Some(m.as_slice()),
+                    None => app.selection.active.then_some(app.selection.mask.as_slice()),
+                },
                 history: &mut stroke.history,
             };
             stroke.raster.finish_stroke(&mut target, brush);
@@ -1724,6 +1754,14 @@ pub extern "C" fn layer_set(index: u32, key_ptr: *const u8, key_len: usize, valu
             "locked" => layer.locked = on,
             "clipping" => layer.clipping = on,
             "expanded" => layer.expanded = on,
+            "alpha_lock" => {
+                let id = layer.id;
+                if on {
+                    app.alpha_locked.insert(id);
+                } else {
+                    app.alpha_locked.remove(&id);
+                }
+            }
             "sketch" => layer.sketch = on,
             "blend" => layer.blend = BLENDS[(value.max(0.0) as usize).min(BLENDS.len() - 1)],
             "tone" => {
@@ -3011,5 +3049,83 @@ pub extern "C" fn layer_place(index: u32, target: u32, place: u32) -> i32 {
         app.selected = app.doc.layers.iter().position(|l| l.id == id).unwrap_or(0);
         app.mark_diff(&before);
         1
+    })
+}
+
+impl App {
+    /// 透明度保護の レイヤーなら、色の ある ところ（× 選択範囲）を かえす。
+    fn alpha_mask_for(&self, index: usize) -> Option<Vec<u8>> {
+        let l = self.doc.layers.get(index)?;
+        if !self.alpha_locked.contains(&l.id) || l.vector.is_some() {
+            return None;
+        }
+        let (w, h) = (self.doc.width, self.doc.height);
+        let mut m = vec![0u8; (w * h) as usize];
+        for ((tx, ty), data) in l.pixels.tiles() {
+            for ly in 0..TILE_SIZE {
+                let y = ty * TILE_SIZE + ly;
+                if y >= h {
+                    break;
+                }
+                for lx in 0..TILE_SIZE {
+                    let x = tx * TILE_SIZE + lx;
+                    if x >= w {
+                        break;
+                    }
+                    m[(y * w + x) as usize] = data[((ly * TILE_SIZE + lx) * 4 + 3) as usize];
+                }
+            }
+        }
+        self.clip_to_selection(&mut m);
+        Some(m)
+    }
+}
+
+/// 対称定規で ふえる 点（はじめの 1つは もとの 点）。
+fn symmetric(p: InkPoint, (mode, n, c): (u32, u32, [f32; 2])) -> Vec<InkPoint> {
+    let mut out = vec![p];
+    let (x, y) = (p.position.x, p.position.y);
+    let at = |nx: f32, ny: f32| {
+        let mut q = p;
+        q.position = glam::Vec2::new(nx, ny);
+        q
+    };
+    match mode {
+        1 => out.push(at(2.0 * c[0] - x, y)),
+        2 => out.push(at(x, 2.0 * c[1] - y)),
+        3 => {
+            out.push(at(2.0 * c[0] - x, y));
+            out.push(at(x, 2.0 * c[1] - y));
+            out.push(at(2.0 * c[0] - x, 2.0 * c[1] - y));
+        }
+        4 | 5 => {
+            let n = n.clamp(2, 32);
+            let (dx, dy) = (x - c[0], y - c[1]);
+            for k in 1..n {
+                let a = std::f32::consts::TAU * k as f32 / n as f32;
+                let (s, co) = a.sin_cos();
+                out.push(at(c[0] + dx * co - dy * s, c[1] + dx * s + dy * co));
+            }
+            if mode == 5 {
+                // 万華鏡: さらに 鏡に うつす
+                let m: Vec<InkPoint> = out.iter().map(|q| {
+                    let (qx, qy) = (q.position.x - c[0], q.position.y - c[1]);
+                    at(c[0] - qx, c[1] + qy)
+                }).collect();
+                out.extend(m);
+            }
+        }
+        _ => {}
+    }
+    out
+}
+
+/// 対称定規を きめる。mode: 0 なし 1 左右 2 上下 3 上下左右 4 放射 5 万華鏡
+#[unsafe(no_mangle)]
+pub extern "C" fn set_symmetry(mode: u32, n: u32, cx: f32, cy: f32) {
+    with_app((), |app| {
+        app.sym_mode = mode.min(5);
+        app.sym_n = n.clamp(2, 32);
+        app.sym_center = [cx, cy];
     })
 }

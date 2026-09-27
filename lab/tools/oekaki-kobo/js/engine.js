@@ -104,6 +104,7 @@ class Engine {
   selPreview(max) { const n = this.x.sel_preview(max); return n ? this.outCopy() : null; }
   selApply(op) { return this.x.sel_apply(op) === 1; }
   filterApply(kind, a = 0, b = 0) { return this.x.filter_apply(kind, a, b) === 1; }
+  setSymmetry(mode, n, cx, cy) { this.x.set_symmetry(mode, n, cx, cy); }
   setVectorWhole(on) { this.x.set_vector_whole(on ? 1 : 0); }
   layerSelect(i) { this.x.layer_select(i); }
   layerDelete(i) { this.x.layer_delete(i); }

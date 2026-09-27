@@ -175,3 +175,8 @@ input,select{ border:0; }
 /* 太さの 列の 見出しは 小さく */
 #sizes>.fhead{ writing-mode:horizontal-tb !important; padding:.3rem .5rem !important; font-size:.7rem !important; }
 #sizes>.fhead::before{ display:none; }
+
+/* 道具が ふえたので 2列に */
+.tools{ display:grid !important; grid-template-columns:repeat(2, 30px); gap:5px !important; }
+.tool{ width:30px !important; height:30px !important; border-radius:9px !important; }
+.tool .ic{ width:19px; height:19px; }

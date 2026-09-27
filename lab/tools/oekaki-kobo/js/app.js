@@ -16,6 +16,9 @@ const DEFAULT_SETTINGS = {
   fingerDraw: false, gamma: 1, lefty: false, tapUndo: true, penButtonErase: true,
   fillAll: true, fillTol: 24, fillGrow: 1, lassoErase: false, pickLayer: false, panel: true,
   folds: {}, pmini: false, smini: false,
+  shapeKind: 'line', shapeFill: false, shapePressure: 0.8,
+  textSize: 60, textVertical: true, textBold: false, textFont: 0, textOutline: 0, textLast: '',
+  timelapse: true, timelapseSec: 20, sym: null,
   selMode: 'lasso', selOp: 0, selTol: 24, selAll: true,
   vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
@@ -79,7 +82,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=5');
+    E = await loadEngine('engine.wasm?v=6');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -125,7 +128,7 @@ function buildStaticIcons() {
   setIcon($('#bSettings'), 'settings');
   setIcon($('#bPanel'), 'layers');
   setupCommands();
-  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', select: 'lassosel', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
+  const toolIcons = { draw: 'brush', erase: 'eraser', fill: 'fill', select: 'lassosel', shape: 'shapes', text: 'text', lasso: 'lasso', move: 'move', verase: 'veraser', vwidth: 'sliders', pick: 'picker' };
   for (const b of $$('.tool')) setIcon(b, toolIcons[b.dataset.tool], 26);
   setIcon($('#vFlip'), 'flip', 18);
   setIcon($('#vRot'), 'rotl', 18);
@@ -156,6 +159,8 @@ function afterDocLoaded() {
   selectBrushForTool();
   bulkRender();
   refreshSel();
+  symState().cx = null;
+  applySym();
 }
 
 function newWork({ w, h, dpi, paper, name }) {
@@ -173,7 +178,7 @@ async function openWork(id, quiet) {
   const bytes = await store.load(id).catch(() => null);
   if (!meta || !bytes) { if (!quiet) toast('ひらけませんでした'); return false; }
   if (!E.loadQuick(new Uint8Array(bytes))) { if (!quiet) toast('ひらけませんでした'); return false; }
-  S.work = { id: meta.id, name: meta.name, created: meta.created };
+  S.work = { id: meta.id, name: meta.name, created: meta.created, frames: meta.frames || 0 };
   S.unsaved = false;
   afterDocLoaded();
   setSaveState('しまってあります');
@@ -194,7 +199,7 @@ async function saveNow() {
     const thumb = await makeThumb(256);
     const meta = {
       id: S.work.id, name: S.work.name, created: S.work.created, updated: Date.now(),
-      w: S.info.width, h: S.info.height, thumb,
+      w: S.info.width, h: S.info.height, thumb, frames: S.work.frames || 0,
     };
     S.unsaved = false;
     await store.save(meta, bytes.buffer);
@@ -231,6 +236,7 @@ function changed(opts = {}) {
   if (opts.layers) refreshLayers(true);
   else thumbSoon();
   kick();
+  recordFrame();
 }
 
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') { commitFloat(); saveSettings.now(); saveNow(); } });
@@ -400,6 +406,8 @@ function drawOverlay() {
     octx.beginPath(); octx.arc(x, y, S.tool === 'verase' ? S.settings.veRange : S.settings.vwRange, 0, Math.PI * 2);
     octx.setLineDash([5, 4]); octx.lineWidth = 2; octx.strokeStyle = '#1E1C14'; octx.stroke(); octx.setLineDash([]);
   }
+  drawSymGuide();
+  drawShapePreview();
   if (input.cursor && (S.tool === 'draw' || S.tool === 'erase')) {
     const b = S.brushes[currentBrushIndex()];
     const size = b ? b.size : 10;
@@ -551,6 +559,12 @@ function onMove(e) {
   if (input.pickId === e.pointerId) { pickAt(x, y, false); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { dragFloat(x, y); return; }
   if (input.vw && input.vw.id === e.pointerId) { widthAt(x, y); return; }
+  if (input.symDrag && input.symDrag.id === e.pointerId) {
+    const [dx, dy] = toDoc(x, y); const y2 = symState(); y2.cx = dx; y2.cy = dy; applySym(); return;
+  }
+  if (input.shape && input.shape.id === e.pointerId) {
+    input.shape.b = toDoc(x, y); input.shape.square = e.shiftKey; drawOverlay(); return;
+  }
   if (input.ve && input.ve.id === e.pointerId) {
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     for (const ev of (evs.length ? evs : [e])) { const [sx, sy] = stageXY(ev); eraseVecAt(sx, sy); }
@@ -573,6 +587,8 @@ function onUp(e) {
   if (input.lasso && e.pointerId === input.lassoId) { endLasso(); return; }
   if (input.pickId === e.pointerId) { input.pickId = null; addRecent(S.color); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { input.floatDrag = null; renderToolOpts(); return; }
+  if (input.symDrag && input.symDrag.id === e.pointerId) { input.symDrag = null; saveSettings(); return; }
+  if (input.shape && input.shape.id === e.pointerId) { const sh = input.shape; input.shape = null; drawOverlay(); shapeEnd(sh); return; }
   if (input.ve && input.ve.id === e.pointerId) {
     const any = input.ve.any; input.ve = null;
     if (any) changed(); else { E.undo(); refreshUndo(); }
@@ -600,6 +616,12 @@ function startAction(e, x, y) {
   const eraserEnd = e.pointerType === 'pen' && S.settings.penButtonErase && ((e.buttons & 32) || (e.buttons & 2) || e.button === 5 || e.button === 2);
   if (tool === 'pick') { input.pickId = e.pointerId; pickAt(x, y, false); return; }
   const [dx, dy] = toDoc(x, y);
+  if (symHandleHit(x, y) && !eraserEnd) { input.symDrag = { id: e.pointerId }; return; }
+  if (tool === 'shape') {
+    input.shape = { id: e.pointerId, kind: S.settings.shapeKind, a: [dx, dy], b: [dx, dy], square: false };
+    return;
+  }
+  if (tool === 'text') { openTextDialog(dx, dy); return; }
   if ((tool === 'draw' || tool === 'erase') || eraserEnd) {
     input.tempErase = !!eraserEnd && tool !== 'erase';
     E.brushSelect(input.tempErase ? S.eraseBrush : currentBrushIndex());
@@ -1027,6 +1049,18 @@ function renderToolOpts() {
     } else {
       el.innerHTML = `<span>動かしたい ところを 囲む（タップだけで レイヤー全体）</span>`;
     }
+  } else if (S.tool === 'shape') {
+    const k = st.shapeKind;
+    el.innerHTML = `<button class="btn-sm ${k === 'line' ? 'on' : ''}" data-sk="line">直線</button>
+      <button class="btn-sm ${k === 'rect' ? 'on' : ''}" data-sk="rect">四角</button>
+      <button class="btn-sm ${k === 'ellipse' ? 'on' : ''}" data-sk="ellipse">円</button>
+      <button class="btn-sm ${st.shapeFill ? 'on' : ''}" id="oSF">塗りつぶす</button>
+      <label>線の 強さ <input type="range" id="oSP" min="0.1" max="1" step="0.05" value="${st.shapePressure}"></label>`;
+    for (const b of $$('[data-sk]', el)) b.onclick = () => { st.shapeKind = b.dataset.sk; saveSettings(); renderToolOpts(); };
+    $('#oSF', el).onclick = () => { st.shapeFill = !st.shapeFill; saveSettings(); renderToolOpts(); };
+    $('#oSP', el).oninput = e => { st.shapePressure = +e.target.value; saveSettings(); };
+  } else if (S.tool === 'text') {
+    el.innerHTML = `<span>文字を 入れたい ところを タップ（たて書きは そこが 右上）</span>`;
   } else if (S.tool === 'select') {
     const m = st.selMode, o = st.selOp;
     el.innerHTML = `<button class="btn-sm ${m === 'lasso' ? 'on' : ''}" data-sm="lasso">囲う</button>
@@ -1472,6 +1506,7 @@ function refreshLayers() {
     if (l.locked) marks.push(icon('lock', 13));
     if (l.tone) marks.push(icon('tone', 13));
     if (l.sketch) marks.push(icon('pencil', 13));
+    if (l.alpha_lock) marks.push(icon('alpha', 13));
     row.innerHTML = `<button class="leye" title="表示">${icon(l.visible ? 'eye' : 'eyeoff', 17)}</button>
       <span class="ledit">${i === S.info.selected ? icon('pencil', 13) : ''}</span>
       <span class="lind" style="width:${l.depth * 14 + (l.clipping ? 8 : 0)}px"></span>
@@ -1520,6 +1555,7 @@ function syncLayerHead() {
   $('#lLock').classList.toggle('on', l.locked);
   $('#lTone').classList.toggle('on', !!l.tone);
   $('#lSketch').classList.toggle('on', !!l.sketch);
+  $('#lAlpha').classList.toggle('on', !!l.alpha_lock);
   $('#lTone').disabled = l.folder;
 }
 /* ドラッグで 並べかえ（≡ を つかむ）。上の 3分の1 … 上に、下 … 下に、フォルダーの まん中 … 中へ */
@@ -1618,7 +1654,7 @@ function openLayerSettings() {
 }
 function setupLayerPanel() {
   const ic = (id, name) => setIcon($(id), name, 17);
-  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil');
+  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil'); ic('#lAlpha', 'alpha');
   ic('#lAdd', 'layeradd'); ic('#lVec', 'pen'); ic('#lFolder', 'folder'); ic('#lImage', 'image');
   ic('#lDup', 'copy'); ic('#lMerge', 'merge'); ic('#lSet', 'settings'); ic('#lDel', 'trash');
   const cur = () => [S.info.selected, S.info.layers[S.info.selected]];
@@ -1627,6 +1663,7 @@ function setupLayerPanel() {
   $('#lLock').onclick = toggle('locked');
   $('#lTone').onclick = toggle('tone');
   $('#lSketch').onclick = toggle('sketch');
+  $('#lAlpha').onclick = () => { const [i, l] = cur(); E.layerSet(i, 'alpha_lock', l.alpha_lock ? 0 : 1); changed({ layers: true }); toast(l.alpha_lock ? '透明度保護を はずしました' : '透明度保護: 色の ある ところ だけ 塗れます'); };
   $('#lBlend').onchange = e => { const [i] = cur(); E.checkpoint(); E.layerSet(i, 'blend', +e.target.value); changed({ layers: true }); };
   const op = $('#lOp');
   op.addEventListener('pointerdown', () => { layerOpDrag = true; E.checkpoint(); });
@@ -2426,7 +2463,9 @@ function setupCommands() {
   ic('#cJpg', 'jpg'); ic('#cPng', 'png'); ic('#cPsd', 'filetype');
   ic('#cSelNone', 'selnone'); ic('#cSelInv', 'seldash'); ic('#cSelFill', 'fill');
   ic('#cClear', 'clean'); ic('#cClearOut', 'scissor'); ic('#cTransform', 'transform');
-  ic('#cHelp', 'help'); ic('#cFull', 'full');
+  ic('#cHelp', 'help'); ic('#cFull', 'full'); ic('#cRuler', 'mirror'); ic('#cFilm', 'film');
+  $('#cRuler').onclick = e => { e.stopPropagation(); openRulerMenu($('#cRuler')); };
+  $('#cFilm').onclick = openTimelapse;
   $('#cNew').onclick = () => { commitFloat(); openNewDialog(); };
   $('#cOpen').onclick = () => pickFile('.efude,.psd,.efudebrushes,image/*', openFile);
   $('#cSave').onclick = async () => { commitFloat(); S.unsaved = true; await saveNow(); toast('しまいました'); };
@@ -2465,6 +2504,7 @@ const MENUS = () => [
     ['透明 PNG で 書き出す', '', () => exportAs('png-t')],
     ['PSD で 書き出す', '', () => exportAs('psd')],
     ['.efude で 書き出す', '', () => exportAs('efude')],
+    ['タイムラプス 動画…', '', openTimelapse],
     '-',
     ['Efude の ブラシを 読む', '', () => pickFile('.efudebrushes', openFile)],
   ]],
@@ -2525,6 +2565,8 @@ const MENUS = () => [
     ['縮小', '', () => { const r = stage.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); }],
     ['左右反転（見た目だけ）', 'H', toggleFlip],
     ['回転を もどす', '', resetRotation],
+    '-',
+    ...SYM_NAMES.map((n, m) => ['定規: ' + n, '', () => { symState().mode = m; applySym(); saveSettings(); }, () => symState().mode === m]),
   ]],
   ['ウィンドウ', [
     ...[['blist', 'ブラシ'], ['bprops', 'ブラシの 設定'], ['nav', 'ナビゲーター'], ['layers', 'レイヤー'], ['sizes', '太さの 列']]
@@ -2542,6 +2584,7 @@ const MENUS = () => [
 ];
 let menuPop = null, menuOpen = null;
 function closeMenus() { if (menuPop) { menuPop.remove(); menuPop = null; } menuOpen = null; for (const b of $$('.mbtn')) b.classList.remove('on'); }
+document.addEventListener('keydown', e => { if (e.key === 'Shift' && input.shape) { input.shape.square = true; drawOverlay(); } });
 function buildMenus() {
   const bar = $('#menus');
   bar.innerHTML = '';
@@ -2613,6 +2656,327 @@ function openHelp() {
   $('#hClose').onclick = closeModal;
 }
 
+/* ================================================================ 対称定規 */
+const SYM_NAMES = ['なし', '左右 対称', '上下 対称', '上下左右 対称', '放射', '万華鏡'];
+function symState() {
+  const st = S.settings;
+  if (!st.sym) st.sym = { mode: 0, n: 6, cx: null, cy: null };
+  return st.sym;
+}
+function applySym() {
+  const y = symState();
+  if (!S.info) return;
+  if (y.cx == null || y.cx > S.info.width || y.cy > S.info.height) { y.cx = S.info.width / 2; y.cy = S.info.height / 2; }
+  E.setSymmetry(y.mode, y.n, y.cx, y.cy);
+  $('#cRuler').classList.toggle('on', y.mode > 0);
+  drawOverlay();
+}
+function openRulerMenu(btn) {
+  closeMenus();
+  const y = symState();
+  const pop = document.createElement('div');
+  pop.className = 'mpop';
+  const add = (label, fn, on) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="ck">${on ? '✓' : ''}</span><span>${label}</span>`;
+    b.onclick = () => { fn(); closeMenus(); applySym(); saveSettings(); };
+    pop.appendChild(b);
+  };
+  SYM_NAMES.forEach((n, m) => add(n, () => { y.mode = m; }, y.mode === m));
+  pop.appendChild(document.createElement('hr'));
+  for (const n of [3, 4, 6, 8, 12, 16]) add(`放射の 数 ${n}`, () => { y.n = n; if (y.mode < 4) y.mode = 4; }, y.mode >= 4 && y.n === n);
+  pop.appendChild(document.createElement('hr'));
+  add('中心を 紙の まん中に', () => { y.cx = S.info.width / 2; y.cy = S.info.height / 2; });
+  const hint = document.createElement('div');
+  hint.className = 'small';
+  hint.style.padding = '.3rem .6rem';
+  hint.textContent = '中心の 丸を ドラッグすると 動かせます';
+  pop.appendChild(hint);
+  document.body.appendChild(pop);
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  pop.style.top = (r.bottom + 4) + 'px';
+  menuPop = pop;
+}
+function drawSymGuide() {
+  const y = symState();
+  if (!y.mode || !S.info) return;
+  const [cx, cy] = toScreen(y.cx, y.cy);
+  const R = 4000;
+  octx.save();
+  octx.setLineDash([8, 6]);
+  octx.lineWidth = 1.5;
+  octx.strokeStyle = 'rgba(16,17,20,.45)';
+  const line = (ax, ay, bx, by) => { const [x1, y1] = toScreen(ax, ay), [x2, y2] = toScreen(bx, by); octx.beginPath(); octx.moveTo(x1, y1); octx.lineTo(x2, y2); octx.stroke(); };
+  if (y.mode === 1 || y.mode === 3) line(y.cx, -R, y.cx, R + S.info.height);
+  if (y.mode === 2 || y.mode === 3) line(-R, y.cy, R + S.info.width, y.cy);
+  if (y.mode >= 4) {
+    for (let k = 0; k < y.n; k++) {
+      const a = -Math.PI / 2 + Math.PI * 2 * k / y.n;
+      line(y.cx, y.cy, y.cx + Math.cos(a) * R, y.cy + Math.sin(a) * R);
+    }
+  }
+  octx.setLineDash([]);
+  octx.beginPath(); octx.arc(cx, cy, 11, 0, Math.PI * 2);
+  octx.fillStyle = '#E1DD60'; octx.fill();
+  octx.lineWidth = 2; octx.strokeStyle = '#101114'; octx.stroke();
+  octx.restore();
+}
+function symHandleHit(x, y) {
+  const s = symState();
+  if (!s.mode || !S.info) return false;
+  const [cx, cy] = toScreen(s.cx, s.cy);
+  return Math.hypot(x - cx, y - cy) < 22;
+}
+
+/* ================================================================ 図形（直線・四角・円） */
+function shapePoints(kind, a, b) {
+  const pts = [];
+  const seg = (p, q) => {
+    const n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 3));
+    for (let i = 0; i < n; i++) pts.push([p[0] + (q[0] - p[0]) * i / n, p[1] + (q[1] - p[1]) * i / n]);
+  };
+  if (kind === 'line') { seg(a, b); pts.push(b); }
+  else if (kind === 'rect') {
+    const c = [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]];
+    for (let i = 0; i < 4; i++) seg(c[i], c[(i + 1) % 4]);
+    pts.push(c[0]);
+  } else {
+    const cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, rx = Math.abs(b[0] - a[0]) / 2, ry = Math.abs(b[1] - a[1]) / 2;
+    const n = Math.max(24, Math.ceil(Math.PI * 2 * Math.max(rx, ry) / 3));
+    for (let i = 0; i <= n; i++) { const t = Math.PI * 2 * i / n; pts.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); }
+  }
+  return pts;
+}
+function shapeEnd(sh) {
+  if (!sh || Math.hypot(sh.b[0] - sh.a[0], sh.b[1] - sh.a[1]) < 2) return;
+  const st = S.settings;
+  let [a, b] = [sh.a, sh.b];
+  if (sh.kind !== 'line' && sh.square) {
+    const d = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+    b = [a[0] + Math.sign(b[0] - a[0] || 1) * d, a[1] + Math.sign(b[1] - a[1] || 1) * d];
+  }
+  const pts = shapePoints(sh.kind, a, b);
+  if (st.shapeFill && sh.kind !== 'line') {
+    if (!layerPaintable()) { layerBlockedToast(); return; }
+    if (E.lasso(pts, false)) { addRecent(S.color); changed(); }
+    return;
+  }
+  // いまの ブラシで なぞる（手ブレ補正で 角が まるく ならない よう 時間を あける）
+  E.brushSelect(S.drawBrush);
+  if (!E.strokeBegin(pts[0][0], pts[0][1])) { layerBlockedToast(); return; }
+  let t = 0;
+  for (const [x, y] of pts) { E.strokePush(x, y, st.shapePressure, 0, 0, 0, t); t += 260; }
+  E.strokeEnd();
+  addRecent(S.color);
+  changed();
+}
+function drawShapePreview() {
+  const sh = input.shape;
+  if (!sh) return;
+  let b = sh.b;
+  if (sh.kind !== 'line' && sh.square) {
+    const d = Math.max(Math.abs(b[0] - sh.a[0]), Math.abs(b[1] - sh.a[1]));
+    b = [sh.a[0] + Math.sign(b[0] - sh.a[0] || 1) * d, sh.a[1] + Math.sign(b[1] - sh.a[1] || 1) * d];
+  }
+  const pts = shapePoints(sh.kind, sh.a, b);
+  octx.save();
+  octx.beginPath();
+  pts.forEach(([px, py], i) => { const [x, y] = toScreen(px, py); i ? octx.lineTo(x, y) : octx.moveTo(x, y); });
+  const bw = S.brushes[S.drawBrush] ? S.brushes[S.drawBrush].size * S.view.s : 2;
+  octx.lineWidth = Math.max(1.5, bw);
+  octx.lineCap = 'round'; octx.lineJoin = 'round';
+  octx.strokeStyle = rgbCss([S.color[0], S.color[1], S.color[2], 150]);
+  if (S.settings.shapeFill && sh.kind !== 'line') { octx.fillStyle = rgbCss([S.color[0], S.color[1], S.color[2], 120]); octx.fill(); }
+  else octx.stroke();
+  octx.restore();
+}
+
+/* ================================================================ テキスト */
+const TEXT_FONTS = [
+  ['ゴシック', "'Noto Sans JP','Hiragino Sans',sans-serif"],
+  ['明朝', "'Noto Serif JP','Hiragino Mincho ProN',serif"],
+  ['まるゴシック', "'M PLUS Rounded 1c',sans-serif"],
+];
+const ROTATE_CHARS = 'ー－―〜～…‥（）「」『』【】〈〉《》()[]<>=';
+const SMALL_TOP = '、。，．';
+async function renderText(o) {
+  const font = TEXT_FONTS[o.font] ? TEXT_FONTS[o.font][1] : TEXT_FONTS[0][1];
+  const weight = o.bold ? 900 : 500;
+  try { await document.fonts.load(`${weight} ${o.size}px ${font.split(',')[0]}`, o.text); } catch (_) {}
+  const size = o.size, lh = size * (o.vertical ? 1.05 : 1.35), gap = size * 1.5;
+  const lines = o.text.split('\n');
+  const c = document.createElement('canvas');
+  const x = c.getContext('2d');
+  x.font = `${weight} ${size}px ${font}`;
+  const pad = Math.ceil(size * 0.3 + o.outline);
+  let W, H;
+  if (o.vertical) {
+    const maxLen = Math.max(1, ...lines.map(l => [...l].length));
+    W = Math.ceil(lines.length * gap + pad * 2); H = Math.ceil(maxLen * lh + pad * 2);
+  } else {
+    W = Math.ceil(Math.max(1, ...lines.map(l => x.measureText(l).width)) + pad * 2); H = Math.ceil(lines.length * lh + pad * 2);
+  }
+  c.width = W; c.height = H;
+  x.font = `${weight} ${size}px ${font}`;
+  x.textBaseline = 'middle';
+  x.lineJoin = 'round';
+  const col = rgbCss(S.color);
+  const draw = (ch, px, py, rot) => {
+    x.save(); x.translate(px, py); if (rot) x.rotate(Math.PI / 2);
+    if (o.outline > 0) { x.lineWidth = o.outline * 2; x.strokeStyle = '#fff'; x.strokeText(ch, 0, 0); }
+    x.fillStyle = col; x.fillText(ch, 0, 0);
+    x.restore();
+  };
+  if (o.vertical) {
+    x.textAlign = 'center';
+    lines.forEach((line, li) => {
+      const cx = W - pad - gap * li - gap / 2;
+      [...line].forEach((ch, k) => {
+        let cy = pad + lh * k + lh / 2;
+        let px = cx;
+        if (SMALL_TOP.includes(ch)) { px += size * 0.55; cy -= size * 0.55; }
+        draw(ch, px, cy, ROTATE_CHARS.includes(ch));
+      });
+    });
+  } else {
+    x.textAlign = 'left';
+    lines.forEach((line, li) => draw(line, pad, pad + lh * li + lh / 2, false));
+  }
+  return c;
+}
+async function openTextDialog(dx, dy) {
+  const st = S.settings;
+  openModal(`<h2>${icon('text')}テキスト<span class="grow"></span><button class="ib sm" id="tClose">${icon('close', 18)}</button></h2>
+    <textarea id="tText" rows="3" style="width:100%;font-size:1rem" placeholder="セリフ・文字">${escapeHtml(st.textLast || '')}</textarea>
+    <div class="prow"><span>大きさ</span><input type="range" id="tSize" min="12" max="400" step="1" value="${st.textSize}"><span class="v dot" id="tSizeV">${st.textSize}</span></div>
+    <div class="prow"><span>ふちどり</span><input type="range" id="tOut" min="0" max="20" step="1" value="${st.textOutline}"><span class="v dot" id="tOutV">${st.textOutline}</span></div>
+    <div class="btnrow">
+      <button class="btn-sm ${st.textVertical ? 'on' : ''}" id="tV">たて書き</button>
+      <button class="btn-sm ${!st.textVertical ? 'on' : ''}" id="tH">よこ書き</button>
+      <button class="btn-sm ${st.textBold ? 'on' : ''}" id="tB">太字</button>
+      ${TEXT_FONTS.map((f, i) => `<button class="btn-sm ${st.textFont === i ? 'on' : ''}" data-tf="${i}">${f[0]}</button>`).join('')}
+    </div>
+    <p class="small">いまの 色で 新しい レイヤーに 入ります。あとから「囲って動かす」で 動かせます。</p>
+    <div class="btnrow"><button class="btn-y" id="tOk">入れる</button><button id="tNo">やめる</button></div>`);
+  const re = () => {
+    $('#tV').classList.toggle('on', st.textVertical); $('#tH').classList.toggle('on', !st.textVertical);
+    $('#tB').classList.toggle('on', st.textBold);
+    for (const b of $$('[data-tf]')) b.classList.toggle('on', +b.dataset.tf === st.textFont);
+  };
+  $('#tSize').oninput = e => { st.textSize = +e.target.value; $('#tSizeV').textContent = st.textSize; };
+  $('#tOut').oninput = e => { st.textOutline = +e.target.value; $('#tOutV').textContent = st.textOutline; };
+  $('#tV').onclick = () => { st.textVertical = true; re(); };
+  $('#tH').onclick = () => { st.textVertical = false; re(); };
+  $('#tB').onclick = () => { st.textBold = !st.textBold; re(); };
+  for (const b of $$('[data-tf]')) b.onclick = () => { st.textFont = +b.dataset.tf; re(); };
+  $('#tClose').onclick = closeModal; $('#tNo').onclick = closeModal;
+  setTimeout(() => $('#tText').focus(), 50);
+  $('#tOk').onclick = async () => {
+    const text = $('#tText').value.replace(/\s+$/, '');
+    if (!text) { closeModal(); return; }
+    st.textLast = text; saveSettings();
+    closeModal();
+    const c = await renderText({ text, size: st.textSize, vertical: st.textVertical, bold: st.textBold, font: st.textFont, outline: st.textOutline });
+    const rgba = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    // たて書きは タップした ところが 右上、よこ書きは 左上
+    const ox = Math.round(st.textVertical ? dx - c.width : dx), oy = Math.round(dy);
+    commitFloat();
+    E.layerFromRgba(new Uint8Array(rgba.buffer), c.width, c.height, ox, oy, text.split('\n')[0].slice(0, 12));
+    changed({ layers: true });
+    addRecent(S.color);
+  };
+}
+
+/* ================================================================ タイムラプス（制作の 動画） */
+let tlBusy = false, tlPending = false, tlLast = 0, tlTimer = 0;
+/* 何か かわる たびに 1コマ。描いて いる 間・描きなおし 中は まつ。 */
+function recordFrame() {
+  if (!S.work || !S.settings.timelapse) return;
+  tlPending = true;
+  if (!tlTimer) tlTimer = setTimeout(tlTick, 250);
+}
+async function tlTick() {
+  tlTimer = 0;
+  if (!tlPending) return;
+  if (tlBusy || input.drawing || E.dirtyCount() > 0 || performance.now() - tlLast < 300) { tlTimer = setTimeout(tlTick, 120); return; }
+  tlPending = false;
+  tlBusy = true;
+  tlLast = performance.now();
+  try {
+    const k = Math.min(1, 960 / Math.max(docCv.width, docCv.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(2, Math.round(docCv.width * k / 2) * 2); c.height = Math.max(2, Math.round(docCv.height * k / 2) * 2);
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.drawImage(docCv, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+    S.work.frames = (S.work.frames || 0) + 1;
+    await store.addFrame(S.work.id, S.work.frames, blob);
+  } catch (_) {}
+  tlBusy = false;
+  if (tlPending && !tlTimer) tlTimer = setTimeout(tlTick, 120);
+}
+function pickRecorderType() {
+  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  return types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+}
+async function exportTimelapse(seconds) {
+  const keys = await store.frameKeys(S.work.id).catch(() => []);
+  if (keys.length < 2) { toast('まだ コマが ありません（描くと たまります）'); return; }
+  const type = pickRecorderType();
+  if (!type) { toast('この ブラウザでは 動画に できません'); return; }
+  const fps = 30;
+  const total = Math.max(2, Math.min(keys.length, Math.round(seconds * fps)));
+  const pick = Array.from({ length: total }, (_, i) => keys[Math.round(i * (keys.length - 1) / (total - 1))]);
+  const first = await createImageBitmap(await store.frame(pick[0]));
+  const c = document.createElement('canvas');
+  const k = Math.min(1, 1280 / Math.max(first.width, first.height));
+  c.width = Math.round(first.width * k / 2) * 2; c.height = Math.round(first.height * k / 2) * 2;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  const stream = c.captureStream(fps);
+  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6e6 });
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  const done = new Promise(r => { rec.onstop = r; });
+  rec.start(500);
+  toast('動画に しています… 0%', 60000);
+  const frameMs = 1000 / fps;
+  let t0 = performance.now();
+  for (let i = 0; i < pick.length; i++) {
+    const bmp = await createImageBitmap(await store.frame(pick[i]));
+    x.drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close && bmp.close();
+    const wait = t0 + frameMs * (i + 1) - performance.now();
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    if (i % 15 === 0) $('#toast').textContent = `動画に しています… ${Math.round(i / pick.length * 100)}%`;
+  }
+  await new Promise(r => setTimeout(r, 1500)); // さいごの 絵を 少し 止める
+  rec.stop();
+  await done;
+  const ext = type.includes('mp4') ? 'mp4' : 'webm';
+  download(new Blob(chunks, { type: type.split(';')[0] }), safeName(workName()) + '_タイムラプス.' + ext);
+  toast('タイムラプスを 書き出しました');
+}
+async function openTimelapse() {
+  const keys = await store.frameKeys(S.work.id).catch(() => []);
+  const st = S.settings;
+  openModal(`<h2>${icon('film')}タイムラプス<span class="grow"></span><button class="ib sm" id="flClose">${icon('close', 18)}</button></h2>
+    <p class="small">描く たびに 絵を 1コマ ずつ しまって おき、制作の ようすを 動画に します。この 作品の コマ: <b>${keys.length}</b></p>
+    <div class="prow chk"><span>コマを ためる</span><input type="checkbox" id="flOn" ${st.timelapse ? 'checked' : ''}></div>
+    <div class="prow"><span>動画の 長さ</span><input type="range" id="flSec" min="5" max="60" step="1" value="${st.timelapseSec}"><span class="v dot" id="flSecV">${st.timelapseSec}秒</span></div>
+    <div class="btnrow"><button class="btn-y" id="flGo">${icon('download', 16)}動画を 書き出す</button><button class="danger" id="flClear">${icon('trash', 16)}コマを 消す</button></div>`);
+  $('#flClose').onclick = closeModal;
+  $('#flOn').onchange = e => { st.timelapse = e.target.checked; saveSettings(); };
+  $('#flSec').oninput = e => { st.timelapseSec = +e.target.value; $('#flSecV').textContent = st.timelapseSec + '秒'; saveSettings(); };
+  $('#flGo').onclick = () => { closeModal(); exportTimelapse(st.timelapseSec).catch(err => toast('動画に できませんでした: ' + (err.message || err), 3000)); };
+  $('#flClear').onclick = async () => {
+    if (!await confirmBox('この 作品の タイムラプスの コマを 消しますか？')) return;
+    await store.clearFrames(S.work.id); S.work.frames = 0; toast('消しました');
+  };
+}
+
 /* ================================================================ キーボード */
 window.addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
@@ -2629,7 +2993,7 @@ window.addEventListener('keydown', e => {
   if (k === ' ') { input.space = true; e.preventDefault(); return; }
   if (k === 'enter' && S.float) { commitFloat(); return; }
   if (k === 'escape' && S.float) { cancelFloat(); return; }
-  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', s: 'select', l: 'lasso', m: 'move', v: 'verase', w: 'vwidth', i: 'pick' };
+  const tools = { b: 'draw', p: 'draw', e: 'erase', g: 'fill', s: 'select', l: 'lasso', m: 'move', u: 'shape', t: 'text', v: 'verase', w: 'vwidth', i: 'pick' };
   if (tools[k]) { selectTool(tools[k]); return; }
   if (k === '[' || k === ']') {
     const i = currentBrushIndex();
