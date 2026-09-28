@@ -92,6 +92,7 @@ class Engine {
   layerAddVector() { this.x.layer_add_vector(); }
   layerRasterize(i) { this.x.layer_rasterize(i); }
   vectorWidth(x, y, r, f) { return this.x.vector_width(x, y, r, f) === 1; }
+  vectorWidthStroke(x, y, r, f) { return this.x.vector_width_stroke(x, y, r, f) === 1; }
   vectorErase(x, y, r, mode) { return this.x.vector_erase(x, y, r, mode) === 1; }
   selLasso(points, mode) {
     const f = new Float32Array(points.length * 2);
