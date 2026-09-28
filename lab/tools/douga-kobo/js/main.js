@@ -2,25 +2,25 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=73';
-import { wire, bus } from './bus.js?v=73';
-import { MEDIA, importFiles, hookAll } from './media.js?v=73';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=73';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=73';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=73';
-import { beatOn, beatSec, beatAt } from './beat.js?v=73';
-import * as TL from './ui/timeline.js?v=73';
-import * as P from './ui/panel.js?v=73';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=73';
+} from './state.js?v=74';
+import { wire, bus } from './bus.js?v=74';
+import { MEDIA, importFiles, hookAll } from './media.js?v=74';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=74';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=74';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=74';
+import { beatOn, beatSec, beatAt } from './beat.js?v=74';
+import * as TL from './ui/timeline.js?v=74';
+import * as P from './ui/panel.js?v=74';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=74';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=73';
-import { addFontFile } from './text.js?v=73';
-import { makePack, openPack, zip } from './pack.js?v=73';
-import { showStart } from './ui/start.js?v=73';
-import { openDemo } from './demo.js?v=73';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=73';
-import { trackOf } from './state.js?v=73';
+} from './edit.js?v=74';
+import { addFontFile } from './text.js?v=74';
+import { makePack, openPack, zip } from './pack.js?v=74';
+import { showStart } from './ui/start.js?v=74';
+import { openDemo } from './demo.js?v=74';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=74';
+import { trackOf } from './state.js?v=74';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -180,6 +180,28 @@ $('#nextF').onclick = () => { pause(); seek(S.time + 1 / S.fps); TL.follow(); };
 $('#cut').onclick = () => TL.splitHere();
 $('#dup').onclick = dupSel;
 $('#del').onclick = delSel;
+
+/* 全画面。iPad の Safari は webkit の ほうしか ない。iPhone は できない */
+{
+  const d = document, root = d.documentElement;
+  const isFull = () => !!(d.fullscreenElement || d.webkitFullscreenElement);
+  const show = () => {
+    const b = $('#full');
+    if (!b) return;
+    b.classList.toggle('on', isFull());
+    b.title = isFull() ? '全画面を やめる' : '全画面に する';
+  };
+  $('#full').onclick = () => {
+    try {
+      if (isFull()) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      else if (root.requestFullscreen) root.requestFullscreen().catch(() => toast('この ブラウザでは 全画面に できません'));
+      else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+      else toast('この ブラウザでは 全画面に できません（ホーム画面に 追加すると 広く 使えます）', 3400);
+    } catch (e) { toast('全画面に できませんでした'); }
+  };
+  d.addEventListener('fullscreenchange', show);
+  d.addEventListener('webkitfullscreenchange', show);
+}
 $('#snap').onclick = e => { S.snap = !S.snap; e.currentTarget.classList.toggle('on', S.snap); };
 $('#fold').onclick = e => {
   const f = $('#list').classList.toggle('folded');
