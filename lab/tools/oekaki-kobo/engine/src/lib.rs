@@ -345,7 +345,7 @@ pub extern "C" fn doc_save_quick() -> usize {
                     "locked": l.locked, "clipping": l.clipping, "sketch": l.sketch,
                     "reference": l.reference, "blend": l.blend, "linear_blend": l.linear_blend,
                     "kind": l.kind, "parent_id": l.parent_id, "expanded": l.expanded,
-                    "tone": l.tone,
+                    "tone": l.tone, "vector": l.vector,
                     "alpha_lock": app.alpha_locked.contains(&l.id),
                     "tiles": l.pixels.tile_keys(),
                     "mask": l.mask.as_ref().or(app.masks_off.get(&l.id)).map(|m| m.tile_keys()),
@@ -421,6 +421,7 @@ pub extern "C" fn doc_load_quick(ptr: *const u8, len: usize) -> i32 {
             layer.parent_id = l["parent_id"].as_u64();
             layer.expanded = l["expanded"].as_bool().unwrap_or(true);
             layer.tone = serde_json::from_value(l["tone"].clone()).unwrap_or(None);
+            layer.vector = serde_json::from_value(l["vector"].clone()).unwrap_or(None);
             if l["alpha_lock"].as_bool().unwrap_or(false) {
                 locked.push(layer.id);
             }

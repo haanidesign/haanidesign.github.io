@@ -108,3 +108,21 @@ fn multi_layers() {
     assert_eq!(layers_merge(bytes.as_ptr(), ids.len() as u32), 1);
     assert!(layers_delete(bytes.as_ptr(), 1) >= 1);
 }
+
+#[test]
+fn quick_keeps_vector() {
+    doc_new(800, 600, 350.0, 1);
+    layer_add_vector();
+    brush_select(0);
+    stroke_begin(50.0, 300.0);
+    for i in 0..=100 { stroke_push(50.0 + i as f32 * 7.0, 300.0, 0.8, 0.0, 0.0, 0.0, i as f64 * 5.0); }
+    stroke_end();
+    let a = dark();
+    doc_save_quick();
+    let bytes = unsafe { std::slice::from_raw_parts(out_ptr(), out_len()) }.to_vec();
+    doc_new(100, 100, 350.0, 1);
+    assert_eq!(doc_load_quick(bytes.as_ptr(), bytes.len()), 0);
+    assert_eq!(dark(), a);
+    assert_eq!(vector_width_stroke(300.0, 300.0, 20.0, 2.0), 1);
+    assert!(dark() > a);
+}

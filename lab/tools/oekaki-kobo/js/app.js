@@ -84,7 +84,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=10');
+    E = await loadEngine('engine.wasm?v=11');
   } catch (err) {
     msg.textContent = err.message;
     return;
