@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=302';
+import { M } from './engine/math.js?v=303';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=302';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=303';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=302';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=302';
-import { createRenderer } from './render/renderer.js?v=302';
-import { createTimeline } from './ui/timeline.js?v=302';
-import { fmtTime, setPin } from './engine/anim.js?v=302';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=302';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=303';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=303';
+import { createRenderer } from './render/renderer.js?v=303';
+import { createTimeline } from './ui/timeline.js?v=303';
+import { fmtTime, setPin } from './engine/anim.js?v=303';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=303';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,25 +21,25 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=302';
+         setWarper } from './ui/sheet.js?v=303';
 
-import { showNewDoc } from './ui/newdoc.js?v=302';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=302';
-import { fitToCanvas, isBg } from './io/bg.js?v=302';
-import * as Audio from './io/audio.js?v=302';
-import { isTalk, blipTimes } from './engine/talk.js?v=302';
+import { showNewDoc } from './ui/newdoc.js?v=303';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=303';
+import { fitToCanvas, isBg } from './io/bg.js?v=303';
+import * as Audio from './io/audio.js?v=303';
+import { isTalk, blipTimes } from './engine/talk.js?v=303';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=302';
-import { importPsd } from './io/psd.js?v=302';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=302';
-import { splitTextChars } from './io/text.js?v=302';
-import { exportAE } from './io/ae.js?v=302';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=303';
+import { importPsd } from './io/psd.js?v=303';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=303';
+import { splitTextChars } from './io/text.js?v=303';
+import { exportAE } from './io/ae.js?v=303';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=302';
-import { pathKeys, pathLength } from './engine/path.js?v=302';
-import { paintDirty } from './engine/paint.js?v=302';
+         canUseWebCodecs } from './io/export.js?v=303';
+import { pathKeys, pathLength } from './engine/path.js?v=303';
+import { paintDirty } from './engine/paint.js?v=303';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=302';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=303';
 
 const $ = (s) => document.querySelector(s);
 
@@ -845,6 +845,42 @@ $('#mute').addEventListener('click', () => {
   }
 });
 showMute();
+
+/* ---------- 全画面 ----------
+   アドレスバーや タブを かくして、絵を 大きく 見る。
+   iPhone の Safari は 画面 ぜんたいの 全画面が できない ので、
+   その ときは ホーム画面に 追加 を すすめる。 */
+function fullOn(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function showFull(){
+  const b = $('#full');
+  if(!b) return;
+  const on = fullOn();
+  b.textContent = on ? '⊟' : '⛶';
+  b.classList.toggle('on', on);
+  b.title = on ? '全画面を やめる' : '全画面にする';
+  b.setAttribute('aria-label', b.title);
+}
+$('#full').addEventListener('click', async () => {
+  const el = document.documentElement;
+  try{
+    if(fullOn()){
+      await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else if(el.requestFullscreen){
+      await el.requestFullscreen({ navigationUI: 'hide' });
+    } else if(el.webkitRequestFullscreen){
+      el.webkitRequestFullscreen();
+    } else {
+      toast('この ブラウザは 全画面に できません（ホーム画面に 追加 すると 広く なります）');
+    }
+  }catch(e){
+    toast('全画面に できませんでした');
+  }
+});
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev =>
+  document.addEventListener(ev, () => { showFull(); stage.resize(); stage.draw(); }));
+showFull();
 
 /* ---- タイムライン ---- */
 /* 音は 再生ボタンと いっしょに 鳴らす。
