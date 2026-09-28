@@ -498,6 +498,7 @@ pub extern "C" fn doc_info() -> usize {
                     "mask": l.mask.is_some() || app.masks_off.contains_key(&l.id),
                     "mask_off": app.masks_off.contains_key(&l.id),
                     "sketch": l.sketch,
+                    "reference": l.reference,
                     "parent": l.parent_id.and_then(|p| app.doc.layers.iter().position(|x| x.id == p)),
                     "depth": depth,
                     "tone": l.tone.map(|t| serde_json::json!({
@@ -1819,6 +1820,7 @@ pub extern "C" fn layer_set(index: u32, key_ptr: *const u8, key_len: usize, valu
                 }
             }
             "sketch" => layer.sketch = on,
+            "reference" => layer.reference = on,
             "blend" => layer.blend = BLENDS[(value.max(0.0) as usize).min(BLENDS.len() - 1)],
             "tone" => {
                 layer.tone = if on {
@@ -2027,10 +2029,19 @@ impl App {
     }
 
     /// 塗りつぶしで 見る 絵。見えている ラスターを 単純に 重ねる（速さ 優先）。
-    fn fill_reference(&self, all: bool) -> Vec<u8> {
+    /// mode: 0 この レイヤー 1 見えている ぜんぶ 2 参照レイヤー（なければ ぜんぶ）
+    fn fill_reference(&self, mode: u32) -> Vec<u8> {
         let (w, h) = (self.doc.width, self.doc.height);
         let mut out = vec![0u8; (w * h * 4) as usize];
-        let layers: Vec<&Layer> = if all {
+        let has_ref = self.doc.layers.iter().any(|l| l.reference && l.kind == LayerKind::Raster);
+        let all = mode != 0;
+        let layers: Vec<&Layer> = if mode == 2 && has_ref {
+            self.doc
+                .layers
+                .iter()
+                .filter(|l| l.kind == LayerKind::Raster && l.reference && self.visible_in_tree(l))
+                .collect()
+        } else if all {
             self.doc
                 .layers
                 .iter()
@@ -2173,7 +2184,7 @@ pub extern "C" fn fill_at(x: f32, y: f32, tolerance: u32, all: u32, grow: u32) -
         if x < 0.0 || y < 0.0 || x >= w as f32 || y >= h as f32 || !app.paintable(app.selected) {
             return 0;
         }
-        let pixels = app.fill_reference(all != 0);
+        let pixels = app.fill_reference(all);
         let mut sel = Selection {
             mask: flood(&pixels, w, h, x as u32, y as u32, tolerance.min(255)),
             active: true,
@@ -2758,7 +2769,7 @@ pub extern "C" fn sel_wand(x: f32, y: f32, tolerance: u32, all: u32, mode: u32) 
         if x < 0.0 || y < 0.0 || x >= w as f32 || y >= h as f32 {
             return 0;
         }
-        let pixels = app.fill_reference(all != 0);
+        let pixels = app.fill_reference(all);
         let mask = flood(&pixels, w, h, x as u32, y as u32, tolerance.min(255));
         app.sel_combine(mask, mode);
         app.selection.active as i32
@@ -3554,5 +3565,128 @@ pub extern "C" fn mask_preview(max: u32) -> usize {
             }
         }
         set_out(out)
+    })
+}
+
+// ---------------------------------------------------------------- 複数の レイヤー
+
+fn ids_from(ptr: *const u8, count: u32) -> Vec<u64> {
+    bytes_from(ptr, count as usize * 4)
+        .chunks_exact(4)
+        .map(|c| u32::from_le_bytes(c.try_into().unwrap()) as u64)
+        .collect()
+}
+
+/// えらんだ レイヤーを まとめて 消す（ids は u32 の ならび）。
+#[unsafe(no_mangle)]
+pub extern "C" fn layers_delete(ptr: *const u8, count: u32) -> i32 {
+    let ids = ids_from(ptr, count);
+    with_app(0, |app| {
+        let mut gone: Vec<u64> = Vec::new();
+        for id in &ids {
+            gone.extend(efude_canvas::subtree_ids(&app.doc.layers, *id));
+        }
+        let left = app.doc.layers.iter().filter(|l| !gone.contains(&l.id) && l.kind == LayerKind::Raster).count();
+        if gone.is_empty() || left == 0 {
+            return 0;
+        }
+        app.checkpoint();
+        let removed: Vec<Layer> = app.doc.layers.iter().filter(|l| gone.contains(&l.id)).cloned().collect();
+        app.doc.layers.retain(|l| !gone.contains(&l.id));
+        for l in &removed {
+            app.mark_layer(l);
+        }
+        app.selected = app.selected.min(app.doc.layers.len() - 1);
+        removed.len() as i32
+    })
+}
+
+/// えらんだ ラスターレイヤーを 1まいに する（いちばん 下の レイヤーに まとめる）。
+#[unsafe(no_mangle)]
+pub extern "C" fn layers_merge(ptr: *const u8, count: u32) -> i32 {
+    let ids = ids_from(ptr, count);
+    with_app(0, |app| {
+        let idx: Vec<usize> = (0..app.doc.layers.len())
+            .filter(|&i| ids.contains(&app.doc.layers[i].id) && app.doc.layers[i].kind == LayerKind::Raster)
+            .collect();
+        if idx.len() < 2 {
+            return 0;
+        }
+        app.checkpoint();
+        let (w, h) = (app.doc.width, app.doc.height);
+        let mut tmp_layers: Vec<Layer> = Vec::new();
+        for &i in &idx {
+            let mut l = app.doc.layers[i].clone();
+            l.parent_id = None;
+            l.vector = None;
+            if !app.visible_in_tree(&app.doc.layers[i]) {
+                continue;
+            }
+            tmp_layers.push(l);
+        }
+        let tmp = Document { width: w, height: h, dpi: app.doc.dpi, layers: tmp_layers, metadata: Default::default() };
+        let dense = efude_canvas::composite_transparent(&tmp);
+        let mut merged = TilePixels::from_dense(w, h, &dense);
+        merged.prune_empty_tiles();
+        let bottom = idx[0];
+        let keep_id = app.doc.layers[bottom].id;
+        {
+            let b = &mut app.doc.layers[bottom];
+            b.pixels = merged;
+            b.opacity = 1.0;
+            b.blend = BlendMode::Normal;
+            b.clipping = false;
+            b.tone = None;
+            b.vector = None;
+            b.mask = None;
+            b.visible = true;
+        }
+        let drop: Vec<u64> = idx[1..].iter().map(|&i| app.doc.layers[i].id).collect();
+        app.doc.layers.retain(|l| !drop.contains(&l.id));
+        app.selected = app.doc.layers.iter().position(|l| l.id == keep_id).unwrap_or(0);
+        app.mark_all();
+        1
+    })
+}
+
+/// えらんだ レイヤーを 新しい フォルダーに まとめる。
+#[unsafe(no_mangle)]
+pub extern "C" fn layers_group(ptr: *const u8, count: u32) -> i32 {
+    let ids = ids_from(ptr, count);
+    with_app(0, |app| {
+        // えらんだ ものの うち、親も えらばれて いる ものは 親ごと 動くので のぞく
+        let mut idx: Vec<usize> = (0..app.doc.layers.len())
+            .filter(|&i| ids.contains(&app.doc.layers[i].id))
+            .filter(|&i| app.doc.layers[i].parent_id.is_none_or(|p| !ids.contains(&p)))
+            .collect();
+        if idx.is_empty() {
+            return 0;
+        }
+        app.checkpoint();
+        idx.sort_unstable();
+        let top = *idx.last().unwrap();
+        let parent = app.doc.layers[top].parent_id;
+        let move_ids: Vec<u64> = idx.iter().map(|&i| app.doc.layers[i].id).collect();
+        let mut n = 1;
+        let name = loop {
+            let name = format!("フォルダー {n}");
+            if !app.doc.layers.iter().any(|l| l.name == name) {
+                break name;
+            }
+            n += 1;
+        };
+        let mut folder = blank_layer(app, &name);
+        folder.kind = LayerKind::Folder;
+        folder.parent_id = parent;
+        let fid = folder.id;
+        app.doc.layers.insert(top + 1, folder);
+        efude_canvas::tidy_layer_order(&mut app.doc.layers);
+        for id in move_ids {
+            let mut h = History::default();
+            h.place_layer(&mut app.doc.layers, id, fid, efude_canvas::LayerPlacement::Into);
+        }
+        app.selected = app.doc.layers.iter().position(|l| l.id == fid).unwrap_or(0);
+        app.mark_all();
+        1
     })
 }

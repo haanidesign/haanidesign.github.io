@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
   shapeKind: 'line', shapeFill: false, shapePressure: 0.8,
   textSize: 60, textVertical: true, textBold: false, textFont: 0, textOutline: 0, textLast: '',
   timelapse: true, timelapseSec: 20, sym: null,
+  fillRef: 1,
   selMode: 'lasso', selOp: 0, selTol: 24, selAll: true,
   vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
@@ -83,7 +84,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=8');
+    E = await loadEngine('engine.wasm?v=9');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -664,7 +665,7 @@ function startAction(e, x, y) {
   if (tool === 'fill') {
     if (!layerPaintable()) { layerBlockedToast(); return; }
     const st = S.settings;
-    const ok = E.fill(dx, dy, Math.round(st.fillTol * 2.55), st.fillAll, st.fillGrow);
+    const ok = E.fill(dx, dy, Math.round(st.fillTol * 2.55), st.fillRef ?? (st.fillAll ? 1 : 0), st.fillGrow);
     if (ok) { addRecent(S.color); changed(); }
     return;
   }
@@ -699,7 +700,7 @@ function startAction(e, x, y) {
   }
   if (tool === 'select') {
     const st = S.settings;
-    if (st.selMode === 'wand') { E.selWand(dx, dy, Math.round(st.selTol * 2.55), st.selAll, st.selOp); refreshSel(); return; }
+    if (st.selMode === 'wand') { E.selWand(dx, dy, Math.round(st.selTol * 2.55), st.selAll ? (st.fillRef === 2 ? 2 : 1) : 0, st.selOp); refreshSel(); return; }
     input.lassoMove = false;
     input.lassoSel = true;
     input.lasso = [[dx, dy]];
@@ -1047,10 +1048,10 @@ function renderToolOpts() {
   el.innerHTML = '';
   if (S.tool === 'fill') {
     el.innerHTML = `
-      <label><input type="checkbox" id="oAll" ${st.fillAll ? 'checked' : ''}>見えている 絵を 見る</label>
+      <select id="oRef" style="width:auto"><option value="1" ${st.fillRef === 1 ? 'selected' : ''}>見えている 絵を 見る</option><option value="2" ${st.fillRef === 2 ? 'selected' : ''}>参照レイヤーを 見る</option><option value="0" ${st.fillRef === 0 ? 'selected' : ''}>この レイヤーだけ 見る</option></select>
       <label>色の はば <input type="range" id="oTol" min="0" max="100" value="${st.fillTol}"><span class="dot" id="oTolV">${st.fillTol}</span></label>
       <label>はみ出し <input type="range" id="oGrow" min="0" max="8" value="${st.fillGrow}"><span class="dot" id="oGrowV">${st.fillGrow}</span></label>`;
-    $('#oAll', el).onchange = e => { st.fillAll = e.target.checked; saveSettings(); };
+    $('#oRef', el).onchange = e => { st.fillRef = +e.target.value; saveSettings(); };
     $('#oTol', el).oninput = e => { st.fillTol = +e.target.value; $('#oTolV').textContent = st.fillTol; saveSettings(); };
     $('#oGrow', el).oninput = e => { st.fillGrow = +e.target.value; $('#oGrowV').textContent = st.fillGrow; saveSettings(); };
   } else if (S.tool === 'lasso') {
@@ -1549,7 +1550,11 @@ function refreshLayers() {
     if (l.tone) marks.push(icon('tone', 13));
     if (l.sketch) marks.push(icon('pencil', 13));
     if (l.alpha_lock) marks.push(icon('alpha', 13));
-    row.innerHTML = `<button class="leye" title="表示">${icon(l.visible ? 'eye' : 'eyeoff', 17)}</button>
+    if (l.reference) marks.push(icon('lighthouse', 13));
+    if (checkedIds.has(l.id)) row.classList.add('checked');
+    row.dataset.id = l.id;
+    row.innerHTML = `<button class="leye" title="表示（なぞると まとめて）">${icon(l.visible ? 'eye' : 'eyeoff', 17)}</button>
+      <span class="lchk ${checkedIds.has(l.id) ? 'on' : ''}" title="チェック（なぞると まとめて）"><i></i></span>
       <span class="ledit">${i === S.info.selected ? icon('pencil', 13) : ''}</span>
       <span class="lind" style="width:${l.depth * 14 + (l.clipping ? 8 : 0)}px"></span>
       ${l.folder ? `<button class="lchev" title="ひらく／たたむ">${icon('aright', 15)}</button><span class="lfoldic">${icon('folder', 24)}</span>`
@@ -1559,12 +1564,8 @@ function refreshLayers() {
       <div class="ltext"><div class="lmeta dot">${Math.round(l.opacity * 100)}% ${BLEND_NAMES[l.blend]}</div><div class="lname">${escapeHtml(l.name)}</div></div>
       <span class="lmarks">${marks.join('')}</span>
       <span class="lgrip" title="ドラッグで 並べかえ">${icon('menu', 16)}</span>`;
-    row.querySelector('.leye').onclick = ev => {
-      ev.stopPropagation();
-      E.checkpoint();
-      E.layerSet(i, 'visible', l.visible ? 0 : 1);
-      changed({ layers: true });
-    };
+    row.querySelector('.leye').onclick = ev => ev.stopPropagation();
+    row.querySelector('.lchk').onclick = ev => ev.stopPropagation();
     const chev = row.querySelector('.lchev');
     if (chev) chev.onclick = ev => { ev.stopPropagation(); E.layerSet(i, 'expanded', l.expanded ? 0 : 1); refreshLayers(); };
     let lastTap = 0;
@@ -1595,6 +1596,7 @@ function refreshLayers() {
   }
   list.scrollTop = keepScroll;
   syncLayerHead();
+  renderCheckBar();
 }
 function syncLayerHead() {
   const l = S.info.layers[S.info.selected];
@@ -1607,6 +1609,7 @@ function syncLayerHead() {
   $('#lLock').classList.toggle('on', l.locked);
   $('#lTone').classList.toggle('on', !!l.tone);
   $('#lSketch').classList.toggle('on', !!l.sketch);
+  $('#lRef').classList.toggle('on', !!l.reference);
   $('#lAlpha').classList.toggle('on', !!l.alpha_lock);
   $('#lMask').classList.toggle('on', !!l.mask);
   $('#lTone').disabled = l.folder;
@@ -1707,7 +1710,7 @@ function openLayerSettings() {
 }
 function setupLayerPanel() {
   const ic = (id, name) => setIcon($(id), name, 17);
-  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil'); ic('#lAlpha', 'alpha'); ic('#lMask', 'mask');
+  ic('#lClip', 'clip'); ic('#lLock', 'lock'); ic('#lTone', 'tone'); ic('#lSketch', 'pencil'); ic('#lRef', 'lighthouse'); ic('#lAlpha', 'alpha'); ic('#lMask', 'mask');
   ic('#lAdd', 'layeradd'); ic('#lVec', 'pen'); ic('#lFolder', 'folder'); ic('#lImage', 'image');
   ic('#lDup', 'copy'); ic('#lMerge', 'merge'); ic('#lSet', 'settings'); ic('#lDel', 'trash');
   const cur = () => [S.info.selected, S.info.layers[S.info.selected]];
@@ -1716,6 +1719,8 @@ function setupLayerPanel() {
   $('#lLock').onclick = toggle('locked');
   $('#lTone').onclick = toggle('tone');
   $('#lSketch').onclick = toggle('sketch');
+  $('#lRef').onclick = () => { const [i, l] = cur(); E.checkpoint(); E.layerSet(i, 'reference', l.reference ? 0 : 1); changed({ layers: true }); if (!l.reference) toast('参照レイヤー … 塗りつぶしで「参照レイヤーを 見る」に すると この 線を 境に 塗れます'); };
+  setupLayerSwipe();
   $('#lMask').onclick = e => { e.stopPropagation(); openMaskMenu($('#lMask')); };
   $('#lAlpha').onclick = () => { const [i, l] = cur(); E.layerSet(i, 'alpha_lock', l.alpha_lock ? 0 : 1); changed({ layers: true }); toast(l.alpha_lock ? '透明度保護を はずしました' : '透明度保護: 色の ある ところ だけ 塗れます'); };
   $('#lBlend').onchange = e => { const [i] = cur(); E.checkpoint(); E.layerSet(i, 'blend', +e.target.value); changed({ layers: true }); };
@@ -3145,6 +3150,85 @@ function openMaskMenu(btn) {
   pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
   pop.style.top = Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8) + 'px';
   menuPop = pop;
+}
+
+/* ================================================================ レイヤーの チェック（まとめて） */
+const checkedIds = new Set();
+/* 目 と チェックは、おした ところから なぞると まとめて 同じに なる */
+function setupLayerSwipe() {
+  const list = $('#layerList');
+  let sw = null;
+  const rowAt = y => $$('.lrow', list).find(r => { const b = r.getBoundingClientRect(); return y >= b.top && y < b.bottom; });
+  const apply = row => {
+    if (!row || sw.done.has(row)) return;
+    sw.done.add(row);
+    const i = +row.dataset.i, id = +row.dataset.id;
+    if (sw.kind === 'eye') {
+      E.layerSet(i, 'visible', sw.value ? 1 : 0);
+      row.classList.toggle('hid', !sw.value);
+      row.querySelector('.leye').innerHTML = icon(sw.value ? 'eye' : 'eyeoff', 17);
+      kick();
+    } else {
+      if (sw.value) checkedIds.add(id); else checkedIds.delete(id);
+      row.classList.toggle('checked', sw.value);
+      row.querySelector('.lchk').classList.toggle('on', sw.value);
+    }
+  };
+  list.addEventListener('pointerdown', e => {
+    const t = e.target.closest('.leye,.lchk');
+    if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    const row = t.closest('.lrow');
+    const i = +row.dataset.i, l = S.info.layers[i];
+    if (t.classList.contains('leye')) { commitFloat(); E.checkpoint(); sw = { kind: 'eye', value: !l.visible, done: new Set() }; }
+    else sw = { kind: 'chk', value: !checkedIds.has(l.id), done: new Set() };
+    list.setPointerCapture(e.pointerId);
+    apply(row);
+  }, true);
+  list.addEventListener('pointermove', e => { if (sw) apply(rowAt(e.clientY)); });
+  const end = () => { if (!sw) return; const k = sw.kind; sw = null; if (k === 'eye') changed({ layers: true }); else renderCheckBar(); };
+  list.addEventListener('pointerup', end);
+  list.addEventListener('pointercancel', end);
+}
+function checkedList() {
+  const ids = new Set(S.info.layers.map(l => l.id));
+  for (const id of [...checkedIds]) if (!ids.has(id)) checkedIds.delete(id);
+  return [...checkedIds];
+}
+function renderCheckBar() {
+  const bar = $('#checkBar');
+  const ids = checkedList();
+  bar.hidden = ids.length === 0;
+  if (!ids.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = `<b>${ids.length}こ チェック</b>
+    <button data-cb="all">${icon('checkall', 13)}ぜんぶ</button><button data-cb="none">はずす</button>
+    <button data-cb="show">${icon('eye', 13)}表示</button><button data-cb="hide">${icon('eyeoff', 13)}非表示</button>
+    <button data-cb="lock">${icon('lock', 13)}ロック</button><button data-cb="unlock">ロック解除</button>
+    <button data-cb="folder">${icon('folder', 13)}フォルダーに</button><button data-cb="merge">${icon('merge', 13)}結合</button>
+    <button data-cb="del" class="danger">${icon('trash', 13)}削除</button>`;
+  for (const b of $$('[data-cb]', bar)) b.onclick = () => checkAction(b.dataset.cb);
+}
+async function checkAction(a) {
+  commitFloat();
+  const ids = checkedList();
+  const idxOf = id => S.info.layers.findIndex(l => l.id === id);
+  const setAll = (key, v) => { E.checkpoint(); for (const id of ids) { const i = idxOf(id); if (i >= 0) E.layerSet(i, key, v); } changed({ layers: true }); };
+  if (a === 'all') { for (const l of S.info.layers) checkedIds.add(l.id); refreshLayers(); return; }
+  if (a === 'none') { checkedIds.clear(); refreshLayers(); return; }
+  if (a === 'show') return setAll('visible', 1);
+  if (a === 'hide') return setAll('visible', 0);
+  if (a === 'lock') return setAll('locked', 1);
+  if (a === 'unlock') return setAll('locked', 0);
+  if (a === 'folder') { if (E.layersGroup(ids)) { checkedIds.clear(); changed({ layers: true }); } return; }
+  if (a === 'merge') {
+    if (!await confirmBox(`チェックした ${ids.length}この レイヤーを 1まいに しますか？`)) return;
+    if (E.layersMerge(ids)) { checkedIds.clear(); changed({ layers: true }); } else toast('ラスターレイヤーを 2こ いじょう チェックして ください');
+    return;
+  }
+  if (a === 'del') {
+    if (!await confirmBox(`チェックした ${ids.length}この レイヤーを 削除しますか？`)) return;
+    if (E.layersDelete(ids) > 0) { checkedIds.clear(); changed({ layers: true }); } else toast('ぜんぶは 消せません');
+  }
 }
 
 /* ================================================================ キーボード */

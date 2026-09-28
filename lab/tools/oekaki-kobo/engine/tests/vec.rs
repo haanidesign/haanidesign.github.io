@@ -91,3 +91,20 @@ fn dark_t() -> usize {
     let p = unsafe { std::slice::from_raw_parts(out_ptr(), n) };
     p.chunks(4).filter(|c| c[3] > 128).count()
 }
+
+#[test]
+fn multi_layers() {
+    doc_new(400, 300, 350.0, 1);
+    layer_add(); layer_add(); layer_add();
+    doc_info();
+    let info: serde_json::Value = serde_json::from_slice(unsafe { std::slice::from_raw_parts(out_ptr(), out_len()) }).unwrap();
+    let ids: Vec<u32> = info["layers"].as_array().unwrap().iter().skip(2).map(|l| l["id"].as_u64().unwrap() as u32).collect();
+    let bytes: Vec<u8> = ids.iter().flat_map(|i| i.to_le_bytes()).collect();
+    assert_eq!(layers_group(bytes.as_ptr(), ids.len() as u32), 1);
+    doc_info();
+    let info: serde_json::Value = serde_json::from_slice(unsafe { std::slice::from_raw_parts(out_ptr(), out_len()) }).unwrap();
+    let names: Vec<String> = info["layers"].as_array().unwrap().iter().map(|l| format!("{}@{}", l["name"].as_str().unwrap(), l["parent"])).collect();
+    println!("group {:?}", names);
+    assert_eq!(layers_merge(bytes.as_ptr(), ids.len() as u32), 1);
+    assert!(layers_delete(bytes.as_ptr(), 1) >= 1);
+}

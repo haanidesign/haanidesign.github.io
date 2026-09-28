@@ -98,7 +98,7 @@ class Engine {
     points.forEach((p, i) => { f[i * 2] = p[0]; f[i * 2 + 1] = p[1]; });
     return this.withBytes(new Uint8Array(f.buffer), (p) => this.x.sel_lasso(p, points.length, mode)) === 1;
   }
-  selWand(x, y, tol, all, mode) { return this.x.sel_wand(x, y, tol, all ? 1 : 0, mode) === 1; }
+  selWand(x, y, tol, all, mode) { return this.x.sel_wand(x, y, tol, typeof all === 'number' ? all : (all ? 1 : 0), mode) === 1; }
   selOp(op, n = 0) { return this.x.sel_op(op, n) === 1; }
   selActive() { return this.x.sel_active() === 1; }
   selPreview(max) { const n = this.x.sel_preview(max); return n ? this.outCopy() : null; }
@@ -112,6 +112,13 @@ class Engine {
   maskFromSelection(hide) { return this.x.mask_from_selection(hide ? 1 : 0) === 1; }
   maskThumb(i, w, h) { const n = this.x.mask_thumb(i, w, h); return n ? this.outCopy() : null; }
   maskPreview(max) { const n = this.x.mask_preview(max); return n ? this.outCopy() : null; }
+  layersBatch(fn, ids) {
+    const u = new Uint32Array(ids);
+    return this.withBytes(new Uint8Array(u.buffer), (p) => this.x[fn](p, ids.length));
+  }
+  layersDelete(ids) { return this.layersBatch('layers_delete', ids); }
+  layersMerge(ids) { return this.layersBatch('layers_merge', ids) === 1; }
+  layersGroup(ids) { return this.layersBatch('layers_group', ids) === 1; }
   setVectorWhole(on) { this.x.set_vector_whole(on ? 1 : 0); }
   layerSelect(i) { this.x.layer_select(i); }
   layerDelete(i) { this.x.layer_delete(i); }
@@ -131,7 +138,7 @@ class Engine {
   }
 
   /* ---- 塗る ---- */
-  fill(x, y, tol, all, grow) { return this.x.fill_at(x, y, tol, all ? 1 : 0, grow) === 1; }
+  fill(x, y, tol, all, grow) { return this.x.fill_at(x, y, tol, typeof all === 'number' ? all : (all ? 1 : 0), grow) === 1; }
   floatBegin(points) {
     const f = new Float32Array(points.length * 2);
     points.forEach((p, i) => { f[i * 2] = p[0]; f[i * 2 + 1] = p[1]; });
