@@ -14,14 +14,17 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=299';
-import { setPin } from '../engine/anim.js?v=299';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=299';
+import { newSway } from '../engine/puppet.js?v=302';
+import { setPin } from '../engine/anim.js?v=302';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=302';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
    （「前髪」は「髪」より 先に 見ないと まとめて 髪に なる）。 */
 const RULES = [
+  /* ゆれもの（イヤリング など）は いちばん さきに 見る。
+     「耳」まで 入れると 耳の 絵じたいが ゆれて しまう ので 入れない。 */
+  ['earring',   /イヤリング|いやりんぐ|ピアス|ぴあす|耳飾|みみかざり|イヤーカフ|earring|pierc/i],
   ['frontHair', /前髪|まえがみ|front\s*hair|bang|fringe/i],
   ['backHair',  /後ろ髪|うしろ髪|うしろがみ|back\s*hair|hair\s*back/i],
   ['hair',      /髪|かみ|hair/i],
@@ -45,6 +48,8 @@ export function roleOf(name){
      period … ひとゆれ の 長さ（秒）
      phase  … はじまりの ずらし（0〜1）。ぜんぶ そろうと 不自然 */
 const SWAY = {
+  /* ぶらさがって いる もの。かるい ので はやく、大きく ふれる */
+  earring:   { angle: 9.0, period: 1.4, phase: 0.30 },
   frontHair: { angle: 2.6, period: 2.8, phase: 0.00 },
   backHair:  { angle: 3.4, period: 3.4, phase: 0.18 },
   hair:      { angle: 2.8, period: 3.0, phase: 0.10 },
@@ -58,6 +63,7 @@ const SWAY = {
    髪は はえぎわ、頭は 首もと、うでは かた ―― そこを 中心に すると
    ゆれが それらしく なる。 */
 const PIVOT = {
+  earring:   { x: 0.5, y: 0.05 },   // 耳に ついて いる ところ（上の はし）
   frontHair: { x: 0.5, y: 0.12 },
   backHair:  { x: 0.5, y: 0.10 },
   hair:      { x: 0.5, y: 0.12 },
@@ -71,7 +77,7 @@ const PIVOT = {
 };
 
 /* 頭に ついて いく もの ／ 体に ついて いく もの */
-const ON_HEAD = ['frontHair', 'backHair', 'hair', 'brow', 'eye', 'mouth'];
+const ON_HEAD = ['frontHair', 'backHair', 'hair', 'brow', 'eye', 'mouth', 'earring'];
 const ON_BODY = ['head', 'arm', 'chest'];
 
 /* ループの 長さに きれいに 入る しゅうきに そろえる。
@@ -146,15 +152,21 @@ export function newRigSet(){
   };
 }
 
-const HAIR_ROLES = ['frontHair', 'backHair', 'hair'];
+/* 「髪の ゆれ」の つまみで いっしょに 強さが 変わる もの */
+const HAIR_ROLES = ['frontHair', 'backHair', 'hair', 'earring'];
 
 /** その レイヤーの 役に あわせた ゆれを かけ直す */
 function swayFor(l, set){
   const base = SWAY[l.rigRole];
   if(!base) return false;
   const k = (HAIR_ROLES.includes(l.rigRole) ? set.hair : set.face) * set.gain;
+  /* 左右の イヤリングが そろって ふれると 機械っぽい。
+     名前から 左右を 見て、はじまりを すこし ずらす */
+  let phase = base.phase;
+  if(l.rigRole === 'earring' && /右|みぎ|right|_r\b|R$/i.test(l.name || '')) phase += 0.18;
   l.sway = Object.assign(newSway(), base, {
     on: true,
+    phase,
     angle: Math.max(0, base.angle * k),
     period: fitPeriod(base.period, set.loop)
   });
@@ -388,7 +400,7 @@ export function rigReport(r){
     + String.fromCharCode(10)
     + '「体」「頭」「前髪」「うで」などの 名前を つけて ためしてね。';
   const NL = String.fromCharCode(10);
-  const nm = { frontHair:'前髪', backHair:'後ろ髪', hair:'髪', head:'頭',
+  const nm = { earring:'イヤリング', frontHair:'前髪', backHair:'後ろ髪', hair:'髪', head:'頭',
                brow:'眉', eye:'目', mouth:'口', arm:'うで', chest:'胸', body:'体' };
   return r.n + 'まいに うごきを つけました（'
     + r.roles.map(x => nm[x] || x).join('・') + '）' + NL

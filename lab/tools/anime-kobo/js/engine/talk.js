@@ -13,8 +13,8 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=299';
-import { newLayer, newFolder } from './layer.js?v=299';
+import { S } from '../state.js?v=302';
+import { newLayer, newFolder } from './layer.js?v=302';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -83,7 +83,17 @@ export function talkDefaults(project){
     blip: true,
     blipEvery: 2,
     blipHz: 880,             // 音の 高さ（大きいほど 高い）
-    mouth: null              // 口を 動かす レイヤーの ばんごう
+    mouth: null,             // 口を 動かす レイヤーの ばんごう
+
+    /* ---- 吹き出し ----
+       shape が 'bubble' の ときだけ つかう。場所は 画面の わりあい。 */
+    shape: 'band',           // band … 下の 帯 ／ bubble … 吹き出し
+    bKind: 'round',          // round … ふつう ／ shout … さけび ／ think … こころ
+    bx: 0.5, by: 0.28,       // 吹き出しの まん中
+    bw: 0.62,                // いちばん 広い はば（画面の なんわり）
+    tx: 0.5, ty: 0.52,       // しっぽの さき（しゃべって いる 人の 口もと）
+    bFill: '#FFFFFF',        // 吹き出しの 中
+    bInk: '#1E1C14'          // 線と 字
   };
 }
 
@@ -138,6 +148,155 @@ export function blipTimes(l){
   return out;
 }
 
+/* ---------- 吹き出し ----------
+   セリフの ぜんぶを 先に はかって 大きさを きめる。
+   出て いる 字だけで はかると、1文字 出る たびに
+   吹き出しが ふくらんで ガタガタ する。 */
+function wrapLines(g, text, maxW){
+  const lines = [];
+  for(const para of String(text || '').split('\n')){
+    let cur = '';
+    for(const ch of para){
+      if(cur && g.measureText(cur + ch).width > maxW){ lines.push(cur); cur = ch; }
+      else cur += ch;
+    }
+    lines.push(cur);
+  }
+  return lines;
+}
+
+/** 楕円の ふちの うち、(px,py) の むきに ある 点 */
+function rimPoint(cx, cy, rx, ry, px, py){
+  const a = Math.atan2((py - cy) / ry, (px - cx) / rx);
+  return { x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry, a };
+}
+
+/* 吹き出しの 大きさと 場所。描く ときも、絵の 上で つかむ ときも これを つかう。 */
+let _measure = null;
+export function bubbleGeom(t, w, h, gIn){
+  const g = gIn || (_measure || (_measure = document.createElement('canvas').getContext('2d')));
+  const size = Math.round(t.size);
+  g.font = size + 'px system-ui, sans-serif';
+  /* 字の かたまりの 大きさ（ぜんぶの 字で はかる） */
+  const maxW = Math.max(size * 3, w * (t.bw || 0.62) * 0.72);
+  const lines = wrapLines(g, t.text, maxW);
+  const lineH = size * (t.line || 1.45);
+  let tw = 0;
+  lines.forEach(s => { tw = Math.max(tw, g.measureText(s).width); });
+  tw = Math.max(tw, size * 2);
+  const th = Math.max(lineH, lines.length * lineH);
+  /* 楕円は 四角を ぴったり つつむ 大きさ（√2 ばい）＋ すこし よゆう */
+  const cx = w * (t.bx == null ? 0.5 : t.bx);
+  const cy = h * (t.by == null ? 0.28 : t.by);
+  const rx = tw / 2 * 1.42 + size * 0.7;
+  const ry = th / 2 * 1.42 + size * 0.6;
+  const tipX = w * (t.tx == null ? 0.5 : t.tx);
+  const tipY = h * (t.ty == null ? 0.52 : t.ty);
+  return { size, lines, lineH, th, cx, cy, rx, ry, tipX, tipY };
+}
+
+function drawBubble(g, l, t, n, w, h){
+  const ink = t.bInk || '#1E1C14';
+  const fill = t.bFill || '#FFFFFF';
+  const { size, lines, lineH, th, cx, cy, rx, ry, tipX, tipY } = bubbleGeom(t, w, h, g);
+  g.font = size + 'px system-ui, sans-serif';
+  const lw = Math.max(2, h / 360);
+  const tail = Math.hypot(tipX - cx, tipY - cy) > Math.min(rx, ry) * 1.05;
+
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  const kind = t.bKind || 'round';
+
+  /* からだの 形を 道に する（ぬる・ふちどる の どちらでも つかう） */
+  const bodyPath = () => {
+    if(kind === 'shout'){
+      /* さけび。とげとげ。とげの 数は 大きさで きめる */
+      const spikes = Math.max(14, Math.round((rx + ry) / (size * 0.9)));
+      for(let i = 0; i <= spikes * 2; i++){
+        const a = i / (spikes * 2) * Math.PI * 2;
+        const k = i % 2 === 0 ? 1.18 : 0.94;
+        const x = cx + Math.cos(a) * rx * k, y = cy + Math.sin(a) * ry * k;
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.closePath();
+    } else if(kind === 'think'){
+      /* こころの 声。もこもこ の くも */
+      const bumps = Math.max(9, Math.round((rx + ry) / (size * 1.3)));
+      for(let i = 0; i < bumps; i++){
+        const a0 = i / bumps * Math.PI * 2, a1 = (i + 1) / bumps * Math.PI * 2;
+        const x0 = cx + Math.cos(a0) * rx, y0 = cy + Math.sin(a0) * ry;
+        const x1 = cx + Math.cos(a1) * rx, y1 = cy + Math.sin(a1) * ry;
+        const am = (a0 + a1) / 2;
+        if(i === 0) g.moveTo(x0, y0);
+        g.quadraticCurveTo(cx + Math.cos(am) * rx * 1.22, cy + Math.sin(am) * ry * 1.22, x1, y1);
+      }
+      g.closePath();
+    } else {
+      g.moveTo(cx + rx, cy);
+      g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    }
+  };
+
+  /* しっぽ。ねもとは からだの 内がわに うめて おく
+     （あとで からだを ぬると、ねもとが きれいに かくれる） */
+  const tailPath = () => {
+    const rim = rimPoint(cx, cy, rx * 0.72, ry * 0.72, tipX, tipY);
+    const len = Math.hypot(tipX - rim.x, tipY - rim.y) || 1;
+    const half = Math.min(rx, ry) * 0.26;
+    const nx = -(tipY - rim.y) / len, ny = (tipX - rim.x) / len;
+    const mx = (rim.x + tipX) / 2, my = (rim.y + tipY) / 2;
+    g.moveTo(rim.x + nx * half, rim.y + ny * half);
+    /* すこし そらせる と マンガらしい */
+    g.quadraticCurveTo(mx + nx * half * 0.35, my + ny * half * 0.35, tipX, tipY);
+    g.quadraticCurveTo(mx - nx * half * 0.15, my - ny * half * 0.15,
+                       rim.x - nx * half, rim.y - ny * half);
+    g.closePath();
+  };
+  const withTail = tail && kind !== 'think';
+
+  /* ① ふちを 2ばいの 太さで 引く
+     ② その 上から 中の 色で ぬる
+     ―― こう すると、からだと しっぽが かさなる ところの 線は ぬりで かくれ、
+        そとがわの ふちだけが ちょうど 1ばいの 太さで のこる。 */
+  g.strokeStyle = ink;
+  g.lineWidth = lw * 2;
+  g.beginPath(); bodyPath(); g.stroke();
+  if(withTail){ g.beginPath(); tailPath(); g.stroke(); }
+
+  g.fillStyle = fill;
+  g.beginPath(); bodyPath(); g.fill();
+  if(withTail){ g.beginPath(); tailPath(); g.fill(); }
+
+  /* こころの 声の しっぽは ちいさな まる 3つ。
+     ふちの すぐ そとから、口もとに むかって だんだん 小さく */
+  if(tail && kind === 'think'){
+    const rim = rimPoint(cx, cy, rx * 1.12, ry * 1.12, tipX, tipY);
+    g.lineWidth = lw;
+    for(let i = 0; i < 3; i++){
+      const u = (i + 0.6) / 3.4;
+      const x = rim.x + (tipX - rim.x) * u, y = rim.y + (tipY - rim.y) * u;
+      const r = Math.max(4, size * (0.5 - i * 0.13));
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
+      g.fillStyle = fill; g.fill();
+      g.strokeStyle = ink; g.stroke();
+    }
+  }
+
+  /* --- 字（出て いる ぶんだけ）。まん中 そろえ --- */
+  g.fillStyle = ink;
+  g.textBaseline = 'top';
+  let left = n;
+  let y = cy - th / 2 + (lineH - size) / 2;
+  for(const s of lines){
+    if(left <= 0) break;
+    const part = [...s].slice(0, left).join('');
+    const full = g.measureText(s).width;
+    g.fillText(part, cx - full / 2, y);
+    left -= [...s].length;
+    y += lineH;
+  }
+}
+
 /**
  * いまの 時こくの セリフ枠を 1まいに 描いて かえす。
  */
@@ -154,13 +313,19 @@ export function talkCanvas(l, time, project){
   const t = l.talk || (l.talk = talkDefaults(P));
   const n = shownCount(l, time);
   const key = [n, t.text, t.who, t.size, t.pad, t.line, t.hRatio,
-               t.bg, t.bgAlpha, t.fg, t.box ? 1 : 0, w, h].join('|');
+               t.bg, t.bgAlpha, t.fg, t.box ? 1 : 0, w, h,
+               t.shape, t.bKind, t.bx, t.by, t.bw, t.tx, t.ty, t.bFill, t.bInk].join('|');
   if(l._tkKey === key) return l._tkC;
   l._tkKey = key;
 
   const g = l._tkC.getContext('2d');
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, w, h);
+
+  if(t.shape === 'bubble'){
+    drawBubble(g, l, t, n, w, h);
+    return l._tkC;
+  }
 
   const bh = Math.max(60, Math.round(h * (t.hRatio || 0.3)));
   const by = h - bh;
