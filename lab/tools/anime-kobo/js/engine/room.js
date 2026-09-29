@@ -17,10 +17,10 @@
      カメラの うしろに 回った かどは うつせない ので、
      その 三角は 出さない（見えない ところ なので 問題ない）。 */
 
-import { S, isDraft } from '../state.js?v=309';
-import { drawDeformed } from './puppet.js?v=309';
-import { newLayer, valuesAt } from './layer.js?v=309';
-import { camOf, camDolly } from './camera.js?v=309';
+import { S, isDraft } from '../state.js?v=310';
+import { drawDeformed } from './puppet.js?v=310';
+import { newLayer, valuesAt } from './layer.js?v=310';
+import { camOf, camDolly } from './camera.js?v=310';
 
 export const isRoom = (l) => !!l && l.kind === 'room';
 

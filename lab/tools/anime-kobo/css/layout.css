@@ -243,3 +243,18 @@
   #tracks{ padding:.2rem; gap:.18rem; }
 
 }
+
+/* タイムラインの 高さを 変える つまみ（上の ふち） */
+#list{ position:relative; }
+#listGrip{
+  position:absolute; left:50%; top:0; transform:translateX(-50%);
+  width:96px; height:16px; z-index:5;
+  display:flex; align-items:center; justify-content:center;
+  touch-action:none; cursor:ns-resize;
+}
+#listGrip::before{
+  content:''; width:48px; height:5px; border-radius:3px;
+  background:var(--ink); opacity:.35;
+}
+#list.folded #listGrip{ display:none; }
+#list.folded{ height:auto !important; max-height:none !important; }

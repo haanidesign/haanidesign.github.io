@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=309';
-import { newFolder, setParent } from '../engine/layer.js?v=309';
-import { setPin } from '../engine/anim.js?v=309';
+import { S } from '../state.js?v=310';
+import { newFolder, setParent } from '../engine/layer.js?v=310';
+import { setPin } from '../engine/anim.js?v=310';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05 };
@@ -42,7 +42,11 @@ function unitsOf(project, layers){
    そのあとも 止まらず、ゆっくり 寄って いく。
    うしろの まるも いっしょに ふくらむ。 */
 export function applySabun(project, root){
-  const o = root.sabun = Object.assign(newSabun(), root.sabun);
+  /* 入れものは 作り直さない。作り直すと シートの つまみが
+     古い ほうを 書きかえて、2回目 から 効かなく なる。 */
+  const o = root.sabun = root.sabun || {};
+  const def = newSabun();
+  Object.keys(def).forEach(k => { if(o[k] == null) o[k] = def[k]; });
   const units = project.layers.filter(l => l.parent === root.id);
   const n = units.length;
   const d = Math.max(0.05, +o.step || 0.5);
