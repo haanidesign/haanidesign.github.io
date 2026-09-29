@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=310';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=310';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=311';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=311';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=310';
+         nearestFolder, setParent } from '../engine/layer.js?v=311';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=310';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=310';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=310';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=310';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=311';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=311';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=311';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=311';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -759,11 +759,13 @@ export function createTimeline(root, opts = {}){
 
   /* ---------- キーフレームの操作バー ---------- */
   function buildPinbar(){
-    const n = S.selPins.times.length;
-    pinbar.hidden = n === 0;
-    if(!n) return;
+    /* バーは いつも 出す（親子付け・グループ・クリップ・リップル が ある）。
+       キーフレームを えらんで いない ときは、キーフレーム用の ボタンだけ かくす。 */
+    pinbar.hidden = false;
     const l = S.proj.layers.find(x => x.id === S.selPins.layer);
-    if(!l){ pinbar.hidden = true; return; }
+    const n = l ? S.selPins.times.length : 0;
+    pinbar.querySelectorAll('.pinonly').forEach(b => { b.hidden = n === 0; });
+    if(!n) return;
 
     const info = pinbar.querySelector('#pininfo');
     info.textContent = (n === 1

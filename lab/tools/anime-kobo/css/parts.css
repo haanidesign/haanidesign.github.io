@@ -987,3 +987,4 @@ input[type=range].coarse{
   border-radius:0 5px 5px 0;
   pointer-events:none;
 }
+#pinbar [hidden], #playbar [hidden]{ display:none !important; }
