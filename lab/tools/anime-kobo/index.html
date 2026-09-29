@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>アニメ工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=308">
+<link rel="manifest" href="manifest.webmanifest?v=309">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,10 +15,10 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <!-- ためしの 見た目（soft.css）で つかう、まるくない 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=308">
-<link rel="stylesheet" href="css/layout.css?v=308">
-<link rel="stylesheet" href="css/parts.css?v=308">
-<link rel="stylesheet" href="css/soft.css?v=308">
+<link rel="stylesheet" href="css/tokens.css?v=309">
+<link rel="stylesheet" href="css/layout.css?v=309">
+<link rel="stylesheet" href="css/parts.css?v=309">
+<link rel="stylesheet" href="css/soft.css?v=309">
 <script type="module" src="../skin/icons.js?v=8"></script>
 </head>
 <body>
@@ -97,6 +97,7 @@
       <button id="play" class="btn-sm btn-y" title="さいせい" aria-label="さいせい">▶</button>
       <span class="tnum dot"><span id="tnow">0.0</span>/<span id="tdur">15.0</span></span>
       <span class="spacer"></span>
+      <button id="pickKeyDel" class="btn-sm" title="☑ の レイヤーの キーフレームを ぜんぶ けす" hidden>🗑 ☑の キー</button>
       <button id="key" class="btn-sm btn-y" title="いまの姿をキーフレームにする">◆</button>
       <button id="fold" class="btn-sm" title="レイヤーの欄を たたむ／ひろげる" aria-label="たたむ">▾</button>
     </div>
@@ -111,6 +112,7 @@
       <button id="pinLoop" class="btn-sm">🔁 ループ</button>
       <button id="pinPing" class="btn-sm">🔄 往復</button>
       <button id="pinDel" class="btn-sm">🗑 削除</button>
+      <button id="pinPickDel" class="btn-sm" title="☑ の レイヤーの キーフレームを ぜんぶ けす" hidden>🗑 ☑の キー</button>
     </div>
 
     <div id="ruler">
@@ -165,8 +167,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=308"></script>
-<script src="lib/mp4-muxer.js?v=308"></script>
-<script type="module" src="js/main.js?v=308"></script>
+<script src="lib/ag-psd.js?v=309"></script>
+<script src="lib/mp4-muxer.js?v=309"></script>
+<script type="module" src="js/main.js?v=309"></script>
 </body>
 </html>

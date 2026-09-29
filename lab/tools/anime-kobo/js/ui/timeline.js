@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=308';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=308';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=309';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=309';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=308';
+         nearestFolder, setParent } from '../engine/layer.js?v=309';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=308';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=308';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=308';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=308';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=309';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=309';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=309';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=309';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -126,6 +126,10 @@ export function createTimeline(root, opts = {}){
   function build(){
     // 再生バー
     root.querySelector('#tnow').textContent = S.time.toFixed(1);
+    ['#pickKeyDel', '#pinPickDel'].forEach(q => {
+      const b = root.querySelector(q);
+      if(b) b.hidden = !S.pick.length;
+    });
     root.querySelector('#tdur').textContent = S.proj.duration.toFixed(1);
     root.querySelector('#play').textContent = S.playing ? '⏸' : '▶';
     root.querySelector('#play').title = S.playing ? 'とめる' : 'さいせい';
@@ -1278,6 +1282,27 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
+  /* ☑ の レイヤーの うごきの キーフレームを ぜんぶ けす。
+     パペットピンの 変形（P…:x/y）は のこす。 */
+  function delPickedKeys(){
+    const isPuppet = (ch) => /^P.+:(x|y)$/.test(ch);
+    const ls = S.proj.layers.filter(l => S.pick.includes(l.id));
+    const count = (l) => Object.keys(l.tracks || {}).filter(c => !isPuppet(c))
+      .reduce((n, c) => n + (l.tracks[c] || []).length, 0);
+    const n = ls.reduce((a, l) => a + count(l), 0);
+    if(!n) return toast('☑ の レイヤーに キーフレームは ありません');
+    edit('☑ の キーフレームを けす', () => {
+      ls.forEach(l => {
+        Object.keys(l.tracks || {}).filter(c => !isPuppet(c)).forEach(c => delete l.tracks[c]);
+        l.loop = null;
+        if(l.sabun) delete l.sabun;
+      });
+    });
+    S.selPins = { layer:null, times:[] };
+    toast(ls.length + 'まいの キーフレーム ' + n + 'コを けしました（もどす で 戻せます）');
+    onChange();
+  }
+
   function delPins(){
     /* キーフレームを えらんでいれば、そちらを 先に けす。
        レイヤーの ☑ が ついていても、キーフレームが えらばれている あいだは
@@ -1486,7 +1511,7 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
-  return { build, updatePlayhead, putPin, delPins, delPicked, toPin, toggleHold, setLoop,
+  return { build, updatePlayhead, putPin, delPins, delPicked, delPickedKeys, toPin, toggleHold, setLoop,
            askPinTime,
            setEase, currentEase, currentShape, clearPins,
            copyPins, pastePins, zoomTime };
