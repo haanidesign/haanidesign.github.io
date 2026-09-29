@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=304';
-import { newFolder, setParent } from '../engine/layer.js?v=304';
-import { setPin } from '../engine/anim.js?v=304';
+import { S } from '../state.js?v=305';
+import { newFolder, setParent } from '../engine/layer.js?v=305';
+import { setPin } from '../engine/anim.js?v=305';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.06 };
@@ -84,4 +84,21 @@ export function sabunRootOf(project, l){
   let c = l, g = 0;
   while(c && g++ < 200){ if(c.sabun) return c; c = c.parent ? byId[c.parent] : null; }
   return null;
+}
+
+/** もう ある フォルダの 中身（すぐ下の フォルダ・レイヤー）を 差分に する */
+export function sabunFolder(project, f){
+  if(project.layers.filter(l => l.parent === f.id).length < 2) return null;
+  f.sabun = newSabun();
+  applySabun(project, f);
+  return f;
+}
+
+/** つなぎを はずす。全部 見える ように もどす */
+export function unSabun(project, f){
+  project.layers.filter(l => l.parent === f.id).forEach(u => {
+    if(u.tracks){ delete u.tracks.opacity; delete u.tracks.scaleX; delete u.tracks.scaleY; }
+    u.loop = null;
+  });
+  delete f.sabun;
 }
