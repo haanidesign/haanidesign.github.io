@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=306';
-import { newFolder, setParent } from '../engine/layer.js?v=306';
-import { setPin } from '../engine/anim.js?v=306';
+import { S } from '../state.js?v=307';
+import { newFolder, setParent } from '../engine/layer.js?v=307';
+import { setPin } from '../engine/anim.js?v=307';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.06 };
