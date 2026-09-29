@@ -988,3 +988,14 @@ input[type=range].coarse{
   pointer-events:none;
 }
 #pinbar [hidden], #playbar [hidden]{ display:none !important; }
+/* アイコンだけの ボタン列 */
+#pinbar button:not(#pininfo){ min-width:40px; justify-content:center; }
+#pinbar .ico{ font-size:1rem; line-height:1; }
+#btnTip{
+  position:fixed; z-index:9999; pointer-events:none;
+  padding:.3rem .6rem; border-radius:999px;
+  background:var(--ink); color:var(--paper);
+  font-size:.72rem; font-weight:700; white-space:nowrap;
+  opacity:0; transition:opacity .12s;
+}
+#btnTip.on{ opacity:1; }

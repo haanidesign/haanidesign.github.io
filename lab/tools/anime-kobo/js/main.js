@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=313';
+import { M } from './engine/math.js?v=314';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=313';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=314';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=313';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=313';
-import { createRenderer } from './render/renderer.js?v=313';
-import { createTimeline } from './ui/timeline.js?v=313';
-import { fmtTime, setPin } from './engine/anim.js?v=313';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=313';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=314';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=314';
+import { createRenderer } from './render/renderer.js?v=314';
+import { createTimeline } from './ui/timeline.js?v=314';
+import { fmtTime, setPin } from './engine/anim.js?v=314';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=314';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,26 +21,26 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=313';
+         setWarper } from './ui/sheet.js?v=314';
 
-import { showNewDoc } from './ui/newdoc.js?v=313';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=313';
-import { fitToCanvas, isBg } from './io/bg.js?v=313';
-import * as Audio from './io/audio.js?v=313';
-import { isTalk, blipTimes } from './engine/talk.js?v=313';
+import { showNewDoc } from './ui/newdoc.js?v=314';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=314';
+import { fitToCanvas, isBg } from './io/bg.js?v=314';
+import * as Audio from './io/audio.js?v=314';
+import { isTalk, blipTimes } from './engine/talk.js?v=314';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=313';
-import { importPsd } from './io/psd.js?v=313';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=313';
-import { makeSabun } from './io/sabun.js?v=313';
-import { splitTextChars } from './io/text.js?v=313';
-import { exportAE } from './io/ae.js?v=313';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=314';
+import { importPsd } from './io/psd.js?v=314';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=314';
+import { makeSabun } from './io/sabun.js?v=314';
+import { splitTextChars } from './io/text.js?v=314';
+import { exportAE } from './io/ae.js?v=314';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=313';
-import { pathKeys, pathLength } from './engine/path.js?v=313';
-import { paintDirty } from './engine/paint.js?v=313';
+         canUseWebCodecs } from './io/export.js?v=314';
+import { pathKeys, pathLength } from './engine/path.js?v=314';
+import { paintDirty } from './engine/paint.js?v=314';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=313';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=314';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1678,3 +1678,53 @@ async function boot(){
   });
 }
 boot();
+
+/* ---- タイムラインの ボタン列は アイコンだけ。さわると 名前が 出る ----
+   ボタンの 文字は あとから 書きかわる（ホールド中 など）ので、
+   書きかわる たびに 見はって アイコンだけに もどす。 */
+(() => {
+  const bar = $('#pinbar');
+  if(!bar) return;
+  const tip = document.createElement('div');
+  tip.id = 'btnTip';
+  document.body.appendChild(tip);
+  let tipT = 0;
+  const show = (b) => {
+    const t = b.dataset.tip;
+    if(!t) return;
+    tip.textContent = t;
+    tip.classList.add('on');
+    const r = b.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    tip.style.left = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2)) + 'px';
+    tip.style.top = (r.top - tip.offsetHeight - 6) + 'px';
+    clearTimeout(tipT);
+    tipT = setTimeout(() => tip.classList.remove('on'), 1400);
+  };
+  const iconize = (b) => {
+    const texts = [...b.childNodes].filter(n => n.nodeType === 3);
+    const lbl = texts.map(n => n.textContent).join('').trim();
+    if(!lbl) return;
+    let ico = b.querySelector('.ico');
+    let name = lbl;
+    if(!ico){
+      const m = lbl.match(/^(\S+)\s+(.+)$/);
+      ico = document.createElement('span');
+      ico.className = 'ico';
+      ico.textContent = m ? m[1] : lbl.slice(0, 1);
+      name = m ? m[2] : lbl;
+      b.prepend(ico);
+    }
+    texts.forEach(n => n.remove());
+    if(b.dataset.name) name = b.dataset.name;
+    b.dataset.tip = name;
+    b.setAttribute('aria-label', name);
+  };
+  const all = () => bar.querySelectorAll('button:not(#pininfo)').forEach(iconize);
+  all();
+  new MutationObserver(all).observe(bar, { childList:true, subtree:true, characterData:true });
+  bar.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('button');
+    if(b) show(b);
+  });
+})();

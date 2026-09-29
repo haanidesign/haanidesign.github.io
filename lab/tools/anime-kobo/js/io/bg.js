@@ -4,11 +4,11 @@
    ふつうのレイヤーなので、色を変える・写真に差しかえる・
    ゆっくり動かす・ぼかす が そのままできる。 */
 
-import { S, addAsset } from '../state.js?v=313';
-import { newLayer } from '../engine/layer.js?v=313';
-import { loadImage } from './image.js?v=313';
-import { makePattern, fitShift, PATTERNS } from './pattern.js?v=313';
-import { setPin } from '../engine/anim.js?v=313';
+import { S, addAsset } from '../state.js?v=314';
+import { newLayer } from '../engine/layer.js?v=314';
+import { loadImage } from './image.js?v=314';
+import { makePattern, fitShift, PATTERNS } from './pattern.js?v=314';
+import { setPin } from '../engine/anim.js?v=314';
 
 export const isBg = (l) => !!l && l.kind === 'bg';
 
