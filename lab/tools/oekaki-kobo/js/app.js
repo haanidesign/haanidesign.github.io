@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS = {
   timelapse: true, timelapseSec: 20, sym: null,
   fillRef: 1,
   selMode: 'lasso', selOp: 0, selTol: 24, selAll: true,
-  vectorWhole: false, vwThick: true, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
+  vectorWhole: false, vwThick: true, vwLine: true, vwStep: 25, vwPower: 5, vwRange: 40, veMode: 1, veRange: 14, curve: [0.25, 0.25, 0.75, 0.75], minPressure: 0, sizeBar: true,
 };
 const S = {
   tool: 'draw',
@@ -84,7 +84,7 @@ async function boot() {
   buildStaticIcons();
   const msg = $('#bootMsg');
   try {
-    E = await loadEngine('engine.wasm?v=9');
+    E = await loadEngine('engine.wasm?v=11');
   } catch (err) {
     msg.textContent = err.message;
     return;
@@ -407,7 +407,7 @@ function drawOverlay() {
   }
   if (input.cursor && (S.tool === 'vwidth' || S.tool === 'verase')) {
     const [x, y] = input.cursor;
-    octx.beginPath(); octx.arc(x, y, S.tool === 'verase' ? S.settings.veRange : S.settings.vwRange, 0, Math.PI * 2);
+    octx.beginPath(); octx.arc(x, y, S.tool === 'verase' ? S.settings.veRange : (S.settings.vwLine ? 24 : S.settings.vwRange), 0, Math.PI * 2);
     octx.setLineDash([5, 4]); octx.lineWidth = 2; octx.strokeStyle = '#1E1C14'; octx.stroke(); octx.setLineDash([]);
   }
   drawSymGuide();
@@ -563,7 +563,7 @@ function onMove(e) {
   }
   if (input.pickId === e.pointerId) { pickAt(x, y, false); return; }
   if (input.floatDrag && input.floatDrag.id === e.pointerId) { dragFloat(x, y); return; }
-  if (input.vw && input.vw.id === e.pointerId) { widthAt(x, y); return; }
+  if (input.vw && input.vw.id === e.pointerId) { if (S.settings.vwLine) { input.vw.x = x; input.vw.y = y; input.cursor = [x, y]; } else widthAt(x, y); return; }
   if (input.symDrag && input.symDrag.id === e.pointerId) {
     const [dx, dy] = toDoc(x, y); const y2 = symState(); y2.cx = dx; y2.cy = dy; applySym(); return;
   }
@@ -612,6 +612,7 @@ function onUp(e) {
     return;
   }
   if (input.vw && input.vw.id === e.pointerId) {
+    clearTimeout(input.vw.timer); clearInterval(input.vw.timer);
     const any = input.vw.any; input.vw = null;
     if (any) changed(); else { E.undo(); refreshUndo(); }
     return;
@@ -683,8 +684,13 @@ function startAction(e, x, y) {
     if (!l || !l.vector) { toast('ベクターレイヤーを えらんで ください'); return; }
     if (l.locked) { layerBlockedToast(); return; }
     E.checkpoint();
-    input.vw = { id: e.pointerId, t: 0, any: false };
-    widthAt(x, y);
+    input.vw = { id: e.pointerId, t: 0, any: false, x, y };
+    if (S.settings.vwLine) {
+      // 線ごと: おした 線を 1だん 太く／細く。おしつづけると 続けて かわる
+      widthLine();
+      const vw = input.vw;
+      vw.timer = setTimeout(() => { vw.timer = setInterval(widthLine, 200); }, 450);
+    } else widthAt(x, y);
     return;
   }
   if (tool === 'move') {
@@ -779,6 +785,14 @@ function widthAt(x, y) {
   const r = st.vwRange / S.view.s;
   if (E.vectorWidth(dx, dy, r, st.vwThick ? k : 1 / k)) { input.vw.any = true; kick(); }
   input.cursor = [x, y];
+}
+function widthLine() {
+  const st = S.settings, vw = input.vw;
+  if (!vw) return;
+  const [dx, dy] = toDoc(vw.x, vw.y);
+  const k = 1 + st.vwStep / 100;
+  if (E.vectorWidthStroke(dx, dy, 24 / S.view.s, st.vwThick ? k : 1 / k)) { vw.any = true; kick(); }
+  else if (!vw.any && !vw.missed) { vw.missed = true; toast('線の 上を おして ください'); }
 }
 function endDraw() {
   E.strokeEnd();
@@ -1128,16 +1142,22 @@ function renderToolOpts() {
   } else if (S.tool === 'vwidth') {
     el.innerHTML = `<button class="btn-sm ${st.vwThick ? 'on' : ''}" id="oWT">太く</button>
       <button class="btn-sm ${!st.vwThick ? 'on' : ''}" id="oWN">細く</button>
-      <label>強さ <input type="range" id="oWP" min="1" max="20" step="1" value="${st.vwPower}"></label>
-      <label>はんい <input type="range" id="oWR" min="10" max="150" step="1" value="${st.vwRange}"></label>
+      <span class="seg"><button class="btn-sm ${st.vwLine ? 'on' : ''}" id="oWL1">線ごと</button><button class="btn-sm ${!st.vwLine ? 'on' : ''}" id="oWL0">なぞった ところ</button></span>
+      ${st.vwLine ? `<label>1回で <input type="range" id="oWS" min="5" max="80" step="1" value="${st.vwStep}"><span class="dot" id="oWSV">${st.vwStep}%</span></label>` : `<label>強さ <input type="range" id="oWP" min="1" max="20" step="1" value="${st.vwPower}"></label>
+      <label>はんい <input type="range" id="oWR" min="10" max="150" step="1" value="${st.vwRange}"></label>`}
       <button class="btn-sm" id="oWAllT">線 ぜんぶ 太く</button><button class="btn-sm" id="oWAllN">線 ぜんぶ 細く</button>`;
     $('#oWT', el).onclick = () => { st.vwThick = true; saveSettings(); renderToolOpts(); };
     $('#oWN', el).onclick = () => { st.vwThick = false; saveSettings(); renderToolOpts(); };
-    $('#oWP', el).oninput = e => { st.vwPower = +e.target.value; saveSettings(); };
-    $('#oWR', el).oninput = e => { st.vwRange = +e.target.value; saveSettings(); drawOverlay(); };
+    $('#oWL1', el).onclick = () => { st.vwLine = true; saveSettings(); renderToolOpts(); drawOverlay(); };
+    $('#oWL0', el).onclick = () => { st.vwLine = false; saveSettings(); renderToolOpts(); drawOverlay(); };
+    if (st.vwLine) $('#oWS', el).oninput = e => { st.vwStep = +e.target.value; $('#oWSV', el).textContent = st.vwStep + '%'; saveSettings(); };
+    else {
+      $('#oWP', el).oninput = e => { st.vwPower = +e.target.value; saveSettings(); };
+      $('#oWR', el).oninput = e => { st.vwRange = +e.target.value; saveSettings(); drawOverlay(); };
+    }
     const all = f => { const l = S.info.layers[S.info.selected]; if (!l || !l.vector) { toast('ベクターレイヤーを えらんで ください'); return; } E.checkpoint(); if (E.vectorWidth(0, 0, 0, f)) changed(); else E.undo(); };
-    $('#oWAllT', el).onclick = () => all(1.15);
-    $('#oWAllN', el).onclick = () => all(1 / 1.15);
+    $('#oWAllT', el).onclick = () => all(1 + st.vwStep / 100);
+    $('#oWAllN', el).onclick = () => all(1 / (1 + st.vwStep / 100));
   } else if (S.tool === 'pick') {
     el.innerHTML = `<button class="btn-sm ${!st.pickLayer ? 'on' : ''}" id="oPA">見えている 色</button>
       <button class="btn-sm ${st.pickLayer ? 'on' : ''}" id="oPL">この レイヤーの 色</button>`;

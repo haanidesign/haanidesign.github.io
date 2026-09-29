@@ -345,7 +345,7 @@ pub extern "C" fn doc_save_quick() -> usize {
                     "locked": l.locked, "clipping": l.clipping, "sketch": l.sketch,
                     "reference": l.reference, "blend": l.blend, "linear_blend": l.linear_blend,
                     "kind": l.kind, "parent_id": l.parent_id, "expanded": l.expanded,
-                    "tone": l.tone,
+                    "tone": l.tone, "vector": l.vector,
                     "alpha_lock": app.alpha_locked.contains(&l.id),
                     "tiles": l.pixels.tile_keys(),
                     "mask": l.mask.as_ref().or(app.masks_off.get(&l.id)).map(|m| m.tile_keys()),
@@ -421,6 +421,7 @@ pub extern "C" fn doc_load_quick(ptr: *const u8, len: usize) -> i32 {
             layer.parent_id = l["parent_id"].as_u64();
             layer.expanded = l["expanded"].as_bool().unwrap_or(true);
             layer.tone = serde_json::from_value(l["tone"].clone()).unwrap_or(None);
+            layer.vector = serde_json::from_value(l["vector"].clone()).unwrap_or(None);
             if l["alpha_lock"].as_bool().unwrap_or(false) {
                 locked.push(layer.id);
             }
@@ -2583,6 +2584,47 @@ pub extern "C" fn vector_width(x: f32, y: f32, r: f32, factor: f32) -> i32 {
             dirty = vector::union_rect(dirty, vector::union_rect(before, st.bounds()));
         }
         let Some(rect) = dirty else {
+            return 0;
+        };
+        let rect = [rect[0] - 2, rect[1] - 2, rect[2] + 2, rect[3] + 2];
+        render_vector(l, w, h, rect);
+        app.mark_rect(rect[0] as f32, rect[1] as f32, rect[2] as f32, rect[3] as f32);
+        1
+    })
+}
+
+/// 触れた 線 1本（いちばん 近い もの）の 幅を まるごと factor 倍に する。
+#[unsafe(no_mangle)]
+pub extern "C" fn vector_width_stroke(x: f32, y: f32, r: f32, factor: f32) -> i32 {
+    with_app(0, |app| {
+        let i = app.selected;
+        let (w, h) = (app.doc.width, app.doc.height);
+        if app.doc.layers.get(i).is_none_or(|l| l.locked || l.vector.is_none()) || !factor.is_finite() {
+            return 0;
+        }
+        let l = &mut app.doc.layers[i];
+        let strokes = l.vector.as_mut().unwrap();
+        let mut best: Option<(usize, f32)> = None;
+        for (k, st) in strokes.iter().enumerate() {
+            for p in &st.points {
+                let d = (p.x - x).hypot(p.y - y) - p.width * 0.5;
+                if d < r && best.is_none_or(|(_, b)| d < b) {
+                    best = Some((k, d));
+                }
+            }
+        }
+        let Some((k, _)) = best else {
+            return 0;
+        };
+        let st = &mut strokes[k];
+        let before = st.bounds();
+        for p in st.points.iter_mut() {
+            p.width = (p.width * factor).clamp(0.3, 600.0);
+        }
+        for a in st.anchors.iter_mut() {
+            a.width = (a.width * factor).clamp(0.3, 600.0);
+        }
+        let Some(rect) = vector::union_rect(before, st.bounds()) else {
             return 0;
         };
         let rect = [rect[0] - 2, rect[1] - 2, rect[2] + 2, rect[3] + 2];
