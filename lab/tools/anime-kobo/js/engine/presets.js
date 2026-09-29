@@ -15,7 +15,7 @@
    名まえ・絵・中身を べつべつの ところに 置くと ずれて いく ので、
    かならず ここで ひとまとめに する。 */
 
-import { setPin } from './anim.js?v=315';
+import { setPin } from './anim.js?v=316';
 
 /* ================= 小さな絵（アイコン） =================
 
@@ -160,6 +160,13 @@ function keys(l, ch, t0, dur, v0, list){
 /** はねる 高さ。絵の 大きさに あわせる（小さい 絵が とびすぎない ように） */
 function hopOf(l){
   return 24;
+}
+
+/** ひとまわりを 4拍に わけて 1拍ずつ fn を よぶ（くり返しで はじめに もどる） */
+function beat4(l, t0, dur, fn){
+  const b = base(l);
+  const q = dur / 4;
+  for(let i = 0; i < 4; i++) fn(+(t0 + q * i).toFixed(3), q, b, i);
 }
 
 function base(l){
@@ -536,6 +543,37 @@ export const LOOP_LIST = [
     setPin(l, 'rot', t0 + dur * 0.5, b.rot + 5, 'smooth');
     setPin(l, 'rot', t0 + dur, b.rot - 5, 'smooth');
   }},
+
+  /* ---- ビートを きざむ ----
+     ひとまわりを 4拍と みて、拍の しゅんかんに いきなり 変わる。
+     もどったら つぎの 拍まで 止まる（hold）ので、きざむ 感じに なる。 */
+  { name:'ビート ドンッ', cat:'zoom', icon:ICON.pop, fn:(l, t0, dur) => beat4(l, t0, dur, (t, q, b, i) => {
+    const k = i % 2 ? 1.06 : 1.12;               // 表の 拍を つよく
+    setPin(l, 'scaleX', t, b.sx * k, 'out');
+    setPin(l, 'scaleY', t, b.sy * k, 'out');
+    setPin(l, 'scaleX', t + q * 0.5, b.sx, 'hold');
+    setPin(l, 'scaleY', t + q * 0.5, b.sy, 'hold');
+  })},
+
+  { name:'ビート ズンッ', cat:'move', icon:ICON.drop, fn:(l, t0, dur) => beat4(l, t0, dur, (t, q, b) => {
+    setPin(l, 'y', t, b.y + 14, 'out');
+    setPin(l, 'y', t + q * 0.55, b.y, 'hold');
+    setPin(l, 'scaleX', t, b.sx * 1.08, 'out');
+    setPin(l, 'scaleY', t, b.sy * 0.92, 'out');
+    setPin(l, 'scaleX', t + q * 0.55, b.sx, 'hold');
+    setPin(l, 'scaleY', t + q * 0.55, b.sy, 'hold');
+  })},
+
+  { name:'ビート カクッ', cat:'move', icon:ICON.tilt, fn:(l, t0, dur) => beat4(l, t0, dur, (t, q, b, i) => {
+    setPin(l, 'rot', t, b.rot + (i % 2 ? -7 : 7), 'hold');
+  })},
+
+  { name:'ビート うなずき', cat:'move', icon:ICON.float, fn:(l, t0, dur) => beat4(l, t0, dur, (t, q, b) => {
+    setPin(l, 'rot', t, b.rot + 6, 'out');
+    setPin(l, 'rot', t + q * 0.6, b.rot, 'hold');
+    setPin(l, 'y', t, b.y + 8, 'out');
+    setPin(l, 'y', t + q * 0.6, b.y, 'hold');
+  })},
 
   { name:'ちかちか する', cat:'show', icon:ICON.flicker, fn:(l, t0, dur) => {
     const b = base(l);

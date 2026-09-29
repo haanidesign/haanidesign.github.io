@@ -9,7 +9,7 @@
    うごきは どれも「拍の しゅんかんに ぐっと 変えて、すぐ もどす」形。
    もどりを 少し 行きすぎさせると、ぽにょんと はねて見える。 */
 
-import { setPin } from './anim.js?v=315';
+import { setPin } from './anim.js?v=316';
 
 /** 1拍の 長さ（秒） */
 export const beatSec = (bpm) => 60 / Math.max(20, Math.min(400, bpm || 120));
@@ -48,7 +48,7 @@ export function beatTimes(opt = {}){
 /* うごきの 種類。
    どれも「基準の姿」からの 変化なので、置いたあとに
    大きさや 場所を 変えても 破綻しない。 */
-export const RHYTHM_KINDS = ['ぽにょん', 'ジャンプ', 'くるっ', 'チカッ', 'ズーム'];
+export const RHYTHM_KINDS = ['ぽにょん', 'ジャンプ', 'くるっ', 'チカッ', 'ズーム', 'ドンッ', 'ズンッ', 'カクッ', 'うなずき'];
 
 /**
  * リズムの ピンを うつ。
@@ -66,10 +66,10 @@ export function rhythmKeys(l, opt = {}){
   const motion = opt.motion || 'ぽにょん';
   const base = baseOf(l, opt.pose);
 
-  let n = 0;
+  let n = 0, i = 0;
   for(const bt of times){
     n += putHit(l, bt.t, {
-      motion, beat: b, base,
+      motion, beat: b, base, i: i++,
       power: power * (bt.ura ? uraK : 1),
       back: bt.ura ? -1 : 1
     });
@@ -146,6 +146,38 @@ export function putHit(l, t0, opt = {}){
     put('opacity', t0 + hit * 0.6, Math.max(0, base.op * (1 - p)), 'hold');
     put('opacity', t0 + hit * 1.2, base.op, 'hold');
 
+  /* ---- ビートを きざむ うごき ----
+     拍の しゅんかんに いきなり 変わって、あとは もどって 止まる（hold）。
+     なめらかに 近づけると 拍の まえから 動きだして、きざむ 感じが 出ない。 */
+  } else if(motion === 'ドンッ'){
+    const k = 1 + p * 0.4;
+    put('scaleX', t0, base.sx * k, 'out');
+    put('scaleY', t0, base.sy * k, 'out');
+    put('scaleX', t0 + back, base.sx, 'hold');
+    put('scaleY', t0 + back, base.sy, 'hold');
+
+  } else if(motion === 'ズンッ'){
+    const d = 40 * p;
+    put('y', t0, base.y + d, 'out');
+    put('y', t0 + back, base.y, 'hold');
+    put('scaleX', t0, base.sx * (1 + p * 0.25), 'out');
+    put('scaleY', t0, base.sy * (1 - p * 0.25), 'out');
+    put('scaleX', t0 + back, base.sx, 'hold');
+    put('scaleY', t0 + back, base.sy, 'hold');
+
+  } else if(motion === 'カクッ'){
+    // 拍ごとに 左・右と かたむいて、そのまま つぎの 拍まで 止まる
+    const side = (opt.i || 0) % 2 ? -1 : 1;
+    put('rot', t0, base.rot + 14 * p * 2 * side, 'hold');
+
+  } else if(motion === 'うなずき'){
+    // 拍で こくっと 前に たおれて もどる
+    const a = 10 * p * 2;
+    put('rot', t0, base.rot + a, 'out');
+    put('rot', t0 + back, base.rot, 'hold');
+    put('y', t0, base.y + 12 * p, 'out');
+    put('y', t0 + back, base.y, 'hold');
+
   } else if(motion === 'ズーム'){
     const k = 1 + p * 0.6;
     put('scaleX', t0, base.sx);
@@ -161,6 +193,9 @@ export function putHit(l, t0, opt = {}){
 /** そのうごきが つかう チャンネル。消すときに つかう */
 export function rhythmChannels(motion){
   if(motion === 'ジャンプ') return ['y', 'scaleY'];
+  if(motion === 'ズンッ')   return ['y', 'scaleX', 'scaleY'];
+  if(motion === 'カクッ')   return ['rot'];
+  if(motion === 'うなずき') return ['rot', 'y'];
   if(motion === 'くるっ')   return ['rot'];
   if(motion === 'チカッ')   return ['opacity'];
   return ['scaleX', 'scaleY'];
