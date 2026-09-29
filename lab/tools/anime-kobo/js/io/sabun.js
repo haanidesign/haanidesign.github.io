@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=305';
-import { newFolder, setParent } from '../engine/layer.js?v=305';
-import { setPin } from '../engine/anim.js?v=305';
+import { S } from '../state.js?v=306';
+import { newFolder, setParent } from '../engine/layer.js?v=306';
+import { setPin } from '../engine/anim.js?v=306';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.06 };
@@ -101,4 +101,24 @@ export function unSabun(project, f){
     u.loop = null;
   });
   delete f.sabun;
+}
+
+/** ☑ で えらんだ レイヤーを 新しい フォルダに 入れて つなぐ。上から 順 */
+export function sabunPick(project, ids){
+  const set = new Set(ids);
+  const byId = byIdOf(project);
+  /* 親も えらばれて いる ものは 親に まかせる */
+  const up = (l) => { let c = l.parent && byId[l.parent], g = 0; while(c && g++ < 200){ if(set.has(c.id)) return true; c = c.parent && byId[c.parent]; } return false; };
+  const units = project.layers.filter(l => set.has(l.id) && !up(l));
+  if(units.length < 2) return null;
+  const f = newFolder('差分');
+  f.x = project.w / 2; f.y = project.h / 2;
+  const first = units[0];
+  f.parent = first.parent || null;
+  project.layers.splice(project.layers.indexOf(first), 0, f);
+  units.forEach(u => setParent(project, u, f.id, 0));
+  f.sabun = newSabun();
+  applySabun(project, f);
+  S.sel = f.id;
+  return f;
 }
