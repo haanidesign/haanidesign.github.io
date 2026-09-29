@@ -15,7 +15,7 @@
    名まえ・絵・中身を べつべつの ところに 置くと ずれて いく ので、
    かならず ここで ひとまとめに する。 */
 
-import { setPin } from './anim.js?v=314';
+import { setPin } from './anim.js?v=315';
 
 /* ================= 小さな絵（アイコン） =================
 
@@ -151,6 +151,16 @@ export const CATS = [
   { key:'move', label:'移動' },
   { key:'zoom', label:'拡大・縮小' }
 ];
+
+/** 倍率の ならびで キーフレームを うつ。list は [[0〜1 の 時間, 倍率], …] */
+function keys(l, ch, t0, dur, v0, list){
+  list.forEach(([u, k]) => setPin(l, ch, t0 + dur * u, v0 * k, 'smooth'));
+}
+
+/** はねる 高さ。絵の 大きさに あわせる（小さい 絵が とびすぎない ように） */
+function hopOf(l){
+  return 24;
+}
 
 function base(l){
   return { x: l.x, y: l.y, sx: l.scaleX, sy: l.scaleY, rot: l.rot,
@@ -454,6 +464,77 @@ export const LOOP_LIST = [
     setPin(l, 'rot', t0 + dur * 0.25, b.rot + 3, 'smooth');
     setPin(l, 'rot', t0 + dur * 0.75, b.rot - 3, 'smooth');
     setPin(l, 'rot', t0 + dur, b.rot - 3, 'smooth');
+  }},
+
+  /* ---- かわいい うごき ----
+     どれも さいごの キーフレームを はじめと 同じ 姿に して、
+     くり返しても つなぎ目が 見えない ように する。 */
+
+  /* ぽにょん … つぶれて、のびて、ぷるんと もどる */
+  { name:'ぽにょん', cat:'zoom', icon:ICON.bungee, fn:(l, t0, dur) => {
+    const b = base(l);
+    keys(l, 'scaleX', t0, dur, b.sx, [[0,1],[0.18,1.14],[0.38,0.9],[0.56,1.05],[0.74,0.98],[1,1]]);
+    keys(l, 'scaleY', t0, dur, b.sy, [[0,1],[0.18,0.86],[0.38,1.12],[0.56,0.96],[0.74,1.02],[1,1]]);
+  }},
+
+  /* ぴょんぴょん … かがんで はねて、着地で つぶれる */
+  { name:'ぴょんぴょん', cat:'move', icon:ICON.bounce, fn:(l, t0, dur) => {
+    const b = base(l);
+    const h = hopOf(l);
+    setPin(l, 'y', t0, b.y, 'smooth');
+    setPin(l, 'y', t0 + dur * 0.15, b.y, 'out');
+    setPin(l, 'y', t0 + dur * 0.45, b.y - h, 'in');
+    setPin(l, 'y', t0 + dur * 0.75, b.y, 'smooth');
+    setPin(l, 'y', t0 + dur, b.y, 'smooth');
+    keys(l, 'scaleX', t0, dur, b.sx, [[0,1],[0.15,1.12],[0.3,0.94],[0.45,1],[0.75,1.14],[0.88,0.97],[1,1]]);
+    keys(l, 'scaleY', t0, dur, b.sy, [[0,1],[0.15,0.88],[0.3,1.08],[0.45,1],[0.75,0.86],[0.88,1.03],[1,1]]);
+  }},
+
+  /* ぷるぷる … こきざみに ふるえる ゼリー */
+  { name:'ぷるぷる', cat:'zoom', icon:ICON.breathe, fn:(l, t0, dur) => {
+    const b = base(l);
+    const st = [[0,1]];
+    for(let i = 1; i < 8; i++) st.push([i / 8, i % 2 ? 1.05 : 0.96]);
+    st.push([1,1]);
+    keys(l, 'scaleX', t0, dur, b.sx, st);
+    keys(l, 'scaleY', t0, dur, b.sy, st.map(([u, v]) => [u, 2 - v]));
+  }},
+
+  /* ドキドキ … どくん・どくん、と 2かい ふくらんで やすむ */
+  { name:'ドキドキ', cat:'zoom', icon:ICON.pop, fn:(l, t0, dur) => {
+    const b = base(l);
+    const st = [[0,1],[0.1,1.12],[0.2,1],[0.3,1.08],[0.42,1],[1,1]];
+    keys(l, 'scaleX', t0, dur, b.sx, st);
+    keys(l, 'scaleY', t0, dur, b.sy, st);
+  }},
+
+  /* ぴこぴこ … 左右に ちょこん・ちょこんと かたむく */
+  { name:'ぴこぴこ', cat:'move', icon:ICON.tilt, fn:(l, t0, dur) => {
+    const b = base(l);
+    setPin(l, 'rot', t0, b.rot - 8, 'back');
+    setPin(l, 'rot', t0 + dur * 0.5, b.rot + 8, 'back');
+    setPin(l, 'rot', t0 + dur, b.rot - 8, 'back');
+  }},
+
+  /* もちもち … よこに のびたり たてに のびたり */
+  { name:'もちもち', cat:'zoom', icon:ICON.breathe, fn:(l, t0, dur) => {
+    const b = base(l);
+    keys(l, 'scaleX', t0, dur, b.sx, [[0,1],[0.25,1.1],[0.5,1],[0.75,0.92],[1,1]]);
+    keys(l, 'scaleY', t0, dur, b.sy, [[0,1],[0.25,0.92],[0.5,1],[0.75,1.1],[1,1]]);
+  }},
+
+  /* るんるん … はねながら ゆれる。スキップ みたいに */
+  { name:'るんるん', cat:'move', icon:ICON.swim, fn:(l, t0, dur) => {
+    const b = base(l);
+    const h = hopOf(l) * 0.5;
+    setPin(l, 'y', t0, b.y, 'out');
+    setPin(l, 'y', t0 + dur * 0.25, b.y - h, 'in');
+    setPin(l, 'y', t0 + dur * 0.5, b.y, 'out');
+    setPin(l, 'y', t0 + dur * 0.75, b.y - h, 'in');
+    setPin(l, 'y', t0 + dur, b.y, 'smooth');
+    setPin(l, 'rot', t0, b.rot - 5, 'smooth');
+    setPin(l, 'rot', t0 + dur * 0.5, b.rot + 5, 'smooth');
+    setPin(l, 'rot', t0 + dur, b.rot - 5, 'smooth');
   }},
 
   { name:'ちかちか する', cat:'show', icon:ICON.flicker, fn:(l, t0, dur) => {
