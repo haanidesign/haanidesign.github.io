@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=307';
+import { M } from './engine/math.js?v=308';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=307';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=308';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=307';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=307';
-import { createRenderer } from './render/renderer.js?v=307';
-import { createTimeline } from './ui/timeline.js?v=307';
-import { fmtTime, setPin } from './engine/anim.js?v=307';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=307';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=308';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=308';
+import { createRenderer } from './render/renderer.js?v=308';
+import { createTimeline } from './ui/timeline.js?v=308';
+import { fmtTime, setPin } from './engine/anim.js?v=308';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=308';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,26 +21,26 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=307';
+         setWarper } from './ui/sheet.js?v=308';
 
-import { showNewDoc } from './ui/newdoc.js?v=307';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=307';
-import { fitToCanvas, isBg } from './io/bg.js?v=307';
-import * as Audio from './io/audio.js?v=307';
-import { isTalk, blipTimes } from './engine/talk.js?v=307';
+import { showNewDoc } from './ui/newdoc.js?v=308';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=308';
+import { fitToCanvas, isBg } from './io/bg.js?v=308';
+import * as Audio from './io/audio.js?v=308';
+import { isTalk, blipTimes } from './engine/talk.js?v=308';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=307';
-import { importPsd } from './io/psd.js?v=307';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=307';
-import { makeSabun } from './io/sabun.js?v=307';
-import { splitTextChars } from './io/text.js?v=307';
-import { exportAE } from './io/ae.js?v=307';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=308';
+import { importPsd } from './io/psd.js?v=308';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=308';
+import { makeSabun } from './io/sabun.js?v=308';
+import { splitTextChars } from './io/text.js?v=308';
+import { exportAE } from './io/ae.js?v=308';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=307';
-import { pathKeys, pathLength } from './engine/path.js?v=307';
-import { paintDirty } from './engine/paint.js?v=307';
+         canUseWebCodecs } from './io/export.js?v=308';
+import { pathKeys, pathLength } from './engine/path.js?v=308';
+import { paintDirty } from './engine/paint.js?v=308';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=307';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=308';
 
 const $ = (s) => document.querySelector(s);
 

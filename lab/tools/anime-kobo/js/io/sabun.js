@@ -8,12 +8,12 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=307';
-import { newFolder, setParent } from '../engine/layer.js?v=307';
-import { setPin } from '../engine/anim.js?v=307';
+import { S } from '../state.js?v=308';
+import { newFolder, setParent } from '../engine/layer.js?v=308';
+import { setPin } from '../engine/anim.js?v=308';
 
 export function newSabun(){
-  return { step: 0.5, pop: 0.06 };
+  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05 };
 }
 
 const byIdOf = (p) => { const m = {}; p.layers.forEach(l => m[l.id] = l); return m; };
@@ -32,33 +32,76 @@ function unitsOf(project, layers){
   return units.sort((a, b) => project.layers.indexOf(a) - project.layers.indexOf(b));
 }
 
-/** キーを 打ち直す（つまみを 変えた ときも これ） */
+/** キーを 打ち直す（つまみを 変えた ときも これ）
+
+   お手本の 動画を コマ送りで 見ると、切りかわった しゅんかん
+     ・ひとまわり 大きく
+     ・すこし かたむいて（左右 こうごに）
+     ・すこし 上に はねて
+   出て、4〜5コマ（0.15秒ほど）で もとに おさまる。
+   そのあとも 止まらず、ゆっくり 寄って いく。
+   うしろの まるも いっしょに ふくらむ。 */
 export function applySabun(project, root){
   const o = root.sabun = Object.assign(newSabun(), root.sabun);
   const units = project.layers.filter(l => l.parent === root.id);
   const n = units.length;
   const d = Math.max(0.05, +o.step || 0.5);
   const len = +(n * d).toFixed(3);
+  const r3 = (v) => +v.toFixed(3);
+  const settle = Math.min(d * 0.45, 0.15);
   units.forEach((u, i) => {
     u.tracks = u.tracks || {};
-    delete u.tracks.opacity; delete u.tracks.scaleX; delete u.tracks.scaleY;
+    ['opacity','scaleX','scaleY','rot','y'].forEach(c => delete u.tracks[c]);
     u.loop = null;
-    const t0 = +(i * d).toFixed(3), t1 = +((i + 1) * d).toFixed(3);
+    const t0 = r3(i * d), t1 = r3((i + 1) * d), ts = r3(t0 + settle);
     if(n > 1){
       if(i > 0) setPin(u, 'opacity', 0, 0, 'hold');
       setPin(u, 'opacity', t0, 1, 'hold');
       if(i < n - 1) setPin(u, 'opacity', t1, 0, 'hold');
     }
-    const s = u.scaleX || 1, sy = u.scaleY || 1;
+    const sx = u.scaleX || 1, sy = u.scaleY || 1, rot = u.rot || 0, y = u.y || 0;
+    const side = i % 2 ? 1 : -1;
+    const hop = (o.jump || 0) * Math.min(project.w, project.h);
     if(o.pop > 0){
-      const up = 1 + o.pop, pt = Math.min(d * 0.4, 0.12);
-      setPin(u, 'scaleX', t0, s * up, 'easeOut');
-      setPin(u, 'scaleY', t0, sy * up, 'easeOut');
-      setPin(u, 'scaleX', +(t0 + pt).toFixed(3), s, 'hold');
-      setPin(u, 'scaleY', +(t0 + pt).toFixed(3), sy, 'hold');
+      setPin(u, 'scaleX', t0, sx * (1 + o.pop), 'out');
+      setPin(u, 'scaleY', t0, sy * (1 + o.pop), 'out');
+      setPin(u, 'scaleX', ts, sx, 'linear');
+      setPin(u, 'scaleY', ts, sy, 'linear');
+      /* おさまった あとも すこしずつ 寄る */
+      if(o.drift > 0){
+        setPin(u, 'scaleX', t1, sx * (1 + o.drift), 'hold');
+        setPin(u, 'scaleY', t1, sy * (1 + o.drift), 'hold');
+      }
+    }
+    if(o.tilt > 0){
+      setPin(u, 'rot', t0, rot + side * o.tilt, 'out');
+      setPin(u, 'rot', ts, rot, 'hold');
+    }
+    if(hop > 0){
+      setPin(u, 'y', t0, y - hop, 'out');
+      setPin(u, 'y', ts, y, 'hold');
     }
     u.loop = { from: 0, to: len, mode: 'loop' };
   });
+
+  /* うしろの まる（⭕ まるの 背景）も いっしょに ふくらませる */
+  const disc = project.layers.find(l => l.disc);
+  if(disc){
+    disc.tracks = disc.tracks || {};
+    delete disc.tracks.scaleX; delete disc.tracks.scaleY;
+    disc.loop = null;
+    if(o.bg > 0 && n > 1){
+      const bx = disc.scaleX || 1, by = disc.scaleY || 1;
+      for(let i = 0; i < n; i++){
+        const t0 = r3(i * d), ts = r3(t0 + settle);
+        setPin(disc, 'scaleX', t0, bx * (1 + o.bg), 'out');
+        setPin(disc, 'scaleY', t0, by * (1 + o.bg), 'out');
+        setPin(disc, 'scaleX', ts, bx, 'hold');
+        setPin(disc, 'scaleY', ts, by, 'hold');
+      }
+      disc.loop = { from: 0, to: len, mode: 'loop' };
+    }
+  }
   return { count: n, len };
 }
 
@@ -97,9 +140,11 @@ export function sabunFolder(project, f){
 /** つなぎを はずす。全部 見える ように もどす */
 export function unSabun(project, f){
   project.layers.filter(l => l.parent === f.id).forEach(u => {
-    if(u.tracks){ delete u.tracks.opacity; delete u.tracks.scaleX; delete u.tracks.scaleY; }
+    if(u.tracks) ['opacity','scaleX','scaleY','rot','y'].forEach(c => delete u.tracks[c]);
     u.loop = null;
   });
+  const disc = project.layers.find(l => l.disc);
+  if(disc && disc.tracks){ delete disc.tracks.scaleX; delete disc.tracks.scaleY; disc.loop = null; }
   delete f.sabun;
 }
 
