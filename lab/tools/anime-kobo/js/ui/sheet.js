@@ -1,48 +1,50 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=303';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain } from '../state.js?v=304';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=303';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=303';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=304';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=304';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=303';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=304';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=303';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=303';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=303';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=303';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES } from '../io/rig.js?v=303';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=303';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=304';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=304';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=304';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=304';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES } from '../io/rig.js?v=304';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=304';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=304';
+import { applySabun, sabunRootOf } from '../io/sabun.js?v=304';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=303';
+         addTextLayer } from '../io/text.js?v=304';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=303';
-import { PATTERN_NAMES } from '../io/pattern.js?v=303';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=304';
+import { PATTERN_NAMES } from '../io/pattern.js?v=304';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=303';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=303';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=303';
+         PITCH_MAX } from '../engine/pano.js?v=304';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=304';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=304';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=303';
-import { readAsDataURL, loadImage } from '../io/image.js?v=303';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=304';
+import { readAsDataURL, loadImage } from '../io/image.js?v=304';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=303';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=303';
-import { newHand } from '../engine/hand.js?v=303';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=303';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=304';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=304';
+import { newHand } from '../engine/hand.js?v=304';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=304';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=303';
+  from './colorwheel.js?v=304';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=303';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=304';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=303';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=304';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1238,6 +1240,7 @@ export function buildMotionSheet(box, open){
   const MENU = [
     ['anim',   '✨ うごきを つける', 'イン・ループ・アウト。出る／ゆれる／消える'],
     ['chara',  '🧍 キャラのうごき',  'うごき追加で 入れた キャラを まとめて 直す'],
+    ['sabun',  '🔁 差分つなぎ',      '差分の 長さ・はずみ'],
     ['sway',   '🌬 ゆれ（ずっと）',  'かたむきの 大きさ・ひとゆれの 長さ・おくれ'],
     ['path',   '👆 パスを なぞる', 'なぞった みちを 何秒で 通るか'],
     ['beat',   '🥁 リズム（BPM）', '拍に あわせて キーフレームを うつ'],
@@ -1932,6 +1935,52 @@ export function buildEnterSheet(box, back, which){
    画面は つまみを 動かす たびに 作り直される ので、
    ここに 置かないと 数字が すぐ もどって しまう。 */
 let linesDraft = null;
+
+/* ---------- ⭕ まるの 背景 ---------- */
+let discDraft = null;
+function discRow(box){
+  const cur = selected();
+  const editing = isDisc(cur) ? cur : null;
+  const o = editing
+    ? (editing.disc = Object.assign(newDisc(), editing.disc))
+    : (discDraft = Object.assign(newDisc(), discDraft || {}));
+  box.appendChild(heading('⭕ まるの 背景'));
+  box.appendChild(colorPick('地の 色', () => o.bg, (v) => { o.bg = v; }));
+  box.appendChild(colorPick('まるの 色', () => o.color, (v) => { o.color = v; }));
+  box.appendChild(slider('まるの 大きさ', () => o.size, v => o.size = v, 0.1, 2, 0.02, v => Math.round(v * 100) + '%'));
+  box.appendChild(slider('まん中 よこ', () => o.cx, v => o.cx = v, 0, 1, 0.01, v => Math.round(v * 100) + '%'));
+  box.appendChild(slider('まん中 たて', () => o.cy, v => o.cy = v, 0, 1, 0.01, v => Math.round(v * 100) + '%'));
+  box.appendChild(btnRow(
+    button(editing ? '⭕ 作り直す' : '⭕ 入れる', async () => {
+      beginEdit(editing ? 'まる背景を 作り直す' : 'まる背景を 入れる');
+      await addDiscLayer(o, editing);
+      commitEdit();
+      discDraft = null;
+      notify(editing ? '作り直しました' : '入れました');
+      onChange();
+    })
+  ));
+}
+
+/* ---------- 🔁 差分つなぎ ---------- */
+export function buildSabunSheet(box){
+  const l = selected();
+  const root = l && sabunRootOf(S.proj, l);
+  if(!root){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '「差分つなぎ」で 入れた フォルダを えらんでね';
+    box.appendChild(e);
+    return;
+  }
+  const o = root.sabun;
+  const apply = () => { applySabun(S.proj, root); onChange(); };
+  box.appendChild(heading('🔁 ' + root.name));
+  box.appendChild(slider('1まいの 長さ', () => o.step, v => { o.step = v; apply(); },
+    0.1, 2, 0.05, v => v.toFixed(2) + '秒'));
+  box.appendChild(slider('はずみ', () => o.pop, v => { o.pop = v; apply(); },
+    0, 0.2, 0.01, v => Math.round(v * 100) + '%'));
+}
 
 function linesRow(box, closeFn){
   const NL = String.fromCharCode(10);
@@ -4715,6 +4764,7 @@ export function buildBgSheet(box, closeFn){
   /* ---------- 💥 集中線・流線 ----------
      1コマごとに 線を 引き直した 絵を 何まいか 焼いて、順ぐりに 出す。
      ふつうの レイヤーに なる ので、重ねる 順番も 大きさも あとから 自由。 */
+  discRow(box);
   linesRow(box, closeFn);
 
   /* ---------- 🏠 部屋 ----------

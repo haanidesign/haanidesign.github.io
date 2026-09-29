@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=303';
+import { M } from './engine/math.js?v=304';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=303';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=304';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=303';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=303';
-import { createRenderer } from './render/renderer.js?v=303';
-import { createTimeline } from './ui/timeline.js?v=303';
-import { fmtTime, setPin } from './engine/anim.js?v=303';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=303';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=304';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=304';
+import { createRenderer } from './render/renderer.js?v=304';
+import { createTimeline } from './ui/timeline.js?v=304';
+import { fmtTime, setPin } from './engine/anim.js?v=304';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=304';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -19,27 +19,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder, setImageReplacer,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, setSpanner,
+         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=303';
+         setWarper } from './ui/sheet.js?v=304';
 
-import { showNewDoc } from './ui/newdoc.js?v=303';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=303';
-import { fitToCanvas, isBg } from './io/bg.js?v=303';
-import * as Audio from './io/audio.js?v=303';
-import { isTalk, blipTimes } from './engine/talk.js?v=303';
+import { showNewDoc } from './ui/newdoc.js?v=304';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=304';
+import { fitToCanvas, isBg } from './io/bg.js?v=304';
+import * as Audio from './io/audio.js?v=304';
+import { isTalk, blipTimes } from './engine/talk.js?v=304';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=303';
-import { importPsd } from './io/psd.js?v=303';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=303';
-import { splitTextChars } from './io/text.js?v=303';
-import { exportAE } from './io/ae.js?v=303';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=304';
+import { importPsd } from './io/psd.js?v=304';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=304';
+import { makeSabun } from './io/sabun.js?v=304';
+import { splitTextChars } from './io/text.js?v=304';
+import { exportAE } from './io/ae.js?v=304';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=303';
-import { pathKeys, pathLength } from './engine/path.js?v=303';
-import { paintDirty } from './engine/paint.js?v=303';
+         canUseWebCodecs } from './io/export.js?v=304';
+import { pathKeys, pathLength } from './engine/path.js?v=304';
+import { paintDirty } from './engine/paint.js?v=304';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=303';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=304';
 
 const $ = (s) => document.querySelector(s);
 
@@ -255,6 +256,7 @@ async function looksLikePsd(f){
 /* 「うごき つきで よみこむ」を おした あいだだけ true。
    PSD を 入れた あと、名前から あたりを つけて ゆれ・おやこ・じくを つける。 */
 let rigNext = false;
+let sabunNext = false;
 /* 入れる ときは 聞かない。
    5秒で ひとまわり・うごきは「しぜん」で 入れて、
    直したく なったら モーション →「🧍 キャラのうごき」で 変える。
@@ -281,7 +283,14 @@ async function handleFiles(files){
     if(psd.length){
       busy(true, 'PSDをよみこみ中…');
       const r = await importPsd(psd[0]);
-      if(rigNext && r.layers && r.layers.length){
+      if(sabunNext && r.layers && r.layers.length){
+        let f = null;
+        edit('差分つなぎ', () => {
+          f = makeSabun(S.proj, r.layers, psd[0].name.replace(/\.psd$/i, '') || '差分');
+        });
+        toast(f ? `差分 ${f.sabun && S.proj.layers.filter(l => l.parent === f.id).length}まいを つなぎました`
+                : 'グループが 1つしか ないので つなげませんでした');
+      } else if(rigNext && r.layers && r.layers.length){
         let rep = null;
         edit('うごきを つける', () => {
           rep = autoRig(S.proj, r.layers, (l) => frameAsset(l, 0), {
@@ -337,8 +346,9 @@ stageHost.addEventListener('drop', (e) => {
 
 /* ================= ボタン ================= */
 /* ついか ＝ 絵をよみこむ。文字は となりの「もじ」ボタン。 */
-$('#add').addEventListener('click', () => { rigNext = false; fileInput.click(); });
-$('#addRig').addEventListener('click', () => { rigNext = true; fileInput.click(); });
+$('#add').addEventListener('click', () => { rigNext = false; sabunNext = false; fileInput.click(); });
+$('#addRig').addEventListener('click', () => { rigNext = true; sabunNext = false; fileInput.click(); });
+$('#addSabun').addEventListener('click', () => { rigNext = false; sabunNext = true; fileInput.click(); });
 
 /* もじ ＝ 文字を つくる／なおす。ここは 文字のことだけ。
    「決定」を おすまで 画面には 出ない。 */
@@ -935,6 +945,7 @@ $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
    えらんだ ものだけを 別の画面で ひらく。 */
 const MOVE_PAGES = {
   chara:  ['🧍 キャラのうごき', buildCharaSheet],
+  sabun:  ['🔁 差分つなぎ',    buildSabunSheet],
   sway:   ['🌬 ゆれ',          buildSwaySheet],
   path:   ['👆 みちを なぞる', buildTraceSheet],
   beat:   ['🥁 リズム（BPM）', buildBeatSheet],
