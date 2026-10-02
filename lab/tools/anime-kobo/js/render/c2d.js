@@ -3,22 +3,22 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=317';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=317';
-import { liveMasks } from '../engine/mask.js?v=317';
-import { valuesAt } from '../engine/anim.js?v=317';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=317';
+         nearestFolder } from '../engine/layer.js?v=318';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=318';
+import { liveMasks } from '../engine/mask.js?v=318';
+import { valuesAt } from '../engine/anim.js?v=318';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=318';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=317';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=317';
-import { paintCanvas } from '../engine/paint.js?v=317';
-import { panoCanvas } from '../engine/pano.js?v=317';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=317';
-import { roomCanvas } from '../engine/room.js?v=317';
-import { talkCanvas } from '../engine/talk.js?v=317';
-import { homography, applyH } from '../engine/warp.js?v=317';
-import { drawCamView } from './camview.js?v=317';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=317';
+         meshSizeFor } from '../engine/puppet.js?v=318';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=318';
+import { paintCanvas } from '../engine/paint.js?v=318';
+import { panoCanvas } from '../engine/pano.js?v=318';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=318';
+import { roomCanvas } from '../engine/room.js?v=318';
+import { talkCanvas } from '../engine/talk.js?v=318';
+import { homography, applyH } from '../engine/warp.js?v=318';
+import { drawCamView } from './camview.js?v=318';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=318';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -710,6 +710,8 @@ function flatMesh(w, h){
     // 先に本番へ別々に置くと、うすいときに ふちの色が 中まで透けてしまう。
     if(edged) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
 
+    if(v.glitch > 0.01) glitchSheet(c, Math.min(1, v.glitch), seedOf(l));
+
     // かげ・ひかりは いちばん 下（ふちどりの さらに 外がわ）
     underFX(c, v, Math.abs(tf[0]));
 
@@ -837,8 +839,54 @@ function flatMesh(w, h){
   }
   /** その レイヤーに 色の 調整・かげ・ひかり が 入って いるか */
   function hasFX(v){
-    return !!colorFilter(v) || v.glowAmount > 0.004 || v.shadowAmount > 0.004;
+    return !!colorFilter(v) || v.glowAmount > 0.004 || v.shadowAmount > 0.004
+        || v.glitch > 0.01;
   }
+
+  /* 📺 グリッチ。まとめた 1まい（c）を
+       ・よこの すじに 切って、すじごとに 左右へ ずらす
+       ・赤と 青を 左右に ずらして かさねる（色ずれ）
+     ずれ方は コマごとに 変わる（1秒 24コマ）。同じ コマなら 同じ 絵。 */
+  function glitchSheet(c, amt, seed){
+    const W = c.width, H = c.height;
+    let s = ((Math.floor(curT * 24) + 1) * 7919 + (seed | 0)) | 0 || 1;
+    const R = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 10000) / 10000; };
+    const src = alloc(c), gs = src.getContext('2d');
+    gs.setTransform(1, 0, 0, 1, 0, 0);
+    gs.globalCompositeOperation = 'copy';
+    gs.drawImage(c, 0, 0);
+    gs.globalCompositeOperation = 'source-over';
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const sh = Math.max(W, H) * 0.03 * amt;
+    /* 色ずれ。赤・青に そめた 写しを ずらして 下に しく */
+    const tint = (col, dx) => {
+      const t = alloc(c, 0), gt = t.getContext('2d');
+      gt.setTransform(1, 0, 0, 1, 0, 0);
+      gt.drawImage(src, 0, 0);
+      gt.globalCompositeOperation = 'source-in';
+      gt.fillStyle = col;
+      gt.fillRect(0, 0, W, H);
+      gt.globalCompositeOperation = 'source-over';
+      g.globalAlpha = 0.75;
+      g.drawImage(t, dx, 0);
+      g.globalAlpha = 1;
+      back(1);
+    };
+    tint('#FF2E63', -sh * (0.6 + R()));
+    tint('#21E6F2', sh * (0.6 + R()));
+    /* すじ */
+    let y = 0;
+    while(y < H){
+      const h = Math.max(2, H * (0.01 + R() * 0.08));
+      const dx = R() < 0.55 ? (R() - 0.5) * sh * 4 : 0;
+      g.drawImage(src, 0, y, W, h, dx, y, W, h);
+      y += h;
+    }
+    back(1);
+  }
+  const seedOf = (l) => { let h = 0; const id = String(l.id || ''); for(let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0; return h; };
 
   /* その レイヤーの コマ ぜんぶの 絵。
      骨（ピン）の あみは これ ぜんぶを かさねた 形に 張る
@@ -1546,6 +1594,8 @@ function flatMesh(w, h){
        先に かけると、まわりに ひろがった かげまで 玉に まきこんで
        しまい、玉の 外に 出るべき かげが 消える。 */
     if(ballOn(f)) ballFolder(c, f, project, poses, tf, pose.v, strokeW);
+
+    if(v.glitch > 0.01) glitchSheet(c, Math.min(1, v.glitch), seedOf(f));
 
     underFX(c, v, k);
 

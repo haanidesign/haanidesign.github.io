@@ -400,6 +400,7 @@ export function valuesAt(layer, time){
     tintColor:  tint.color,
     tintAmount: sample(tr.tint, t, tint.amount),
     blur:       sample(tr.blur, t, layer.blur || 0),
+    glitch:     sample(tr.glitch, t, 0),
 
     blend: layer.blend || 'normal',
 

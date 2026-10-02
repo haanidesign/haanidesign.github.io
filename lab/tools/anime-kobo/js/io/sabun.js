@@ -8,12 +8,12 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=317';
-import { newFolder, setParent } from '../engine/layer.js?v=317';
-import { setPin } from '../engine/anim.js?v=317';
+import { S } from '../state.js?v=318';
+import { newFolder, setParent } from '../engine/layer.js?v=318';
+import { setPin } from '../engine/anim.js?v=318';
 
 export function newSabun(){
-  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05 };
+  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0 };
 }
 
 const byIdOf = (p) => { const m = {}; p.layers.forEach(l => m[l.id] = l); return m; };
@@ -55,7 +55,7 @@ export function applySabun(project, root){
   const settle = Math.min(d * 0.45, 0.15);
   units.forEach((u, i) => {
     u.tracks = u.tracks || {};
-    ['opacity','scaleX','scaleY','rot','y'].forEach(c => delete u.tracks[c]);
+    ['opacity','scaleX','scaleY','rot','y','glitch'].forEach(c => delete u.tracks[c]);
     u.loop = null;
     const t0 = r3(i * d), t1 = r3((i + 1) * d), ts = r3(t0 + settle);
     if(n > 1){
@@ -80,6 +80,14 @@ export function applySabun(project, root){
     if(o.tilt > 0){
       setPin(u, 'rot', t0, rot + side * o.tilt, 'out');
       setPin(u, 'rot', ts, rot, 'hold');
+    }
+    /* 📺 グリッチ。切りかわった しゅんかんに ざざっと 2回 */
+    if(o.glitch > 0){
+      const gl = Math.min(d * 0.5, 0.16);
+      setPin(u, 'glitch', t0, o.glitch, 'hold');
+      setPin(u, 'glitch', r3(t0 + gl * 0.35), o.glitch * 0.3, 'hold');
+      setPin(u, 'glitch', r3(t0 + gl * 0.6), o.glitch * 0.8, 'hold');
+      setPin(u, 'glitch', r3(t0 + gl), 0, 'hold');
     }
     if(hop > 0){
       setPin(u, 'y', t0, y - hop, 'out');
@@ -144,7 +152,7 @@ export function sabunFolder(project, f){
 /** つなぎを はずす。全部 見える ように もどす */
 export function unSabun(project, f){
   project.layers.filter(l => l.parent === f.id).forEach(u => {
-    if(u.tracks) ['opacity','scaleX','scaleY','rot','y'].forEach(c => delete u.tracks[c]);
+    if(u.tracks) ['opacity','scaleX','scaleY','rot','y','glitch'].forEach(c => delete u.tracks[c]);
     u.loop = null;
   });
   const disc = project.layers.find(l => l.disc);
