@@ -8,12 +8,12 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=318';
-import { newFolder, setParent } from '../engine/layer.js?v=318';
-import { setPin } from '../engine/anim.js?v=318';
+import { S } from '../state.js?v=319';
+import { newFolder, setParent } from '../engine/layer.js?v=319';
+import { setPin } from '../engine/anim.js?v=319';
 
 export function newSabun(){
-  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0 };
+  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ' };
 }
 
 const byIdOf = (p) => { const m = {}; p.layers.forEach(l => m[l.id] = l); return m; };
@@ -49,15 +49,24 @@ export function applySabun(project, root){
   Object.keys(def).forEach(k => { if(o[k] == null) o[k] = def[k]; });
   const units = project.layers.filter(l => l.parent === root.id);
   const n = units.length;
-  const d = Math.max(0.05, +o.step || 0.5);
-  const len = +(n * d).toFixed(3);
   const r3 = (v) => +v.toFixed(3);
-  const settle = Math.min(d * 0.45, 0.15);
+  /* 1まいずつ 変えた ところ（o.per[番号]）は そちらを 先に 見る。
+     番号は 差分の 何まいめ か（0 から）。「2→3」は 3まいめ に 入る ところ。 */
+  o.per = o.per || {};
+  const cfgOf = (i) => Object.assign({}, o, o.per[i] || {});
+  const cfgs = units.map((u, i) => cfgOf(i));
+  const starts = [];
+  let acc = 0;
+  cfgs.forEach(c => { starts.push(r3(acc)); acc += Math.max(0.05, +c.step || 0.5); });
+  const len = r3(acc);
   units.forEach((u, i) => {
+    const c = cfgs[i];
+    const d = Math.max(0.05, +c.step || 0.5);
+    const settle = Math.min(d * 0.45, 0.15);
     u.tracks = u.tracks || {};
-    ['opacity','scaleX','scaleY','rot','y','glitch'].forEach(c => delete u.tracks[c]);
+    ['opacity','scaleX','scaleY','rot','y','glitch'].forEach(ch => delete u.tracks[ch]);
     u.loop = null;
-    const t0 = r3(i * d), t1 = r3((i + 1) * d), ts = r3(t0 + settle);
+    const t0 = starts[i], t1 = r3(t0 + d), ts = r3(t0 + settle);
     if(n > 1){
       if(i > 0) setPin(u, 'opacity', 0, 0, 'hold');
       setPin(u, 'opacity', t0, 1, 'hold');
@@ -65,28 +74,31 @@ export function applySabun(project, root){
     }
     const sx = u.scaleX || 1, sy = u.scaleY || 1, rot = u.rot || 0, y = u.y || 0;
     const side = i % 2 ? 1 : -1;
-    const hop = (o.jump || 0) * Math.min(project.w, project.h);
-    if(o.pop > 0){
-      setPin(u, 'scaleX', t0, sx * (1 + o.pop), 'out');
-      setPin(u, 'scaleY', t0, sy * (1 + o.pop), 'out');
+    const hop = (c.jump || 0) * Math.min(project.w, project.h);
+    if(c.pop > 0){
+      setPin(u, 'scaleX', t0, sx * (1 + c.pop), 'out');
+      setPin(u, 'scaleY', t0, sy * (1 + c.pop), 'out');
       setPin(u, 'scaleX', ts, sx, 'linear');
       setPin(u, 'scaleY', ts, sy, 'linear');
-      /* おさまった あとも すこしずつ 寄る */
-      if(o.drift > 0){
-        setPin(u, 'scaleX', t1, sx * (1 + o.drift), 'hold');
-        setPin(u, 'scaleY', t1, sy * (1 + o.drift), 'hold');
-      }
     }
-    if(o.tilt > 0){
-      setPin(u, 'rot', t0, rot + side * o.tilt, 'out');
+    /* おさまった あとも すこしずつ 寄る */
+    if(c.drift > 0){
+      if(!(c.pop > 0)){ setPin(u, 'scaleX', ts, sx, 'linear'); setPin(u, 'scaleY', ts, sy, 'linear'); }
+      setPin(u, 'scaleX', t1, sx * (1 + c.drift), 'hold');
+      setPin(u, 'scaleY', t1, sy * (1 + c.drift), 'hold');
+    }
+    if(c.tilt > 0){
+      setPin(u, 'rot', t0, rot + side * c.tilt, 'out');
       setPin(u, 'rot', ts, rot, 'hold');
     }
-    /* 📺 グリッチ。切りかわった しゅんかんに ざざっと 2回 */
-    if(o.glitch > 0){
+    /* 📺 グリッチ。切りかわった しゅんかんに ざざっと 2回。
+       種類は レイヤーに おぼえさせて、描く ときに 見る。 */
+    u.glitchKind = c.gkind || 'すじ';
+    if(c.glitch > 0){
       const gl = Math.min(d * 0.5, 0.16);
-      setPin(u, 'glitch', t0, o.glitch, 'hold');
-      setPin(u, 'glitch', r3(t0 + gl * 0.35), o.glitch * 0.3, 'hold');
-      setPin(u, 'glitch', r3(t0 + gl * 0.6), o.glitch * 0.8, 'hold');
+      setPin(u, 'glitch', t0, c.glitch, 'hold');
+      setPin(u, 'glitch', r3(t0 + gl * 0.35), c.glitch * 0.3, 'hold');
+      setPin(u, 'glitch', r3(t0 + gl * 0.6), c.glitch * 0.8, 'hold');
       setPin(u, 'glitch', r3(t0 + gl), 0, 'hold');
     }
     if(hop > 0){
@@ -102,12 +114,14 @@ export function applySabun(project, root){
     disc.tracks = disc.tracks || {};
     delete disc.tracks.scaleX; delete disc.tracks.scaleY;
     disc.loop = null;
-    if(o.bg > 0 && n > 1){
+    if(n > 1 && cfgs.some(c => c.bg > 0)){
       const bx = disc.scaleX || 1, by = disc.scaleY || 1;
       for(let i = 0; i < n; i++){
-        const t0 = r3(i * d), ts = r3(t0 + settle);
-        setPin(disc, 'scaleX', t0, bx * (1 + o.bg), 'out');
-        setPin(disc, 'scaleY', t0, by * (1 + o.bg), 'out');
+        const d = Math.max(0.05, +cfgs[i].step || 0.5);
+        const t0 = starts[i], ts = r3(t0 + Math.min(d * 0.45, 0.15));
+        const k = 1 + (cfgs[i].bg || 0);
+        setPin(disc, 'scaleX', t0, bx * k, 'out');
+        setPin(disc, 'scaleY', t0, by * k, 'out');
         setPin(disc, 'scaleX', ts, bx, 'hold');
         setPin(disc, 'scaleY', ts, by, 'hold');
       }
@@ -179,3 +193,5 @@ export function sabunPick(project, ids){
   S.sel = f.id;
   return f;
 }
+
+export const GLITCH_KINDS = ['すじ', '色ずれ', 'ブロック', 'ノイズ', 'モザイク'];

@@ -3,22 +3,22 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=318';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=318';
-import { liveMasks } from '../engine/mask.js?v=318';
-import { valuesAt } from '../engine/anim.js?v=318';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=318';
+         nearestFolder } from '../engine/layer.js?v=319';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=319';
+import { liveMasks } from '../engine/mask.js?v=319';
+import { valuesAt } from '../engine/anim.js?v=319';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=319';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=318';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=318';
-import { paintCanvas } from '../engine/paint.js?v=318';
-import { panoCanvas } from '../engine/pano.js?v=318';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=318';
-import { roomCanvas } from '../engine/room.js?v=318';
-import { talkCanvas } from '../engine/talk.js?v=318';
-import { homography, applyH } from '../engine/warp.js?v=318';
-import { drawCamView } from './camview.js?v=318';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=318';
+         meshSizeFor } from '../engine/puppet.js?v=319';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=319';
+import { paintCanvas } from '../engine/paint.js?v=319';
+import { panoCanvas } from '../engine/pano.js?v=319';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=319';
+import { roomCanvas } from '../engine/room.js?v=319';
+import { talkCanvas } from '../engine/talk.js?v=319';
+import { homography, applyH } from '../engine/warp.js?v=319';
+import { drawCamView } from './camview.js?v=319';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=319';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -710,7 +710,7 @@ function flatMesh(w, h){
     // 先に本番へ別々に置くと、うすいときに ふちの色が 中まで透けてしまう。
     if(edged) under(c, outline(c, strokeW, v.strokeColor || '#FFFEF7'));
 
-    if(v.glitch > 0.01) glitchSheet(c, Math.min(1, v.glitch), seedOf(l));
+    if(v.glitch > 0.01) glitchSheet(c, Math.min(1, v.glitch), seedOf(l), l.glitchKind);
 
     // かげ・ひかりは いちばん 下（ふちどりの さらに 外がわ）
     underFX(c, v, Math.abs(tf[0]));
@@ -847,7 +847,7 @@ function flatMesh(w, h){
        ・よこの すじに 切って、すじごとに 左右へ ずらす
        ・赤と 青を 左右に ずらして かさねる（色ずれ）
      ずれ方は コマごとに 変わる（1秒 24コマ）。同じ コマなら 同じ 絵。 */
-  function glitchSheet(c, amt, seed){
+  function glitchSheet(c, amt, seed, kind){
     const W = c.width, H = c.height;
     let s = ((Math.floor(curT * 24) + 1) * 7919 + (seed | 0)) | 0 || 1;
     const R = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 10000) / 10000; };
@@ -861,7 +861,7 @@ function flatMesh(w, h){
     g.clearRect(0, 0, W, H);
     const sh = Math.max(W, H) * 0.03 * amt;
     /* 色ずれ。赤・青に そめた 写しを ずらして 下に しく */
-    const tint = (col, dx) => {
+    const tint = (col, dx, dy, a) => {
       const t = alloc(c, 0), gt = t.getContext('2d');
       gt.setTransform(1, 0, 0, 1, 0, 0);
       gt.drawImage(src, 0, 0);
@@ -869,20 +869,83 @@ function flatMesh(w, h){
       gt.fillStyle = col;
       gt.fillRect(0, 0, W, H);
       gt.globalCompositeOperation = 'source-over';
-      g.globalAlpha = 0.75;
-      g.drawImage(t, dx, 0);
+      g.globalAlpha = a == null ? 0.75 : a;
+      g.drawImage(t, dx, dy || 0);
       g.globalAlpha = 1;
       back(1);
     };
-    tint('#FF2E63', -sh * (0.6 + R()));
-    tint('#21E6F2', sh * (0.6 + R()));
-    /* すじ */
-    let y = 0;
-    while(y < H){
-      const h = Math.max(2, H * (0.01 + R() * 0.08));
-      const dx = R() < 0.55 ? (R() - 0.5) * sh * 4 : 0;
-      g.drawImage(src, 0, y, W, h, dx, y, W, h);
-      y += h;
+    const k = kind || 'すじ';
+
+    if(k === '色ずれ'){
+      /* 赤・青・緑を 大きく ずらす。絵は すじに 切らない */
+      tint('#FF2E63', -sh * 1.6, -sh * 0.3 * (R() - 0.5), 0.85);
+      tint('#21E6F2', sh * 1.6, sh * 0.3 * (R() - 0.5), 0.85);
+      g.drawImage(src, 0, 0);
+
+    } else if(k === 'ブロック'){
+      /* 四角い かたまりを よそへ 飛ばす。デジタルの こわれ */
+      tint('#FF2E63', -sh * 0.5, 0, 0.6);
+      tint('#21E6F2', sh * 0.5, 0, 0.6);
+      g.drawImage(src, 0, 0);
+      const nb = Math.round(6 + 18 * amt);
+      for(let i = 0; i < nb; i++){
+        const bw = W * (0.04 + R() * 0.22), bh = H * (0.02 + R() * 0.08);
+        const x = R() * (W - bw), y = R() * (H - bh);
+        const dx = (R() - 0.5) * sh * 6, dy = (R() - 0.5) * sh * 1.5;
+        g.clearRect(x, y, bw, bh);
+        g.drawImage(src, x, y, bw, bh, x + dx, y + dy, bw, bh);
+        if(R() < 0.3){
+          g.globalCompositeOperation = 'source-atop';
+          g.fillStyle = R() < 0.5 ? 'rgba(255,46,99,.55)' : 'rgba(33,230,242,.55)';
+          g.fillRect(x + dx, y + dy, bw, bh);
+          g.globalCompositeOperation = 'source-over';
+        }
+      }
+
+    } else if(k === 'ノイズ'){
+      /* テレビの すなあらし。よこ線と ちらつく 白い すじ */
+      tint('#FF2E63', -sh * 0.4, 0, 0.6);
+      tint('#21E6F2', sh * 0.4, 0, 0.6);
+      g.drawImage(src, 0, 0);
+      g.globalCompositeOperation = 'source-atop';
+      const lh = Math.max(2, Math.round(H / 180));
+      g.fillStyle = 'rgba(0,0,0,' + (0.25 * amt) + ')';
+      for(let y = 0; y < H; y += lh * 2) g.fillRect(0, y, W, lh);
+      const nl = Math.round(4 + 10 * amt);
+      for(let i = 0; i < nl; i++){
+        g.fillStyle = 'rgba(255,255,255,' + (0.3 + R() * 0.5) * amt + ')';
+        g.fillRect(0, R() * H, W, Math.max(1, R() * H * 0.012));
+      }
+      for(let i = 0; i < 400 * amt; i++){
+        g.fillStyle = R() < 0.5 ? 'rgba(255,255,255,.7)' : 'rgba(0,0,0,.6)';
+        g.fillRect(R() * W, R() * H, 2 + R() * 3, 2 + R() * 3);
+      }
+      g.globalCompositeOperation = 'source-over';
+
+    } else if(k === 'モザイク'){
+      /* あらい ドットに する。強いほど あらい */
+      const px = Math.max(2, Math.round(Math.max(W, H) * (0.006 + 0.03 * amt)));
+      const sw = Math.max(1, Math.round(W / px)), shh = Math.max(1, Math.round(H / px));
+      const t = alloc(c, 0), gt = t.getContext('2d');
+      gt.setTransform(1, 0, 0, 1, 0, 0);
+      gt.imageSmoothingEnabled = true;
+      gt.drawImage(src, 0, 0, W, H, 0, 0, sw, shh);
+      g.imageSmoothingEnabled = false;
+      g.drawImage(t, 0, 0, sw, shh, 0, 0, W, H);
+      g.imageSmoothingEnabled = true;
+      back(1);
+
+    } else {
+      tint('#FF2E63', -sh * (0.6 + R()));
+      tint('#21E6F2', sh * (0.6 + R()));
+      /* すじ */
+      let y = 0;
+      while(y < H){
+        const h = Math.max(2, H * (0.01 + R() * 0.08));
+        const dx = R() < 0.55 ? (R() - 0.5) * sh * 4 : 0;
+        g.drawImage(src, 0, y, W, h, dx, y, W, h);
+        y += h;
+      }
     }
     back(1);
   }
@@ -1595,7 +1658,7 @@ function flatMesh(w, h){
        しまい、玉の 外に 出るべき かげが 消える。 */
     if(ballOn(f)) ballFolder(c, f, project, poses, tf, pose.v, strokeW);
 
-    if(v.glitch > 0.01) glitchSheet(c, Math.min(1, v.glitch), seedOf(f));
+    if(v.glitch > 0.01) glitchSheet(c, Math.min(1, v.glitch), seedOf(f), f.glitchKind);
 
     underFX(c, v, k);
 

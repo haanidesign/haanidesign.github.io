@@ -1,50 +1,50 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=318';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=319';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=318';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=318';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=319';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=319';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=318';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=319';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=318';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=318';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=318';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=318';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=318';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=318';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=318';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick } from '../io/sabun.js?v=318';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=319';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=319';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=319';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=319';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=319';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=319';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=319';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=319';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=318';
+         addTextLayer } from '../io/text.js?v=319';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=318';
-import { PATTERN_NAMES } from '../io/pattern.js?v=318';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=319';
+import { PATTERN_NAMES } from '../io/pattern.js?v=319';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=318';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=318';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=318';
+         PITCH_MAX } from '../engine/pano.js?v=319';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=319';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=319';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=318';
-import { readAsDataURL, loadImage } from '../io/image.js?v=318';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=319';
+import { readAsDataURL, loadImage } from '../io/image.js?v=319';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=318';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=318';
-import { newHand } from '../engine/hand.js?v=318';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=318';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=319';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=319';
+import { newHand } from '../engine/hand.js?v=319';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=319';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=318';
+  from './colorwheel.js?v=319';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=318';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=319';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=318';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=319';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1970,6 +1970,7 @@ function discRow(box){
 }
 
 /* ---------- 🔁 差分つなぎ ---------- */
+let sabunAt = { root: null, i: -1 };   // どの 切りかわりを 直して いるか
 export function buildSabunSheet(box){
   const l = selected();
   const root = l && sabunRootOf(S.proj, l);
@@ -2001,23 +2002,76 @@ export function buildSabunSheet(box){
     })));
     return;
   }
-  const o = root.sabun;
+  const g0 = root.sabun;
+  g0.per = g0.per || {};
   const apply = () => { applySabun(S.proj, root); onChange(); };
+  const units = S.proj.layers.filter(x => x.parent === root.id);
   box.appendChild(heading('🔁 ' + root.name));
-  box.appendChild(slider('1まいの 長さ', () => o.step, v => { o.step = v; apply(); },
+
+  /* どこを 直すか。「ぜんぶ」か、1つの 切りかわり だけ か */
+  if(sabunAt.root !== root.id || sabunAt.i >= units.length) sabunAt = { root: root.id, i: -1 };
+  const at = sabunAt.i;
+  const tsel = document.createElement('select');
+  const op0 = document.createElement('option');
+  op0.value = -1; op0.textContent = 'ぜんぶ';
+  tsel.appendChild(op0);
+  units.forEach((u, i) => {
+    const op = document.createElement('option');
+    op.value = i;
+    const from = i === 0 ? units.length : i;
+    op.textContent = from + '→' + (i + 1) + '（' + u.name + '）' + (g0.per[i] ? ' ✎' : '');
+    if(i === at) op.selected = true;
+    tsel.appendChild(op);
+  });
+  tsel.addEventListener('change', () => { sabunAt = { root: root.id, i: +tsel.value }; onChange(); });
+  box.appendChild(field('直す ところ', tsel));
+  const tn = document.createElement('div');
+  tn.className = 'empty';
+  tn.style.textAlign = 'left';
+  tn.textContent = at < 0
+    ? '「ぜんぶ」の 数字は どの 切りかわりにも かかります。'
+    : (at + 1) + 'まいめ が 出る ところ だけ 変えます。ここで 変えた ものは ✎ が つきます。';
+  box.appendChild(tn);
+
+  /* 読む・書く。1つだけ の ときは per に 書いて、なければ ぜんぶの 数字を 見せる */
+  const get = (k) => (at >= 0 && g0.per[at] && g0.per[at][k] != null) ? g0.per[at][k] : g0[k];
+  const put = (k, v) => {
+    if(at >= 0){ (g0.per[at] = g0.per[at] || {})[k] = v; } else g0[k] = v;
+    apply();
+  };
+  const o = { };
+  ['step','pop','tilt','jump','drift','glitch','gkind','bg'].forEach(k => {
+    Object.defineProperty(o, k, { get: () => get(k), set: (v) => put(k, v) });
+  });
+  box.appendChild(slider('1まいの 長さ', () => o.step, v => { o.step = v; },
     0.1, 2, 0.05, v => v.toFixed(2) + '秒'));
-  box.appendChild(slider('はずみ', () => o.pop, v => { o.pop = v; apply(); },
+  box.appendChild(slider('はずみ', () => o.pop, v => { o.pop = v; },
     0, 0.3, 0.01, v => Math.round(v * 100) + '%'));
-  box.appendChild(slider('かたむき', () => o.tilt, v => { o.tilt = v; apply(); },
+  box.appendChild(slider('かたむき', () => o.tilt, v => { o.tilt = v; },
     0, 20, 1, v => Math.round(v) + '°'));
-  box.appendChild(slider('はね', () => o.jump, v => { o.jump = v; apply(); },
+  box.appendChild(slider('はね', () => o.jump, v => { o.jump = v; },
     0, 0.1, 0.005, v => Math.round(v * 1000) / 10 + '%'));
-  box.appendChild(slider('寄り', () => o.drift, v => { o.drift = v; apply(); },
+  box.appendChild(slider('寄り', () => o.drift, v => { o.drift = v; },
     0, 0.1, 0.005, v => Math.round(v * 1000) / 10 + '%'));
-  box.appendChild(slider('📺 グリッチ', () => o.glitch || 0, v => { o.glitch = v; apply(); },
+  box.appendChild(slider('📺 グリッチ', () => o.glitch || 0, v => { o.glitch = v; },
     0, 1, 0.05, v => v < 0.03 ? 'なし' : Math.round(v * 100) + '%'));
-  box.appendChild(slider('まるも ふくらむ', () => o.bg, v => { o.bg = v; apply(); },
+  const gsel = document.createElement('select');
+  GLITCH_KINDS.forEach(k => {
+    const op = document.createElement('option');
+    op.value = k; op.textContent = k;
+    if((o.gkind || 'すじ') === k) op.selected = true;
+    gsel.appendChild(op);
+  });
+  gsel.addEventListener('change', () => { edit('グリッチの 種類', () => { o.gkind = gsel.value; }); });
+  box.appendChild(field('グリッチの 種類', gsel));
+  box.appendChild(slider('まるも ふくらむ', () => o.bg, v => { o.bg = v; },
     0, 0.2, 0.01, v => Math.round(v * 100) + '%'));
+  if(at >= 0 && g0.per[at]){
+    box.appendChild(btnRow(button('この 切りかわりを「ぜんぶ」と 同じに もどす', () => {
+      edit('切りかわりを もどす', () => { delete g0.per[at]; applySabun(S.proj, root); });
+      onChange();
+    })));
+  }
   box.appendChild(btnRow(button('つなぎを はずす', () => {
     edit('つなぎを はずす', () => unSabun(S.proj, root));
     notify('はずしました');
