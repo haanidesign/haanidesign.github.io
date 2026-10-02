@@ -14,9 +14,9 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=316';
-import { setPin } from '../engine/anim.js?v=316';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=316';
+import { newSway } from '../engine/puppet.js?v=317';
+import { setPin } from '../engine/anim.js?v=317';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=317';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -365,7 +365,16 @@ export function autoRig(project, layers, assetOf, opt){
   let folder = null;
   if(o.folder){
     folder = newFolder(o.folderName || 'キャラ');
-    const roots = layers.filter(l => !l.parent);
+    /* PSD の グループは フォルダに なって いる ので、
+       読みこんだ ものの「いちばん 外がわ」を 入れる（グループごと）。 */
+    const byId = {};
+    project.layers.forEach(l => byId[l.id] = l);
+    const roots = [];
+    layers.forEach(l => {
+      let c = l, g = 0;
+      while(c.parent && byId[c.parent] && g++ < 200) c = byId[c.parent];
+      if(!roots.includes(c)) roots.push(c);
+    });
     if(roots.length){
       const at = Math.min(...roots.map(l => project.layers.indexOf(l)));
       project.layers.splice(Math.max(0, at), 0, folder);
@@ -388,7 +397,7 @@ export function autoRig(project, layers, assetOf, opt){
     ok: true,
     n: roles.reduce((a, r) => a + found[r].length, 0),
     roles, linked, swayed, loop,
-    motion: folder ? folder.rig.motion : null,
+    motion: folder && folder.rig ? folder.rig.motion : null,
     folder: folder ? folder.name : null,
     breath: breathOn ? breathOn.name : null
   };
