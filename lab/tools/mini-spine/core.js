@@ -455,8 +455,22 @@ function drawSlot(ctx, slot, imgEl, xy){
   if(cw > 0) up = Math.max(1, Math.min(3, cw*(devicePixelRatio||1)/cv0.width));
   const ex = Math.min(6, Math.max(0.5, 0.6*up)) / scale;
 
+  /* 別紙は 画面と 同じ 大きさ だが、ぬるのも 写すのも そのパーツが いる 四角だけ。
+     ぜんぶ 写すと パーツの 数だけ 画面まるごとの コピーに なって おもい */
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for(let i = 0; i < v.length; i++){
+    const X = xy[i*2], Y = xy[i*2+1];
+    const sx = m0.a*X + m0.c*Y + m0.e, sy = m0.b*X + m0.d*Y + m0.f;
+    if(sx < x0) x0 = sx; if(sx > x1) x1 = sx; if(sy < y0) y0 = sy; if(sy > y1) y1 = sy;
+  }
+  const pad = 8;
+  x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
+  x1 = Math.min(cv0.width, Math.ceil(x1 + pad)); y1 = Math.min(cv0.height, Math.ceil(y1 + pad));
+  const bw = x1 - x0, bh = y1 - y0;
+  if(bw <= 0 || bh <= 0) return;
+
   const sc = meshSheet(cv0.width, cv0.height), g = sc.getContext('2d');
-  g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,sc.width,sc.height);
+  g.setTransform(1,0,0,1,0,0); g.clearRect(x0, y0, bw, bh);
   g.setTransform(m0.a,m0.b,m0.c,m0.d,m0.e,m0.f);
   for(let i=0;i<t.length;i+=3){
     const i0=t[i], i1=t[i+1], i2=t[i+2];
@@ -467,7 +481,7 @@ function drawSlot(ctx, slot, imgEl, xy){
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
   ctx.globalAlpha *= (slot.alpha ?? 1);
-  ctx.drawImage(sc, 0, 0);
+  ctx.drawImage(sc, x0, y0, bw, bh, x0, y0, bw, bh);
   ctx.restore();
 }
 

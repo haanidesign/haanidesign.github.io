@@ -715,7 +715,7 @@ function renderFrames(fps, maxSide, onStep){
   const pose = t => { const p = computePose(S.proj, a, t); applyIKs(S.proj, p); applySprings(S.proj, p, dt, st, useSpring); return p; };
   // 揺れが おちつくまで 1ループ 空回し（つなぎ目が とばないように）
   if(useSpring) for(let i = 0; i < n; i++) pose(i * dt);
-  const out = [];
+  const out = [], spFrames = setupPose();
   for(let i = 0; i < n; i++){
     const p = pose(i * dt);
     const cvs = document.createElement('canvas'); cvs.width = W; cvs.height = H;
@@ -724,6 +724,7 @@ function renderFrames(fps, maxSide, onStep){
     for(const slot of S.proj.slots){
       if(!slot.visible) continue;
       const img = S.imgs[slot.image]; if(!img) continue;
+      if(drawRigid(g, slot, img, p, spFrames)) continue;
       const buf = new Float32Array(slot.verts.length * 2);
       deformSlot(slot, p, buf);
       drawSlot(g, slot, img, buf);
@@ -1070,6 +1071,88 @@ importPsd = async function(file){
   }
 };
 
+/* ================= 作業中の 画質（アニメ工房と おなじ） =================
+   小さく 描いて 画面で ひきのばす。パーツが 多くても 指に ついてくる。
+   書き出し（動画・アニメ工房へ）は いつも きれいな まま。 */
+const QUAL = [[1, 'きれい'], [0.75, 'ふつう'], [0.55, 'かるい'], [0.4, 'とても かるい']];
+let qual = 1;
+try{ const q = parseFloat(localStorage.getItem('miniSpine.quality')); if(q > 0.2 && q <= 1) qual = q; }catch(e){}
+const qualName = () => (QUAL.find(x => Math.abs(x[0] - qual) < .02) || QUAL[0])[1];
+
+let lastW = cv.width;   // editor.js の もとの resize も 走るので、自分が 決めた 幅を おぼえて おく
+resize = function(){
+  const r = $('#view').getBoundingClientRect();
+  const dpr = Math.min(devicePixelRatio || 1, 2) * qual;
+  const ow = lastW;
+  cv.width = Math.max(1, Math.round(r.width * dpr));
+  cv.height = Math.max(1, Math.round(r.height * dpr));
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  // 紙の こまかさが 変わっても、見えて いる 場所は そのまま
+  if(ow > 1 && cv.width > 1 && ow !== cv.width){
+    const k = cv.width / ow;
+    S.view.x *= k; S.view.y *= k; S.view.z *= k;
+  }
+  lastW = cv.width;
+};
+addEventListener('resize', resize);
+function showQual(){
+  const b = $('#btnQual'); if(!b) return;
+  b.textContent = '画質 ' + qualName();
+  b.classList.toggle('on', qual < 1);
+}
+function nextQual(){
+  const i = QUAL.findIndex(x => Math.abs(x[0] - qual) < .02);
+  qual = QUAL[(i + 1) % QUAL.length][0];
+  try{ localStorage.setItem('miniSpine.quality', String(qual)); }catch(e){}
+  resize(); showQual();
+  setStatus('画質を「' + qualName() + '」に しました（書き出しは いつも きれい）');
+}
+
+/* ================= 曲げない パーツは 1回で 描く =================
+   目・口・顔のように 1本の 骨に まるごと ついている パーツは、
+   三角に 切って 何十回も 描く ひつようが ない。骨の 動きで 1回 貼るだけ。
+   パーツが 多い PSD では これが いちばん 効く（三角の 数が 1/10 以下に なる）。 */
+function rigidBone(slot){
+  let id = null;
+  for(const v of slot.verts){
+    const w = v.w && v.w.length ? v.w : null;
+    let b;
+    if(!w) b = slot.bone;
+    else if(w.length === 1 || w.filter(x => x.w > 0.999).length === 1) b = (w.find(x => x.w > 0.999) || w[0]).b;
+    else { id = null; break; }
+    if(id === null) id = b; else if(id !== b){ id = null; break; }
+  }
+  return id;
+}
+function drawRigid(g, slot, img, pose, sp){
+  if(S.meshEdit || S.tool === 'weight') return false;
+  const id = rigidBone(slot);
+  const p = id && pose[id], s0 = id && sp[id];
+  if(!p || !s0 || slot.verts.length < 3) return false;
+  // 絵(u,v) → もとの 場所 → 骨に ついて 動いた 場所
+  const m = M.mul(M.mul(p.world, M.inv(s0.world)), placeOf(slot));
+  g.save();
+  g.globalAlpha *= (slot.alpha ?? 1);
+  g.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
+  g.drawImage(img, 0, 0);
+  g.restore();
+  return true;
+}
+
+drawParts = function(pose){
+  const sp = setupPose();
+  for(const slot of S.proj.slots){
+    if(!slot.visible) continue;
+    const img = S.imgs[slot.image]; if(!img) continue;
+    if(drawRigid(ctx, slot, img, pose, sp)) continue;
+    const n = slot.verts.length;
+    let buf = slot._xy;
+    if(!buf || buf.length < n*2) buf = slot._xy = new Float32Array(n*2);
+    deformSlot(slot, pose, buf);
+    drawSlot(ctx, slot, img, buf);
+  }
+};
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';
@@ -1077,6 +1160,10 @@ importPsd = async function(file){
   const nw = el('button', 'btn btn-sm', '🆕 新しく'); nw.id = 'btnNew';
   nw.onclick = newDoc;
   const acts = $('.tb-actions');
+  const q = el('button', 'btn btn-sm', '画質'); q.id = 'btnQual';
+  q.title = '作業中の 画質。下げると かるく なります（書き出しは いつも きれい）';
+  q.onclick = nextQual;
+  acts.insertBefore(q, $('#btnUndo'));
   acts.insertBefore(exp, $('#btnRec'));
   acts.insertBefore(nw, $('#btnAddImg'));
 
@@ -1111,4 +1198,5 @@ openHelp = function(){
   _openHelp0();
 };
 $('#btnHelp').onclick = openHelp;
+resize(); fitView(); showQual();
 refreshUI();
