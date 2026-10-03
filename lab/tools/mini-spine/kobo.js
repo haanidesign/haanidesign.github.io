@@ -947,6 +947,129 @@ loadProject = function(text){
   if(S.proj && S.proj.slots) S.proj.slots.forEach(checkerTris);
 };
 
+/* ================= PSD の グループから 骨を 組む =================
+   グループの 入れ子を そのまま 親子に して、名前で 役を 決める。
+     体 … 腰 から 上へ        頭 … 首 から 上へ（体の 子）
+     腕・脚 … 付け根から 下へ 2本（ひじ・ひざで 曲がる）
+     髪 … 付け根から 下へ 揺れる 3本（頭の 子）
+     そのほか（目・口など）… まんなかに 短い 骨（いる グループの 子） */
+function roleOf(name){
+  if(RX.hair.test(name)) return 'hair';
+  if(/頭|head|face|顔/i.test(name)) return 'head';
+  if(RX.arm.test(name)) return 'arm';
+  if(/脚|足|leg|foot/i.test(name)) return 'leg';
+  if(RX.tail.test(name)) return 'hair';
+  if(RX.body.test(name)) return 'body';
+  return 'part';
+}
+
+function rigByGroups(){
+  const slots = S.proj.slots.filter(s => s.verts.length);
+  if(!slots.some(s => s.gpath && s.gpath.length)) return false;
+  // グループの 木を つくる
+  const rootN = { name:'', kids:new Map(), slots:[] };
+  slots.forEach(sl => {
+    let n = rootN;
+    (sl.gpath || []).forEach(g => {
+      if(!n.kids.has(g)) n.kids.set(g, { name:g, kids:new Map(), slots:[] });
+      n = n.kids.get(g);
+    });
+    n.slots.push(sl);
+  });
+  const boxOf = n => {
+    const all = [...n.slots];
+    const walk = m => m.kids.forEach(k => { all.push(...k.slots); walk(k); });
+    walk(n);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    all.forEach(sl => { const b = slotBox(sl); x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1); });
+    return { x0, y0, x1, y1, cx:(x0 + x1) / 2, w:x1 - x0, h:y1 - y0 };
+  };
+
+  const root = S.proj.bones[0];
+  S.proj.bones = [root]; S.proj.iks = [];
+  for(const nm in S.proj.anims) S.proj.anims[nm].tracks = {};
+  const whole = boxOf(rootN);
+  root.parent = null; root.x = whole.cx; root.y = whole.y1; root.rot = -90;
+  root.sx = root.sy = 1; root.shear = 0; root.len = Math.max(40, whole.h * 0.08);
+
+  const P = (x, y) => ({ x, y });
+  const top = { body:null, head:null };
+  const attach = [];   // [パーツ群, 骨id群]
+
+  function make(n, parentId, inHead){
+    const bx = boxOf(n), role = roleOf(n.name);
+    let ids;
+    if(role === 'body'){
+      const hasLeg = [...n.kids.keys()].concat(n.slots.map(s => s.name)).some(x => /脚|足|leg/i.test(x));
+      const hip = hasLeg ? bx.y0 + bx.h * 0.55 : bx.y1;
+      ids = [boneAt(n.name, parentId, P(bx.cx, hip), P(bx.cx, bx.y0)).id];
+      top.body = top.body || ids[0];
+    } else if(role === 'head' && !inHead){
+      ids = [boneAt(n.name, parentId, P(bx.cx, bx.y1), P(bx.cx, bx.y0)).id];
+      top.head = top.head || ids[0];
+    } else if(role === 'hair'){
+      ids = hairChain(n.name, parentId, P(bx.cx, bx.y0 + bx.h * 0.05), P(bx.cx, bx.y1), 3);
+    } else if(role === 'arm' || role === 'leg'){
+      // 横に ひろがる 腕なら、体の まんなかに 近い がわが 付け根
+      const wide = bx.w > bx.h * 1.2;
+      let a, e;
+      if(wide){
+        const leftIn = Math.abs(bx.x0 - whole.cx) < Math.abs(bx.x1 - whole.cx);
+        a = P(leftIn ? bx.x0 : bx.x1, bx.y0 + bx.h * 0.3);
+        e = P(leftIn ? bx.x1 : bx.x0, bx.y0 + bx.h * 0.6);
+      } else { a = P(bx.cx, bx.y0); e = P(bx.cx, bx.y1); }
+      const m = P((a.x + e.x) / 2, (a.y + e.y) / 2);
+      const up = boneAt(n.name + '1', parentId, a, m);
+      ids = [up.id, boneAt(n.name + '2', up.id, m, e).id];
+    } else {
+      const c = P(bx.cx, (bx.y0 + bx.y1) / 2);
+      ids = [boneAt(n.name, parentId, c, P(c.x, c.y - Math.max(10, bx.h * 0.3))).id];
+    }
+    if(n.slots.length) attach.push([n.slots, ids]);
+    const kidsParent = (role === 'arm' || role === 'leg') ? ids[ids.length - 1] : ids[0];
+    n.kids.forEach(k => make(k, kidsParent, inHead || role === 'head'));
+  }
+
+  // いちばん 上の グループは 役で 親を きめる（体 → 頭・腕 → 髪）
+  const order = { body:0, head:1, arm:2, leg:2, part:3, hair:4 };
+  [...rootN.kids.values()]
+    .sort((a, b) => order[roleOf(a.name)] - order[roleOf(b.name)])
+    .forEach(n => {
+      const role = roleOf(n.name);
+      const parent = role === 'body' || role === 'leg' ? root.id
+        : role === 'hair' ? (top.head || top.body || root.id)
+        : (top.body || root.id);
+      make(n, parent, false);
+    });
+  if(rootN.slots.length) attach.push([rootN.slots, [top.body || root.id]]);
+
+  markDirty();
+  const sp = setupPose();
+  attach.forEach(([list, ids]) => list.forEach(sl => {
+    sl.verts.forEach(v => { v.w = []; });
+    sl.bone = ids[0];
+    if(ids.length > 1) autoWeights(S.proj, sl, sp, { maxBones:2, falloff: ids.length > 2 ? 2 : 3, only: ids });
+  }));
+  markDirty();
+  S.spring = true; S.springState = {};
+  S.sel = { bone: top.head || root.id, slot: null, ik: null };
+  return true;
+}
+
+const _importPsd0 = importPsd;
+importPsd = async function(file){
+  S.psdReplace = false;
+  await _importPsd0(file);
+  if(!S.psdReplace) return;
+  beginEdit('グループから 骨を 組む');
+  const ok = rigByGroups();
+  commitEdit();
+  if(ok){
+    refreshUI();
+    setStatus('PSD読み込み: ' + S.proj.slots.length + 'パーツ / 骨' + S.proj.bones.length + '本（グループから）。「✨ よくある動き」で すぐ 動かせます');
+  }
+};
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';

@@ -178,7 +178,8 @@ function flattenPsd(node, out, groupPath){
       canvas: ch.canvas,
       left: ch.left || 0, top: ch.top || 0,
       opacity: ch.opacity === undefined ? 1 : ch.opacity,
-      group: groupPath.length ? groupPath[groupPath.length-1] : null
+      group: groupPath.length ? groupPath[groupPath.length-1] : null,
+      gpath: groupPath.slice()
     });
   }
 }
@@ -300,6 +301,7 @@ async function importPsd(file){
 
   const replace = S.proj.slots.length === 0 ||
     confirm('PSDを読み込みます。\n\nOK = 今のリグを捨てて新しく作る\nキャンセル = 今のリグに追加する');
+  S.psdReplace = replace;   // kobo.js が グループから 骨を 組み直すか 見る
 
   beginEdit('PSDを読み込み');
   if(replace){
@@ -350,6 +352,7 @@ async function importPsd(file){
     slot.name = l.name;
     slot.alpha = clamp(l.opacity, 0, 1);
     slot.bone = groupBone[l.group] || rootId;
+    slot.gpath = l.gpath || [];
     // PSD 内の位置をそのまま採用（等倍・平行移動だけ）
     const place = M.fromTRS(l.left, l.top, 0, 1, 1, 0);
     const m = buildGridMesh(l.canvas, S.meshRes.cols, S.meshRes.rows, place);
