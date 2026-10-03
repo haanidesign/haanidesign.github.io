@@ -115,12 +115,28 @@ function refreshUndoUI(){
 }
 
 /* ================= 画像読み込み ================= */
-function addFiles(files){
-  const all = [...files];
-  const psd = all.filter(f => /\.psd$/i.test(f.name));
-  const imgs = all.filter(f => /^image\//.test(f.type) && !/\.psd$/i.test(f.name));
+/** PSD かどうか。Android では 名前も 種類も あてに ならない ことが あるので、
+    さいごは 先頭4バイトの「8BPS」で たしかめる（アニメ工房と おなじ） */
+async function looksLikePsd(f){
+  if(/\.psd$/i.test(f.name) || /photoshop/i.test(f.type || '')) return true;
+  if(/^image\/(png|jpeg|jpg|webp|gif|bmp)$/i.test(f.type || '')) return false;
+  try{
+    const h = new Uint8Array(await f.slice(0, 4).arrayBuffer());
+    return h[0] === 0x38 && h[1] === 0x42 && h[2] === 0x50 && h[3] === 0x53;
+  }catch(_){ return false; }
+}
+async function addFiles(files){
+  const psd = [], imgs = [], json = [], other = [];
+  for(const f of [...files]){
+    if(await looksLikePsd(f)) psd.push(f);
+    else if(/^image\//.test(f.type || '') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)) imgs.push(f);
+    else if(/\.json$/i.test(f.name) || /json/.test(f.type || '')) json.push(f);
+    else other.push(f);
+  }
+  if(json.length){ const rd = new FileReader(); rd.onload = () => loadProject(rd.result); rd.readAsText(json[0]); return; }
   if(psd.length) importPsd(psd[0]);
   if(imgs.length) addImageFiles(imgs);
+  if(!psd.length && !imgs.length) setStatus(other.length ? 'これは 読めません（PSD・PNG・JPEG を えらんでね）' : '');
 }
 
 function addImageFiles(list){
