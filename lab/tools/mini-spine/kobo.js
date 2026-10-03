@@ -338,6 +338,11 @@ const tapBar = (() => {
   return { bar, msg, skip, back };
 })();
 
+const JOINT_STEPS = [
+  { key:'ja', say:'親の パーツ（上腕・体 など、動かない がわ）を さわって', skip:false },
+  { key:'jb', say:'子の パーツ（前腕・頭 など、曲がる がわ）を さわって', skip:false },
+  { key:'jp', say:'曲がる 中心（ひじ・ひざ・首の 付け根）を さわって', skip:false }
+];
 const HAIR_STEPS = [
   { key:'base', say:'髪の 生え際（揺れの 付け根）を さわって', skip:false },
   { key:'tip',  say:'毛先を さわって', skip:false }
@@ -379,7 +384,7 @@ function tapStart(){
 }
 function tapGo(kind, target){
   sheet.hide();
-  S.tapRig = { i:0, pts:{}, kind, target, steps: kind === 'part' ? PART_STEPS : kind === 'hair' ? HAIR_STEPS : TAP_STEPS };
+  S.tapRig = { i:0, pts:{}, kind, target, steps: kind === 'part' ? PART_STEPS : kind === 'hair' ? HAIR_STEPS : kind === 'joint' ? JOINT_STEPS : TAP_STEPS };
   S.mode = 'setup'; S.playing = false;
   document.body.classList.add('taprig');
   tapShow(); refreshUI();
@@ -409,6 +414,7 @@ function tapEnd(ok){
   document.body.classList.remove('taprig');
   if(ok && r) r.kind === 'part' ? buildPartRig(r.target, r.pts)
             : r.kind === 'hair' ? buildHairRig(r.target, r.pts)
+            : r.kind === 'joint' ? buildJoint(r.pts)
             : buildTapRig(r.pts);
   refreshUI();
 }
@@ -417,11 +423,12 @@ function tapEnd(ok){
 function drawTapMarks(){
   if(!S.tapRig) return;
   const z = S.view.z, P = S.tapRig.pts;
-  const names = { hip:'腰', neck:'首', top:'頭', handR:'手', handL:'手', base:'付け根', mid:'曲がる', tip:'先' };
+  const names = { hip:'腰', neck:'首', top:'頭', handR:'手', handL:'手', base:'付け根', mid:'曲がる', tip:'先', ja:'親', jb:'子', jp:'関節' };
   const line = (a, b) => { if(!a || !b) return; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
   ctx.lineWidth = 5 / z; ctx.strokeStyle = MAIN_DEEP;
   line(P.hip, P.neck); line(P.neck, P.top); line(P.neck, P.handR); line(P.neck, P.handL);
   line(P.base, P.mid || P.tip); line(P.mid, P.tip);
+  line(P.ja, P.jp); line(P.jb, P.jp);
   for(const k in P){
     const p = P[k]; if(!p) continue;
     ctx.fillStyle = MAIN; ctx.strokeStyle = INK; ctx.lineWidth = 3 / z;
@@ -1768,6 +1775,82 @@ function fixNeck(quiet){
   return true;
 }
 
+/* ================= パーツを 指で えらぶ =================
+   曲げない パーツは 1回で 描く ように したので、描いた ときの 点（_xy）が のこらない。
+   その場で 骨の 動きから 点を 出して あたりを 見る */
+pickSlot = function(w){
+  const pose = curPose || setupPose();
+  for(let i = S.proj.slots.length - 1; i >= 0; i--){
+    const s = S.proj.slots[i];
+    if(!s.visible || s.lidCover || !s.verts.length) continue;
+    const xy = new Float32Array(s.verts.length * 2);
+    deformSlot(s, pose, xy);
+    const t = s.tris;
+    for(let k = 0; k < t.length; k += 3){
+      if(ptInTri(w.x, w.y, xy[t[k]*2], xy[t[k]*2+1], xy[t[k+1]*2], xy[t[k+1]*2+1], xy[t[k+2]*2], xy[t[k+2]*2+1])) return s;
+    }
+  }
+  return null;
+};
+
+/* ================= 関節を つくる =================
+   親の パーツ・子の パーツ・曲がる 中心 を さわると、
+   ・子の 骨の 根もとを 関節へ（絵は 動かさない）、親の 骨の 子に する
+   ・子の パーツの 関節まわりを 親と 子に わけて つける（曲げても 切れずに のびる）
+   首と 頭・上腕と 前腕・体と 脚 など どこでも つかえる。 */
+function setParentKeep(b, parentId){
+  const sp = setupPose();
+  const w = sp[b.id].world, pw = sp[parentId].world;
+  const d = M.decompose(M.mul(M.inv(pw), w));
+  b.parent = parentId;
+  b.x = d.x; b.y = d.y; b.rot = d.rot; b.sx = d.sx; b.sy = d.sy; b.shear = d.shear;
+}
+function buildJoint(P){
+  if(!P || !P.ja || !P.jb || !P.jp) return;
+  const A = pickSlot(P.ja), B = pickSlot(P.jb);
+  if(!A || !B) return setStatus('パーツが 見つかりませんでした。絵の 上を さわってね');
+  if(A === B) return setStatus('親と 子に おなじ パーツを えらんで います');
+  let bA = slotBones(A).main || S.proj.bones[0];
+  let bB = slotBones(B).main;
+  const J = P.jp;
+  const farFrom = (sl, p) => { let f = p, d0 = -1; sl.verts.forEach(v => { const d = Math.hypot(v.x - p.x, v.y - p.y); if(d > d0){ d0 = d; f = { x:v.x, y:v.y }; } }); return f; };
+  // 子の いちばん 遠い ところ（骨の 先）
+  const far = farFrom(B, J);
+  edit('関節を つくる', () => {
+    // 親の パーツが root に じかに ついて いる だけ なら、親 にも 自分の 骨を 作る（上腕を 回せる ように）
+    if(!bA.parent){
+      const rootId = bA.id;
+      bA = boneAt(A.name, rootId, farFrom(A, J), J);
+      A.verts.forEach(v => { v.w = []; });
+      A.bone = bA.id;
+      if(bB && bB.id === rootId) bB = null;
+      markDirty();
+    }
+    // 子の 骨が 親と おなじ／親の 上の 骨なら、子 専用の 骨を 新しく 作る
+    if(!bB || bB === bA || isDescendant(bA.id, bB.id)){
+      bB = boneAt(B.name, bA.id, J, far);
+    } else {
+      if(bB.parent !== bA.id) setParentKeep(bB, bA.id);
+      moveBoneKeep(bB, J, far);
+    }
+    markDirty();
+    // 関節の まわり（骨の 長さの 2わり）を なめらかに わける
+    const dx = far.x - J.x, dy = far.y - J.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const zone = Math.max(8, L * 0.2);
+    B.bone = bB.id;
+    B.verts.forEach(v => {
+      const pr = (v.x - J.x) * ux + (v.y - J.y) * uy;   // 関節から 先へ どれだけ
+      let t = (pr + zone * 0.5) / (zone * 1.5);
+      t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);
+      v.w = t > 0.99 ? [{ b: bB.id, w: 1 }] : t < 0.01 ? [{ b: bA.id, w: 1 }]
+          : [{ b: bA.id, w: 1 - t }, { b: bB.id, w: t }];
+    });
+    markDirty();
+    S.sel = { bone: bB.id, slot: null, ik: null };
+  });
+  setStatus('関節を つくりました: ' + A.name + ' → ' + B.name + '（「' + bB.name + '」を 回すと ' + B.name + ' が 曲がります）');
+}
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';
@@ -1785,10 +1868,17 @@ function fixNeck(quiet){
   const bk = el('button', 'opt' + (blinkOn ? ' on' : ''), '👁 まばたき'); bk.id = 'btnBlink';
   bk.title = '目を 自動で とじる（アニメート・配信・書き出し）';
   bk.onclick = () => setBlink(!blinkOn);
+  const jt = el('button', 'opt', '🔗 関節を つくる'); jt.id = 'btnJoint';
+  jt.title = '親の パーツ → 子の パーツ → 曲がる 中心 を さわって つなぐ';
+  jt.onclick = () => {
+    if(S.proj.slots.length < 2) return setStatus('パーツが 2まい 以上 いります');
+    tapGo('joint');
+  };
   const rig = el('button', 'opt', '🦴 タップで骨組み'); rig.id = 'btnTapRig';
   rig.title = '腰・首・頭・手先を さわるだけで 骨を 組む';
   rig.onclick = tapStart;
   $('#btnSpring').parentNode.insertBefore(rig, $('#btnSpring'));
+  rig.after(jt);
   $('#btnSpring').after(bk);
   const sh = el('button', 'opt', '✏ 閉じ目を つくる'); sh.id = 'btnShape';
   sh.title = '目に 点を 打って、筆で 押して 閉じた 形を 覚えさせる';
