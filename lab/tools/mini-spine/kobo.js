@@ -532,6 +532,7 @@ function buildTapRig(P){
     S.sel = { bone: head.id, slot: null, ik: null };
   });
   if(S.proj.bones.some(b => b.spring)) S.spring = true;
+  fixNeck(true);
   setStatus('骨組み できました。「✨ よくある動き」で すぐ 動かせます');
   fitView();
 }
@@ -1114,6 +1115,7 @@ importPsd = async function(file){
   const ok = rigByGroups();
   const clips = autoClip();
   commitEdit();
+  fixNeck(true);
   // 絵の 読みこみを 待ってから まぶたを しらべる
   setTimeout(() => {
     beginEdit('まぶたを しらべる'); const lids = autoLids(); commitEdit();
@@ -1408,6 +1410,21 @@ function setBlink(on){
   setStatus(on ? 'まばたき オン（' + n + '）。アニメート・配信・書き出しで 動きます' : 'まばたき オフ');
 }
 
+/* 首・頭 を えらんで いる ときは「首と 頭を つなぐ」 */
+const _buildProps2 = buildProps;
+buildProps = function(){
+  _buildProps2();
+  const sl = slotById(S.sel.slot), b = boneById(S.sel.bone);
+  const hit = (sl && (NECK_RX.test(sl.name) || /顔|face|頭/i.test(sl.name))) || (!sl && b && b === headBone());
+  if(!hit || !neckSlot()) return;
+  const host = $('#props');
+  const box = el('div', 'neck-box');
+  box.appendChild(el('div', 'title', '首と 頭'));
+  box.appendChild(el('div', 'hint', '頭を 回すと 首から とれて 見える ときに 押す。\n頭の 回る 中心を 首の 上へ うつして、\n首を 体と 頭に わけて つなぎます。'));
+  box.appendChild(btnRow(mkBtn('🔗 首と 頭を つなぐ', () => fixNeck(false), 'btn btn-y')));
+  host.insertBefore(box, host.firstChild);
+};
+
 /* パーツの 右パネルに「クリップ」を 足す */
 const _buildProps1 = buildProps;
 buildProps = function(){
@@ -1686,6 +1703,70 @@ refreshUI = function(){
     try{ e.scrollIntoView({ block:'nearest' }); }catch(_){}
   }));
 };
+
+/* ================= 首と 頭を つなぐ =================
+   頭が 首から とれて 見える のは、たいてい
+     ① 頭の 骨の 根もと（回る 中心）が 首の 付け根に ない
+     ② 首の パーツが 体（や root）だけに ついて いて、頭に ついて いかない
+   の どちらか。ボタン 1つで 両方 なおす。
+     ・頭の 骨の 根もとを、首の 上の ほう（あごの 少し 上）へ うつす（絵は 動かさない）
+     ・首は 下が 体、上が 頭に つく ように ウェイトを わける（回すと ゴムの ように のびる） */
+const NECK_RX = /首|neck/i;
+function neckSlot(){ return S.proj.slots.find(sl => NECK_RX.test(sl.name) && !/首輪|choker|襟|collar/i.test(sl.name)); }
+function headBone(){
+  return S.proj.bones.find(b => /^(頭|頭部|head)$/i.test(b.name)) || S.proj.bones.find(b => /頭|head/i.test(b.name) && !b.spring) || null;
+}
+
+/** 骨の 根もとと 向きを、絵も 子の 骨も 動かさずに 変える（コンペンセイト） */
+function moveBoneKeep(b, P, E){
+  const sp = setupPose();
+  const pw = b.parent && sp[b.parent] ? sp[b.parent].world : M.ident();
+  const kids = S.proj.bones.filter(x => x.parent === b.id);
+  const kidWorld = kids.map(k => sp[k.id].world);
+  const lo = M.apply(M.inv(pw), P.x, P.y);
+  b.x = lo.x; b.y = lo.y;
+  b.rot = Math.atan2(E.y - P.y, E.x - P.x) * 180 / Math.PI - M.rotOf(pw);
+  b.sx = b.sy = 1; b.shear = 0;
+  b.len = Math.max(10, Math.hypot(E.x - P.x, E.y - P.y) / (M.scaleOf(pw) || 1));
+  const nw = computePose(S.proj, null, 0)[b.id].world;
+  kids.forEach((k, i) => {
+    const d = M.decompose(M.mul(M.inv(nw), kidWorld[i]));
+    k.x = d.x; k.y = d.y; k.rot = d.rot; k.sx = d.sx; k.sy = d.sy; k.shear = d.shear;
+  });
+}
+
+function fixNeck(quiet){
+  const neck = neckSlot(), head = headBone();
+  if(!neck || !head){
+    if(!quiet) setStatus(!neck ? '「首」という 名前の パーツが 見つかりません' : '「頭」の 骨が 見つかりません');
+    return false;
+  }
+  const body = boneById(head.parent) || S.proj.bones[0];
+  const nb = slotBox(neck);
+  const face = S.proj.slots.find(sl => /^(顔|face|輪郭)$/i.test(sl.name)) || S.proj.slots.find(sl => /顔|face|輪郭/i.test(sl.name));
+  const fb = face ? slotBox(face) : null;
+  // 回る 中心: 首の まんなかの 線の、あごより 少し 上（顔に かくれる ところ）
+  const chin = fb ? Math.min(Math.max(fb.y1, nb.y0), nb.y1) : nb.y0 + nb.h * 0.3;
+  const P = { x: nb.cx, y: chin - nb.h * 0.12 };
+  const top = fb ? fb.y0 : P.y - nb.h * 3;
+  edit('首と 頭を つなぐ', () => {
+    moveBoneKeep(head, P, { x: P.x, y: Math.min(top, P.y - 20) });
+    markDirty();
+    // 首: 下の はしは 体、回る 中心より 上は 頭。あいだは なめらかに
+    const yb = nb.y1, yt = P.y;
+    neck.bone = body.id;
+    neck.verts.forEach(v => {
+      let t = (yb - v.y) / Math.max(1, yb - yt);
+      t = Math.max(0, Math.min(1, t)); t = t * t * (3 - 2 * t);
+      v.w = t < 0.01 ? [{ b: body.id, w: 1 }] : t > 0.99 ? [{ b: head.id, w: 1 }]
+          : [{ b: body.id, w: 1 - t }, { b: head.id, w: t }];
+    });
+    markDirty();
+  });
+  if(!quiet) setStatus('首と 頭を つなぎました（頭の 回る 中心を 首の 上へ・首は 体と 頭に わけて つけた）');
+  refreshUI();
+  return true;
+}
 
 /* ================= ボタンを 足す ================= */
 (() => {
