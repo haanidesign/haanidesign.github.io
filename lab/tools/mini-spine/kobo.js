@@ -743,14 +743,7 @@ function renderFrames(fps, maxSide, onStep){
     const cvs = document.createElement('canvas'); cvs.width = W; cvs.height = H;
     const g = cvs.getContext('2d');
     g.setTransform(sc, 0, 0, sc, 0, 0);
-    for(const slot of S.proj.slots){
-      if(!slot.visible) continue;
-      const img = S.imgs[slot.image]; if(!img) continue;
-      if(drawRigid(g, slot, img, p, spFrames)) continue;
-      const buf = new Float32Array(slot.verts.length * 2);
-      deformSlot(slot, p, buf);
-      drawSlot(g, slot, img, buf);
-    }
+    paintParts(g, p, spFrames, blinkOn ? loopBlink(i * dt, a.dur) : 0);
     out.push(cvs);
     if(onStep) onStep(i + 1, n);
   }
@@ -1146,13 +1139,20 @@ function rigidBone(slot){
   }
   return id;
 }
-function drawRigid(g, slot, img, pose, sp){
+function drawRigid(g, slot, img, pose, sp, squashY, squashCy){
   if(S.meshEdit) return false;
   const id = rigidBone(slot);
   const p = id && pose[id], s0 = id && sp[id];
   if(!p || !s0 || slot.verts.length < 3) return false;
   // 絵(u,v) → もとの 場所 → 骨に ついて 動いた 場所
-  const m = M.mul(M.mul(p.world, M.inv(s0.world)), placeOf(slot));
+  let m = M.mul(M.mul(p.world, M.inv(s0.world)), placeOf(slot));
+  if(squashY && squashY < 1){
+    // 絵の まんなかを 中心に たてに つぶす（まばたき）
+    const im = S.proj.images[slot.image] || {};
+    const cy = squashCy ?? M.apply(m, (im.w || img.width) / 2, (im.h || img.height) / 2).y;
+    const Q = { a:1, b:0, c:0, d:squashY, tx:0, ty:cy * (1 - squashY) };
+    m = M.mul(Q, m);
+  }
   g.save();
   g.globalAlpha *= (slot.alpha ?? 1);
   g.transform(m.a, m.b, m.c, m.d, m.tx, m.ty);
@@ -1161,19 +1161,103 @@ function drawRigid(g, slot, img, pose, sp){
   return true;
 }
 
-drawParts = function(pose){
-  const sp = setupPose();
+/* ================= まばたき =================
+   ・「目 開」「目 閉」の 2まいが ある … 入れかえる
+   ・目が 1まい だけ … 目の パーツを たてに つぶして 閉じる
+   アニメート中・配信モード・書き出し で うごく。 */
+const EYE_RX = /目|瞳|白目|まぶた|睫|eye|iris|pupil|lash/i, NOT_EYE = /眉|brow/i;
+let blinkOn = true;
+try{ blinkOn = localStorage.getItem('miniSpine.blink') !== '0'; }catch(e){}
+const isEye = sl => EYE_RX.test(sl.name) && !NOT_EYE.test(sl.name);
+const hasSwap = () => !!(S.proj.eyeOpen || S.proj.eyeClose);
+/** まばたきを はじめて から u 秒の とじぐあい（0 あいてる 〜 1 とじてる） */
+function blinkCurve(u){
+  if(u < 0 || u > 0.18) return 0;
+  return u < 0.06 ? u / 0.06 : u < 0.1 ? 1 : 1 - (u - 0.1) / 0.08;
+}
+const BL = { next: 2.5, t: -1 };
+function tickBlink(dt){
+  if(BL.t >= 0){ BL.t += dt; if(BL.t > 0.18) BL.t = -1; }
+  else if((BL.next -= dt) <= 0){ BL.t = 0; BL.next = 2 + Math.random() * 3; }
+  return BL.t >= 0 ? blinkCurve(BL.t) : 0;
+}
+/** 書き出し用。1ループに 1回、6わりの ところで（短すぎる ループは しない） */
+function loopBlink(t, dur){
+  if(dur < 1.2) return 0;
+  return blinkCurve(t - dur * 0.6);
+}
+
+/* 目の パーツを 「右目」「左目」に わけて、それぞれ どの 高さへ 閉じるか を きめる。
+   まぶた・白目・瞳を べつべつに つぶすと 上まぶたが 下りて こない ので、
+   1つの 目は 同じ 線（目の 高さの 6わり）へ むかって つぶす。 */
+function eyeLines(pose, sp){
+  const eyes = S.proj.slots.filter(isEye), out = new Map();
+  if(!eyes.length) return out;
+  const side = sl => /右|right|_r|\.r|r$/i.test(sl.name) ? 'R' : /左|left|_l|\.l|l$/i.test(sl.name) ? 'L' : null;
+  const boxes = eyes.map(sl => ({ sl, b: slotBox(sl) }));
+  const mid = boxes.reduce((a, o) => a + o.b.cx, 0) / boxes.length;
+  const groups = {};
+  boxes.forEach(o => { const k = side(o.sl) || (o.b.cx < mid ? 'A' : 'B'); (groups[k] = groups[k] || []).push(o); });
+  for(const k in groups){
+    const list = groups[k];
+    const y0 = Math.min(...list.map(o => o.b.y0)), y1 = Math.max(...list.map(o => o.b.y1));
+    const cx = list.reduce((a, o) => a + o.b.cx, 0) / list.length;
+    const line = { x: cx, y: y0 + (y1 - y0) * 0.6 };
+    // 骨が 動いた ぶん だけ 線も うごかす
+    const id = rigidBone(list[0].sl) || list[0].sl.bone;
+    const p = pose[id], s0 = sp[id];
+    const w = (p && s0) ? M.apply(M.mul(p.world, M.inv(s0.world)), line.x, line.y) : line;
+    list.forEach(o => out.set(o.sl.id, w.y));
+  }
+  return out;
+}
+
+/** パーツを ぜんぶ 描く（画面・書き出し 共通）。k … とじぐあい */
+function paintParts(g, pose, sp, k){
+  const swap = hasSwap();
+  const lines = (!swap && blinkOn && k > 0) ? eyeLines(pose, sp) : null;
+  const eo = S.proj.eyeOpen, ec = S.proj.eyeClose;
   for(const slot of S.proj.slots){
-    if(!slot.visible) continue;
+    let vis = slot.visible;
+    if(swap && blinkOn && k > 0){
+      if(slot.id === eo) vis = k < 0.5;
+      if(slot.id === ec) vis = k >= 0.5;
+    }
+    if(!vis) continue;
     const img = S.imgs[slot.image]; if(!img) continue;
-    if(drawRigid(ctx, slot, img, pose, sp)) continue;
+    const sq = (!swap && blinkOn && k > 0 && isEye(slot)) ? Math.max(0.08, 1 - k * 0.92) : 1;
+    const cy = lines && lines.get(slot.id);
+    if(drawRigid(g, slot, img, pose, sp, sq, cy)) continue;
     const n = slot.verts.length;
     let buf = slot._xy;
     if(!buf || buf.length < n*2) buf = slot._xy = new Float32Array(n*2);
     deformSlot(slot, pose, buf);
-    drawSlot(ctx, slot, img, buf);
+    if(sq < 1){
+      let y0 = 1e9, y1 = -1e9;
+      for(let i = 0; i < n; i++){ const y = buf[i*2+1]; if(y < y0) y0 = y; if(y > y1) y1 = y; }
+      const c = cy ?? (y0 + y1) / 2;
+      for(let i = 0; i < n; i++) buf[i*2+1] = c + (buf[i*2+1] - c) * sq;
+    }
+    drawSlot(g, slot, img, buf);
   }
+}
+
+let blinkK = 0, blinkLast = performance.now();
+drawParts = function(pose){
+  const now = performance.now(), dt = Math.min(0.1, (now - blinkLast) / 1000); blinkLast = now;
+  // 配信モードの 入れかえは editor.js が やる ので、ここでは アニメート中だけ
+  const run = blinkOn && (S.mode === 'anim' || S.live) && !(S.live && hasSwap());
+  blinkK = run ? tickBlink(dt) : 0;
+  paintParts(ctx, pose, setupPose(), blinkK);
 };
+
+function setBlink(on){
+  blinkOn = on;
+  try{ localStorage.setItem('miniSpine.blink', on ? '1' : '0'); }catch(e){}
+  const b = $('#btnBlink'); if(b) b.classList.toggle('on', on);
+  const n = hasSwap() ? '「目 開／目 閉」を 入れかえ' : S.proj.slots.filter(isEye).length + 'まいの 目を つぶして';
+  setStatus(on ? 'まばたき オン（' + n + '）。アニメート・配信・書き出しで 動きます' : 'まばたき オフ');
+}
 
 /* ================= ボタンを 足す ================= */
 (() => {
@@ -1189,10 +1273,14 @@ drawParts = function(pose){
   acts.insertBefore(exp, $('#btnRec'));
   acts.insertBefore(nw, $('#btnAddImg'));
 
+  const bk = el('button', 'opt' + (blinkOn ? ' on' : ''), '👁 まばたき'); bk.id = 'btnBlink';
+  bk.title = '目を 自動で とじる（アニメート・配信・書き出し）';
+  bk.onclick = () => setBlink(!blinkOn);
   const rig = el('button', 'opt', '🦴 タップで骨組み'); rig.id = 'btnTapRig';
   rig.title = '腰・首・頭・手先を さわるだけで 骨を 組む';
   rig.onclick = tapStart;
   $('#btnSpring').parentNode.insertBefore(rig, $('#btnSpring'));
+  $('#btnSpring').after(bk);
 
   const mv = el('button', 'btn btn-sm btn-y', '✨ よくある動き'); mv.id = 'btnPreset2';
   mv.onclick = openMotions;
