@@ -1144,8 +1144,8 @@ function rng(label, get, set, min, max, step){
   r.appendChild(el('label', null, label));
   const i = el('input'); i.type='range'; i.min=min; i.max=max; i.step=step; i.value=get();
   const t = el('span', 'val', (+get()).toFixed(2));
-  i.onpointerdown = () => beginEdit(label + 'を変更');
-  i.oninput = () => { set(parseFloat(i.value)); t.textContent = parseFloat(i.value).toFixed(2); };
+  // 動かし はじめて から 記録する（触った だけでは 何も おきない つまみ）
+  i.oninput = () => { beginEdit(label + 'を変更'); set(parseFloat(i.value)); t.textContent = parseFloat(i.value).toFixed(2); };
   i.onchange = () => commitEdit();
   r.appendChild(i); r.appendChild(t); return r;
 }

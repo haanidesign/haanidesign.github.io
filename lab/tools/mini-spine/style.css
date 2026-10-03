@@ -346,3 +346,15 @@ body.taprig #modes, body.taprig #maintools, body.taprig #viewToggles{ visibility
 #busy{ display:none; position:fixed; inset:0; z-index:120; background:rgba(251,250,236,.82); align-items:center; justify-content:center; }
 #busy.on{ display:flex; }
 #busy span{ background:var(--paper); border:var(--bd); border-radius:14px; box-shadow:0 4px 0 var(--ink); padding:.8rem 1.2rem; font-size:.9rem; }
+
+/* ---------- 揺れの やわらかさ ---------- */
+.soft-box{ margin:.2rem 0 .5rem; }
+.soft-row{ display:flex; flex-wrap:wrap; gap:.3rem; margin:.15rem 0 .35rem; }
+.soft-row .btn{ flex:1 1 auto; }
+
+/* ---------- つまみ（触っただけでは 動かない。rslider.js） ---------- */
+.rs{position:relative;height:30px;touch-action:none;cursor:ew-resize;min-width:60px;flex:1;}
+.rs-track{position:absolute;left:9px;right:9px;top:50%;height:6px;margin-top:-3px;background:var(--main-soft);border:1.5px solid var(--ink);border-radius:6px;overflow:hidden;}
+.rs-fill{height:100%;background:var(--main);}
+.rs-knob{position:absolute;top:50%;width:18px;height:24px;margin:-12px 0 0 -9px;background:var(--paper);border:2px solid var(--ink);border-radius:7px;box-shadow:0 2px 0 var(--ink);}
+.rs.drag .rs-knob{background:var(--main);}

@@ -477,10 +477,7 @@ function buildTapRig(P){
     hairSlots.forEach((s, i) => {
       const bx = slotBox(s);
       const a = { x: bx.cx, y: bx.y0 + bx.h * 0.1 }, e = { x: bx.cx, y: bx.y1 };
-      const m = lerpP(a, e, 0.5);
-      const h1 = boneAt('髪' + (i + 1) + 'a', head.id, a, m, { spring:true, stiff:0.16, damp:0.88, grav:0.06 });
-      const h2 = boneAt('髪' + (i + 1) + 'b', h1.id, m, e, { spring:true, stiff:0.09, damp:0.88, grav:0.06 });
-      hairBones[s.id] = [h1.id, h2.id];
+      hairBones[s.id] = hairChain('髪' + (i + 1), head.id, a, e, 4);
     });
 
     markDirty();
@@ -572,6 +569,115 @@ function buildPartRig(targetId, P){
   });
   setStatus('組み直しました。' + (P.mid ? '曲がる ところで まがります' : '1本の 骨です'));
 }
+
+/* ================= 揺れる 骨（髪・しっぽ） =================
+   1本の 長い 骨より、短い 骨を いくつも つないだ ほうが しなやかに 曲がる。
+   先へ 行くほど やわらかく する。 */
+const SOFT = {
+  'かため':     { s0:.35, s1:.20, damp:.80, grav:.03 },
+  'ふつう':     { s0:.18, s1:.09, damp:.88, grav:.06 },
+  'やわらかい': { s0:.10, s1:.045, damp:.92, grav:.08 },
+  'ふわふわ':   { s0:.06, s1:.025, damp:.95, grav:.04 }
+};
+function softAt(kind, i, n){
+  const k = SOFT[kind] || SOFT['やわらかい'], t = n > 1 ? i / (n - 1) : 0;
+  return { spring:true, stiff: +(k.s0 + (k.s1 - k.s0) * t).toFixed(3), damp:k.damp, grav:k.grav, inertia:1 };
+}
+/** a→e を n本の 揺れる 骨で つなぐ。id の ならびを かえす */
+function hairChain(name, parentId, a, e, n, kind){
+  const ids = []; let par = parentId;
+  for(let i = 0; i < n; i++){
+    const p = { x: a.x + (e.x - a.x) * i / n, y: a.y + (e.y - a.y) * i / n };
+    const q = { x: a.x + (e.x - a.x) * (i + 1) / n, y: a.y + (e.y - a.y) * (i + 1) / n };
+    const b = boneAt(name + '_' + (i + 1), par, p, q, softAt(kind || 'やわらかい', i, n));
+    ids.push(b.id); par = b.id;
+  }
+  return ids;
+}
+
+/** えらんだ 骨を ふくむ、揺れる 骨の 1本道（根もと→先） */
+function springChain(b){
+  if(!b || !b.spring) return [];
+  let top = b;
+  while(top.parent){ const p = boneById(top.parent); if(!p || !p.spring) break; top = p; }
+  const kids = childMap(S.proj), out = [top];
+  let cur = top;
+  for(;;){
+    const ks = (kids[cur.id] || []).map(boneById).filter(x => x && x.spring);
+    if(ks.length !== 1) break;
+    cur = ks[0]; out.push(cur);
+  }
+  return out;
+}
+
+function setSoftness(b, kind){
+  const ch = springChain(b);
+  edit('揺れ: ' + kind, () => ch.forEach((x, i) => Object.assign(x, softAt(kind, i, ch.length))));
+  S.springState = {}; S.spring = true;
+  setStatus('「' + kind + '」に しました（' + ch.length + '本）');
+  refreshUI();
+}
+
+/** 揺れる 骨の 1本道を n本に 切り直す（形は そのまま、曲がる ところが ふえる） */
+function splitChain(b, n){
+  const ch = springChain(b); if(!ch.length) return;
+  const sp = setupPose();
+  const pts = [{ x: sp[ch[0].id].world.tx, y: sp[ch[0].id].world.ty }];
+  ch.forEach(x => pts.push(M.apply(sp[x.id].world, x.len, 0)));
+  // 折れ線の 上を 同じ 長さずつ 区切る
+  const seg = []; let total = 0;
+  for(let i = 1; i < pts.length; i++){ const d = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y); seg.push(d); total += d; }
+  const at = t => { let r = t * total;
+    for(let i = 0; i < seg.length; i++){ if(r <= seg[i] || i === seg.length - 1){ const f = seg[i] ? Math.min(1, r / seg[i]) : 0;
+      return { x: pts[i].x + (pts[i+1].x - pts[i].x) * f, y: pts[i].y + (pts[i+1].y - pts[i].y) * f }; } r -= seg[i]; } };
+  const kind = ch[0].stiff >= .3 ? 'かため' : ch[0].stiff >= .15 ? 'ふつう' : ch[0].stiff >= .08 ? 'やわらかい' : 'ふわふわ';
+  const name = ch[0].name.replace(/(_?\d+|[ab])$/, '') || '揺れ';
+  edit('揺れる 骨を ' + n + '本に', () => {
+    const gone = new Set(ch.map(x => x.id)), parent = ch[0].parent;
+    const ids = []; let par = parent;
+    for(let i = 0; i < n; i++){
+      const nb = boneAt(name + '_' + (i + 1), par, at(i / n), at((i + 1) / n), softAt(kind, i, n));
+      ids.push(nb.id); par = nb.id;
+    }
+    S.proj.bones.forEach(x => { if(!gone.has(x.id) && gone.has(x.parent)) x.parent = ids[ids.length - 1]; });
+    const moved = S.proj.slots.filter(sl => gone.has(sl.bone));
+    S.proj.slots.forEach(sl => { if(gone.has(sl.bone)) return;
+      sl.verts.forEach(v => (v.w || []).forEach(w => { if(gone.has(w.b)) w.b = ids[0]; })); });
+    S.proj.bones = S.proj.bones.filter(x => !gone.has(x.id));
+    S.proj.iks = (S.proj.iks || []).filter(k => !k.bones.some(id => gone.has(id)) && !gone.has(k.target));
+    for(const nm in S.proj.anims) gone.forEach(id => delete S.proj.anims[nm].tracks[id]);
+    markDirty();
+    const sp2 = setupPose();
+    moved.forEach(sl => { sl.verts.forEach(v => { v.w = []; }); sl.bone = ids[0];
+      autoWeights(S.proj, sl, sp2, { maxBones:2, falloff:2, only: ids }); });
+    markDirty();
+    S.sel = { bone: ids[0], slot: null, ik: null };
+  });
+  S.springState = {}; S.spring = true;
+  setStatus('揺れる 骨を ' + n + '本に しました');
+  refreshUI();
+}
+
+/* プロパティに「やわらかさ」を 足す（揺れる 骨を えらんだ とき） */
+const _buildProps0 = buildProps;
+buildProps = function(){
+  _buildProps0();
+  const b = boneById(S.sel.bone);
+  if(!b || !b.spring || slotById(S.sel.slot)) return;
+  const host = $('#props');
+  const anchor = [...host.querySelectorAll('.title')].find(t => /揺れ/.test(t.textContent));
+  const box = el('div', 'soft-box');
+  const ch = springChain(b);
+  box.appendChild(el('div', 'hint', 'やわらかさ（' + ch.length + '本 まとめて）'));
+  const r1 = el('div', 'soft-row');
+  Object.keys(SOFT).forEach(k => r1.appendChild(mkBtn(k, () => setSoftness(b, k), 'btn btn-sm')));
+  box.appendChild(r1);
+  box.appendChild(el('div', 'hint', '曲がる ところを ふやす（いまは ' + ch.length + '本）'));
+  const r2 = el('div', 'soft-row');
+  [3, 4, 6].forEach(n => r2.appendChild(mkBtn(n + '本に', () => splitChain(b, n), 'btn btn-sm' + (ch.length === n ? ' on' : ''))));
+  box.appendChild(r2);
+  if(anchor) anchor.after(box); else host.appendChild(box);
+};
 
 function segDist(sp, b, bx){
   const p = sp[b.id]; if(!p) return 1e9;
