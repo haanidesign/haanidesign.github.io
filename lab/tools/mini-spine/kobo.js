@@ -723,7 +723,30 @@ render = function(){
     ctx.setTransform(S.view.z, 0, 0, S.view.z, S.view.x, S.view.y);
     drawTapMarks();
   }
+  if(S.tool === 'create' && !S.live && !S.rec) drawCreateHints();
 };
+
+/* 作成ツール: 骨の 先っぽに 輪を 出す（ここから 引くと 関節で つながる）。
+   引いて いる あいだは できる 骨を 先に 見せる */
+function drawCreateHints(){
+  const z = S.view.z, pose = curPose; if(!pose) return;
+  ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+  const d = S.drag && S.drag.type === 'newbone' ? S.drag : null;
+  S.proj.bones.forEach(b => {
+    const p = pose[b.id]; if(!p) return;
+    const t = M.apply(p.world, b.len, 0), sel = b.id === S.sel.bone;
+    ctx.beginPath(); ctx.arc(t.x, t.y, (sel ? 12 : 8) / z, 0, 7);
+    ctx.lineWidth = (sel ? 3 : 2) / z; ctx.strokeStyle = sel ? INK : GRAY;
+    ctx.setLineDash(sel ? [] : [3 / z, 3 / z]); ctx.stroke(); ctx.setLineDash([]);
+    if(sel && !d) label('ここから 引くと つながる', t.x + 16 / z, t.y - 12 / z, z);
+  });
+  if(d){
+    ctx.beginPath(); ctx.moveTo(d.ox, d.oy); ctx.lineTo(d.x, d.y);
+    ctx.lineWidth = 6 / z; ctx.strokeStyle = MAIN_DEEP; ctx.stroke();
+    ctx.beginPath(); ctx.arc(d.ox, d.oy, 7 / z, 0, 7); ctx.fillStyle = d.snapped ? MAIN : PAPER; ctx.fill();
+    ctx.lineWidth = 2 / z; ctx.strokeStyle = INK; ctx.stroke();
+  }
+}
 
 /* ================= 書き出し ================= */
 /** 1ループぶんを、こま 1まいずつ 絵に する（揺れ物理も のせる） */

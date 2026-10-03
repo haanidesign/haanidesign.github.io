@@ -767,7 +767,20 @@ cv.addEventListener('pointerdown', e => {
 
   // ボーン作成
   if(S.tool === 'create'){
-    S.drag = { type:'newbone', ox:w.x, oy:w.y, x:w.x, y:w.y };
+    /* 骨の 先っぽの 近くから 引いたら、そこに 吸いついて その骨の 子に する
+       （＝ 続けて 引けば 関節で つながる）。いま えらんでいる 骨の 先が いちばん 優先 */
+    let ox = w.x, oy = w.y;
+    const R = 34 / S.view.z;
+    let best = null, bd = R;
+    const tipOf = b => { const p = curPose && curPose[b.id]; return p ? M.apply(p.world, b.len, 0) : null; };
+    const selB = boneById(S.sel.bone);
+    S.proj.bones.forEach(b => {
+      const t = tipOf(b); if(!t) return;
+      const d = Math.hypot(t.x - w.x, t.y - w.y) - (b === selB ? R * 0.5 : 0);
+      if(d < bd){ bd = d; best = { b, t }; }
+    });
+    if(best){ S.sel.bone = best.b.id; S.sel.slot = null; ox = best.t.x; oy = best.t.y; }
+    S.drag = { type:'newbone', ox, oy, x:w.x, y:w.y, snapped: !!best };
     return;
   }
 
