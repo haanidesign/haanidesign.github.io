@@ -767,20 +767,33 @@ cv.addEventListener('pointerdown', e => {
 
   // ボーン作成
   if(S.tool === 'create'){
-    /* 骨の 先っぽの 近くから 引いたら、そこに 吸いついて その骨の 子に する
-       （＝ 続けて 引けば 関節で つながる）。いま えらんでいる 骨の 先が いちばん 優先 */
-    let ox = w.x, oy = w.y;
+    /* 骨は いつも セットアップ（動かす まえの 形）の 上で 作る。
+       アニメート中に 作ると、動いた あとの 位置で 計算されて ずれる */
+    if(S.mode !== 'setup'){ S.mode = 'setup'; S.springState = {}; S.playing = false; refreshUI(); }
+    const sp = setupPose();
+    const forSlot = slotById(S.sel.slot);
+    // パーツを えらんで いる ときは、その パーツ用に いま 作った 骨の 先 だけに 吸いつく
+    const made = (S.createFor && forSlot && S.createFor.slot === forSlot.id) ? S.createFor.ids : null;
+    const cands = forSlot ? (made || []).map(boneById).filter(Boolean) : S.proj.bones;
+    let ox = w.x, oy = w.y, parent = null;
     const R = 34 / S.view.z;
-    let best = null, bd = R;
-    const tipOf = b => { const p = curPose && curPose[b.id]; return p ? M.apply(p.world, b.len, 0) : null; };
+    let bd = R;
     const selB = boneById(S.sel.bone);
-    S.proj.bones.forEach(b => {
-      const t = tipOf(b); if(!t) return;
+    cands.forEach(b => {
+      const p = sp[b.id]; if(!p) return;
+      const t = M.apply(p.world, b.len, 0);
       const d = Math.hypot(t.x - w.x, t.y - w.y) - (b === selB ? R * 0.5 : 0);
-      if(d < bd){ bd = d; best = { b, t }; }
+      if(d < bd){ bd = d; ox = t.x; oy = t.y; parent = b.id; }
     });
-    if(best){ S.sel.bone = best.b.id; S.sel.slot = null; ox = best.t.x; oy = best.t.y; }
-    S.drag = { type:'newbone', ox, oy, x:w.x, y:w.y, snapped: !!best };
+    const snapped = !!parent;
+    if(!parent){
+      if(forSlot){
+        // パーツの もとの 付け先（頭 など）から 生やす
+        parent = (S.createFor && S.createFor.slot === forSlot.id) ? S.createFor.base : forSlot.bone;
+        if(!boneById(parent)) parent = S.proj.bones[0].id;
+      } else parent = (selB || S.proj.bones[0]).id;
+    }
+    S.drag = { type:'newbone', ox, oy, x:w.x, y:w.y, snapped, parent, forSlot: forSlot ? forSlot.id : null };
     return;
   }
 
@@ -840,7 +853,7 @@ window.addEventListener('pointerup', () => {
   const d = S.drag; S.drag = null;
   if(!d) return;
   if(d.type === 'newbone'){
-    if(Math.hypot(d.x-d.ox, d.y-d.oy) > 6) createBone(d.ox, d.oy, d.x, d.y);
+    if(Math.hypot(d.x-d.ox, d.y-d.oy) > 6) createBone(d.ox, d.oy, d.x, d.y, d.parent, d.forSlot);
   } else {
     commitEdit();
   }
@@ -1021,13 +1034,16 @@ function paintAt(w, sub){
 }
 
 /* ================= ボーン操作 ================= */
-function createBone(ox, oy, ex, ey){
+function createBone(ox, oy, ex, ey, parentId, forSlotId){
+  const slot = slotById(forSlotId);
   edit('ボーンを作成', () => {
-    const parent = boneById(S.sel.bone) || S.proj.bones[0];
-    const pi = M.inv(curPose[parent.id] ? curPose[parent.id].world : M.ident());
+    const parent = boneById(parentId) || boneById(S.sel.bone) || S.proj.bones[0];
+    const sp = setupPose();
+    const pi = M.inv(sp[parent.id] ? sp[parent.id].world : M.ident());
     const lo = M.apply(pi, ox, oy), le = M.apply(pi, ex, ey);
     const b = {
-      id: uid('b'), name: 'bone' + S.proj.bones.length, parent: parent.id,
+      id: uid('b'), name: (slot ? slot.name + '_' : 'bone') + (slot && S.createFor && S.createFor.slot === slot.id ? S.createFor.ids.length + 1 : slot ? 1 : S.proj.bones.length),
+      parent: parent.id,
       x: lo.x, y: lo.y,
       rot: Math.atan2(le.y-lo.y, le.x-lo.x)*180/Math.PI,
       sx:1, sy:1, shear:0, len: Math.hypot(le.x-lo.x, le.y-lo.y),
@@ -1035,9 +1051,22 @@ function createBone(ox, oy, ex, ey){
     };
     S.proj.bones.push(b);
     S.sel.bone = b.id;
+    if(slot){
+      /* えらんだ パーツを、作った 骨に つける。
+         2本 以上 つないだら、その 骨たちで なめらかに まがる ように ウェイトを くばる */
+      if(!(S.createFor && S.createFor.slot === slot.id)) S.createFor = { slot: slot.id, ids: [], base: slot.bone };
+      S.createFor.ids.push(b.id);
+      markDirty();
+      const ids = S.createFor.ids.filter(id => boneById(id));
+      slot.verts.forEach(v => { v.w = []; });
+      slot.bone = ids[0];
+      if(ids.length > 1) autoWeights(S.proj, slot, setupPose(), { maxBones:2, falloff:3, only: ids });
+    }
     markDirty();
   });
-  setStatus('ボーンを作成しました。続けてドラッグすると子ボーンが作れます');
+  setStatus(slot
+    ? '「' + slot.name + '」用の 骨を 作りました（' + S.createFor.ids.length + '本）。黒い 輪から 続けて 引くと 関節で つながります'
+    : 'ボーンを作成しました。続けてドラッグすると子ボーンが作れます');
   refreshUI();
 }
 

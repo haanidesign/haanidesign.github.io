@@ -729,10 +729,17 @@ render = function(){
 /* 作成ツール: 骨の 先っぽに 輪を 出す（ここから 引くと 関節で つながる）。
    引いて いる あいだは できる 骨を 先に 見せる */
 function drawCreateHints(){
-  const z = S.view.z, pose = curPose; if(!pose) return;
+  const z = S.view.z, pose = setupPose();
   ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
   const d = S.drag && S.drag.type === 'newbone' ? S.drag : null;
-  S.proj.bones.forEach(b => {
+  const sl = slotById(S.sel.slot);
+  const made = sl && S.createFor && S.createFor.slot === sl.id ? S.createFor.ids.map(boneById).filter(Boolean) : null;
+  const list = sl ? (made || []) : S.proj.bones;
+  if(sl && !d && !(made && made.length)){
+    const bx = slotBox(sl);
+    label('「' + sl.name + '」の 付け根から 引いて 骨を 作る', bx.x0, bx.y0 - 12 / z, z);
+  }
+  list.forEach(b => {
     const p = pose[b.id]; if(!p) return;
     const t = M.apply(p.world, b.len, 0), sel = b.id === S.sel.bone;
     ctx.beginPath(); ctx.arc(t.x, t.y, (sel ? 12 : 8) / z, 0, 7);
