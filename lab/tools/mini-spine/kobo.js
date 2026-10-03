@@ -1638,7 +1638,7 @@ function tag(text, x, y, z, fill){
   ctx.beginPath();
   if(ctx.roundRect) ctx.roundRect(x, y - h / 2, w, h, h / 2); else ctx.rect(x, y - h / 2, w, h);
   ctx.fill(); ctx.stroke();
-  ctx.fillStyle = INK; ctx.textBaseline = 'middle'; ctx.fillText(text, x + px, y);
+  ctx.fillStyle = fill === INK ? MAIN : INK; ctx.textBaseline = 'middle'; ctx.fillText(text, x + px, y);
   ctx.textBaseline = 'alphabetic';
 }
 function drawParentLinks(){
@@ -1650,7 +1650,13 @@ function drawParentLinks(){
     const { main, ids } = slotBones(sl);
     const bx = slotScreenBox(sl, pose); if(!bx || !main) return;
     const m = boneMid(main, pose); if(!m) return;
-    outline(bx, z, MAIN_DEEP);
+    // えらんで いる パーツは 太い 二重の わくと 名前で はっきり
+    const dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+    const pad = 8 * dpr / z;
+    const rx = bx.x0 - pad, ry = bx.y0 - pad, rw = bx.x1 - bx.x0 + pad * 2, rh = bx.y1 - bx.y0 + pad * 2;
+    ctx.lineWidth = 6 * dpr / z; ctx.strokeStyle = INK; ctx.strokeRect(rx, ry, rw, rh);
+    ctx.lineWidth = 3 * dpr / z; ctx.strokeStyle = MAIN; ctx.strokeRect(rx, ry, rw, rh);
+    tag('▶ ' + sl.name, rx, ry - 14 * dpr / z, z, INK);
     linkLine({ x: bx.cx, y: bx.cy }, m, z, INK);
     tag('⛓ 親: ' + main.name + (ids.length > 1 ? '（ほか' + (ids.length - 1) + '本で まがる）' : ''), m.x + 12 / z, m.y, z, MAIN);
     return;
@@ -1670,6 +1676,15 @@ function drawParentLinks(){
   });
   if(n) tag('⛓ ' + b.name + ' に ついている: ' + n + 'まい', m.x + 12 / z, m.y, z, MAIN);
 }
+
+/* えらんだ 行が 一覧の 外に かくれて いたら 見える ところへ */
+const _refreshUI1 = refreshUI;
+refreshUI = function(){
+  _refreshUI1();
+  requestAnimationFrame(() => document.querySelectorAll('#treeBody .item.sel, #orderBody .item.sel').forEach(e => {
+    try{ e.scrollIntoView({ block:'nearest' }); }catch(_){}
+  }));
+};
 
 /* ================= ボタンを 足す ================= */
 (() => {

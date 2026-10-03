@@ -387,3 +387,16 @@ body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
 .par-t{ font-size:.66rem; padding:.12rem .5rem; box-shadow:0 2px 0 var(--ink); }
 .par-t::after{ content:' ▾'; font-size:.55rem; }
 @media (pointer:coarse){ .par-t{ font-size:.74rem; padding:.25rem .6rem; } }
+
+/* ---------- えらんで いる 行を はっきり ---------- */
+.tree .item.sel, #orderBody .item.sel{
+  background:var(--ink) !important; color:var(--main); transform:none;
+  box-shadow:inset 5px 0 0 var(--main), 0 0 0 2px var(--ink);
+}
+.tree .item.sel .nm, #orderBody .item.sel .nm{ color:var(--main); font-weight:800; }
+.tree .item.sel .tag, .tree .item.sel .badge{ color:var(--main); }
+#orderBody .item.sel .par-t{ background:var(--main); }
+#orderBody .item.sel button.mini{ background:var(--main); }
+#orderBody .item.sel .par-t{ color:var(--ink); }
+#orderBody .item.sel .nm, .tree .item.sel .nm, .tree .item.sel span{ color:var(--main) !important; }
+#orderBody .item.sel .par-t, #orderBody .item.sel .par-t *{ color:var(--ink) !important; }
