@@ -338,6 +338,10 @@ const tapBar = (() => {
   return { bar, msg, skip, back };
 })();
 
+const HAIR_STEPS = [
+  { key:'base', say:'髪の 生え際（揺れの 付け根）を さわって', skip:false },
+  { key:'tip',  say:'毛先を さわって', skip:false }
+];
 const PART_STEPS = [
   { key:'base', say:'付け根（肩・首など）を さわって', skip:false },
   { key:'mid',  say:'曲がる ところ（ひじ・ひざ）を さわって（曲げないなら「とばす」）', skip:true },
@@ -363,14 +367,19 @@ function tapStart(){
       b.append(el('i', null, icon), el('span', null, ttl), el('small', null, note));
       g.appendChild(b);
     };
-    big('✋', '「' + pb.name + '」だけ 組み直す', '付け根 → 曲がる ところ → 先っぽ の 順に さわる。ほかの 骨と アニメは そのまま。', () => tapGo('part', pb.id));
+    if(pb.spring){
+      const top = springChain(pb)[0] || pb;
+      big('💇', '「' + top.name.replace(/_?\d+$/, '') + '」の 揺れる 骨を 組み直す', '生え際 → 毛先 の 2か所を さわる。揺れる 骨 4本で つなぎ直します。ほかの 骨と アニメは そのまま。', () => tapGo('hair', top.id));
+    } else {
+      big('✋', '「' + pb.name + '」だけ 組み直す', '付け根 → 曲がる ところ → 先っぽ の 順に さわる。ほかの 骨と アニメは そのまま。', () => tapGo('part', pb.id));
+    }
     big('🧍', 'ぜんぶ 作り直す', '腰 → 首 → 頭 → 手先。いまの 骨と アニメの キーは 消えます。', () => tapGo('all'));
     body.appendChild(g);
   });
 }
 function tapGo(kind, target){
   sheet.hide();
-  S.tapRig = { i:0, pts:{}, kind, target, steps: kind === 'part' ? PART_STEPS : TAP_STEPS };
+  S.tapRig = { i:0, pts:{}, kind, target, steps: kind === 'part' ? PART_STEPS : kind === 'hair' ? HAIR_STEPS : TAP_STEPS };
   S.mode = 'setup'; S.playing = false;
   document.body.classList.add('taprig');
   tapShow(); refreshUI();
@@ -398,7 +407,9 @@ function tapEnd(ok){
   const r = S.tapRig;
   S.tapRig = null;
   document.body.classList.remove('taprig');
-  if(ok && r) r.kind === 'part' ? buildPartRig(r.target, r.pts) : buildTapRig(r.pts);
+  if(ok && r) r.kind === 'part' ? buildPartRig(r.target, r.pts)
+            : r.kind === 'hair' ? buildHairRig(r.target, r.pts)
+            : buildTapRig(r.pts);
   refreshUI();
 }
 
@@ -619,11 +630,19 @@ function setSoftness(b, kind){
 }
 
 /** 揺れる 骨の 1本道を n本に 切り直す（形は そのまま、曲がる ところが ふえる） */
-function splitChain(b, n){
+function buildHairRig(targetId, P){
+  const b = boneById(targetId);
+  if(!b || !P || !P.base || !P.tip) return;
+  splitChain(b, 4, [P.base, P.tip]);
+  setStatus('揺れる 骨を 組み直しました。「② アニメート」で 頭を 動かすと 揺れます');
+}
+
+function splitChain(b, n, line){
   const ch = springChain(b); if(!ch.length) return;
   const sp = setupPose();
-  const pts = [{ x: sp[ch[0].id].world.tx, y: sp[ch[0].id].world.ty }];
+  let pts = [{ x: sp[ch[0].id].world.tx, y: sp[ch[0].id].world.ty }];
   ch.forEach(x => pts.push(M.apply(sp[x.id].world, x.len, 0)));
+  if(line) pts = line;   // さわった 生え際 → 毛先 で 引き直す
   // 折れ線の 上を 同じ 長さずつ 区切る
   const seg = []; let total = 0;
   for(let i = 1; i < pts.length; i++){ const d = Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y); seg.push(d); total += d; }
@@ -662,8 +681,9 @@ function splitChain(b, n){
 const _buildProps0 = buildProps;
 buildProps = function(){
   _buildProps0();
-  const b = boneById(S.sel.bone);
-  if(!b || !b.spring || slotById(S.sel.slot)) return;
+  const sl = slotById(S.sel.slot);
+  const b = sl ? boneById(sl.bone) : boneById(S.sel.bone);
+  if(!b || !b.spring) return;
   const host = $('#props');
   const anchor = [...host.querySelectorAll('.title')].find(t => /揺れ/.test(t.textContent));
   const box = el('div', 'soft-box');
