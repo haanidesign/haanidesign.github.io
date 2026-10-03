@@ -1125,7 +1125,7 @@ function rigidBone(slot){
   return id;
 }
 function drawRigid(g, slot, img, pose, sp){
-  if(S.meshEdit || S.tool === 'weight') return false;
+  if(S.meshEdit) return false;
   const id = rigidBone(slot);
   const p = id && pose[id], s0 = id && sp[id];
   if(!p || !s0 || slot.verts.length < 3) return false;
