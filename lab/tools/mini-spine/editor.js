@@ -179,7 +179,8 @@ function flattenPsd(node, out, groupPath){
       left: ch.left || 0, top: ch.top || 0,
       opacity: ch.opacity === undefined ? 1 : ch.opacity,
       group: groupPath.length ? groupPath[groupPath.length-1] : null,
-      gpath: groupPath.slice()
+      gpath: groupPath.slice(),
+      clipping: !!ch.clipping        // Photoshop の クリッピングマスク（すぐ下の 絵で ぬく）
     });
   }
 }
@@ -341,7 +342,7 @@ async function importPsd(file){
 
   const rootId = S.proj.bones[0].id;
   const slotOf = new Map();
-  let roles = 0;
+  let roles = 0, lastBase = null;
   layers.forEach(l => {
     const id = uid('img');
     const src = l.canvas.toDataURL('image/png');
@@ -353,6 +354,8 @@ async function importPsd(file){
     slot.alpha = clamp(l.opacity, 0, 1);
     slot.bone = groupBone[l.group] || rootId;
     slot.gpath = l.gpath || [];
+    if(l.clipping && lastBase) slot.clipTo = lastBase;
+    else lastBase = slot.id;
     // PSD 内の位置をそのまま採用（等倍・平行移動だけ）
     const place = M.fromTRS(l.left, l.top, 0, 1, 1, 0);
     const m = buildGridMesh(l.canvas, S.meshRes.cols, S.meshRes.rows, place);

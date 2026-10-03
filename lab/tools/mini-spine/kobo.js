@@ -1079,7 +1079,14 @@ importPsd = async function(file){
   if(!S.psdReplace) return;
   beginEdit('グループから 骨を 組む');
   const ok = rigByGroups();
+  const clips = autoClip();
   commitEdit();
+  // 絵の 読みこみを 待ってから まぶたを しらべる
+  setTimeout(() => {
+    beginEdit('まぶたを しらべる'); const lids = autoLids(); commitEdit();
+    const msg = [clips ? clips + 'まいの 瞳を 白目で 切りぬき' : '', lids ? lids + 'まいの まぶたを まばたき用に' : ''].filter(Boolean).join('、');
+    if(msg) setStatus(msg + 'しました（パーツの 右パネルで 変えられます）');
+  }, 300);
   if(ok){
     refreshUI();
     setStatus('PSD読み込み: ' + S.proj.slots.length + 'パーツ / 骨' + S.proj.bones.length + '本（グループから）。「✨ よくある動き」で すぐ 動かせます');
@@ -1193,7 +1200,7 @@ function loopBlink(t, dur){
 function eyeLines(pose, sp){
   const eyes = S.proj.slots.filter(isEye), out = new Map();
   if(!eyes.length) return out;
-  const side = sl => /右|right|_r|\.r|r$/i.test(sl.name) ? 'R' : /左|left|_l|\.l|l$/i.test(sl.name) ? 'L' : null;
+  const side = sl => /右|right|_r\b|\.r\b|r$/i.test(sl.name) ? 'R' : /左|left|_l\b|\.l\b|l$/i.test(sl.name) ? 'L' : null;
   const boxes = eyes.map(sl => ({ sl, b: slotBox(sl) }));
   const mid = boxes.reduce((a, o) => a + o.b.cx, 0) / boxes.length;
   const groups = {};
@@ -1212,22 +1219,85 @@ function eyeLines(pose, sp){
   return out;
 }
 
+/* ================= クリップ（アニメ工房と おなじ） =================
+   slot.clipTo に えらんだ パーツの 形で ぬく。瞳を 白目で、かげを はだで ぬく など。
+   ① 下の 絵だけを 別紙に 描く  ② 上の 絵たちを 別の 紙に 描く
+   ③ ②を ①の 形で ぬく（destination-in）④ ①→③ の 順に 本番へ */
+const _clipSheets = [];
+function clipSheet(i, w, h){
+  let c = _clipSheets[i];
+  if(!c){ c = _clipSheets[i] = document.createElement('canvas'); }
+  if(c.width !== w || c.height !== h){ c.width = w; c.height = h; }
+  const g = c.getContext('2d');
+  g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+  g.clearRect(0, 0, w, h);
+  return c;
+}
+
+/** 目の パーツ名から、瞳を 同じ がわの 白目で ぬく 組み合わせを つくる */
+function autoClip(){
+  const W = /白目|white|sclera/i, P = /瞳|目玉|iris|pupil|ハイライト|highlight/i;
+  const side = n => /右|right|_r\b|r$/i.test(n) ? 'R' : /左|left|_l\b|l$/i.test(n) ? 'L' : '';
+  let n = 0;
+  S.proj.slots.forEach(sl => {
+    if(sl.clipTo || !P.test(sl.name) || W.test(sl.name)) return;
+    const base = S.proj.slots.find(o => o !== sl && W.test(o.name) && side(o.name) === side(sl.name));
+    if(base){ sl.clipTo = base.id; n++; }
+  });
+  return n;
+}
+
+/* Live2D 用の PSD では「まぶた」が 目を まるごと おおう はだ色の ふた に なって いる ことが ある。
+   ふだんは かくして、まばたきの ときだけ 出す（出しっぱなしだと 目が 見えない）。
+   見分け方: 名前が まぶた で、中が ほぼ ぬって あって、白目に 大きく かさなる もの */
+function fillRatio(img){
+  const c = document.createElement('canvas');
+  const w = c.width = Math.max(1, Math.min(96, img.naturalWidth || img.width));
+  const h = c.height = Math.max(1, Math.round(w * (img.naturalHeight || img.height) / (img.naturalWidth || img.width)));
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data; let n = 0;
+  for(let i = 3; i < d.length; i += 4) if(d[i] > 128) n++;
+  return n / (w * h);
+}
+function autoLids(){
+  const LID = /まぶた|瞼|eyelid|lid/i, W = /白目|white|sclera/i;
+  const whites = S.proj.slots.filter(o => W.test(o.name)).map(o => slotBox(o));
+  let n = 0;
+  S.proj.slots.forEach(sl => {
+    if(!LID.test(sl.name) || sl.lidCover !== undefined) return;
+    const img = S.imgs[sl.image]; if(!img || !img.complete) return;
+    const b = slotBox(sl);
+    const over = whites.some(w => {
+      const ix = Math.max(0, Math.min(b.x1, w.x1) - Math.max(b.x0, w.x0));
+      const iy = Math.max(0, Math.min(b.y1, w.y1) - Math.max(b.y0, w.y0));
+      return ix * iy > 0.3 * (w.x1 - w.x0) * (w.y1 - w.y0);
+    });
+    if(over && fillRatio(img) > 0.5){ sl.lidCover = true; n++; }
+  });
+  return n;
+}
+
 /** パーツを ぜんぶ 描く（画面・書き出し 共通）。k … とじぐあい */
 function paintParts(g, pose, sp, k){
   const swap = hasSwap();
-  const lines = (!swap && blinkOn && k > 0) ? eyeLines(pose, sp) : null;
+  const hasLids = S.proj.slots.some(x => x.lidCover);
+  const lines = (!swap && !hasLids && blinkOn && k > 0) ? eyeLines(pose, sp) : null;
   const eo = S.proj.eyeOpen, ec = S.proj.eyeClose;
-  for(const slot of S.proj.slots){
+  const shown = slot => {
     let vis = slot.visible;
     if(swap && blinkOn && k > 0){
       if(slot.id === eo) vis = k < 0.5;
       if(slot.id === ec) vis = k >= 0.5;
     }
-    if(!vis) continue;
-    const img = S.imgs[slot.image]; if(!img) continue;
-    const sq = (!swap && blinkOn && k > 0 && isEye(slot)) ? Math.max(0.08, 1 - k * 0.92) : 1;
+    // まぶたの ふたは まばたきの ときだけ
+    if(slot.lidCover) vis = vis && blinkOn && k >= 0.35;
+    return vis && !!S.imgs[slot.image];
+  };
+  const one = (gg, slot) => {
+    const img = S.imgs[slot.image];
+    const sq = (!swap && !hasLids && blinkOn && k > 0 && isEye(slot) && !slot.lidCover) ? Math.max(0.08, 1 - k * 0.92) : 1;
     const cy = lines && lines.get(slot.id);
-    if(drawRigid(g, slot, img, pose, sp, sq, cy)) continue;
+    if(drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
     const n = slot.verts.length;
     let buf = slot._xy;
     if(!buf || buf.length < n*2) buf = slot._xy = new Float32Array(n*2);
@@ -1238,7 +1308,31 @@ function paintParts(g, pose, sp, k){
       const c = cy ?? (y0 + y1) / 2;
       for(let i = 0; i < n; i++) buf[i*2+1] = c + (buf[i*2+1] - c) * sq;
     }
-    drawSlot(g, slot, img, buf);
+    drawSlot(gg, slot, img, buf);
+  };
+  // ぬく 側（clipTo が いきている もの）は、ぬかれる 絵の すぐ 上で まとめて 描く
+  const ids = new Set(S.proj.slots.map(x => x.id));
+  const clippersOf = {};
+  S.proj.slots.forEach(sl => { if(sl.clipTo && sl.clipTo !== sl.id && ids.has(sl.clipTo)) (clippersOf[sl.clipTo] = clippersOf[sl.clipTo] || []).push(sl); });
+  const tf = g.getTransform(), W = g.canvas.width, H = g.canvas.height;
+  for(const slot of S.proj.slots){
+    if(slot.clipTo && clippersOf[slot.clipTo] && clippersOf[slot.clipTo].includes(slot)) continue;
+    const clippers = (clippersOf[slot.id] || []).filter(shown);
+    if(!clippers.length){ if(shown(slot)) one(g, slot); continue; }
+    const cB = clipSheet(0, W, H), cC = clipSheet(1, W, H);
+    const gB = cB.getContext('2d'), gC = cC.getContext('2d');
+    gB.setTransform(tf); gC.setTransform(tf);
+    gB.globalAlpha = gC.globalAlpha = g.globalAlpha;
+    if(shown(slot)) one(gB, slot);
+    clippers.forEach(c => one(gC, c));
+    gC.setTransform(1,0,0,1,0,0);
+    gC.globalAlpha = 1;
+    gC.globalCompositeOperation = 'destination-in';
+    gC.drawImage(cB, 0, 0);
+    gC.globalCompositeOperation = 'source-over';
+    g.save(); g.setTransform(1,0,0,1,0,0); g.globalAlpha = 1;
+    g.drawImage(cB, 0, 0); g.drawImage(cC, 0, 0);
+    g.restore();
   }
 }
 
@@ -1258,6 +1352,40 @@ function setBlink(on){
   const n = hasSwap() ? '「目 開／目 閉」を 入れかえ' : S.proj.slots.filter(isEye).length + 'まいの 目を つぶして';
   setStatus(on ? 'まばたき オン（' + n + '）。アニメート・配信・書き出しで 動きます' : 'まばたき オフ');
 }
+
+/* パーツの 右パネルに「クリップ」を 足す */
+const _buildProps1 = buildProps;
+buildProps = function(){
+  _buildProps1();
+  const sl = slotById(S.sel.slot); if(!sl) return;
+  const host = $('#props');
+  const box = el('div', 'clip-box');
+  box.appendChild(el('div', 'title', 'クリップ（切りぬき）'));
+  box.appendChild(el('div', 'hint', 'えらんだ パーツの 形の 中だけ 見せる。\n瞳を 白目で、かげを はだで ぬく など。'));
+  const row = el('div', 'row');
+  row.appendChild(el('label', null, 'ぬく形'));
+  const sel = el('select');
+  const none = el('option', null, '— しない —'); none.value = ''; sel.appendChild(none);
+  S.proj.slots.forEach(o => {
+    if(o === sl || o.clipTo === sl.id) return;
+    const op = el('option', null, o.name); op.value = o.id;
+    if(sl.clipTo === o.id) op.selected = true;
+    sel.appendChild(op);
+  });
+  sel.onchange = () => {
+    edit('クリップ', () => { if(sel.value) sl.clipTo = sel.value; else delete sl.clipTo; });
+    setStatus(sel.value ? sl.name + ' を ' + slotById(sel.value).name + ' の 形で ぬきます' : 'クリップを 外しました');
+    refreshUI();
+  };
+  row.appendChild(sel);
+  box.appendChild(row);
+  if(/まぶた|瞼|lid/i.test(sl.name) || sl.lidCover){
+    box.appendChild(chk('まばたきの ときだけ 出す（目を おおう まぶた）', () => !!sl.lidCover, v => { sl.lidCover = v; }));
+  }
+  const anchorT = [...host.querySelectorAll('.title')].find(t => /パーツ/.test(t.textContent));
+  if(anchorT){ let n = anchorT.nextSibling; while(n && !(n.classList && n.classList.contains('title'))) n = n.nextSibling; host.insertBefore(box, n || null); }
+  else host.appendChild(box);
+};
 
 /* ================= ボタンを 足す ================= */
 (() => {
