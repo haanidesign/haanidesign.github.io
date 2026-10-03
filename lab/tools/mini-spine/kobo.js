@@ -291,7 +291,7 @@ function openMotions(){
                  B.armR || B.armL ? '腕' : null].filter(Boolean);
     body.appendChild(el('div', 'sh-h', 'キャラ まるごと'));
     body.appendChild(el('div', 'sh-note', S.proj.bones.length < 3
-      ? 'ボーンが 少ないので、全体が いっしょに 動きます。「🦴 タップで骨組み」を 先に すると よく 動きます。'
+      ? 'ボーンが 少ないので、全体が いっしょに 動きます。「🪄 かんたん設定」を 先に すると よく 動きます。'
       : '新しい アニメを 1つ 作って 入れます（いま 見つかった ボーン: ' + (who.join('・') || 'ルートだけ') + '）'));
     const g1 = el('div', 'sh-grid');
     WHOLE.forEach(m => {
@@ -1851,6 +1851,196 @@ function buildJoint(P){
   setStatus('関節を つくりました: ' + A.name + ' → ' + B.name + '（「' + bB.name + '」を 回すと ' + B.name + ' が 曲がります）');
 }
 
+/* ================= かんたん設定（1まいの 絵に 関節を 打つ） =================
+   イラストに よって「ひじから 先が 1まい」「顔と 首が 1まい」など ばらばら。
+   なので「何を 動かしたいか」を えらんで、絵の 上に 関節の 順に 点を 打つ だけ に する。
+   点と 点の あいだが 骨に なり、1まいの 絵でも 点の ところで 曲がる。 */
+const FINGER_J = ['指の 付け根', '第2関節', '第1関節', '指先'];
+const CHAIN_T = [
+  { id:'face', icon:'🙂', name:'顔と 首が 1まい', note:'首の 付け根 → あご → 頭の てっぺん',
+    labels:['首の 付け根（肩の あいだ）', 'あご（首と 顔の さかい）', '頭の てっぺん'], names:['首', '頭'] },
+  { id:'arm', icon:'💪', name:'腕（肩から 手まで 1まい）', note:'肩 → ひじ → 手首 → 指先',
+    labels:['肩', 'ひじ', '手首', '指先'], names:['上腕', '前腕', '手'] },
+  { id:'arm2', icon:'🤚', name:'腕（ひじから 先だけ 1まい）', note:'ひじ → 手首 → 指先',
+    labels:['ひじ', '手首', '指先'], names:['前腕', '手'] },
+  { id:'leg', icon:'🦵', name:'脚（1まい）', note:'付け根 → ひざ → 足首 → つま先',
+    labels:['脚の 付け根', 'ひざ', '足首', 'つま先'], names:['もも', 'すね', '足'] },
+  { id:'finger', icon:'🖐', name:'手と 指', note:'手首 → 手のひら → 指ごとに 付け根・第2関節・第1関節・指先', fingers:true },
+  { id:'swing', icon:'💇', name:'髪・しっぽ・リボン（揺れる）', note:'付け根から 先へ 好きな 数。多いほど しなやか', open:true, spring:true },
+  { id:'free', icon:'✏', name:'自由（好きな 数）', note:'曲げたい ところに 順に 点を 打つ', open:true }
+];
+
+function chainLabel(r, i){
+  const t = r.tmpl;
+  if(t.fingers){
+    if(i === 0) return '手首';
+    if(i === 1) return '手のひらの まんなか';
+    const k = Math.floor((i - 2) / 4), j = (i - 2) % 4;
+    return '指' + (k + 1) + 'の ' + FINGER_J[j];
+  }
+  if(t.open) return i === 0 ? '付け根' : (i + 1) + 'つめの 点（先っぽ まで 打ったら「できた」）';
+  return t.labels[i];
+}
+function chainCanFinish(r){
+  const n = r.list.length, t = r.tmpl;
+  if(t.fingers) return n >= 6 && (n - 2) % 4 === 0;
+  if(t.open) return n >= 2;
+  return n >= t.labels.length;
+}
+function chainTotal(r){ return r.tmpl.fingers || r.tmpl.open ? null : r.tmpl.labels.length; }
+
+function openEasy(){
+  sheet.show('🪄 かんたん設定', body => {
+    const sl = slotById(S.sel.slot);
+    body.appendChild(el('div', 'sh-note', sl
+      ? 'えらんで いる レイヤー:「' + sl.name + '」。ちがう レイヤーなら、えらんだ あとで 最初に その絵を さわれば OK'
+      : 'まず どこを 動かしたいか えらぶ → 動かしたい 絵を さわる → 関節の 順に 点を 打つ'));
+    const g = el('div', 'sh-grid wide');
+    const big = (icon, ttl, note, fn) => {
+      const b = mkBtn('', fn, 'mv wide');
+      b.append(el('i', null, icon), el('span', null, ttl), el('small', null, note));
+      g.appendChild(b);
+    };
+    big('🧍', '全身（はじめての 骨組み）', '腰 → 首 → 頭 → 手先 を さわる。いまの 骨は 作り直し', () => { sheet.hide(); tapGo('all'); });
+    const pb = partBone();
+    if(pb && pb.spring){
+      const top = springChain(pb)[0] || pb;
+      big('💇', '「' + top.name.replace(/_?\d+$/, '') + '」の 揺れる 骨を 組み直す', '生え際 → 毛先 の 2か所', () => tapGo('hair', top.id));
+    } else if(pb){
+      big('✋', '「' + pb.name + '」だけ 組み直す', '付け根 → 曲がる ところ → 先っぽ', () => tapGo('part', pb.id));
+    }
+    CHAIN_T.forEach(t => big(t.icon, t.name, t.note, () => chainStart(t)));
+    big('🔗', 'パーツが 分かれて いる 関節', '上腕と 前腕・顔と 首 など 2まいの 絵を つなぐ', () => { sheet.hide(); tapGo('joint'); });
+    body.appendChild(g);
+  });
+}
+
+function chainStart(t){
+  sheet.hide();
+  const sl = slotById(S.sel.slot);
+  S.tapRig = { kind:'chain', tmpl:t, slot: sl ? sl.id : null, needSlot: !sl, list:[], i:0, pts:{} };
+  S.mode = 'setup'; S.playing = false;
+  document.body.classList.add('taprig');
+  tapShow(); refreshUI();
+}
+
+/* tapBar に「できた」を 足す */
+tapBar.done = mkBtn('できた', () => { if(S.tapRig && chainCanFinish(S.tapRig)) tapEnd(true); }, 'btn btn-sm btn-y');
+tapBar.bar.insertBefore(tapBar.done, tapBar.bar.lastChild);
+tapBar.done.style.display = 'none';
+
+const _tapShow0 = tapShow, _tapNext0 = tapNext, _tapBack0 = tapBack, _tapEnd0 = tapEnd;
+tapShow = function(){
+  const r = S.tapRig;
+  if(!r || r.kind !== 'chain'){ tapBar.done.style.display = 'none'; return _tapShow0(); }
+  const sl = slotById(r.slot);
+  const tot = chainTotal(r);
+  tapBar.msg.textContent = r.needSlot
+    ? '動かしたい レイヤー（' + r.tmpl.name + '）の 絵を さわって'
+    : (tot ? (r.list.length + 1) + '/' + tot + '　' : (r.list.length + 1) + 'つめ　')
+      + chainLabel(r, r.list.length) + ' を さわって' + (sl ? '（' + sl.name + '）' : '');
+  tapBar.skip.style.display = 'none';
+  tapBar.back.disabled = r.needSlot || (r.list.length === 0 && !r.slotPicked);
+  const can = chainCanFinish(r);
+  tapBar.done.style.display = (r.tmpl.fingers || r.tmpl.open) ? '' : 'none';
+  tapBar.done.disabled = !can;
+  tapBar.done.textContent = r.tmpl.fingers ? (can ? 'この 指で おわり' : '指の 先まで 打ってね') : 'できた';
+};
+tapNext = function(pt){
+  const r = S.tapRig;
+  if(!r || r.kind !== 'chain') return _tapNext0(pt);
+  if(!pt) return;
+  if(r.needSlot){
+    const s = pickSlot(pt);
+    if(!s) return setStatus('絵の 上を さわってね');
+    r.slot = s.id; r.needSlot = false; r.slotPicked = true;
+    S.sel.slot = s.id; refreshUI();
+    return tapShow();
+  }
+  r.list.push(pt);
+  const tot = chainTotal(r);
+  if(tot && r.list.length >= tot) return tapEnd(true);
+  tapShow();
+};
+tapBack = function(){
+  const r = S.tapRig;
+  if(!r || r.kind !== 'chain') return _tapBack0();
+  if(r.list.length) r.list.pop();
+  else if(r.slotPicked){ r.needSlot = true; r.slotPicked = false; }
+  tapShow();
+};
+tapEnd = function(ok){
+  const r = S.tapRig;
+  if(!r || r.kind !== 'chain') return _tapEnd0(ok);
+  S.tapRig = null;
+  document.body.classList.remove('taprig');
+  tapBar.done.style.display = 'none';
+  if(ok) buildChain(r);
+  refreshUI();
+};
+
+/* 打った 点を 番号つきで 見せる */
+const _drawTapMarks0 = drawTapMarks;
+drawTapMarks = function(){
+  const r = S.tapRig;
+  if(!r || r.kind !== 'chain') return _drawTapMarks0();
+  const z = S.view.z, L = r.list;
+  const seg = (a, b) => { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
+  ctx.lineWidth = 6 / z; ctx.strokeStyle = MAIN_DEEP;
+  if(r.tmpl.fingers){
+    if(L[1]) seg(L[0], L[1]);
+    for(let i = 2; i < L.length; i++) seg((i - 2) % 4 === 0 ? L[1] : L[i - 1], L[i]);
+  } else for(let i = 1; i < L.length; i++) seg(L[i - 1], L[i]);
+  L.forEach((p, i) => {
+    ctx.fillStyle = MAIN; ctx.strokeStyle = INK; ctx.lineWidth = 3 / z;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 11 / z, 0, 7); ctx.fill(); ctx.stroke();
+    tag(String(i + 1) + ' ' + chainLabel(r, i).replace(/（.*）/, ''), p.x + 14 / z, p.y, z);
+  });
+};
+
+function buildChain(r){
+  const sl = slotById(r.slot), L = r.list, t = r.tmpl;
+  if(!sl || L.length < 2) return setStatus('点が 足りません');
+  const anchor = slotBones(sl).main || S.proj.bones[0];
+  const ids = [];
+  edit(t.name + 'を 設定', () => {
+    if(t.fingers){
+      const palm = boneAt(sl.name + '_手のひら', anchor.id, L[0], L[1]);
+      ids.push(palm.id);
+      for(let k = 0; 2 + k * 4 + 3 < L.length; k++){
+        const p = L.slice(2 + k * 4, 2 + k * 4 + 4);
+        let par = palm.id;
+        for(let j = 0; j < 3; j++){
+          const b = boneAt('指' + (k + 1) + '_' + (j + 1), par, p[j], p[j + 1]);
+          ids.push(b.id); par = b.id;
+        }
+      }
+    } else {
+      let par = anchor.id;
+      for(let i = 0; i + 1 < L.length; i++){
+        const nm = t.names ? (t.names[i] || t.names[t.names.length - 1]) : null;
+        const base = t.spring ? sl.name + '_揺れ' : (nm || sl.name + '_骨');
+        const extra = t.spring && typeof softAt === 'function' ? softAt('やわらかい', i, L.length - 1) : null;
+        const b = boneAt(t.open || !nm ? base + (i + 1) : (nm === '手' || nm === '足' ? nm : nm), par, L[i], L[i + 1], extra);
+        ids.push(b.id); par = b.id;
+      }
+    }
+    markDirty();
+    // 1まいの 絵を、つけ先（動かない がわ）と 作った 骨たちに なめらかに わける
+    const sp = setupPose();
+    sl.verts.forEach(v => { v.w = []; });
+    sl.bone = ids[0];
+    autoWeights(S.proj, sl, sp, { maxBones:2, falloff: t.fingers ? 4 : 3, only: (anchor.parent ? [anchor.id] : []).concat(ids) });
+    markDirty();
+    S.sel = { bone: ids[0], slot: sl.id, ik: null };
+  });
+  if(t.spring){ S.spring = true; S.springState = {}; }
+  const fingers = t.fingers ? Math.floor((L.length - 2) / 4) : 0;
+  setStatus(t.fingers
+    ? '手のひらと 指' + fingers + '本（関節 3つずつ）を 作りました。骨を 回すと 指が 曲がります'
+    : '「' + sl.name + '」に 骨を ' + ids.length + '本 入れました。点の ところで 曲がります');
+}
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';
@@ -1874,9 +2064,9 @@ function buildJoint(P){
     if(S.proj.slots.length < 2) return setStatus('パーツが 2まい 以上 いります');
     tapGo('joint');
   };
-  const rig = el('button', 'opt', '🦴 タップで骨組み'); rig.id = 'btnTapRig';
-  rig.title = '腰・首・頭・手先を さわるだけで 骨を 組む';
-  rig.onclick = tapStart;
+  const rig = el('button', 'opt on', '🪄 かんたん設定'); rig.id = 'btnTapRig';
+  rig.title = '何を 動かすか えらんで、関節の 順に 点を 打つ だけ（全身・顔と首・腕・脚・指・髪）';
+  rig.onclick = openEasy;
   $('#btnSpring').parentNode.insertBefore(rig, $('#btnSpring'));
   rig.after(jt);
   $('#btnSpring').after(bk);
@@ -1895,7 +2085,7 @@ const HELP_KOBO = `
 <h4>いちばん かんたんな 流れ</h4>
 <ol>
   <li><b>🖼 PSD / 画像</b> で 絵を 入れる</li>
-  <li><b>🦴 タップで骨組み</b> → 腰・首・頭・手先の 順に さわる</li>
+  <li><b>🪄 かんたん設定</b> → 動かしたい ところを えらんで、関節の 順に 点を 打つ（全身・顔と首・腕・脚・指・髪）</li>
   <li><b>✨ よくある動き</b> → 「待機」「手を ふる」などを えらぶ</li>
   <li><b>📤 書き出し</b> → アニメ工房・動画工房へ 送る／動画で 保存</li>
 </ol>
