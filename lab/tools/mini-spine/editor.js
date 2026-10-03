@@ -498,7 +498,9 @@ function render(){
   ctx.setTransform(S.view.z,0,0,S.view.z, S.view.x, S.view.y);
 
   const c = S.proj.canvas;
-  if(!S.live){
+  if(!S.live && S.rec){
+    ctx.fillStyle = c.bg; ctx.fillRect(0,0,c.w,c.h);
+  } else if(!S.live){
     ctx.fillStyle = c.bg; ctx.fillRect(0,0,c.w,c.h);
     const pat = dotPattern();
     if(pat){ ctx.save(); ctx.fillStyle = pat; ctx.fillRect(0,0,c.w,c.h); ctx.restore(); }
@@ -506,7 +508,7 @@ function render(){
   }
 
   // セットアップポーズのゴースト
-  if(!S.live && S.show.ghost && S.mode === 'anim'){
+  if(!S.live && !S.rec && S.show.ghost && S.mode === 'anim'){
     const sp = setupPose();
     ctx.globalAlpha = 0.22;
     drawParts(sp);
@@ -515,7 +517,7 @@ function render(){
 
   if(S.show.images || S.live) drawParts(pose);
 
-  if(S.live) return;
+  if(S.live || S.rec) return;   // 録画には 骨や 印を 写さない
 
   const slot = slotById(S.sel.slot);
   if(S.tool === 'weight' && slot) drawWeights(slot);

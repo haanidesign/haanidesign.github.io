@@ -585,14 +585,16 @@ function buildPartRig(targetId, P){
    1本の 長い 骨より、短い 骨を いくつも つないだ ほうが しなやかに 曲がる。
    先へ 行くほど やわらかく する。 */
 const SOFT = {
-  'かため':     { s0:.35, s1:.20, damp:.80, grav:.03 },
-  'ふつう':     { s0:.18, s1:.09, damp:.88, grav:.06 },
-  'やわらかい': { s0:.10, s1:.045, damp:.92, grav:.08 },
-  'ふわふわ':   { s0:.06, s1:.025, damp:.95, grav:.04 }
+  'かため':     { s0:.35, s1:.20, damp:.80, grav:.03, lim0:6,  lim1:15 },
+  'ふつう':     { s0:.22, s1:.10, damp:.86, grav:.06, lim0:8,  lim1:22 },
+  'やわらかい': { s0:.16, s1:.06, damp:.88, grav:.08, lim0:10, lim1:28 },
+  'ふわふわ':   { s0:.10, s1:.035, damp:.92, grav:.04, lim0:12, lim1:35 }
 };
 function softAt(kind, i, n){
   const k = SOFT[kind] || SOFT['やわらかい'], t = n > 1 ? i / (n - 1) : 0;
-  return { spring:true, stiff: +(k.s0 + (k.s1 - k.s0) * t).toFixed(3), damp:k.damp, grav:k.grav, inertia:1 };
+  /* 根もとは 頭に ほぼ くっついて いる（少しだけ 振れる）。先へ 行くほど 大きく 振れて いい */
+  return { spring:true, stiff: +(k.s0 + (k.s1 - k.s0) * t).toFixed(3), damp:k.damp, grav:k.grav, inertia:1,
+           limit: Math.round(k.lim0 + (k.lim1 - k.lim0) * t) };
 }
 /** a→e を n本の 揺れる 骨で つなぐ。id の ならびを かえす */
 function hairChain(name, parentId, a, e, n, kind){

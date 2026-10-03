@@ -221,8 +221,11 @@ function applySprings(proj, pose, dt, state, enabled){
     const tip = M.apply(p.world, b.len, 0);
     let s = state[b.id];
     if(!s){ state[b.id] = { x:tip.x, y:tip.y, px:tip.x, py:tip.y }; continue; }
-    const damp  = clamp(b.damp  ?? 0.72, 0, 0.995);
-    const stiff = clamp(b.stiff ?? 0.35, 0.001, 1);
+    /* 1コマの 長さで 効き方が 変わらない ように、60コマ/秒 を 基準に なおす
+       （120Hz の タブレットだと 倍 かたく・倍 止まりにくく なっていた） */
+    const f = dt * 60;
+    const damp  = Math.pow(clamp(b.damp  ?? 0.72, 0, 0.995), f);
+    const stiff = 1 - Math.pow(1 - clamp(b.stiff ?? 0.35, 0.001, 1), f);
     const grav  = (b.grav ?? 0) * 1200;
     const inert = b.inertia ?? 1;
     const vx = (s.x - s.px) * damp * inert;
@@ -235,7 +238,22 @@ function applySprings(proj, pose, dt, state, enabled){
     let dx = s.x-ox, dy = s.y-oy, d = Math.hypot(dx,dy) || 1;
     const L = b.len * (M.scaleOf(p.world) || 1);
     s.x = ox + dx/d*L; s.y = oy + dy/d*L;
-    const delta = Math.atan2(s.y-oy, s.x-ox)*180/Math.PI - M.rotOf(p.world);
+    let delta = Math.atan2(s.y-oy, s.x-ox)*180/Math.PI - M.rotOf(p.world);
+    while(delta > 180) delta -= 360; while(delta < -180) delta += 360;
+    /* 振れすぎ ない ように、やわらかく 頭打ち に する（limit 度 まで）。
+       これが ないと 速く 動かした とき 髪が 根もとから 扉の ように 開く */
+    const lim = b.limit ?? 30;
+    if(lim > 0 && lim < 180){
+      const c = lim * Math.tanh(delta / lim);
+      if(Math.abs(c - delta) > 1e-3){
+        delta = c;
+        const a = (M.rotOf(p.world) + delta) * Math.PI / 180;
+        const nx = ox + Math.cos(a)*L, ny = oy + Math.sin(a)*L;
+        // 前の 位置も 同じだけ ずらす（ずらした ぶんを 速さに しない。しないと 120Hz で あばれる）
+        s.px += nx - s.x; s.py += ny - s.y;
+        s.x = nx; s.y = ny;
+      }
+    }
     if(Math.abs(delta) > 1e-4) rotateSubtree(pose, kids, b.id, delta, ox, oy);
   }
 }
