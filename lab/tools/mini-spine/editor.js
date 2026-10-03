@@ -1130,7 +1130,8 @@ function buildTree(){
 /* ---- 描画順（本物のスロット順） ---- */
 function buildOrder(){
   const host = $('#orderBody'); host.innerHTML = '';
-  S.proj.slots.forEach((s, i) => {
+  // 上に ある ほど 手前（PSD や アニメ工房の レイヤーと おなじ 向き）。▲ で 手前へ
+  S.proj.slots.slice().reverse().forEach(s => {
     const it = el('div', 'item tiny' + (s.id === S.sel.slot ? ' sel' : ''));
     it.appendChild(el('span', 'nm', s.name));
     const up = el('button', 'mini', '▲'), dn = el('button', 'mini', '▼');
