@@ -338,38 +338,67 @@ const tapBar = (() => {
   return { bar, msg, skip, back };
 })();
 
+const PART_STEPS = [
+  { key:'base', say:'付け根（肩・首など）を さわって', skip:false },
+  { key:'mid',  say:'曲がる ところ（ひじ・ひざ）を さわって（曲げないなら「とばす」）', skip:true },
+  { key:'tip',  say:'先っぽ（手先・足先）を さわって', skip:false }
+];
+
+/** いま えらんでいる ところの 骨（パーツなら その 付け先）。ルートなら null */
+function partBone(){
+  const sl = slotById(S.sel.slot);
+  const b = sl ? boneById(sl.bone) : boneById(S.sel.bone);
+  return b && b.parent ? b : null;
+}
+
 function tapStart(){
   if(!S.proj.slots.length) return setStatus('先に 絵（PSD / PNG）を 入れてください');
+  const pb = partBone();
+  if(!pb || S.proj.bones.length < 2) return tapGo('all');
+  // ほそい 部分だけ 直したい ときは、ぜんぶ 作り直さない
+  sheet.show('タップで骨組み', body => {
+    const g = el('div', 'sh-grid wide');
+    const big = (icon, ttl, note, fn) => {
+      const b = mkBtn('', fn, 'mv wide');
+      b.append(el('i', null, icon), el('span', null, ttl), el('small', null, note));
+      g.appendChild(b);
+    };
+    big('✋', '「' + pb.name + '」だけ 組み直す', '付け根 → 曲がる ところ → 先っぽ の 順に さわる。ほかの 骨と アニメは そのまま。', () => tapGo('part', pb.id));
+    big('🧍', 'ぜんぶ 作り直す', '腰 → 首 → 頭 → 手先。いまの 骨と アニメの キーは 消えます。', () => tapGo('all'));
+    body.appendChild(g);
+  });
+}
+function tapGo(kind, target){
   sheet.hide();
-  S.tapRig = { i:0, pts:{} };
+  S.tapRig = { i:0, pts:{}, kind, target, steps: kind === 'part' ? PART_STEPS : TAP_STEPS };
   S.mode = 'setup'; S.playing = false;
   document.body.classList.add('taprig');
   tapShow(); refreshUI();
 }
 function tapShow(){
-  const st = TAP_STEPS[S.tapRig.i];
-  tapBar.msg.textContent = (S.tapRig.i + 1) + '/' + TAP_STEPS.length + '　' + st.say;
+  const st = S.tapRig.steps[S.tapRig.i];
+  tapBar.msg.textContent = (S.tapRig.i + 1) + '/' + S.tapRig.steps.length + '　' + st.say;
   tapBar.skip.style.display = st.skip ? '' : 'none';
   tapBar.back.disabled = S.tapRig.i === 0;
 }
 function tapNext(pt){
-  const st = TAP_STEPS[S.tapRig.i];
+  const st = S.tapRig.steps[S.tapRig.i];
   S.tapRig.pts[st.key] = pt;
   S.tapRig.i++;
-  if(S.tapRig.i >= TAP_STEPS.length) return tapEnd(true);
+  if(S.tapRig.i >= S.tapRig.steps.length) return tapEnd(true);
   tapShow();
 }
 function tapBack(){
   if(S.tapRig.i <= 0) return;
   S.tapRig.i--;
-  delete S.tapRig.pts[TAP_STEPS[S.tapRig.i].key];
+  delete S.tapRig.pts[S.tapRig.steps[S.tapRig.i].key];
   tapShow();
 }
 function tapEnd(ok){
-  const pts = S.tapRig && S.tapRig.pts;
+  const r = S.tapRig;
   S.tapRig = null;
   document.body.classList.remove('taprig');
-  if(ok) buildTapRig(pts);
+  if(ok && r) r.kind === 'part' ? buildPartRig(r.target, r.pts) : buildTapRig(r.pts);
   refreshUI();
 }
 
@@ -377,10 +406,11 @@ function tapEnd(ok){
 function drawTapMarks(){
   if(!S.tapRig) return;
   const z = S.view.z, P = S.tapRig.pts;
-  const names = { hip:'腰', neck:'首', top:'頭', handR:'手', handL:'手' };
+  const names = { hip:'腰', neck:'首', top:'頭', handR:'手', handL:'手', base:'付け根', mid:'曲がる', tip:'先' };
   const line = (a, b) => { if(!a || !b) return; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
   ctx.lineWidth = 5 / z; ctx.strokeStyle = MAIN_DEEP;
   line(P.hip, P.neck); line(P.neck, P.top); line(P.neck, P.handR); line(P.neck, P.handL);
+  line(P.base, P.mid || P.tip); line(P.mid, P.tip);
   for(const k in P){
     const p = P[k]; if(!p) continue;
     ctx.fillStyle = MAIN; ctx.strokeStyle = INK; ctx.lineWidth = 3 / z;
@@ -497,6 +527,52 @@ function buildTapRig(P){
   setStatus('骨組み できました。「✨ よくある動き」で すぐ 動かせます');
   fitView();
 }
+/* 1か所だけ 組み直す。えらんだ 骨（と その 先の 骨）を、
+   さわった 2〜3点の 骨に 入れかえる。ついていた パーツは 新しい 骨へ。 */
+function buildPartRig(targetId, P){
+  const tb = boneById(targetId);
+  if(!tb || !P || !P.base || !P.tip) return;
+  edit(tb.name + 'を 組み直す', () => {
+    const kids = childMap(S.proj);
+    const gone = new Set([tb.id]);
+    const st = [...(kids[tb.id] || [])];
+    // 先に つながる 骨のうち、同じ 部分（揺れない・IKの的でない）は いっしょに 入れかえ
+    while(st.length){
+      const id = st.pop(), b = boneById(id);
+      if(!b || b.spring || (S.proj.iks || []).some(k => k.target === id)) continue;
+      gone.add(id); (kids[id] || []).forEach(c => st.push(c));
+    }
+    const name = tb.name.replace(/[0-9]+$/, '');
+    const chain = [];
+    if(P.mid){
+      const up = boneAt(name + '1', tb.parent, P.base, P.mid);
+      chain.push(up, boneAt(name + '2', up.id, P.mid, P.tip));
+    } else chain.push(boneAt(name, tb.parent, P.base, P.tip));
+    const last = chain[chain.length - 1].id;
+
+    // 入れかえる 骨に ついていた もの（のこす 骨・パーツ）を 新しい 骨へ
+    S.proj.bones.forEach(b => { if(!gone.has(b.id) && gone.has(b.parent)) b.parent = last; });
+    const moved = S.proj.slots.filter(sl => gone.has(sl.bone));
+    // ほかの 骨にも またがる パーツ（1枚絵など）は、消える 骨の 分だけ 新しい 骨へ
+    S.proj.slots.forEach(sl => { if(gone.has(sl.bone)) return;
+      sl.verts.forEach(v => (v.w || []).forEach(w => { if(gone.has(w.b)) w.b = chain[0].id; })); });
+    S.proj.bones = S.proj.bones.filter(b => !gone.has(b.id));
+    S.proj.iks = (S.proj.iks || []).filter(k => !k.bones.some(id => gone.has(id)) && !gone.has(k.target));
+    for(const nm in S.proj.anims) gone.forEach(id => delete S.proj.anims[nm].tracks[id]);
+
+    markDirty();
+    const sp = setupPose(), ids = chain.map(b => b.id);
+    moved.forEach(sl => {
+      sl.verts.forEach(v => { v.w = []; });
+      sl.bone = chain[0].id;
+      if(ids.length > 1) autoWeights(S.proj, sl, sp, { maxBones:2, falloff:3, only: ids });
+    });
+    markDirty();
+    S.sel = { bone: chain[0].id, slot: null, ik: null };
+  });
+  setStatus('組み直しました。' + (P.mid ? '曲がる ところで まがります' : '1本の 骨です'));
+}
+
 function segDist(sp, b, bx){
   const p = sp[b.id]; if(!p) return 1e9;
   const e = M.apply(p.world, b.len, 0);
