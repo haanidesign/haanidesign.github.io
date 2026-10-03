@@ -725,6 +725,7 @@ render = function(){
   }
   if(S.tool === 'create' && !S.live && !S.rec && !S.shapeEdit) drawCreateHints();
   if(S.shapeEdit && !S.live) drawShapeHints();
+  if(!S.live && !S.rec && !S.tapRig && !S.shapeEdit) drawParentLinks();
 };
 
 /* 作成ツール: 骨の 先っぽに 輪を 出す（ここから 引くと 関節で つながる）。
@@ -1591,6 +1592,83 @@ function drawShapeHints(){
     ctx.beginPath(); ctx.arc(se.at.x, se.at.y, se.r, 0, 7);
     ctx.lineWidth = 2 / z; ctx.strokeStyle = se.grab ? MAIN_DEEP : INK; ctx.setLineDash([5 / z, 4 / z]); ctx.stroke(); ctx.setLineDash([]);
   }
+}
+
+/* ================= 親子の つながりを 画面に 出す（After Effects の 親の 線） =================
+   ・パーツを えらぶ → そのパーツから 親の 骨まで 線を ひいて「親: 頭」
+   ・骨を えらぶ   → その骨に ついて いる パーツを ぜんぶ ふちどり、線で むすぶ */
+function slotBones(slot){
+  const used = new Map();
+  slot.verts.forEach(v => (v.w || []).forEach(w => used.set(w.b, (used.get(w.b) || 0) + w.w)));
+  const ids = used.size ? [...used.keys()] : [slot.bone];
+  const main = (ids.includes(slot.bone) && boneById(slot.bone)) || boneById(ids[0]) || boneById(slot.bone);
+  return { main, ids };
+}
+function slotScreenBox(slot, pose){
+  const n = slot.verts.length; if(!n) return null;
+  const buf = new Float32Array(n * 2);
+  deformSlot(slot, pose, buf);
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for(let i = 0; i < n; i++){ const x = buf[i*2], y = buf[i*2+1];
+    if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; }
+  return { x0, y0, x1, y1, cx:(x0 + x1) / 2, cy:(y0 + y1) / 2 };
+}
+function boneMid(b, pose){
+  const p = pose[b.id]; if(!p) return null;
+  return M.apply(p.world, b.len / 2, 0);
+}
+function linkLine(a, b, z, col){
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+  ctx.lineWidth = 2.5 / z; ctx.strokeStyle = col; ctx.setLineDash([7 / z, 5 / z]); ctx.stroke(); ctx.setLineDash([]);
+  [a, b].forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 5 / z, 0, 7); ctx.fillStyle = col; ctx.fill(); });
+}
+function outline(bx, z, col){
+  const pad = 6 / z;
+  ctx.lineWidth = 2 / z; ctx.strokeStyle = col; ctx.setLineDash([4 / z, 3 / z]);
+  ctx.strokeRect(bx.x0 - pad, bx.y0 - pad, bx.x1 - bx.x0 + pad * 2, bx.y1 - bx.y0 + pad * 2);
+  ctx.setLineDash([]);
+}
+/** 画面の 大きさに かかわらず 読める 札（ふち つき） */
+function tag(text, x, y, z, fill){
+  const dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+  const fs = 13 * dpr / z, px = 6 * dpr / z, h = fs * 1.6;
+  ctx.font = '800 ' + fs + 'px "M PLUS Rounded 1c", sans-serif';
+  const w = ctx.measureText(text).width + px * 2;
+  ctx.fillStyle = fill || PAPER; ctx.strokeStyle = INK; ctx.lineWidth = 2 * dpr / z;
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(x, y - h / 2, w, h, h / 2); else ctx.rect(x, y - h / 2, w, h);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = INK; ctx.textBaseline = 'middle'; ctx.fillText(text, x + px, y);
+  ctx.textBaseline = 'alphabetic';
+}
+function drawParentLinks(){
+  const pose = curPose; if(!pose) return;
+  const z = S.view.z;
+  ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+  const sl = slotById(S.sel.slot);
+  if(sl){
+    const { main, ids } = slotBones(sl);
+    const bx = slotScreenBox(sl, pose); if(!bx || !main) return;
+    const m = boneMid(main, pose); if(!m) return;
+    outline(bx, z, MAIN_DEEP);
+    linkLine({ x: bx.cx, y: bx.cy }, m, z, INK);
+    tag('⛓ 親: ' + main.name + (ids.length > 1 ? '（ほか' + (ids.length - 1) + '本で まがる）' : ''), m.x + 12 / z, m.y, z, MAIN);
+    return;
+  }
+  const b = boneById(S.sel.bone); if(!b) return;
+  const m = boneMid(b, pose); if(!m) return;
+  let n = 0;
+  S.proj.slots.forEach(s => {
+    if(!s.visible) return;
+    const { ids } = slotBones(s);
+    if(!ids.includes(b.id)) return;
+    const bx = slotScreenBox(s, pose); if(!bx) return;
+    outline(bx, z, MAIN_DEEP);
+    linkLine({ x: bx.cx, y: bx.cy }, m, z, MAIN_DEEP);
+    tag(s.name, bx.x0, bx.y0 - 14 / z, z);
+    n++;
+  });
+  if(n) tag('⛓ ' + b.name + ' に ついている: ' + n + 'まい', m.x + 12 / z, m.y, z, MAIN);
 }
 
 /* ================= ボタンを 足す ================= */

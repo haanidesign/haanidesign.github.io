@@ -380,3 +380,10 @@ body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
 #shapeBar .sb-row{ display:flex; flex-wrap:wrap; gap:.4rem .8rem; align-items:center; }
 #shapeBar .sb-l{ display:flex; align-items:center; gap:.4rem; flex:1 1 200px; font-size:.7rem; }
 #shapeBar .sb-l span{ white-space:nowrap; }
+
+/* ---------- 親の 列を はっきり ---------- */
+.order-head{ display:flex; justify-content:space-between; gap:.4rem; }
+.par{ max-width:52%; }
+.par-t{ font-size:.66rem; padding:.12rem .5rem; box-shadow:0 2px 0 var(--ink); }
+.par-t::after{ content:' ▾'; font-size:.55rem; }
+@media (pointer:coarse){ .par-t{ font-size:.74rem; padding:.25rem .6rem; } }
