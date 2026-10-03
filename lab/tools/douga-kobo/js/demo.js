@@ -1,9 +1,9 @@
 /* 同梱の おためし さくひん。
    曲も その場で つくる ので、なにも 落とさずに 開いて すぐ 動く。
    さわって みる ところ：拍・もじの うごき・かざり・いろ・しあげ。 */
-import { S, uid, newTrack, newClip, resetHist, toast } from './state.js?v=74';
-import { MEDIA, importFiles, toWav } from './media.js?v=74';
-import { bus } from './bus.js?v=74';
+import { S, uid, newTrack, newClip, resetHist, toast } from './state.js?v=75';
+import { MEDIA, importFiles, toWav } from './media.js?v=75';
+import { bus } from './bus.js?v=75';
 
 const BPM = 120;
 const BEAT = 60 / BPM;          // 0.5秒

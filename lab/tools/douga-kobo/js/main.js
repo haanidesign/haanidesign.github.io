@@ -2,25 +2,26 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=74';
-import { wire, bus } from './bus.js?v=74';
-import { MEDIA, importFiles, hookAll } from './media.js?v=74';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=74';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=74';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=74';
-import { beatOn, beatSec, beatAt } from './beat.js?v=74';
-import * as TL from './ui/timeline.js?v=74';
-import * as P from './ui/panel.js?v=74';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=74';
+} from './state.js?v=75';
+import { wire, bus } from './bus.js?v=75';
+import { MEDIA, importFiles, hookAll } from './media.js?v=75';
+import { takeHandoff, doneHandoff } from './handoff.js?v=75';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=75';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=75';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=75';
+import { beatOn, beatSec, beatAt } from './beat.js?v=75';
+import * as TL from './ui/timeline.js?v=75';
+import * as P from './ui/panel.js?v=75';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=75';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=74';
-import { addFontFile } from './text.js?v=74';
-import { makePack, openPack, zip } from './pack.js?v=74';
-import { showStart } from './ui/start.js?v=74';
-import { openDemo } from './demo.js?v=74';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=74';
-import { trackOf } from './state.js?v=74';
+} from './edit.js?v=75';
+import { addFontFile } from './text.js?v=75';
+import { makePack, openPack, zip } from './pack.js?v=75';
+import { showStart } from './ui/start.js?v=75';
+import { openDemo } from './demo.js?v=75';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=75';
+import { trackOf } from './state.js?v=75';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -667,6 +668,17 @@ setTool('select');
 /* さくひんが あれば はじめの 画面、なければ そのまま はじめる */
 (async () => {
   if (!S.docId) S.docId = newId();
+  /* ミニSpine から 送られて きた ときは、その 動画で はじめる */
+  try {
+    const h = await takeHandoff();
+    if (h) {
+      $('#start').classList.remove('on');
+      startNew({ w: h.w & ~1, h: h.h & ~1 }, 30);
+      S.name = h.name;
+      importFiles([h.file], made => { relink(); placeAll(made, 0); TL.fit(); doneHandoff(); toast('ミニSpine の 動画を 入れました', 2600); });
+      return;
+    }
+  } catch (e) { }
   try {
     /* はじめの 画面は いつも 出す。
        はじめて の 人が デモに たどりつけない と 意味が ない。 */
