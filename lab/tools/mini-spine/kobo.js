@@ -723,9 +723,10 @@ render = function(){
     ctx.setTransform(S.view.z, 0, 0, S.view.z, S.view.x, S.view.y);
     drawTapMarks();
   }
-  if(S.tool === 'create' && !S.live && !S.rec && !S.shapeEdit) drawCreateHints();
+  if(S.tool === 'create' && !S.live && !S.rec && !S.shapeEdit && !S.playing) drawCreateHints();
   if(S.shapeEdit && !S.live) drawShapeHints();
-  if(!S.live && !S.rec && !S.tapRig && !S.shapeEdit) drawParentLinks();
+  // 再生中は 動きを 見る ときなので、わく・札・線は 出さない
+  if(!S.live && !S.rec && !S.tapRig && !S.shapeEdit && !S.playing) drawParentLinks();
 };
 
 /* 作成ツール: 骨の 先っぽに 輪を 出す（ここから 引くと 関節で つながる）。
