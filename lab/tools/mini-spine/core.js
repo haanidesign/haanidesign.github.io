@@ -323,7 +323,10 @@ function buildGridMesh(imgEl, cols, rows, placeM){
   for(let gy=0; gy<rows; gy++) for(let gx=0; gx<cols; gx++){
     if(!cellInk(gx,gy)) continue;
     const a=vi(gx,gy), b=vi(gx+1,gy), cc=vi(gx+1,gy+1), d=vi(gx,gy+1);
-    tris.push(a,b,cc, a,cc,d);
+    /* 切る 向きを ます目ごとに 入れかえる（市松）。同じ 向きだと
+       ななめが 1本の 長い すじに つながって 見える */
+    if((gx+gy) & 1) tris.push(a,b,cc, a,cc,d);
+    else tris.push(a,b,d, b,cc,d);
   }
   if(!tris.length){
     const a=vi(0,0), b=vi(cols,0), cc=vi(cols,rows), d=vi(0,rows);
@@ -396,13 +399,30 @@ function paintWeight(slot, boneId, wx, wy, radius, amount){
   return touched;
 }
 
-/* ---------------- textured triangle ---------------- */
-function drawTri(ctx, img, x0,y0,x1,y1,x2,y2, u0,v0,u1,v1,u2,v2){
-  const cx=(x0+x1+x2)/3, cy=(y0+y1+y2)/3, EX=0.4;
-  let d;
-  d = Math.hypot(x0-cx,y0-cy)||1; x0 += (x0-cx)/d*EX; y0 += (y0-cy)/d*EX;
-  d = Math.hypot(x1-cx,y1-cy)||1; x1 += (x1-cx)/d*EX; y1 += (y1-cy)/d*EX;
-  d = Math.hypot(x2-cx,y2-cy)||1; x2 += (x2-cx)/d*EX; y2 += (y2-cy)/d*EX;
+/* ---------------- textured triangle ----------------
+   三角の つぎ目を 出さない（アニメ工房の puppet.js と 同じ やり方）。
+   ・へりを 外へ 平行に ずらして ふくらませる。量は「画面の ドット」で きめる
+     （絵の ドットで きめると ズームで 効いたり 効かなかったり する）
+   ・いったん 別紙に こさ100%で 組んで、さいごに 1回だけ こさを かけて 写す
+     （ふくらんで 重なった ところが 2回 ぬられて こい すじに ならない） */
+function drawTri(ctx, img, x0,y0,x1,y1,x2,y2, u0,v0,u1,v1,u2,v2, EX){
+  const area2 = (x1-x0)*(y2-y0) - (x2-x0)*(y1-y0);
+  if(area2 !== 0 && EX > 0){
+    const sgn = area2 > 0 ? 1 : -1;
+    const px = [x0,x1,x2], py = [y0,y1,y2];
+    const nrm = i => { const j = (i+1)%3, dx = px[j]-px[i], dy = py[j]-py[i], L = Math.hypot(dx,dy)||1;
+                       return { x: sgn*dy/L, y: -sgn*dx/L }; };
+    const n = [nrm(0), nrm(1), nrm(2)], out = [];
+    for(let i=0;i<3;i++){
+      const a = n[(i+2)%3], b = n[i];
+      let bx = a.x+b.x, by = a.y+b.y; const L = Math.hypot(bx,by);
+      if(L < 1e-6){ out.push(px[i], py[i]); continue; }
+      bx /= L; by /= L;
+      const k = Math.min(3, 1/Math.max(0.34, bx*a.x + by*a.y));   // とがった 角は 遠くへ（3ばい まで）
+      out.push(px[i] + bx*EX*k, py[i] + by*EX*k);
+    }
+    [x0,y0,x1,y1,x2,y2] = out;
+  }
   const det = (u1-u0)*(v2-v0) - (u2-u0)*(v1-v0);
   if(!det) return;
   const a = ((x1-x0)*(v2-v0) - (x2-x0)*(v1-v0))/det;
@@ -416,14 +436,56 @@ function drawTri(ctx, img, x0,y0,x1,y1,x2,y2, u0,v0,u1,v1,u2,v2){
   ctx.restore();
 }
 
+/* 別紙（大きさごとに 使いまわす） */
+const _sheets = [];
+function meshSheet(w, h){
+  for(const c of _sheets) if(c.width === w && c.height === h) return c;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  _sheets.unshift(c); if(_sheets.length > 2) _sheets.length = 2;
+  return c;
+}
+
 function drawSlot(ctx, slot, imgEl, xy){
-  const t = slot.tris, v = slot.verts;
-  ctx.globalAlpha = slot.alpha ?? 1;
+  const t = slot.tris, v = slot.verts, cv0 = ctx.canvas;
+  const m0 = ctx.getTransform();
+  const scale = Math.sqrt(Math.abs(m0.a*m0.d - m0.b*m0.c)) || 1;
+  // 画面が ひきのばして 出す ぶん（紙が 実際より あらい とき）は 多めに
+  let up = 1;
+  const cw = cv0.clientWidth;
+  if(cw > 0) up = Math.max(1, Math.min(3, cw*(devicePixelRatio||1)/cv0.width));
+  const ex = Math.min(6, Math.max(0.5, 0.6*up)) / scale;
+
+  const sc = meshSheet(cv0.width, cv0.height), g = sc.getContext('2d');
+  g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,sc.width,sc.height);
+  g.setTransform(m0.a,m0.b,m0.c,m0.d,m0.e,m0.f);
   for(let i=0;i<t.length;i+=3){
     const i0=t[i], i1=t[i+1], i2=t[i+2];
-    drawTri(ctx, imgEl,
+    drawTri(g, imgEl,
       xy[i0*2],xy[i0*2+1], xy[i1*2],xy[i1*2+1], xy[i2*2],xy[i2*2+1],
-      v[i0].u,v[i0].v, v[i1].u,v[i1].v, v[i2].u,v[i2].v);
+      v[i0].u,v[i0].v, v[i1].u,v[i1].v, v[i2].u,v[i2].v, ex);
   }
-  ctx.globalAlpha = 1;
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalAlpha *= (slot.alpha ?? 1);
+  ctx.drawImage(sc, 0, 0);
+  ctx.restore();
+}
+
+/* むかしの あみ（ぜんぶ 同じ 向きに 切った もの）を 市松に 切り直す。
+   点は そのまま なので ウェイトは こわれない */
+function checkerTris(slot){
+  const t = slot.tris, v = slot.verts;
+  if(!t || t.length % 6) return false;
+  const out = []; let changed = false;
+  for(let i=0;i<t.length;i+=6){
+    const [a,b,c, a2,c2,d] = t.slice(i, i+6);
+    const A=v[a], B=v[b], D=v[d];
+    const ok = a === a2 && c === c2 && A && B && D && B.u !== A.u && D.v !== A.v;
+    if(!ok){ out.push(...t.slice(i, i+6)); continue; }
+    const gx = Math.round(A.u/(B.u-A.u)), gy = Math.round(A.v/(D.v-A.v));
+    if((gx+gy) & 1) out.push(a,b,c, a,c,d);
+    else { out.push(a,b,d, b,c,d); changed = true; }
+  }
+  if(changed) slot.tris = out;
+  return changed;
 }

@@ -758,6 +758,13 @@ const tapUp = e => {
 cv.addEventListener('pointerup', tapUp);
 cv.addEventListener('pointercancel', e => { tap.ids.delete(e.pointerId); tap.moved = true; });
 
+/* 開いた 作品の あみを 市松に 切り直す（線が 出にくい 切り方） */
+const _load0 = loadProject;
+loadProject = function(text){
+  _load0(text);
+  if(S.proj && S.proj.slots) S.proj.slots.forEach(checkerTris);
+};
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';
