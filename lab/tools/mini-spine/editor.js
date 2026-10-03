@@ -1176,6 +1176,7 @@ function buildOrder(){
   S.proj.slots.slice().reverse().forEach(s => {
     const it = el('div', 'item tiny' + (s.id === S.sel.slot ? ' sel' : ''));
     it.appendChild(el('span', 'nm', s.name));
+    it.appendChild(parentPick(s));
     const up = el('button', 'mini', '▲'), dn = el('button', 'mini', '▼');
     up.onclick = ev => { ev.stopPropagation(); moveSlot(s, 1); };
     dn.onclick = ev => { ev.stopPropagation(); moveSlot(s, -1); };
@@ -1184,6 +1185,36 @@ function buildOrder(){
     host.appendChild(it);
   });
 }
+/* After Effects の「親」の 列と おなじ。どの 骨に ついて いるか を 行に 出して、
+   その場で 付けかえる。いくつかの 骨に またがって いる（ウェイト）ときは「頭 ほか2」 */
+function parentPick(slot){
+  const wrap = el('label', 'par');
+  const used = new Map();
+  slot.verts.forEach(v => (v.w || []).forEach(w => used.set(w.b, (used.get(w.b) || 0) + w.w)));
+  const ids = used.size ? [...used.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]) : [slot.bone];
+  // 見せる のは もとの 付け先（根もとの 骨）。なければ いちばん 重い 骨
+  const main = (ids.includes(slot.bone) && boneById(slot.bone)) || boneById(ids[0]) || boneById(slot.bone);
+  const txt = el('span', 'par-t', '⛓ ' + (main ? main.name : '—') + (ids.length > 1 ? ' ほか' + (ids.length - 1) : ''));
+  const sel = el('select');
+  const depth = b => { let d = 0, c = b; while(c && c.parent){ d++; c = boneById(c.parent); } return d; };
+  topoBones(S.proj).forEach(b => {
+    const op = el('option', null, '　'.repeat(depth(b)) + b.name); op.value = b.id;
+    if(b === main) op.selected = true;
+    sel.appendChild(op);
+  });
+  sel.onclick = ev => ev.stopPropagation();
+  sel.onchange = () => {
+    // 付けかえたら 1本の 骨に まるごと つける（ウェイトは はずす）
+    edit('親を変更', () => { slot.bone = sel.value; slot.verts.forEach(v => { v.w = []; }); markDirty(); });
+    setStatus(slot.name + ' の 親を ' + boneById(sel.value).name + ' に しました');
+    refreshUI();
+  };
+  wrap.title = 'このパーツが ついて いく 骨（親）。おして 付けかえ';
+  wrap.append(txt, sel);
+  wrap.onclick = ev => ev.stopPropagation();
+  return wrap;
+}
+
 function moveSlot(slot, dir){
   const i = S.proj.slots.indexOf(slot), j = i + dir;
   if(j < 0 || j >= S.proj.slots.length) return;
