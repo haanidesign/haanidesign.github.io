@@ -723,7 +723,8 @@ render = function(){
     ctx.setTransform(S.view.z, 0, 0, S.view.z, S.view.x, S.view.y);
     drawTapMarks();
   }
-  if(S.tool === 'create' && !S.live && !S.rec) drawCreateHints();
+  if(S.tool === 'create' && !S.live && !S.rec && !S.shapeEdit) drawCreateHints();
+  if(S.shapeEdit && !S.live) drawShapeHints();
 };
 
 /* 作成ツール: 骨の 先っぽに 輪を 出す（ここから 引くと 関節で つながる）。
@@ -1311,7 +1312,8 @@ function autoLids(){
 function paintParts(g, pose, sp, k){
   const swap = hasSwap();
   const hasLids = S.proj.slots.some(x => x.lidCover);
-  const lines = (!swap && !hasLids && blinkOn && k > 0) ? eyeLines(pose, sp) : null;
+  const useShapes = hasShapes();   // 閉じ目を 作って あれば、つぶさずに それで 閉じる
+  const lines = (!swap && !hasLids && !useShapes && blinkOn && k > 0) ? eyeLines(pose, sp) : null;
   const eo = S.proj.eyeOpen, ec = S.proj.eyeClose;
   const shown = slot => {
     let vis = slot.visible;
@@ -1335,13 +1337,15 @@ function paintParts(g, pose, sp, k){
   };
   const one = (gg, slot) => {
     const img = S.imgs[slot.image];
-    const sq = (!swap && !hasLids && blinkOn && k > 0 && isEye(slot) && !slot.lidCover) ? Math.max(0.08, 1 - k * 0.92) : 1;
+    const sq = (!swap && !hasLids && !useShapes && blinkOn && k > 0 && isEye(slot) && !slot.lidCover) ? Math.max(0.08, 1 - k * 0.92) : 1;
     const cy = lines && lines.get(slot.id);
-    if(drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
+    const shaped = k > 0 && slot.shapes && slot.shapes.close;
+    if(!shaped && drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
     const n = slot.verts.length;
     let buf = slot._xy;
     if(!buf || buf.length < n*2) buf = slot._xy = new Float32Array(n*2);
     deformSlot(slot, pose, buf);
+    if(shaped) addShape(slot, buf, pose, sp, k);
     if(sq < 1){
       let y0 = 1e9, y1 = -1e9;
       for(let i = 0; i < n; i++){ const y = buf[i*2+1]; if(y < y0) y0 = y; if(y > y1) y1 = y; }
@@ -1382,6 +1386,15 @@ drawParts = function(pose){
   // 配信モードの 入れかえは editor.js が やる ので、ここでは アニメート中だけ
   const run = blinkOn && (S.mode === 'anim' || S.live) && !(S.live && hasSwap());
   blinkK = run ? tickBlink(dt) : 0;
+  const se = S.shapeEdit;
+  if(se){
+    // 閉じ目づくり中は つまみの 値。「試す」を 押したら ゆっくり 1回 まばたき
+    if(se.test){
+      const t = (now - se.test) / 1000;
+      blinkK = t < 0.9 ? blinkCurve(t / 5) : 0;
+      if(t >= 0.9){ se.test = 0; }
+    } else blinkK = se.k;
+  }
   paintParts(ctx, pose, setupPose(), blinkK);
 };
 
@@ -1427,6 +1440,159 @@ buildProps = function(){
   else host.appendChild(box);
 };
 
+/* ================= 閉じ目を つくる（Live2D の キーフォーム の ような もの） =================
+   目の パーツに 点（ピン）を たくさん 打って、筆で 押して「閉じた 形」を つくる。
+   いまの 絵が「開いた 形」。まばたきの とき、開いた 形 → 閉じた 形 へ なめらかに うつる。
+   覚えるのは 点ごとの ずれ だけ（slot.shapes.close = [dx,dy, dx,dy, ...]）。
+   骨が 動いても ついていく よう、ずれは 骨の 向きに あわせて 回して 足す。 */
+const hasShapes = () => S.proj.slots.some(sl => sl.shapes && sl.shapes.close);
+
+/** 閉じ目の ずれを k だけ 足す（buf は 骨で 動かした あとの 点） */
+function addShape(slot, buf, pose, sp, k){
+  const off = slot.shapes && slot.shapes.close;
+  if(!off || k <= 0) return;
+  const id = rigidBone(slot) || slot.bone;
+  const p = pose[id], s0 = sp[id];
+  const m = (p && s0) ? M.mul(p.world, M.inv(s0.world)) : M.ident();
+  const n = Math.min(slot.verts.length, off.length / 2);
+  for(let i = 0; i < n; i++){
+    const dx = off[i*2] * k, dy = off[i*2+1] * k;
+    buf[i*2]   += m.a * dx + m.c * dy;
+    buf[i*2+1] += m.b * dx + m.d * dy;
+  }
+}
+
+const shapeBar = (() => {
+  const bar = el('div'); bar.id = 'shapeBar';
+  const msg = el('div', 'sb-msg');
+  const row1 = el('div', 'sb-row');
+  const r = el('input'); r.type = 'range'; r.min = 10; r.max = 300; r.step = 1;
+  const kk = el('input'); kk.type = 'range'; kk.min = 0; kk.max = 1; kk.step = 0.01;
+  const lab = (t, inp) => { const w = el('label', 'sb-l'); w.append(el('span', null, t), inp); return w; };
+  row1.append(lab('筆の 大きさ', r), lab('開く ⇄ 閉じる', kk));
+  const row2 = el('div', 'sb-row');
+  const fine = mkBtn('ピンを 細かく', () => shapeFine(), 'btn btn-sm');
+  const reset = mkBtn('閉じ形を 消す', () => shapeReset(), 'btn btn-sm danger');
+  const play = mkBtn('▶ まばたき 試す', () => { S.shapeEdit.test = performance.now(); }, 'btn btn-sm');
+  const done = mkBtn('おわり', () => shapeEnd(), 'btn btn-sm btn-y');
+  row2.append(fine, reset, play, done);
+  bar.append(msg, row1, row2);
+  $('#view').appendChild(bar);
+  r.oninput = () => { if(S.shapeEdit) S.shapeEdit.r = +r.value; };
+  kk.oninput = () => { if(S.shapeEdit){ S.shapeEdit.k = +kk.value; S.shapeEdit.test = 0; } };
+  return { bar, msg, r, kk };
+})();
+
+function shapeTargets(){
+  const sel = slotById(S.sel.slot);
+  const list = S.proj.slots.filter(sl => isEye(sl) && !sl.lidCover);
+  if(sel && !list.includes(sel)) list.push(sel);
+  return list;
+}
+
+function shapeStart(){
+  const list = shapeTargets();
+  if(!list.length) return setStatus('目の パーツが 見つかりません。目の パーツを えらんでから 押してね');
+  sheet.hide();
+  S.mode = 'setup'; S.playing = false; S.springState = {};
+  const c = S.proj.canvas;
+  S.shapeEdit = { ids: list.map(x => x.id), k: 1, r: Math.round(Math.max(c.w, c.h) * 0.02), test: 0, grab: null, at: null };
+  shapeBar.r.max = Math.round(Math.max(c.w, c.h) * 0.12);
+  shapeBar.r.value = S.shapeEdit.r; shapeBar.kk.value = 1;
+  shapeBar.msg.textContent = '閉じた 目を つくる（' + list.length + 'まい: ' + list.map(x => x.name).slice(0, 4).join('・') + (list.length > 4 ? '…' : '') + '）。'
+    + 'まつ毛や まぶたを 指で 押して 閉じた 形に。今の 絵が 開いた 形です';
+  document.body.classList.add('shaping');
+  refreshUI();
+}
+function shapeEnd(){
+  S.shapeEdit = null;
+  document.body.classList.remove('shaping');
+  setStatus(hasShapes() ? '閉じ目を 覚えました。アニメート・配信・書き出しで まばたきします' : '閉じ目づくりを おわりました');
+  refreshUI();
+}
+function shapeReset(){
+  const ids = S.shapeEdit.ids;
+  edit('閉じ形を 消す', () => ids.forEach(id => { const sl = slotById(id); if(sl && sl.shapes) delete sl.shapes.close; }));
+}
+/** 点を ふやす。切りなおすと 点の ならびが 変わる ので、閉じ形は 消える */
+function shapeFine(){
+  const ids = S.shapeEdit.ids;
+  const had = ids.some(id => { const sl = slotById(id); return sl && sl.shapes && sl.shapes.close; });
+  if(had && !confirm('点を ふやすと、いま 作った 閉じ形は 消えます。いいですか？')) return;
+  edit('ピンを 細かく', () => ids.forEach(id => {
+    const sl = slotById(id); if(!sl) return;
+    const b = slotBox(sl);
+    const cols = clamp(Math.round(b.w / Math.max(6, S.shapeEdit.r * 0.5)), 10, 28);
+    const rows = clamp(Math.round(b.h / Math.max(6, S.shapeEdit.r * 0.5)), 8, 28);
+    remesh(sl, cols, rows);
+    if(sl.shapes) delete sl.shapes.close;
+  }));
+  setStatus('点を ふやしました');
+}
+
+/* 筆（つかんで 引っぱる）。押した ところの まわりの 点ほど よく 動く */
+cv.addEventListener('pointerdown', e => {
+  const se = S.shapeEdit;
+  if(!se || e.button !== 0) return;
+  if(tap.ids.size >= 2){ se.grab = null; return; }   // 2本目の 指は 画面の 移動
+  const { sx, sy } = evPos(e);
+  const w = s2w(sx, sy);
+  se.k = 1; shapeBar.kk.value = 1; se.test = 0;
+  const hits = [];
+  se.ids.forEach(id => {
+    const sl = slotById(id); if(!sl) return;
+    const off = (sl.shapes && sl.shapes.close) || new Array(sl.verts.length * 2).fill(0);
+    sl.verts.forEach((v, i) => {
+      const x = v.x + (off[i*2] || 0), y = v.y + (off[i*2+1] || 0);
+      const d = Math.hypot(x - w.x, y - w.y);
+      if(d < se.r){ const f = 1 - d / se.r; hits.push({ sl, i, wgt: f * f * (3 - 2 * f), ox: off[i*2] || 0, oy: off[i*2+1] || 0 }); }
+    });
+  });
+  if(!hits.length){ se.grab = null; return; }
+  beginEdit('閉じ目を つくる');
+  se.grab = { w0: w, hits };
+});
+window.addEventListener('pointermove', e => {
+  const se = S.shapeEdit; if(!se) return;
+  const { sx, sy } = evPos(e);
+  se.at = s2w(sx, sy);
+  const g = se.grab; if(!g) return;
+  if(tap.ids.size >= 2){ se.grab = null; return; }
+  const dx = se.at.x - g.w0.x, dy = se.at.y - g.w0.y;
+  g.hits.forEach(h => {
+    const sl = h.sl;
+    if(!sl.shapes) sl.shapes = {};
+    if(!sl.shapes.close || sl.shapes.close.length !== sl.verts.length * 2) sl.shapes.close = new Array(sl.verts.length * 2).fill(0);
+    sl.shapes.close[h.i*2]   = +(h.ox + dx * h.wgt).toFixed(2);
+    sl.shapes.close[h.i*2+1] = +(h.oy + dy * h.wgt).toFixed(2);
+  });
+});
+window.addEventListener('pointerup', () => {
+  const se = S.shapeEdit; if(!se || !se.grab) return;
+  se.grab = null;
+  commitEdit();
+});
+
+/* 閉じ目づくり中の 点と 筆の 輪 */
+function drawShapeHints(){
+  const se = S.shapeEdit; if(!se) return;
+  const z = S.view.z;
+  ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+  ctx.fillStyle = 'rgba(30,28,20,.55)';
+  se.ids.forEach(id => {
+    const sl = slotById(id); if(!sl) return;
+    const off = sl.shapes && sl.shapes.close;
+    sl.verts.forEach((v, i) => {
+      const x = v.x + (off ? off[i*2] * se.k : 0), y = v.y + (off ? off[i*2+1] * se.k : 0);
+      ctx.beginPath(); ctx.arc(x, y, 2.2 / z, 0, 7); ctx.fill();
+    });
+  });
+  if(se.at){
+    ctx.beginPath(); ctx.arc(se.at.x, se.at.y, se.r, 0, 7);
+    ctx.lineWidth = 2 / z; ctx.strokeStyle = se.grab ? MAIN_DEEP : INK; ctx.setLineDash([5 / z, 4 / z]); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';
@@ -1449,6 +1615,10 @@ buildProps = function(){
   rig.onclick = tapStart;
   $('#btnSpring').parentNode.insertBefore(rig, $('#btnSpring'));
   $('#btnSpring').after(bk);
+  const sh = el('button', 'opt', '✏ 閉じ目を つくる'); sh.id = 'btnShape';
+  sh.title = '目に 点を 打って、筆で 押して 閉じた 形を 覚えさせる';
+  sh.onclick = () => S.shapeEdit ? shapeEnd() : shapeStart();
+  bk.after(sh);
 
   const mv = el('button', 'btn btn-sm btn-y', '✨ よくある動き'); mv.id = 'btnPreset2';
   mv.onclick = openMotions;

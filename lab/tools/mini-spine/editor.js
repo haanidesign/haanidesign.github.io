@@ -747,6 +747,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   const { sx, sy } = evPos(e);
   const w = s2w(sx, sy);
+  if(S.shapeEdit && e.button === 0) return;   // 閉じ目づくり中（kobo.js）
 
   // 右／中ドラッグ = パン（本物と同じ）
   if(e.button === 1 || e.button === 2){
@@ -1034,6 +1035,7 @@ function paintAt(w, sub){
 }
 
 /* ================= ボーン操作 ================= */
+const SWING_RX = /イヤリング|ピアス|耳飾|earring|リボン|ribbon|髪|hair|尾|しっぽ|tail|紐|ひも|房|タッセル|tassel|飾り|ストラップ|strap/i;
 function createBone(ox, oy, ex, ey, parentId, forSlotId){
   const slot = slotById(forSlotId);
   edit('ボーンを作成', () => {
@@ -1056,6 +1058,13 @@ function createBone(ox, oy, ex, ey, parentId, forSlotId){
          2本 以上 つないだら、その 骨たちで なめらかに まがる ように ウェイトを くばる */
       if(!(S.createFor && S.createFor.slot === slot.id)) S.createFor = { slot: slot.id, ids: [], base: slot.bone };
       S.createFor.ids.push(b.id);
+      /* イヤリング・リボン・髪 などは 作った その場で 揺れる 骨に する。
+         ふつうの 骨の ままだと、動きを つけても 何も 起きない */
+      if(SWING_RX.test(slot.name) && typeof softAt === 'function'){
+        const ids0 = S.createFor.ids;
+        ids0.forEach((id, i) => { const x = boneById(id); if(x) Object.assign(x, softAt('やわらかい', i, ids0.length)); });
+        S.spring = true; S.springState = {};
+      }
       markDirty();
       const ids = S.createFor.ids.filter(id => boneById(id));
       slot.verts.forEach(v => { v.w = []; });

@@ -367,3 +367,16 @@ body.taprig #modes, body.taprig #maintools, body.taprig #viewToggles{ visibility
   font-size:.6rem; font-weight:700; padding:.05rem .4rem; border:1.5px solid var(--ink); border-radius:999px;
   background:var(--main-soft); }
 .par select{ position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; min-height:0; padding:0; border:0; }
+
+/* ---------- 閉じ目を つくる ---------- */
+#shapeBar{
+  display:none; position:absolute; left:50%; top:12px; transform:translateX(-50%); z-index:30;
+  flex-direction:column; gap:.35rem; width:min(640px, calc(100% - 24px)); padding:.5rem .7rem;
+  background:var(--main); border:var(--bd); border-radius:14px; box-shadow:0 4px 0 var(--ink);
+}
+body.shaping #shapeBar{ display:flex; }
+body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
+#shapeBar .sb-msg{ font-size:.74rem; font-weight:800; line-height:1.5; }
+#shapeBar .sb-row{ display:flex; flex-wrap:wrap; gap:.4rem .8rem; align-items:center; }
+#shapeBar .sb-l{ display:flex; align-items:center; gap:.4rem; flex:1 1 200px; font-size:.7rem; }
+#shapeBar .sb-l span{ white-space:nowrap; }
