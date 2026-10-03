@@ -1285,9 +1285,19 @@ function paintParts(g, pose, sp, k){
   const eo = S.proj.eyeOpen, ec = S.proj.eyeClose;
   const shown = slot => {
     let vis = slot.visible;
-    if(swap && blinkOn && k > 0){
-      if(slot.id === eo) vis = k < 0.5;
-      if(slot.id === ec) vis = k >= 0.5;
+    /* 「目(開)／目(閉)」「口(開)／口(閉)」は、どちらか 片方だけ 出す。
+       配信モードでは editor.js（マイク・まばたき）が visible を 切りかえる ので そちらに まかせる */
+    if(!S.live){
+      if(swap && eo && ec){
+        const closed = blinkOn && k >= 0.5;
+        if(slot.id === eo) vis = vis && !closed;
+        if(slot.id === ec) vis = !!S.imgs[slot.image] && closed;
+      } else if(swap && ec && slot.id === ec){
+        vis = blinkOn && k >= 0.5;     // 閉じ目だけ ある ときは、まばたきの 間だけ かぶせる
+      }
+      const mo = S.proj.mouthOpen, mc = S.proj.mouthClose;
+      if(mo && mc && slot.id === mo) vis = false;   // ふだんは 閉じ口
+      if(mo && mc && slot.id === mc) vis = !!S.imgs[slot.image];
     }
     // まぶたの ふたは まばたきの ときだけ
     if(slot.lidCover) vis = vis && blinkOn && k >= 0.35;
