@@ -878,13 +878,57 @@ async function sendToKobo(){
 }
 
 /** 動画を つくる。こまを 先に ぜんぶ 作ってから、きっちり 同じ 間かくで 流して 録る */
+/* 動画は 1コマずつ 書きこむ（アニメ工房と おなじ WebCodecs）。
+   まえは 実時間で 録って いたので コマが 落ちる ことが あり、
+   ループの 長さが 合わずに 動画を くり返すと つなぎ目で ずれた。
+   こちらは コマの 数が いつも ぴったり（1ループの コマ数 × くり返し）。 */
+async function pickAvc(w, h, fps){
+  if(typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') return null;
+  for(const codec of ['avc1.640034','avc1.640033','avc1.640028','avc1.4d0034','avc1.4d0028','avc1.42003e','avc1.42002a','avc1.42001f']){
+    try{ const cfg = { codec, width:w, height:h, bitrate: 8e6, framerate: fps };
+      const r = await VideoEncoder.isConfigSupported(cfg); if(r && r.supported) return cfg; }catch(_){}
+  }
+  return null;
+}
+async function makeVideoExact(r, fps, loops, withBg){
+  const W = r.W & ~1, H = r.H & ~1;
+  const cfg = await pickAvc(W, H, fps); if(!cfg) return null;
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const g = out.getContext('2d');
+  const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec:'avc', width:W, height:H, frameRate:fps }, fastStart:'in-memory' });
+  let failed = null;
+  const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: e => { failed = e; } });
+  enc.configure(cfg);
+  const total = r.frames.length * loops, us = 1e6 / fps;
+  for(let i = 0; i < total; i++){
+    if(failed) throw failed;
+    g.fillStyle = withBg ? S.proj.canvas.bg : '#000'; g.fillRect(0, 0, W, H);
+    g.drawImage(r.frames[i % r.frames.length], 0, 0);
+    const fr = new VideoFrame(out, { timestamp: Math.round(i * us), duration: Math.round(us) });
+    enc.encode(fr, { keyFrame: i % r.frames.length === 0 });
+    fr.close();
+    if(enc.encodeQueueSize > 8){ while(enc.encodeQueueSize > 4) await new Promise(ok => setTimeout(ok, 4)); }
+    if(i % 6 === 0){ busy('動画に しています… ' + Math.round(i / total * 100) + '%'); await new Promise(ok => setTimeout(ok, 0)); }
+  }
+  await enc.flush(); enc.close();
+  if(failed) throw failed;
+  muxer.finalize();
+  return { blob: new Blob([muxer.target.buffer], { type:'video/mp4' }), ext:'mp4', loops, w:W, h:H };
+}
+
 async function makeVideo(withBg){
-  if(typeof MediaRecorder === 'undefined') throw new Error('この ブラウザでは 動画に できません');
   busy('こまを つくっています…');
   await nextPaint();
   const fps = 30;
-  const r = renderFrames(fps, 1080);
-  const loops = Math.max(1, Math.ceil(6 / r.dur));
+  const r0 = renderFrames(fps, 1080);
+  const loops0 = Math.max(1, Math.ceil(6 / r0.dur));
+  // 背景ありは 1コマずつ 書きこむ（ずれない）。すける 動画は webm で 今までどおり
+  if(withBg){
+    try{ const v = await makeVideoExact(r0, fps, loops0, true); if(v) return v; }catch(e){ console.warn(e); }
+  }
+  if(typeof MediaRecorder === 'undefined') throw new Error('この ブラウザでは 動画に できません');
+  const r = r0;
+  const loops = loops0;
   const out = document.createElement('canvas'); out.width = r.W & ~1; out.height = r.H & ~1;
   const g = out.getContext('2d');
   const mime = (withBg ? ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
