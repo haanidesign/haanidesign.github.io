@@ -184,19 +184,26 @@ function trimLayer(l){
 }
 
 /** ツリーを下→上（＝奥→手前）の順に平らにする。グループ名も持たせる */
-function flattenPsd(node, out, groupPath){
+/* 非表示の レイヤーは ふつう 読まないが、表情の 差分（口・目・表情 など）は
+   PSD で かくして ある ことが 多いので、それだけは 読んで「かくれた パーツ」に する */
+const DIFF_RX = /表情|差分|口|目|眉|頬|汗|涙|まばたき|expression|diff|mouth|eye|brow|blush|face/i;
+function flattenPsd(node, out, groupPath, hiddenDiff){
   const kids = node.children || [];
   for(const ch of kids){
-    if(ch.hidden) continue;
-    if(ch.children) flattenPsd(ch, out, groupPath.concat(ch.name || 'group'));
+    const nm = ch.name || '';
+    const diff = hiddenDiff || DIFF_RX.test(nm) || groupPath.some(g => DIFF_RX.test(g));
+    if(ch.hidden && !diff) continue;
+    const hid = !!(hiddenDiff || ch.hidden);
+    if(ch.children) flattenPsd(ch, out, groupPath.concat(nm || 'group'), hid);
     else if(ch.canvas) out.push({
-      name: ch.name || 'layer',
+      name: nm || 'layer',
       canvas: ch.canvas,
       left: ch.left || 0, top: ch.top || 0,
       opacity: ch.opacity === undefined ? 1 : ch.opacity,
       group: groupPath.length ? groupPath[groupPath.length-1] : null,
       gpath: groupPath.slice(),
-      clipping: !!ch.clipping        // Photoshop の クリッピングマスク（すぐ下の 絵で ぬく）
+      clipping: !!ch.clipping,       // Photoshop の クリッピングマスク（すぐ下の 絵で ぬく）
+      hidden: hid                    // PSD で かくして あった 差分
     });
   }
 }
@@ -368,6 +375,7 @@ async function importPsd(file){
     const slot = newSlot(id, { name:l.name });
     slot.name = l.name;
     slot.alpha = clamp(l.opacity, 0, 1);
+    if(l.hidden) slot.visible = false;
     slot.bone = groupBone[l.group] || rootId;
     slot.gpath = l.gpath || [];
     if(l.clipping && lastBase) slot.clipTo = lastBase;
