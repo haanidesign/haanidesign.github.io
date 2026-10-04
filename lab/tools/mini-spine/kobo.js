@@ -2196,6 +2196,11 @@ buildProps = function(){
   host.insertBefore(box, host.firstChild);
 };
 
+/* 「録画」は 編集画面を そのまま 撮って いたので、キャンバスの 外（黒い ところ）や 骨まで 写って いた。
+   書き出しと おなじ やり方（キャラだけ・キャンバスの 大きさ）で 動画に する */
+$('#btnRec').onclick = () => saveVideo(true);
+$('#btnRec').title = 'いまの アニメを 動画で 保存（キャンバスの 大きさ・6秒ほど）';
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';
