@@ -224,8 +224,48 @@ const WHOLE = [
   { name:'ふわふわ 浮く', icon:'🎈', dur:3, fn:(a,B) => {
       bobY(a, B.root, wave(1, charSize() * 0.03));
       keys(a, B.root, 'rot', wave(1, 2, .25));
+  }},
+  /* 拍に あわせて カクッと かたむいて 止まる（縦に ならんだ キャラの PV の ような） */
+  { name:'ビートで キメ', icon:'🥁', dur:2, fn:(a,B) => {
+      keys(a, B.root, 'rot', [[0,0],[.08,-7],[.14,-5.5],[.5,-5.5],[.58,6],[.64,4.5],[.96,4.5],[1,0]]);
+      keys(a, B.head, 'rot', [[0,0],[.08,4],[.2,1],[.5,1],[.58,-4],[.7,-1],[.96,-1],[1,0]]);
+      squash(a, B.root, [[0,1],[.08,1.05],[.2,1],[.5,1],[.58,1.05],[.7,1],[1,1]]);
+      bobY(a, B.root, [[0,0],[.08,-charSize()*.012],[.2,0],[.5,0],[.58,-charSize()*.012],[.7,0],[1,0]]);
+  }},
+  /* ゆっくり かたむき ながら すこし ふくらむ（止め絵を 生きて 見せる） */
+  { name:'ゆらゆら ポートレート', icon:'🖼', dur:4, fn:(a,B) => {
+      keys(a, B.root, 'rot', wave(1, 2.5));
+      squash(a, B.root, [[0,1],[.5,1.02],[1,1]]);
+      keys(a, B.head, 'rot', wave(1, -2, .25));
+  }},
+  /* ぴょこっと はねて、首を かしげ ながら 目を 閉じて にこっ */
+  { name:'にこっ', icon:'😊', dur:2.4, fn:(a,B) => {
+      bobY(a, B.root, [[0,0],[.1,-charSize()*.03],[.22,0],[1,0]]);
+      squash(a, B.root, [[0,1],[.06,.95],[.12,1.05],[.24,1],[1,1]]);
+      keys(a, B.head, 'rot', [[0,0],[.12,9],[.2,7],[.62,7],[.75,0],[1,0]]);
+      eyeHold(a, [[.12, .66]]);
+  }},
+  /* 頭と 体を こきざみに ゆらして、髪や 飾りを なびかせ つづける */
+  { name:'風に なびく', icon:'🌬', dur:1.6, fn:(a,B) => {
+      keys(a, B.head, 'rot', wave(3, 1.6));
+      keys(a, B.body, 'rot', wave(2, .8, .25));
+      bobX(a, B.root, wave(2, charSize() * .004));
   }}
 ];
+
+/* ---------- 動きの 中で 目を 閉じる ----------
+   a.eyes = [[はじめ, おわり], …]（秒）。この あいだ まばたきと おなじ しくみで 目を 閉じる */
+function eyeHold(a, list){ a.eyes = list.map(([f0, f1]) => [+(f0 * a.dur).toFixed(3), +(f1 * a.dur).toFixed(3)]); }
+function animEyes(a, t){
+  if(!a || !a.eyes) return 0;
+  const R = 0.06; let k = 0;
+  a.eyes.forEach(([t0, t1]) => {
+    if(t < t0 - R || t > t1 + R) return;
+    const v = t < t0 ? (t - (t0 - R)) / R : t > t1 ? ((t1 + R) - t) / R : 1;
+    k = Math.max(k, Math.max(0, Math.min(1, v)));
+  });
+  return k;
+}
 
 const ONE = [
   { name:'呼吸', icon:'🫁', fn:(a,b) => squash(a, b, [[0,1],[.5,1.03],[1,1]]) },
@@ -784,7 +824,7 @@ function renderFrames(fps, maxSide, onStep){
     const cvs = document.createElement('canvas'); cvs.width = W; cvs.height = H;
     const g = cvs.getContext('2d');
     g.setTransform(sc, 0, 0, sc, 0, 0);
-    paintParts(g, p, spFrames, blinkOn ? loopBlink(i * dt, a.dur) : 0);
+    paintParts(g, p, spFrames, Math.max(blinkOn ? loopBlink(i * dt, a.dur) : 0, animEyes(a, i * dt)));
     out.push(cvs);
     if(onStep) onStep(i + 1, n);
   }
@@ -1397,6 +1437,7 @@ drawParts = function(pose){
   // 配信モードの 入れかえは editor.js が やる ので、ここでは アニメート中だけ
   const run = blinkOn && (S.mode === 'anim' || S.live) && !(S.live && hasSwap());
   blinkK = run ? tickBlink(dt) : 0;
+  if(S.mode === 'anim' || S.live) blinkK = Math.max(blinkK, animEyes(anim(), S.time));
   const se = S.shapeEdit;
   if(se){
     // 閉じ目づくり中は つまみの 値。「試す」を 押したら ゆっくり 1回 まばたき
