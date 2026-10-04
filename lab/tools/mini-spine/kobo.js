@@ -2041,6 +2041,74 @@ function buildChain(r){
     : '「' + sl.name + '」に 骨を ' + ids.length + '本 入れました。点の ところで 曲がります');
 }
 
+/* ================= セットアップに 切りかえたら 再生を 止める =================
+   止めないと 動きは 止まって 見えるのに、時間の バーだけ 進み つづける */
+(() => {
+  const b = $('#mSetup'), f0 = b.onclick;
+  b.onclick = (e) => { S.playing = false; f0 && f0(e); refreshPlayBtn(); };
+})();
+const _render1 = render;
+render = function(){
+  if(S.playing && S.mode === 'setup' && !S.live && !S.rec){ S.playing = false; refreshPlayBtn(); }
+  _render1();
+};
+
+/* ================= ツールの 枠を 動かせる ように =================
+   左の つまみ（⋮⋮）を ドラッグ。2回 たたくと もとの 場所。場所は 次に ひらいた ときも のこる */
+(() => {
+  const box = $('#maintools'), view = $('#view');
+  const grip = el('div', 'mt-grip', '⋮⋮');
+  grip.title = 'ドラッグで 動かす（2回 たたくと もとの 場所）';
+  box.insertBefore(grip, box.firstChild);
+  const KEY = 'miniSpine.toolsPos';
+  const place = (fx, fy) => {
+    const vr = view.getBoundingClientRect(), br = box.getBoundingClientRect();
+    const x = Math.max(4, Math.min(vr.width - br.width - 4, fx * vr.width));
+    const y = Math.max(4, Math.min(vr.height - br.height - 4, fy * vr.height));
+    box.style.left = x + 'px'; box.style.top = y + 'px';
+    box.style.bottom = 'auto'; box.style.transform = 'none';
+  };
+  const reset = () => {
+    box.style.left = box.style.top = box.style.bottom = box.style.transform = '';
+    try{ localStorage.removeItem(KEY); }catch(_){}
+  };
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(_){}
+  if(saved) requestAnimationFrame(() => place(saved.x, saved.y));
+  let drag = null, lastTap = 0;
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const now = performance.now();
+    if(now - lastTap < 350){ reset(); lastTap = 0; return; }
+    lastTap = now;
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    const br = box.getBoundingClientRect(), vr = view.getBoundingClientRect();
+    drag = { dx: e.clientX - br.left, dy: e.clientY - br.top, vr };
+    box.classList.add('moving');
+  });
+  grip.addEventListener('pointermove', e => {
+    if(!drag) return;
+    const fx = (e.clientX - drag.dx - drag.vr.left) / drag.vr.width;
+    const fy = (e.clientY - drag.dy - drag.vr.top) / drag.vr.height;
+    place(fx, fy);
+  });
+  const up = () => {
+    if(!drag) return;
+    drag = null; box.classList.remove('moving');
+    if(!box.style.left) return;
+    const vr = view.getBoundingClientRect();
+    const pos = { x: parseFloat(box.style.left) / vr.width, y: parseFloat(box.style.top) / vr.height };
+    try{ localStorage.setItem(KEY, JSON.stringify(pos)); }catch(_){}
+  };
+  grip.addEventListener('pointerup', up);
+  grip.addEventListener('pointercancel', up);
+  addEventListener('resize', () => {
+    if(!box.style.left) return;
+    let p = null; try{ p = JSON.parse(localStorage.getItem(KEY) || 'null'); }catch(_){}
+    if(p) place(p.x, p.y);
+  });
+})();
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';

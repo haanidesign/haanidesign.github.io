@@ -400,3 +400,14 @@ body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
 #orderBody .item.sel .par-t{ color:var(--ink); }
 #orderBody .item.sel .nm, .tree .item.sel .nm, .tree .item.sel span{ color:var(--main) !important; }
 #orderBody .item.sel .par-t, #orderBody .item.sel .par-t *{ color:var(--ink) !important; }
+
+/* ---------- ツールの 枠を 動かす つまみ ---------- */
+.mt-grip{
+  display:flex; align-items:center; justify-content:center; width:22px; margin:-.1rem 0;
+  font-size:.9rem; letter-spacing:-.15em; color:var(--gray); cursor:grab; touch-action:none;
+  border-radius:8px; user-select:none;
+}
+.mt-grip:hover{ background:var(--main-soft); color:var(--ink); }
+#maintools.moving{ box-shadow:0 8px 0 var(--ink); }
+#maintools.moving .mt-grip{ cursor:grabbing; background:var(--main); color:var(--ink); }
+@media (pointer:coarse){ .mt-grip{ width:30px; font-size:1.1rem; } }
