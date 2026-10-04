@@ -457,3 +457,9 @@ body.map-open #map{ display:flex; }
 .diff-keys{ display:flex; flex-direction:column; gap:.2rem; margin:.2rem 0 .4rem; }
 .diff-key{ display:flex; align-items:center; justify-content:space-between; font-size:.7rem; font-weight:700;
   padding:.15rem .4rem; background:var(--paper); border:1.5px solid var(--ink); border-radius:8px; }
+
+/* ---------- 動きの 大きさ・はやさ ---------- */
+.tune-row{ display:flex; flex-direction:column; gap:.2rem; margin:.4rem 0 .7rem; }
+.tune-l{ display:flex; justify-content:space-between; align-items:baseline; }
+.tune-l b{ font-size:.9rem; }
+.tune-v{ font-size:.8rem; font-weight:800; }
