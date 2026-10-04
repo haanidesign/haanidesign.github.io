@@ -1206,13 +1206,28 @@ function parentPick(slot){
   const txt = el('span', 'par-t', '⛓ ' + (main ? main.name : '—') + (ids.length > 1 ? ' ほか' + (ids.length - 1) : ''));
   const sel = el('select');
   const depth = b => { let d = 0, c = b; while(c && c.parent){ d++; c = boneById(c.parent); } return d; };
+  const gB = el('optgroup'); gB.label = '骨';
   topoBones(S.proj).forEach(b => {
     const op = el('option', null, '　'.repeat(depth(b)) + b.name); op.value = b.id;
     if(b === main) op.selected = true;
-    sel.appendChild(op);
+    gB.appendChild(op);
   });
+  sel.appendChild(gB);
+  // After Effects の ように レイヤーを 親に できる（その 絵の 骨に つく。骨が なければ 作る）
+  const gL = el('optgroup'); gL.label = 'レイヤー（その絵に くっつける）';
+  S.proj.slots.slice().reverse().forEach(o => {
+    if(o === slot) return;
+    const op = el('option', null, '🖼 ' + o.name); op.value = 'slot:' + o.id;
+    gL.appendChild(op);
+  });
+  sel.appendChild(gL);
   sel.onclick = ev => ev.stopPropagation();
   sel.onchange = () => {
+    if(sel.value.startsWith('slot:') && typeof attachToSlot === 'function'){
+      attachToSlot(slot, slotById(sel.value.slice(5)));
+      refreshUI();
+      return;
+    }
     // 付けかえたら 1本の 骨に まるごと つける（ウェイトは はずす）
     edit('親を変更', () => { slot.bone = sel.value; slot.verts.forEach(v => { v.w = []; }); markDirty(); });
     setStatus(slot.name + ' の 親を ' + boneById(sel.value).name + ' に しました');

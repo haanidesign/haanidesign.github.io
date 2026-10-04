@@ -2109,6 +2109,93 @@ render = function(){
   });
 })();
 
+/* ================= 部品を ほかの 絵に くっつける（レイヤーを 親に する） =================
+   ミニSpine では 絵は 骨に つく。なので「本体に くっつける」は
+   本体の 骨（なければ 作る）に つける こと。骨を 持つ 部品（頭 など）は 骨ごと つける。 */
+function boneForSlot(t){
+  const main = slotBones(t).main;
+  if(main && main.parent) return main;          // もう 自分の 骨が ある
+  const bx = slotBox(t);
+  const b = boneAt(t.name, S.proj.bones[0].id, { x: bx.cx, y: bx.y1 - bx.h * 0.1 }, { x: bx.cx, y: bx.y0 + bx.h * 0.1 });
+  t.verts.forEach(v => { v.w = []; });
+  t.bone = b.id;
+  markDirty();
+  return b;
+}
+function attachToSlot(slot, target){
+  if(!slot || !target || slot === target) return;
+  let bname = '';
+  edit(slot.name + ' を ' + target.name + ' に くっつける', () => {
+    const b = boneForSlot(target);
+    slot.bone = b.id; slot.verts.forEach(v => { v.w = []; });
+    bname = b.name; markDirty();
+  });
+  setStatus(slot.name + ' を ' + target.name + ' に くっつけました（' + target.name + ' を 動かすと ついて きます）');
+}
+
+function openAttach(target){
+  sheet.show('📎 「' + target.name + '」に くっつける', body => {
+    const tb = slotBones(target).main;
+    const own = tb && tb.parent ? tb : null;
+    body.appendChild(el('div', 'sh-note', 'チェックした ものが「' + target.name + '」に ついて いく ように なります。'
+      + (own ? '' : '「' + target.name + '」には まだ 骨が ないので、くっつける ときに 作ります。')));
+    const list = el('div', 'att-list');
+    const rows = [];
+    const row = (txt, sub, kind, id) => {
+      const r = el('label', 'att-row');
+      const c = el('input'); c.type = 'checkbox';
+      r.append(c, el('span', 'att-n', txt), el('small', null, sub || ''));
+      list.appendChild(r); rows.push({ c, kind, id });
+    };
+    // 骨ごと（root の すぐ下の 骨。頭・腕 など、ついて いる 絵ごと 動く）
+    const kidsSlots = id => S.proj.slots.filter(sl => { let b = boneById(slotBones(sl).main ? slotBones(sl).main.id : sl.bone); while(b){ if(b.id === id) return true; b = boneById(b.parent); } return false; });
+    list.appendChild(el('div', 'sh-h', '骨ごと（ついて いる 絵も いっしょ）'));
+    S.proj.bones.forEach(b => {
+      if(!b.parent || (own && (b === own || isDescendant(own.id, b.id) || b.parent === own.id))) return;
+      if(boneById(b.parent).parent) return;          // root の すぐ下 だけ
+      const names = kidsSlots(b.id).map(x => x.name);
+      row('🦴 ' + b.name, names.length ? names.slice(0, 5).join('・') + (names.length > 5 ? ' ほか' + (names.length - 5) : '') : '絵なし', 'bone', b.id);
+    });
+    list.appendChild(el('div', 'sh-h', '絵だけ（root に じかに ついて いる もの）'));
+    S.proj.slots.slice().reverse().forEach(sl => {
+      if(sl === target) return;
+      const m = slotBones(sl).main;
+      if(m && m.parent) return;
+      row('🖼 ' + sl.name, '', 'slot', sl.id);
+    });
+    body.appendChild(list);
+    const go = mkBtn('くっつける', () => {
+      const pick = rows.filter(x => x.c.checked);
+      if(!pick.length) return setStatus('どれにも チェックが ありません');
+      edit('「' + target.name + '」に くっつける', () => {
+        const b = boneForSlot(target);
+        pick.forEach(x => {
+          if(x.kind === 'slot'){ const sl = slotById(x.id); if(sl && sl !== target){ sl.bone = b.id; sl.verts.forEach(v => { v.w = []; }); } }
+          else { const bb = boneById(x.id); if(bb && bb !== b && !isDescendant(b.id, bb.id)) setParentKeep(bb, b.id); }
+        });
+        markDirty();
+      });
+      sheet.hide();
+      setStatus(pick.length + 'こ を「' + target.name + '」に くっつけました');
+      refreshUI();
+    }, 'btn btn-y');
+    const all = mkBtn('ぜんぶ えらぶ', () => rows.forEach(x => { x.c.checked = true; }), 'btn btn-sm');
+    const r2 = el('div', 'soft-row'); r2.append(all, go);
+    body.appendChild(r2);
+  });
+}
+
+/* パーツを えらんで いる ときの 右パネルに ボタン */
+const _buildProps3 = buildProps;
+buildProps = function(){
+  _buildProps3();
+  const sl = slotById(S.sel.slot); if(!sl) return;
+  const host = $('#props');
+  const box = el('div', 'att-box');
+  box.appendChild(btnRow(mkBtn('📎 部品を この絵に くっつける', () => openAttach(sl), 'btn btn-y')));
+  host.insertBefore(box, host.firstChild);
+};
+
 /* ================= ボタンを 足す ================= */
 (() => {
   const exp = el('button', 'btn btn-sm btn-y', '📤 書き出し'); exp.id = 'btnExport';

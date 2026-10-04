@@ -411,3 +411,12 @@ body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
 #maintools.moving{ box-shadow:0 8px 0 var(--ink); }
 #maintools.moving .mt-grip{ cursor:grabbing; background:var(--main); color:var(--ink); }
 @media (pointer:coarse){ .mt-grip{ width:30px; font-size:1.1rem; } }
+
+/* ---------- 部品を くっつける ---------- */
+.att-list{ display:flex; flex-direction:column; gap:.3rem; margin:.3rem 0 .7rem; }
+.att-row{ display:flex; align-items:center; gap:.5rem; padding:.45rem .6rem; background:var(--paper);
+  border:2px solid var(--ink); border-radius:10px; cursor:pointer; }
+.att-row input{ width:20px; height:20px; }
+.att-row .att-n{ font-size:.82rem; font-weight:800; white-space:nowrap; }
+.att-row small{ font-size:.66rem; color:var(--gray); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.att-box{ margin-bottom:.4rem; }
