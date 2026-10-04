@@ -100,7 +100,14 @@ function removeKey(anim, boneId, ch, time){
   if(i>=0) keys.splice(i,1);
 }
 
-function sample(keys, time){
+/* キーの あいだを つなぐ。
+   まえは キーごとに「ゆっくり 止まって ゆっくり 動き出す」で つないで いたので、
+   揺れの とちゅうの キーで いちいち 止まって カクカクした。
+   いまは 曲線（単調 3次）で つなぐ：
+     ・山や 谷、おなじ 値が つづく ところ … 止まる（ためが 残る）
+     ・とちゅうの キー                   … 止まらずに すっと 通る
+   行きすぎ（キーの 値を こえる）は 出ない。 */
+function sample(keys, time, loopDur){
   if(!keys || !keys.length) return null;
   if(time <= keys[0].t) return keys[0].v;
   const last = keys[keys.length-1];
@@ -108,9 +115,33 @@ function sample(keys, time){
   let i = 0; while(i < keys.length-1 && keys[i+1].t <= time) i++;
   const a = keys[i], b = keys[i+1];
   if(a.c === 'stepped') return a.v;
-  let t = (time - a.t) / (b.t - a.t);
-  if(a.c !== 'linear') t = t*t*(3-2*t);
-  return lerp(a.v, b.v, t);
+  const h = b.t - a.t;
+  const t = (time - a.t) / h;
+  if(a.c === 'linear') return lerp(a.v, b.v, t);
+  const m0 = keyTangent(keys, i, loopDur), m1 = keyTangent(keys, i + 1, loopDur);
+  const t2 = t*t, t3 = t2*t;
+  return (2*t3 - 3*t2 + 1) * a.v + (t3 - 2*t2 + t) * h * m0
+       + (-2*t3 + 3*t2) * b.v + (t3 - t2) * h * m1;
+}
+/** そのキーでの 傾き（Fritsch–Carlson）。はしや 山・谷では 0 */
+function keyTangent(keys, i, loopDur){
+  const k = keys[i];
+  let p = keys[i-1], n = keys[i+1];
+  /* くり返す アニメで 最初と 最後が おなじ 値なら、つなぎ目も 止まらずに 通す
+     （最初の キーの 前 ＝ 最後の 1つ前、最後の キーの 次 ＝ 最初の 次） */
+  const L = keys.length, first = keys[0], last = keys[L-1];
+  if(loopDur && L > 2 && Math.abs(first.t) < 1e-4 && Math.abs(last.t - loopDur) < 1e-4 && Math.abs(first.v - last.v) < 1e-6){
+    if(i === 0) p = { t: keys[L-2].t - loopDur, v: keys[L-2].v, c: keys[L-2].c };
+    if(i === L-1) n = { t: keys[1].t + loopDur, v: keys[1].v, c: keys[1].c };
+  }
+  if(!p || !n) return 0;
+  if(k.c === 'stepped' || p.c === 'stepped') return 0;
+  const h0 = (k.t - p.t) || 1e-6, h1 = (n.t - k.t) || 1e-6;
+  const d0 = (k.v - p.v) / h0, d1 = (n.v - k.v) / h1;
+  if(d0 === 0 || d1 === 0 || (d0 > 0) !== (d1 > 0)) return 0;
+  // 間かくの ちがいを 考えた 重みつき 調和平均（PCHIP）
+  const w1 = 2 * h1 + h0, w2 = h1 + 2 * h0;
+  return (w1 + w2) / (w1 / d0 + w2 / d1);
 }
 
 function topoBones(proj){
@@ -139,7 +170,7 @@ function computePose(proj, anim, time, override){
     const v = { rot:b.rot, x:b.x, y:b.y, sx:b.sx, sy:b.sy, shear:b.shear||0 };
     if(anim){
       for(const ch of CH){
-        const s = sample(trackOf(anim, b.id, ch, false), time);
+        const s = sample(trackOf(anim, b.id, ch, false), time, anim.loop ? anim.dur : 0);
         if(s !== null && s !== undefined){
           v[ch] = isScaleCh(ch) ? s : ((b[ch]||0) + s);
         }
