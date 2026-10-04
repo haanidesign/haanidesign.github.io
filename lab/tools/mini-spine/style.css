@@ -421,39 +421,31 @@ body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
 .att-row small{ font-size:.66rem; color:var(--gray); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .att-box{ margin-bottom:.4rem; }
 
-/* ==========================================================================
-   かんたんモード（easy.js）: 4つの 手順だけ。ほかは かくす
-   ========================================================================== */
-#easy{ display:none; }
-body.easy #app{ grid-template-columns:1fr; grid-template-rows:auto 1fr; grid-template-areas:"tb" "view"; }
-body.easy #tree, body.easy #props, body.easy #timeline, body.easy #maintools,
-body.easy #modes, body.easy #viewToggles, body.easy #paneTabs,
-body.easy #btnLive, body.easy #btnRec, body.easy #btnExport, body.easy #btnAddImg, body.easy #btnQual{ display:none !important; }
-body.easy #easy{
-  display:flex; flex-direction:column; gap:.5rem;
-  position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:20;
-  width:min(760px, calc(100% - 24px)); max-height:56%; overflow:auto;
-  background:var(--cream); border:var(--bd); border-radius:16px; box-shadow:0 5px 0 var(--ink); padding:.6rem .7rem .7rem;
-}
-.ez-steps{ display:grid; grid-template-columns:repeat(4, 1fr); gap:.35rem; }
-button.ez-step{ min-height:44px; font-size:.82rem; padding:.3rem .2rem; white-space:normal; }
-button.ez-step.on{ background:var(--ink); color:var(--main); transform:none; box-shadow:0 0 0 var(--ink); }
-.ez-body{ display:flex; flex-direction:column; gap:.5rem; }
-.ez-say{ font-size:.82rem; font-weight:700; line-height:1.6; }
-.ez-say.strong{ font-weight:800; font-size:.9rem; }
-.ez-hint{ font-size:.75rem; color:var(--gray); font-weight:500; }
-.ez-row{ display:flex; gap:.45rem; flex-wrap:wrap; }
-.ez-row > button{ flex:1 1 180px; }
-.ez-big{ min-height:48px; font-size:.86rem; }
-.ez-next{ min-height:48px; font-size:.9rem; }
-.ez-legend{ display:flex; flex-wrap:wrap; gap:.3rem; }
-.ez-chip{ font-size:.72rem; font-weight:800; padding:.15rem .6rem; border:2px solid var(--ink); border-radius:999px; }
-.ez-pick{ display:flex; flex-direction:column; gap:.35rem; padding:.5rem; background:var(--paper); border:2px dashed var(--gray); border-radius:12px; }
-button.ez-g{ min-height:44px; font-size:.8rem; border-left:10px solid var(--gc); }
-button.ez-g.on{ background:var(--gc); }
-.ez-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:.4rem; }
-.ez-grid button.mv.on{ background:var(--ink); color:var(--main); transform:none; }
-#btnEasy{ min-width:96px; }
-body.easy #easy{ max-height:46%; }
-#easy.min .ez-body{ display:none; }
-#easy.min{ padding:.4rem .5rem; }
+
+
+/* ---------- つながり図（map.js） ---------- */
+#mapBack{ display:none; position:fixed; inset:0; z-index:95; background:rgba(30,28,20,.35); }
+#map{ display:none; position:fixed; inset:4% 3%; z-index:96; flex-direction:column;
+  background:var(--cream); border:var(--bd); border-radius:18px; box-shadow:0 6px 0 var(--ink); overflow:hidden; }
+body.map-open #mapBack{ display:block; }
+body.map-open #map{ display:flex; }
+#mapBar{ display:flex; align-items:center; gap:.7rem; padding:.6rem .9rem; border-bottom:var(--bd); background:var(--main-soft); }
+#mapBar b{ font-size:1rem; }
+#mapBar .map-hint{ font-size:.72rem; color:var(--gray); font-weight:500; flex:1; }
+#mapScroll{ flex:1; overflow:auto; -webkit-overflow-scrolling:touch; background-image:radial-gradient(circle, rgba(30,28,20,.12) 1.5px, transparent 1.6px); background-size:18px 18px; }
+#mapStage{ position:relative; min-width:100%; min-height:100%; }
+#mapLines{ position:absolute; left:0; top:0; pointer-events:none; }
+.nd{ position:absolute; width:180px; background:var(--paper); border:2.5px solid var(--ink); border-radius:14px;
+  box-shadow:0 3px 0 var(--ink); padding:.3rem .35rem .4rem; touch-action:none; cursor:grab; user-select:none; }
+.nd.spring{ background:#EAF2FC; }
+.nd.sel{ outline:4px solid var(--main); outline-offset:2px; }
+.nd.drop{ background:var(--main); transform:scale(1.04); }
+.nd-h{ display:flex; align-items:center; gap:.3rem; font-size:.86rem; font-weight:800; padding:.1rem .2rem .25rem; }
+.nd-badge{ margin-left:auto; font-size:.62rem; padding:0 .35rem; border:1.5px solid var(--ink); border-radius:999px; background:#8FB7E8; }
+.nd-l{ font-size:.74rem; font-weight:700; margin-top:.2rem; padding:.22rem .45rem; background:var(--main-soft);
+  border:1.5px solid var(--ink); border-radius:999px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:grab; }
+.nd-l.sel{ background:var(--ink); color:var(--main); }
+.map-ghost{ position:fixed; z-index:200; pointer-events:none; transform:translate(-50%,-130%);
+  font-size:.8rem; font-weight:800; padding:.3rem .7rem; background:var(--main); border:2px solid var(--ink); border-radius:999px; box-shadow:0 3px 0 var(--ink); }
+.pgroup-ttl.with-btn{ display:flex; align-items:center; justify-content:space-between; }
+.map-open-tree{ font-size:.62rem !important; padding:.1rem .45rem !important; min-height:0 !important; }
