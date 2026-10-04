@@ -41,7 +41,7 @@ function draw(){
   const st = MAP.stage, svg = MAP.svg;
   st.querySelectorAll('.nd').forEach(n => n.remove());
   const kids = childMap(S.proj), bySlot = slotsByBone();
-  const COLW = 210, GAP = 14, PAD = 16;
+  const COLW = 250, GAP = 14, PAD = 16;
   // 木の 形に ならべる（葉から 順に 上から つむ）
   const pos = {}; let y = PAD;
   const nodes = [];
@@ -49,8 +49,14 @@ function draw(){
     const b = boneById(id); if(!b) return;
     const n = el('div', 'nd' + (b.spring ? ' spring' : '') + (id === S.sel.bone && !S.sel.slot ? ' sel' : ''));
     n.dataset.bone = id;
-    const head = el('div', 'nd-h', (b.parent ? '🦴 ' : '⭐ ') + (b.parent ? b.name : '全体（root）'));
-    if(b.spring) head.appendChild(el('span', 'nd-badge', '揺'));
+    const head = el('div', 'nd-h');
+    head.appendChild(el('span', 'nd-name', (b.parent ? '🦴 ' : '⭐ ') + (b.parent ? b.name : '全体（root）')));
+    const acts = el('span', 'nd-acts');
+    const act = (txt, a, title, cls) => { const x = el('span', 'nd-act' + (cls ? ' ' + cls : ''), txt); x.dataset.act = a; x.title = title; acts.appendChild(x); };
+    if(b.parent) act('揺', 'spring', '揺れる／揺れない を 切りかえ', b.spring ? 'on' : '');
+    act('＋', 'add', 'この 箱の 子に 新しい 箱を 足す');
+    if(b.parent){ act('✎', 'rename', '名前を 変える'); act('×', 'del', 'この 箱を 消す（中身は 1つ上へ）'); }
+    head.appendChild(acts);
     n.appendChild(head);
     (bySlot[id] || []).forEach(sl => {
       const c = el('div', 'nd-l' + (sl.id === S.sel.slot ? ' sel' : ''), '🖼 ' + sl.name);
@@ -102,7 +108,9 @@ function draw(){
   let drag = null;
   const st = MAP.stage;
   st.addEventListener('pointerdown', e => {
-    const chip = e.target.closest('.nd-l'), node = e.target.closest('.nd');
+    const actEl = e.target.closest('.nd-act'), node = e.target.closest('.nd');
+    if(actEl && node){ e.preventDefault(); e.stopPropagation(); nodeAction(actEl.dataset.act, boneById(node.dataset.bone)); return; }
+    const chip = e.target.closest('.nd-l');
     if(!node) return;
     drag = { chip, node, x: e.clientX, y: e.clientY, moved: false, ghost: null, id: e.pointerId };
   });
@@ -148,7 +156,11 @@ function draw(){
     const to = boneById(tn.dataset.bone); if(!to) return;
     if(d.chip){
       const sl = slotById(d.chip.dataset.slot); if(!sl) return;
-      edit(sl.name + ' を ' + to.name + ' へ', () => { sl.bone = to.id; sl.verts.forEach(v => { v.w = []; }); markDirty(); });
+      edit(sl.name + ' を ' + to.name + ' へ', () => {
+        // 図で 作った ばかりの 箱なら、骨の 位置を その 絵に あわせる
+        if(to.mapNew){ fitBoneToSlot(to, sl); delete to.mapNew; }
+        sl.bone = to.id; sl.verts.forEach(v => { v.w = []; }); markDirty();
+      });
       setStatus(sl.name + ' を「' + (to.parent ? to.name : '全体') + '」に くっつけました');
     } else {
       const b = boneById(d.node.dataset.bone);
@@ -162,6 +174,45 @@ function draw(){
   addEventListener('pointerup', up);
   addEventListener('pointercancel', () => { if(drag && drag.ghost) drag.ghost.remove(); drag = null; });
 })();
+
+/* ---------- 箱の ボタン ---------- */
+function nodeAction(act, b){
+  if(!b) return;
+  if(act === 'add'){
+    const sp = setupPose(), p = sp[b.id];
+    const tip = p ? M.apply(p.world, b.len, 0) : { x: S.proj.canvas.w / 2, y: S.proj.canvas.h / 2 };
+    let n = 1; while(S.proj.bones.some(x => x.name === '新しい箱' + n)) n++;
+    let nb;
+    edit('箱を 足す', () => { nb = boneAt('新しい箱' + n, b.id, tip, { x: tip.x, y: tip.y - 60 }); nb.mapNew = true; markDirty(); });
+    S.sel = { bone: nb.id, slot: null, ik: null };
+    setStatus('「' + nb.name + '」を 足しました。レイヤーを ドラッグで 入れると、骨が その 絵に あわせて 動きます');
+  } else if(act === 'rename'){
+    const nm = prompt('箱の 名前', b.name);
+    if(nm && nm.trim()) edit('名前を 変える', () => { b.name = nm.trim(); });
+  } else if(act === 'del'){
+    deleteBone(b.id);
+  } else if(act === 'spring'){
+    edit(b.spring ? '揺れを 止める' : '揺らす', () => {
+      if(b.spring) b.spring = false;
+      else Object.assign(b, typeof softAt === 'function' ? softAt('やわらかい', 0, 1) : { spring:true });
+    });
+    S.spring = true; S.springState = {};
+  }
+  refreshUI(); draw();
+}
+/** 骨を 絵に あわせる：親に いちばん 近い ところを 付け根、いちばん 遠い ところを 先っぽ に */
+function fitBoneToSlot(b, sl){
+  const sp = setupPose(), pp = sp[b.parent];
+  const par = boneById(b.parent);
+  const a0 = pp ? { x: pp.world.tx, y: pp.world.ty } : { x: 0, y: 0 };
+  const a1 = pp && par ? M.apply(pp.world, par.len, 0) : a0;
+  let base = null, bd = 1e9;
+  sl.verts.forEach(v => { const d = distToSeg(v.x, v.y, a0.x, a0.y, a1.x, a1.y); if(d < bd){ bd = d; base = { x:v.x, y:v.y }; } });
+  if(!base) return;
+  let tip = base, fd = -1;
+  sl.verts.forEach(v => { const d = Math.hypot(v.x - base.x, v.y - base.y); if(d > fd){ fd = d; tip = { x:v.x, y:v.y }; } });
+  moveBoneKeep(b, base, tip);
+}
 
 /* 図を ひらいて いる あいだに 中身が 変わったら 描き直す */
 const _refreshUI2 = refreshUI;

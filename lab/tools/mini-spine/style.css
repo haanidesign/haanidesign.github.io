@@ -463,3 +463,12 @@ body.map-open #map{ display:flex; }
 .tune-l{ display:flex; justify-content:space-between; align-items:baseline; }
 .tune-l b{ font-size:.9rem; }
 .tune-v{ font-size:.8rem; font-weight:800; }
+.nd-h{ justify-content:space-between; }
+.nd-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.nd-acts{ display:flex; gap:.2rem; flex:none; }
+.nd-act{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 .25rem;
+  font-size:.72rem; font-weight:800; border:1.5px solid var(--ink); border-radius:8px; background:var(--paper); cursor:pointer; }
+.nd-act:hover{ background:var(--main); }
+.nd-act.on{ background:#8FB7E8; }
+@media (pointer:coarse){ .nd-act{ min-width:30px; height:30px; font-size:.8rem; } .nd{ width:200px; } }
+.nd{ width:216px; } @media (pointer:coarse){ .nd{ width:224px; } }
