@@ -1952,6 +1952,7 @@ function openEasy(){
     }
     CHAIN_T.forEach(t => big(t.icon, t.name, t.note, () => chainStart(t)));
     big('🔗', 'パーツが 分かれて いる 関節', '上腕と 前腕・顔と 首 など 2まいの 絵を つなぐ', () => { sheet.hide(); tapGo('joint'); });
+    big('🧣', '体が 1まいの 絵で 首を 曲げる', '首の 付け根を 1回 さわる だけ', () => { sheet.hide(); neckOneStart(); });
     body.appendChild(g);
   });
 }

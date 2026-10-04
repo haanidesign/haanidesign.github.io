@@ -59,6 +59,69 @@ render = function(){
   if(!S.live && !S.rec && !S.tapRig && !S.shapeEdit && (!S.playing || CHK.run)) drawPivot();
 };
 
+
+/* ---------- 体が 1まいの 絵の とき、首を 曲げる ----------
+   首の 付け根（肩の あいだ）を 1回 さわる と、
+   ・体の 絵の 首の ところを、付け根から あごへ むかって だんだん 頭に つける
+   ・頭の 回る 中心を 首の とちゅうへ
+   ・首が なめらかに 曲がる ように 体の 絵の 点を 細かく する */
+const NECK1_STEPS = [{ key:'jp', say:'首の 付け根（肩の あいだ）を さわって', skip:false }];
+function neckOneStart(){
+  if(!headBone()) return setStatus('「頭」の 骨が 見つかりません（かんたん設定で 全身を 先に）');
+  S.tapRig = { i:0, pts:{}, kind:'neck1', steps: NECK1_STEPS };
+  S.mode = 'setup'; S.playing = false;
+  document.body.classList.add('taprig');
+  tapShow(); refreshUI();
+}
+const _tapEnd1 = tapEnd;
+tapEnd = function(ok){
+  const r = S.tapRig;
+  if(!r || r.kind !== 'neck1') return _tapEnd1(ok);
+  S.tapRig = null; document.body.classList.remove('taprig');
+  if(ok && r.pts.jp) buildNeckOne(r.pts.jp);
+  refreshUI();
+};
+function buildNeckOne(J){
+  const head = headBone(); if(!head) return;
+  const face = S.proj.slots.find(sl => /^(顔|face|輪郭)$/i.test(sl.name)) || S.proj.slots.find(sl => /顔|face|輪郭/i.test(sl.name) && !/差分/.test(sl.name));
+  const fb = face ? slotBox(face) : null;
+  // あご ＝ 顔の 下はし（なければ 付け根の 少し 上）
+  const chinY = fb ? Math.min(fb.y1, J.y - 10) : J.y - 120;
+  const neckLen = Math.max(20, J.y - chinY);
+  const halfW = fb ? fb.w * 0.32 : neckLen * 0.6;
+  // 頭の 子孫は 対象外。首の 付け根の 上に かかって いる 体の 絵 だけ
+  const inHead = sl => { let b = boneById(slotBones(sl).main ? slotBones(sl).main.id : sl.bone); while(b){ if(b.id === head.id) return true; b = boneById(b.parent); } return false; };
+  const targets = S.proj.slots.filter(sl => sl.verts.length && !inHead(sl) && (() => { const b = slotBox(sl); return b.x0 < J.x && b.x1 > J.x && b.y0 < J.y - neckLen * 0.2 && b.y1 > J.y; })());
+  if(!targets.length) return setStatus('首の ところに かかって いる 体の 絵が 見つかりませんでした');
+  let names = [];
+  edit('首を 曲げる', () => {
+    // 回る 中心: 付け根と あごの まんなか
+    const P = { x: J.x, y: J.y - neckLen * 0.5 };
+    moveBoneKeep(head, P, { x: P.x, y: fb ? Math.min(fb.y0, P.y - 20) : P.y - neckLen * 3 });
+    markDirty();
+    targets.forEach(sl => {
+      if(sl.verts.length < 300){
+        const b = slotBox(sl);
+        remesh(sl, clamp(Math.round(b.w / (neckLen * 0.18)), 10, 32), clamp(Math.round(b.h / (neckLen * 0.18)), 10, 40));
+      }
+      const base = boneById(slotBones(sl).main ? slotBones(sl).main.id : sl.bone) || S.proj.bones[0];
+      sl.bone = base.id;
+      sl.verts.forEach(v => {
+        const up = (J.y - v.y) / neckLen;                 // 付け根 0 → あご 1
+        const side = Math.abs(v.x - J.x) / halfW;          // 首の はばの 外は 動かさない
+        let t = Math.max(0, Math.min(1, up)); t = t * t * (3 - 2 * t);
+        let s2 = Math.max(0, Math.min(1, 1.6 - side)); s2 = s2 * s2 * (3 - 2 * s2);
+        const w = Math.min(0.95, t * s2);
+        v.w = w < 0.01 ? [{ b: base.id, w: 1 }] : [{ b: base.id, w: 1 - w }, { b: head.id, w }];
+      });
+      names.push(sl.name);
+    });
+    markDirty();
+    S.sel = { bone: head.id, slot: null, ik: null };
+  });
+  setStatus('首を 曲がる ように しました（' + names.join('・') + '）。「🔄 ためしに 回す」で 確かめてね');
+}
+
 /* ---------- 右パネル ---------- */
 const _buildProps5 = buildProps;
 buildProps = function(){
@@ -68,5 +131,6 @@ buildProps = function(){
   const box = el('div', 'chk-box');
   box.appendChild(el('div', 'hint', '「' + b.name + '」は ピンクの 印を 中心に 回ります。' + (/頭|head/i.test(b.name) ? '\n首の 付け根（あごの 少し 下）に あれば OK。' : '')));
   box.appendChild(btnRow(mkBtn('🔄 ためしに 回す（' + b.name + '）', tryRotate, 'btn btn-y')));
+  if(/頭|head/i.test(b.name)) box.appendChild(btnRow(mkBtn('🧣 首を 曲げる（体が 1まいの 絵）', neckOneStart, 'btn')));
   host.insertBefore(box, host.firstChild);
 };
