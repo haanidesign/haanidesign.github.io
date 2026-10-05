@@ -132,34 +132,23 @@ function applyPins(proj, pose){
     let p1 = list.find(isAnc) || list[0];
     const p2 = list.find(p => p !== p1);
     const f1 = fw(p1), f2 = fw(p2), t1 = tw(p1), t2 = tw(p2);
-    const m2 = p2.mix;
-    // A ＝ t1 へ うつして、t1 を 中心に 回して、軸の 向きに のばす
-    let ang = Math.atan2(t2.y - t1.y, t2.x - t1.x) - Math.atan2(f2.y - f1.y, f2.x - f1.x);
+    /* 強さは 点ごとに べつべつ: それぞれ「どこまで よせるか」を 先に 決めて、
+       2つの 点が ちょうど そこへ くる ように 回して のばす。
+       片方を ゆるめても、もう 片方は ゆるまない */
+    const g1 = { x: f1.x + (t1.x - f1.x) * p1.mix, y: f1.y + (t1.y - f1.y) * p1.mix };
+    const g2 = { x: f2.x + (t2.x - f2.x) * p2.mix, y: f2.y + (t2.y - f2.y) * p2.mix };
+    const af = Math.atan2(f2.y - f1.y, f2.x - f1.x);
+    let ang = Math.atan2(g2.y - g1.y, g2.x - g1.x) - af;
     while(ang > Math.PI) ang -= Math.PI * 2; while(ang < -Math.PI) ang += Math.PI * 2;
-    ang *= m2;
-    const lf = Math.hypot(f2.x - f1.x, f2.y - f1.y) || 1, lt = Math.hypot(t2.x - t1.x, t2.y - t1.y);
-    const sc = 1 + (Math.max(0.4, Math.min(2.5, lt / lf)) - 1) * m2;
-    const c = Math.cos(ang), sn = Math.sin(ang);
-    const ux = Math.cos(Math.atan2(f2.y - f1.y, f2.x - f1.x) + ang), uy = Math.sin(Math.atan2(f2.y - f1.y, f2.x - f1.x) + ang);
-    // のばし: I + (sc-1) u uᵀ
-    const S2 = { a: 1 + (sc - 1) * ux * ux, b: (sc - 1) * ux * uy, c: (sc - 1) * ux * uy, d: 1 + (sc - 1) * uy * uy };
-    const R = { a: c, b: sn, c: -sn, d: c };
-    const L = { a: S2.a * R.a + S2.c * R.b, b: S2.b * R.a + S2.d * R.b, c: S2.a * R.c + S2.c * R.d, d: S2.b * R.c + S2.d * R.d };
-    const m1 = p1.mix;
-    const ax = f1.x + (t1.x - f1.x) * m1, ay = f1.y + (t1.y - f1.y) * m1;   // 支点を どこへ
-    const A = { a: L.a, b: L.b, c: L.c, d: L.d, tx: ax - (L.a * f1.x + L.c * f1.y), ty: ay - (L.b * f1.x + L.d * f1.y) };
-    const st = [fid];
-    while(st.length){
-      const id = st.pop(); const q = pose[id];
-      if(q) q.world = M.mul(A, q.world);
-      (kids[id] || []).forEach(k => st.push(k));
-    }
+    const lf = Math.hypot(f2.x - f1.x, f2.y - f1.y) || 1;
+    const sc = Math.max(0.4, Math.min(2.5, Math.hypot(g2.x - g1.x, g2.y - g1.y) / lf));
+    solveAround(fid, f1, ang, sc, Math.cos(af + ang), Math.sin(af + ang), g1);
   }
 }
 const _applySpringsP = applySprings;
 applySprings = function(proj, pose, dt, st, on){ _applySpringsP(proj, pose, dt, st, on); applyPins(proj, pose); };
-const _applyIKs0 = applyIKs;
-applyIKs = function(proj, pose){ _applyIKs0(proj, pose); applyPins(proj, pose); };
+/* くっつけは 揺れの あとに 1回だけ（2回 かけると 強さを ゆるめた ぶんが 2重に よる）。
+   IK の あとには かならず 揺れが よばれる（editor.js・kobo.js） */
 
 /* ---------- つくる：ついて いく 絵 → くっつく 先の 絵 → 点 ---------- */
 const PIN_STEPS = [
