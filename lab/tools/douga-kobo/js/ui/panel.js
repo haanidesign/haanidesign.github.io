@@ -3,22 +3,22 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=75';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=75';
-import { storeOk } from '../store.js?v=75';
-import { bus } from '../bus.js?v=75';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=75';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=75';
+} from '../state.js?v=76';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=76';
+import { storeOk } from '../store.js?v=76';
+import { bus } from '../bus.js?v=76';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=76';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=76';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
   techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv,
-  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=75';
+  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=76';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=75';
+  offOf, setOff, clearOff } from '../text.js?v=76';
 import {
-  addFromMedia, addText, addColor, addLyrics, delSel, dupSel,
+  addFromMedia, addText, addColor, addLyrics, delSel, dupSel, fitToMedia,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=75';
+} from '../edit.js?v=76';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -422,6 +422,13 @@ function clipBody(c) {
       btn('🗑 けす', 'btn-sm btn-p', () => { delSel(); if (!docked()) close(); })
     ])
   ]));
+
+  if (m && (m.kind === 'video' || m.kind === 'image') && m.w > 0) {
+    w.appendChild(group('作品の 大きさ', [
+      hint(`この 素材は <b>${m.w}×${m.h}</b>。いまの 作品は ${S.W}×${S.H}。`),
+      grid(null, [btn('この 素材の 大きさに する', 'btn-sm', () => { fitToMedia(m); draw(); })])
+    ]));
+  }
 
   { const g = linkGroup(c); if (g) w.appendChild(g); }
 
@@ -1715,6 +1722,12 @@ function settingBody() {
       const [w2, h2] = v.split('x').map(Number);
       S.W = w2; S.H = h2; bus.size(); bus.all();
     }),
+    (() => {
+      const vis = [...MEDIA.values()].filter(x => (x.kind === 'video' || x.kind === 'image') && x.w > 0);
+      if (!vis.length) return hint('絵や 動画を 入れると、その 大きさに 合わせられます。');
+      return grid('素材に 合わせる', vis.slice(0, 8).map(x =>
+        btn(`${(x.name || '素材').slice(0, 10)} ${x.w}×${x.h}`, 'btn-sm', () => { fitToMedia(x); draw(); })));
+    })(),
     pick('コマ数', [['24', '24 fps'], ['30', '30 fps'], ['60', '60 fps']], S.fps, v => { S.fps = +v; bus.all(); }),
     color('下じき', S.bg, v => { S.bg = v; bus.stage(); })
   ]));

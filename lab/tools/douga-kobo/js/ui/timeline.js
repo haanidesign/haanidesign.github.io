@@ -2,12 +2,12 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
-} from '../state.js?v=75';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=75';
-import { bus } from '../bus.js?v=75';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=75';
-import { durOf as jzDur } from '../jz.js?v=75';
-import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=75';
+} from '../state.js?v=76';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=76';
+import { bus } from '../bus.js?v=76';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=76';
+import { durOf as jzDur } from '../jz.js?v=76';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=76';
 
 const el = {};
 export function init() {
