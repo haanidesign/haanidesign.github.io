@@ -985,15 +985,36 @@ async function saveVideo(withBg){
   finally{ busy(''); }
 }
 
+/** いまの アニメを すける アニメPNG に（15こま/秒） */
+async function makeApngNow(){
+  busy('こまを つくっています…');
+  await nextPaint();
+  const r = renderFrames(15, 1080);
+  const blob = await makeApng(r.frames, r.fps, (i, n) => { if(i % 4 === 0) busy('アニメPNG に しています… ' + Math.round(i / n * 100) + '%'); });
+  return { blob, w: r.W, h: r.H };
+}
+async function saveApng(){
+  if(!S.proj.slots.length) return setStatus('絵が ありません');
+  sheet.hide();
+  try{
+    const v = await makeApngNow();
+    download(baseName() + '.png', v.blob);
+    setStatus('すける アニメPNG を 保存しました（' + Math.round(v.blob.size / 1024) + 'KB）');
+  }catch(err){ alert(err.message || err); }
+  finally{ busy(''); }
+}
+
 async function sendToDouga(){
   if(!S.proj.slots.length) return setStatus('絵が ありません');
   sheet.hide();
   try{
-    const v = await makeVideo(true);
+    /* 動画（mp4）は すけない ので、背景が 焼きこまれて 動画工房で 背景を 足せなかった。
+       すける アニメPNG で わたす（動画工房は そのまま くり返して 再生する） */
+    const v = await makeApngNow();
     busy('動画工房へ 送っています…');
     await handoffPut('mini-spine-video', {
       at: Date.now(), name: 'ミニSpine・' + S.proj.current,
-      w: v.w, h: v.h, blob: v.blob, fileName: baseName() + '.' + v.ext
+      w: v.w, h: v.h, blob: v.blob, fileName: baseName() + '.png'
     });
     await saveNow();
     location.href = '../douga-kobo/?from=mini-spine';
@@ -1013,9 +1034,10 @@ function openExport(){
       g.appendChild(b);
     };
     big('🎬', 'アニメ工房へ 送る', 'こま（12まい/秒）の レイヤーに なって ひらきます。文字や 背景を 足して 仕上げる 用。', sendToKobo);
-    big('📼', '動画工房へ 送る', '動画（背景あり・6秒ほど）に して ひらきます。音楽や ほかの 動画と つなぐ 用。', sendToDouga);
+    big('📼', '動画工房へ 送る', 'すける アニメPNG に して ひらきます（背景は 動画工房で 下に しける）。音楽や ほかの 動画と つなぐ 用。', sendToDouga);
     big('🎞', '動画で 保存（背景あり）', 'mp4 か webm。6秒ほど くり返します。', () => saveVideo(true));
-    big('🫥', '動画で 保存（すける）', '背景なしの webm（Chrome）。重ねて 使う 用。', () => saveVideo(false));
+    big('🫥', 'アニメPNG で 保存（すける）', '背景なしで ずっと くり返す 動く 画像。ふちも きれいに すける。重ねて 使う 用。', saveApng);
+    big('🌫', '動画で 保存（すける）', '背景なしの webm（Chrome だけ）。', () => saveVideo(false));
     body.appendChild(g);
   });
 }
