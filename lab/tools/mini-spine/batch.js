@@ -120,11 +120,17 @@ async function sendToRow(){
   box.appendChild(el('div', 'title', '送り先'));
   const sel = (label, list, k) => {
     if(list.length && SEND_TO[k] && !list.some(d => d.id === SEND_TO[k])) SEND_TO[k] = '';
+    /* まえに「うしろに 足す」に して いたら、つぎも 足す ほうに して おく。
+       先は いちばん 新しく いじった 作品（さっき 送った もの） */
+    let mode = ''; try{ mode = localStorage.getItem('ms-send-' + k) || ''; }catch(_){}
+    if(!SEND_TO[k] && mode === 'add' && list.length) SEND_TO[k] = list[0].id;
     const row = el('label', 'send-row'); row.appendChild(el('span', null, label));
     const s = el('select');
-    const o0 = el('option', null, '新しい 作品に する'); o0.value = ''; s.appendChild(o0);
+    const o0 = el('option', null, '新しい 作品に する（べつの 画面）'); o0.value = ''; s.appendChild(o0);
     list.forEach(d => { const o = el('option', null, '「' + d.name + '」の うしろに 足す'); o.value = d.id; s.appendChild(o); });
-    s.value = SEND_TO[k]; s.onchange = () => { SEND_TO[k] = s.value; };
+    s.value = SEND_TO[k];
+    s.onchange = () => { SEND_TO[k] = s.value; try{ localStorage.setItem('ms-send-' + k, s.value ? 'add' : 'new'); }catch(_){} };
+    if(SEND_TO[k]) s.classList.add('on');
     row.appendChild(s); box.appendChild(row);
   };
   sel('🎬 アニメ工房', ak, 'kobo');
