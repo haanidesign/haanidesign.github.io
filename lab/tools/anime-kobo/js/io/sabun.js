@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=326';
-import { newFolder, setParent } from '../engine/layer.js?v=326';
-import { setPin } from '../engine/anim.js?v=326';
+import { S } from '../state.js?v=327';
+import { newFolder, setParent } from '../engine/layer.js?v=327';
+import { setPin } from '../engine/anim.js?v=327';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ' };
@@ -32,6 +32,30 @@ function unitsOf(project, layers){
   return units.sort((a, b) => project.layers.indexOf(a) - project.layers.indexOf(b));
 }
 
+/* つなぎの キー（出す・消す・はずみ）は、差分 そのものでは なく
+   1まいずつ かぶせた 入れもの（フォルダ）に 打つ。
+   差分 そのものに 打つと、自分で つけた ループの うごきを
+   消して しまい、つないだ とたん 止まって いた。 */
+const SABUN_CH = ['opacity','scaleX','scaleY','rot','y','glitch'];
+function wrapUnits(project, root){
+  const kids = project.layers.filter(l => l.parent === root.id);
+  return kids.map(u => {
+    if(u.sabunWrap) return u;
+    /* むかしの つなぎ方（差分に じかに 打って いた）の あとかたづけ */
+    if(root.sabunV == null){
+      if(u.tracks) SABUN_CH.forEach(c => delete u.tracks[c]);
+      u.loop = null;
+    }
+    const w = newFolder(u.name);
+    w.sabunWrap = true;
+    w.x = u.x; w.y = u.y;
+    project.layers.splice(project.layers.indexOf(u), 0, w);
+    w.parent = root.id;
+    setParent(project, u, w.id, 0);
+    return w;
+  });
+}
+
 /** キーを 打ち直す（つまみを 変えた ときも これ）
 
    お手本の 動画を コマ送りで 見ると、切りかわった しゅんかん
@@ -47,7 +71,8 @@ export function applySabun(project, root){
   const o = root.sabun = root.sabun || {};
   const def = newSabun();
   Object.keys(def).forEach(k => { if(o[k] == null) o[k] = def[k]; });
-  const units = project.layers.filter(l => l.parent === root.id);
+  const units = wrapUnits(project, root);
+  root.sabunV = 2;
   const n = units.length;
   const r3 = (v) => +v.toFixed(3);
   /* 1まいずつ 変えた ところ（o.per[番号]）は そちらを 先に 見る。
@@ -142,6 +167,7 @@ export function makeSabun(project, layers, name){
   units.forEach(u => setParent(project, u, f.id, 0));
   /* 並びを 上から 順に そろえて おく */
   f.sabun = newSabun();
+  f.sabunV = 2;
   applySabun(project, f);
   S.sel = f.id;
   return f;
@@ -159,6 +185,7 @@ export function sabunRootOf(project, l){
 export function sabunFolder(project, f){
   if(project.layers.filter(l => l.parent === f.id).length < 2) return null;
   f.sabun = newSabun();
+  f.sabunV = 2;
   applySabun(project, f);
   return f;
 }
@@ -166,8 +193,8 @@ export function sabunFolder(project, f){
 /** つなぎを はずす。全部 見える ように もどす */
 export function unSabun(project, f){
   project.layers.filter(l => l.parent === f.id).forEach(u => {
-    if(u.tracks) ['opacity','scaleX','scaleY','rot','y','glitch'].forEach(c => delete u.tracks[c]);
-    u.loop = null;
+    if(u.tracks) SABUN_CH.forEach(c => delete u.tracks[c]);
+    if(u.sabunWrap) u.loop = null;
   });
   const disc = project.layers.find(l => l.disc);
   if(disc && disc.tracks){ delete disc.tracks.scaleX; delete disc.tracks.scaleY; disc.loop = null; }
@@ -189,6 +216,7 @@ export function sabunPick(project, ids){
   project.layers.splice(project.layers.indexOf(first), 0, f);
   units.forEach(u => setParent(project, u, f.id, 0));
   f.sabun = newSabun();
+  f.sabunV = 2;
   applySabun(project, f);
   S.sel = f.id;
   return f;
