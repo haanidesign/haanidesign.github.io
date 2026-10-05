@@ -638,15 +638,22 @@ $('#pngGo').onclick = () => {
   cv.toBlob(b => save(b, 'ugoku-haikei.png'));
 };
 /* 1コマずつ 時間を つけて 書きこむ（長さが 正しく 入り、ほかの ソフトでも 読める） */
+let whyNoMp4 = '';
 async function pickAvc(w, h, fps) {
-  if (typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') return null;
+  if (typeof VideoEncoder === 'undefined') { whyNoMp4 = 'VideoEncoder が無い' + (isSecureContext ? '' : '（https か 127.0.0.1 で 開いて いない）'); return null; }
+  if (typeof Mp4Muxer === 'undefined') { whyNoMp4 = 'mp4-muxer が 読めて いない'; return null; }
   const codecs = ['avc1.640034', 'avc1.640033', 'avc1.64002a', 'avc1.640028', 'avc1.4d0034', 'avc1.4d002a', 'avc1.4d0028', 'avc1.42003e', 'avc1.42002a', 'avc1.42001f'];
   for (const hw of ['no-preference', 'prefer-software'])
     for (const codec of codecs)
       for (const br of [Math.round(w * h * fps * .12), 8e6, 4e6]) {
         try { const cfg = { codec, width: w, height: h, bitrate: br, framerate: fps, hardwareAcceleration: hw };
-          const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (_) {}
+          const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (e) { whyNoMp4 = String(e.message || e); }
       }
+  // 最後に いちばん 素の 設定で
+  for (const codec of codecs) {
+    try { const cfg = { codec, width: w, height: h }; const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (_) {}
+  }
+  whyNoMp4 = whyNoMp4 || `H.264 ${w}×${h} が 通らない`;
   return null;
 }
 // 1コマずつ 書けない ときの 予備: 録画して 長さを あとから 書きこむ（webm）
@@ -692,9 +699,10 @@ $('#recGo').onclick = async () => {
   const st = $('#recStatus'), W = S.W & ~1, H = S.H & ~1;
   let fps = 60, cfg = await pickAvc(W, H, fps);
   if (!cfg) { fps = 30; cfg = await pickAvc(W, H, fps); }
+  console.log('[うごく背景] 書き出し設定', cfg, whyNoMp4);
   if (!cfg) {
     $('#recGo').disabled = true; st.className = 'status';
-    try { const r = await recordFallback(st, +$('#reps').value); save(r.blob, 'ugoku-haikei.' + r.ext); st.textContent = `保存しました（${r.ext.toUpperCase()}・${S.loop * +$('#reps').value}秒）`; }
+    try { const r = await recordFallback(st, +$('#reps').value); save(r.blob, 'ugoku-haikei.' + r.ext); st.textContent = `保存しました（${r.ext.toUpperCase()}・${S.loop * +$('#reps').value}秒）MP4に できなかった 理由: ${whyNoMp4}`; }
     catch (e) { st.className = 'status err'; st.textContent = '書き出せませんでした: ' + (e.message || e); }
     finally { $('#recGo').disabled = false; }
     return;
