@@ -25,6 +25,50 @@ function solveAround(fid, c, ang, sc, ux, uy, to){
     (PIN_KIDS[id] || []).forEach(k => st.push(k));
   }
 }
+/* くっつく 先は 骨では なく「絵の その 点」を おう。
+   指の 絵は いくつもの 骨に まざって 動く ことが あり、
+   いちばん 近い 骨だけ 見て いると 絵と ずれて しまう。
+   p.tri = { s:部品id, i,j,k:頂点, a,b,c:まぜ方 }（はじめて つかう ときに 決めて おぼえる） */
+function vtx(sl, i, pose){
+  const v = sl.verts[i], bl = v.bind;
+  let x = 0, y = 0, t = 0;
+  if(bl) for(const b of bl){ const q = pose[b.b]; if(!q) continue; const m = q.world;
+    x += (m.a * b.lx + m.c * b.ly + m.tx) * b.w; y += (m.b * b.lx + m.d * b.ly + m.ty) * b.w; t += b.w; }
+  return t > 1e-4 ? { x: x / t, y: y / t } : { x: v.x, y: v.y };
+}
+function findTri(sl, J){
+  const V = sl.verts, T = sl.tris; let best = null, bd = 1e18;
+  for(let n = 0; n < T.length; n += 3){
+    const A = V[T[n]], B = V[T[n + 1]], C = V[T[n + 2]];
+    const det = (B.y - C.y) * (A.x - C.x) + (C.x - B.x) * (A.y - C.y); if(Math.abs(det) < 1e-9) continue;
+    const a = ((B.y - C.y) * (J.x - C.x) + (C.x - B.x) * (J.y - C.y)) / det;
+    const b = ((C.y - A.y) * (J.x - C.x) + (A.x - C.x) * (J.y - C.y)) / det;
+    const c = 1 - a - b;
+    const out = Math.max(0, -a) + Math.max(0, -b) + Math.max(0, -c);   // 0 ＝ 中
+    if(out < bd){ bd = out; best = { s: sl.id, i: T[n], j: T[n + 1], k: T[n + 2], a, b, c }; if(out === 0) break; }
+  }
+  return best ? { tri: best, out: bd } : null;
+}
+function meshPoint(p, pose){
+  if(p.tri){ const o = S.proj.slots.find(q => q.id === p.tri.s); if(!o || o.verts.length !== p.tri.n) p.tri = null; }   // 網を 作り直したら 決め直す
+  if(p.tri === false) return null;
+  if(!p.tri){
+    try{
+      const J = M.apply(setupPose()[p.target].world, p.tl.x, p.tl.y);
+      const cand = p.tslot ? S.proj.slots.filter(o => o.id === p.tslot)
+        : S.proj.slots.filter(o => o.visible && !o.lidCover && o.verts.length && slotBones(o).ids.includes(p.target));
+      let pick = null;
+      cand.forEach(o => { const r = findTri(o, J); if(r && (!pick || r.out < pick.out)) pick = r; });
+      p.tri = pick && pick.out < 0.5 ? pick.tri : false;
+      if(p.tri) p.tri.n = S.proj.slots.find(o => o.id === p.tri.s).verts.length;
+    }catch(_){ p.tri = false; }
+    if(!p.tri) return null;
+  }
+  const sl = S.proj.slots.find(o => o.id === p.tri.s); if(!sl || !sl.verts[p.tri.k]) return null;
+  const A = vtx(sl, p.tri.i, pose), B = vtx(sl, p.tri.j, pose), C = vtx(sl, p.tri.k, pose);
+  return { x: A.x * p.tri.a + B.x * p.tri.b + C.x * p.tri.c, y: A.y * p.tri.a + B.y * p.tri.b + C.y * p.tri.c };
+}
+
 /** 付け根（ついて いく 骨の 中での 点）。はじめて つかう ときに 部品の 形から 決めて おぼえる */
 function pinAnchor(p){
   if(p.al) return p.al;
@@ -62,7 +106,7 @@ function applyPins(proj, pose){
   for(const fid in by){
     const list = by[fid];
     const F = () => pose[fid].world;
-    const fw = p => M.apply(F(), p.fl.x, p.fl.y), tw = p => M.apply(pose[p.target].world, p.tl.x, p.tl.y);
+    const fw = p => M.apply(F(), p.fl.x, p.fl.y), tw = p => meshPoint(p, pose) || M.apply(pose[p.target].world, p.tl.x, p.tl.y);
     if(list.length === 1){
       const p = list[0], a = fw(p), b = tw(p);
       const al = p.stretch !== false ? pinAnchor(p) : null;
@@ -169,7 +213,7 @@ function buildPin(P){
     markDirty();
     const sp = setupPose();
     const fl = M.apply(M.inv(sp[fol.id].world), J.x, J.y), tl = M.apply(M.inv(sp[tgt.id].world), J.x, J.y);
-    made = { id: uid('pin'), slot: A.id, name: A.name + ' → ' + B.name, follower: fol.id, target: tgt.id, fl, tl, mix: 1 };
+    made = { id: uid('pin'), slot: A.id, tslot: B.id, name: A.name + ' → ' + B.name, follower: fol.id, target: tgt.id, fl, tl, mix: 1 };
     PINS().push(made);
     markDirty();
     S.sel = { bone: fol.id, slot: null, ik: null };
@@ -184,7 +228,7 @@ function drawPins(){
   ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
   pins.forEach(p => {
     const T = curPose[p.target]; if(!T) return;
-    const w = M.apply(T.world, p.tl.x, p.tl.y), r = 7 * dpr / z;
+    const w = meshPoint(p, curPose) || M.apply(T.world, p.tl.x, p.tl.y), r = 7 * dpr / z;
     ctx.beginPath(); ctx.arc(w.x, w.y, r, 0, 7); ctx.fillStyle = '#7AC4A0'; ctx.fill();
     ctx.lineWidth = 2.5 * dpr / z; ctx.strokeStyle = INK; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(w.x - r * .5, w.y); ctx.lineTo(w.x + r * .5, w.y); ctx.moveTo(w.x, w.y - r * .5); ctx.lineTo(w.x, w.y + r * .5); ctx.stroke();
