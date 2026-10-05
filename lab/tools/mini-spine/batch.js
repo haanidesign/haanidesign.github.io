@@ -144,3 +144,19 @@ openSendMany = function(){
   const l = document.querySelector('.many-list'); if(!l) return;
   sendToRow().then(b => { if(l.isConnected) l.after(b); });
 };
+
+/* ---------- 動画の くり返し: 1ループだけ ／ 6秒ぶん ---------- */
+function videoOneLoop(){ try{ return localStorage.getItem('ms-video-loops') !== 'many'; }catch(_){ return true; } }
+const _openExportL = openExport;
+openExport = function(){
+  _openExportL();
+  const g = document.querySelector('.sh-grid.wide'); if(!g) return;
+  const row = el('div', 'send-to');
+  row.appendChild(el('div', 'title', '動画の くり返し'));
+  const one = mkBtn('1ループだけ', () => set(true), 'btn btn-sm'), many = mkBtn('6秒ぶん くり返す', () => set(false), 'btn btn-sm');
+  const set = v => { try{ localStorage.setItem('ms-video-loops', v ? 'one' : 'many'); }catch(_){}
+    one.classList.toggle('btn-y', v); many.classList.toggle('btn-y', !v); };
+  set(videoOneLoop());
+  row.appendChild(btnRow(one, many));
+  g.after(row);
+};

@@ -937,7 +937,7 @@ async function makeVideo(withBg){
   await nextPaint();
   const fps = 30;
   const r0 = renderFrames(fps, 1080);
-  const loops0 = Math.max(1, Math.ceil(6 / r0.dur));
+  const loops0 = videoOneLoop() ? 1 : Math.max(1, Math.ceil(6 / r0.dur));
   // 背景ありは 1コマずつ 書きこむ（ずれない）。すける 動画は webm で 今までどおり
   if(withBg){
     try{ const v = await makeVideoExact(r0, fps, loops0, true); if(v) return v; }catch(e){ console.warn(e); }
@@ -1035,7 +1035,7 @@ function openExport(){
     };
     big('🎬', 'アニメ工房へ 送る', 'こま（12まい/秒）の レイヤーに なって ひらきます。文字や 背景を 足して 仕上げる 用。', sendToKobo);
     big('📼', '動画工房へ 送る', 'すける アニメPNG に して ひらきます（背景は 動画工房で 下に しける）。音楽や ほかの 動画と つなぐ 用。', sendToDouga);
-    big('🎞', '動画で 保存（背景あり）', 'mp4 か webm。6秒ほど くり返します。', () => saveVideo(true));
+    big('🎞', '動画で 保存（背景あり）', 'mp4 か webm。くり返しの 回数は 下で えらべます。', () => saveVideo(true));
     big('🫥', 'アニメPNG で 保存（すける）', '背景なしで ずっと くり返す 動く 画像。ふちも きれいに すける。重ねて 使う 用。', saveApng);
     big('🌫', '動画で 保存（すける）', '背景なしの webm（Chrome だけ）。', () => saveVideo(false));
     body.appendChild(g);
