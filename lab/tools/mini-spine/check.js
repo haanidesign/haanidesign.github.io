@@ -150,3 +150,86 @@ render = function(){
 /* ウェイトを 変える 操作の あとも おぼえ直す（重さが 変わっても 上の しるしは 変わらない ため） */
 const _commitEdit2 = commitEdit;
 commitEdit = function(){ _commitEdit2(); rebindAll(); };
+
+/* ---------- セットアップで 骨の 先っぽを つまむ ----------
+   先の 四角を 引っぱると、長さと 向きが 変わる（絵も 子の 骨も 動かない）。
+   長すぎる 骨を ひじや 手首まで 引き戻す、など。 */
+const TIP = { drag: null };
+function tipAt(w){
+  if(S.mode !== 'setup' || !['pose', 'rotate', 'translate', 'scale'].includes(S.tool) || S.tapRig || S.shapeEdit) return null;
+  const sp = setupPose(), R = 18 * (cv.width / (cv.getBoundingClientRect().width || cv.width)) / S.view.z;
+  let best = null, bd = R;
+  // えらんで いる 骨を 優先
+  const order = S.proj.bones.slice().sort((a, b) => (b.id === S.sel.bone) - (a.id === S.sel.bone));
+  for(const b of order){
+    if(!b.parent) continue;
+    const p = sp[b.id]; if(!p) continue;
+    const t = M.apply(p.world, b.len, 0);
+    const d = Math.hypot(t.x - w.x, t.y - w.y) - (b.id === S.sel.bone ? R * 0.5 : 0);
+    if(d < bd){ bd = d; best = b; }
+  }
+  return best;
+}
+cv.addEventListener('pointerdown', e => {
+  // 2本目の 指（画面の 移動）の ときは つままない
+  if(e.button !== 0 || (e.pointerType === 'touch' && tap.ids.size >= 1)) return;
+  const { sx, sy } = evPos(e);
+  const w = s2w(sx, sy);
+  const b = tipAt(w); if(!b) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  S.sel = { bone: b.id, slot: null, ik: null };
+  const p = setupPose()[b.id].world;
+  beginEdit(b.name + ' の 長さ・向き');
+  TIP.drag = { b, root: { x: p.tx, y: p.ty }, id: e.pointerId };
+  refreshUI();
+}, true);
+addEventListener('pointermove', e => {
+  const d = TIP.drag; if(!d || e.pointerId !== d.id) return;
+  const { sx, sy } = evPos(e);
+  const w = s2w(sx, sy);
+  if(Math.hypot(w.x - d.root.x, w.y - d.root.y) < 4) return;
+  moveBoneKeep(d.b, d.root, w);
+  markDirty();
+  setStatus(d.b.name + ': 長さ ' + Math.round(d.b.len));
+});
+const tipUp = e => { if(!TIP.drag || (e && e.pointerId !== TIP.drag.id)) return; TIP.drag = null; commitEdit(); refreshUI(); };
+addEventListener('pointerup', tipUp);
+addEventListener('pointercancel', tipUp);
+
+/* 先っぽの つまみを 描く（セットアップの とき） */
+function drawTips(){
+  if(S.mode !== 'setup' || !S.show.bones || S.live || S.rec || S.tapRig || S.shapeEdit || S.tool === 'create' || S.tool === 'weight') return;
+  const sp = setupPose(), z = S.view.z, dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+  ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+  S.proj.bones.forEach(b => {
+    if(!b.parent) return;
+    const p = sp[b.id]; if(!p) return;
+    const t = M.apply(p.world, b.len, 0), sel = b.id === S.sel.bone, r = (sel ? 7 : 5) * dpr / z;
+    ctx.fillStyle = sel ? MAIN : PAPER; ctx.strokeStyle = INK; ctx.lineWidth = 2 * dpr / z;
+    ctx.fillRect(t.x - r, t.y - r, r * 2, r * 2); ctx.strokeRect(t.x - r, t.y - r, r * 2, r * 2);
+  });
+}
+const _render5 = render;
+render = function(){ _render5(); drawTips(); };
+
+/* 親の 先に つなげる */
+function snapToParent(b){
+  const par = boneById(b.parent); if(!par || !par.parent){ setStatus('親が 全体（root）なので つなげる 先が ありません'); return; }
+  const sp = setupPose(), pp = sp[par.id].world, bp = sp[b.id].world;
+  const ptip = M.apply(pp, par.len, 0), btip = M.apply(bp, b.len, 0);
+  edit(b.name + ' を 親の 先に つなげる', () => { moveBoneKeep(b, ptip, btip); markDirty(); });
+  setStatus('「' + b.name + '」の 根もとを「' + par.name + '」の 先に つなげました');
+  refreshUI();
+}
+const _buildProps7 = buildProps;
+buildProps = function(){
+  _buildProps7();
+  if(S.mode !== 'setup') return;
+  const b = boneById(S.sel.bone); if(!b || !b.parent || slotById(S.sel.slot)) return;
+  const host = $('#props');
+  const box = el('div', 'chk-box');
+  box.appendChild(el('div', 'hint', '骨の 先の 四角を 引っぱると 長さと 向きが 変わります（絵は 動きません）'));
+  const par = boneById(b.parent);
+  if(par && par.parent) box.appendChild(btnRow(mkBtn('🔗 「' + par.name + '」の 先に つなげる', () => snapToParent(b), 'btn')));
+  host.insertBefore(box, host.firstChild);
+};
