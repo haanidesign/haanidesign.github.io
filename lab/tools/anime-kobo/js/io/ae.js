@@ -18,8 +18,8 @@
    できない こと
      ・焼いた あとの 動き じたいを 直す（それは こちらで 直す） */
 
-import { createRenderer } from '../render/renderer.js?v=321';
-import { drawOrder, nearestFolder } from '../engine/layer.js?v=321';
+import { createRenderer } from '../render/renderer.js?v=322';
+import { drawOrder, nearestFolder } from '../engine/layer.js?v=322';
 
 /* ---------- zip（おしこめない「ためるだけ」の zip） ----------
    PNG は もう ちぢんで いる ので、さらに おしこんでも 小さく ならない。

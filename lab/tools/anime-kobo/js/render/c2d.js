@@ -3,22 +3,22 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=321';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=321';
-import { liveMasks } from '../engine/mask.js?v=321';
-import { valuesAt } from '../engine/anim.js?v=321';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=321';
+         nearestFolder } from '../engine/layer.js?v=322';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=322';
+import { liveMasks } from '../engine/mask.js?v=322';
+import { valuesAt } from '../engine/anim.js?v=322';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=322';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=321';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=321';
-import { paintCanvas } from '../engine/paint.js?v=321';
-import { panoCanvas } from '../engine/pano.js?v=321';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=321';
-import { roomCanvas } from '../engine/room.js?v=321';
-import { talkCanvas } from '../engine/talk.js?v=321';
-import { homography, applyH } from '../engine/warp.js?v=321';
-import { drawCamView } from './camview.js?v=321';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=321';
+         meshSizeFor } from '../engine/puppet.js?v=322';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=322';
+import { paintCanvas } from '../engine/paint.js?v=322';
+import { panoCanvas } from '../engine/pano.js?v=322';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=322';
+import { roomCanvas } from '../engine/room.js?v=322';
+import { talkCanvas } from '../engine/talk.js?v=322';
+import { homography, applyH } from '../engine/warp.js?v=322';
+import { drawCamView } from './camview.js?v=322';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=322';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -2208,6 +2208,12 @@ function flatMesh(w, h){
     }
     ctx.restore();
 
+    /* 🖼 紙の 仕上げ（画用紙・和紙・水彩）。できあがった 絵ぜんたいに かける */
+    const pf = project.paper;
+    if(pf && pf.kind && pf.kind !== 'なし' && (pf.amount == null || pf.amount > 0.01)){
+      paperFinish(ctx, project, tf, pf);
+    }
+
     if(showOut){
       /* 見えて いる ところ ぜんぶ（キャンバスざひょう）を 出して、
          枠の そとを うすく ぬる。ぬるのは 4まいの 帯。 */
@@ -2236,6 +2242,138 @@ function flatMesh(w, h){
     }
 
     return poses;
+  }
+
+
+  /* ================= 🖼 紙の 仕上げ =================
+     絵の 上に 紙の きめを「かけ算（multiply）」で のせる。
+     きめは 1回だけ 作って とっておく（毎コマ 同じ ＝ ちらつかない）。
+     ものさしは 作品の ドット。画面の ズームに ついてくる。 */
+  const paperTex = {};
+  function noiseCanvas(size, seed, fn){
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    let s = seed | 0 || 1;
+    const R = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
+    fn(g, size, R);
+    return c;
+  }
+  /* なめらかな むら（雲）。小さい でたらめを 大きく のばして 重ねる */
+  function clouds(g, size, R, cells, alpha, dark){
+    const t = document.createElement('canvas');
+    t.width = t.height = cells;
+    const tg = t.getContext('2d');
+    const id = tg.createImageData(cells, cells);
+    for(let i = 0; i < cells * cells; i++){
+      const v = Math.round(R() * 255);
+      id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = dark ? Math.round(255 - v * 0.5) : v;
+      id.data[i*4+3] = 255;
+    }
+    tg.putImageData(id, 0, 0);
+    g.save();
+    g.globalAlpha = alpha;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    // はしが つながる ように 3×3 で しいて まん中を つかう
+    const k = size / cells;
+    g.globalCompositeOperation = 'multiply';
+    for(let y = -1; y <= 1; y++) for(let x = -1; x <= 1; x++)
+      g.drawImage(t, x * size - k / 2, y * size - k / 2, size + k, size + k);
+    g.restore();
+  }
+  function grain(g, size, R, amt){
+    const id = g.getImageData(0, 0, size, size);
+    for(let i = 0; i < size * size; i++){
+      const n = (R() - 0.5) * amt;
+      id.data[i*4]   = Math.max(0, Math.min(255, id.data[i*4]   + n));
+      id.data[i*4+1] = Math.max(0, Math.min(255, id.data[i*4+1] + n));
+      id.data[i*4+2] = Math.max(0, Math.min(255, id.data[i*4+2] + n));
+    }
+    g.putImageData(id, 0, 0);
+  }
+  function paperTexture(kind){
+    if(paperTex[kind]) return paperTex[kind];
+    const size = 512;
+    let c;
+    if(kind === '和紙'){
+      c = noiseCanvas(size, 77, (g, n, R) => {
+        g.fillStyle = '#F7F1E3'; g.fillRect(0, 0, n, n);
+        clouds(g, n, R, 6, 0.10, true);
+        clouds(g, n, R, 24, 0.06, true);
+        /* せんい。ほそく ながい すじを いろんな むきに */
+        for(let i = 0; i < 500; i++){
+          const x = R() * n, y = R() * n, len = 10 + R() * 70, a = R() * Math.PI * 2;
+          g.strokeStyle = R() < 0.7 ? 'rgba(255,255,255,.5)' : 'rgba(150,130,100,.09)';
+          g.lineWidth = 0.4 + R() * 0.9;
+          g.beginPath();
+          g.moveTo(x, y);
+          g.quadraticCurveTo(x + Math.cos(a + 0.6) * len * 0.5, y + Math.sin(a + 0.6) * len * 0.5,
+                             x + Math.cos(a) * len, y + Math.sin(a) * len);
+          for(const dx of [-n, 0, n]) for(const dy of [-n, 0, n]){
+            if(dx || dy){ g.save(); g.translate(dx, dy); g.stroke(); g.restore(); }
+          }
+          g.stroke();
+        }
+        grain(g, n, R, 10);
+      });
+    } else if(kind === '水彩'){
+      c = noiseCanvas(size, 31, (g, n, R) => {
+        g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, n, n);
+        clouds(g, n, R, 5, 0.16, true);     // 大きな にじみ むら
+        clouds(g, n, R, 14, 0.12, true);
+        clouds(g, n, R, 48, 0.08, true);    // つぶつぶ（顔料の しずみ）
+        grain(g, n, R, 18);
+      });
+    } else {
+      // 画用紙。こまかい でこぼこ と うすい むら
+      c = noiseCanvas(size, 13, (g, n, R) => {
+        g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, n, n);
+        clouds(g, n, R, 64, 0.10, true);
+        clouds(g, n, R, 128, 0.12, true);
+        grain(g, n, R, 30);
+      });
+    }
+    return paperTex[kind] = c;
+  }
+
+  function paperFinish(ctx, project, tf, pf){
+    const amt = Math.max(0, Math.min(1, pf.amount == null ? 0.7 : pf.amount));
+    const k = Math.abs(tf[0]);
+    const X = tf[4], Y = tf[5], W = project.w * k, H = project.h * k;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath(); ctx.rect(X, Y, W, H); ctx.clip();
+
+    if(pf.kind === '水彩'){
+      /* 水彩。① 色を すこし やわらかく・あかるく
+               ② ふちに 色が たまる（ずらして ぼかした 写しを かけ算）
+               ③ 紙の むら */
+      const c = alloc(ctx.canvas), g = c.getContext('2d');
+      g.drawImage(ctx.canvas, 0, 0);
+      const bl = Math.max(0.5, 1.4 * k);
+      ctx.globalAlpha = 0.55 * amt;
+      ctx.filter = 'blur(' + bl + 'px) saturate(1.15) brightness(1.04)';
+      ctx.drawImage(c, 0, 0);
+      ctx.filter = 'none';
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.28 * amt;
+      ctx.filter = 'blur(' + (3 * k) + 'px)';
+      ctx.drawImage(c, 2 * k, 2 * k);
+      ctx.filter = 'none';
+      back(1);
+    }
+
+    const tex = paperTexture(pf.kind);
+    const pat = ctx.createPattern(tex, 'repeat');
+    /* きめの 大きさ。作品の 長いほう 1080 で 1まいが 512 くらい */
+    const ts = (pf.kind === '和紙' ? 1.4 : 1) * Math.max(project.w, project.h) / 1080;
+    if(pat && pat.setTransform) pat.setTransform(new DOMMatrix([k * ts, 0, 0, k * ts, X, Y]));
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = (pf.kind === '和紙' ? 0.7 : pf.kind === '画用紙' ? 0.9 : 1) * amt;
+    ctx.fillStyle = pat;
+    ctx.fillRect(X, Y, W, H);
+    ctx.restore();
   }
 
   /** 選んでいるレイヤーの枠とハンドル */
