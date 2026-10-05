@@ -626,7 +626,11 @@ $('#genGo').onclick = async () => {
     st.textContent = 'できました';
   } catch (e) {
     st.className = 'status err';
-    st.textContent = /ComfyUI/.test(e.message) ? e.message : '手元の生成に つながりません（かんたん画像生成 と ComfyUI を 起動して ください）';
+    console.error('[うごく背景] 生成', e);
+    const m = String(e && e.message || e);
+    st.textContent = /Failed to fetch|NetworkError|Load failed/i.test(m)
+      ? `かんたん画像生成(:8200) に つながりません（${location.origin} から）。起動して いるなら、Chrome の アドレスバー左の 鍵マーク → 「ローカル ネットワーク」を 許可して ください。`
+      : '作れませんでした: ' + m;
   } finally { btn.disabled = false; }
 };
 
