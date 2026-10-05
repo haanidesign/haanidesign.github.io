@@ -755,7 +755,7 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   const { sx, sy } = evPos(e);
   const w = s2w(sx, sy);
-  if(S.shapeEdit && e.button === 0) return;   // 閉じ目づくり中（kobo.js）
+  if((S.shapeEdit || S.warpEdit) && e.button === 0) return;   // 閉じ目づくり・ゆがみ 中（kobo.js / warp.js）
 
   // 右／中ドラッグ = パン（本物と同じ）
   if(e.button === 1 || e.button === 2){

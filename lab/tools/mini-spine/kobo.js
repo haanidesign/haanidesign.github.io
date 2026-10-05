@@ -1473,12 +1473,15 @@ function paintParts(g, pose, sp, k){
     const sq = (!swap && !hasLids && !useShapes && blinkOn && k > 0 && isEye(slot) && !slot.lidCover) ? Math.max(0.08, 1 - k * 0.92) : 1;
     const cy = lines && lines.get(slot.id);
     const shaped = k > 0 && slot.shapes && slot.shapes.close;
-    if(!shaped && drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
+    // ゆがみ（warp.js）。その 時こくの ずれが あれば 三角で 描く
+    const wo = (typeof warpAt === 'function') ? warpAt(slot) : null;
+    if(!shaped && !wo && drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
     const n = slot.verts.length;
     let buf = slot._xy;
     if(!buf || buf.length < n*2) buf = slot._xy = new Float32Array(n*2);
     deformSlot(slot, pose, buf);
     if(shaped) addShape(slot, buf, pose, sp, k);
+    if(wo) addOffsets(slot, buf, pose, sp, wo, 1);
     if(sq < 1){
       let y0 = 1e9, y1 = -1e9;
       for(let i = 0; i < n; i++){ const y = buf[i*2+1]; if(y < y0) y0 = y; if(y > y1) y1 = y; }
@@ -1598,7 +1601,10 @@ const hasShapes = () => S.proj.slots.some(sl => sl.shapes && sl.shapes.close);
 
 /** 閉じ目の ずれを k だけ 足す（buf は 骨で 動かした あとの 点） */
 function addShape(slot, buf, pose, sp, k){
-  const off = slot.shapes && slot.shapes.close;
+  addOffsets(slot, buf, pose, sp, slot.shapes && slot.shapes.close, k);
+}
+/** 点ごとの ずれ off を k だけ、骨の 向きに あわせて 足す（閉じ目・ゆがみ 共通） */
+function addOffsets(slot, buf, pose, sp, off, k){
   if(!off || k <= 0) return;
   const id = rigidBone(slot) || slot.bone;
   const p = pose[id], s0 = sp[id];

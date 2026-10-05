@@ -22,7 +22,10 @@ function activeOpt(st, a, t){
 
 /* ---------- 描画に くみこむ：組の 中は 1まい だけ ---------- */
 const _paintParts0 = paintParts;
+/* いま 描いて いる アニメと 時こく（ゆがみ が 見る） */
+const PAINT_AT = { a: null, t: null };
 paintParts = function(g, pose, sp, k, a, t){
+  PAINT_AT.a = a || null; PAINT_AT.t = (t === undefined) ? null : t;
   const sets = SETS();
   if(!sets.length) return _paintParts0(g, pose, sp, k);
   const keepVis = new Map();
