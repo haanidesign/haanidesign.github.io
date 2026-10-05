@@ -3,22 +3,22 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=322';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=322';
-import { liveMasks } from '../engine/mask.js?v=322';
-import { valuesAt } from '../engine/anim.js?v=322';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=322';
+         nearestFolder } from '../engine/layer.js?v=323';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=323';
+import { liveMasks } from '../engine/mask.js?v=323';
+import { valuesAt } from '../engine/anim.js?v=323';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=323';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=322';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=322';
-import { paintCanvas } from '../engine/paint.js?v=322';
-import { panoCanvas } from '../engine/pano.js?v=322';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=322';
-import { roomCanvas } from '../engine/room.js?v=322';
-import { talkCanvas } from '../engine/talk.js?v=322';
-import { homography, applyH } from '../engine/warp.js?v=322';
-import { drawCamView } from './camview.js?v=322';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=322';
+         meshSizeFor } from '../engine/puppet.js?v=323';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=323';
+import { paintCanvas } from '../engine/paint.js?v=323';
+import { panoCanvas } from '../engine/pano.js?v=323';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=323';
+import { roomCanvas } from '../engine/room.js?v=323';
+import { talkCanvas } from '../engine/talk.js?v=323';
+import { homography, applyH } from '../engine/warp.js?v=323';
+import { drawCamView } from './camview.js?v=323';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=323';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -2249,92 +2249,108 @@ function flatMesh(w, h){
      絵の 上に 紙の きめを「かけ算（multiply）」で のせる。
      きめは 1回だけ 作って とっておく（毎コマ 同じ ＝ ちらつかない）。
      ものさしは 作品の ドット。画面の ズームに ついてくる。 */
+  const PAPER_BLEND = { '乗算':'multiply', 'オーバーレイ':'overlay', 'ソフトライト':'soft-light',
+                        'スクリーン':'screen', 'ふつう':'source-over' };
   const paperTex = {};
-  function noiseCanvas(size, seed, fn){
+  /* つなぎ目の ない むら（タイルの はしと はしが つながる 値ノイズ）。
+     格子の 番号を n で わった あまりに する ので、右はしの 先は 左はし に なる */
+  function tileNoise(size, cells, R){
+    const lat = new Float32Array(cells * cells);
+    for(let i = 0; i < lat.length; i++) lat[i] = R();
+    const out = new Float32Array(size * size);
+    const sm = (t) => t * t * (3 - 2 * t);
+    for(let y = 0; y < size; y++){
+      const fy = y / size * cells, j0 = Math.floor(fy), ty = sm(fy - j0);
+      const ja = j0 % cells, jb = (j0 + 1) % cells;
+      for(let x = 0; x < size; x++){
+        const fx = x / size * cells, i0 = Math.floor(fx), tx = sm(fx - i0);
+        const ia = i0 % cells, ib = (i0 + 1) % cells;
+        const a = lat[ia + ja * cells], b = lat[ib + ja * cells];
+        const c = lat[ia + jb * cells], d = lat[ib + jb * cells];
+        out[x + y * size] = (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * ty;
+      }
+    }
+    return out;
+  }
+  /* 紙の でこぼこ（高さ）を 0〜1 で 作る。0.5 が ふつう */
+  function paperHeight(kind){
+    const size = 512;
+    let s = (kind === '和紙' ? 77 : kind === '水彩' ? 31 : 13);
+    const R = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
+    const oct = kind === '和紙'  ? [[4, 0.22], [16, 0.12], [64, 0.05]]
+              : kind === '水彩'  ? [[3, 0.14], [7, 0.09], [20, 0.05]]
+              :                    [[32, 0.10], [96, 0.16], [256, 0.10]];
+    const grainA = kind === '画用紙' ? 0.22 : kind === '水彩' ? 0.12 : 0.06;
+    const h = new Float32Array(size * size).fill(0.5);
+    for(const [cells, amp] of oct){
+      const n = tileNoise(size, cells, R);
+      for(let i = 0; i < h.length; i++) h[i] += (n[i] - 0.5) * amp * 2;
+    }
+    for(let i = 0; i < h.length; i++) h[i] += (R() - 0.5) * grainA;
+    /* 高さを 灰色の 絵に して、和紙なら せんいを かきこむ */
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const g = c.getContext('2d');
-    let s = seed | 0 || 1;
-    const R = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
-    fn(g, size, R);
-    return c;
-  }
-  /* なめらかな むら（雲）。小さい でたらめを 大きく のばして 重ねる */
-  function clouds(g, size, R, cells, alpha, dark){
-    const t = document.createElement('canvas');
-    t.width = t.height = cells;
-    const tg = t.getContext('2d');
-    const id = tg.createImageData(cells, cells);
-    for(let i = 0; i < cells * cells; i++){
-      const v = Math.round(R() * 255);
-      id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = dark ? Math.round(255 - v * 0.5) : v;
-      id.data[i*4+3] = 255;
-    }
-    tg.putImageData(id, 0, 0);
-    g.save();
-    g.globalAlpha = alpha;
-    g.imageSmoothingEnabled = true;
-    g.imageSmoothingQuality = 'high';
-    // はしが つながる ように 3×3 で しいて まん中を つかう
-    const k = size / cells;
-    g.globalCompositeOperation = 'multiply';
-    for(let y = -1; y <= 1; y++) for(let x = -1; x <= 1; x++)
-      g.drawImage(t, x * size - k / 2, y * size - k / 2, size + k, size + k);
-    g.restore();
-  }
-  function grain(g, size, R, amt){
-    const id = g.getImageData(0, 0, size, size);
-    for(let i = 0; i < size * size; i++){
-      const n = (R() - 0.5) * amt;
-      id.data[i*4]   = Math.max(0, Math.min(255, id.data[i*4]   + n));
-      id.data[i*4+1] = Math.max(0, Math.min(255, id.data[i*4+1] + n));
-      id.data[i*4+2] = Math.max(0, Math.min(255, id.data[i*4+2] + n));
+    const id = g.createImageData(size, size);
+    for(let i = 0; i < h.length; i++){
+      const v = Math.max(0, Math.min(255, Math.round(h[i] * 255)));
+      id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = v; id.data[i*4+3] = 255;
     }
     g.putImageData(id, 0, 0);
-  }
-  function paperTexture(kind){
-    if(paperTex[kind]) return paperTex[kind];
-    const size = 512;
-    let c;
     if(kind === '和紙'){
-      c = noiseCanvas(size, 77, (g, n, R) => {
-        g.fillStyle = '#F7F1E3'; g.fillRect(0, 0, n, n);
-        clouds(g, n, R, 6, 0.10, true);
-        clouds(g, n, R, 24, 0.06, true);
-        /* せんい。ほそく ながい すじを いろんな むきに */
-        for(let i = 0; i < 500; i++){
-          const x = R() * n, y = R() * n, len = 10 + R() * 70, a = R() * Math.PI * 2;
-          g.strokeStyle = R() < 0.7 ? 'rgba(255,255,255,.5)' : 'rgba(150,130,100,.09)';
-          g.lineWidth = 0.4 + R() * 0.9;
+      for(let i = 0; i < 500; i++){
+        const x = R() * size, y = R() * size, len = 10 + R() * 70, a = R() * Math.PI * 2;
+        g.strokeStyle = R() < 0.7 ? 'rgba(255,255,255,.45)' : 'rgba(0,0,0,.18)';
+        g.lineWidth = 0.4 + R() * 0.9;
+        for(const dx of [-size, 0, size]) for(const dy of [-size, 0, size]){
           g.beginPath();
-          g.moveTo(x, y);
-          g.quadraticCurveTo(x + Math.cos(a + 0.6) * len * 0.5, y + Math.sin(a + 0.6) * len * 0.5,
-                             x + Math.cos(a) * len, y + Math.sin(a) * len);
-          for(const dx of [-n, 0, n]) for(const dy of [-n, 0, n]){
-            if(dx || dy){ g.save(); g.translate(dx, dy); g.stroke(); g.restore(); }
-          }
+          g.moveTo(x + dx, y + dy);
+          g.quadraticCurveTo(x + dx + Math.cos(a + 0.6) * len * 0.5, y + dy + Math.sin(a + 0.6) * len * 0.5,
+                             x + dx + Math.cos(a) * len, y + dy + Math.sin(a) * len);
           g.stroke();
         }
-        grain(g, n, R, 10);
-      });
-    } else if(kind === '水彩'){
-      c = noiseCanvas(size, 31, (g, n, R) => {
-        g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, n, n);
-        clouds(g, n, R, 5, 0.16, true);     // 大きな にじみ むら
-        clouds(g, n, R, 14, 0.12, true);
-        clouds(g, n, R, 48, 0.08, true);    // つぶつぶ（顔料の しずみ）
-        grain(g, n, R, 18);
-      });
-    } else {
-      // 画用紙。こまかい でこぼこ と うすい むら
-      c = noiseCanvas(size, 13, (g, n, R) => {
-        g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, n, n);
-        clouds(g, n, R, 64, 0.10, true);
-        clouds(g, n, R, 128, 0.12, true);
-        grain(g, n, R, 30);
-      });
+      }
     }
-    return paperTex[kind] = c;
+    return c;
+  }
+  /* のせ方ごとに 色を 作りかえる。
+     乗算 … 白が ふつう（暗い ところだけ 効く）
+     オーバーレイ・ソフトライト … 灰色が ふつう（明るい・暗い 両方）
+     スクリーン … 黒が ふつう（明るい ところだけ 効く）
+     ふつう … 紙の 色を うすく かぶせる */
+  const TINT = { '和紙': [247, 241, 227] };
+  function paperTexture(kind, blend){
+    const key = kind + '/' + blend;
+    if(paperTex[key]) return paperTex[key];
+    const hk = kind + '/h';
+    const hc = paperTex[hk] || (paperTex[hk] = paperHeight(kind));
+    const size = hc.width;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.drawImage(hc, 0, 0);
+    const id = g.getImageData(0, 0, size, size), d = id.data;
+    const t = TINT[kind] || [255, 255, 255];
+    for(let i = 0; i < d.length; i += 4){
+      const h = d[i] / 255;
+      let r, gg, b, a = 255;
+      if(blend === 'overlay' || blend === 'soft-light'){
+        r = gg = b = 128 + (h - 0.5) * 2 * 90;
+      } else if(blend === 'screen'){
+        r = gg = b = Math.max(0, h - 0.35) * 255 * 0.9;
+      } else if(blend === 'source-over'){
+        const v = 255 - Math.max(0, 0.58 - h) * 150;
+        r = v * t[0] / 255; gg = v * t[1] / 255; b = v * t[2] / 255;
+        a = Math.round(Math.abs(h - 0.5) * 2 * 255 * 0.8 + 30);
+      } else {
+        /* ふつうの 高さ（0.5）で ほぼ 白（-6%くらい）。くぼみ だけ 暗く */
+        const v = 255 - Math.max(0, 0.58 - h) * 150;
+        r = v * t[0] / 255; gg = v * t[1] / 255; b = v * t[2] / 255;
+      }
+      d[i] = r; d[i+1] = gg; d[i+2] = b; d[i+3] = a;
+    }
+    g.putImageData(id, 0, 0);
+    return paperTex[key] = c;
   }
 
   function paperFinish(ctx, project, tf, pf){
@@ -2364,13 +2380,14 @@ function flatMesh(w, h){
       back(1);
     }
 
-    const tex = paperTexture(pf.kind);
+    const blend = PAPER_BLEND[pf.blend] || 'multiply';
+    const tex = paperTexture(pf.kind, blend);
     const pat = ctx.createPattern(tex, 'repeat');
     /* きめの 大きさ。作品の 長いほう 1080 で 1まいが 512 くらい */
     const ts = (pf.kind === '和紙' ? 1.4 : 1) * Math.max(project.w, project.h) / 1080;
     if(pat && pat.setTransform) pat.setTransform(new DOMMatrix([k * ts, 0, 0, k * ts, X, Y]));
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = (pf.kind === '和紙' ? 0.7 : pf.kind === '画用紙' ? 0.9 : 1) * amt;
+    ctx.globalCompositeOperation = blend;
+    ctx.globalAlpha = amt;
     ctx.fillStyle = pat;
     ctx.fillRect(X, Y, W, H);
     ctx.restore();
