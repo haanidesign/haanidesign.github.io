@@ -640,16 +640,65 @@ $('#pngGo').onclick = () => {
 /* 1コマずつ 時間を つけて 書きこむ（長さが 正しく 入り、ほかの ソフトでも 読める） */
 async function pickAvc(w, h, fps) {
   if (typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') return null;
-  for (const codec of ['avc1.640034', 'avc1.640033', 'avc1.640028', 'avc1.4d0034', 'avc1.4d0028', 'avc1.42003e', 'avc1.42002a', 'avc1.42001f']) {
-    try { const cfg = { codec, width: w, height: h, bitrate: Math.round(w * h * fps * .12), framerate: fps };
-      const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (_) {}
-  }
+  const codecs = ['avc1.640034', 'avc1.640033', 'avc1.64002a', 'avc1.640028', 'avc1.4d0034', 'avc1.4d002a', 'avc1.4d0028', 'avc1.42003e', 'avc1.42002a', 'avc1.42001f'];
+  for (const hw of ['no-preference', 'prefer-software'])
+    for (const codec of codecs)
+      for (const br of [Math.round(w * h * fps * .12), 8e6, 4e6]) {
+        try { const cfg = { codec, width: w, height: h, bitrate: br, framerate: fps, hardwareAcceleration: hw };
+          const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (_) {}
+      }
   return null;
 }
+// 1コマずつ 書けない ときの 予備: 録画して 長さを あとから 書きこむ（webm）
+async function recordFallback(st, reps) {
+  const type = ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
+  if (!type) throw new Error('動画を 作る 機能が ありません');
+  const cv = document.createElement('canvas'); cv.width = S.W; cv.height = S.H; const c = cv.getContext('2d'); render(c, 0);
+  const stream = cv.captureStream(0), track = stream.getVideoTracks()[0];
+  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 12e6 });
+  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(ok => rec.onstop = ok); rec.start(500);
+  const fps = 30, n = Math.round(S.loop * reps * fps), t = performance.now();
+  for (let f = 0; f < n; f++) {
+    const w = t + f * 1000 / fps - performance.now(); if (w > 0) await new Promise(r => setTimeout(r, w));
+    render(c, (f / fps) % S.loop); track.requestFrame();
+    if (f % 15 === 0) st.textContent = `書き出し中（予備の方法）… ${Math.round(f / n * 100)}%`;
+  }
+  await new Promise(r => setTimeout(r, 150)); rec.stop(); await done;
+  let blob = new Blob(chunks, { type });
+  if (type.includes('webm')) blob = await fixWebmDuration(blob, S.loop * reps * 1000);
+  return { blob, ext: type.includes('mp4') ? 'mp4' : 'webm' };
+}
+// webm の Duration を 書きこむ（録画だと 入らない）
+async function fixWebmDuration(blob, ms) {
+  const b = new Uint8Array(await blob.arrayBuffer());
+  // Info(0x1549A966) の 中の TimecodeScale の 後ろに Duration(0x4489, float64) を 足す
+  for (let i = 0; i < Math.min(b.length - 4, 4096); i++) {
+    if (b[i] === 0x15 && b[i + 1] === 0x49 && b[i + 2] === 0xA9 && b[i + 3] === 0x66) {
+      const szByte = b[i + 4]; let len = 1; while (len <= 8 && !(szByte & (0x80 >> (len - 1)))) len++;
+      let size = szByte & (0xFF >> len); for (let k = 1; k < len; k++) size = size * 256 + b[i + 4 + k];
+      const start = i + 4 + len, dur = new Uint8Array(11); dur[0] = 0x44; dur[1] = 0x89; dur[2] = 0x88;
+      new DataView(dur.buffer).setFloat64(3, ms);
+      const ns = size + 11, sz = new Uint8Array(8); sz[0] = 0x01; for (let k = 7, v = ns; k >= 1; k--, v = Math.floor(v / 256)) sz[k] = v & 255;
+      const out = new Uint8Array(b.length + 11 + 8 - len);
+      out.set(b.subarray(0, i + 4)); out.set(sz, i + 4); out.set(b.subarray(start, start + size), i + 12);
+      out.set(dur, i + 12 + size); out.set(b.subarray(start + size), i + 23 + size);
+      return new Blob([out], { type: blob.type });
+    }
+  }
+  return blob;
+}
 $('#recGo').onclick = async () => {
-  const st = $('#recStatus'), fps = 60, W = S.W & ~1, H = S.H & ~1;
-  const cfg = await pickAvc(W, H, fps);
-  if (!cfg) { st.className = 'status err'; st.textContent = 'このブラウザは 動画の 書き出しに 対応して いません（Chrome か Edge で）'; return; }
+  const st = $('#recStatus'), W = S.W & ~1, H = S.H & ~1;
+  let fps = 60, cfg = await pickAvc(W, H, fps);
+  if (!cfg) { fps = 30; cfg = await pickAvc(W, H, fps); }
+  if (!cfg) {
+    $('#recGo').disabled = true; st.className = 'status';
+    try { const r = await recordFallback(st, +$('#reps').value); save(r.blob, 'ugoku-haikei.' + r.ext); st.textContent = `保存しました（${r.ext.toUpperCase()}・${S.loop * +$('#reps').value}秒）`; }
+    catch (e) { st.className = 'status err'; st.textContent = '書き出せませんでした: ' + (e.message || e); }
+    finally { $('#recGo').disabled = false; }
+    return;
+  }
   const reps = +$('#reps').value, perLoop = Math.round(S.loop * fps), total = perLoop * reps, us = 1e6 / fps;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
   const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: fps }, fastStart: 'in-memory' });
