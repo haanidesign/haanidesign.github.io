@@ -26,7 +26,13 @@ function shelf(key, del) {
 export async function takeHandoff() {
   if (new URLSearchParams(location.search).get('from') !== 'mini-spine') return null;
     const box = await shelf('mini-spine-video');
-  if (!box || !box.blob) return null;
+  if (!box) return null;
+  /* いくつも まとめて 送られた ときは box.items = [{ blob, fileName, len }]（len ＝ ならべる 長さ 秒） */
+  if (box.items && box.items.length) {
+    const files = box.items.map(it => new File([it.blob], it.fileName, { type: it.blob.type || 'image/png' }));
+    return { name: box.name || 'ミニSpine', w: box.w, h: box.h, files, lens: box.items.map(it => it.len || 0) };
+  }
+  if (!box.blob) return null;
   const file = new File([box.blob], box.fileName || 'minispine.mp4', { type: box.blob.type || 'video/mp4' });
   return { name: box.name || 'ミニSpine', w: box.w, h: box.h, file };
 }
