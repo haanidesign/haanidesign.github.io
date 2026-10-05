@@ -159,3 +159,25 @@ async function openWorks(){
   b.onclick = openWorks;
   if(nb){ nb.replaceWith(b); } else $('.tb-actions').insertBefore(b, $('#btnAddImg'));
 })();
+
+/* ---------- 読みこみ中は 画面の まんなかに 大きく 出す ----------
+   大きい PSD は 数秒 かかる。その あいだ 何も 出ないと「表示されない」と まちがえる */
+const _importPsdW = importPsd;
+importPsd = async function(file){
+  const mb = file && file.size ? (file.size / 1048576).toFixed(1) + 'MB' : '';
+  busy('PSD を 読みこみ中…' + (mb ? '（' + mb + '）' : '') + '\n大きい ファイルは すこし かかります');
+  await nextPaint(); await nextPaint();
+  try{ return await _importPsdW(file); }
+  finally{ busy(''); }
+};
+const _addImageFilesW = addImageFiles;
+addImageFiles = function(list){
+  if(!list || !list.length) return;
+  busy('画像を 読みこみ中…');
+  const r = _addImageFilesW(list);
+  // 画像は 1まいずつ よみこまれる。おわったら（パーツが ふえたら）けす
+  const before = S.proj.slots.length, t0 = performance.now();
+  const wait = () => { if(S.proj.slots.length >= before + list.length || performance.now() - t0 > 15000) busy(''); else setTimeout(wait, 120); };
+  setTimeout(wait, 120);
+  return r;
+};

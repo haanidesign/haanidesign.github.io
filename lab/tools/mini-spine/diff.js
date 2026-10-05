@@ -61,6 +61,17 @@ renderFrames = function(fps, maxSide, onStep){
 
 /* ---------- PSD を 入れたら 自動で まとめる ----------
    おなじ グループの 中で、かくして あった 絵が ある か、グループ名が 表情・差分 なら 組に する */
+/* 2まいの 絵が「おなじ 場所に、おなじ くらいの 大きさで 重ねて 描いて ある」か。
+   大きい ほうの 5わり 以上 かさなる ＝ 大きさも 場所も 近い（顔の 中の 目や 口は ちがう 扱い） */
+function sameSpot(a, b){
+  const A = slotBox(a), B = slotBox(b);
+  const ix = Math.max(0, Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0));
+  const iy = Math.max(0, Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0));
+  return ix * iy >= 0.5 * Math.max(1, Math.max(A.w * A.h, B.w * B.h));
+}
+/* おなじ グループの 中で、おなじ 場所に 重なって いて、
+   そのうち 1まいでも PSD で かくして あった ものだけを 組に する。
+   （まえは グループ まるごと 組に して いたので、頭の 目・眉・口が 1まいしか 出なく なった） */
 function autoSets(){
   const by = {};
   S.proj.slots.forEach(sl => {
@@ -69,20 +80,43 @@ function autoSets(){
   });
   let n = 0;
   for(const g in by){
-    const list = by[g].filter(sl => sl.verts.length && !setOf(sl.id));
-    if(list.length < 2) continue;
-    const named = /表情|差分|expression|diff/i.test(g);
-    const hasHidden = list.some(sl => !sl.visible);
-    if(!named && !hasHidden) continue;
-    // 見えて いた ものを ふだんの 絵に。かくれて いた ものは 組に 入れて 見える ように する
-    const def = list.find(sl => sl.visible) || list[0];
-    const name = g.split('/').pop();
-    SETS().push({ id: uid('set'), name, slots: list.map(x => x.id), def: def.id });
-    list.forEach(sl => { sl.visible = true; });
+    let rest = by[g].filter(sl => sl.verts.length && !setOf(sl.id));
+    while(rest.length >= 2){
+      const seed = rest[0];
+      const grp = rest.filter(o => o === seed || sameSpot(seed, o));
+      rest = rest.filter(o => !grp.includes(o));
+      if(grp.length < 2) continue;
+      const named = /表情|差分|expression|diff/i.test(g);
+      if(!named && !grp.some(sl => sl.psdHidden)) continue;
+      const def = grp.find(sl => !sl.psdHidden) || grp[0];
+      SETS().push({ id: uid('set'), name: g.split('/').pop(), slots: grp.map(x => x.id), def: def.id });
+      grp.forEach(sl => { sl.visible = true; });
+      n++;
+    }
+  }
+  return n;
+}
+/* まえの 版で まとめすぎた 組を ほどく（重なって いない 絵が 入って いる 組） */
+function fixSets(){
+  const sets = SETS(); let n = 0;
+  for(let i = sets.length - 1; i >= 0; i--){
+    const st = sets[i], def = slotById(st.def) || slotById(st.slots[0]);
+    if(!def) continue;
+    const ok = st.slots.every(id => { const o = slotById(id); return !o || o === def || sameSpot(def, o); });
+    if(ok) continue;
+    st.slots.forEach(id => { const o = slotById(id); if(o) o.visible = true; });
+    sets.splice(i, 1);
+    for(const nm in S.proj.anims){ const a = S.proj.anims[nm]; if(a.sets) delete a.sets[st.id]; }
     n++;
   }
   return n;
 }
+const _loadProject3 = loadProject;
+loadProject = function(text){
+  _loadProject3(text);
+  const n = fixSets();
+  if(n) setTimeout(() => setStatus('まとめすぎて いた 差分を ' + n + 'つ ほどきました（ぜんぶ 見える ように しました）'), 700);
+};
 const _importPsd2 = importPsd;
 importPsd = async function(file){
   await _importPsd2(file);

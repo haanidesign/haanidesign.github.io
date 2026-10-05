@@ -375,7 +375,7 @@ async function importPsd(file){
     const slot = newSlot(id, { name:l.name });
     slot.name = l.name;
     slot.alpha = clamp(l.opacity, 0, 1);
-    if(l.hidden) slot.visible = false;
+    if(l.hidden){ slot.visible = false; slot.psdHidden = true; }
     slot.bone = groupBone[l.group] || rootId;
     slot.gpath = l.gpath || [];
     if(l.clipping && lastBase) slot.clipTo = lastBase;
