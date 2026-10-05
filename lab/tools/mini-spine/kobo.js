@@ -343,30 +343,26 @@ function applyWhole(m){
   refreshUI();
 }
 
-/* パーツ（絵）を えらんで いる ときは、その 絵 だけが 動く 骨に つける。
-   ほかの 絵や 子の 骨と いっしょの 骨なら、その 絵 専用の 骨を つくる（付け根は 絵の 上の まんなか） */
-function ownMoveBone(sl){
-  const base = slotBones(sl).main || S.proj.bones[0];
-  const alone = base && base.parent && !S.proj.bones.some(o => o.parent === base.id)
-    && !S.proj.slots.some(o => o !== sl && slotBones(o).ids.includes(base.id));
-  if(alone) return base;
-  const bx = slotBox(sl);
-  const b = boneAt(sl.name + '_動き', base.id, { x: bx.cx, y: bx.y0 + bx.h * .1 }, { x: bx.cx, y: bx.y1 });
-  sl.verts.forEach(v => { v.w = []; v.bind = null; }); sl.bone = b.id; sl.bound = false;
-  markDirty();
-  return b;
+/* パーツ（絵）を えらんで いる ときは、その 絵に ついた 骨 ぜんぶに つける（親から 順に）。
+   「先まで」の 動きは 子へ 自分で ひろがるので、いちばん 上の 骨だけに つける */
+function partBones(sl){
+  const ids = slotBones(sl).ids.filter(id => boneById(id));
+  const depth = id => { let d = 0, b = boneById(id); while(b && b.parent){ d++; b = boneById(b.parent); } return d; };
+  return ids.sort((x, y) => depth(x) - depth(y)).map(boneById);
 }
 function applyOne(m){
   const a = anim(), sl = slotById(S.sel.slot);
   if(!a) return;
-  let b = null;
-  edit(m.name, () => {
-    b = sl ? ownMoveBone(sl) : boneById(S.sel.bone);
-    if(b) m.fn(a, b);
-  });
-  if(!b) return;
+  let list = sl ? partBones(sl) : [boneById(S.sel.bone)].filter(Boolean);
+  if(sl && /先まで/.test(m.name)){
+    const set = new Set(list.map(x => x.id));
+    list = list.filter(x => { let p = boneById(x.parent); while(p){ if(set.has(p.id)) return false; p = boneById(p.parent); } return true; });
+  }
+  if(!list.length) return;
+  edit(m.name, () => list.forEach(x => m.fn(a, x)));
+  const b = list[0];
   S.mode = 'anim'; S.playing = true; S.springState = {};
-  setStatus(m.name + ' を ' + b.name + (/先まで/.test(m.name) ? ' から 先に' : ' に') + ' つけました（大きさ・はやさは 🎚）');
+  setStatus(m.name + ' を ' + (list.length > 1 ? '「' + sl.name + '」の 骨 ' + list.length + '本' : b.name) + (/先まで/.test(m.name) ? ' から 先に' : ' に') + ' つけました（大きさ・はやさは 🎚）');
   refreshUI();
 }
 
@@ -389,7 +385,7 @@ function openMotions(){
 
     const sb = boneById(S.sel.bone), ss = slotById(S.sel.slot);
     body.appendChild(el('div', 'sh-h', ss ? 'えらんだ パーツだけ（' + ss.name + '）' : 'えらんだ ボーンだけ（' + (sb ? sb.name : '—') + '）'));
-    if(ss) body.appendChild(el('div', 'sh-note', 'この 絵 だけが 動きます（ほかの 絵と 骨を いっしょに して いたら、専用の 骨を 足します）。'));
+    if(ss) body.appendChild(el('div', 'sh-note', 'この 絵に ついた 骨 ぜんぶ（' + partBones(ss).map(b => b.name).join('・') + '）に つけます。'));
     body.appendChild(el('div', 'sh-note', 'いまの アニメ「' + S.proj.current + '」に 足します。同じ 動きの キーは 上書き。'));
     const g2 = el('div', 'sh-grid');
     ONE.forEach(m => {
