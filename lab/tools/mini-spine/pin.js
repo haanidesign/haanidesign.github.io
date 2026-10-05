@@ -90,6 +90,7 @@ function pinAnchor(p){
 }
 function applyPins(proj, pose){
   const pins = proj.pins; if(!pins || !pins.length) return;
+  if(pins.some(p => !p.fixed2) && proj === S.proj) repairPins();
   const kids = childMap(proj);
   PIN_POSE = pose; PIN_KIDS = kids;
   const shift = (root, dx, dy) => {
@@ -225,14 +226,7 @@ function buildPin2(P, A, B){
       const e = M.apply(p.world, b.len, 0); const d = distToSeg(J.x, J.y, p.world.tx, p.world.ty, e.x, e.y);
       if(d < bd){ bd = d; tgt = b; } });
     // ついて いく 側: A 専用の 骨（いまの 付け先の 子）。ほかの 絵を まきこまない
-    const base = slotBones(A).main || S.proj.bones[0];
-    let fol = base;
-    const shared = S.proj.slots.some(o => o !== A && slotBones(o).ids.includes(base.id));
-    if(shared || !base.parent){
-      const bx = slotBox(A);
-      fol = boneAt(A.name + '_くっつき', base.id, J, { x: bx.cx, y: bx.cy === J.y ? J.y - 20 : bx.cy });
-      A.verts.forEach(v => { v.w = []; }); A.bone = fol.id;
-    }
+    const fol = ownBone(A, J);
     markDirty();
     const sp = setupPose();
     const fl = M.apply(M.inv(sp[fol.id].world), J.x, J.y), tl = M.apply(M.inv(sp[tgt.id].world), J.x, J.y);
@@ -242,6 +236,54 @@ function buildPin2(P, A, B){
     S.sel = { bone: fol.id, slot: null, ik: null };
   });
   if(made) setStatus('「' + A.name + '」を「' + B.name + '」の 点に くっつけました。動かしても ここは 離れません');
+}
+
+/* ついて いく 部品 専用の 骨。
+   ほかの 絵や 子の 骨（頭 など）が ぶら下がって いる 骨を のばすと、
+   そっちまで ゆがむ。だから その 部品 だけの 骨に して おく */
+function boneSafe(bid, A){
+  const b = boneById(bid); if(!b || !b.parent) return false;
+  if(S.proj.bones.some(o => o.parent === bid)) return false;
+  return !S.proj.slots.some(o => o !== A && slotBones(o).ids.includes(bid));
+}
+function ownBone(A, J){
+  const base = slotBones(A).main || S.proj.bones[0];
+  if(boneSafe(base.id, A)) return base;
+  const bx = slotBox(A);
+  const fol = boneAt(A.name + '_くっつき', base.id, J, { x: bx.cx, y: Math.abs(bx.cy - J.y) < 1 ? J.y - 20 : bx.cy });
+  A.verts.forEach(v => { v.w = []; v.bind = null; }); A.bone = fol.id; A.bound = false;
+  return fol;
+}
+/* まえに つけた くっつけを 直す（頭ごと ゆがむ 骨に ついて いた もの） */
+function repairPins(){
+  const pins = PINS(); if(!pins.length) return false;
+  let changed = false;
+  const sp = setupPose();
+  pins.forEach(p => {
+    if(p.fixed2) return;
+    p.fixed2 = true;
+    const F = sp[p.follower]; if(!F) return;
+    const J = M.apply(F.world, p.fl.x, p.fl.y);
+    let A = S.proj.slots.find(o => o.id === p.slot);
+    if(!A){
+      const cand = S.proj.slots.filter(o => slotBones(o).ids.includes(p.follower));
+      A = cand.map(o => ({ o, b: slotBox(o) })).filter(x => J.x >= x.b.x0 - 4 && J.x <= x.b.x1 + 4 && J.y >= x.b.y0 - 4 && J.y <= x.b.y1 + 4)
+        .sort((a, b) => a.b.w * a.b.h - b.b.w * b.b.h).map(x => x.o)[0];
+      if(!A) return;
+      p.slot = A.id;
+    }
+    if(boneSafe(p.follower, A)) return;
+    const old = p.follower, fol = ownBone(A, J);
+    if(fol.id === old) return;
+    const sp2 = setupPose();
+    pins.filter(q => q.follower === old && (q.slot === A.id || q === p)).forEach(q => {
+      const w = M.apply(sp[old].world, q.fl.x, q.fl.y);
+      q.follower = fol.id; q.fl = M.apply(M.inv(sp2[fol.id].world), w.x, w.y); q.al = null; q.slot = A.id; q.fixed2 = true;
+    });
+    changed = true;
+  });
+  if(changed){ markDirty(); setStatus('くっつけを 直しました（メガネ など だけが のびる ように）'); }
+  return changed;
 }
 
 /* ---------- 画面に 印 ---------- */
