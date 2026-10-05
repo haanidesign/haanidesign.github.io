@@ -13,20 +13,56 @@ const PINS = () => (S.proj.pins = S.proj.pins || []);
 function applyPins(proj, pose){
   const pins = proj.pins; if(!pins || !pins.length) return;
   const kids = childMap(proj);
-  pins.forEach(p => {
-    const F = pose[p.follower], T = pose[p.target];
-    if(!F || !T || !(p.mix > 0)) return;
-    const fw = M.apply(F.world, p.fl.x, p.fl.y), tw = M.apply(T.world, p.tl.x, p.tl.y);
-    const dx = (tw.x - fw.x) * p.mix, dy = (tw.y - fw.y) * p.mix;
-    if(Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
-    // ついて いく 骨と その 先を まとめて ずらす
-    const st = [p.follower];
+  const shift = (root, dx, dy) => {
+    const st = [root];
     while(st.length){
       const id = st.pop(); const q = pose[id];
-      if(q){ q.world = { a:q.world.a, b:q.world.b, c:q.world.c, d:q.world.d, tx:q.world.tx + dx, ty:q.world.ty + dy }; }
+      if(q) q.world = { a:q.world.a, b:q.world.b, c:q.world.c, d:q.world.d, tx:q.world.tx + dx, ty:q.world.ty + dy };
       (kids[id] || []).forEach(k => st.push(k));
     }
-  });
+  };
+  // ついて いく 骨ごとに まとめる（1つの 部品に 2か所 くっつける ことが ある）
+  const by = {};
+  pins.forEach(p => { if(pose[p.follower] && pose[p.target] && p.mix > 0) (by[p.follower] = by[p.follower] || []).push(p); });
+  for(const fid in by){
+    const list = by[fid];
+    const F = () => pose[fid].world;
+    const fw = p => M.apply(F(), p.fl.x, p.fl.y), tw = p => M.apply(pose[p.target].world, p.tl.x, p.tl.y);
+    if(list.length === 1){
+      const p = list[0], a = fw(p), b = tw(p);
+      shift(fid, (b.x - a.x) * p.mix, (b.y - a.y) * p.mix);
+      continue;
+    }
+    /* 2か所: 片方を 支点（顔・頭がわ）に して ぴったり とめ、
+       もう片方へ むけて 回し、長さの ちがいは 軸の 向きに すこし のばして あわせる（±30%まで）。
+       支点は くっつく 先が ついて いく 骨の 親すじ（頭 など）に ある ほう */
+    const isAnc = p => { let b = boneById(fid); while(b){ if(b.id === p.target) return true; b = boneById(b.parent); } return false; };
+    let p1 = list.find(isAnc) || list[0];
+    const p2 = list.find(p => p !== p1);
+    const f1 = fw(p1), f2 = fw(p2), t1 = tw(p1), t2 = tw(p2);
+    const m2 = p2.mix;
+    // A ＝ t1 へ うつして、t1 を 中心に 回して、軸の 向きに のばす
+    let ang = Math.atan2(t2.y - t1.y, t2.x - t1.x) - Math.atan2(f2.y - f1.y, f2.x - f1.x);
+    while(ang > Math.PI) ang -= Math.PI * 2; while(ang < -Math.PI) ang += Math.PI * 2;
+    ang *= m2;
+    const lf = Math.hypot(f2.x - f1.x, f2.y - f1.y) || 1, lt = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+    const sc = 1 + (Math.max(0.7, Math.min(1.3, lt / lf)) - 1) * m2;
+    const c = Math.cos(ang), sn = Math.sin(ang);
+    const ux = Math.cos(Math.atan2(f2.y - f1.y, f2.x - f1.x) + ang), uy = Math.sin(Math.atan2(f2.y - f1.y, f2.x - f1.x) + ang);
+    // のばし: I + (sc-1) u uᵀ
+    const S2 = { a: 1 + (sc - 1) * ux * ux, b: (sc - 1) * ux * uy, c: (sc - 1) * ux * uy, d: 1 + (sc - 1) * uy * uy };
+    const R = { a: c, b: sn, c: -sn, d: c };
+    const L = { a: S2.a * R.a + S2.c * R.b, b: S2.b * R.a + S2.d * R.b, c: S2.a * R.c + S2.c * R.d, d: S2.b * R.c + S2.d * R.d };
+    const m1 = p1.mix;
+    const ax = f1.x + (t1.x - f1.x) * m1, ay = f1.y + (t1.y - f1.y) * m1;   // 支点を どこへ
+    const A = { a: L.a, b: L.b, c: L.c, d: L.d, tx: ax - (L.a * f1.x + L.c * f1.y), ty: ay - (L.b * f1.x + L.d * f1.y) };
+    const st = [fid];
+    while(st.length){
+      const id = st.pop(); const q = pose[id];
+      if(q) q.world = M.mul(A, q.world);
+      (kids[id] || []).forEach(k => st.push(k));
+    }
+  }
 }
 const _applyIKs0 = applyIKs;
 applyIKs = function(proj, pose){ _applyIKs0(proj, pose); applyPins(proj, pose); };
