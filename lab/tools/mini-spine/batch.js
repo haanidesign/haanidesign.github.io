@@ -54,7 +54,7 @@ async function sendMany(names, to){
 
 function openSendMany(){
   sheet.show('まとめて 送る', body => {
-    body.appendChild(el('div', 'sh-note', '送る 動きを えらんでね。上から 順に つながります（短い 動きは 2秒 以上に なるまで くり返し）。'));
+    body.appendChild(el('div', 'sh-note', '送る 動きを えらんでね。どれも 0秒から はじまって、かさなって 入ります（短い 動きは 2秒 以上に なるまで くり返し）。'));
     const pick = new Set([S.proj.current]);
     const list = el('div', 'many-list');
     animNames().forEach(n => {
@@ -127,7 +127,7 @@ async function sendToRow(){
     const row = el('label', 'send-row'); row.appendChild(el('span', null, label));
     const s = el('select');
     const o0 = el('option', null, '新しい 作品に する（べつの 画面）'); o0.value = ''; s.appendChild(o0);
-    list.forEach(d => { const o = el('option', null, '「' + d.name + '」の うしろに 足す'); o.value = d.id; s.appendChild(o); });
+    list.forEach(d => { const o = el('option', null, '「' + d.name + '」に 足す'); o.value = d.id; s.appendChild(o); });
     s.value = SEND_TO[k];
     s.onchange = () => { SEND_TO[k] = s.value; try{ localStorage.setItem('ms-send-' + k, s.value ? 'add' : 'new'); }catch(_){} };
     if(SEND_TO[k]) s.classList.add('on');
@@ -244,7 +244,7 @@ async function openSendWorks(){
   try{ list = await listWorks(); }catch(_){}
   const card = el('div', 'card');
   card.appendChild(el('h1', null, 'まとめて 工房へ'));
-  card.appendChild(el('p', 'sub', '送る 作品に チェック。上から 順に つながります（それぞれ いま えらんで いる アニメ。短い ものは 2秒 以上に なるまで くり返し）。'));
+  card.appendChild(el('p', 'sub', '送る 作品に チェック。どれも 0秒から はじまって、かさなって 入ります（それぞれ いま えらんで いる アニメ。短い ものは 2秒 以上に なるまで くり返し）。'));
   const pick = [];
   const docs = el('div', 'docs');
   list.forEach(w => {
@@ -260,7 +260,7 @@ async function openSendWorks(){
     docs.appendChild(lb);
   });
   card.appendChild(docs);
-  card.appendChild(el('p', 'sub', 'チェックした 順が つながる 順です。'));
+  card.appendChild(el('p', 'sub', '番号が 小さい ほうが 下の 段に なります。'));
   const to = await sendToRow();
   card.appendChild(to);
   card.append(

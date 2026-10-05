@@ -6,10 +6,10 @@
    ひらき おわったら doneHandoff() で 置き場と ?from= を 消す
    （とちゅうで 読みなおしに なっても、もう いちど 受けとれる ように）。 */
 
-import { newProject } from '../state.js?v=332';
-import { newLayer } from '../engine/layer.js?v=332';
-import { spreadFrames } from '../engine/anim.js?v=332';
-import { uid } from '../engine/math.js?v=332';
+import { newProject } from '../state.js?v=333';
+import { newLayer } from '../engine/layer.js?v=333';
+import { spreadFrames } from '../engine/anim.js?v=333';
+import { uid } from '../engine/math.js?v=333';
 
 const DB = 'haani-handoff';
 
@@ -48,7 +48,7 @@ export function appendHandoff(pj, box, start){
     return { it, dur, len: dur * reps };
   });
   const cx = (pj.w || box.w) / 2, cy = (pj.h || box.h) / 2;
-  let t = start || 0;
+  const t = start || 0; let end = t;
   plan.forEach(({ it, dur, len }, n) => {
     const ids = it.frames.map((src, i) => {
       const id = uid('A');
@@ -61,9 +61,9 @@ export function appendHandoff(pj, box, start){
     l.loop = { from: +t.toFixed(3), to: +(t + dur).toFixed(3), mode: 'loop' };
     if(!single) l.span = { from: +t.toFixed(3), to: +(t + len).toFixed(3) };
     pj.layers.unshift(l);
-    t += len;
+    end = Math.max(end, t + len);   // どれも 同じ ところから はじまる（つぎも t の まま）
   });
-  return t - (start || 0);
+  return end - (start || 0);
 }
 
 /** 新しい さくひんに する */

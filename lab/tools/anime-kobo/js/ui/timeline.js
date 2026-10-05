@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=332';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=332';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=333';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=333';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=332';
+         nearestFolder, setParent } from '../engine/layer.js?v=333';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=332';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=332';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=332';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=332';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=333';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=333';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=333';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=333';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 

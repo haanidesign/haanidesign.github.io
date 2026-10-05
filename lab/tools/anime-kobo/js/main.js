@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=332';
+import { M } from './engine/math.js?v=333';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=332';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=333';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=332';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=332';
-import { createRenderer } from './render/renderer.js?v=332';
-import { createTimeline } from './ui/timeline.js?v=332';
-import { fmtTime, setPin } from './engine/anim.js?v=332';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=332';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=333';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=333';
+import { createRenderer } from './render/renderer.js?v=333';
+import { createTimeline } from './ui/timeline.js?v=333';
+import { fmtTime, setPin } from './engine/anim.js?v=333';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=333';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,28 +21,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=332';
+         setWarper } from './ui/sheet.js?v=333';
 
-import { showNewDoc } from './ui/newdoc.js?v=332';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=332';
-import { fitToCanvas, isBg } from './io/bg.js?v=332';
-import * as Audio from './io/audio.js?v=332';
-import { isTalk, blipTimes } from './engine/talk.js?v=332';
+import { showNewDoc } from './ui/newdoc.js?v=333';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=333';
+import { fitToCanvas, isBg } from './io/bg.js?v=333';
+import * as Audio from './io/audio.js?v=333';
+import { isTalk, blipTimes } from './engine/talk.js?v=333';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=332';
-import { importPsd } from './io/psd.js?v=332';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff } from './io/handoff.js?v=332';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=332';
-import { makeSabun } from './io/sabun.js?v=332';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=332';
-import { splitTextChars } from './io/text.js?v=332';
-import { exportAE } from './io/ae.js?v=332';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=333';
+import { importPsd } from './io/psd.js?v=333';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff } from './io/handoff.js?v=333';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=333';
+import { makeSabun } from './io/sabun.js?v=333';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=333';
+import { splitTextChars } from './io/text.js?v=333';
+import { exportAE } from './io/ae.js?v=333';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=332';
-import { pathKeys, pathLength } from './engine/path.js?v=332';
-import { paintDirty } from './engine/paint.js?v=332';
+         canUseWebCodecs } from './io/export.js?v=333';
+import { pathKeys, pathLength } from './engine/path.js?v=333';
+import { paintDirty } from './engine/paint.js?v=333';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=332';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=333';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1733,15 +1733,15 @@ async function boot(){
       /* 「この 作品の うしろに 足す」で 送られた とき */
       if(box.appendTo && await loadDoc(box.appendTo)){
         await openDoc(box.appendTo);
-        const at = S.proj.duration || 0;
+        const at = 0;                     // 足す ときも 0秒から
         const len = appendHandoff(S.proj, box, at);
-        S.proj.duration = +(at + len).toFixed(3);
+        S.proj.duration = +Math.max(S.proj.duration || 0, len).toFixed(3);
         for(const a of Object.values(S.proj.assets)){
           if(!S.imgs[a.id] && a.src){ try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){} }
         }
         S.time = at;
         refresh(); saver.now(); doneHandoff();
-        toast('うしろに 足しました（' + at.toFixed(1) + '秒 から）');
+        toast('足しました（0秒から）');
         return;
       }
       const pj = handoffProject(box);
