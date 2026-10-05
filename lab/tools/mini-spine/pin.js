@@ -182,15 +182,38 @@ tapEnd = function(ok){
   refreshUI();
 };
 
+/** その 点の 下に ある 絵 ぜんぶ（手前から） */
+function slotsAt(w){
+  const pose = curPose || setupPose(), out = [];
+  for(let i = S.proj.slots.length - 1; i >= 0; i--){
+    const s = S.proj.slots[i];
+    if(!s.visible || s.lidCover || !s.verts.length) continue;
+    const xy = new Float32Array(s.verts.length * 2); deformSlot(s, pose, xy);
+    const t = s.tris;
+    for(let k = 0; k < t.length; k += 3){
+      if(ptInTri(w.x, w.y, xy[t[k]*2], xy[t[k]*2+1], xy[t[k+1]*2], xy[t[k+1]*2+1], xy[t[k+2]*2], xy[t[k+2]*2+1])){ out.push(s); break; }
+    }
+  }
+  return out;
+}
+/** 重なって いたら どれか えらんで もらう */
+function choosePart(list, title, done){
+  if(list.length <= 1) return done(list[0] || null);
+  sheet.show(title, body => {
+    body.appendChild(el('div', 'sh-note', 'ここには 絵が 重なって います。どれですか？'));
+    list.forEach(s => body.appendChild(btnRow(mkBtn(s.name, () => { sheet.hide(); done(s); }, 'btn'))));
+  });
+}
 function buildPin(P){
   if(!P || !P.pf || !P.pt || !P.pp) return;
-  const A = pickSlot(P.pf);
-  /* くっつく 先は、ついて いく 部品を よけて えらぶ
-     （メガネの つるが 耳に かぶって いても、下の 顔を ひろえる ように） */
-  let B = pickSlot(P.pt);
-  if(A && B === A){ const v = A.visible; A.visible = false; try{ B = pickSlot(P.pt); }finally{ A.visible = v; } }
+  choosePart(slotsAt(P.pf), 'ついて いく 側は？', A => {
+    if(!A) return setStatus('部品が 見つかりませんでした。絵の 上を さわってね');
+    // くっつく 先は ついて いく 部品を よけて えらぶ。上に 髪や 顔が 重なって いても えらべる
+    choosePart(slotsAt(P.pt).filter(s => s !== A), 'くっつく 先は？', B => buildPin2(P, A, B));
+  });
+}
+function buildPin2(P, A, B){
   if(!A || !B) return setStatus('部品が 見つかりませんでした。絵の 上を さわってね');
-  if(A === B) return setStatus('ついて いく 側と くっつく 先に おなじ 部品を えらんで います');
   const J = P.pp;
   let made = null;
   edit('くっつける: ' + A.name + ' → ' + B.name, () => {
