@@ -14,6 +14,7 @@ import { setPin } from '../engine/anim.js?v=329';
 
 export const VIDEO_MAX_SEC = 20;   // これより 長い ぶんは 切る
 const MAX_SIDE = 720;              // 絵の 長いほう
+const MAX_SIDE_SHORT = 1080;       // 6秒までの 短い 動画は 大きい まま（すける 動きの 素材 など。小さく すると ぼける）
 
 export const isVideoFile = (f) =>
   /^video\//.test(f.type || '') || /\.(mp4|mov|m4v|webm)$/i.test(f.name || '');
@@ -49,7 +50,7 @@ export async function addVideoFile(file, opt = {}){
   if(!(sec > 0)){ URL.revokeObjectURL(url); throw new Error('動画の 長さが わかりませんでした'); }
 
   const fps = Math.max(4, Math.min(30, opt.fps || 12));
-  const k = Math.min(1, MAX_SIDE / Math.max(v.videoWidth, v.videoHeight));
+  const k = Math.min(1, (sec <= 6 ? MAX_SIDE_SHORT : MAX_SIDE) / Math.max(v.videoWidth, v.videoHeight));
   const w = Math.max(2, Math.round(v.videoWidth * k));
   const h = Math.max(2, Math.round(v.videoHeight * k));
   const cv = document.createElement('canvas');
