@@ -134,3 +134,19 @@ buildProps = function(){
   if(/頭|head/i.test(b.name)) box.appendChild(btnRow(mkBtn('🧣 首を 曲げる（体が 1まいの 絵）', neckOneStart, 'btn')));
   host.insertBefore(box, host.firstChild);
 };
+
+/* ---------- 骨と 絵の ずれ を 起こさない ----------
+   曲がる パーツは「動かす まえの 形で どの 点が どの 骨に つくか」を おぼえて 描く（bind）。
+   これが 編集の あとで 古い まま 残ると、骨と 絵が ずれる（曲げない パーツは 毎回 計算 なので ずれない）。
+   なので 毎コマ おぼえ直す。セットアップの 形が 変わった とき だけ 計算する ので かるい。 */
+let _bindSig = '';
+const _render4 = render;
+render = function(){
+  const sig = JSON.stringify(S.proj.bones.map(b => [b.id, b.parent, b.x, b.y, b.rot, b.sx, b.sy, b.shear])) + '|' +
+    S.proj.slots.map(sl => sl.id + ':' + sl.bone + ':' + sl.verts.length + ':' + (sl.verts[0] && sl.verts[0].bind ? 1 : 0)).join(',');
+  if(sig !== _bindSig || (S.proj.slots.some(sl => !sl.bound))){ rebindAll(); _bindSig = sig; }
+  _render4();
+};
+/* ウェイトを 変える 操作の あとも おぼえ直す（重さが 変わっても 上の しるしは 変わらない ため） */
+const _commitEdit2 = commitEdit;
+commitEdit = function(){ _commitEdit2(); rebindAll(); };
