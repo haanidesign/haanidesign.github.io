@@ -107,6 +107,13 @@ function draw(){
 (() => {
   let drag = null;
   const st = MAP.stage;
+  MAP.cancelDrag = () => {
+    if(!drag) return;
+    if(drag.ghost) drag.ghost.remove();
+    st.querySelectorAll('.nd.drop').forEach(n => n.classList.remove('drop'));
+    MAP.scroll.style.touchAction = '';
+    drag = null;
+  };
   st.addEventListener('pointerdown', e => {
     const actEl = e.target.closest('.nd-act'), node = e.target.closest('.nd');
     if(actEl && node){ e.preventDefault(); e.stopPropagation(); nodeAction(actEl.dataset.act, boneById(node.dataset.bone)); return; }
@@ -227,4 +234,30 @@ refreshUI = function(){ _refreshUI2(); if(MAP.isOpen) draw(); };
   t.onclick = () => MAP.open();
   const ttl = $('#tree .pgroup-ttl');
   if(ttl){ ttl.classList.add('with-btn'); ttl.appendChild(t); }
+})();
+
+/* ---------- つながり図でも 2本指トン＝もどす、3本指トン＝やりなおし ---------- */
+(() => {
+  const box = document.getElementById('map');
+  const t = { ids: new Map(), max: 0, t0: 0, moved: false };
+  box.addEventListener('pointerdown', e => {
+    if(e.pointerType !== 'touch') return;
+    if(t.ids.size === 0){ t.max = 0; t.t0 = performance.now(); t.moved = false; }
+    t.ids.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    t.max = Math.max(t.max, t.ids.size);
+    // 2本目の 指が おりたら、1本目で はじめかけた ドラッグは やめる
+    if(t.ids.size >= 2) MAP.cancelDrag();
+  }, true);
+  box.addEventListener('pointermove', e => {
+    const p = t.ids.get(e.pointerId); if(!p) return;
+    if(Math.hypot(e.clientX - p.x, e.clientY - p.y) > 14) t.moved = true;
+  }, true);
+  const up = e => {
+    if(!t.ids.delete(e.pointerId) || t.ids.size) return;
+    if(t.moved || performance.now() - t.t0 > 350) return;
+    if(t.max === 2){ undo(); draw(); }
+    else if(t.max === 3){ redo(); draw(); }
+  };
+  box.addEventListener('pointerup', up, true);
+  box.addEventListener('pointercancel', e => { t.ids.delete(e.pointerId); t.moved = true; }, true);
 })();
