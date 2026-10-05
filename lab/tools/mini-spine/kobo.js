@@ -795,11 +795,12 @@ function drawCreateHints(){
     const t = M.apply(p.world, b.len, 0), sel = b.id === S.sel.bone;
     // 輪の 大きさ ＝ 吸いつく 範囲（えらんだ 骨 60px・ほか 30px）
     const dprC = cv.width / (cv.getBoundingClientRect().width || cv.width);
-    ctx.beginPath(); ctx.arc(t.x, t.y, (sel ? 60 : 30) * dprC / z, 0, 7);
-    if(sel){ ctx.fillStyle = 'rgba(225,221,96,.25)'; ctx.fill(); }
+    // 見た目は 小さめ（吸いつく 範囲は もっと 広い）
+    ctx.beginPath(); ctx.arc(t.x, t.y, (sel ? 16 : 9) * dprC / z, 0, 7);
+    if(sel){ ctx.fillStyle = 'rgba(225,221,96,.55)'; ctx.fill(); }
     ctx.lineWidth = (sel ? 3 : 2) / z; ctx.strokeStyle = sel ? INK : GRAY;
     ctx.setLineDash(sel ? [] : [3 / z, 3 / z]); ctx.stroke(); ctx.setLineDash([]);
-    if(sel && !d) tag('この 輪の 中から 引くと つながる', t.x + 64 * dprC / z, t.y, z, MAIN);
+    if(sel && !d) tag('ここ（の あたり）から 引くと つながる', t.x + 22 * dprC / z, t.y, z, MAIN);
   });
   if(d){
     ctx.beginPath(); ctx.moveTo(d.ox, d.oy); ctx.lineTo(d.x, d.y);

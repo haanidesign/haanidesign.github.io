@@ -1050,6 +1050,7 @@ function paintAt(w, sub){
 const SWING_RX = /イヤリング|ピアス|耳飾|earring|リボン|ribbon|髪|hair|尾|しっぽ|tail|紐|ひも|房|タッセル|tassel|飾り|ストラップ|strap/i;
 function createBone(ox, oy, ex, ey, parentId, forSlotId){
   const slot = slotById(forSlotId);
+  const linked = [];
   edit('ボーンを作成', () => {
     const parent = boneById(parentId) || boneById(S.sel.bone) || S.proj.bones[0];
     const sp = setupPose();
@@ -1082,12 +1083,28 @@ function createBone(ox, oy, ex, ey, parentId, forSlotId){
       slot.verts.forEach(v => { v.w = []; });
       slot.bone = ids[0];
       if(ids.length > 1) autoWeights(S.proj, slot, setupPose(), { maxBones:2, falloff:3, only: ids });
+    } else if(typeof slotBones === 'function'){
+      /* レイヤーを えらばずに 骨を 足した とき：
+         親の 骨に ついて いる 絵の うち、新しい 骨に かさなる ものは
+         親と 新しい 骨の 両方で 曲がる ように つけ直す（足した 骨で 絵が 動く ように） */
+      markDirty();
+      const sp = setupPose(), p0 = sp[b.id].world, e0 = M.apply(p0, b.len, 0);
+      const near = Math.max(20, b.len * 0.35);
+      S.proj.slots.forEach(s => {
+        const used = slotBones(s).ids;
+        if(!used.includes(parent.id)) return;
+        if(!s.verts.some(v => distToSeg(v.x, v.y, p0.tx, p0.ty, e0.x, e0.y) < near)) return;
+        autoWeights(S.proj, s, sp, { maxBones:2, falloff:3, only: [...new Set(used.concat(b.id))] });
+        linked.push(s.name);
+      });
     }
     markDirty();
   });
   setStatus(slot
     ? '「' + slot.name + '」用の 骨を 作りました（' + S.createFor.ids.length + '本）。黒い 輪から 続けて 引くと 関節で つながります'
-    : 'ボーンを作成しました。続けてドラッグすると子ボーンが作れます');
+    : linked.length
+      ? '骨を 作って「' + linked.join('・') + '」を つなぎました。この 骨で 絵が 曲がります。輪から 続けて 引けば 関節で つながります'
+      : 'ボーンを作成しました。続けてドラッグすると子ボーンが作れます');
   refreshUI();
 }
 
