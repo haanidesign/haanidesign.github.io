@@ -131,6 +131,11 @@ buildProps = function(){
   const box = el('div', 'chk-box');
   box.appendChild(el('div', 'hint', '「' + b.name + '」は ピンクの 印を 中心に 回ります。' + (/頭|head/i.test(b.name) ? '\n首の 付け根（あごの 少し 下）に あれば OK。' : '')));
   box.appendChild(btnRow(mkBtn('🔄 ためしに 回す（' + b.name + '）', tryRotate, 'btn btn-y')));
+  // 子が いる 骨なら、先まで まとめて ゆらす
+  if(childMap(S.proj)[b.id]) box.appendChild(btnRow(mkBtn('🖐 ぶらぶら（' + b.name + ' から 先まで）', () => {
+    S.sel = { bone: b.id, slot: null, ik: null };
+    applyOne(ONE.find(m => m.name === 'ぶらぶら（先まで）'));
+  }, 'btn')));
   if(/頭|head/i.test(b.name)) box.appendChild(btnRow(mkBtn('🧣 首を 曲げる（体が 1まいの 絵）', neckOneStart, 'btn')));
   host.insertBefore(box, host.firstChild);
 };

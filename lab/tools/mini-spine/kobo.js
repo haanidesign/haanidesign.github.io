@@ -280,6 +280,18 @@ const ONE = [
       keys(a, b, 'sx', s); keys(a, b, 'sy', s);
   }},
   { name:'ぶらぶら', icon:'🕰', fn:(a,b) => keys(a, b, 'rot', wave(1, 20)) },
+  /* えらんだ 骨から 先（子・孫…）まで まとめて ゆらす。
+     先へ 行くほど すこし おくれて ふれる ので、ムチの ように しなる。
+     子が いくつも ある（手のひら → 指5本）ときは 全部の 指に つく */
+  { name:'ぶらぶら（先まで）', icon:'🖐', fn:(a,b) => {
+      const kids = childMap(S.proj);
+      const walk = (id, d) => {
+        const x = boneById(id); if(!x) return;
+        keys(a, x, 'rot', wave(1, 14 * Math.pow(0.85, d), -0.09 * d));
+        (kids[id] || []).forEach(k => walk(k, d + 1));
+      };
+      walk(b.id, 0);
+  }},
   { name:'しっぽふり', icon:'🐕', fn:(a,b) => keys(a, b, 'rot', wave(3, 18)) },
   { name:'手まねき', icon:'🫴', fn:(a,b) => keys(a, b, 'rot', [[0,0],[.2,-35],[.4,0],[.6,-35],[.8,0],[1,0]]) },
   { name:'ぴょこん', icon:'⤴️', fn:(a,b) => {
@@ -320,7 +332,7 @@ function applyOne(m){
   if(!b || !a) return;
   edit(m.name, () => m.fn(a, b));
   S.mode = 'anim'; S.playing = true; S.springState = {};
-  setStatus(m.name + ' を ' + b.name + ' に つけました');
+  setStatus(m.name + ' を ' + b.name + (/先まで/.test(m.name) ? ' から 先に' : ' に') + ' つけました（大きさ・はやさは 🎚）');
   refreshUI();
 }
 
