@@ -244,31 +244,47 @@ buildProps = function(){
    中心は その パーツ 専用の 骨の 根もと（イヤリングなら 耳たぶ）、なければ 絵の まんなか。
    専用の 骨も いっしょに 回すので 骨と 絵が ずれない。 */
 const ROT = { drag: null };
-function partPivot(sl){
+/* 回す もの を 決める。
+   ・パーツを えらんで いる → その パーツ（と 専用の 骨）
+   ・骨を えらんで いる     → その 骨と 先の 骨、それらに だけ ついて いる パーツ */
+function rotTarget(){
   const sp = setupPose();
-  const own = slotBones(sl).ids.map(boneById).filter(b => b && b.parent && !S.proj.slots.some(o => o !== sl && slotBones(o).ids.includes(b.id)));
-  // 専用の 骨の うち いちばん 根もと
-  const top = own.find(b => !own.some(o => o.id === b.parent)) || null;
-  if(top){ const p = sp[top.id].world; return { x: p.tx, y: p.ty, bone: top }; }
-  const bx = slotBox(sl); return { x: bx.cx, y: bx.cy, bone: null };
+  const sl = slotById(S.sel.slot);
+  if(sl){
+    const own = slotBones(sl).ids.map(boneById).filter(b => b && b.parent && !S.proj.slots.some(o => o !== sl && slotBones(o).ids.includes(b.id)));
+    const top = own.find(b => !own.some(o => o.id === b.parent)) || null;
+    if(top){ const p = sp[top.id].world; return { x: p.tx, y: p.ty, bone: top, slots: [sl] }; }
+    const bx = slotBox(sl); return { x: bx.cx, y: bx.cy, bone: null, slots: [sl] };
+  }
+  const b = boneById(S.sel.bone);
+  if(!b || !b.parent) return null;
+  const sub = new Set([b.id]); const kids = childMap(S.proj), st = [b.id];
+  while(st.length){ (kids[st.pop()] || []).forEach(k => { sub.add(k); st.push(k); }); }
+  const slots = S.proj.slots.filter(o => { const ids = slotBones(o).ids; return ids.length && ids.every(id => sub.has(id)); });
+  if(!slots.length) return null;
+  const p = sp[b.id].world; return { x: p.tx, y: p.ty, bone: b, slots };
 }
-function rotKnob(sl){
-  const bx = slotBox(sl), dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
-  return { x: bx.cx, y: bx.y0 - 44 * dpr / S.view.z, r: 16 * dpr / S.view.z };
+function partPivot(sl){ return rotTarget(); }
+function rotKnob(){
+  const T = rotTarget(); if(!T) return null;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9;
+  T.slots.forEach(o => { const bx = slotBox(o); x0 = Math.min(x0, bx.x0); y0 = Math.min(y0, bx.y0); x1 = Math.max(x1, bx.x1); });
+  const dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+  return { x: (x0 + x1) / 2, y: y0 - 44 * dpr / S.view.z, r: 16 * dpr / S.view.z };
 }
 function rotActive(){
-  return S.mode === 'setup' && S.tool === 'pose' && !S.tapRig && !S.shapeEdit && !S.warpEdit && !S.live && slotById(S.sel.slot);
+  return S.mode === 'setup' && (S.tool === 'pose' || S.tool === 'rotate') && !S.tapRig && !S.shapeEdit && !S.warpEdit && !S.live && !!rotTarget();
 }
 cv.addEventListener('pointerdown', e => {
   if(e.button !== 0 || !rotActive() || (e.pointerType === 'touch' && tap.ids.size >= 1)) return;
-  const sl = slotById(S.sel.slot);
   const { sx, sy } = evPos(e); const w = s2w(sx, sy);
-  const k = rotKnob(sl);
+  const k = rotKnob(); if(!k) return;
   if(Math.hypot(w.x - k.x, w.y - k.y) > k.r * 1.6) return;
   e.stopImmediatePropagation(); e.preventDefault();
-  const pv = partPivot(sl);
-  beginEdit(sl.name + ' を 回す');
-  ROT.drag = { sl, pv, a0: Math.atan2(w.y - pv.y, w.x - pv.x), verts: sl.verts.map(v => ({ x:v.x, y:v.y })),
+  const pv = rotTarget();
+  beginEdit('回す');
+  ROT.drag = { pv, a0: Math.atan2(w.y - pv.y, w.x - pv.x),
+               verts: pv.slots.map(o => o.verts.map(v => ({ x:v.x, y:v.y }))),
                rot0: pv.bone ? pv.bone.rot : 0, id: e.pointerId, deg: 0 };
 }, true);
 addEventListener('pointermove', e => {
@@ -277,12 +293,12 @@ addEventListener('pointermove', e => {
   let ang = Math.atan2(w.y - d.pv.y, w.x - d.pv.x) - d.a0;
   if(e.shiftKey) ang = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12);   // Shift で 15°ずつ
   const c = Math.cos(ang), s = Math.sin(ang);
-  d.sl.verts.forEach((v, i) => { const o = d.verts[i], dx = o.x - d.pv.x, dy = o.y - d.pv.y;
-    v.x = d.pv.x + dx * c - dy * s; v.y = d.pv.y + dx * s + dy * c; });
+  d.pv.slots.forEach((o, n) => o.verts.forEach((v, i) => { const q = d.verts[n][i], dx = q.x - d.pv.x, dy = q.y - d.pv.y;
+    v.x = d.pv.x + dx * c - dy * s; v.y = d.pv.y + dx * s + dy * c; }));
   if(d.pv.bone) d.pv.bone.rot = d.rot0 + ang * 180 / Math.PI;
   d.deg = ang * 180 / Math.PI;
   markDirty();
-  setStatus(d.sl.name + ': ' + (d.deg >= 0 ? '+' : '') + d.deg.toFixed(1) + '°（Shift で 15°ずつ）');
+  setStatus(d.pv.slots.map(o => o.name).join('・') + ': ' + (d.deg >= 0 ? '+' : '') + d.deg.toFixed(1) + '°（Shift で 15°ずつ）');
 });
 const rotUp = e => { if(!ROT.drag || (e && e.pointerId !== ROT.drag.id)) return; ROT.drag = null; commitEdit(); refreshUI(); };
 addEventListener('pointerup', rotUp);
@@ -290,7 +306,8 @@ addEventListener('pointercancel', rotUp);
 
 function drawRotKnob(){
   if(!rotActive() || S.rec) return;
-  const sl = slotById(S.sel.slot), k = rotKnob(sl), pv = ROT.drag ? ROT.drag.pv : partPivot(sl);
+  const k = rotKnob(), pv = ROT.drag ? ROT.drag.pv : rotTarget();
+  if(!k || !pv) return;
   const z = S.view.z, dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
   ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
   ctx.setLineDash([5 * dpr / z, 4 * dpr / z]); ctx.lineWidth = 2 * dpr / z; ctx.strokeStyle = INK;
