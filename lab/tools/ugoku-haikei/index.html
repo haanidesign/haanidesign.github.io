@@ -155,6 +155,7 @@ hr{border:0;border-top:2px dashed var(--line);margin:16px 0}
   </div>
 </div>
 
+<script src="lib/mp4-muxer.js"></script>
 <script type="module">
 import { watchRanges } from '../oekaki-kobo/js/rslider.js';
 
@@ -388,9 +389,9 @@ function sizeView() {
   view.style.aspectRatio = `${S.W}/${S.H}`;
 }
 sizeView();
-let t0 = performance.now(), recording = false;
+let t0 = performance.now();
 function tick(now) {
-  if (!recording) render(vc, (now - t0) / 1000);
+  render(vc, (now - t0) / 1000);
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -630,42 +631,48 @@ $('#genGo').onclick = async () => {
 };
 
 /* ---------- 書き出し ---------- */
-function pickType() {
-  for (const t of ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']) if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
-  return '';
-}
 function save(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
 $('#pngGo').onclick = () => {
   const cv = document.createElement('canvas'); cv.width = S.W; cv.height = S.H;
   render(cv.getContext('2d'), (performance.now() - t0) / 1000);
   cv.toBlob(b => save(b, 'ugoku-haikei.png'));
 };
-$('#recGo').onclick = async () => {
-  const type = pickType(), st = $('#recStatus');
-  if (!type) { st.className = 'status err'; st.textContent = 'このブラウザは 動画の 書き出しに 対応して いません'; return; }
-  const reps = +$('#reps').value, dur = S.loop * reps;
-  const cv = document.createElement('canvas'); cv.width = S.W; cv.height = S.H; const c = cv.getContext('2d');
-  render(c, 0);
-  const stream = cv.captureStream(0), track = stream.getVideoTracks()[0];
-  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: Math.round(S.W * S.H * 60 * .12) });
-  const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
-  const done = new Promise(ok => rec.onstop = ok);
-  recording = true; $('#recGo').disabled = true; st.className = 'status';
-  rec.start(500);
-  // 実時間で 1コマずつ 送る（60fps）
-  const fps = 60, n = Math.round(dur * fps), start = performance.now();
-  for (let f = 0; f < n; f++) {
-    const due = start + f * 1000 / fps, wait = due - performance.now();
-    if (wait > 0) await new Promise(r => setTimeout(r, wait));
-    render(c, f / fps); track.requestFrame();
-    vc.drawImage(cv, 0, 0, view.width, view.height);
-    if (f % 30 === 0) st.textContent = `書き出し中… ${Math.round(f / n * 100)}%`;
+/* 1コマずつ 時間を つけて 書きこむ（長さが 正しく 入り、ほかの ソフトでも 読める） */
+async function pickAvc(w, h, fps) {
+  if (typeof VideoEncoder === 'undefined' || typeof Mp4Muxer === 'undefined') return null;
+  for (const codec of ['avc1.640034', 'avc1.640033', 'avc1.640028', 'avc1.4d0034', 'avc1.4d0028', 'avc1.42003e', 'avc1.42002a', 'avc1.42001f']) {
+    try { const cfg = { codec, width: w, height: h, bitrate: Math.round(w * h * fps * .12), framerate: fps };
+      const r = await VideoEncoder.isConfigSupported(cfg); if (r && r.supported) return cfg; } catch (_) {}
   }
-  await new Promise(r => setTimeout(r, 120));
-  rec.stop(); await done; recording = false; $('#recGo').disabled = false;
-  const ext = type.includes('mp4') ? 'mp4' : 'webm';
-  save(new Blob(chunks, { type }), `ugoku-haikei.${ext}`);
-  st.textContent = `保存しました（${ext.toUpperCase()}・${dur}秒）`;
+  return null;
+}
+$('#recGo').onclick = async () => {
+  const st = $('#recStatus'), fps = 60, W = S.W & ~1, H = S.H & ~1;
+  const cfg = await pickAvc(W, H, fps);
+  if (!cfg) { st.className = 'status err'; st.textContent = 'このブラウザは 動画の 書き出しに 対応して いません（Chrome か Edge で）'; return; }
+  const reps = +$('#reps').value, perLoop = Math.round(S.loop * fps), total = perLoop * reps, us = 1e6 / fps;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+  const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: fps }, fastStart: 'in-memory' });
+  let failed = null;
+  const enc = new VideoEncoder({ output: (ch, m) => muxer.addVideoChunk(ch, m), error: e => { failed = e; } });
+  enc.configure(cfg);
+  $('#recGo').disabled = true; st.className = 'status';
+  try {
+    for (let i = 0; i < total; i++) {
+      if (failed) throw failed;
+      render(c, (i % perLoop) / fps);
+      const fr = new VideoFrame(cv, { timestamp: Math.round(i * us), duration: Math.round(us) });
+      enc.encode(fr, { keyFrame: i % fps === 0 }); fr.close();
+      if (enc.encodeQueueSize > 8) while (enc.encodeQueueSize > 4) await new Promise(r => setTimeout(r, 4));
+      if (i % 10 === 0) { st.textContent = `書き出し中… ${Math.round(i / total * 100)}%`; await new Promise(r => setTimeout(r, 0)); }
+    }
+    await enc.flush(); enc.close(); if (failed) throw failed;
+    muxer.finalize();
+    save(new Blob([muxer.target.buffer], { type: 'video/mp4' }), 'ugoku-haikei.mp4');
+    st.textContent = `保存しました（MP4・${S.loop * reps}秒）`;
+  } catch (e) {
+    st.className = 'status err'; st.textContent = '書き出せませんでした: ' + (e.message || e);
+  } finally { $('#recGo').disabled = false; }
 };
 $('#fullGo').onclick = () => {
   const wrap = document.createElement('div'); wrap.className = 'full';
