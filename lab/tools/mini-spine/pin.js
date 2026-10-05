@@ -81,7 +81,7 @@ function applyPins(proj, pose){
       continue;
     }
     /* 2か所: 片方を 支点（顔・頭がわ）に して ぴったり とめ、
-       もう片方へ むけて 回し、長さの ちがいは 軸の 向きに すこし のばして あわせる（±30%まで）。
+       もう片方へ むけて 回し、長さの ちがいは 軸の 向きに のばして あわせる（0.4〜2.5倍）。
        支点は くっつく 先が ついて いく 骨の 親すじ（頭 など）に ある ほう */
     const isAnc = p => { let b = boneById(fid); while(b){ if(b.id === p.target) return true; b = boneById(b.parent); } return false; };
     let p1 = list.find(isAnc) || list[0];
@@ -93,7 +93,7 @@ function applyPins(proj, pose){
     while(ang > Math.PI) ang -= Math.PI * 2; while(ang < -Math.PI) ang += Math.PI * 2;
     ang *= m2;
     const lf = Math.hypot(f2.x - f1.x, f2.y - f1.y) || 1, lt = Math.hypot(t2.x - t1.x, t2.y - t1.y);
-    const sc = 1 + (Math.max(0.7, Math.min(1.3, lt / lf)) - 1) * m2;
+    const sc = 1 + (Math.max(0.4, Math.min(2.5, lt / lf)) - 1) * m2;
     const c = Math.cos(ang), sn = Math.sin(ang);
     const ux = Math.cos(Math.atan2(f2.y - f1.y, f2.x - f1.x) + ang), uy = Math.sin(Math.atan2(f2.y - f1.y, f2.x - f1.x) + ang);
     // のばし: I + (sc-1) u uᵀ
@@ -140,7 +140,11 @@ tapEnd = function(ok){
 
 function buildPin(P){
   if(!P || !P.pf || !P.pt || !P.pp) return;
-  const A = pickSlot(P.pf), B = pickSlot(P.pt);
+  const A = pickSlot(P.pf);
+  /* くっつく 先は、ついて いく 部品を よけて えらぶ
+     （メガネの つるが 耳に かぶって いても、下の 顔を ひろえる ように） */
+  let B = pickSlot(P.pt);
+  if(A && B === A){ const v = A.visible; A.visible = false; try{ B = pickSlot(P.pt); }finally{ A.visible = v; } }
   if(!A || !B) return setStatus('部品が 見つかりませんでした。絵の 上を さわってね');
   if(A === B) return setStatus('ついて いく 側と くっつく 先に おなじ 部品を えらんで います');
   const J = P.pp;
