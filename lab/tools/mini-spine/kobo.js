@@ -232,6 +232,22 @@ const WHOLE = [
       squash(a, B.root, [[0,1],[.08,1.05],[.2,1],[.5,1],[.58,1.05],[.7,1],[1,1]]);
       bobY(a, B.root, [[0,0],[.08,-charSize()*.012],[.2,0],[.5,0],[.58,-charSize()*.012],[.7,0],[1,0]]);
   }},
+  /* こきざみに 拍を とる。1拍ごとに 小さく 沈んで はね、首と 手も ちょこっと うごく。
+     かたむきは 拍ごとに 左右 交互（120BPM・4拍で 1ループ） */
+  { name:'こきざみ ビート', icon:'🎶', dur:2, fn:(a,B) => {
+      const n = 4, h = charSize() * .008, beat = (on, off, rest) => {
+        const out = [];
+        for(let i = 0; i < n; i++){ const f = i / n;
+          out.push([f, rest], [f + .12 / n, on(i)], [f + .45 / n, off(i)]); }
+        out.push([1, rest]); return out;
+      };
+      bobY(a, B.root, beat(() => h, () => -h * .3, 0));
+      squash(a, B.root, beat(() => .975, () => 1.01, 1));
+      keys(a, B.root, 'rot', beat(i => i % 2 ? -1.6 : 1.6, i => i % 2 ? -1 : 1, 0));
+      keys(a, B.head, 'rot', beat(() => -3.5, () => .8, 0));
+      keys(a, B.armR, 'rot', beat(() => 5, () => -1.5, 0));
+      keys(a, B.armL, 'rot', beat(() => -3, () => 1, 0));
+  }},
   /* ゆっくり かたむき ながら すこし ふくらむ（止め絵を 生きて 見せる） */
   { name:'ゆらゆら ポートレート', icon:'🖼', dur:4, fn:(a,B) => {
       keys(a, B.root, 'rot', wave(1, 2.5));
