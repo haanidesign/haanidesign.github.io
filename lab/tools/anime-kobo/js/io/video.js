@@ -7,10 +7,10 @@
      ・どの 時こくでも 同じ 絵が 出る（書き出しで ずれない）
    その かわり 長い 動画は 重く なる ので、長さと 大きさに 上限を つける。 */
 
-import { S, addAsset } from '../state.js?v=333';
-import { newLayer } from '../engine/layer.js?v=333';
-import { loadImage } from './image.js?v=333';
-import { setPin } from '../engine/anim.js?v=333';
+import { S, addAsset } from '../state.js?v=334';
+import { newLayer } from '../engine/layer.js?v=334';
+import { loadImage } from './image.js?v=334';
+import { setPin } from '../engine/anim.js?v=334';
 
 export const VIDEO_MAX_SEC = 20;   // これより 長い ぶんは 切る
 const MAX_SIDE = 720;              // 絵の 長いほう
