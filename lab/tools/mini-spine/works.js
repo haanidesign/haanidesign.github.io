@@ -84,44 +84,58 @@ function whenText(at){
   return same ? '今日 ' + d.toTimeString().slice(0, 5) : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.toTimeString().slice(0, 5);
 }
 
+/* ================= 最初の 画面（アニメ工房と おなじ） =================
+   ・つづきから … しまって ある 作品（見本・名前・いつ）。おすと ひらく。🗑 で けす
+   ・あたらしく つくる … PSD / 画像から ／ からっぽで
+   上の バーの「🗂 作品」でも この 画面に もどる。 */
+const startEl = (() => { const d = el('div'); d.id = 'msStart'; document.body.appendChild(d); return d; })();
+function hideStart(){ startEl.style.display = 'none'; }
+
 async function openWorks(){
-  await saveNow();
+  if(S.proj.slots.length) await saveNow();
   let list = [];
   try{ list = await listWorks(); }catch(_){}
-  sheet.show('🗂 作品（' + list.length + '）', body => {
-    body.appendChild(btnRow(mkBtn('＋ 新しい 作品', () => newDoc(), 'btn btn-y')));
-    if(list.length >= WORKS_MAX) body.appendChild(el('div', 'sh-note', 'たくさん しまって あります。いらない ものは けして ください。'));
-    const g = el('div', 'works');
+  const card = el('div', 'card');
+  if(list.length){
+    card.appendChild(el('h1', null, 'つづきから'));
+    card.appendChild(el('p', 'sub', 'じどうで ほぞんされています。おすと つづきから はじまります。'));
+    const docs = el('div', 'docs');
     list.forEach(w => {
-      const card = el('div', 'work' + (w.id === S.docId ? ' cur' : ''));
-      const th = el('div', 'work-th');
-      if(w.thumb){ const im = el('img'); im.src = w.thumb; im.alt = ''; th.appendChild(im); }
-      const info = el('div', 'work-i');
-      info.append(el('b', null, w.name || 'むだい'), el('small', null, whenText(w.at) + (w.id === S.docId ? '・いま ひらいて いる' : '')));
-      const acts = el('div', 'work-a');
-      if(w.id !== S.docId) acts.appendChild(mkBtn('ひらく', () => openWork(w.id), 'btn btn-sm btn-y'));
-      acts.appendChild(mkBtn('名前', async () => {
-        const nm = prompt('作品の 名前', w.name || '');
-        if(!nm || !nm.trim()) return;
-        if(w.id === S.docId){ S.proj.name = nm.trim(); await saveNow(); }
-        else { const rec = await getWork(w.id); if(rec){ rec.name = nm.trim(); const p = JSON.parse(rec.json); p.name = rec.name; rec.json = JSON.stringify(p); await saveDb('readwrite', st => st.put(rec, 'w:' + w.id)); } }
-        openWorks();
-      }, 'btn btn-sm'));
-      acts.appendChild(mkBtn('けす', async () => {
-        if(!confirm('「' + (w.name || 'むだい') + '」を けします。もとに もどせません。いいですか？')) return;
+      const item = el('div', 'docitem' + (w.id === S.docId ? ' cur' : ''));
+      const ob = el('button', 'docopen');
+      const im = el('img'); im.alt = ''; if(w.thumb) im.src = w.thumb; ob.appendChild(im);
+      const tx = el('span', 'doctext');
+      tx.append(el('b', null, w.name || 'むだい'), el('i', null, whenText(w.at) + (w.id === S.docId ? '・いま ひらいて いる' : '')));
+      ob.appendChild(tx);
+      ob.onclick = async () => { hideStart(); if(w.id !== S.docId) await openWork(w.id); };
+      const db = el('button', 'docdel', '🗑'); db.title = 'この 作品を けす';
+      db.onclick = async () => {
+        if(!confirm('「' + (w.name || 'むだい') + '」を けしますか？')) return;
         await saveDb('readwrite', st => st.delete('w:' + w.id));
-        if(w.id === S.docId){ S.docId = null; newDoc(); }
+        if(w.id === S.docId){ S.docId = null; S.proj = newProject(); S.imgs = {}; refreshUI(); }
         openWorks();
-      }, 'btn btn-sm danger'));
-      card.append(th, info, acts);
-      g.appendChild(card);
+      };
+      item.append(ob, db);
+      docs.appendChild(item);
     });
-    if(!list.length) g.appendChild(el('div', 'sh-note', 'まだ しまった 作品は ありません。絵を 入れると じどうで しまわれます。'));
-    body.appendChild(g);
-  });
+    card.appendChild(docs);
+    if(list.length >= WORKS_MAX) card.appendChild(el('p', 'sub', '作品が たくさん あります。いらない ものは 🗑 で けしてね。'));
+  }
+  card.appendChild(el('h1', null, list.length ? 'あたらしく つくる' : 'ミニSpine'));
+  card.appendChild(el('p', 'sub', 'パーツごとに レイヤーが 分かれた PSD か、PNG を 入れて はじめます。'));
+  const go = mkBtn('🖼 PSD / 画像を えらんで はじめる', async () => { hideStart(); await newDoc(); $('#fileImg').click(); }, 'go btn-y');
+  const empty = mkBtn('からっぽで はじめる', async () => { hideStart(); await newDoc(); }, 'btn');
+  card.append(go, empty);
+  if(S.proj.slots.length){
+    const back = mkBtn('◀ いまの 作品に もどる', () => hideStart(), 'btn btn-sm');
+    card.appendChild(back);
+  }
+  startEl.innerHTML = '';
+  startEl.appendChild(card);
+  startEl.style.display = 'flex';
 }
 
-/* ひらいた とき: 前の 1つだけ ほぞん（'last'）を 作品に 引っこす／いまの 作品を ひらく */
+/* ひらいた とき: まえの 1つだけ ほぞん（'last'）を 作品に 引っこしてから、最初の 画面 */
 (async () => {
   try{
     const last = await saveDb('readonly', st => st.get('last'));
@@ -131,17 +145,9 @@ async function openWorks(){
       await new Promise(r => setTimeout(r, 800));
       await saveNow();
       await saveDb('readwrite', st => st.delete('last'));
-      return;
     }
-    const cur = await saveDb('readonly', st => st.get('cur'));
-    if(cur && !S.proj.slots.length){
-      const rec = await getWork(cur);
-      if(rec && rec.json){
-        S.docId = rec.id;
-        loadProject(rec.json);
-        setTimeout(() => setStatus('「' + rec.name + '」の つづきを ひらきました'), 600);
-      }
-    }
+    const list = await listWorks();
+    if(list.length) openWorks();
   }catch(_){}
 })();
 
@@ -149,7 +155,7 @@ async function openWorks(){
 (() => {
   const nb = $('#btnNew');
   const b = el('button', 'btn btn-sm', '🗂 作品'); b.id = 'btnWorks';
-  b.title = 'しまった 作品の 一覧（新しく・ひらく・名前・けす）';
+  b.title = '最初の 画面（作品の 一覧・新しく つくる）';
   b.onclick = openWorks;
   if(nb){ nb.replaceWith(b); } else $('.tb-actions').insertBefore(b, $('#btnAddImg'));
 })();
