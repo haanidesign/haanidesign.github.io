@@ -2,26 +2,26 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=77';
-import { wire, bus } from './bus.js?v=77';
-import { MEDIA, importFiles, hookAll } from './media.js?v=77';
-import { takeHandoff, doneHandoff } from './handoff.js?v=77';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=77';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=77';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=77';
-import { beatOn, beatSec, beatAt } from './beat.js?v=77';
-import * as TL from './ui/timeline.js?v=77';
-import * as P from './ui/panel.js?v=77';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=77';
+} from './state.js?v=78';
+import { wire, bus } from './bus.js?v=78';
+import { MEDIA, importFiles, hookAll } from './media.js?v=78';
+import { takeHandoff, doneHandoff } from './handoff.js?v=78';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=78';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=78';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=78';
+import { beatOn, beatSec, beatAt } from './beat.js?v=78';
+import * as TL from './ui/timeline.js?v=78';
+import * as P from './ui/panel.js?v=78';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=78';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=77';
-import { addFontFile } from './text.js?v=77';
-import { makePack, openPack, zip } from './pack.js?v=77';
-import { showStart } from './ui/start.js?v=77';
-import { openDemo } from './demo.js?v=77';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=77';
-import { trackOf } from './state.js?v=77';
+} from './edit.js?v=78';
+import { addFontFile } from './text.js?v=78';
+import { makePack, openPack, zip } from './pack.js?v=78';
+import { showStart } from './ui/start.js?v=78';
+import { openDemo } from './demo.js?v=78';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=78';
+import { trackOf } from './state.js?v=78';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -673,13 +673,20 @@ setTool('select');
     const h = await takeHandoff();
     if (h) {
       $('#start').classList.remove('on');
-      startNew({ w: h.w & ~1, h: h.h & ~1 }, 30);
-      S.name = h.name;
+      let t0 = 0;
+      if (h.appendTo && await loadDoc(h.appendTo)) {
+        // 「この 作品の うしろに 足す」
+        await openDoc(h.appendTo);
+        t0 = allClips().reduce((n, { c }) => Math.max(n, c.start + c.dur), 0);
+      } else {
+        startNew({ w: h.w & ~1, h: h.h & ~1 }, 30);
+        S.name = h.name;
+      }
       if (h.files) {
         // いくつも: タイムラインに 順番に ならべる（それぞれの 長さで くり返す）
         importFiles(h.files, made => {
           relink();
-          let t = 0, last = null;
+          let t = t0, last = null;
           h.files.forEach((f, i) => {
             const m = made.find(x => x.name === f.name) || made[i];
             const c = m && addFromMedia(m, t);
@@ -688,7 +695,7 @@ setTool('select');
             t += h.lens[i] || (c ? c.dur : 0);
           });
           drawAll(); TL.fit(); if (last) TL.reveal(last);
-          doneHandoff(); toast('ミニSpine の 動きを ' + h.files.length + 'つ ならべました', 2600);
+          doneHandoff(); toast(t0 ? 'うしろに 足しました（' + t0.toFixed(1) + '秒 から）' : 'ミニSpine の 動きを ' + h.files.length + 'つ ならべました', 2600);
         });
       } else {
         importFiles([h.file], made => { relink(); placeAll(made, 0); TL.fit(); doneHandoff(); toast('ミニSpine の 動画を 入れました', 2600); });

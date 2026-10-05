@@ -1,7 +1,7 @@
 /* 素材（動画・画像・音）の とりこみと 音の つなぎ。 */
-import { S, uid, r2, toast, clamp, allClips } from './state.js?v=77';
-import { bus } from './bus.js?v=77';
-import { analyse } from './beat.js?v=77';
+import { S, uid, r2, toast, clamp, allClips } from './state.js?v=78';
+import { bus } from './bus.js?v=78';
+import { analyse } from './beat.js?v=78';
 
 export const MEDIA = new Map();
 
@@ -80,6 +80,7 @@ async function animIn(m, file) {
     if (!(await ImageDecoder.isTypeSupported(type))) return;
     const dec = new ImageDecoder({ data: await file.arrayBuffer(), type });
     await dec.tracks.ready;
+    try { await dec.completed; } catch (e) { }   // GIF は 読み おわるまで こまの 数が 1の ままの ことが ある
     const track = dec.tracks.selectedTrack;
     const count = track && track.frameCount ? track.frameCount : 1;
     if (count < 2) { try { dec.close(); } catch (e) { } return; }

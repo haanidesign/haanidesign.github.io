@@ -30,11 +30,11 @@ export async function takeHandoff() {
   /* いくつも まとめて 送られた ときは box.items = [{ blob, fileName, len }]（len ＝ ならべる 長さ 秒） */
   if (box.items && box.items.length) {
     const files = box.items.map(it => new File([it.blob], it.fileName, { type: it.blob.type || 'image/png' }));
-    return { name: box.name || 'ミニSpine', w: box.w, h: box.h, files, lens: box.items.map(it => it.len || 0) };
+    return { name: box.name || 'ミニSpine', w: box.w, h: box.h, files, lens: box.items.map(it => it.len || 0), appendTo: box.appendTo || null };
   }
   if (!box.blob) return null;
   const file = new File([box.blob], box.fileName || 'minispine.mp4', { type: box.blob.type || 'video/mp4' });
-  return { name: box.name || 'ミニSpine', w: box.w, h: box.h, file };
+  return { name: box.name || 'ミニSpine', w: box.w, h: box.h, file, files: box.appendTo ? [file] : null, lens: [0], appendTo: box.appendTo || null };
 }
 
 /** ひらき おわったら よぶ。置き場を 消して、読みなおしで 2回 入らない ように する */

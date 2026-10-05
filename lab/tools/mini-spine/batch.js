@@ -79,3 +79,68 @@ openExport = function(){
   b.append(el('i', null, '📦'), el('span', null, 'まとめて 送る'), el('small', null, 'いくつかの 動きを えらんで、順番に つないで アニメ工房・動画工房へ。'));
   g.insertBefore(b, g.children[2] || null);
 };
+
+/* ---------- 送り先: 新しい 作品 か、工房に ある 作品の うしろ ----------
+   べつの 作品で つくった 動きも、おなじ 工房の 作品に つぎつぎ 足せる。 */
+const SEND_TO = { kobo: '', douga: '' };
+
+/** 工房の 作品の ならび（読むだけ。なければ 空） */
+async function koboDocs(dbName){
+  try{
+    if(indexedDB.databases){
+      const all = await indexedDB.databases();
+      if(!all.some(d => d.name === dbName)) return [];
+    }
+    const db = await new Promise((ok, ng) => {
+      const r = indexedDB.open(dbName);
+      r.onupgradeneeded = () => r.transaction.abort();   // ないのに 作らない
+      r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error);
+    });
+    if(!db.objectStoreNames.contains('docs')){ db.close(); return []; }
+    const all = await new Promise((ok, ng) => {
+      const q = db.transaction('docs', 'readonly').objectStore('docs').getAll();
+      q.onsuccess = () => ok(q.result || []); q.onerror = () => ng(q.error);
+    });
+    db.close();
+    return all.map(r => ({ id: r.id, at: r.at || 0, name: (r.proj && r.proj.name) || (r.doc && r.doc.name) || r.name || 'むだい' }))
+      .sort((a, b) => b.at - a.at);
+  }catch(_){ return []; }
+}
+
+const _handoffPutB = handoffPut;
+handoffPut = function(key, val){
+  const to = key === 'mini-spine' ? SEND_TO.kobo : SEND_TO.douga;
+  if(to) val = Object.assign({}, val, { appendTo: to });
+  return _handoffPutB(key, val);
+};
+
+async function sendToRow(){
+  const [ak, dk] = await Promise.all([koboDocs('anime-kobo'), koboDocs('douga-kobo')]);
+  const box = el('div', 'send-to');
+  box.appendChild(el('div', 'title', '送り先'));
+  const sel = (label, list, k) => {
+    if(list.length && SEND_TO[k] && !list.some(d => d.id === SEND_TO[k])) SEND_TO[k] = '';
+    const row = el('label', 'send-row'); row.appendChild(el('span', null, label));
+    const s = el('select');
+    const o0 = el('option', null, '新しい 作品に する'); o0.value = ''; s.appendChild(o0);
+    list.forEach(d => { const o = el('option', null, '「' + d.name + '」の うしろに 足す'); o.value = d.id; s.appendChild(o); });
+    s.value = SEND_TO[k]; s.onchange = () => { SEND_TO[k] = s.value; };
+    row.appendChild(s); box.appendChild(row);
+  };
+  sel('🎬 アニメ工房', ak, 'kobo');
+  sel('📼 動画工房', dk, 'douga');
+  return box;
+}
+
+const _openExportT = openExport;
+openExport = function(){
+  _openExportT();
+  const g = document.querySelector('.sh-grid.wide'); if(!g) return;
+  sendToRow().then(b => { if(g.isConnected) g.before(b); });
+};
+const _openSendManyT = openSendMany;
+openSendMany = function(){
+  _openSendManyT();
+  const l = document.querySelector('.many-list'); if(!l) return;
+  sendToRow().then(b => { if(l.isConnected) l.after(b); });
+};
