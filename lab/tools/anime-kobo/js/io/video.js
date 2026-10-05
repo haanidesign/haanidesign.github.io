@@ -7,10 +7,10 @@
      ・どの 時こくでも 同じ 絵が 出る（書き出しで ずれない）
    その かわり 長い 動画は 重く なる ので、長さと 大きさに 上限を つける。 */
 
-import { S, addAsset } from '../state.js?v=325';
-import { newLayer } from '../engine/layer.js?v=325';
-import { loadImage } from './image.js?v=325';
-import { setPin } from '../engine/anim.js?v=325';
+import { S, addAsset } from '../state.js?v=326';
+import { newLayer } from '../engine/layer.js?v=326';
+import { loadImage } from './image.js?v=326';
+import { setPin } from '../engine/anim.js?v=326';
 
 export const VIDEO_MAX_SEC = 20;   // これより 長い ぶんは 切る
 const MAX_SIDE = 720;              // 絵の 長いほう
@@ -57,6 +57,7 @@ export async function addVideoFile(file, opt = {}){
   const g = cv.getContext('2d');
 
   const n = Math.max(1, Math.floor(sec * fps));
+  let clear = null;
   const ids = [];
   const base = (file.name || '動画').replace(/\.[^.]+$/, '');
   for(let i = 0; i < n; i++){
@@ -65,8 +66,12 @@ export async function addVideoFile(file, opt = {}){
       v.currentTime = t;
       try{ await waitEv(v, 'seeked', 8000); }catch(_){}
     }
+    // すける 動画（webm）は 前の コマが 残らない ように 毎回 消す
+    g.clearRect(0, 0, w, h);
     g.drawImage(v, 0, 0, w, h);
-    const src = cv.toDataURL('image/jpeg', 0.82);
+    if(clear === null) clear = hasAlpha(g, w, h);
+    // すける ところが あれば すけた まま しまう（JPEG だと 黒く なる）
+    const src = clear ? cv.toDataURL('image/webp', 0.9) : cv.toDataURL('image/jpeg', 0.82);
     ids.push(addAsset(base + '_' + (i + 1), src, w, h, await loadImage(src)));
     if(opt.onProgress) opt.onProgress(i + 1, n);
   }
@@ -84,4 +89,13 @@ export async function addVideoFile(file, opt = {}){
   S.proj.layers.unshift(l);
   S.sel = l.id;
   return { layer: l, frames: n, sec, cut: full > VIDEO_MAX_SEC + 0.01 };
+}
+
+/** すける ところが あるか（まばらに しらべる） */
+function hasAlpha(g, w, h){
+  try{
+    const d = g.getImageData(0, 0, w, h).data;
+    for(let i = 3; i < d.length; i += 4 * 97) if(d[i] < 250) return true;
+  }catch(_){}
+  return false;
 }

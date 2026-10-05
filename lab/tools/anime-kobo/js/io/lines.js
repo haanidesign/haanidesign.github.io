@@ -13,10 +13,10 @@
    線だけの 絵なので、ほとんどが すきま（透明）。
    PNGに すると とても 小さく なる ので、何まい 焼いても 軽い。 */
 
-import { S, addAsset } from '../state.js?v=325';
-import { newLayer } from '../engine/layer.js?v=325';
-import { loadImage } from './image.js?v=325';
-import { setPin } from '../engine/anim.js?v=325';
+import { S, addAsset } from '../state.js?v=326';
+import { newLayer } from '../engine/layer.js?v=326';
+import { loadImage } from './image.js?v=326';
+import { setPin } from '../engine/anim.js?v=326';
 
 /** はじめの 数字 */
 export function newLines(){
