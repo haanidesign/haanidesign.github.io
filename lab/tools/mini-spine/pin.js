@@ -10,9 +10,44 @@
 const PINS = () => (S.proj.pins = S.proj.pins || []);
 
 /* ---------- 毎コマ：IK の あとで 点を あわせる ---------- */
+let PIN_POSE = null, PIN_KIDS = null;
+/** 中心 c で ang 回して、(ux,uy) の 向きに sc 倍 のばし、c を to へ。fid と その子に かける */
+function solveAround(fid, c, ang, sc, ux, uy, to){
+  const co = Math.cos(ang), sn = Math.sin(ang);
+  const S2 = { a: 1 + (sc - 1) * ux * ux, b: (sc - 1) * ux * uy, c: (sc - 1) * ux * uy, d: 1 + (sc - 1) * uy * uy };
+  const R = { a: co, b: sn, c: -sn, d: co };
+  const L = { a: S2.a * R.a + S2.c * R.b, b: S2.b * R.a + S2.d * R.b, c: S2.a * R.c + S2.c * R.d, d: S2.b * R.c + S2.d * R.d };
+  const A = { a: L.a, b: L.b, c: L.c, d: L.d, tx: to.x - (L.a * c.x + L.c * c.y), ty: to.y - (L.b * c.x + L.d * c.y) };
+  const st = [fid];
+  while(st.length){
+    const id = st.pop(); const q = PIN_POSE[id];
+    if(q) q.world = M.mul(A, q.world);
+    (PIN_KIDS[id] || []).forEach(k => st.push(k));
+  }
+}
+/** 付け根（ついて いく 骨の 中での 点）。はじめて つかう ときに 部品の 形から 決めて おぼえる */
+function pinAnchor(p){
+  if(p.al) return p.al;
+  try{
+    const sp = setupPose(), F0 = sp[p.follower]; if(!F0) return null;
+    const J = M.apply(F0.world, p.fl.x, p.fl.y);
+    const sl = S.proj.slots.find(o => o.id === p.slot) || S.proj.slots.find(o => slotBones(o).ids.includes(p.follower));
+    if(!sl) return null;
+    const bx = slotBox(sl);
+    let best = null, bd = -1;
+    [[bx.x0, bx.y0], [bx.x1, bx.y0], [bx.x0, bx.y1], [bx.x1, bx.y1], [bx.cx, bx.y0], [bx.cx, bx.y1], [bx.x0, bx.cy], [bx.x1, bx.cy]].forEach(([x, y]) => {
+      const d = Math.hypot(x - J.x, y - J.y); if(d > bd){ bd = d; best = { x, y }; }
+    });
+    // 角まで いくと 長すぎる ので、くっつく 点と 遠い 点の あいだ 8割
+    const w = { x: J.x + (best.x - J.x) * 0.8, y: J.y + (best.y - J.y) * 0.8 };
+    p.al = M.apply(M.inv(F0.world), w.x, w.y);
+    return p.al;
+  }catch(_){ return null; }
+}
 function applyPins(proj, pose){
   const pins = proj.pins; if(!pins || !pins.length) return;
   const kids = childMap(proj);
+  PIN_POSE = pose; PIN_KIDS = kids;
   const shift = (root, dx, dy) => {
     const st = [root];
     while(st.length){
@@ -30,7 +65,19 @@ function applyPins(proj, pose){
     const fw = p => M.apply(F(), p.fl.x, p.fl.y), tw = p => M.apply(pose[p.target].world, p.tl.x, p.tl.y);
     if(list.length === 1){
       const p = list[0], a = fw(p), b = tw(p);
-      shift(fid, (b.x - a.x) * p.mix, (b.y - a.y) * p.mix);
+      const al = p.stretch !== false ? pinAnchor(p) : null;
+      if(!al){ shift(fid, (b.x - a.x) * p.mix, (b.y - a.y) * p.mix); continue; }
+      /* のばして くっつける: 部品の 付け根（くっつく 点から いちばん 遠い ところ）は
+         そのまま、くっつく 点が 先へ とどく ように 回して 軸の 向きに のばす */
+      const o = M.apply(F(), al.x, al.y);
+      const lf = Math.hypot(a.x - o.x, a.y - o.y);
+      if(lf < 1){ shift(fid, (b.x - a.x) * p.mix, (b.y - a.y) * p.mix); continue; }
+      const tx = a.x + (b.x - a.x) * p.mix, ty = a.y + (b.y - a.y) * p.mix;
+      let ang = Math.atan2(ty - o.y, tx - o.x) - Math.atan2(a.y - o.y, a.x - o.x);
+      while(ang > Math.PI) ang -= Math.PI * 2; while(ang < -Math.PI) ang += Math.PI * 2;
+      const sc = Math.max(0.4, Math.min(2.5, Math.hypot(tx - o.x, ty - o.y) / lf));
+      const base = Math.atan2(a.y - o.y, a.x - o.x) + ang;
+      solveAround(fid, o, ang, sc, Math.cos(base), Math.sin(base), o);
       continue;
     }
     /* 2か所: 片方を 支点（顔・頭がわ）に して ぴったり とめ、
@@ -64,6 +111,8 @@ function applyPins(proj, pose){
     }
   }
 }
+const _applySpringsP = applySprings;
+applySprings = function(proj, pose, dt, st, on){ _applySpringsP(proj, pose, dt, st, on); applyPins(proj, pose); };
 const _applyIKs0 = applyIKs;
 applyIKs = function(proj, pose){ _applyIKs0(proj, pose); applyPins(proj, pose); };
 
@@ -116,7 +165,7 @@ function buildPin(P){
     markDirty();
     const sp = setupPose();
     const fl = M.apply(M.inv(sp[fol.id].world), J.x, J.y), tl = M.apply(M.inv(sp[tgt.id].world), J.x, J.y);
-    made = { id: uid('pin'), name: A.name + ' → ' + B.name, follower: fol.id, target: tgt.id, fl, tl, mix: 1 };
+    made = { id: uid('pin'), slot: A.id, name: A.name + ' → ' + B.name, follower: fol.id, target: tgt.id, fl, tl, mix: 1 };
     PINS().push(made);
     markDirty();
     S.sel = { bone: fol.id, slot: null, ik: null };
@@ -154,6 +203,10 @@ buildProps = function(){
   mine.forEach(p => {
     box.appendChild(el('div', 'hint', p.name));
     box.appendChild(rng('強さ', () => p.mix, v => { p.mix = v; }, 0, 1, 0.05));
+    const on = p.stretch !== false;
+    box.appendChild(btnRow(
+      mkBtn('のばして くっつける', () => { edit('くっつけ: のばす', () => { p.stretch = true; }); refreshUI(); }, 'btn btn-sm' + (on ? ' btn-y' : '')),
+      mkBtn('そのまま うごかす', () => { edit('くっつけ: うごかす', () => { p.stretch = false; }); refreshUI(); }, 'btn btn-sm' + (on ? '' : ' btn-y'))));
     box.appendChild(btnRow(mkBtn('はずす', () => {
       edit('くっつけを はずす', () => { const i = PINS().indexOf(p); if(i >= 0) PINS().splice(i, 1); });
       refreshUI();

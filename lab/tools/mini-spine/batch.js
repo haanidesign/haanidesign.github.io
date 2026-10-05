@@ -160,3 +160,31 @@ openExport = function(){
   row.appendChild(btnRow(one, many));
   g.after(row);
 };
+
+/* ---------- GIF で 保存（すける） ----------
+   アニメPNG は Android の ギャラリーでは 止まって 見える ことが 多い。
+   GIF なら どこでも 動く。つくり方は アニメ工房と おなじ（gif.js を かりる）。 */
+async function saveGif(){
+  if(!S.proj.slots.length) return setStatus('絵が ありません');
+  sheet.hide();
+  try{
+    busy('こまを つくっています…'); await nextPaint();
+    const { encodeGif } = await import('../anime-kobo/js/io/gif.js?v=326');
+    const r = renderFrames(15, 720);
+    const frames = r.frames.map(c => c.getContext('2d').getImageData(0, 0, c.width, c.height));
+    busy('GIF に しています…'); await nextPaint();
+    const out = encodeGif(frames, { delay: 1 / r.fps, alphaCut: 100 });
+    const blob = out instanceof Blob ? out : new Blob([out], { type: 'image/gif' });
+    download(baseName() + '.gif', blob);
+    setStatus('すける GIF を 保存しました（' + Math.round(blob.size / 1024) + 'KB）');
+  }catch(err){ alert('GIF に できませんでした: ' + (err && err.message || err)); }
+  finally{ busy(''); }
+}
+const _openExportG = openExport;
+openExport = function(){
+  _openExportG();
+  const g = document.querySelector('.sh-grid.wide'); if(!g) return;
+  const b = mkBtn('', saveGif, 'mv wide');
+  b.append(el('i', null, '🖼'), el('span', null, 'GIF で 保存（すける）'), el('small', null, 'どこでも 動く。色は 255色まで。'));
+  g.appendChild(b);
+};
