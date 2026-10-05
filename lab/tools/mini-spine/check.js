@@ -238,3 +238,68 @@ buildProps = function(){
   if(par && par.parent) box.appendChild(btnRow(mkBtn('🔗 「' + par.name + '」の 先に つなげる', () => snapToParent(b), 'btn')));
   host.insertBefore(box, host.firstChild);
 };
+
+/* ---------- セットアップで パーツを 回す つまみ ----------
+   パーツを えらぶと 絵の 上に「↻」。ぐるっと ドラッグで 回る。
+   中心は その パーツ 専用の 骨の 根もと（イヤリングなら 耳たぶ）、なければ 絵の まんなか。
+   専用の 骨も いっしょに 回すので 骨と 絵が ずれない。 */
+const ROT = { drag: null };
+function partPivot(sl){
+  const sp = setupPose();
+  const own = slotBones(sl).ids.map(boneById).filter(b => b && b.parent && !S.proj.slots.some(o => o !== sl && slotBones(o).ids.includes(b.id)));
+  // 専用の 骨の うち いちばん 根もと
+  const top = own.find(b => !own.some(o => o.id === b.parent)) || null;
+  if(top){ const p = sp[top.id].world; return { x: p.tx, y: p.ty, bone: top }; }
+  const bx = slotBox(sl); return { x: bx.cx, y: bx.cy, bone: null };
+}
+function rotKnob(sl){
+  const bx = slotBox(sl), dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+  return { x: bx.cx, y: bx.y0 - 44 * dpr / S.view.z, r: 16 * dpr / S.view.z };
+}
+function rotActive(){
+  return S.mode === 'setup' && S.tool === 'pose' && !S.tapRig && !S.shapeEdit && !S.warpEdit && !S.live && slotById(S.sel.slot);
+}
+cv.addEventListener('pointerdown', e => {
+  if(e.button !== 0 || !rotActive() || (e.pointerType === 'touch' && tap.ids.size >= 1)) return;
+  const sl = slotById(S.sel.slot);
+  const { sx, sy } = evPos(e); const w = s2w(sx, sy);
+  const k = rotKnob(sl);
+  if(Math.hypot(w.x - k.x, w.y - k.y) > k.r * 1.6) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  const pv = partPivot(sl);
+  beginEdit(sl.name + ' を 回す');
+  ROT.drag = { sl, pv, a0: Math.atan2(w.y - pv.y, w.x - pv.x), verts: sl.verts.map(v => ({ x:v.x, y:v.y })),
+               rot0: pv.bone ? pv.bone.rot : 0, id: e.pointerId, deg: 0 };
+}, true);
+addEventListener('pointermove', e => {
+  const d = ROT.drag; if(!d || e.pointerId !== d.id) return;
+  const { sx, sy } = evPos(e); const w = s2w(sx, sy);
+  let ang = Math.atan2(w.y - d.pv.y, w.x - d.pv.x) - d.a0;
+  if(e.shiftKey) ang = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12);   // Shift で 15°ずつ
+  const c = Math.cos(ang), s = Math.sin(ang);
+  d.sl.verts.forEach((v, i) => { const o = d.verts[i], dx = o.x - d.pv.x, dy = o.y - d.pv.y;
+    v.x = d.pv.x + dx * c - dy * s; v.y = d.pv.y + dx * s + dy * c; });
+  if(d.pv.bone) d.pv.bone.rot = d.rot0 + ang * 180 / Math.PI;
+  d.deg = ang * 180 / Math.PI;
+  markDirty();
+  setStatus(d.sl.name + ': ' + (d.deg >= 0 ? '+' : '') + d.deg.toFixed(1) + '°（Shift で 15°ずつ）');
+});
+const rotUp = e => { if(!ROT.drag || (e && e.pointerId !== ROT.drag.id)) return; ROT.drag = null; commitEdit(); refreshUI(); };
+addEventListener('pointerup', rotUp);
+addEventListener('pointercancel', rotUp);
+
+function drawRotKnob(){
+  if(!rotActive() || S.rec) return;
+  const sl = slotById(S.sel.slot), k = rotKnob(sl), pv = ROT.drag ? ROT.drag.pv : partPivot(sl);
+  const z = S.view.z, dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+  ctx.setTransform(z, 0, 0, z, S.view.x, S.view.y);
+  ctx.setLineDash([5 * dpr / z, 4 * dpr / z]); ctx.lineWidth = 2 * dpr / z; ctx.strokeStyle = INK;
+  ctx.beginPath(); ctx.moveTo(pv.x, pv.y); ctx.lineTo(k.x, k.y); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(pv.x, pv.y, 5 * dpr / z, 0, 7); ctx.fillStyle = PINK; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 7); ctx.fillStyle = ROT.drag ? MAIN : PAPER; ctx.fill();
+  ctx.lineWidth = 2.5 * dpr / z; ctx.stroke();
+  ctx.fillStyle = INK; ctx.font = '800 ' + (18 * dpr / z) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('↻', k.x, k.y + 1 * dpr / z); ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+const _render6 = render;
+render = function(){ _render6(); drawRotKnob(); };
