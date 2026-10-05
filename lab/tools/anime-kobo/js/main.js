@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=330';
+import { M } from './engine/math.js?v=332';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=330';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=332';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=330';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=330';
-import { createRenderer } from './render/renderer.js?v=330';
-import { createTimeline } from './ui/timeline.js?v=330';
-import { fmtTime, setPin } from './engine/anim.js?v=330';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=330';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=332';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=332';
+import { createRenderer } from './render/renderer.js?v=332';
+import { createTimeline } from './ui/timeline.js?v=332';
+import { fmtTime, setPin } from './engine/anim.js?v=332';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=332';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,28 +21,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=330';
+         setWarper } from './ui/sheet.js?v=332';
 
-import { showNewDoc } from './ui/newdoc.js?v=330';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=330';
-import { fitToCanvas, isBg } from './io/bg.js?v=330';
-import * as Audio from './io/audio.js?v=330';
-import { isTalk, blipTimes } from './engine/talk.js?v=330';
+import { showNewDoc } from './ui/newdoc.js?v=332';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=332';
+import { fitToCanvas, isBg } from './io/bg.js?v=332';
+import * as Audio from './io/audio.js?v=332';
+import { isTalk, blipTimes } from './engine/talk.js?v=332';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=330';
-import { importPsd } from './io/psd.js?v=330';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff } from './io/handoff.js?v=330';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=330';
-import { makeSabun } from './io/sabun.js?v=330';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=330';
-import { splitTextChars } from './io/text.js?v=330';
-import { exportAE } from './io/ae.js?v=330';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=332';
+import { importPsd } from './io/psd.js?v=332';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff } from './io/handoff.js?v=332';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=332';
+import { makeSabun } from './io/sabun.js?v=332';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=332';
+import { splitTextChars } from './io/text.js?v=332';
+import { exportAE } from './io/ae.js?v=332';
 import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=330';
-import { pathKeys, pathLength } from './engine/path.js?v=330';
-import { paintDirty } from './engine/paint.js?v=330';
+         canUseWebCodecs } from './io/export.js?v=332';
+import { pathKeys, pathLength } from './engine/path.js?v=332';
+import { paintDirty } from './engine/paint.js?v=332';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=330';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=332';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1417,6 +1417,9 @@ if('serviceWorker' in navigator){
   let swapped = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if(!had || swapped) return;
+    /* ミニSpine から 受けとって いる 最中は 読み直さない
+       （読み直しと 受けとりが かさなると、受けとった ものが 消えて 最初の 画面に なる） */
+    if(new URLSearchParams(location.search).has('from') || S.ready) return;
     swapped = true;
     location.reload();
   });

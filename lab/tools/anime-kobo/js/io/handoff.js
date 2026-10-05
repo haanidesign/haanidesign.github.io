@@ -6,10 +6,10 @@
    ひらき おわったら doneHandoff() で 置き場と ?from= を 消す
    （とちゅうで 読みなおしに なっても、もう いちど 受けとれる ように）。 */
 
-import { newProject } from '../state.js?v=330';
-import { newLayer } from '../engine/layer.js?v=330';
-import { spreadFrames } from '../engine/anim.js?v=330';
-import { uid } from '../engine/math.js?v=330';
+import { newProject } from '../state.js?v=332';
+import { newLayer } from '../engine/layer.js?v=332';
+import { spreadFrames } from '../engine/anim.js?v=332';
+import { uid } from '../engine/math.js?v=332';
 
 const DB = 'haani-handoff';
 
@@ -52,7 +52,7 @@ export function appendHandoff(pj, box, start){
   plan.forEach(({ it, dur, len }, n) => {
     const ids = it.frames.map((src, i) => {
       const id = uid('A');
-      pj.assets[id] = { id, name: (it.name || 'コマ') + (i + 1), src, w: box.w, h: box.h };
+      pj.assets[id] = { id, name: (it.name || 'コマ') + (i + 1), src, w: it.w || box.w, h: it.h || box.h };
       return id;
     });
     const l = newLayer(single ? 'ミニSpine' : (it.name || 'ミニSpine' + (n + 1)), ids);

@@ -194,3 +194,88 @@ openExport = function(){
   b.append(el('i', null, '🖼'), el('span', null, 'GIF で 保存（すける）'), el('small', null, 'どこでも 動く。色は 255色まで。'));
   g.appendChild(b);
 };
+
+/* ---------- 最初の 画面から：作品を えらんで まとめて 送る ----------
+   作品ごとに 1つずつ ひらいて、いまの アニメを こまに して、順番に つなぐ。 */
+async function waitImgs(){
+  const t0 = performance.now();
+  while(Object.values(S.imgs).some(im => !im.complete) && performance.now() - t0 < 20000) await new Promise(r => setTimeout(r, 80));
+  markDirty(); await nextPaint();
+}
+async function sendWorks(ids, to){
+  if(!ids.length) return;
+  hideStart();
+  const keep = S.docId;
+  if(S.proj.slots.length) await saveNow();
+  const items = [];
+  let W = 0, H = 0;
+  try{
+    for(let i = 0; i < ids.length; i++){
+      const rec = await getWork(ids[i]); if(!rec || !rec.json) continue;
+      busy('作品を ひらいています… ' + (i + 1) + '/' + ids.length + '「' + (rec.name || 'むだい') + '」');
+      S.docId = rec.id; loadProject(rec.json); await waitImgs();
+      S.springState = {};
+      const name = (rec.name || 'むだい') + '・' + S.proj.current;
+      busy('こまを つくっています… ' + (i + 1) + '/' + ids.length); await nextPaint();
+      if(to === 'kobo'){
+        const r = renderFrames(12, 1080); if(!W){ W = r.W; H = r.H; }
+        items.push({ name, w: r.W, h: r.H, fps: r.fps, dur: r.dur, reps: repsOf(r.dur), frames: r.frames.map(c => c.toDataURL('image/png')) });
+      }else{
+        const r = renderFrames(15, 1080); if(!W){ W = r.W; H = r.H; }
+        const blob = await makeApng(r.frames, r.fps);
+        items.push({ blob, fileName: name.replace(/[\/:*?"<>|\s]/g, '_') + '.png', len: +(r.dur * repsOf(r.dur)).toFixed(3) });
+      }
+    }
+    if(!items.length) throw new Error('送れる 作品が ありませんでした');
+    busy((to === 'kobo' ? 'アニメ工房' : '動画工房') + 'へ 送っています…'); await nextPaint();
+    if(to === 'kobo') await handoffPut('mini-spine', { at: Date.now(), name: 'ミニSpine まとめ', w: W, h: H, bg: S.proj.canvas.bg, items });
+    else await handoffPut('mini-spine-video', { at: Date.now(), name: 'ミニSpine まとめ', w: W, h: H, items });
+    try{ await saveDb('readwrite', st => st.put(keep || ids[0], 'cur')); }catch(_){}
+    location.href = to === 'kobo' ? '../anime-kobo/?from=mini-spine' : '../douga-kobo/?from=mini-spine';
+  }catch(err){
+    busy('');
+    alert('送れませんでした: ' + (err && err.message || err));
+    if(keep){ const r0 = await getWork(keep); if(r0){ S.docId = keep; loadProject(r0.json); } }
+  }
+}
+
+async function openSendWorks(){
+  let list = [];
+  try{ list = await listWorks(); }catch(_){}
+  const card = el('div', 'card');
+  card.appendChild(el('h1', null, 'まとめて 工房へ'));
+  card.appendChild(el('p', 'sub', '送る 作品に チェック。上から 順に つながります（それぞれ いま えらんで いる アニメ。短い ものは 2秒 以上に なるまで くり返し）。'));
+  const pick = [];
+  const docs = el('div', 'docs');
+  list.forEach(w => {
+    const lb = el('label', 'docitem pickitem');
+    const cb = el('input'); cb.type = 'checkbox';
+    const no = el('b', 'pickno');
+    const im = el('img'); im.alt = ''; if(w.thumb) im.src = w.thumb;
+    const tx = el('span', 'doctext'); tx.append(el('b', null, w.name || 'むだい'), el('i', null, whenText(w.at)));
+    const redo = () => docs.querySelectorAll('.pickno').forEach(n => { const i = pick.indexOf(n.dataset.id); n.textContent = i >= 0 ? (i + 1) : ''; });
+    no.dataset.id = w.id;
+    cb.onchange = () => { const i = pick.indexOf(w.id); if(cb.checked && i < 0) pick.push(w.id); if(!cb.checked && i >= 0) pick.splice(i, 1); redo(); };
+    lb.append(cb, no, im, tx);
+    docs.appendChild(lb);
+  });
+  card.appendChild(docs);
+  card.appendChild(el('p', 'sub', 'チェックした 順が つながる 順です。'));
+  const to = await sendToRow();
+  card.appendChild(to);
+  card.append(
+    mkBtn('🎬 アニメ工房へ 送る', () => sendWorks(pick.slice(), 'kobo'), 'go btn-y'),
+    mkBtn('📼 動画工房へ 送る', () => sendWorks(pick.slice(), 'douga'), 'go btn-y'),
+    mkBtn('◀ もどる', () => openWorks(), 'btn btn-sm'));
+  startEl.innerHTML = ''; startEl.appendChild(card); startEl.style.display = 'flex';
+}
+
+const _openWorksB = openWorks;
+openWorks = async function(){
+  await _openWorksB();
+  const docs = startEl.querySelector('.docs'); if(!docs || docs.children.length < 2) return;
+  const b = mkBtn('📦 えらんで まとめて 工房へ 送る', openSendWorks, 'btn');
+  b.style.marginTop = '8px';
+  docs.after(b);
+};
+{ const wb = $('#btnWorks'); if(wb) wb.onclick = () => openWorks(); }
