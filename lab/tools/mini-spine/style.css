@@ -472,3 +472,14 @@ body.map-open #map{ display:flex; }
 .nd-act.on{ background:#8FB7E8; }
 @media (pointer:coarse){ .nd-act{ min-width:30px; height:30px; font-size:.8rem; } .nd{ width:200px; } }
 .nd{ width:216px; } @media (pointer:coarse){ .nd{ width:224px; } }
+
+/* ---------- 作品の 一覧 ---------- */
+.works{ display:flex; flex-direction:column; gap:.45rem; margin-top:.6rem; }
+.work{ display:flex; align-items:center; gap:.6rem; padding:.45rem; background:var(--paper); border:2px solid var(--ink); border-radius:12px; }
+.work.cur{ box-shadow:inset 6px 0 0 var(--main); }
+.work-th{ width:64px; height:64px; flex:none; border:1.5px solid var(--ink); border-radius:8px; overflow:hidden; background:var(--cream); display:flex; align-items:center; justify-content:center; }
+.work-th img{ max-width:100%; max-height:100%; }
+.work-i{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.work-i b{ font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.work-i small{ font-size:.68rem; color:var(--gray); font-weight:500; }
+.work-a{ display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end; }
