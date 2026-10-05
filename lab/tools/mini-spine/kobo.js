@@ -343,10 +343,28 @@ function applyWhole(m){
   refreshUI();
 }
 
+/* パーツ（絵）を えらんで いる ときは、その 絵 だけが 動く 骨に つける。
+   ほかの 絵や 子の 骨と いっしょの 骨なら、その 絵 専用の 骨を つくる（付け根は 絵の 上の まんなか） */
+function ownMoveBone(sl){
+  const base = slotBones(sl).main || S.proj.bones[0];
+  const alone = base && base.parent && !S.proj.bones.some(o => o.parent === base.id)
+    && !S.proj.slots.some(o => o !== sl && slotBones(o).ids.includes(base.id));
+  if(alone) return base;
+  const bx = slotBox(sl);
+  const b = boneAt(sl.name + '_動き', base.id, { x: bx.cx, y: bx.y0 + bx.h * .1 }, { x: bx.cx, y: bx.y1 });
+  sl.verts.forEach(v => { v.w = []; v.bind = null; }); sl.bone = b.id; sl.bound = false;
+  markDirty();
+  return b;
+}
 function applyOne(m){
-  const b = boneById(S.sel.bone), a = anim();
-  if(!b || !a) return;
-  edit(m.name, () => m.fn(a, b));
+  const a = anim(), sl = slotById(S.sel.slot);
+  if(!a) return;
+  let b = null;
+  edit(m.name, () => {
+    b = sl ? ownMoveBone(sl) : boneById(S.sel.bone);
+    if(b) m.fn(a, b);
+  });
+  if(!b) return;
   S.mode = 'anim'; S.playing = true; S.springState = {};
   setStatus(m.name + ' を ' + b.name + (/先まで/.test(m.name) ? ' から 先に' : ' に') + ' つけました（大きさ・はやさは 🎚）');
   refreshUI();
@@ -369,8 +387,9 @@ function openMotions(){
     });
     body.appendChild(g1);
 
-    const sb = boneById(S.sel.bone);
-    body.appendChild(el('div', 'sh-h', 'えらんだ ボーンだけ（' + (sb ? sb.name : '—') + '）'));
+    const sb = boneById(S.sel.bone), ss = slotById(S.sel.slot);
+    body.appendChild(el('div', 'sh-h', ss ? 'えらんだ パーツだけ（' + ss.name + '）' : 'えらんだ ボーンだけ（' + (sb ? sb.name : '—') + '）'));
+    if(ss) body.appendChild(el('div', 'sh-note', 'この 絵 だけが 動きます（ほかの 絵と 骨を いっしょに して いたら、専用の 骨を 足します）。'));
     body.appendChild(el('div', 'sh-note', 'いまの アニメ「' + S.proj.current + '」に 足します。同じ 動きの キーは 上書き。'));
     const g2 = el('div', 'sh-grid');
     ONE.forEach(m => {
