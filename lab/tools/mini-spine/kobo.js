@@ -793,10 +793,13 @@ function drawCreateHints(){
   list.forEach(b => {
     const p = pose[b.id]; if(!p) return;
     const t = M.apply(p.world, b.len, 0), sel = b.id === S.sel.bone;
-    ctx.beginPath(); ctx.arc(t.x, t.y, (sel ? 12 : 8) / z, 0, 7);
+    // 輪の 大きさ ＝ 吸いつく 範囲（えらんだ 骨 60px・ほか 30px）
+    const dprC = cv.width / (cv.getBoundingClientRect().width || cv.width);
+    ctx.beginPath(); ctx.arc(t.x, t.y, (sel ? 60 : 30) * dprC / z, 0, 7);
+    if(sel){ ctx.fillStyle = 'rgba(225,221,96,.25)'; ctx.fill(); }
     ctx.lineWidth = (sel ? 3 : 2) / z; ctx.strokeStyle = sel ? INK : GRAY;
     ctx.setLineDash(sel ? [] : [3 / z, 3 / z]); ctx.stroke(); ctx.setLineDash([]);
-    if(sel && !d) label('ここから 引くと つながる', t.x + 16 / z, t.y - 12 / z, z);
+    if(sel && !d) tag('この 輪の 中から 引くと つながる', t.x + 64 * dprC / z, t.y, z, MAIN);
   });
   if(d){
     ctx.beginPath(); ctx.moveTo(d.ox, d.oy); ctx.lineTo(d.x, d.y);

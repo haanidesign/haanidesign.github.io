@@ -785,14 +785,18 @@ cv.addEventListener('pointerdown', e => {
     const made = (S.createFor && forSlot && S.createFor.slot === forSlot.id) ? S.createFor.ids : null;
     const cands = forSlot ? (made || []).map(boneById).filter(Boolean) : S.proj.bones;
     let ox = w.x, oy = w.y, parent = null;
-    const R = 34 / S.view.z;
-    let bd = R;
+    /* 吸いつく 範囲は 画面の ドットで きめる（指でも とどく ように）。
+       えらんで いる 骨の 先は 60px、ほかの 骨の 先は 30px */
+    const dpr = cv.width / (cv.getBoundingClientRect().width || cv.width);
+    const R = 30 * dpr / S.view.z, RS = 60 * dpr / S.view.z;
+    let bd = Infinity;
     const selB = boneById(S.sel.bone);
     cands.forEach(b => {
       const p = sp[b.id]; if(!p) return;
       const t = M.apply(p.world, b.len, 0);
-      const d = Math.hypot(t.x - w.x, t.y - w.y) - (b === selB ? R * 0.5 : 0);
-      if(d < bd){ bd = d; ox = t.x; oy = t.y; parent = b.id; }
+      const d = Math.hypot(t.x - w.x, t.y - w.y), lim = b === selB ? RS : R;
+      const score = d / lim;               // 範囲に たいして どれだけ 近いか
+      if(d <= lim && score < bd){ bd = score; ox = t.x; oy = t.y; parent = b.id; }
     });
     const snapped = !!parent;
     if(!parent){
