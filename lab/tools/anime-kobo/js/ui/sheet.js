@@ -1,50 +1,50 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=328';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=329';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=328';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=328';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=329';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=329';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=328';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=329';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=328';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=328';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=328';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=328';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=328';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=328';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=328';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=328';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=329';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=329';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=329';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=329';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=329';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=329';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=329';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=329';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=328';
+         addTextLayer } from '../io/text.js?v=329';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=328';
-import { PATTERN_NAMES } from '../io/pattern.js?v=328';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=329';
+import { PATTERN_NAMES } from '../io/pattern.js?v=329';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=328';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=328';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=328';
+         PITCH_MAX } from '../engine/pano.js?v=329';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=329';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=329';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=328';
-import { readAsDataURL, loadImage } from '../io/image.js?v=328';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=329';
+import { readAsDataURL, loadImage } from '../io/image.js?v=329';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=328';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=328';
-import { newHand } from '../engine/hand.js?v=328';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=328';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=329';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=329';
+import { newHand } from '../engine/hand.js?v=329';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=329';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=328';
+  from './colorwheel.js?v=329';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=328';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=329';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=328';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=329';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2083,9 +2083,16 @@ export function buildSabunSheet(box){
     apply();
   };
   const o = { };
-  ['step','pop','tilt','jump','drift','glitch','gkind','bg'].forEach(k => {
+  ['step','pop','tilt','jump','drift','glitch','gkind','bg','restart'].forEach(k => {
     Object.defineProperty(o, k, { get: () => get(k), set: (v) => put(k, v) });
   });
+  {
+    const on = o.restart !== false;
+    box.appendChild(btnRow(button((on ? '✅' : '⬜') + ' 差分ごとに 動きを 頭から', () => {
+      edit('頭から 動かす', () => { o.restart = !on; });
+      onChange();
+    })));
+  }
   box.appendChild(slider('1まいの 長さ', () => o.step, v => { o.step = v; },
     0.1, 2, 0.05, v => v.toFixed(2) + '秒'));
   box.appendChild(slider('はずみ', () => o.pop, v => { o.pop = v; },

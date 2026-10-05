@@ -8,12 +8,12 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=328';
-import { newFolder, setParent } from '../engine/layer.js?v=328';
-import { setPin } from '../engine/anim.js?v=328';
+import { S } from '../state.js?v=329';
+import { newFolder, setParent } from '../engine/layer.js?v=329';
+import { setPin } from '../engine/anim.js?v=329';
 
 export function newSabun(){
-  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ' };
+  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ', restart: true };
 }
 
 const byIdOf = (p) => { const m = {}; p.layers.forEach(l => m[l.id] = l); return m; };
@@ -54,6 +54,22 @@ function wrapUnits(project, root){
     setParent(project, u, w.id, 0);
     return w;
   });
+}
+
+/** 中身の 動きの「頭」。いちばん はやい キーフレーム か ループの はじまり */
+function startOf(project, w){
+  let best = Infinity;
+  const walk = (id) => project.layers.forEach(l => {
+    if(l.parent !== id) return;
+    if(l.loop && isFinite(l.loop.from)) best = Math.min(best, l.loop.from);
+    for(const k of Object.keys(l.tracks || {})){
+      const ks = l.tracks[k];
+      if(ks && ks.length) best = Math.min(best, ks[0].t);
+    }
+    walk(l.id);
+  });
+  walk(w.id);
+  return isFinite(best) ? Math.max(0, best) : 0;
 }
 
 /** キーを 打ち直す（つまみを 変えた ときも これ）
@@ -131,6 +147,8 @@ export function applySabun(project, root){
       setPin(u, 'y', ts, y, 'hold');
     }
     u.loop = { from: 0, to: len, mode: 'loop' };
+    /* 中身の 動きを、この 差分が 出た ところから 頭で 動かす */
+    u.kidTime = c.restart === false ? null : { t0, len, from: startOf(project, u) };
   });
 
   /* うしろの まる（⭕ まるの 背景）も いっしょに ふくらませる */
@@ -194,7 +212,7 @@ export function sabunFolder(project, f){
 export function unSabun(project, f){
   project.layers.filter(l => l.parent === f.id).forEach(u => {
     if(u.tracks) SABUN_CH.forEach(c => delete u.tracks[c]);
-    if(u.sabunWrap) u.loop = null;
+    if(u.sabunWrap){ u.loop = null; u.kidTime = null; }
   });
   const disc = project.layers.find(l => l.disc);
   if(disc && disc.tracks){ delete disc.tracks.scaleX; delete disc.tracks.scaleY; disc.loop = null; }

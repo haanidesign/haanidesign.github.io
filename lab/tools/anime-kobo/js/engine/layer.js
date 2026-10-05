@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=328';
-import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=328';
+import { M, uid, ptInQuad } from './math.js?v=329';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=329';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=328';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=328';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=328';
-import { handTime } from './hand.js?v=328';
-import { WORK_KEYS } from '../state.js?v=328';
+         withShake } from './camera.js?v=329';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=329';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=329';
+import { handTime } from './hand.js?v=329';
+import { WORK_KEYS } from '../state.js?v=329';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -205,7 +205,15 @@ export function computeAll(project, time){
     if(tMemo[l.id] !== undefined) return tMemo[l.id];
     tMemo[l.id] = time;                       // ぐるぐる よけ
     const f = nearestFolder(project, l);
-    return tMemo[l.id] = f ? srcTime(f) : time;
+    let b = f ? srcTime(f) : time;
+    /* 🔁 差分つなぎ … その 差分が 出た ときに、中身を 頭から 動かす */
+    if(f && f.kidTime){
+      const k = f.kidTime;
+      const len = k.len > 0 ? k.len : 0;
+      const m = len ? ((b % len) + len) % len : b;
+      b = Math.max(0, m - k.t0) + (k.from || 0);
+    }
+    return tMemo[l.id] = b;
   };
   const srcTime = (l) => remapTime(l, baseTime(l));
 
