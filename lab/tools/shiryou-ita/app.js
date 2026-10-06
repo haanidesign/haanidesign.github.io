@@ -69,21 +69,23 @@ async function loadAsset(key, blob) {
   return r;
 }
 async function addBlobs(blobs, at) {
-  blobs = blobs.filter(b => b && b.type.startsWith('image/'));
+  // Android の ファイル選びでは 種類が 空の ことが ある ので、空でも 読んで みる
+  blobs = blobs.filter(b => b && (!b.type || b.type.startsWith('image/')));
   if (!blobs.length) return;
   const before = snap();
   const c = at || toBoard(app.clientWidth / 2, app.clientHeight / 2);
-  let i = 0;
+  let i = 0, bad = 0;
   for (const blob of blobs) {
     const key = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     let r;
-    try { r = await loadAsset(key, blob); } catch { toast('よめない 画像が ありました'); continue; }
+    try { r = await loadAsset(key, blob); } catch { bad++; continue; }
     await idb('a', 'readwrite', s => s.put(blob, key)).catch(() => {});
     const fit = Math.min(1, (app.clientWidth * .45) / S.view.z / r.w, (app.clientHeight * .45) / S.view.z / r.h);
     const it = { id: seq++, key, w: r.w, h: r.h, x: c.x + i * 30, y: c.y + i * 30, s: fit, r: -S.view.rot * S.view.f, cl: 0, ct: 0, cr: 0, cb: 0 };
     S.items.push(it); i++;
     sel = it.id;
   }
+  if (bad) toast(`${bad}まい よめません でした`);
   pushUndo(before);
   render(); autosave();
 }
