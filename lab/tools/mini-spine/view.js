@@ -127,3 +127,30 @@ function openFlip(){
   });
 }
 $('#btnFlip').onclick = openFlip;
+
+/* ---------- 絵を 消す（右パネルの 上に 🗑） ----------
+   消した 絵を、差分・表情・くっつけ・クリップ からも はずす */
+function deletePart(sl){
+  if(!confirm('「' + sl.name + '」を 消しますか？（↶ で もどせます）')) return;
+  edit('絵を 消す', () => {
+    const id = sl.id;
+    S.proj.slots = S.proj.slots.filter(s => s !== sl);
+    (S.proj.sets || []).forEach(st => { st.slots = st.slots.filter(x => x !== id); if(st.def === id) st.def = st.slots[0]; });
+    S.proj.sets = (S.proj.sets || []).filter(st => st.slots.length >= 2);
+    (S.proj.faces || []).forEach(f => { if(f.show) f.show = f.show.filter(x => x !== id); });
+    S.proj.pins = (S.proj.pins || []).filter(p => p.slot !== id && p.tslot !== id && !(p.tri && p.tri.s === id));
+    S.proj.slots.forEach(s => { if(s.clipTo === id) s.clipTo = null; });
+    for(const n in S.proj.anims){ const a = S.proj.anims[n]; if(a.warps) delete a.warps[id]; }
+    S.sel.slot = null; S.lockSlot = false;
+  });
+  refreshUI();
+  setStatus('「' + sl.name + '」を 消しました');
+}
+const _buildPropsD = buildProps;
+buildProps = function(){
+  _buildPropsD();
+  const sl = slotById(S.sel.slot); if(!sl) return;
+  const host = $('#props');
+  const row = btnRow(mkBtn('🗑 この 絵を 消す', () => deletePart(sl), 'btn btn-sm danger'));
+  host.insertBefore(row, host.firstChild);
+};
