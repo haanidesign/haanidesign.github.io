@@ -154,3 +154,67 @@ buildProps = function(){
   const row = btnRow(mkBtn('🗑 この 絵を 消す', () => deletePart(sl), 'btn btn-sm danger'));
   host.insertBefore(row, host.firstChild);
 };
+
+/* ---------- 絵を さしかえる ----------
+   おなじ 場所・おなじ 大きさに 新しい 画像を はめる。骨・動き・重み は そのまま。
+   いまの 絵の「画像の 点 → 画面の 点」を 頂点から もとめて、新しい 画像を その 四角に のせる。
+   網は 新しい 画像の 形で 作り直し、重みは いちばん 近い もとの 頂点から もらう。 */
+function fitPlace(verts){
+  // x = a·u + c·v + tx,  y = b·u + d·v + ty を 最小二乗で
+  let S00=0,S01=0,S02=0,S11=0,S12=0,S22=0, X0=0,X1=0,X2=0, Y0=0,Y1=0,Y2=0;
+  verts.forEach(p => { const u = p.u, v = p.v;
+    S00+=u*u; S01+=u*v; S02+=u; S11+=v*v; S12+=v; S22+=1;
+    X0+=u*p.x; X1+=v*p.x; X2+=p.x; Y0+=u*p.y; Y1+=v*p.y; Y2+=p.y; });
+  const A = [[S00,S01,S02],[S01,S11,S12],[S02,S12,S22]];
+  const solve = r => { const m = A.map((row, i) => row.concat([r[i]]));
+    for(let i = 0; i < 3; i++){ let p = i; for(let j = i + 1; j < 3; j++) if(Math.abs(m[j][i]) > Math.abs(m[p][i])) p = j;
+      [m[i], m[p]] = [m[p], m[i]]; const d = m[i][i] || 1e-9;
+      for(let j = 0; j < 3; j++) if(j !== i){ const f = m[j][i] / d; for(let k = i; k < 4; k++) m[j][k] -= f * m[i][k]; } }
+    return [m[0][3] / (m[0][0] || 1e-9), m[1][3] / (m[1][1] || 1e-9), m[2][3] / (m[2][2] || 1e-9)]; };
+  const [a, c, tx] = solve([X0, X1, X2]), [b, d, ty] = solve([Y0, Y1, Y2]);
+  return { a, b, c, d, tx, ty };
+}
+function replaceImage(sl, file){
+  const rd = new FileReader();
+  rd.onload = () => {
+    const src = rd.result, img = new Image();
+    img.onload = () => {
+      const old = S.proj.images[sl.image] || {};
+      const W1 = old.w || img.naturalWidth, H1 = old.h || img.naturalHeight;
+      const P = fitPlace(sl.verts);
+      // 新しい 画像を もとの 画像の 四角に ひきのばして のせる
+      const k = { a: W1 / img.naturalWidth, b: 0, c: 0, d: H1 / img.naturalHeight, tx: 0, ty: 0 };
+      const place = M.mul(P, k);
+      edit('「' + sl.name + '」を さしかえ', () => {
+        const id = uid('img');
+        S.proj.images[id] = { id, name: file.name, src, w: img.naturalWidth, h: img.naturalHeight };
+        S.imgs[id] = img;
+        const m = buildGridMesh(img, S.meshRes.cols, S.meshRes.rows, place);
+        const ov = sl.verts;
+        m.verts.forEach(v => {
+          let best = null, bd = 1e18;
+          ov.forEach(o => { const d = (o.x - v.x) ** 2 + (o.y - v.y) ** 2; if(d < bd){ bd = d; best = o; } });
+          v.w = best && best.w ? best.w.map(x => ({ b: x.b, w: x.w })) : [];
+        });
+        sl.image = id; sl.verts = m.verts; sl.tris = m.tris; sl.bound = false;
+        if(sl.shapes) delete sl.shapes;          // 閉じ目の 形は 網が かわるので 作り直し
+        if(typeof checkerTris === 'function') checkerTris(sl);
+        for(const n in S.proj.anims){ const a = S.proj.anims[n]; if(a.warps) delete a.warps[sl.id]; }
+        markDirty();
+      });
+      refreshUI();
+      setStatus('「' + sl.name + '」を さしかえました（骨・動きは そのまま）');
+    };
+    img.src = src;
+  };
+  rd.readAsDataURL(file);
+}
+const repIn = el('input'); repIn.type = 'file'; repIn.hidden = true; document.body.appendChild(repIn);
+repIn.onchange = () => { const f = repIn.files[0], sl = slotById(S.sel.slot); repIn.value = ''; if(f && sl) replaceImage(sl, f); };
+const _buildPropsR = buildProps;
+buildProps = function(){
+  _buildPropsR();
+  const sl = slotById(S.sel.slot); if(!sl) return;
+  const host = $('#props'), first = host.firstChild;
+  if(first) first.prepend(mkBtn('🔁 絵を さしかえ', () => repIn.click(), 'btn btn-sm'));
+};
