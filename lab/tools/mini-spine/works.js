@@ -115,7 +115,18 @@ async function openWorks(){
         if(w.id === S.docId){ S.docId = null; S.proj = newProject(); S.imgs = {}; refreshUI(); }
         openWorks();
       };
-      item.append(ob, db);
+      const cp = el('button', 'docdel', '📄'); cp.title = 'この 作品を 複製';
+      cp.onclick = async () => {
+        if(w.id === S.docId) await saveNow();
+        const rec = await getWork(w.id); if(!rec) return;
+        const id = newDocId(), name = (rec.name || 'むだい') + ' の コピー';
+        let json = rec.json;
+        try{ const o = JSON.parse(json); o.name = name; json = JSON.stringify(o); }catch(_){}
+        await saveDb('readwrite', st => st.put(Object.assign({}, rec, { id, at: Date.now(), name, json }), 'w:' + id));
+        openWorks();
+        setStatus('「' + name + '」を 作りました');
+      };
+      item.append(ob, cp, db);
       docs.appendChild(item);
     });
     card.appendChild(docs);
