@@ -292,3 +292,55 @@ openFaces = function(){
   g.after(btnRow(mkBtn('⏱ 時間で 切りかえ（何秒ごと）', openFaceTimer, 'btn')));
 };
 $('#btnFaces').onclick = () => openFaces();
+
+/* ================= 顔は のばさない =================
+   体の「ふくらむ・つぶれる」（squash）は 子の 骨にも うつるので、
+   頭まで 縦長・横長に なって いた。頭の 骨（と その 先の 目・口・髪）は、
+   動きや 向きは そのまま、形だけ セットアップの ときの 形に もどす。 */
+const keepFaceOn = () => { try{ return localStorage.getItem('ms-keep-face') !== 'off'; }catch(_){ return true; } };
+let _headCache = { sig: '', ids: [] };
+function headIds(){
+  const sig = S.proj.bones.map(b => b.id + b.name + b.parent).join('|');
+  if(sig === _headCache.sig) return _headCache.ids;
+  const all = S.proj.bones.filter(b => b.parent && RX.head.test(b.name) && !RX.hair.test(b.name));
+  const set = new Set(all.map(b => b.id));
+  const ids = all.filter(b => { let p = boneById(b.parent); while(p){ if(set.has(p.id)) return false; p = boneById(p.parent); } return true; }).map(b => b.id);
+  _headCache = { sig, ids };
+  return ids;
+}
+function keepFaceShape(proj, pose){
+  if(proj !== S.proj || !keepFaceOn()) return;
+  const ids = headIds(); if(!ids.length) return;
+  const sp = setupPose(), kids = childMap(proj);
+  ids.forEach(id => {
+    const q = pose[id], s0 = sp[id]; if(!q || !s0) return;
+    const H = q.world, H0 = s0.world;
+    // いまの 向き（x軸の 角度）だけ もらって、形は セットアップの まま
+    const th = Math.atan2(H.b, H.a) - Math.atan2(H0.b, H0.a);
+    const c = Math.cos(th), s = Math.sin(th);
+    const L = { a: c * H0.a - s * H0.b, b: s * H0.a + c * H0.b, c: c * H0.c - s * H0.d, d: s * H0.c + c * H0.d };
+    if(Math.abs(L.a - H.a) + Math.abs(L.b - H.b) + Math.abs(L.c - H.c) + Math.abs(L.d - H.d) < 1e-4) return;
+    const Hn = { a: L.a, b: L.b, c: L.c, d: L.d, tx: H.tx, ty: H.ty };
+    const D = M.mul(Hn, M.inv(H));
+    const st = [id];
+    while(st.length){
+      const k = st.pop(), p = pose[k];
+      if(p) p.world = M.mul(D, p.world);
+      (kids[k] || []).forEach(x => st.push(x));
+    }
+  });
+}
+const _applyIKsK = applyIKs;
+applyIKs = function(proj, pose){ _applyIKsK(proj, pose); keepFaceShape(proj, pose); };
+
+// よくある動き に 切りかえ
+const _openMotionsK = openMotions;
+openMotions = function(){
+  _openMotionsK();
+  const g = document.querySelector('.sh-grid'); if(!g) return;
+  const on = keepFaceOn();
+  g.before(btnRow(
+    mkBtn('🙂 顔は のばさない', () => { try{ localStorage.setItem('ms-keep-face', 'on'); }catch(_){} openMotions(); }, 'btn btn-sm' + (on ? ' btn-y' : '')),
+    mkBtn('顔も いっしょに のびる', () => { try{ localStorage.setItem('ms-keep-face', 'off'); }catch(_){} openMotions(); }, 'btn btn-sm' + (on ? '' : ' btn-y'))));
+};
+$('#btnPreset').onclick = () => openMotions();
