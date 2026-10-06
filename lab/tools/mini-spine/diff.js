@@ -27,12 +27,14 @@ const PAINT_AT = { a: null, t: null };
 paintParts = function(g, pose, sp, k, a, t){
   PAINT_AT.a = a || null; PAINT_AT.t = (t === undefined) ? null : t;
   const sets = SETS();
-  if(!sets.length) return _paintParts0(g, pose, sp, k);
+  const hasFace = typeof faceVis === 'function' && S.proj.faces && S.proj.faces.length;
+  if(!sets.length && !hasFace) return _paintParts0(g, pose, sp, k);
   const keepVis = new Map();
   sets.forEach(st => {
     const on = activeOpt(st, a, t);
     st.slots.forEach(id => { const sl = slotById(id); if(!sl) return; keepVis.set(sl, sl.visible); sl.visible = id === on; });
   });
+  if(hasFace) faceVis(a, t, keepVis);   // 表情（face.js）は 差分の あとで 上がき
   try{ _paintParts0(g, pose, sp, k); }
   finally{ keepVis.forEach((v, sl) => { sl.visible = v; }); }
 };
@@ -171,7 +173,7 @@ function openMakeSet(sl){
     S.proj.slots.slice().reverse().forEach(o => {
       if(o === sl || setOf(o.id) || !o.verts.length) return;
       const r = el('label', 'att-row'); const c = el('input'); c.type = 'checkbox';
-      const near = ov(o) > 0.35; c.checked = near;
+      const near = sameSpot(sl, o); c.checked = near;   // 顔の 中の 口などで 顔・体まで チェックが 入らない ように
       r.append(c, el('span', 'att-n', '🖼 ' + o.name), el('small', null, near ? 'おなじ 場所' : ''));
       list.appendChild(r); rows.push({ c, o, near });
     });
