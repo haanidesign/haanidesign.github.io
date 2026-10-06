@@ -12,7 +12,7 @@ function setFlip(on){
   setStatus(on ? '左右 反転して 見ています（絵は 変わりません）' : '反転を もどしました');
 }
 (() => {
-  const b = el('button', 'btn btn-sm', '↔ 反転'); b.id = 'btnFlip';
+  const b = el('button', 'btn btn-sm', '↔ 反転・表示'); b.id = 'btnFlip';
   b.title = '画面を 左右 反対に して バランスを 見る';
   b.onclick = () => setFlip(!S.flip);
   const p = $('#btnFaces') || $('#btnPreset'); if(p) p.after(b);
@@ -115,7 +115,7 @@ function flipPart(sl){
   setStatus('「' + sl.name + '」を 左右 反転しました');
 }
 function openFlip(){
-  sheet.show('↔ 反転', body => {
+  sheet.show('↔ 反転・表示', body => {
     const sl = slotById(S.sel.slot);
     const g = el('div', 'sh-grid wide');
     const big = (icon, ttl, note, fn) => { const b = mkBtn('', () => { sheet.hide(); fn(); }, 'mv wide'); b.append(el('i', null, icon), el('span', null, ttl), el('small', null, note)); g.appendChild(b); };
@@ -251,3 +251,23 @@ buildProps = function(){
   const host = $('#props'), first = host.firstChild;
   if(first) first.prepend(mkBtn('🔁 絵を さしかえ', () => repIn.click(), 'btn btn-sm'));
 };
+
+/* ---------- 画面の 紐づけ線 ----------
+   えらんだ 絵と 骨を むすぶ 線・「⛓ 〇〇 に ついている」の 札 は、はじめは 出さない（見づらい）。
+   えらんだ 絵の わくと 名前は 出す。つながりは 🗺 つながり図 で 見られる */
+const linksOn = () => { try{ return localStorage.getItem('ms-links') === 'on'; }catch(_){ return false; } };
+const _linkLineV = linkLine;
+linkLine = function(a, b, z, col){ if(linksOn()) _linkLineV(a, b, z, col); };
+const _drawParentLinksV = drawParentLinks;
+drawParentLinks = function(){ if(linksOn() || S.sel.slot) _drawParentLinksV(); };
+const _openFlipL = openFlip;
+openFlip = function(){
+  _openFlipL();
+  const g = document.querySelector('.sh-grid.wide'); if(!g) return;
+  const on = linksOn();
+  g.after(btnRow(mkBtn(on ? '⛓ 紐づけ線を けす' : '⛓ 紐づけ線を 出す', () => {
+    try{ localStorage.setItem('ms-links', on ? 'off' : 'on'); }catch(_){}
+    sheet.hide(); try{ render(); }catch(_){}
+  }, 'btn btn-sm')));
+};
+$('#btnFlip').onclick = () => openFlip();
