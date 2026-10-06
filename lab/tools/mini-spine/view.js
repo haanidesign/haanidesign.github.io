@@ -51,3 +51,12 @@ function lockChip(){
 }
 const _refreshUIL = refreshUI;
 refreshUI = function(){ _refreshUIL(); lockChip(); };
+
+/* 固定中に 骨を さわる（アニメートなど）ときは、その レイヤーに ついた 骨だけ */
+const _pickBoneL = pickBone;
+pickBone = function(w){
+  const hit = _pickBoneL(w);
+  const sl = S.lockSlot && !S.tapRig && slotById(S.sel.slot);
+  if(!sl || !hit) return hit;
+  return slotBones(sl).ids.includes(hit.id) ? hit : null;
+};

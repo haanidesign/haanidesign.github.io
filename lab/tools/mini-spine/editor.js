@@ -822,6 +822,16 @@ cv.addEventListener('pointerdown', e => {
     }
   }
 
+  /* レイヤー固定中（左の 一覧で えらんだ とき。view.js）の セットアップの 移動・回転・拡大は、
+     どこを さわっても その レイヤーだけを 動かす。上に 重なった 絵や 骨には さわらない */
+  const lk = S.lockSlot && slotById(S.sel.slot);
+  if(lk && S.mode === 'setup' && isTransformTool(S.tool)){
+    const op = S.tool === 'pose' ? 'translate' : S.tool;
+    beginEdit('パーツを' + ({translate:'移動',rotate:'回転',scale:'スケール',shear:'シアー'})[op]);
+    S.drag = { type:'slot', op, slot:lk, w0:w, verts:lk.verts.map(v => ({x:v.x, y:v.y})) };
+    return;
+  }
+
   // クリックで選択（どのツールでも。本物どおり選択専用ツールは無い）
   const hb = pickBone(w);
   if(hb){
