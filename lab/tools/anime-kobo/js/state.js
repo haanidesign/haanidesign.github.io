@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=338';
+import { uid } from './engine/math.js?v=339';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -103,7 +103,18 @@ export function plain(obj){
 }
 
 const SKIP = WORK_KEYS;
-const snap = () => JSON.stringify(S.proj, (k, v) => SKIP.has(k) ? undefined : v);
+/* もどす ための 写しには、絵の 中身（assets の data URL）を 入れない。
+   名前（id）だけ 書いて、中身は ここに とっておいた ものを 指す。
+   入れて いた ころは、コマの 多い 作品（動画・ミニSpine）で
+   つまみを 動かす たびに 何十MB も 写して、すぐ メモリが つきて 落ちて いた。
+   絵は 足す だけで 中身を 書きかえない ので、指す だけで よい。 */
+const POOL = {};
+const snap = () => {
+  const a = S.proj.assets || {};
+  for(const id in a) POOL[id] = a[id];
+  return JSON.stringify(S.proj, (k, v) =>
+    SKIP.has(k) ? undefined : (k === 'assets' && v === a ? Object.keys(a) : v));
+};
 
 /** 変更の直前に呼ぶ。ドラッグ中は最初の1回だけ効く */
 export function beginEdit(label){
@@ -139,7 +150,13 @@ let restoreHook = null;
 export function onRestore(fn){ restoreHook = fn; }
 
 function restore(json){
-  S.proj = JSON.parse(json);
+  const p = JSON.parse(json);
+  if(Array.isArray(p.assets)){
+    const o = {};
+    p.assets.forEach(id => { if(POOL[id]) o[id] = POOL[id]; });
+    p.assets = o;
+  }
+  S.proj = p;
   if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
   S.pick = S.pick.filter(id => S.proj.layers.some(l => l.id === id));
   if(S.selPins.layer && !S.proj.layers.some(l => l.id === S.selPins.layer)) S.selPins = { layer:null, times:[] };
@@ -184,6 +201,7 @@ export function redo(){
    いまの さくひんが 前の さくひんの 中みに 入れかわって しまう。
    （じっさいに 起きた） */
 export function resetUndo(){
+  for(const k in POOL) delete POOL[k];       // 前の さくひんの 絵は もう 指さない
   UNDO.stack.length = 0;
   UNDO.idx = -1;
   UNDO.pending = null;
