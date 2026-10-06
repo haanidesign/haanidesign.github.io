@@ -60,3 +60,16 @@ pickBone = function(w){
   if(!sl || !hit) return hit;
   return slotBones(sl).ids.includes(hit.id) ? hit : null;
 };
+
+/* ---------- 揺れ物理の ON/OFF を 作品に しまう ----------
+   まえは 画面だけの 切りかえで、ひらき直すと OFF に もどって いた。
+   S.spring を 作品（S.proj.spring）に つなぐ。まえの 作品は、揺れる 骨が あれば ON */
+Object.defineProperty(S, 'spring', {
+  configurable: true,
+  get(){
+    const p = S.proj; if(!p) return false;
+    if(p.spring === undefined) return (p.bones || []).some(b => b.spring);
+    return !!p.spring;
+  },
+  set(v){ if(S.proj){ S.proj.spring = !!v; if(typeof saveSoon === 'function') saveSoon(); } }
+});
