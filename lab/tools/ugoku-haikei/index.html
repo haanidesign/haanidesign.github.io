@@ -599,12 +599,18 @@ function editPanel() {
 /* ---------- 画像生成 ---------- */
 const genUse = $('#genUse');
 $('#genNote').textContent = '手元の かんたん画像生成(:8200) を 使う';
+// PC で 開けば 127.0.0.1:8200。タブレットなどで ランチャーの 中継(ポート+10000)から 開いた ときは 同じ PC の :18200
+function genBase() {
+  const h = location.hostname;
+  if (h === '127.0.0.1' || h === 'localhost' || h === '[::1]') return 'http://127.0.0.1:8200';
+  return `http://${h}:${+location.port >= 10000 ? 18200 : 8200}`;
+}
 async function generate(prompt, use) {
   const sprite = use === 'sprite';
   const full = sprite
     ? `${prompt}, single object, centered, isolated on plain white background, sticker, cute illustration, no text`
     : `${prompt}, background art, no people, no text, soft light, high detail`;
-  const base = 'http://127.0.0.1:8200';
+  const base = genBase();
   const r = await fetch(base + '/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: full, negative: 'text, watermark, person' + (sprite ? ', background scenery' : ''), denoise: 1 }) });
   const j = await r.json(); if (j.error) throw new Error(j.error);
@@ -629,7 +635,7 @@ $('#genGo').onclick = async () => {
     console.error('[うごく背景] 生成', e);
     const m = String(e && e.message || e);
     st.textContent = /Failed to fetch|NetworkError|Load failed/i.test(m)
-      ? `かんたん画像生成(:8200) に つながりません（${location.origin} から）。起動して いるなら、Chrome の アドレスバー左の 鍵マーク → 「ローカル ネットワーク」を 許可して ください。`
+      ? `かんたん画像生成 に つながりません（${genBase()}）。PC で かんたん画像生成 を 起動して ください。`
       : '作れませんでした: ' + m;
   } finally { btn.disabled = false; }
 };
@@ -677,7 +683,15 @@ async function recordFallback(st, reps) {
   }
   await new Promise(r => setTimeout(r, 150)); rec.stop(); await done;
   let blob = new Blob(chunks, { type });
-  if (type.includes('webm')) blob = await fixWebmDuration(blob, S.loop * reps * 1000);
+  if (type.includes('webm')) {
+    // PC の かんたん画像生成 が 動いて いれば、そこで MP4 に して もらう
+    try {
+      st.textContent = 'PC で MP4 に しています…';
+      const r = await fetch(genBase() + '/to-mp4', { method: 'POST', body: blob });
+      if (r.ok) return { blob: await r.blob(), ext: 'mp4' };
+    } catch (_) {}
+    blob = await fixWebmDuration(blob, S.loop * reps * 1000);
+  }
   return { blob, ext: type.includes('mp4') ? 'mp4' : 'webm' };
 }
 // webm の Duration を 書きこむ（録画だと 入らない）
@@ -706,7 +720,7 @@ $('#recGo').onclick = async () => {
   console.log('[うごく背景] 書き出し設定', cfg, whyNoMp4);
   if (!cfg) {
     $('#recGo').disabled = true; st.className = 'status';
-    try { const r = await recordFallback(st, +$('#reps').value); save(r.blob, 'ugoku-haikei.' + r.ext); st.textContent = `保存しました（${r.ext.toUpperCase()}・${S.loop * +$('#reps').value}秒）MP4に できなかった 理由: ${whyNoMp4}`; }
+    try { const r = await recordFallback(st, +$('#reps').value); save(r.blob, 'ugoku-haikei.' + r.ext); st.textContent = `保存しました（${r.ext.toUpperCase()}・${S.loop * +$('#reps').value}秒）${r.ext === 'webm' ? 'MP4に できなかった 理由: ' + whyNoMp4 + '（PC で かんたん画像生成 を 起動すると MP4 に なる）' : ''}`; }
     catch (e) { st.className = 'status err'; st.textContent = '書き出せませんでした: ' + (e.message || e); }
     finally { $('#recGo').disabled = false; }
     return;
