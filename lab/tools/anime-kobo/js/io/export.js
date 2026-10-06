@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=335';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=335';
-import { isTalk, blipTimes } from '../engine/talk.js?v=335';
-import { encodeGif } from './gif.js?v=335';
+import { createRenderer } from '../render/renderer.js?v=336';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=336';
+import { isTalk, blipTimes } from '../engine/talk.js?v=336';
+import { encodeGif } from './gif.js?v=336';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -434,4 +434,33 @@ function firmUp(im){
       if(solid >= 2) d[i * 4 + 3] = 255;
     }
   }
+}
+
+/* ---------- すける アニメPNG（動画工房へ 送る 用） ----------
+   色も すけぐあいも そのまま。1コマずつ 焼く ので 実時間は かからない。 */
+export async function exportApng(project, opt = {}){
+  const { makeApng } = await import('./apng.js?v=336');
+  const fps = Math.max(4, Math.min(30, opt.fps || 15));
+  const long = Math.max(project.w, project.h);
+  const scale = Math.min(1, (opt.maxSide || 1080) / long);
+  const width = Math.max(2, Math.round(project.w * scale));
+  const height = Math.max(2, Math.round(project.h * scale));
+  const seconds = Math.min(project.duration, opt.seconds || project.duration);
+  const total = Math.max(1, Math.round(seconds * fps));
+  const big = document.createElement('canvas');
+  big.width = Math.max(2, project.w);
+  big.height = Math.max(2, project.h);
+  const R = createRenderer(big);
+  const cv = document.createElement('canvas');
+  cv.width = width; cv.height = height;
+  const g = cv.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  const view = { x: 0, y: 0, z: 1 };
+  const r = await makeApng(total, fps, (i) => {
+    R.draw(project, null, i / fps, view, { forExport: true, noBg: true });
+    g.clearRect(0, 0, width, height);
+    g.drawImage(big, 0, 0, width, height);
+    return cv;
+  }, opt.onProgress, opt.shouldStop);
+  return { blob: r.blob, ext: 'png', w: width, h: height, how: 'アニメPNG' };
 }

@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=335';
+import { M } from './engine/math.js?v=336';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=335';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=336';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=335';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=335';
-import { createRenderer } from './render/renderer.js?v=335';
-import { createTimeline } from './ui/timeline.js?v=335';
-import { fmtTime, setPin } from './engine/anim.js?v=335';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=335';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=336';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=336';
+import { createRenderer } from './render/renderer.js?v=336';
+import { createTimeline } from './ui/timeline.js?v=336';
+import { fmtTime, setPin } from './engine/anim.js?v=336';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=336';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,28 +21,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=335';
+         setWarper } from './ui/sheet.js?v=336';
 
-import { showNewDoc } from './ui/newdoc.js?v=335';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=335';
-import { fitToCanvas, isBg } from './io/bg.js?v=335';
-import * as Audio from './io/audio.js?v=335';
-import { isTalk, blipTimes } from './engine/talk.js?v=335';
+import { showNewDoc } from './ui/newdoc.js?v=336';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=336';
+import { fitToCanvas, isBg } from './io/bg.js?v=336';
+import * as Audio from './io/audio.js?v=336';
+import { isTalk, blipTimes } from './engine/talk.js?v=336';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=335';
-import { importPsd } from './io/psd.js?v=335';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff } from './io/handoff.js?v=335';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=335';
-import { makeSabun } from './io/sabun.js?v=335';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=335';
-import { splitTextChars } from './io/text.js?v=335';
-import { exportAE } from './io/ae.js?v=335';
-import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=335';
-import { pathKeys, pathLength } from './engine/path.js?v=335';
-import { paintDirty } from './engine/paint.js?v=335';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=336';
+import { importPsd } from './io/psd.js?v=336';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=336';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=336';
+import { makeSabun } from './io/sabun.js?v=336';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=336';
+import { splitTextChars } from './io/text.js?v=336';
+import { exportAE } from './io/ae.js?v=336';
+import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
+         canUseWebCodecs } from './io/export.js?v=336';
+import { pathKeys, pathLength } from './engine/path.js?v=336';
+import { paintDirty } from './engine/paint.js?v=336';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=335';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=336';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1488,7 +1488,11 @@ async function runExport(kind){
   S.proj.quality = 'fine';
   S.dragging = false;
   box.classList.add('on');
-  title.textContent = kind === 'webm'
+  title.textContent = kind === 'douga'
+    ? '動画工房へ 送る 動画を つくっています'
+    : kind === 'douga-alpha'
+    ? '動画工房へ 送る アニメPNGを つくっています'
+    : kind === 'webm'
     ? 'すける WebMを 録っています（実時間）'
     : kind === 'gif'
     ? 'すける GIFを つくっています'
@@ -1505,6 +1509,20 @@ async function runExport(kind){
 
   try{
     const g = S.proj.gif || {};
+    if(kind === 'douga' || kind === 'douga-alpha'){
+      const r = kind === 'douga'
+        ? await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport })
+        : await exportApng(S.proj, { fps: 15, maxSide: 1080, onProgress, shouldStop: () => cancelExport });
+      title.textContent = '動画工房を ひらいています…';
+      try{ await saver.now(); }catch(_){}
+      const base = (S.proj.name || 'anime');
+      await sendToDouga({
+        name: 'アニメ工房・' + base,
+        w: r.w || S.proj.w, h: r.h || S.proj.h,
+        blob: r.blob, fileName: base + '.' + r.ext
+      });
+      return;
+    }
     const r = kind === 'ae'
       ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
       : kind === 'webm'

@@ -6,10 +6,10 @@
    ひらき おわったら doneHandoff() で 置き場と ?from= を 消す
    （とちゅうで 読みなおしに なっても、もう いちど 受けとれる ように）。 */
 
-import { newProject } from '../state.js?v=335';
-import { newLayer } from '../engine/layer.js?v=335';
-import { spreadFrames } from '../engine/anim.js?v=335';
-import { uid } from '../engine/math.js?v=335';
+import { newProject } from '../state.js?v=336';
+import { newLayer } from '../engine/layer.js?v=336';
+import { spreadFrames } from '../engine/anim.js?v=336';
+import { uid } from '../engine/math.js?v=336';
 
 const DB = 'haani-handoff';
 
@@ -86,4 +86,20 @@ export async function takeHandoff(){
 export function doneHandoff(){
   history.replaceState(history.state, '', location.pathname);
   return shelf('mini-spine', true).catch(() => {});
+}
+
+/** 動画工房へ わたす。置いてから 動画工房を ひらく */
+export async function sendToDouga(box){
+  await new Promise((ok, ng) => {
+    const r = indexedDB.open(DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('box');
+    r.onerror = () => ng(r.error);
+    r.onsuccess = () => {
+      const db = r.result, tx = db.transaction('box', 'readwrite');
+      tx.objectStore('box').put(Object.assign({ at: Date.now() }, box), 'anime-kobo-video');
+      tx.oncomplete = () => { db.close(); ok(); };
+      tx.onerror = () => { db.close(); ng(tx.error); };
+    };
+  });
+  location.href = '../douga-kobo/?from=anime-kobo';
 }
