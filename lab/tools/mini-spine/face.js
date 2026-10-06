@@ -300,9 +300,10 @@ $('#btnFaces').onclick = () => openFaces();
 const keepFaceOn = () => { try{ return localStorage.getItem('ms-keep-face') !== 'off'; }catch(_){ return true; } };
 let _headCache = { sig: '', ids: [] };
 function headIds(){
-  const sig = S.proj.bones.map(b => b.id + b.name + b.parent).join('|');
+  const sig = S.proj.bones.map(b => b.id + b.name + b.parent + b.keepShape).join('|');
   if(sig === _headCache.sig) return _headCache.ids;
-  const all = S.proj.bones.filter(b => b.parent && RX.head.test(b.name) && !RX.hair.test(b.name));
+  // 頭（名前で 見つける）と、「のばさない」に した 骨。keepShape === false は のばして よい
+  const all = S.proj.bones.filter(b => b.parent && b.keepShape !== false && (b.keepShape || (RX.head.test(b.name) && !RX.hair.test(b.name))));
   const set = new Set(all.map(b => b.id));
   const ids = all.filter(b => { let p = boneById(b.parent); while(p){ if(set.has(p.id)) return false; p = boneById(p.parent); } return true; }).map(b => b.id);
   _headCache = { sig, ids };
@@ -344,3 +345,25 @@ openMotions = function(){
     mkBtn('顔も いっしょに のびる', () => { try{ localStorage.setItem('ms-keep-face', 'off'); }catch(_){} openMotions(); }, 'btn btn-sm' + (on ? '' : ' btn-y'))));
 };
 $('#btnPreset').onclick = () => openMotions();
+
+
+/* ---------- 右パネル：えらんだ 絵・骨を「のばさない」 ---------- */
+function keepTargets(){
+  const sl = slotById(S.sel.slot);
+  if(sl) return partBones(sl);
+  const b = boneById(S.sel.bone); return b && b.parent ? [b] : [];
+}
+const isKept = b => { const ids = headIds(); let c = b; while(c){ if(ids.includes(c.id)) return true; c = boneById(c.parent); } return false; };
+const _buildPropsK = buildProps;
+buildProps = function(){
+  _buildPropsK();
+  const list = keepTargets(); if(!list.length) return;
+  const on = list.every(isKept);
+  const box = el('div', 'diff-box');
+  box.appendChild(btnRow(mkBtn(on ? '🙂 のばさない（ON）' : '↕ 動きで のびる（のばさない に する）', () => {
+    edit(on ? 'のばして よい' : 'のばさない', () => list.forEach(b => { b.keepShape = !on; }));
+    refreshUI();
+    setStatus(on ? '動きで のびる ように しました' : '動きを つけても 形が かわらない ように しました（向き・位置は 動く）');
+  }, 'btn btn-sm' + (on ? ' btn-y' : ''))));
+  const host = $('#props'); host.insertBefore(box, host.firstChild.nextSibling);
+};
