@@ -6,6 +6,8 @@ const $ = id => app.querySelector('#' + id);
 const stage = $('stage'), board = $('board');
 const body = () => app.ownerDocument.body;
 const cls = (c, on) => body().classList.toggle(c, on);
+// Android の アプリの 中で 動く とき（ほかの アプリの 上に うく 窓）
+const N = window.Native || null;
 
 /* ---------- 入れもの ---------- */
 const S = {
@@ -315,11 +317,11 @@ const act = {
   menu: () => cls('sheet', !body().classList.contains('sheet')),
   lock: () => { S.locked = !S.locked; if (S.locked) { cropping = false; } toast(S.locked ? 'ロック 中（2本指で 回せる）' : 'ロック とき'); render(); autosave(); },
   fit, flip, rot0,
-  mini: () => { cls('mini', true); pipSize(80, 80); },
+  mini: () => { if (N) return N.minimize(); cls('mini', true); pipSize(80, 80); },
   unmini: () => { cls('mini', false); pipSize(); },
-  ghost: () => cls('ghost', !body().classList.contains('ghost')),
+  ghost: () => { if (N) return N.ghost(S.ghost); cls('ghost', !body().classList.contains('ghost')); },
   pip: openPip,
-  desel: () => { sel = null; cropping = false; cls('sheet', false); render(); },
+  desel: () => { if (N) return N.close(); sel = null; cropping = false; cls('sheet', false); render(); },
   add: () => { cls('sheet', false); $('fImg').click(); },
   paste: pasteBtn,
   undo: () => doUndo(true), redo: () => doUndo(false),
@@ -382,6 +384,11 @@ function onPaste(e) {
 }
 async function pasteBtn() {
   cls('sheet', false);
+  if (N) {
+    const d = await new Promise(ok => { window.__clip = ok; N.clipImage(); });
+    if (d) addBlobs([await (await fetch(d)).blob()]); else toast('クリップボードに 画像が ありません');
+    return;
+  }
   try {
     const out = [];
     for (const c of await navigator.clipboard.read())
@@ -440,7 +447,12 @@ bindDoc(document);
 
 /* ---------- 保存 ---------- */
 function blobToData(b) { return new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); }); }
-function download(blob, name) {
+async function download(blob, name) {
+  if (N) {
+    const d = await blobToData(blob);
+    toast(N.saveFile(name, blob.type, d.slice(d.indexOf(',') + 1)) ? 'ダウンロード に 保存しました' : '保存 できません でした');
+    return;
+  }
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
@@ -580,4 +592,35 @@ function toast(s) {
   paintSet(); render(); cleanAssets();
 })();
 addEventListener('resize', render);
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if (N) {
+  body().classList.add('native');
+  // 上の 帯の すきまを つまんで 窓を 動かす。右下の つまみで 大きさを 変える
+  const dpr = devicePixelRatio;
+  let w = null;
+  const down = (e, kind) => {
+    if (kind === 'move' && e.target.closest('button')) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    w = { kind, x: e.clientX, y: e.clientY, mx: 0, my: 0 };
+    N.grab();
+  };
+  const move = e => {
+    if (!w) return;
+    if (w.kind === 'move') {
+      // 窓が 動くと 指の 位置も ずれる ので、動かした ぶんを 足す
+      const dx = e.clientX - w.x + w.mx, dy = e.clientY - w.y + w.my;
+      const nx = Math.round(dx), ny = Math.round(dy);
+      N.moveTo(nx * dpr, ny * dpr);
+      w.mx = nx; w.my = ny;
+    } else {
+      N.resizeTo((e.clientX - w.x) * dpr, (e.clientY - w.y) * dpr);
+    }
+  };
+  const end = () => { w = null; };
+  for (const [el, kind] of [[$('bar'), 'move'], [$('grip'), 'size']]) {
+    el.addEventListener('pointerdown', e => down(e, kind));
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
+} else if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
