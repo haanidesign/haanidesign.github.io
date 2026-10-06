@@ -745,10 +745,12 @@ function withCompensate(bone, fn){
 }
 
 /* ================= マウス ================= */
+/* 左右反転（見るだけ。S.flip）の ときは、画面の x を 鏡に うつして から つかう */
+function flipX(x){ if(!S.flip) return x; const r = cv.getBoundingClientRect(); return r.left + r.right - x; }
 function evPos(e){
   const r = cv.getBoundingClientRect();
   const dpr = cv.width / r.width;
-  return { sx:(e.clientX - r.left)*dpr, sy:(e.clientY - r.top)*dpr };
+  return { sx:(flipX(e.clientX) - r.left)*dpr, sy:(e.clientY - r.top)*dpr };
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -899,7 +901,7 @@ const _dist = () => { const a = [..._pts.values()]; return Math.hypot(a[0].x-a[1
 
 cv.addEventListener('pointerdown', e => {
   if(e.pointerType === 'mouse') return;
-  _pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  _pts.set(e.pointerId, { x:flipX(e.clientX), y:e.clientY });
   if(_pts.size === 2){
     S.drag = null;          // 1本目で始まりかけた編集は捨てる（誤爆防止）
     _pinch = null;          // 次の move で基準を取る
@@ -908,7 +910,7 @@ cv.addEventListener('pointerdown', e => {
 
 cv.addEventListener('pointermove', e => {
   if(!_pts.has(e.pointerId)) return;
-  _pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  _pts.set(e.pointerId, { x:flipX(e.clientX), y:e.clientY });
   if(_pts.size < 2) return;
   e.preventDefault();
 
