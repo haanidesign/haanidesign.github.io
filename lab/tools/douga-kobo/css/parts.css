@@ -291,3 +291,14 @@ button.val:active{ transform:translateY(1px); }
 .pcard .pnm{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
 .pcard.on{ outline:2px solid var(--main); outline-offset:1px; }
 .partgrid .psep{ grid-column:1 / -1; font-size:.6rem; color:var(--gray); padding:6px 2px 0; }
+
+/* 色の 欄: 色えらび ＋ カラーコード ＋ お気に入り */
+.colbox{ display:flex; flex-direction:column; gap:4px; flex:1; min-width:0; }
+.colrow{ display:flex; gap:4px; align-items:center; }
+.colrow input[type=color]{ flex:0 0 44px; height:32px; padding:0; }
+.colcode{ flex:1; min-width:0; height:32px; font-family:ui-monospace, monospace; font-size:.72rem; text-transform:lowercase; }
+.colcode.bad{ outline:2px solid #E5484D; }
+.colstar{ flex:0 0 32px; min-height:32px; padding:0; font-size:.9rem; }
+.colfavs{ display:flex; flex-wrap:wrap; gap:4px; }
+.colfav{ width:24px; height:24px; min-height:0; padding:0; border-radius:6px; border:1px solid rgba(0,0,0,.25); box-shadow:none; }
+.colfav.on{ outline:2px solid var(--main); outline-offset:1px; }

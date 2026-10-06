@@ -3,22 +3,22 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=80';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=80';
-import { storeOk } from '../store.js?v=80';
-import { bus } from '../bus.js?v=80';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=80';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=80';
+} from '../state.js?v=77';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=77';
+import { storeOk } from '../store.js?v=77';
+import { bus } from '../bus.js?v=77';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=77';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=77';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
   techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv,
-  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=80';
+  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=77';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=80';
+  offOf, setOff, clearOff } from '../text.js?v=77';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel, fitToMedia,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=80';
+} from '../edit.js?v=77';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -199,11 +199,72 @@ function pick(label, opts, val, fn) {
   s.addEventListener('change', () => { fn(s.value); pushUndo(); });
   return row(label, s);
 }
+/* 色を えらぶ ところ。
+   ・ふつうの 色えらび
+   ・カラーコード（#ff8800 / ff8800 / #f80）を 打って 決める
+   ・★ で お気に入りに 入れる（もう 入って いる 色なら はずす）
+   お気に入りは この ブラウザに のこり、どの 色の 欄からも 使える */
+const FAV_KEY = 'douga.favColors';
+const favColors = () => { try { const a = JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+const saveFav = a => { try { localStorage.setItem(FAV_KEY, JSON.stringify(a.slice(0, 16))); } catch (e) { } };
+function hexOf(t) {
+  let v = String(t || '').trim().replace(/^#/, '').toLowerCase();
+  if (/^[0-9a-f]{3}$/.test(v)) v = v.split('').map(c => c + c).join('');
+  return /^[0-9a-f]{6}$/.test(v) ? '#' + v : null;
+}
 function color(label, val, fn) {
-  const i = el('input'); i.type = 'color'; i.value = val;
-  i.addEventListener('input', () => fn(i.value));
+  const box = el('div', 'colbox');
+  const top = el('div', 'colrow');
+  const i = el('input'); i.type = 'color'; i.value = hexOf(val) || '#000000';
+  const code = el('input', 'colcode'); code.type = 'text'; code.value = i.value;
+  code.maxLength = 7; code.spellcheck = false; code.autocapitalize = 'off';
+  code.setAttribute('inputmode', 'text'); code.placeholder = '#ff8800';
+  const star = el('button', 'btn-sm colstar'); star.type = 'button';
+  const favs = el('div', 'colfavs');
+  const set = (v, done) => {
+    i.value = v; code.value = v; code.classList.remove('bad');
+    fn(v); if (done) pushUndo();
+    paintFav();
+  };
+  function paintFav() {
+    const list = favColors(), cur = (i.value || '').toLowerCase();
+    star.textContent = list.includes(cur) ? '★' : '☆';
+    star.title = list.includes(cur) ? 'お気に入りから はずす' : 'お気に入りに 入れる';
+    favs.innerHTML = '';
+    list.forEach(c => {
+      const b = el('button', 'colfav' + (c === cur ? ' on' : '')); b.type = 'button';
+      b.style.background = c; b.title = c;
+      b.addEventListener('click', () => set(c, true));
+      favs.appendChild(b);
+    });
+    favs.style.display = list.length ? '' : 'none';
+  }
+  i.addEventListener('input', () => { code.value = i.value; code.classList.remove('bad'); fn(i.value); paintFav(); });
   i.addEventListener('change', pushUndo);
-  return row(label, i);
+  const fromCode = done => {
+    const v = hexOf(code.value);
+    if (!v) { code.classList.add('bad'); return; }
+    set(v, done);
+  };
+  code.addEventListener('input', () => {
+    if (hexOf(code.value)) fromCode(false);
+    else code.classList.toggle('bad', code.value.replace(/^#/, '').length >= 3);
+  });
+  code.addEventListener('change', () => fromCode(true));
+  code.addEventListener('keydown', e => { if (e.key === 'Enter') { code.blur(); } });
+  star.addEventListener('click', () => {
+    const cur = (i.value || '').toLowerCase();
+    let list = favColors();
+    if (list.includes(cur)) { list = list.filter(c => c !== cur); toast('お気に入りから はずした'); }
+    else { list = [cur, ...list].slice(0, 16); toast('お気に入りに 入れた'); }
+    saveFav(list);
+    document.querySelectorAll('.colbox').forEach(b => b._paint && b._paint());
+  });
+  box._paint = paintFav;
+  top.appendChild(i); top.appendChild(code); top.appendChild(star);
+  box.appendChild(top); box.appendChild(favs);
+  paintFav();
+  return row(label, box);
 }
 function num(label, val, step, fn) {
   const i = el('input'); i.type = 'number'; i.step = step; i.value = r2(val);
