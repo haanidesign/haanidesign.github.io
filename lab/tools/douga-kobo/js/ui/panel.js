@@ -3,22 +3,22 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=77';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=77';
-import { storeOk } from '../store.js?v=77';
-import { bus } from '../bus.js?v=77';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=77';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=77';
+} from '../state.js?v=78';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=78';
+import { storeOk } from '../store.js?v=78';
+import { bus } from '../bus.js?v=78';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=78';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=78';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
   techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv,
-  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=77';
+  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=78';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=77';
+  offOf, setOff, clearOff } from '../text.js?v=78';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel, fitToMedia,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=77';
+} from '../edit.js?v=78';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -221,8 +221,9 @@ function color(label, val, fn) {
   code.setAttribute('inputmode', 'text'); code.placeholder = '#ff8800';
   const star = el('button', 'btn-sm colstar'); star.type = 'button';
   const favs = el('div', 'colfavs');
-  const set = (v, done) => {
-    i.value = v; code.value = v; code.classList.remove('bad');
+  const set = (v, done, typing) => {
+    i.value = v; code.classList.remove('bad');
+    if (!typing) code.value = v;          // 打って いる とちゅうは 文字を 書きかえない
     fn(v); if (done) pushUndo();
     paintFav();
   };
@@ -246,9 +247,13 @@ function color(label, val, fn) {
     if (!v) { code.classList.add('bad'); return; }
     set(v, done);
   };
+  /* 打って いる あいだは 6けた そろった ときだけ 色を 変える。
+     消して いる とちゅうの 3けた（#101 など）で 色が とんだり、
+     文字が 書きかわったり しない ように。赤わくも 決めた ときだけ */
   code.addEventListener('input', () => {
-    if (hexOf(code.value)) fromCode(false);
-    else code.classList.toggle('bad', code.value.replace(/^#/, '').length >= 3);
+    code.classList.remove('bad');
+    const raw = code.value.trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{6}$/.test(raw)) set('#' + raw.toLowerCase(), false, true);
   });
   code.addEventListener('change', () => fromCode(true));
   code.addEventListener('keydown', e => { if (e.key === 'Enter') { code.blur(); } });
