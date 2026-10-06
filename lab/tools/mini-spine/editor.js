@@ -1169,8 +1169,25 @@ function buildTree(){
 
   const walk = (id, depth) => {
     const b = boneById(id); if(!b) return;
-    const it = el('div', 'item' + (id === S.sel.bone && !S.sel.slot ? ' sel' : ''));
-    it.style.paddingLeft = (6 + depth*11) + 'px';
+    /* 絵を 上に、その 絵の 骨を 下に（絵を さがし やすく） */
+    (slotsOf[id] || []).forEach(s => {
+      const si = el('div', 'item slot' + (s.id === S.sel.slot ? ' sel' : ''));
+      si.style.paddingLeft = (6 + depth*11) + 'px';
+      si.draggable = true;
+      si.ondragstart = ev => ev.dataTransfer.setData('slot', s.id);
+      const eye = el('span', 'eye' + (s.visible ? ' on' : ''), s.visible ? '●' : '○');
+      eye.onclick = ev => { ev.stopPropagation(); s.visible = !s.visible; refreshUI(); };
+      si.appendChild(eye);
+      si.appendChild(el('span', 'nm', s.name));
+      si.appendChild(el('span', 'tag', s.verts.length + 'v'));
+      si.onclick = () => { S.sel.slot = s.id; refreshUI(); };
+      si.ondblclick = () => { const n = prompt('パーツ名', s.name); if(n) edit('名前を変更', () => s.name = n), refreshUI(); };
+      host.appendChild(si);
+    });
+
+    const under = (slotsOf[id] || []).length > 0;
+    const it = el('div', 'item' + (under ? ' bone-under' : '') + (id === S.sel.bone && !S.sel.slot ? ' sel' : ''));
+    it.style.paddingLeft = (6 + (depth + (under ? 1 : 0))*11) + 'px';
     it.appendChild(el('span', 'ic', '🦴'));
     it.appendChild(el('span', 'nm', b.name));
     if(b.spring) it.appendChild(el('span', 'badge', '揺'));
@@ -1188,22 +1205,7 @@ function buildTree(){
     };
     host.appendChild(it);
 
-    (slotsOf[id] || []).forEach(s => {
-      const si = el('div', 'item slot' + (s.id === S.sel.slot ? ' sel' : ''));
-      si.style.paddingLeft = (6 + (depth+1)*11) + 'px';
-      si.draggable = true;
-      si.ondragstart = ev => ev.dataTransfer.setData('slot', s.id);
-      const eye = el('span', 'eye' + (s.visible ? ' on' : ''), s.visible ? '●' : '○');
-      eye.onclick = ev => { ev.stopPropagation(); s.visible = !s.visible; refreshUI(); };
-      si.appendChild(eye);
-      si.appendChild(el('span', 'nm', s.name));
-      si.appendChild(el('span', 'tag', s.verts.length + 'v'));
-      si.onclick = () => { S.sel.slot = s.id; refreshUI(); };
-      si.ondblclick = () => { const n = prompt('パーツ名', s.name); if(n) edit('名前を変更', () => s.name = n), refreshUI(); };
-      host.appendChild(si);
-    });
-
-    (kids[id] || []).forEach(k => walk(k, depth+1));
+    (kids[id] || []).forEach(k => walk(k, depth + 1 + (under ? 1 : 0)));
   };
   S.proj.bones.filter(b => !b.parent).forEach(b => walk(b.id, 0));
 

@@ -544,3 +544,6 @@ body.warping #modes, body.warping #viewToggles{ visibility:hidden; }
 .face-seq-empty{color:#999;font-size:13px;align-self:center}
 .face-iv{width:5em;font-size:15px;padding:6px;border-radius:8px;border:2px solid #ddd}
 .lock-chip{position:absolute;bottom:56px;left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-radius:999px;background:#FFF3B0;border:2px solid #E0C840;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+/* 絵の 下の 骨は 小さく うすく（絵を 目立たせる） */
+#treeBody .item.bone-under{min-height:0;padding-top:3px;padding-bottom:3px;font-size:12px;opacity:.75;background:transparent;border-color:transparent}
+#treeBody .item.bone-under.sel{opacity:1}
