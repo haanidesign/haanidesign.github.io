@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=336';
-import { newFolder, setParent } from '../engine/layer.js?v=336';
-import { setPin } from '../engine/anim.js?v=336';
+import { S } from '../state.js?v=337';
+import { newFolder, setParent } from '../engine/layer.js?v=337';
+import { setPin } from '../engine/anim.js?v=337';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ', restart: true };
@@ -57,19 +57,26 @@ function wrapUnits(project, root){
 }
 
 /** 中身の 動きの「頭」。いちばん はやい キーフレーム か ループの はじまり */
-function startOf(project, w){
-  let best = Infinity;
+function spanOf(project, w){
+  let best = Infinity, end = -Infinity, looped = false;
   const walk = (id) => project.layers.forEach(l => {
     if(l.parent !== id) return;
-    if(l.loop && isFinite(l.loop.from)) best = Math.min(best, l.loop.from);
+    if(l.loop && isFinite(l.loop.from)){
+      best = Math.min(best, l.loop.from);
+      end = Math.max(end, l.loop.to);
+      looped = true;
+    }
     for(const k of Object.keys(l.tracks || {})){
       const ks = l.tracks[k];
-      if(ks && ks.length) best = Math.min(best, ks[0].t);
+      if(!ks || !ks.length) continue;
+      best = Math.min(best, ks[0].t);
+      end = Math.max(end, ks[ks.length - 1].t);
     }
     walk(l.id);
   });
   walk(w.id);
-  return isFinite(best) ? Math.max(0, best) : 0;
+  const from = isFinite(best) ? Math.max(0, best) : 0;
+  return { from, span: isFinite(end) ? Math.max(0, end - from) : 0, looped };
 }
 
 /** キーを 打ち直す（つまみを 変えた ときも これ）
@@ -148,7 +155,13 @@ export function applySabun(project, root){
     }
     u.loop = { from: 0, to: len, mode: 'loop' };
     /* 中身の 動きを、この 差分が 出た ところから 頭で 動かす */
-    u.kidTime = c.restart === false ? null : { t0, len, from: startOf(project, u) };
+    /* 中身の 動きが この 差分の 長さより みじかい ときは、
+       出て いる あいだ くり返す（1回で 止まらない ように） */
+    if(c.restart === false) u.kidTime = null;
+    else {
+      const sp = spanOf(project, u);
+      u.kidTime = { t0, len, from: sp.from, span: (sp.span > 0.05 && sp.span < d - 1e-3) ? sp.span : 0 };
+    }
   });
 
   /* うしろの まる（⭕ まるの 背景）も いっしょに ふくらませる */
