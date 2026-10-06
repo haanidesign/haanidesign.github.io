@@ -201,7 +201,7 @@ function replaceImage(sl, file){
         cut.getContext('2d').drawImage(img0, -B.x0, -B.y0);
         src = cut.toDataURL('image/png'); place = M.fromTRS(B.x0, B.y0, 0, 1, 1, 0); how = 'キャンバスの 位置の まま';
       }else{
-        /* ほかの 大きさは、すけた ふちを 切って、もとの 絵の 見えて いる 四角に あわせる */
+        /* ほかの 大きさは、すけた ふちを 切って はめる */
         const nb = alphaBox(img0);
         const cut = document.createElement('canvas'); cut.width = nb.w; cut.height = nb.h;
         cut.getContext('2d').drawImage(img0, -nb.x0, -nb.y0);
@@ -209,7 +209,10 @@ function replaceImage(sl, file){
         const ob = S.imgs[sl.image] && S.imgs[sl.image].complete ? alphaBox(S.imgs[sl.image]) : null;
         const old = S.proj.images[sl.image] || {};
         const ox = ob ? ob.x0 : 0, oy = ob ? ob.y0 : 0, ow = ob ? ob.w : (old.w || nb.w), oh = ob ? ob.h : (old.h || nb.h);
-        place = M.mul(P, { a: ow / nb.w, b: 0, c: 0, d: oh / nb.h, tx: ox, ty: oy }); how = 'もとの 絵の 大きさに あわせて';
+        /* 縦横を べつべつに のばすと 縦長・横長に なるので、のばさない（画像の 1ドット ＝ もとの 1ドット）。
+           もとの 絵の 見えて いる ところの まんなかに あわせる */
+        const cx = ox + ow / 2, cy = oy + oh / 2;
+        place = M.mul(P, { a: 1, b: 0, c: 0, d: 1, tx: cx - nb.w / 2, ty: cy - nb.h / 2 }); how = 'もとの 絵の まんなかに・のばさずに';
       }
       img = new Image();
       img.onload = () => {
