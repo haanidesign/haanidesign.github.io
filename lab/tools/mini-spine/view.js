@@ -174,38 +174,68 @@ function fitPlace(verts){
   const [a, c, tx] = solve([X0, X1, X2]), [b, d, ty] = solve([Y0, Y1, Y2]);
   return { a, b, c, d, tx, ty };
 }
+/** 画像の 見えて いる ところ（すけて いない ところ）の 四角 */
+function alphaBox(img){
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for(let y = 0; y < h; y++) for(let x = 0; x < w; x++) if(d[(y * w + x) * 4 + 3] > 8){
+    if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; }
+  if(x1 < 0) return { x0: 0, y0: 0, x1: w, y1: h, w, h, c };
+  return { x0, y0, x1: x1 + 1, y1: y1 + 1, w: x1 + 1 - x0, h: y1 + 1 - y0, c };
+}
 function replaceImage(sl, file){
   const rd = new FileReader();
   rd.onload = () => {
-    const src = rd.result, img = new Image();
-    img.onload = () => {
-      const old = S.proj.images[sl.image] || {};
-      const W1 = old.w || img.naturalWidth, H1 = old.h || img.naturalHeight;
-      const P = fitPlace(sl.verts);
-      // 新しい 画像を もとの 画像の 四角に ひきのばして のせる
-      const k = { a: W1 / img.naturalWidth, b: 0, c: 0, d: H1 / img.naturalHeight, tx: 0, ty: 0 };
-      const place = M.mul(P, k);
-      edit('「' + sl.name + '」を さしかえ', () => {
-        const id = uid('img');
-        S.proj.images[id] = { id, name: file.name, src, w: img.naturalWidth, h: img.naturalHeight };
-        S.imgs[id] = img;
-        const m = buildGridMesh(img, S.meshRes.cols, S.meshRes.rows, place);
-        const ov = sl.verts;
-        m.verts.forEach(v => {
-          let best = null, bd = 1e18;
-          ov.forEach(o => { const d = (o.x - v.x) ** 2 + (o.y - v.y) ** 2; if(d < bd){ bd = d; best = o; } });
-          v.w = best && best.w ? best.w.map(x => ({ b: x.b, w: x.w })) : [];
+    const img0 = new Image();
+    img0.onload = () => {
+      const C = S.proj.canvas, P = fitPlace(sl.verts);
+      let src, img, place, how;
+      if(img0.naturalWidth === C.w && img0.naturalHeight === C.h){
+        /* キャンバスと おなじ 大きさの PNG（PSD から 1まいずつ 書き出した もの など）は
+           その 位置の まま はめる（ずれも のびも なし） */
+        const B = alphaBox(img0);
+        const cut = document.createElement('canvas'); cut.width = B.w; cut.height = B.h;
+        cut.getContext('2d').drawImage(img0, -B.x0, -B.y0);
+        src = cut.toDataURL('image/png'); place = M.fromTRS(B.x0, B.y0, 0, 1, 1, 0); how = 'キャンバスの 位置の まま';
+      }else{
+        /* ほかの 大きさは、すけた ふちを 切って、もとの 絵の 見えて いる 四角に あわせる */
+        const nb = alphaBox(img0);
+        const cut = document.createElement('canvas'); cut.width = nb.w; cut.height = nb.h;
+        cut.getContext('2d').drawImage(img0, -nb.x0, -nb.y0);
+        src = cut.toDataURL('image/png');
+        const ob = S.imgs[sl.image] && S.imgs[sl.image].complete ? alphaBox(S.imgs[sl.image]) : null;
+        const old = S.proj.images[sl.image] || {};
+        const ox = ob ? ob.x0 : 0, oy = ob ? ob.y0 : 0, ow = ob ? ob.w : (old.w || nb.w), oh = ob ? ob.h : (old.h || nb.h);
+        place = M.mul(P, { a: ow / nb.w, b: 0, c: 0, d: oh / nb.h, tx: ox, ty: oy }); how = 'もとの 絵の 大きさに あわせて';
+      }
+      img = new Image();
+      img.onload = () => {
+        edit('「' + sl.name + '」を さしかえ', () => {
+          const id = uid('img');
+          S.proj.images[id] = { id, name: file.name, src, w: img.naturalWidth, h: img.naturalHeight };
+          S.imgs[id] = img;
+          const m = buildGridMesh(img, S.meshRes.cols, S.meshRes.rows, place);
+          const ov = sl.verts;
+          m.verts.forEach(v => {
+            let best = null, bd = 1e18;
+            ov.forEach(o => { const d = (o.x - v.x) ** 2 + (o.y - v.y) ** 2; if(d < bd){ bd = d; best = o; } });
+            v.w = best && best.w ? best.w.map(x => ({ b: x.b, w: x.w })) : [];
+          });
+          sl.image = id; sl.verts = m.verts; sl.tris = m.tris; sl.bound = false;
+          if(sl.shapes) delete sl.shapes;
+          if(typeof checkerTris === 'function') checkerTris(sl);
+          for(const n in S.proj.anims){ const a = S.proj.anims[n]; if(a.warps) delete a.warps[sl.id]; }
+          markDirty();
         });
-        sl.image = id; sl.verts = m.verts; sl.tris = m.tris; sl.bound = false;
-        if(sl.shapes) delete sl.shapes;          // 閉じ目の 形は 網が かわるので 作り直し
-        if(typeof checkerTris === 'function') checkerTris(sl);
-        for(const n in S.proj.anims){ const a = S.proj.anims[n]; if(a.warps) delete a.warps[sl.id]; }
-        markDirty();
-      });
-      refreshUI();
-      setStatus('「' + sl.name + '」を さしかえました（骨・動きは そのまま）');
+        refreshUI();
+        setStatus('「' + sl.name + '」を さしかえました（' + how + '・骨と 動きは そのまま）');
+      };
+      img.src = src;
     };
-    img.src = src;
+    img0.src = rd.result;
   };
   rd.readAsDataURL(file);
 }
