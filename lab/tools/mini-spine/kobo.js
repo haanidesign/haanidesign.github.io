@@ -1863,10 +1863,19 @@ function drawParentLinks(){
 }
 
 /* えらんだ 行が 一覧の 外に かくれて いたら 見える ところへ */
+/* ただし 見える・見えないを 切りかえた だけ など、えらんだ ものが 変わって いない ときは
+   一覧の 位置を そのまま に する（作り直すと 一番上や えらんだ 行へ とんで しまう） */
+let _lastSelKey = '';
 const _refreshUI1 = refreshUI;
 refreshUI = function(){
+  const boxes = [];
+  ['#treeBody', '#orderBody'].forEach(q => { let e = document.querySelector(q);
+    while(e && e !== document.body){ if(e.scrollHeight > e.clientHeight) boxes.push([e, e.scrollTop]); e = e.parentElement; } });
   _refreshUI1();
-  requestAnimationFrame(() => document.querySelectorAll('#treeBody .item.sel, #orderBody .item.sel').forEach(e => {
+  const key = S.sel.bone + '|' + S.sel.slot + '|' + S.sel.ik;
+  const moved = key !== _lastSelKey; _lastSelKey = key;
+  boxes.forEach(([e, t]) => { e.scrollTop = t; });
+  if(moved) requestAnimationFrame(() => document.querySelectorAll('#treeBody .item.sel, #orderBody .item.sel').forEach(e => {
     try{ e.scrollIntoView({ block:'nearest' }); }catch(_){}
   }));
 };
