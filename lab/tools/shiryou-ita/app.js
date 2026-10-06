@@ -85,7 +85,7 @@ async function addBlobs(blobs, at) {
     S.items.push(it); i++;
     sel = it.id;
   }
-  if (bad) toast(`${bad}まい よめません でした`);
+  if (bad) { toast(`${bad}まい よめません でした`); await new Promise(r => setTimeout(r, 1500)); }
   pushUndo(before);
   render(); autosave();
 }
@@ -380,6 +380,16 @@ function fit() {
 
 /* ---------- 入れる ---------- */
 $('fImg').addEventListener('change', e => { addBlobs([...e.target.files]); e.target.value = ''; });
+// Android: えらんだ 画像を アプリ側から 受けとる
+window.__picked = async ids => {
+  const out = [];
+  for (const id of ids) {
+    try { const r = await fetch('/pick/' + id); if (r.ok) out.push(await r.blob()); } catch {}
+  }
+  if (out.length < ids.length) toast(`${ids.length}まい の うち ${ids.length - out.length}まい よめません でした`);
+  await addBlobs(out);
+  toast(`${ids.length}まい えらんで ${out.length}まい 入れました`);
+};
 function onPaste(e) {
   const fs = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile());
   if (fs.length) { e.preventDefault(); addBlobs(fs); }

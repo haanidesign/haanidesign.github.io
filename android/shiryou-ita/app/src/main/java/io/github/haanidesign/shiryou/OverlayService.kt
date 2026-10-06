@@ -62,6 +62,8 @@ class OverlayService : Service() {
     private var drag = 0           // 0 なし 1 動かす 2 大きさ
     private var cancelSent = false
     private var rx = 0f; private var ry = 0f
+    private val picked = HashMap<String, Uri>()   // えらんだ 画像。/pick/番号 で 渡す
+    private var pickN = 0
     private var gx = 0; private var gy = 0; private var gw = 0; private var gh = 0
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -123,6 +125,12 @@ class OverlayService : Service() {
         val loader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/") { path ->
                 try { WebResourceResponse(mime(path), "utf-8", assets.open(path)) } catch (e: IOException) { null }
+            }
+            .addPathHandler("/pick/") { id ->
+                val u = picked[id] ?: return@addPathHandler null
+                try {
+                    WebResourceResponse(contentResolver.getType(u) ?: "image/png", null, contentResolver.openInputStream(u))
+                } catch (e: Exception) { null }
             }.build()
         web = WebView(this)
         web.setBackgroundColor(Color.TRANSPARENT)
@@ -137,7 +145,12 @@ class OverlayService : Service() {
             override fun onShowFileChooser(v: WebView, cb: ValueCallback<Array<Uri>>, p: FileChooserParams): Boolean {
                 val acc = p.acceptTypes.joinToString(",")
                 val m = if (acc.contains("image") && !acc.contains("json")) "image/*" else "*/*"
-                pick = { r -> cb.onReceiveValue(r) }
+                pick = if (m == "image/*") { r ->
+                    // 画像は ここで 受けて、1まいずつ ページに 渡す
+                    cb.onReceiveValue(null)
+                    val ids = (r ?: arrayOf()).map { u -> (pickN++).toString().also { picked[it] = u } }
+                    web.evaluateJavascript("window.__picked && window.__picked(${org.json.JSONArray(ids)})", null)
+                } else { r -> cb.onReceiveValue(r) }
                 startActivity(Intent(this@OverlayService, PickerActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     .putExtra("mime", m)
