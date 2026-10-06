@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=337';
-import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=337';
+import { M, uid, ptInQuad } from './math.js?v=338';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=338';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=337';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=337';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=337';
-import { handTime } from './hand.js?v=337';
-import { WORK_KEYS } from '../state.js?v=337';
+         withShake } from './camera.js?v=338';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=338';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=338';
+import { handTime } from './hand.js?v=338';
+import { WORK_KEYS } from '../state.js?v=338';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -342,7 +342,10 @@ export function computeAll(project, time){
     /* 「ここから ここまで 出す」。
        フォルダに かけると 中身も いっしょに 出たり 消えたり する
        （中身は フォルダの 見え方を うけつぐ ので）。 */
-    let vis = l.visible !== false && inSpan(l, time) && (inFolder ? p.vis : true);
+    /* 出す ところは「その レイヤーに とどく 時こく」で みる。
+       フォルダが 時間を いじって いる（差分つなぎの 頭から など）ときに
+       作品の 時こくで みると、中身が 出る ところの 外に なって 消えて いた。 */
+    let vis = l.visible !== false && inSpan(l, baseTime(l)) && (inFolder ? p.vis : true);
     if(isCam(l) || l.kind === 'audio') vis = false;   // カメラ・音は 絵に 出ない
 
     /* パラパラフォルダの 中は、いまの コマ だけを 見せる */

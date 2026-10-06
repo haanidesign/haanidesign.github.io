@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=337';
-import { newFolder, setParent } from '../engine/layer.js?v=337';
-import { setPin } from '../engine/anim.js?v=337';
+import { S } from '../state.js?v=338';
+import { newFolder, setParent } from '../engine/layer.js?v=338';
+import { setPin } from '../engine/anim.js?v=338';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ', restart: true };
@@ -65,6 +65,11 @@ function spanOf(project, w){
       best = Math.min(best, l.loop.from);
       end = Math.max(end, l.loop.to);
       looped = true;
+    }
+    /* 出す ところ（span）が あれば その おわりまで */
+    if(l.span && l.span.to != null){
+      end = Math.max(end, l.span.to);
+      if(l.span.from != null) best = Math.min(best, l.span.from);
     }
     for(const k of Object.keys(l.tracks || {})){
       const ks = l.tracks[k];
