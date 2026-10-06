@@ -540,3 +540,6 @@ body.warping #modes, body.warping #viewToggles{ visibility:hidden; }
 .face-row b{display:block;margin-bottom:6px}
 .face-opts{display:flex;flex-wrap:wrap;gap:6px}
 .face-del{margin-top:12px}
+.face-seq{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;min-height:36px;padding:6px;border:2px dashed #ddd;border-radius:10px}
+.face-seq-empty{color:#999;font-size:13px;align-self:center}
+.face-iv{width:5em;font-size:15px;padding:6px;border-radius:8px;border:2px solid #ddd}

@@ -178,3 +178,117 @@ faceParts = function(){ const u = _facePartsBase(); if(FACE_PREVIEW_PARTS) FACE_
   b.onclick = openFaces;
   const p = $('#btnPreset'); if(p) p.after(b);
 })();
+
+/* ================= 動きと 表情を いっしょに =================
+   よくある動き（キャラ まるごと）を つけた とき、合う 表情が とって あれば キーも 入れる。
+   [表情の 名前の こうほ…], 動きの 中の いつ（0〜1） */
+const MOTION_FACE = {
+  'びっくり':        [[['驚き'], .1], [['通常'], .8]],
+  'よろこぶ':        [[['笑顔'], 0]],
+  'にこっ':          [[['笑顔', '目とじ'], .1], [['通常'], .75]],
+  'ぷんぷん':        [[['怒り'], 0]],
+  'しょんぼり':      [[['泣き', '困り'], 0]],
+  'いやいや':        [[['困り', '怒り'], 0]],
+  'ねむい':          [[['ジト目', '目とじ'], 0]],
+  'ノリノリ':        [[['笑顔'], 0]],
+  'ぴょんと はねる': [[['笑顔'], 0]],
+  '手を ふる':       [[['笑顔'], 0]],
+  'ビートで キメ':   [[['通常'], 0], [['ウインク', '笑顔'], .5]],
+  'うなずく':        [[['笑顔', '通常'], 0]],
+  '首を かしげる':   [[['困り', '通常'], 0]]
+};
+const faceLinkOn = () => { try{ return localStorage.getItem('ms-face-link') !== 'off'; }catch(_){ return true; } };
+const faceByName = list => { for(const n of list){ const f = FACES().find(x => x.name === n); if(f) return f; } return null; };
+
+const _applyWholeF = applyWhole;
+applyWhole = function(m){
+  _applyWholeF(m);
+  if(!faceLinkOn() || !FACES().length) return;
+  const plan = MOTION_FACE[m.name]; if(!plan) return;
+  const a = anim(); if(!a) return;
+  const keys = [];
+  plan.forEach(([names, at]) => { const f = faceByName(names); if(f) keys.push([+(at * a.dur).toFixed(3), f.id]); });
+  if(!keys.length) return;
+  // はじめが 0秒で ない ときは、通常（なければ 今の ふだん）から はじめる
+  const base = faceByName(['通常']);
+  if(keys[0][0] > 0 && base) keys.unshift([0, base.id]);
+  a.faces = keys;
+  const used = keys.map(k => FACES().find(f => f.id === k[1]).name);
+  setStatus('「' + S.proj.current + '」を 作りました。表情も つけました（' + [...new Set(used)].join(' → ') + '）');
+  refreshUI();
+};
+const _openMotionsF = openMotions;
+openMotions = function(){
+  _openMotionsF();
+  if(!FACES().length) return;
+  const g = document.querySelector('.sh-grid'); if(!g) return;
+  const on = faceLinkOn();
+  const row = btnRow(
+    mkBtn('😊 表情も いっしょに つける', () => { try{ localStorage.setItem('ms-face-link', 'on'); }catch(_){} openMotions(); }, 'btn btn-sm' + (on ? ' btn-y' : '')),
+    mkBtn('動きだけ', () => { try{ localStorage.setItem('ms-face-link', 'off'); }catch(_){} openMotions(); }, 'btn btn-sm' + (on ? '' : ' btn-y')));
+  g.before(row);
+};
+$('#btnPreset').onclick = () => openMotions();
+
+/* はやさを 変えたら（🎚）表情の キーも おなじ だけ のばす・ちぢめる */
+if(typeof applyTune === 'function'){
+  const _applyTuneF = applyTune;
+  applyTune = function(a, amt, spd){
+    const d0 = a.dur;
+    _applyTuneF(a, amt, spd);
+    if(a.faces && d0 && a.dur !== d0){ const k = a.dur / d0; a.faces.forEach(x => { x[0] = +(x[0] * k).toFixed(3); }); }
+  };
+}
+
+/* ================= 時間で 切りかえ =================
+   えらんだ 表情を、決めた 秒ごとに じゅんばんに くりかえす */
+function openFaceTimer(){
+  const seq = [];
+  let iv = 1;
+  sheet.show('⏱ 時間で 表情を 切りかえ', body => {
+    const a = anim();
+    body.appendChild(el('div', 'sh-note', '① 表情を じゅんばんに おす（同じ ものを 何回 おしても OK）'));
+    const g = el('div', 'sh-grid');
+    const line = el('div', 'face-seq');
+    const info = el('div', 'sh-note');
+    const redraw = () => {
+      line.innerHTML = '';
+      if(!seq.length) line.appendChild(el('span', 'face-seq-empty', 'まだ ありません'));
+      seq.forEach((f, i) => { const c = mkBtn(faceIcon(f.name) + ' ' + f.name + ' ×', () => { seq.splice(i, 1); redraw(); }, 'btn btn-sm'); line.appendChild(c); });
+      const round = seq.length * iv;
+      info.textContent = seq.length ? '1まわり ' + round.toFixed(1) + '秒。アニメ「' + S.proj.current + '」（' + a.dur.toFixed(1) + '秒）の あいだ くりかえします。' : '';
+    };
+    FACES().forEach(f => { const b = mkBtn('', () => { seq.push(f); redraw(); }, 'mv'); b.append(el('i', null, faceIcon(f.name)), el('span', null, f.name)); g.appendChild(b); });
+    body.append(g, line);
+    body.appendChild(el('div', 'sh-note', '② 何秒ごとに 変える？'));
+    const ivRow = el('div', 'face-chips');
+    const ivIn = el('input'); ivIn.type = 'number'; ivIn.min = '0.1'; ivIn.step = '0.1'; ivIn.value = iv; ivIn.className = 'face-iv';
+    ivIn.oninput = () => { const v = parseFloat(ivIn.value); if(v > 0){ iv = v; ivRow.querySelectorAll('.btn').forEach(x => x.classList.remove('btn-y')); redraw(); } };
+    [0.5, 1, 1.5, 2, 3].forEach(v => { const b = mkBtn(v + '秒', () => { iv = v; ivIn.value = v; ivRow.querySelectorAll('.btn').forEach(x => x.classList.toggle('btn-y', x === b)); redraw(); }, 'btn btn-sm' + (v === iv ? ' btn-y' : '')); ivRow.appendChild(b); });
+    ivRow.appendChild(ivIn); ivRow.appendChild(el('span', null, '秒'));
+    body.append(ivRow, info);
+    const fit = el('label', 'att-row'); const fc = el('input'); fc.type = 'checkbox';
+    fit.append(fc, el('span', 'att-n', 'アニメの 長さを 1まわりに あわせる（ループが ぴったり つながる）'));
+    body.appendChild(fit);
+    body.appendChild(btnRow(mkBtn('この アニメに 入れる', () => {
+      if(!seq.length) return setStatus('表情を 1つ 以上 おしてね');
+      edit('表情を 時間で 切りかえ', () => {
+        if(fc.checked) a.dur = +(seq.length * iv).toFixed(3);
+        const ks = [];
+        for(let t = 0, i = 0; t < a.dur - 1e-4; t += iv, i++) ks.push([+t.toFixed(3), seq[i % seq.length].id]);
+        a.faces = ks;
+      });
+      sheet.hide(); S.mode = 'anim'; S.time = 0; S.playing = true; refreshUI();
+      setStatus(iv + '秒ごとに ' + seq.map(f => f.name).join(' → ') + ' と 切りかわります');
+    }, 'btn btn-y'), mkBtn('◀ もどる', openFaces, 'btn')));
+    redraw();
+  });
+}
+const _openFacesT = openFaces;
+openFaces = function(){
+  _openFacesT();
+  if(FACES().length < 1) return;
+  const g = document.querySelector('.sh-grid'); if(!g) return;
+  g.after(btnRow(mkBtn('⏱ 時間で 切りかえ（何秒ごと）', openFaceTimer, 'btn')));
+};
+$('#btnFaces').onclick = () => openFaces();
