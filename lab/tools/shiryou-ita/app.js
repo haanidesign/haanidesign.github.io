@@ -594,33 +594,12 @@ function toast(s) {
 addEventListener('resize', render);
 if (N) {
   body().classList.add('native');
-  // 上の 帯の すきまを つまんで 窓を 動かす。右下の つまみで 大きさを 変える
-  const dpr = devicePixelRatio;
-  let w = null;
-  const down = (e, kind) => {
-    if (kind === 'move' && e.target.closest('button')) return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    w = { kind, x: e.clientX, y: e.clientY, mx: 0, my: 0 };
-    N.grab();
-  };
-  const move = e => {
-    if (!w) return;
-    if (w.kind === 'move') {
-      // 窓が 動くと 指の 位置も ずれる ので、動かした ぶんを 足す
-      const dx = e.clientX - w.x + w.mx, dy = e.clientY - w.y + w.my;
-      const nx = Math.round(dx), ny = Math.round(dy);
-      N.moveTo(nx * dpr, ny * dpr);
-      w.mx = nx; w.my = ny;
-    } else {
-      N.resizeTo((e.clientX - w.x) * dpr, (e.clientY - w.y) * dpr);
-    }
-  };
-  const end = () => { w = null; };
-  for (const [el, kind] of [[$('bar'), 'move'], [$('grip'), 'size']]) {
-    el.addEventListener('pointerdown', e => down(e, kind));
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', end);
-    el.addEventListener('pointercancel', end);
+  // 上の 帯の すきまを つまむと 窓が 動く。右下の つまみで 大きさ。動かすのは Android 側
+  for (const [el, k] of [[$('bar'), 1], [$('grip'), 2]]) {
+    el.addEventListener('pointerdown', e => {
+      if (k === 1 && e.target.closest('button')) return;
+      e.preventDefault();
+      N.drag(k);
+    });
   }
 } else if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

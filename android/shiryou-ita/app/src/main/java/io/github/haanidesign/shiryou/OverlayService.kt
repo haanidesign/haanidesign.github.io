@@ -58,6 +58,10 @@ class OverlayService : Service() {
     private var shown = false      // 窓が 出て いるか
     private var bubShown = false
     private var ghost = false
+    // 窓を 動かす とき。指の 位置は 画面の 座標（rawX）で 見る
+    private var drag = 0           // 0 なし 1 動かす 2 大きさ
+    private var cancelSent = false
+    private var rx = 0f; private var ry = 0f
     private var gx = 0; private var gy = 0; private var gw = 0; private var gh = 0
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -154,7 +158,29 @@ class OverlayService : Service() {
             }
         }
         web.addJavascriptInterface(Bridge(), "Native")
-        root = FrameLayout(this)
+        root = object : FrameLayout(this) {
+            override fun dispatchTouchEvent(e: MotionEvent): Boolean {
+                if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+                    drag = 0; rx = e.rawX; ry = e.rawY
+                    gx = lp.x; gy = lp.y; gw = lp.width; gh = lp.height
+                }
+                if (drag == 0) return super.dispatchTouchEvent(e)
+                if (!cancelSent) {
+                    val c = MotionEvent.obtain(e); c.action = MotionEvent.ACTION_CANCEL
+                    super.dispatchTouchEvent(c); c.recycle(); cancelSent = true
+                }
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = (e.rawX - rx).toInt(); val dy = (e.rawY - ry).toInt()
+                        if (drag == 1) { lp.x = gx + dx; lp.y = gy + dy }
+                        else { lp.width = max(dp(200), gw + dx); lp.height = max(dp(200), gh + dy) }
+                        if (shown) wm.updateViewLayout(this, lp)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> drag = 0
+                }
+                return true
+            }
+        }
         root.addView(web, FrameLayout.LayoutParams(-1, -1))
         web.loadUrl("https://appassets.androidplatform.net/assets/web/shiryou-ita/index.html")
     }
@@ -203,17 +229,7 @@ class OverlayService : Service() {
     }
 
     inner class Bridge {
-        @JavascriptInterface fun grab() = ui.post { gx = lp.x; gy = lp.y; gw = lp.width; gh = lp.height }.let { }
-
-        @JavascriptInterface fun moveTo(dx: Double, dy: Double) = ui.post {
-            lp.x = gx + dx.toInt(); lp.y = gy + dy.toInt()
-            if (shown) wm.updateViewLayout(root, lp)
-        }.let { }
-
-        @JavascriptInterface fun resizeTo(dw: Double, dh: Double) = ui.post {
-            lp.width = max(dp(200), gw + dw.toInt()); lp.height = max(dp(200), gh + dh.toInt())
-            if (shown) wm.updateViewLayout(root, lp)
-        }.let { }
+        @JavascriptInterface fun drag(k: Int) = ui.post { drag = k; cancelSent = false }.let { }
 
         // ゴースト: 窓を すかして、さわると 後ろの アプリに とおす（Android は こさ 0.8 まで）
         @JavascriptInterface fun ghost(a: Int) = ui.post {
