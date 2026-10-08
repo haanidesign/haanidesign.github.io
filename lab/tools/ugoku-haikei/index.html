@@ -4,73 +4,83 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>うごく背景</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
 <style>
 :root{
-  --paper:#FBFAEC; --card:#FFFEF7; --ink:#1E1C14; --sub:#6B675A; --line:rgba(30,28,20,.14);
-  --main:#7896D2; --main-ink:#fff; --warn:#C8553D;
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE; --cream:#FBFAEC; --paper:#FFFEF7;
+  --ink:#1E1C14; --ink-2:#4F4A3B; --gray:#6E6857; --pink:#F2A0B8; --rule:rgba(30,28,20,.22);
+  --bd:2.5px solid var(--ink); --r:12px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:var(--paper);color:var(--ink);font:14px/1.5 system-ui,"Hiragino Sans","Yu Gothic UI",sans-serif;-webkit-tap-highlight-color:transparent}
-::selection{background:var(--main);color:#fff}
+html,body{margin:0;height:100%;overflow-x:clip}
+body{background:var(--cream);color:var(--ink);font:500 1rem/1.6 'M PLUS Rounded 1c',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+::selection{background:var(--main);color:var(--ink)}
 button,select,input,textarea{font:inherit;color:inherit}
-.app{display:grid;grid-template-columns:minmax(0,1fr) 360px;height:100vh;height:100dvh}
-.stage{position:relative;display:flex;align-items:center;justify-content:center;padding:16px;min-height:0;background:
-  radial-gradient(circle,rgba(30,28,20,.12) 1.4px,transparent 1.6px) 0 0/16px 16px}
-.stage canvas{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 2px 0 var(--ink),0 0 0 2px var(--ink);background:#000}
-.stage .top{position:absolute;left:16px;top:12px;display:flex;gap:6px;align-items:center}
-.stage .top a{color:var(--ink);text-decoration:none;font-weight:700}
-.side{overflow:auto;border-left:2px solid var(--ink);background:var(--card);padding:12px 14px 40px;scrollbar-width:thin}
-h2{font-size:13px;margin:18px 0 8px;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
-h2:first-child{margin-top:4px}
-h2 small{font-weight:400;color:var(--sub)}
-.row{display:grid;grid-template-columns:76px minmax(0,1fr) 40px;align-items:center;gap:8px;min-height:32px}
-.row label{color:var(--sub);font-size:12px}
-.row output{font-size:12px;text-align:right;color:var(--sub);font-variant-numeric:tabular-nums}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:auto minmax(0,1fr);height:100vh;height:100dvh}
+.bar{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:8px 16px;background:var(--main);border-bottom:var(--bd)}
+.bar a{color:var(--ink);text-decoration:none;font-weight:700}
+.bar a:hover{text-decoration:underline;text-decoration-thickness:2.5px;text-underline-offset:.3em}
+.bar h1{font-size:1.15rem;font-weight:800;margin:0}
+.stage{position:relative;display:flex;align-items:center;justify-content:center;padding:16px;min-height:0;
+  background:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px) 0 0/16px 16px}
+.stage canvas{max-width:100%;max-height:100%;border:var(--bd);border-radius:var(--r);
+  background:repeating-conic-gradient(#d9d6c4 0 25%,#f4f2e4 0 50%) 0 0/24px 24px}
+.side{overflow:auto;border-left:var(--bd);background:var(--paper);padding:10px 16px 48px;scrollbar-width:thin;scrollbar-color:var(--ink) transparent}
+h2{font-size:1.05rem;font-weight:800;margin:22px 0 8px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+h2:first-child{margin-top:6px}
+h2 small{font-weight:500;font-size:.85rem;color:var(--gray)}
+.row{display:grid;grid-template-columns:88px minmax(0,1fr) 44px;align-items:center;gap:8px;min-height:36px}
+.row label{color:var(--ink-2);font-size:.9rem;font-weight:700}
+.row output{font-size:.85rem;text-align:right;color:var(--gray);font-variant-numeric:tabular-nums}
 .row2{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
-.btn{appearance:none;border:2px solid var(--ink);background:var(--card);border-radius:8px;padding:5px 10px;cursor:pointer;box-shadow:0 2px 0 var(--ink);white-space:nowrap}
-.btn:active{transform:translateY(2px);box-shadow:none}
-.btn.on,.btn.main{background:var(--main);color:var(--main-ink)}
-.btn:disabled{opacity:.45;cursor:default}
-.btn.s{padding:2px 8px;font-size:12px}
-select,input[type=text],input[type=number],textarea{border:2px solid var(--ink);border-radius:8px;background:#fff;padding:4px 8px;min-width:0;width:100%}
-textarea{resize:vertical;min-height:56px}
-input[type=color]{width:34px;height:28px;border:2px solid var(--ink);border-radius:6px;padding:0;background:none;cursor:pointer}
-:focus-visible{outline:3px solid var(--main);outline-offset:2px}
-.layers{display:flex;flex-direction:column;gap:4px}
-.layer{display:flex;align-items:center;gap:8px;border:2px solid var(--line);border-radius:8px;padding:4px 6px;cursor:pointer;background:#fff}
-.layer.sel{border-color:var(--ink);box-shadow:0 2px 0 var(--ink)}
-.layer .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.layer .ic{width:26px;height:26px;border-radius:5px;background:#eee center/contain no-repeat;flex:none}
-.layer button{border:0;background:none;cursor:pointer;padding:2px 4px;color:var(--sub)}
-.layer.off .nm{opacity:.4;text-decoration:line-through}
-.empty{color:var(--sub);font-size:12px;padding:6px 0}
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;border:var(--bd);background:var(--paper);border-radius:var(--r);padding:.45rem 1rem;font-weight:700;font-size:.95rem;cursor:pointer;white-space:nowrap;transition:background-color .15s}
+.btn:hover{background:var(--main)}
+.btn.on,.btn.main{background:var(--main)}
+.btn.main:hover{background:var(--main-deep)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.s{padding:.2rem .7rem;font-size:.85rem;border-width:2px;border-radius:100px}
+select,input[type=text],input[type=number],textarea{border:2px solid var(--ink);border-radius:10px;background:var(--paper);padding:5px 9px;min-width:0;width:100%}
+select:focus,input[type=text]:focus,textarea:focus{background:var(--main-soft)}
+textarea{resize:vertical;min-height:60px}
+input[type=color]{width:38px;height:32px;border:2px solid var(--ink);border-radius:8px;padding:0;background:none;cursor:pointer}
+input[type=checkbox]{accent-color:var(--ink);width:1.05em;height:1.05em;vertical-align:-.15em}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.layers{display:flex;flex-direction:column}
+.layer{display:flex;align-items:center;gap:8px;border-bottom:2.5px dotted var(--rule);padding:6px;cursor:pointer;border-radius:8px}
+.layer:hover{background:var(--main-soft)}
+.layer.sel{background:var(--main)}
+.layer .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.layer .ic{width:30px;height:30px;border-radius:7px;border:2px solid var(--ink);background:#eee center/contain no-repeat;flex:none}
+.layer button{border:0;background:none;cursor:pointer;padding:2px 6px;color:var(--ink);font-weight:700;border-radius:6px}
+.layer button:hover{background:var(--paper)}
+.layer.off .nm{opacity:.45;text-decoration:line-through}
+.empty{color:var(--gray);font-size:.9rem;padding:6px 0}
 .thumbs{display:flex;gap:4px;flex-wrap:wrap}
-.thumbs img{width:40px;height:40px;object-fit:contain;border-radius:6px;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/10px 10px;border:1px solid var(--line)}
-.note{font-size:12px;color:var(--sub);margin:4px 0}
-.status{font-size:12px;min-height:18px;margin-top:4px}
-.status.err{color:var(--warn)}
-hr{border:0;border-top:2px dashed var(--line);margin:16px 0}
+.thumbs img{width:44px;height:44px;object-fit:contain;border-radius:8px;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/10px 10px;border:2px solid var(--ink)}
+.note{font-size:.85rem;color:var(--gray);margin:4px 0}
+.status{font-size:.9rem;min-height:20px;margin-top:4px;font-weight:700}
+.status.err{color:#A8432F}
+hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
 .full{position:fixed;inset:0;background:#000;z-index:10;display:flex;align-items:center;justify-content:center;cursor:none}
-.full canvas{max-width:100vw;max-height:100vh;border-radius:0;box-shadow:none}
-/* つまみ */
-.rs{position:relative;height:30px;touch-action:none;cursor:ew-resize;min-width:60px}
-.rs-track{position:absolute;left:0;right:0;top:50%;height:10px;margin-top:-5px;background:var(--paper);border:2px solid var(--ink);border-radius:100px;overflow:hidden}
+.full canvas{max-width:100vw;max-height:100vh}
+/* つまみ（触っただけでは動かない） */
+.rs{position:relative;height:32px;touch-action:none;cursor:ew-resize;min-width:60px}
+.rs-track{position:absolute;left:0;right:0;top:50%;height:10px;margin-top:-5px;background:var(--cream);border:2px solid var(--ink);border-radius:100px;overflow:hidden}
 .rs-fill{position:absolute;left:0;top:0;bottom:0;background:var(--main)}
-.rs-knob{position:absolute;top:50%;width:18px;height:24px;margin:-12px 0 0 -9px;background:var(--card);border:2px solid var(--ink);border-radius:7px;box-shadow:0 2px 0 var(--ink)}
+.rs-knob{position:absolute;top:50%;width:18px;height:24px;margin:-12px 0 0 -9px;background:var(--paper);border:2px solid var(--ink);border-radius:7px}
 .rs.drag .rs-knob{background:var(--main)}
 @media (max-width:820px){
-  .app{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:100dvh}
-  .stage{position:sticky;top:0;z-index:5;padding:44px 16px 12px;max-height:52vh;background-color:var(--paper)}
-  .side{border-left:0;border-top:2px solid var(--ink)}
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr;height:auto;min-height:100dvh}
+  .stage{position:sticky;top:0;z-index:5;padding:12px 16px;max-height:50vh;background-color:var(--cream);border-bottom:var(--bd)}
+  .side{border-left:0}
 }
-@media (prefers-reduced-motion:reduce){.btn:active{transform:none}}
 </style>
 </head>
 <body>
 <div class="app">
+  <div class="bar"><a href="../../index.html">← LAB</a><h1>うごく背景</h1></div>
   <div class="stage" id="stage">
-    <div class="top"><a href="../../index.html">← LAB</a></div>
     <canvas id="view"></canvas>
   </div>
 
@@ -90,19 +100,36 @@ hr{border:0;border-top:2px dashed var(--line);margin:16px 0}
 
     <h2>背景</h2>
     <div class="row2">
+      <button class="btn s" data-bgmode="solid">単色</button>
       <button class="btn s" data-bgmode="grad">グラデ</button>
       <button class="btn s" data-bgmode="img">画像</button>
+      <button class="btn s" data-bgmode="none">透明</button>
       <label class="btn s">画像をえらぶ<input type="file" id="bgFile" accept="image/*" hidden></label>
     </div>
     <div class="row2" id="gradBox">
       <input type="color" id="c1" value="#c9d8ff"><input type="color" id="c2" value="#ffe1f0"><input type="color" id="c3" value="#ffffff">
-      <span class="note">上・下・まんなか</span>
+      <span class="note" id="gradNote">上・下・まんなか</span>
     </div>
     <div id="imgBox">
       <div class="row"><label>ぼかし</label><input type="range" id="bgBlur" min="0" max="20" step="1" value="0"><output></output></div>
       <div class="row"><label>明るさ</label><input type="range" id="bgBright" min="40" max="160" step="1" value="100"><output></output></div>
       <div class="row"><label>ゆっくり寄る</label><input type="range" id="bgZoom" min="0" max="20" step="1" value="6"><output></output></div>
       <div class="row"><label>ゆれ</label><input type="range" id="bgPan" min="0" max="20" step="1" value="4"><output></output></div>
+    </div>
+
+    <h2>下地の動き</h2>
+    <div class="row2" id="baseBtns">
+      <button class="btn s" data-base="none">なし</button>
+      <button class="btn s" data-base="sunburst">サンバースト</button>
+      <button class="btn s" data-base="smoke">ダークもや</button>
+      <button class="btn s" data-base="fire">炎</button>
+      <button class="btn s" data-base="stripe">斜めストライプ</button>
+    </div>
+    <div id="baseBox">
+      <div class="row2"><span class="note" style="width:88px">色</span><input type="color" id="b1"><input type="color" id="b2"></div>
+      <div class="row"><label>速さ</label><input type="range" id="bLaps" min="1" max="4" step="1" value="1"><output></output></div>
+      <div class="row"><label>強さ</label><input type="range" id="bPower" min="0" max="100" step="1" value="70"><output></output></div>
+      <div class="row"><label>量・大きさ</label><input type="range" id="bAmount" min="0" max="100" step="1" value="50"><output></output></div>
     </div>
 
     <h2>散らすもの <small>上ほど手前</small></h2>
@@ -130,6 +157,21 @@ hr{border:0;border-top:2px dashed var(--line);margin:16px 0}
     <div class="row"><label>わく</label><input type="range" id="frame" min="0" max="60" step="1" value="0"><output></output></div>
     <div class="row2"><span class="note">わくの色</span><input type="color" id="frameCol" value="#ffffff"></div>
 
+    <h2>仮置き <small>見るだけ。書き出しには 入らない</small></h2>
+    <div class="row2">
+      <label class="btn s">人物を 置く<input type="file" id="ghostFile" accept="image/*" hidden></label>
+      <button class="btn s" id="ghostClear">はずす</button>
+    </div>
+    <div class="row"><label>テロップ</label><input type="text" id="telop" placeholder="字幕の 仮の 文字"><span></span></div>
+
+    <h2>お気に入り</h2>
+    <div class="row2">
+      <select id="favSel" style="width:auto;flex:1"></select>
+      <button class="btn s" id="favLoad">よみこむ</button>
+      <button class="btn s" id="favDel">けす</button>
+    </div>
+    <div class="row2"><button class="btn s" id="favSave">今の 設定を 保存</button><span class="note">このブラウザに 残る（絵・画像は のぞく）</span></div>
+
     <hr>
     <h2>画像を作ってもらう</h2>
     <textarea id="genPrompt" placeholder="例: 夜空と雲、パステル、アニメ背景 / 例: ピンクのリボン"></textarea>
@@ -147,11 +189,12 @@ hr{border:0;border-top:2px dashed var(--line);margin:16px 0}
     <div class="row"><label>くり返し</label><input type="range" id="reps" min="1" max="10" step="1" value="1"><output></output></div>
     <div class="row2">
       <button class="btn main" id="recGo">動画で保存</button>
+      <button class="btn" id="seqGo">PNG連番 (ZIP)</button>
       <button class="btn" id="pngGo">今の絵を PNG</button>
       <button class="btn" id="fullGo">全画面で流す</button>
     </div>
     <div class="status" id="recStatus"></div>
-    <p class="note">ループの切れ目は つながるように 作ってある。全画面は Esc で もどる。</p>
+    <p class="note">ループの切れ目は つながるように 作ってある。透明で 使う ときは PNG連番（30fps で 読み込む）。全画面は Esc で もどる。</p>
   </div>
 </div>
 
@@ -168,6 +211,7 @@ function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let
 const S = {
   W: 1920, H: 1080, loop: 6,
   bg: { mode: 'grad', c1: '#c9d8ff', c2: '#ffe1f0', c3: '#ffffff', img: null, blur: 0, bright: 100, zoom: 6, pan: 4 },
+  base: { type: 'none', c1: '#ffe36b', c2: '#ffb13b', laps: 1, power: 70, amount: 50 },
   fx: { leak: 35, sweep: 0, vig: 15, grain: 8, rgb: 0, frame: 0, frameCol: '#ffffff' },
   layers: [], sel: -1,
 };
@@ -322,6 +366,10 @@ function drawBg(c, p, W, H) {
     const bl = B.blur * 2;
     c.drawImage(im, (W - w) / 2 + dx - bl, (H - h) / 2 + dy - bl, w + bl * 2, h + bl * 2);
     c.restore();
+  } else if (B.mode === 'none') {
+    c.clearRect(0, 0, W, H);
+  } else if (B.mode === 'solid') {
+    c.fillStyle = B.c1; c.fillRect(0, 0, W, H);
   } else {
     const g = c.createLinearGradient(0, 0, W * .2, H);
     g.addColorStop(0, B.c1); g.addColorStop(.55, B.c3); g.addColorStop(1, B.c2);
@@ -329,9 +377,78 @@ function drawBg(c, p, W, H) {
   }
 }
 
+/* ---------- 下地の動き（どれも 1周で もとに もどる） ---------- */
+const BASE_COLORS = {
+  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#2a1f3d', '#000000'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'],
+};
+const low = document.createElement('canvas');
+function lowCanvas(W, H, k) {
+  const w = Math.max(16, Math.round(W / k)), h = Math.max(16, Math.round(H / k));
+  if (low.width !== w || low.height !== h) { low.width = w; low.height = h; }
+  const lc = low.getContext('2d'); lc.setTransform(1, 0, 0, 1, 0, 0); lc.globalCompositeOperation = 'source-over'; lc.globalAlpha = 1; lc.clearRect(0, 0, w, h);
+  return lc;
+}
+function drawBase(c, p, W, H) {
+  const B = S.base; if (B.type === 'none') return;
+  const D = Math.hypot(W, H), pw = B.power / 100, am = B.amount / 100, L = B.laps;
+  const r = rng(77);
+  c.save();
+  if (B.type === 'sunburst') {
+    // 2本で 1組。1周で ちょうど L組 回る
+    c.fillStyle = B.c2; c.globalAlpha = S.bg.mode === 'none' ? 0 : .5 * pw; c.fillRect(0, 0, W, H);
+    const n = 2 * Math.round(6 + am * 14), step = TAU / n, rot = step * 2 * L * p;
+    c.translate(W / 2, H / 2); c.rotate(rot);
+    c.globalAlpha = .35 + .65 * pw; c.fillStyle = B.c1;
+    for (let i = 0; i < n; i += 2) { c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, D, i * step, (i + 1) * step); c.closePath(); c.fill(); }
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
+    const g = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.min(W, H) * (.3 + .08 * Math.sin(TAU * p * L)));
+    g.addColorStop(0, `rgba(255,255,255,${.5 * pw + .2})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+  } else if (B.type === 'stripe') {
+    c.fillStyle = B.c2; c.globalAlpha = S.bg.mode === 'none' ? 0 : .6 * pw; c.fillRect(0, 0, W, H);
+    const sw = Math.min(W, H) * (.03 + am * .12), per = sw * 2, off = per * L * p;
+    c.translate(W / 2, H / 2); c.rotate(-Math.PI / 4);
+    c.globalAlpha = .3 + .7 * pw; c.fillStyle = B.c1;
+    const n = Math.ceil(D / per) + 2;
+    for (let k = -n; k <= n; k++) c.fillRect(k * per + off, -D, sw, D * 2);
+  } else if (B.type === 'smoke') {
+    const lc = lowCanvas(W, H, 10), w = lc.canvas.width, h = lc.canvas.height, n = Math.round(8 + am * 22);
+    for (let i = 0; i < n; i++) {
+      const edge = r() < .55, f1 = 1 + (r() * 2 | 0), o = r(), o2 = r();
+      let x = r(), y = edge ? (r() < .5 ? r() * .25 : 1 - r() * .25) : .55 + r() * .5;
+      x += .12 * Math.sin(TAU * (p * L * f1 + o)); y += .08 * Math.cos(TAU * (p * L + o2));
+      const rad = Math.max(w, h) * (.12 + r() * .22) * (1 + .15 * Math.sin(TAU * (p * L + o)));
+      const g = lc.createRadialGradient(x * w, y * h, 0, x * w, y * h, rad);
+      g.addColorStop(0, B.c1); g.addColorStop(1, B.c1 + '00');
+      lc.globalAlpha = .35 + .5 * pw; lc.fillStyle = g; lc.fillRect(0, 0, w, h);
+    }
+    const g2 = lc.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .2, w / 2, h / 2, Math.max(w, h) * .75);
+    g2.addColorStop(0, B.c2 + '00'); g2.addColorStop(1, B.c2);
+    lc.globalAlpha = .5 + .5 * pw; lc.fillStyle = g2; lc.fillRect(0, 0, w, h);
+    c.filter = `blur(${Math.min(W, H) * .02}px)`; c.drawImage(low, 0, 0, W, H);
+  } else if (B.type === 'fire') {
+    const lc = lowCanvas(W, H, 8), w = lc.canvas.width, h = lc.canvas.height, n = Math.round(60 + am * 140);
+    const g0 = lc.createLinearGradient(0, h, 0, h * (1 - .35 * pw - .1));
+    g0.addColorStop(0, B.c1); g0.addColorStop(1, B.c1 + '00'); lc.fillStyle = g0; lc.fillRect(0, 0, w, h);
+    lc.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < n; i++) {
+      const x0 = r(), o = r(), laps = L * (1 + (r() * 2 | 0)), t = frac(o + laps * p);
+      const hgt = .25 + .55 * pw * (.5 + r() * .5);
+      const x = (x0 + .03 * Math.sin(TAU * (t * 2 + o))) * w, y = h * (1.05 - t * hgt);
+      const rad = Math.min(w, h) * (.03 + .06 * (1 - t)) * (.6 + am * .8);
+      const g = lc.createRadialGradient(x, y, 0, x, y, rad);
+      g.addColorStop(0, t < .35 ? B.c2 : B.c1); g.addColorStop(1, B.c1 + '00');
+      lc.globalAlpha = (1 - t) * .55; lc.fillStyle = g; lc.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    c.globalCompositeOperation = S.bg.mode === 'none' ? 'source-over' : 'screen';
+    c.filter = `blur(${Math.min(W, H) * .008}px)`; c.drawImage(low, 0, 0, W, H);
+  }
+  c.restore();
+}
+
 function drawFx(c, p, t, W, H) {
-  const F = S.fx, D = Math.max(W, H);
-  if (F.leak) {
+  const F = S.fx, D = Math.max(W, H), clear = S.bg.mode === 'none';
+  if (!clear && F.leak) {
     c.save(); c.globalCompositeOperation = 'screen';
     const blobs = [['255,190,220', 0, .9], ['180,210,255', .33, .7], ['255,240,190', .66, .6]];
     for (const [rgb, o, rr] of blobs) {
@@ -349,19 +466,19 @@ function drawFx(c, p, t, W, H) {
     g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, `rgba(255,255,255,${F.sweep / 100 * .6})`); g.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = g; c.fillRect(-bw, 0, bw * 2, H); c.restore();
   }
-  if (F.rgb) {
+  if (!clear && F.rgb) {
     if (tmp.width !== W || tmp.height !== H) { tmp.width = W; tmp.height = H; }
     const tc = tmp.getContext('2d'), o = F.rgb / 100 * D * .006 * (1 + .5 * Math.sin(TAU * p * 3));
     tc.globalCompositeOperation = 'copy'; tc.drawImage(c.canvas, 0, 0);
     tc.globalCompositeOperation = 'multiply'; tc.fillStyle = '#f00'; tc.fillRect(0, 0, W, H);
     c.save(); c.globalCompositeOperation = 'screen'; c.globalAlpha = .5; c.drawImage(tmp, o, 0); c.drawImage(tmp, -o, 0); c.restore();
   }
-  if (F.vig) {
+  if (!clear && F.vig) {
     const g = c.createRadialGradient(W / 2, H / 2, D * .25, W / 2, H / 2, D * .75);
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${F.vig / 100 * .8})`);
     c.fillStyle = g; c.fillRect(0, 0, W, H);
   }
-  if (F.grain) {
+  if (!clear && F.grain) {
     c.save(); c.globalCompositeOperation = 'overlay'; c.globalAlpha = F.grain / 100 * .5;
     c.fillStyle = c.createPattern(grainTiles[Math.floor(t * 12) % 4], 'repeat'); c.fillRect(0, 0, W, H); c.restore();
   }
@@ -376,6 +493,7 @@ function render(c, t) {
   const W = c.canvas.width, H = c.canvas.height, p = frac(t / S.loop);
   c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.shadowBlur = 0; c.filter = 'none';
   drawBg(c, p, W, H);
+  drawBase(c, p, W, H);
   for (let i = S.layers.length - 1; i >= 0; i--) drawLayer(c, S.layers[i], p, W, H);
   c.setTransform(1, 0, 0, 1, 0, 0); c.shadowBlur = 0;
   drawFx(c, p, t, W, H);
@@ -390,8 +508,25 @@ function sizeView() {
 }
 sizeView();
 let t0 = performance.now();
+const ghost = { img: null };
+function drawGhost(c) {
+  const W = c.canvas.width, H = c.canvas.height;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none'; c.shadowBlur = 0;
+  if (ghost.img) {
+    const im = ghost.img, h = H * .88, w = h * im.width / im.height;
+    c.drawImage(im, (W - w) / 2, H - h, w, h);
+  }
+  const tx = $('#telop').value.trim();
+  if (tx) {
+    const fs = Math.round(Math.min(W, H) * .055);
+    c.font = `800 ${fs}px 'M PLUS Rounded 1c', sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineJoin = 'round'; c.lineWidth = fs * .22; c.strokeStyle = '#1E1C14'; c.fillStyle = '#fff';
+    c.strokeText(tx, W / 2, H - fs * 1.4); c.fillText(tx, W / 2, H - fs * 1.4);
+  }
+}
 function tick(now) {
   render(vc, (now - t0) / 1000);
+  drawGhost(vc);
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
@@ -467,6 +602,7 @@ function applyPreset(name) {
   const keepImgs = S.layers.filter(L => L.shape === 'image');
   Object.assign(S.bg, P.bg, S.bg.img && S.bg.mode === 'img' ? { mode: 'img' } : {});
   Object.assign(S.fx, P.fx);
+  S.base.type = P.base || 'none';
   S.layers = [...keepImgs, ...P.layers]; S.sel = S.layers.length ? 0 : -1;
   syncInputs(); refresh();
 }
@@ -505,9 +641,60 @@ document.addEventListener('drop', async e => {
   const ims = await Promise.all(fs.map(fileToImg)); await addSpriteImages(ims, fs.length > 1 ? `絵 ${fs.length}枚` : fs[0].name);
 });
 
+document.querySelectorAll('[data-base]').forEach(b => b.onclick = () => {
+  const t = b.dataset.base;
+  if (t !== 'none' && t !== S.base.type) [S.base.c1, S.base.c2] = BASE_COLORS[t];
+  S.base.type = t; syncInputs();
+});
+bindRange('bLaps', () => S.base.laps, v => S.base.laps = v, v => v + '周');
+bindRange('bPower', () => S.base.power, v => S.base.power = v);
+bindRange('bAmount', () => S.base.amount, v => S.base.amount = v);
+$('#b1').addEventListener('input', e => S.base.c1 = e.target.value);
+$('#b2').addEventListener('input', e => S.base.c2 = e.target.value);
+$('#ghostFile').addEventListener('change', async e => { const f = e.target.files[0]; if (f) ghost.img = await fileToImg(f); e.target.value = ''; });
+$('#ghostClear').onclick = () => { ghost.img = null; $('#telop').value = ''; };
+
+/* ---------- お気に入り（このブラウザに 残す） ---------- */
+const FAV_KEY = 'ugoku-haikei-fav';
+function favs() { try { return JSON.parse(localStorage.getItem(FAV_KEY)) || {}; } catch (_) { return {}; } }
+function favList() {
+  const f = favs(), sel = $('#favSel'); sel.innerHTML = '';
+  const names = Object.keys(f);
+  if (!names.length) sel.innerHTML = '<option value="">まだ ありません</option>';
+  for (const n of names) { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.append(o); }
+}
+$('#favSave').onclick = () => {
+  const name = prompt('名前を つけて 保存', new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+  if (!name) return;
+  const { img, ...bg } = S.bg;
+  const data = { W: S.W, H: S.H, loop: S.loop, bg: { ...bg, mode: bg.mode === 'img' ? 'grad' : bg.mode }, base: { ...S.base }, fx: { ...S.fx },
+    layers: S.layers.filter(L => L.shape !== 'image').map(({ _pts, _key, imgs, id, ...L }) => L) };
+  const f = favs(); f[name] = data;
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(f)); } catch (_) { alert('保存できませんでした'); return; }
+  favList(); $('#favSel').value = name;
+};
+$('#favLoad').onclick = () => {
+  const d = favs()[$('#favSel').value]; if (!d) return;
+  S.W = d.W; S.H = d.H; S.loop = d.loop; $('#size').value = `${S.W}x${S.H}`; sizeView();
+  Object.assign(S.bg, d.bg); Object.assign(S.base, d.base); Object.assign(S.fx, d.fx);
+  const imgLayers = S.layers.filter(L => L.shape === 'image');
+  S.layers = [...imgLayers, ...d.layers.map(L => newLayer(L.shape, { ...L, imgs: [] }))];
+  S.sel = S.layers.length ? 0 : -1; syncInputs(); refresh();
+};
+$('#favDel').onclick = () => {
+  const n = $('#favSel').value, f = favs(); if (!n || !f[n] || !confirm(`「${n}」を けしますか`)) return;
+  delete f[n]; try { localStorage.setItem(FAV_KEY, JSON.stringify(f)); } catch (_) {} favList();
+};
+favList();
+
 function syncInputs() {
   document.querySelectorAll('[data-bgmode]').forEach(b => b.classList.toggle('on', b.dataset.bgmode === S.bg.mode));
-  $('#gradBox').style.display = S.bg.mode === 'grad' ? '' : 'none';
+  $('#gradBox').style.display = S.bg.mode === 'grad' || S.bg.mode === 'solid' ? '' : 'none';
+  $('#c2').style.display = $('#c3').style.display = S.bg.mode === 'solid' ? 'none' : '';
+  $('#gradNote').textContent = S.bg.mode === 'solid' ? '色' : '上・下・まんなか';
+  document.querySelectorAll('[data-base]').forEach(b => b.classList.toggle('on', b.dataset.base === S.base.type));
+  $('#baseBox').style.display = S.base.type === 'none' ? 'none' : '';
+  $('#b1').value = S.base.c1; $('#b2').value = S.base.c2;
   $('#imgBox').style.display = S.bg.mode === 'img' ? '' : 'none';
   for (const k of ['c1', 'c2', 'c3']) $('#' + k).value = S.bg[k];
   $('#frameCol').value = S.fx.frameCol;
@@ -642,6 +829,52 @@ $('#genGo').onclick = async () => {
 
 /* ---------- 書き出し ---------- */
 function save(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+/* 無圧縮の ZIP（PNG は もう 縮んで いるので これで 十分） */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files) {
+  const parts = [], cen = []; let off = 0;
+  const enc = new TextEncoder();
+  for (const f of files) {
+    const name = enc.encode(f.name), crc = crc32(f.data), sz = f.data.length;
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint32(14, crc, true); h.setUint32(18, sz, true); h.setUint32(22, sz, true); h.setUint16(26, name.length, true);
+    parts.push(h.buffer, name, f.data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint32(16, crc, true); c.setUint32(20, sz, true); c.setUint32(24, sz, true);
+    c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    cen.push(c.buffer, name);
+    off += 30 + name.length + sz;
+  }
+  const cenSize = cen.reduce((a, b) => a + b.byteLength, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cenSize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, e.buffer], { type: 'application/zip' });
+}
+$('#seqGo').onclick = async () => {
+  const st = $('#recStatus'), fps = 30, reps = +$('#reps').value, perLoop = Math.round(S.loop * fps), total = perLoop * reps;
+  // PNG に する 部分は 裏で 進むので、何枚か 同時に 走らせる
+  const K = 6, cvs = Array.from({ length: K }, () => { const cv = document.createElement('canvas'); cv.width = S.W; cv.height = S.H; return cv; });
+  $('#seqGo').disabled = true; st.className = 'status';
+  try {
+    const files = [];
+    for (let i0 = 0; i0 < total; i0 += K) {
+      const jobs = [];
+      for (let j = 0; j < K && i0 + j < total; j++) {
+        const i = i0 + j, cv = cvs[j];
+        render(cv.getContext('2d'), (i % perLoop) / fps);
+        jobs.push(new Promise(ok => cv.toBlob(ok, 'image/png')).then(async b => ({ name: `ugoku_${String(i).padStart(4, '0')}.png`, data: new Uint8Array(await b.arrayBuffer()) })));
+      }
+      files.push(...await Promise.all(jobs));
+      st.textContent = `PNG を 作っています… ${Math.round(files.length / total * 100)}%`;
+    }
+    st.textContent = 'ZIP に まとめています…'; await new Promise(r => setTimeout(r, 0));
+    save(makeZip(files), 'ugoku-haikei-png.zip');
+    st.textContent = `保存しました（PNG ${total}枚・30fps・${S.loop * reps}秒）`;
+  } catch (e) {
+    st.className = 'status err'; st.textContent = '書き出せませんでした: ' + (e.message || e);
+  } finally { $('#seqGo').disabled = false; }
+};
 $('#pngGo').onclick = () => {
   const cv = document.createElement('canvas'); cv.width = S.W; cv.height = S.H;
   render(cv.getContext('2d'), (performance.now() - t0) / 1000);
