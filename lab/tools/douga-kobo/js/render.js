@@ -1,12 +1,12 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=78';
-import { MEDIA, animFrame } from './media.js?v=78';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=78';
-import { beatOn, beatAt } from './beat.js?v=78';
-import { drawPat, drawDeco } from './pattern.js?v=78';
-import { drawTrans } from './trans.js?v=78';
-import { camAt } from './camera.js?v=78';
-import { draw as jzDraw } from './jz.js?v=78';
+import { S, clamp, findClip } from './state.js?v=79';
+import { MEDIA, animFrame } from './media.js?v=79';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=79';
+import { beatOn, beatAt } from './beat.js?v=79';
+import { drawPat, drawDeco } from './pattern.js?v=79';
+import { drawTrans } from './trans.js?v=79';
+import { camAt } from './camera.js?v=79';
+import { draw as jzDraw } from './jz.js?v=79';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
