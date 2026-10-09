@@ -1,0 +1,1521 @@
+/* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
+   時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
+
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=320';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=320';
+import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
+         nearestFolder, setParent } from '../engine/layer.js?v=320';
+import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
+         scaleRange,
+         setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=320';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=320';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=320';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=320';
+
+const HIT = 14;   // キーフレームをつかめる範囲（px）
+
+export function createTimeline(root, opts = {}){
+  const toast = opts.toast || (() => {});
+  const rows = root.querySelector('#tracks');
+  const pinbar = root.querySelector('#pinbar');
+  let dragPin = null;
+  /* いま 引っぱって いる キーフレーム。
+     キーフレームを うごかすと タイムラインは まるごと 作り直されるので、
+     作り直した あとに「ういている 見た目」を つけ直す ために おぼえておく。 */
+  let liftedAt = null;      // { layer, t }
+
+  /* ---------- 時間 ⇄ 位置 ----------
+     ズーム1のときは動画ぜんぶがトラックの幅に収まる。
+     ズームを上げると横に伸びて、再生ヘッドがまん中に来るようにずらす。 */
+  const ruler = root.querySelector('#rtrack');
+  const trackWidth = () => {
+    const el = rows.querySelector('.track') || ruler;
+    return el ? el.clientWidth : Math.max(1, rows.clientWidth - 118);
+  };
+  const contentWidth = () => trackWidth() * S.tlZoom;
+
+  /* 目もりを なぞって いる あいだは、横の ずれを 止めて おく。
+
+     ふだんは 再生ヘッドが まん中に 来るように 横を ずらして いる。
+     ところが その ずれは いまの 時こくから 出して いる ので、
+     さわって 時こくを 変えると ずれも 変わり、
+     指の 下で めもりが 動いて しまう。
+     ＝ さわった ところと ちがう 時こくに 行く、ずるずる 動く。
+     なぞって いる あいだ だけ 指を おいた ときの ずれで 止める。 */
+  let scrubFix = null;
+
+  /** 再生ヘッドがまん中に来る横のずれ量（px） */
+  function scrollX(){
+    if(scrubFix !== null) return scrubFix;
+    const w = trackWidth(), cw = contentWidth();
+    if(cw <= w) return 0;
+    const head = (S.time / Math.max(0.001, S.proj.duration)) * cw;
+    return Math.max(0, Math.min(cw - w, head - w / 2));
+  }
+
+  const t2x = (t) => (t / Math.max(0.001, S.proj.duration)) * contentWidth() - scrollX();
+  const x2t = (x) => Math.max(0, Math.min(S.proj.duration,
+                      ((x + scrollX()) / Math.max(1, contentWidth())) * S.proj.duration));
+
+  /** きざみ。ひろげるほど細かく置ける */
+  function step(){
+    const pxPerSec = contentWidth() / Math.max(0.001, S.proj.duration);
+    if(pxPerSec > 400) return 0.01;
+    if(pxPerSec > 160) return 0.02;
+    if(pxPerSec > 60)  return 0.05;
+    return 0.1;
+  }
+  /* ---------- 曲の 拍 ----------
+     音を 読みこむと BPM が 入る（S.proj.beat）。
+     めもりを 出して、キーフレームを 拍に すいつかせる。 */
+  const beatOf = () => {
+    const b = S.proj.beat;
+    return (b && b.bpm > 0) ? b : null;
+  };
+  /** 1拍の 長さ（秒）。拍が 無ければ 0 */
+  const beatLen = () => { const b = beatOf(); return b ? 60 / b.bpm : 0; };
+
+  const snap = (t) => {
+    /* 拍が あれば 半拍に すいつく（近い ときだけ）。
+       ぴったり 合って いないと リズムに のらない ので、
+       ここが いちばん きく ところ。 */
+    const b = beatOf();
+    if(b && b.snap !== false){
+      const sub = beatLen() / 2;
+      const pxPerSec = contentWidth() / Math.max(0.001, S.proj.duration);
+      const gap = sub * pxPerSec;                 // 半拍の はば（ドット）
+      /* 拍が こまかすぎる（画面で つまって いる）ときは すいつかない。
+         どこにも 置けなく なって しまう ので。 */
+      if(sub > 0.001 && gap >= 18){
+        const off = b.offset || 0;
+        const bt = off + Math.round((t - off) / sub) * sub;
+        if(bt >= 0 && Math.abs(bt - t) * pxPerSec < Math.min(10, gap * 0.35)){
+          return +bt.toFixed(3);
+        }
+      }
+    }
+    return Math.round(t / step()) * step();
+  };
+
+  /** 時間じくをひろげる・ちぢめる */
+  function zoomTime(k){
+    const z = Math.max(1, Math.min(60, S.tlZoom * k));
+    if(z === S.tlZoom) return;
+    S.tlZoom = z;
+    toast(z <= 1.01 ? 'ぜんたい表示' : 'きざみ ' + step().toFixed(2) + '秒');
+    onChange();
+  }
+
+  /* ---------- キーフレームの選択 ---------- */
+  function selectPin(layerId, t, additive){
+    if(S.selPins.layer !== layerId){ S.selPins = { layer: layerId, times: [t] }; }
+    else if(additive && S.selPins.times.length === 1 && S.selPins.times[0] !== t){
+      S.selPins.times = [S.selPins.times[0], t].sort((a, b) => a - b);
+    } else {
+      S.selPins.times = [t];
+    }
+    S.sel = layerId;
+    onChange();
+  }
+  function clearPins(){
+    if(S.selPins.times.length){ S.selPins = { layer:null, times:[] }; onChange(); }
+  }
+
+  /* ---------- 組み立て ---------- */
+  function build(){
+    // 再生バー
+    root.querySelector('#tnow').textContent = S.time.toFixed(1);
+    ['#pickKeyDel', '#pinPickDel'].forEach(q => {
+      const b = root.querySelector(q);
+      if(b) b.hidden = !S.pick.length;
+    });
+    root.querySelector('#tdur').textContent = S.proj.duration.toFixed(1);
+    root.querySelector('#play').textContent = S.playing ? '⏸' : '▶';
+    root.querySelector('#play').title = S.playing ? 'とめる' : 'さいせい';
+    const rp = root.querySelector('#ripple');
+    if(rp) rp.classList.toggle('on', S.ripple);
+    const ps = root.querySelector('#paste');
+    if(ps) ps.disabled = !(S.clip && S.clip.items.length);
+    const zo = root.querySelector('#tlOut');
+    if(zo) zo.disabled = S.tlZoom <= 1.01;
+
+
+    buildPinbar();
+    buildRuler();
+
+    /* ☑ を なぞっている あいだは 作り直さない。
+       作り直すと 指で つかんでいた ボタンが 消えてしまい、
+       そこで 指の あとを 見失う（スマホで うまく いかなかった 原因）。 */
+    if(pickDrag){ syncPicks(); return; }
+
+    /* 作り直すと 見ていた場所が いちばん上に もどってしまう。
+       ボタンを おすたびに 飛ばされないよう、いまの位置を おぼえておく。 */
+    const keepTop = rows.scrollTop;
+
+    rows.innerHTML = '';
+    if(!S.proj.layers.length){
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = '下の「ついか」から\nPSD・PNG・JPEG をよみこもう';
+      rows.appendChild(e);
+      return;
+    }
+
+    treeRows(S.proj).forEach(r => rows.appendChild(buildRow(r.layer, r.depth)));
+    rows.appendChild(buildPlayhead());
+
+    // 行が へって 短くなっていることもあるので、はみ出さない所まで もどす
+    rows.scrollTop = Math.min(keepTop, Math.max(0, rows.scrollHeight - rows.clientHeight));
+  }
+
+  /** 目もりを さわったら、そこへ 再生バーを うつす */
+  function attachRulerScrub(){
+    if(!ruler || ruler.dataset.scrub) return;
+    ruler.dataset.scrub = '1';
+    ruler.style.cursor = 'ew-resize';
+    ruler.addEventListener('pointerdown', (e) => {
+      try{ ruler.setPointerCapture(e.pointerId); }catch(_){}
+      S.playing = false;
+      /* さわって いる のは 目もり そのもの なので、
+         ものさしは 目もりの わく で とる（めもりの 線も この わくに 置いて いる）。 */
+      const rect = ruler.getBoundingClientRect();
+      const edge = rect.left + ruler.clientLeft;   // わくの線のぶんを のぞく
+      scrubFix = scrollX();                        // 指を おいた ときの ずれで 止める
+      const scrub = (ev) => { S.time = snap(x2t(ev.clientX - edge)); onChange(); };
+      scrub(e);
+      const end = () => {
+        scrubFix = null;
+        onChange();                                // 指を はなしたら まん中に もどす
+        ruler.removeEventListener('pointermove', scrub);
+        ruler.removeEventListener('pointerup', end);
+        ruler.removeEventListener('pointercancel', end);
+      };
+      ruler.addEventListener('pointermove', scrub);
+      ruler.addEventListener('pointerup', end);
+      ruler.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* なぞっている あいだは 印だけを 書きかえる（作り直さない） */
+  let pickDrag = false;
+  function syncPicks(){
+    rows.querySelectorAll('.trow').forEach(r => {
+      const on = S.pick.includes(r.dataset.id);
+      const b = r.querySelector('.pick');
+      if(b){ b.classList.toggle('on', on); b.textContent = on ? '☑' : '☐'; }
+    });
+  }
+
+  /** 時間の目盛り。ひろげるほど細かい数字が出る */
+  function buildRuler(){
+    if(!ruler) return;
+    attachRulerScrub();
+
+    /* 目もりの幅を レイヤー行の帯と ぴったり合わせる。
+       レイヤーが多いと 縦スクロールバーのぶん 行のほうが せまくなるので、
+       合わせておかないと 数字と 再生バーの位置が ずれる。 */
+    const rowTrack = rows.querySelector('.track');
+    if(rowTrack){
+      const w = rowTrack.getBoundingClientRect().width;
+      if(w > 1) ruler.style.flex = '0 0 ' + w + 'px';
+    } else {
+      ruler.style.flex = '1';
+    }
+
+    ruler.innerHTML = '';
+    const w = trackWidth();
+    const dur = S.proj.duration;
+    const pxPerSec = contentWidth() / Math.max(0.001, dur);
+
+    // 数字を出す間隔。狭いときは間引く
+    const labelGap = pxPerSec > 300 ? 0.5 : pxPerSec > 120 ? 1 : pxPerSec > 40 ? 2 : 5;
+    const tickGap  = pxPerSec > 300 ? 0.1 : pxPerSec > 120 ? 0.5 : 1;
+
+    /* 拍の めもり。4拍ごとに ふとく する（小節の あたま）。
+       多すぎる ときは 間引く（1拍が 6ドットより せまい なら 出さない）。 */
+    const bt = beatOf();
+    if(bt){
+      const bl = 60 / bt.bpm;
+      const off = bt.offset || 0;
+      if(bl * pxPerSec > 6){
+        let i = Math.ceil((0 - off) / bl);
+        for(let t = off + i * bl; t <= dur + 1e-6; t += bl, i++){
+          if(t < -1e-6) continue;
+          const x = t2x(t);
+          if(x < -4 || x > w + 4) continue;
+          const m = document.createElement('div');
+          m.className = 'btick' + (((i % 4) + 4) % 4 === 0 ? ' bar' : '');
+          m.style.left = x + 'px';
+          ruler.appendChild(m);
+        }
+      }
+    }
+
+    for(let t = 0; t <= dur + 1e-6; t += tickGap){
+      const x = t2x(t);
+      if(x < -4 || x > w + 4) continue;
+      const big = Math.abs(t / labelGap - Math.round(t / labelGap)) < 1e-6;
+      const tk = document.createElement('div');
+      tk.className = 'rtick' + (big ? ' big' : '');
+      tk.style.left = x + 'px';
+      ruler.appendChild(tk);
+      if(big){
+        const lb = document.createElement('span');
+        lb.className = 'rlab';
+        lb.textContent = labelGap < 1 ? t.toFixed(1) : String(Math.round(t));
+        lb.style.left = x + 'px';
+        ruler.appendChild(lb);
+      }
+    }
+  }
+
+  /* セリフの バーを よこに 引っぱって、しゃべり はじめを ずらす。
+
+     指の 行き先は window で 聞く。つまみから 指が はみ出しても
+     ついてくる し、とちゅうで つかみが 外れても 取りこぼさない。 */
+  function attachTalkDrag(el, l){
+    const perPx = () => Math.max(0.001, S.proj.duration) / Math.max(1, contentWidth());
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const x0 = e.clientX;
+      const from0 = talkStart(l);
+      const to0 = (l.span && l.span.to != null) ? l.span.to : null;
+      let moved = false;
+      beginEdit('セリフの タイミング');
+
+      const move = (ev) => {
+        const dx = ev.clientX - x0;
+        if(!moved && Math.abs(dx) < 3) return;
+        moved = true;
+        const from = Math.max(0, Math.min(S.proj.duration, from0 + dx * perPx()));
+        l.span = { from, to: to0 == null ? null : Math.max(from, to0 + (from - from0)) };
+        l._tkKey = null;
+        onChange();
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        commitEdit();
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+  }
+
+  function buildRow(l, depth){
+    const folder = isFolder(l);
+    const row = document.createElement('div');
+    row.className = 'trow' + (l.id === S.sel ? ' sel' : '') + (l.visible ? '' : ' off')
+      + (folder ? ' folder' : '') + (l.locked ? ' locked' : '');
+    row.dataset.id = l.id;
+
+    /* --- 左：レイヤー --- */
+    const head = document.createElement('div');
+    head.className = 'thead';
+    /* 入れ子の 下げ幅は「ちぢむ すきま」で 出す。
+       前は 左の あきで 下げて いた ので、フォルダが 深く なるほど
+       行の はばを 食って、右はしの 👁（見せる・かくす）が
+       おし出されて 見えなく なって いた。
+       すきまなら、せまく なった ぶんは すきまが ちぢんで、
+       👁 は かならず のこる。 */
+    if(depth){
+      const pad = document.createElement('span');
+      pad.className = 'tind';
+      pad.style.flex = '0 6 ' + (Math.min(depth, 6) * 12) + 'px';
+      head.appendChild(pad);
+    }
+
+    const grip = document.createElement('span');
+    grip.className = 'grip';
+    grip.textContent = '⠿';
+    grip.title = 'つまんで ならびかえ';
+    attachReorder(grip, l, row);
+    head.appendChild(grip);
+    attachLongPress(head, grip);
+
+    // ☑ ＝ まとめる ときに えらぶ印
+    const pick = document.createElement('button');
+    pick.className = 'pick' + (S.pick.includes(l.id) ? ' on' : '');
+    pick.textContent = S.pick.includes(l.id) ? '☑' : '☐';
+    pick.title = 'まとめる ために えらぶ';
+    pick.setAttribute('aria-label', pick.title);
+    /* おして そのまま 下（上）へ なぞると、通った行 ぜんぶに
+       同じ しるしが つく。1つずつ おさなくて よい。 */
+    pick.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ pick.setPointerCapture(e.pointerId); }catch(_){}
+
+      const want = !S.pick.includes(l.id);      // これから どうするか
+      const apply = (id) => {
+        const at = S.pick.indexOf(id);
+        if(want && at < 0) S.pick.push(id);
+        if(!want && at >= 0) S.pick.splice(at, 1);
+      };
+      const order = [...rows.querySelectorAll('.trow')].map(r => r.dataset.id);
+      const from = order.indexOf(l.id);
+
+      pickDrag = true;                          // ここから 作り直さない
+      apply(l.id);
+      syncPicks();
+
+      let lastTo = from, moved = false;
+      const move = (ev) => {
+        const r = [...rows.querySelectorAll('.trow')].find(x => {
+          const b = x.getBoundingClientRect();
+          return ev.clientY >= b.top && ev.clientY <= b.bottom;
+        });
+        if(!r) return;
+        const to = order.indexOf(r.dataset.id);
+        if(to < 0 || to === lastTo) return;
+        lastTo = to; moved = true;
+        const a = Math.min(from, to), b2 = Math.max(from, to);
+        for(let i = a; i <= b2; i++) apply(order[i]);
+        syncPicks();
+      };
+      const end = () => {
+        pick.removeEventListener('pointermove', move);
+        pick.removeEventListener('pointerup', end);
+        pick.removeEventListener('pointercancel', end);
+        pickDrag = false;                       // ここから ふつうに もどす
+        if(moved) toast(S.pick.length + 'まい えらびました');
+        onChange();
+      };
+      pick.addEventListener('pointermove', move);
+      pick.addEventListener('pointerup', end);
+      pick.addEventListener('pointercancel', end);
+    });
+    pick.addEventListener('click', e => e.stopPropagation());
+    head.appendChild(pick);
+
+    if(folder){
+      /* たたむ ボタンと フォルダの 絵を ひとつに した。
+         前は ▾ と 📂 が ならんで いて、その ぶん 行が 足りなく なり、
+         右はしの 👁 が おし出されて 見えなく なって いた。
+         ひらいて いれば 📂、たたんで いれば 📁 なので、
+         2つ ならべなくても どちらか 分かる。 */
+      const tw = document.createElement('button');
+      tw.className = 'twist';
+      tw.textContent = l.open === false ? '📁' : '📂';
+      tw.title = l.open === false ? 'ひらく' : 'たたむ';
+      tw.setAttribute('aria-label', tw.title);
+      tw.addEventListener('pointerdown', e => e.stopPropagation());
+      tw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        l.open = l.open === false;
+        onChange();
+      });
+      head.appendChild(tw);
+    } else if(l.kind === 'audio'){
+      /* おと … 絵は 持たない。しるしだけ 出す */
+      const ic = document.createElement('span');
+      ic.className = 'thumb camic';
+      ic.textContent = '🔊';
+      ic.title = 'おと。この行に 波形が 出ます';
+      head.appendChild(ic);
+    } else if(l.kind === 'talk'){
+      /* セリフ枠 … 絵は 持たない。しるしだけ 出す */
+      const ic = document.createElement('span');
+      ic.className = 'thumb camic';
+      ic.textContent = '💬';
+      ic.title = 'セリフ枠。えらんで 左の「かたち」で 文を 直せます';
+      head.appendChild(ic);
+    } else if(l.kind === 'cam'){
+      /* カメラ … 絵は 持たないので、しるしを 出す。
+         ここに ◆キーフレームを うつと カメラの うごきに なる。 */
+      const ic = document.createElement('span');
+      ic.className = 'thumb camic';
+      ic.textContent = '🎥';
+      ic.title = 'カメラ。この行に キーフレームを うつと カメラが 動く';
+      head.appendChild(ic);
+    } else if(l.kind === 'solid'){
+      // いろの かみ … その色の しかくを 見本に する
+      const ic = document.createElement('span');
+      ic.className = 'thumb';
+      ic.style.background = l.color || '#F2A0B8';
+      head.appendChild(ic);
+    } else if(l.kind === 'paint'){
+      // ペイントの かみ … いま 描いてある 紙を そのまま 見本に する
+      const th = document.createElement('canvas');
+      th.className = 'thumb';
+      th.width = 26; th.height = 26;
+      const src = l._pc;
+      if(src && src.width && src.height){
+        const g = th.getContext('2d');
+        const k = Math.min(26 / src.width, 26 / src.height);
+        const w = src.width * k, h = src.height * k;
+        g.drawImage(src, (26 - w) / 2, (26 - h) / 2, w, h);
+      }
+      head.appendChild(th);
+    } else {
+      const asset = frameAsset(l, 0);
+      const th = document.createElement('img');
+      th.className = 'thumb'; th.alt = '';
+      /* 絵が まだ 無い ときに src を さわると
+         「undefined」を とりに 行って しまう */
+      if(asset && asset.src) th.src = asset.src;
+      head.appendChild(th);
+    }
+
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    const oya = l.parent ? S.proj.layers.find(x => x.id === l.parent) : null;
+    const inFolder = oya && isFolder(oya);
+    /* セリフ枠は 中の 文を すこし 出す（どの セリフか 分かる ように） */
+    const say = (l.kind === 'talk' && l.talk && l.talk.text)
+      ? '「' + String(l.talk.text).split(String.fromCharCode(10)).join(' ').slice(0, 6) + '」' : '';
+    nm.textContent = (l.locked ? '🔒 ' : '') + (l.clip ? '✂ ' : '')
+      + (oya && !inFolder ? '⤷ ' : '') + (say || l.name)
+      + (folder ? '（' + membersOf(S.proj, l).length + '）' : '');
+    const tips = [];
+    if(l.clip){
+      const to = l.clipTo ? S.proj.layers.find(x => x.id === l.clipTo) : null;
+      tips.push(to ? '「' + to.name + '」の形でぬいている' : '下のレイヤーの形でぬいている');
+    }
+    if(oya) tips.push(oya.name + ' についている');
+    if(tips.length) nm.title = tips.join(' / ');
+    if(oya) head.classList.add('haschild');
+    head.appendChild(nm);
+
+    if(!folder && l.frames.length > 1){
+      const f = document.createElement('span');
+      f.className = 'frames';
+      f.textContent = (valuesAt(l, S.time).frame + 1) + '/' + l.frames.length;
+      f.title = 'いま何コマめか';
+      head.appendChild(f);
+    }
+
+    const eye = document.createElement('button');
+    eye.className = 'eye';
+    eye.textContent = l.visible ? '👁' : '🚫';
+    eye.title = l.visible ? 'かくす' : 'みせる';
+    eye.setAttribute('aria-label', eye.title);
+    eye.addEventListener('pointerdown', e => e.stopPropagation());
+    eye.addEventListener('click', e => {
+      e.stopPropagation();
+      edit(l.visible ? 'かくす' : 'みせる', () => { l.visible = !l.visible; });
+      onChange();
+    });
+    head.appendChild(eye);
+
+    head.addEventListener('click', () => { S.sel = l.id; clearPins(); onChange(); });
+    row.appendChild(head);
+
+    /* --- 右：トラック --- */
+    const track = document.createElement('div');
+    track.className = 'track';
+
+    /* 拍の すじ（うすい たて線）。
+       1本ずつ 部品に すると 数が 多く なるので、もようで 出す。 */
+    const btr = beatOf();
+    if(btr){
+      const bl = 60 / btr.bpm;
+      const pps = contentWidth() / Math.max(0.001, S.proj.duration);
+      const px = bl * pps;
+      if(px > 6){
+        track.style.backgroundImage =
+          'repeating-linear-gradient(90deg, rgba(30,28,20,.16) 0 1px, transparent 1px '
+          + px.toFixed(3) + 'px)';
+        track.style.backgroundPosition = t2x(btr.offset || 0).toFixed(2) + 'px 0';
+      }
+    }
+
+    /* おとの 行は 波形を 出す。
+       どこで しゃべって いるかが 目で 分かる ように。
+       おおきさの 地図（env）は 音を 読んだ ときに もう できて いる。 */
+    if(l.kind === 'audio' && hasAudio()){
+      const cvw = Math.max(8, Math.round(trackWidth()));
+      const cvh = 34;
+      const wv = document.createElement('canvas');
+      wv.className = 'wave';
+      wv.width = cvw; wv.height = cvh;
+      wv.style.width = '100%';
+      wv.style.height = cvh + 'px';
+      const g = wv.getContext('2d');
+      const env = AUD.env, slot = AUD.slot || 0.02;
+      const off = (S.proj.audio && S.proj.audio.offset) || 0;
+      const peak = Math.max(1e-6, AUD.peak || 1);
+
+      // しゃべって いる ところ を うすい 帯で
+      g.fillStyle = 'rgba(122,196,160,.30)';
+      speechSpans().forEach(sp => {
+        const x0 = t2x(sp.from + off), x1 = t2x(sp.to + off);
+        g.fillRect(x0, 0, Math.max(1, x1 - x0), cvh);
+      });
+
+      // 波形
+      g.fillStyle = '#1E1C14';
+      for(let x = 0; x < cvw; x++){
+        const t = x2t(x) - off;
+        if(t < 0 || t > AUD.buf.duration) continue;
+        const i = Math.floor(t / slot);
+        const a = Math.min(1, (env[i] || 0) / peak);
+        const h = Math.max(1, a * (cvh - 4));
+        g.fillRect(x, (cvh - h) / 2, 1, h);
+      }
+      track.appendChild(wv);
+    }
+
+    /* ループの帯。
+       キーフレームが 1つも ない レイヤーでは ループは 何も しない ので、
+       帯も 出さない（もどした あとに 帯だけ のこって 見えた） */
+    if(l.loop && pinTimes(l).length){
+      const band = document.createElement('div');
+      band.className = 'loopband' + (l.loop.mode === 'pingpong' ? ' ping' : '');
+      band.style.left = t2x(l.loop.from) + 'px';
+      band.style.width = Math.max(0, t2x(l.loop.to) - t2x(l.loop.from)) + 'px';
+      band.title = l.loop.mode === 'pingpong' ? '往復ループ' : 'ループ';
+      track.appendChild(band);
+
+      /* やめる ための 小さい ボタンを 帯の 先に つける。
+         キーフレームの えらびが 外れると 下の ボタンが 出ない ことが あり、
+         帯だけ のこって 消せなく 見えて いた。
+         帯じたいは すりぬける（キーフレームを つかむ じゃまに なる） ので、
+         この つまみ だけ さわれる ように する。 */
+      const off = document.createElement('button');
+      off.className = 'loopoff';
+      off.textContent = '✕';
+      off.title = 'ループを やめる';
+      off.style.left = t2x(l.loop.from) + 'px';
+      off.addEventListener('pointerdown', e => e.stopPropagation());
+      off.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        edit('ループをやめる', () => { l.loop = null; });
+        toast('ループを やめました');
+        onChange();
+      });
+      track.appendChild(off);
+      // 繰り返している先の目印
+      const rest = document.createElement('div');
+      rest.className = 'looprest';
+      rest.style.left = t2x(l.loop.to) + 'px';
+      rest.style.width = Math.max(0, trackWidth() - t2x(l.loop.to)) + 'px';
+      track.appendChild(rest);
+    }
+
+    // 目盛り。ひろげたときに何秒か分かるように
+    if(S.tlZoom > 1.01){
+      const dur = S.proj.duration;
+      const pxPerSec = contentWidth() / Math.max(0.001, dur);
+      const gap = pxPerSec > 300 ? 0.1 : pxPerSec > 90 ? 0.5 : 1;
+      for(let t = 0; t <= dur + 1e-6; t += gap){
+        const x = t2x(t);
+        if(x < -2 || x > trackWidth() + 2) continue;
+        const tick = document.createElement('div');
+        const big = Math.abs(t % 1) < 1e-6;
+        tick.className = 'tick' + (big ? ' big' : '');
+        tick.style.left = x + 'px';
+        track.appendChild(tick);
+      }
+    }
+
+    // キーフレーム同士をつなぐ線
+    const times = pinTimes(l);
+    if(times.length > 1){
+      const line = document.createElement('div');
+      line.className = 'pinline';
+      line.style.left = t2x(times[0]) + 'px';
+      line.style.width = (t2x(times[times.length - 1]) - t2x(times[0])) + 'px';
+      track.appendChild(line);
+    }
+
+    /* ---- ここから ここまで 出す ----
+       ふだんは 出さない。かたち の「⟨⟩ 長さを 調節」を おした ときだけ 出す。
+       （スマホの せまい タイムラインでは、いつも 出ていると 見にくい）
+       行の 上に 帯が あって、りょうはしの つまみ ⟨ ⟩ を 引っぱると
+       「この レイヤーは ここから ここまで しか 出さない」に なる。
+       フォルダに かければ 中身ごと 出たり 消えたり する。 */
+    /* ---- 💬 セリフの バー ----
+       いつ 出て、いつ 言いおわるかを 行の 上に 出す。
+       つまんで よこに 引っぱると、しゃべり はじめが ずれる。
+       （タイミングを あわせる のが いちばん やりたい ことなので、
+         「長さを 調節」を 出さなくても さわれる ように して おく） */
+    if(isTalk(l)){
+      const a = talkStart(l), b = talkEnd(l), c = talkOut(l);
+      /* よいん（読む 間）は うすい 帯で 後ろに 出す */
+      if(c > b + 1e-6){
+        const rest = document.createElement('div');
+        rest.className = 'talkhold';
+        rest.style.left = t2x(b) + 'px';
+        rest.style.width = Math.max(2, t2x(c) - t2x(b)) + 'px';
+        rest.title = 'よいん（読む 間）';
+        track.appendChild(rest);
+      }
+      const bar = document.createElement('div');
+      bar.className = 'talkbar' + (l.id === S.sel ? ' on' : '');
+      bar.style.left = t2x(a) + 'px';
+      bar.style.width = Math.max(10, t2x(b) - t2x(a)) + 'px';
+      const say = (l.talk && l.talk.text) ? String(l.talk.text)
+        .split(String.fromCharCode(10)).join(' ') : '';
+      bar.textContent = say.slice(0, 18);
+      bar.title = a.toFixed(2) + '秒 〜 ' + b.toFixed(2) + '秒（よいん こみ ' + c.toFixed(2) + '秒まで）'
+        + String.fromCharCode(10) + 'つまんで よこに 引っぱると ずらせます';
+      attachTalkDrag(bar, l);
+      track.appendChild(bar);
+    }
+
+    if(S.spanEdit === l.id){
+      const sp = l.span || { from: 0, to: S.proj.duration };
+      const has = !!l.span;
+      const bar = document.createElement('div');
+      bar.className = 'span' + (has ? ' on' : '');
+      bar.style.left = t2x(sp.from) + 'px';
+      bar.style.width = Math.max(2, t2x(sp.to) - t2x(sp.from)) + 'px';
+      track.appendChild(bar);
+
+      [['L', sp.from], ['R', sp.to]].forEach(([side, tt]) => {
+        const h = document.createElement('button');
+        h.className = 'spgrip ' + side + (has ? ' on' : '');
+        /* つまみは 画面の はしに ぴったり 置かない。
+
+           スマホ（Android）は 画面の はしから 20ドットくらいが
+           「もどる」の ための ところ。そこに つまみが あると、
+           さわった しゅんかんに もどるが はじまって、
+           つまみは うごかない。
+           はしから 36ドット 内がわに ずらして 置く
+           （帯は 本当の 長さの まま なので、見た目は 正しい）。 */
+        const gx = Math.max(36, Math.min(trackWidth() - 36, t2x(tt)));
+        h.style.left = gx + 'px';
+        h.textContent = side === 'L' ? '⟨' : '⟩';
+        h.title = 'ここから ここまで 出す';
+        attachSpan(h, l, side);
+        track.appendChild(h);
+      });
+    }
+
+    /* ---- のばす・みじかくする つまみ ----
+       キーフレームを 2つ えらぶと、その あいだに 帯が 出る。
+       帯の りょうはしを 引っぱると、あいだの キーフレームが
+       ぜんぶ そのままの 比で のびる・ちぢむ。
+       ＝ コマの 間かくを まとめて 変えられる。 */
+    if(S.selPins.layer === l.id && S.selPins.times.length === 2){
+      const a = S.selPins.times[0], b2 = S.selPins.times[1];
+      const band = document.createElement('div');
+      band.className = 'stretch';
+      band.style.left = t2x(a) + 'px';
+      band.style.width = Math.max(2, t2x(b2) - t2x(a)) + 'px';
+      track.appendChild(band);
+
+      [['L', a], ['R', b2]].forEach(([side, tt]) => {
+        const h = document.createElement('button');
+        h.className = 'sgrip ' + side;
+        h.style.left = t2x(tt) + 'px';
+        h.textContent = side === 'L' ? '◁' : '▷';
+        h.title = 'ひっぱると キーフレームの あいだが のびる・ちぢむ';
+        attachStretch(h, l, side, a, b2);
+        track.appendChild(h);
+      });
+    }
+
+    const framePins = framePinTimes(l);
+    times.forEach(t => {
+      const b = document.createElement('button');
+      const picked = S.selPins.layer === l.id && S.selPins.times.includes(t);
+      const isFrame = framePins.some(f => Math.abs(f - t) < 1e-3);
+      // 作り直された あとも、もちあげて いる キーフレームは ういた ままに 見せる
+      const isLift = liftedAt && liftedAt.layer === l.id && Math.abs(liftedAt.t - t) < 1e-3;
+      b.className = 'pin' + (picked ? ' on' : '')
+        + (isHoldAt(l, t) ? ' hold' : '')
+        + (isFrame ? ' frame' : '')
+        + (isLift ? ' lifted' : '');
+      const px = t2x(t);
+      if(!isLift && (px < -20 || px > trackWidth() + 20)) return;   // 画面の外は作らない
+      b.style.left = px + 'px';
+      b.title = fmtTime(t) + (isHoldAt(l, t) ? '（とめる）' : '');
+      b.setAttribute('aria-label', 'キーフレーム ' + fmtTime(t));
+      attachPinDrag(b, l, t);
+      track.appendChild(b);
+    });
+
+    attachScrub(track, l);
+    row.appendChild(track);
+    return row;
+  }
+
+  function buildPlayhead(){
+    const ph = document.createElement('div');
+    ph.className = 'playhead';
+    ph.id = 'playhead';
+    updatePlayhead(ph);
+    return ph;
+  }
+
+  function updatePlayhead(ph){
+    ph = ph || root.querySelector('#playhead');
+    if(!ph) return;
+    const track = rows.querySelector('.track');
+    if(!track){ ph.style.display = 'none'; return; }
+    ph.style.display = '';
+    // レイヤーが多くてスクロールするときも、いちばん下の行まで届かせる
+    ph.style.height = Math.max(rows.scrollHeight, rows.clientHeight) + 'px';
+    // レイヤー名の欄の幅は中身で変わるので、実際のトラック位置から出す
+    ph.style.left = (track.offsetLeft + t2x(S.time)) + 'px';
+  }
+
+  /* ---------- キーフレームの操作バー ---------- */
+  function buildPinbar(){
+    /* バーは いつも 出す（親子付け・グループ・クリップ・リップル が ある）。
+       キーフレームを えらんで いない ときは、キーフレーム用の ボタンだけ かくす。 */
+    pinbar.hidden = false;
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    const n = l ? S.selPins.times.length : 0;
+    pinbar.querySelectorAll('.pinonly').forEach(b => { b.hidden = n === 0; });
+    /* 削除は ☑ の レイヤーにも つかう ので、☑ が あれば 出す */
+    if(!n) return;
+
+    const info = pinbar.querySelector('#pininfo');
+    info.textContent = (n === 1
+      ? 'キーフレーム ' + fmtTime(S.selPins.times[0])
+      : fmtTime(S.selPins.times[0]) + ' 〜 ' + fmtTime(S.selPins.times[1])) + ' ✎';
+    info.disabled = n !== 1;
+
+    const hold = pinbar.querySelector('#pinHold');
+    const on = n === 1 && isHoldAt(l, S.selPins.times[0]);
+    hold.classList.toggle('on', on);
+    hold.disabled = n !== 1;
+    hold.textContent = on ? '⏸ ホールド中' : '⏸ ホールド';
+    hold.title = on
+      ? 'いまは つぎのキーフレームまで うごきません。おすと なめらかに つながります'
+      : 'つぎのキーフレームまで うごかさない。パラパラ（コマ切りかえ）に つかいます';
+
+    /* いま ループて いる ほうの ボタンは「〜中」に する。
+       どれを おせば やめられるか ひと目で わかる ように
+       （まえは ループ→往復→ループ と おして いくと
+         いつまでも 消えない ように 見えて いた）。 */
+    const isLoop = !!l.loop;
+    const lb = pinbar.querySelector('#pinLoop');
+    const pb = pinbar.querySelector('#pinPing');
+    const onL = isLoop && l.loop.mode === 'loop';
+    const onP = isLoop && l.loop.mode === 'pingpong';
+    lb.classList.toggle('on', onL);
+    pb.classList.toggle('on', onP);
+    lb.textContent = onL ? '🔁 ループ中' : '🔁 ループ';
+    pb.textContent = onP ? '🔄 往復中' : '🔄 往復';
+    lb.title = onL ? 'おすと やめます' : 'えらんだ 2つの あいだを くりかえす';
+    pb.title = onP ? 'おすと やめます' : 'えらんだ 2つを 行って もどって くりかえす';
+    lb.disabled = n !== 2 && !isLoop;
+    pb.disabled = n !== 2 && !isLoop;
+  }
+
+  /* ---------- 秒数を 直に 打ちこんで うごかす ----------
+     引っぱるのは こまかい ちょうせつ 用。
+     「3秒めの キーフレームを 20秒めへ」の ような 大きい 引っこしは、
+     数字で 打つほうが かくじつで はやい。 */
+  function askPinTime(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || S.selPins.times.length !== 1) return;
+    const cur = S.selPins.times[0];
+    const NL = String.fromCharCode(10);
+    const ans = prompt('この キーフレームを 何秒めに しますか？' + NL
+      + '（0 〜 ' + S.proj.duration.toFixed(1) + '秒）', cur.toFixed(2));
+    if(ans == null) return;
+    const v = parseFloat(String(ans).replace(/[^0-9.\-]/g, ''));
+    if(!isFinite(v)) return toast('数字を 入れてね');
+    const nt = snap(Math.max(0, Math.min(S.proj.duration, v)));
+    if(Math.abs(nt - cur) < 1e-6) return;
+
+    edit('キーフレームを うごかす', () => {
+      if(S.ripple) movePinRipple(l, cur, nt, S.proj.duration);
+      else {
+        movePin(l, cur, nt);
+        if(l.loop){
+          if(Math.abs(l.loop.from - cur) < 1e-3) l.loop.from = nt;
+          if(Math.abs(l.loop.to   - cur) < 1e-3) l.loop.to = nt;
+        }
+      }
+    });
+    S.selPins = { layer: l.id, times: [nt] };
+    S.time = nt;
+    toast(cur.toFixed(2) + '秒 → ' + nt.toFixed(2) + '秒');
+    onChange();
+  }
+
+  /* ---------- ここから ここまで 出す ---------- */
+  function attachSpan(btn, l, side){
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+      const pid = e.pointerId;
+      const rect = btn.parentElement.getBoundingClientRect();
+      let started = false;
+
+      const move = (ev) => {
+        if(ev.pointerId !== pid) return;
+        if(ev.cancelable) ev.preventDefault();
+        if(!started){ started = true; beginEdit('出す ところ'); }
+
+        const sp = l.span || (l.span = { from: 0, to: S.proj.duration });
+        const want = snap(x2t(ev.clientX - rect.left));
+        // 小数の ごみが のこらないように 3けたで まるめる
+        if(side === 'L') sp.from = +Math.max(0, Math.min(sp.to - step(), want)).toFixed(3);
+        else             sp.to   = +Math.min(S.proj.duration, Math.max(sp.from + step(), want)).toFixed(3);
+        S.time = side === 'L' ? sp.from : sp.to;
+        onChange();
+      };
+      const end = (ev) => {
+        if(ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(started){
+          commitEdit();
+          const sp = l.span;
+          /* ぜんぶの 長さに もどったら「きめて いない」ことに する
+             （じゃまな 帯が のこらない） */
+          if(sp && sp.from <= 1e-6 && sp.to >= S.proj.duration - 1e-6) l.span = null;
+          else if(sp) toast(sp.from.toFixed(2) + '秒 〜 ' + sp.to.toFixed(2) + '秒 だけ 出します');
+          onChange();
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* ---------- 帯の はしを 引っぱって のばす・みじかくする ---------- */
+  function attachStretch(btn, l, side, from0, to0){
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+      const pid = e.pointerId;
+      const rect = btn.parentElement.getBoundingClientRect();
+      let from = from0, to = to0, started = false;
+
+      const move = (ev) => {
+        if(ev.pointerId !== pid) return;
+        if(ev.cancelable) ev.preventDefault();
+        if(!started){ started = true; beginEdit('キーフレームの あいだを 変える'); }
+
+        const want = snap(x2t(ev.clientX - rect.left));
+        let nf = from, nt2 = to;
+        if(side === 'L') nf = Math.min(to - step(), Math.max(0, want));
+        else             nt2 = Math.max(from + step(), Math.min(S.proj.duration, want));
+        if(Math.abs(nf - from) < 1e-6 && Math.abs(nt2 - to) < 1e-6) return;
+
+        scaleRange(l, from, to, nf, nt2);
+        if(l.loop){
+          if(l.loop.from >= from - 1e-6 && l.loop.from <= to + 1e-6){
+            l.loop.from = nf + (l.loop.from - from) * ((nt2 - nf) / (to - from));
+          }
+          if(l.loop.to >= from - 1e-6 && l.loop.to <= to + 1e-6){
+            l.loop.to = nf + (l.loop.to - from) * ((nt2 - nf) / (to - from));
+          }
+        }
+        from = nf; to = nt2;
+        S.selPins = { layer: l.id, times: [+from.toFixed(3), +to.toFixed(3)] };
+        S.time = side === 'L' ? from : to;
+        onChange();
+      };
+      const end = (ev) => {
+        if(ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(started){
+          commitEdit();
+          toast('あいだ ' + (to - from).toFixed(2) + '秒');
+          onChange();
+        }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* ---------- キーフレームをドラッグして時間を変える ---------- */
+  function attachPinDrag(btn, l, t){
+    let moved = false, startX = 0, curT = t;
+
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ btn.setPointerCapture(e.pointerId); }catch(_){}
+      moved = false; startX = e.clientX; curT = t;
+      const trackEl = btn.parentElement;
+      const rect = trackEl.getBoundingClientRect();
+
+      /* ---------- 長おしで「もちあげる」 ----------
+         時間じくを ひろげて いると、指を いっぱい すべらせても
+         ほんの すこししか 動かない（それが ひろげる ことの 意味）。
+         でも「3秒めの キーフレームを 20秒めへ」の ような 引っこしには 向かない。
+
+         そこで 長おしすると キーフレームを もちあげる。
+         もちあげて いる あいだは
+           画面の ひだり はし ＝ 0秒
+           画面の みぎ はし   ＝ さいご
+         に なるので、ひとふりで どこへでも 運べる。
+         指を はなすと そこに 置かれる。 */
+      let lifted = false;
+      let longT = setTimeout(() => {
+        longT = null;
+        if(moved) return;
+        lifted = true;
+        moved = true;
+        beginEdit('キーフレームを もちあげる');
+        btn.classList.add('lifted');
+        liftedAt = { layer: l.id, t: curT };
+        /* おしらせは 出さない。キーフレームが 大きくなって ぶるっと するので
+           もちあがった ことは それで 分かる（絵の じゃまに ならない）。 */
+        if(navigator.vibrate) navigator.vibrate([12, 40, 12]);
+      }, 400);
+      const clearLong = () => { if(longT){ clearTimeout(longT); longT = null; } };
+
+      /* はしまで 引っぱったら、そのまま どんどん すすむ。
+
+         時間じくを ひろげて いると、画面に 出ている のは
+         ぜんたいの ほんの 一部。指が とどく はんいだけだと
+         「3秒めの キーフレームを 20秒めへ」が できない。
+         そこで はしに 指を おいて いる あいだは、
+         はしから どれだけ 出ているかに 合わせて
+         じわじわ→ぐんぐん と 時間を すすめる。 */
+      /* はしの ゾーン。せまいと 画面の はしギリギリまで
+         指を 持って いかないと いけない（スマホだと「もどる」に なる）。
+         トラックの 2わり ぶん とるので、まん中あたりから 先は
+         もう すすむ ゾーンに なる。 */
+      const EDGE = Math.max(48, rect.width * 0.22);
+      /* はしの ゾーンは「まん中を 一度 通ってから」きく ように する。
+
+         ゾーンは トラックの 2わり ぶん あるので、
+         はしの ほうに ある キーフレーム（0秒の キーフレームなど）は
+         さわった ところが もう ゾーンの 中。
+         そのまま だと、ちょっと さわっただけで
+         ひだりへ どんどん 走って いって しまう。
+         （これが「さわると かってに 左へ 行く」の もと）
+
+         まん中まで もどるか、トラックの そとへ 出るまでは
+         その がわの ゾーンは きかない。 */
+      let armL = false, armR = false;
+      let auto = null, autoV = 0;
+      const stopAuto = () => { if(auto){ clearInterval(auto); auto = null; } };
+      const setAuto = (v) => {
+        autoV = v;
+        if(!v){ stopAuto(); return; }
+        if(auto) return;
+        auto = setInterval(() => {
+          if(!autoV) return;
+          const want = Math.max(0, Math.min(S.proj.duration, curT + autoV));
+          if(Math.abs(want - curT) < 1e-6) return;
+          apply(snap(want));
+        }, 60);
+      };
+
+      const apply = (want) => {
+        if(want === curT) return;
+
+        let nt;
+        if(S.ripple){
+          // 後ろのキーフレームも一緒に動く
+          nt = snap(movePinRipple(l, curT, want, S.proj.duration));
+          if(nt === curT) return;
+        } else {
+          nt = want;
+          movePin(l, curT, nt);
+          if(l.loop){
+            if(Math.abs(l.loop.from - curT) < 1e-3) l.loop.from = nt;
+            if(Math.abs(l.loop.to   - curT) < 1e-3) l.loop.to = nt;
+          }
+        }
+
+        if(S.selPins.layer === l.id){
+          S.selPins.times = S.selPins.times.map(x => Math.abs(x - curT) < 1e-3 ? nt : x).sort((a,b)=>a-b);
+        }
+        curT = nt;
+        S.time = nt;
+        if(liftedAt) liftedAt.t = nt;
+        onChange();
+      };
+
+      const pid = e.pointerId;
+      const move = (ev) => {
+        /* さわっている 指は 1本だけ。
+           タブレットだと 手の ひらや 2本めの 指も イベントを 出すので、
+           おした ときの 指と ちがえば むし する。
+           （これが「タブレットで 変に なる」の もと） */
+        if(ev.pointerId !== pid) return;
+        if(ev.cancelable) ev.preventDefault();
+        if(!moved && Math.abs(ev.clientX - startX) < 5) return;
+        if(!moved){
+          clearLong();
+          moved = true; beginEdit('キーフレームをずらす');
+          if(navigator.vibrate) navigator.vibrate(8);
+        }
+
+        const x = ev.clientX - rect.left;
+        const w = rect.width;
+
+        /* もちあげて いる あいだは、
+           トラックの はしから はしが 動画 まるごと。
+           ＝ 指の ある ところが そのまま 何秒めか。 */
+        if(lifted){
+          setAuto(0);
+          const u = Math.max(0, Math.min(1, x / Math.max(1, w)));
+          apply(snap(u * S.proj.duration));
+          return;
+        }
+        /* はしから 出た ぶんで はやさを きめる。
+           少し 出たら ゆっくり、うんと 出したら はやい。 */
+        if(x >= EDGE || x < 0) armL = true;
+        if(x <= w - EDGE || x > w) armR = true;
+        const over = (x < EDGE && armL) ? (x - EDGE)
+                   : ((x > w - EDGE && armR) ? (x - (w - EDGE)) : 0);
+        if(over){
+          const k = Math.min(6, Math.abs(over) / EDGE);      // 1〜6ばい
+          setAuto(Math.sign(over) * step() * (1 + k * k * 3));
+        } else {
+          setAuto(0);
+          apply(snap(x2t(x)));
+        }
+      };
+
+      const end = (ev) => {
+        if(ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+        clearLong();
+        stopAuto();
+        btn.classList.remove('lifted');
+        liftedAt = null;
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(moved){ commitEdit(); onChange(); }
+        else {
+          // おしただけ ＝ そのキーフレームを えらんで、再生バーも そこへ そろえる
+          S.playing = false;
+          S.time = t;
+          selectPin(l.id, t, ev.shiftKey || S.selPins.layer === l.id);
+        }
+      };
+
+      /* だいじ … 指の うごきは この ボタンでは なく 画面ぜんたいで 受ける。
+
+         キーフレームを 1つ うごかすと タイムラインは まるごと 作り直される。
+         そのとき この ボタンは 消えて 新しい ものに 入れかわる ので、
+         ボタンに つけた「指が うごいた」の 受け口も いっしょに 消える。
+         ＝ 1歩 動かした ところで 引っぱりが 切れて しまう。
+         （これが「ちょっとずつしか 動かせない」の 正体）
+
+         画面ぜんたいで 受ければ、ボタンが 入れかわっても
+         指を はなすまで ずっと ついてくる。 */
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* ---------- トラックを触ると時間が動く ---------- */
+  function attachScrub(track, l){
+    track.addEventListener('pointerdown', (e) => {
+      if(e.target !== track) return;      // キーフレームの上は除く
+      try{ track.setPointerCapture(e.pointerId); }catch(_){}
+      S.sel = l.id;
+      clearPins();
+      S.playing = false;
+      const rect = track.getBoundingClientRect();
+      const scrub = (ev) => {
+        S.time = snap(x2t(ev.clientX - rect.left));
+        onChange();
+      };
+      scrub(e);
+      const end = () => {
+        track.removeEventListener('pointermove', scrub);
+        track.removeEventListener('pointerup', end);
+        track.removeEventListener('pointercancel', end);
+      };
+      track.addEventListener('pointermove', scrub);
+      track.addEventListener('pointerup', end);
+      track.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* ---------- 並びかえ ---------- */
+  /* 名前のところを 長おししても、つまみと 同じように 運べる。
+     （つまみが 小さくて さわりにくい ため） */
+  function attachLongPress(head, grip){
+    let timer = null, sx = 0, sy = 0, id = null;
+    const clear = () => { clearTimeout(timer); timer = null; };
+
+    head.addEventListener('pointerdown', (e) => {
+      if(e.target.closest('button')) return;
+      sx = e.clientX; sy = e.clientY; id = e.pointerId;
+      clear();
+      timer = setTimeout(() => {
+        timer = null;
+        if(navigator.vibrate) navigator.vibrate(12);
+        /* 同じ 指を つまみへ わたす。
+           先に つかまえて おかないと、動かしても つまみに 届かない。 */
+        try{ grip.setPointerCapture(id); }catch(_){}
+        grip.dispatchEvent(new PointerEvent('pointerdown', {
+          bubbles: true, clientX: sx, clientY: sy, pointerId: id, pointerType: e.pointerType
+        }));
+      }, 320);
+    });
+    head.addEventListener('pointermove', (e) => {
+      if(timer && (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8)) clear();
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach(ev =>
+      head.addEventListener(ev, clear));
+  }
+
+  function attachReorder(grip, l, row){
+    grip.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+      row.classList.add('dragging');
+      if(S.pick.length && S.pick.includes(l.id)){
+        [...rows.querySelectorAll('.trow')].forEach(r => {
+          if(S.pick.includes(r.dataset.id)) r.classList.add('dragging');
+        });
+      }
+      beginEdit(S.pick.includes(l.id) && S.pick.length > 1
+        ? S.pick.length + 'まいを ならびかえ' : 'ならびかえ');
+      if(navigator.vibrate) navigator.vibrate(10);
+
+      const move = (ev) => {
+        const all = [...rows.querySelectorAll('.trow')];
+        const target = all.find(r => {
+          const b = r.getBoundingClientRect();
+          return ev.clientY >= b.top && ev.clientY <= b.bottom;
+        });
+        if(!target) return;
+
+        /* ☑ を つけているときは、その ぜんぶを かたまりで 動かす。
+           フォルダや 親を つかんだときは、中身・子も いっしょに 動かす
+           （おいていくと 重なり順が ばらける）。 */
+        const picked = (S.pick.length && S.pick.includes(l.id)) ? [...S.pick] : [l.id];
+        const ids = new Set();
+        picked.forEach(id => {
+          ids.add(id);
+          S.proj.layers.forEach(x => { if(isDescendant(S.proj, x.id, id)) ids.add(x.id); });
+        });
+        if(ids.has(target.dataset.id)) return;
+
+        const group = S.proj.layers.filter(x => ids.has(x.id));   // もとの ならびのまま
+        if(!group.length) return;
+        const fromIdx = S.proj.layers.indexOf(group[0]);
+        const toIdx = S.proj.layers.findIndex(x => x.id === target.dataset.id);
+        if(toIdx < 0) return;
+
+        const targetLayer = S.proj.layers[toIdx];
+        S.proj.layers = S.proj.layers.filter(x => !ids.has(x.id));
+        let at = S.proj.layers.indexOf(targetLayer);
+        if(fromIdx < toIdx) at += 1;              // 下へ 運ぶときは 相手の うしろへ
+        S.proj.layers.splice(at, 0, ...group);
+        onChange();
+      };
+      const end = () => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', end);
+        grip.removeEventListener('pointercancel', end);
+        settleFolder(l);
+        commitEdit();
+        onChange();
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', end);
+      grip.addEventListener('pointercancel', end);
+    });
+  }
+
+  /* ---------- 外から呼ぶ操作 ---------- */
+
+  /** いまの姿をキーフレームにする */
+  function putPin(){
+    const l = S.proj.layers.find(x => x.id === S.sel);
+    if(!l) return toast('レイヤーをえらんでね');
+    edit('キーフレームをうつ', () => {
+      // チャンネル名と値の名前がずれているものがあるので channelValue 経由で取る
+      /* 360°パノラマだけは 見ている むきも いっしょに 残す */
+      const chs = CHANNELS
+        .concat(isPano(l) ? PANO_CHANNELS : [])
+        /* 立体の 回転（カメラなら まわりこみ）。
+           つかって いない レイヤーに まで うつと じゃま なので、
+           いま 立体に なって いる ものだけ。 */
+        .concat((isCam(l) || is3D(l)) ? ['rx', 'ry'] : [])
+        /* カメラだけの もの（ドリー・注視点・ピント） */
+        .concat(isCam(l) ? CAM_CHANNELS : [])
+        /* 奥行き。カメラが ある ときだけ 意味が ある ので、
+           ある ときだけ 残す（ない ときに 増やしても じゃまなだけ）。 */
+        .concat((!isCam(l) && camOf(S.proj, S.time)) ? ['depth'] : []);
+      chs.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'smooth'));
+      STEP_CHANNELS.forEach(c => setPin(l, c, S.time, channelValue(l, c, S.time), 'hold'));
+      // パペットピンのずれも いっしょに残す（固定パペットピンは動かないので要らない）
+      const v = valuesAt(l, S.time);
+      (l.pins || []).forEach((p, i) => {
+        if(p.type === 'fix') return;
+        const vp = v.pins[i] || p;
+        setPin(l, pinChX(p.id), S.time, vp.dx || 0, 'smooth');
+        setPin(l, pinChY(p.id), S.time, vp.dy || 0, 'smooth');
+      });
+    });
+    S.selPins = { layer: l.id, times: [Math.round(S.time * 10) / 10] };
+    toast('キーフレームをうちました ' + fmtTime(S.time));
+    onChange();
+  }
+
+  /**
+   * つぎ／まえの キーフレームへ 再生バーを そろえる。
+   * えらんでいる レイヤーの キーフレームを 見る。
+   */
+  function toPin(dir){
+    const l = S.proj.layers.find(x => x.id === S.sel)
+           || S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l) return toast('レイヤーをえらんでね');
+    const list = pinTimes(l);
+    if(!list.length) return toast('このレイヤーには キーフレームが ありません');
+
+    const now = +S.time.toFixed(3);
+    const next = dir > 0
+      ? list.find(t => t > now + 1e-3)
+      : [...list].reverse().find(t => t < now - 1e-3);
+    if(next == null){
+      return toast(dir > 0 ? 'これが さいごの キーフレームです' : 'これが さいしょの キーフレームです');
+    }
+    S.playing = false;
+    S.time = next;
+    selectPin(l.id, next, false);
+    onChange();
+  }
+
+  /* ☑ の レイヤーの うごきの キーフレームを ぜんぶ けす。
+     パペットピンの 変形（P…:x/y）は のこす。 */
+  function delPickedKeys(){
+    const isPuppet = (ch) => /^P.+:(x|y)$/.test(ch);
+    const ls = S.proj.layers.filter(l => S.pick.includes(l.id));
+    const count = (l) => Object.keys(l.tracks || {}).filter(c => !isPuppet(c))
+      .reduce((n, c) => n + (l.tracks[c] || []).length, 0);
+    const n = ls.reduce((a, l) => a + count(l), 0);
+    if(!n) return toast('☑ の レイヤーに キーフレームは ありません');
+    edit('☑ の キーフレームを けす', () => {
+      ls.forEach(l => {
+        Object.keys(l.tracks || {}).filter(c => !isPuppet(c)).forEach(c => delete l.tracks[c]);
+        l.loop = null;
+        if(l.sabun) delete l.sabun;
+      });
+    });
+    S.selPins = { layer:null, times:[] };
+    toast(ls.length + 'まいの キーフレーム ' + n + 'コを けしました（もどす で 戻せます）');
+    onChange();
+  }
+
+  function delPins(){
+    /* キーフレームを えらんでいれば、そちらを 先に けす。
+       レイヤーの ☑ が ついていても、キーフレームが えらばれている あいだは
+       キーフレームの ほうを 削除（☑ を はずしに 行かなくて すむ）。 */
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(l && S.selPins.times.length){
+      // 2つ えらんで いるときは、その あいだの キーフレームも まとめて けす
+      const from = S.selPins.times[0];
+      const to = S.selPins.times.length > 1 ? S.selPins.times[1] : from;
+      const times = pinTimes(l).filter(t => t >= from - 1e-6 && t <= to + 1e-6);
+      edit('キーフレームを削除', () => {
+        times.forEach(t => removePin(l, t));
+        /* ループの 中の キーフレームが 1つも 無くなったら、
+           ループも やめる（帯だけ のこらない ように）。 */
+        const left = pinTimes(l);
+        if(l.loop && !left.some(t => t >= l.loop.from - 1e-6 && t <= l.loop.to + 1e-6)){
+          l.loop = null;
+        }
+      });
+      S.selPins = { layer:null, times:[] };
+      toast(times.length + 'コの キーフレームを けしました');
+      onChange();
+      return;
+    }
+    if(S.pick.length) return delPicked();     // キーフレームを えらんで いなければ ☑ の レイヤー
+    toast('削除する ものを えらんでね（キーフレームを おす か、レイヤーの ☑）');
+  }
+
+  /**
+   * 運んだ先で、フォルダの 中か 外かを 決めなおす。
+   *
+   * すぐ上の 行を 見て
+   *   フォルダそのもの → その中へ 入れる
+   *   フォルダの中身    → 同じ フォルダへ 入れる
+   *   それ以外          → フォルダから 出す
+   * 見た目は 変えない（setParent が 計算しなおす）。
+   *
+   * ふつうの レイヤーに ぶら下がっている ものは そのまま
+   * （親に ついていくので、ここで いじると こんがらがる）。
+   */
+  function settleFolder(dragged){
+    const ids = (S.pick.length && S.pick.includes(dragged.id)) ? [...S.pick] : [dragged.id];
+    const byId = {};
+    S.proj.layers.forEach(x => byId[x.id] = x);
+
+    let changed = 0;
+    for(const id of ids){
+      const l = byId[id];
+      if(!l) continue;
+      const cur = l.parent ? byId[l.parent] : null;
+      if(cur && !isFolder(cur)) continue;          // ふつうの親子は さわらない
+
+      // すぐ上の 行（自分たち いがい）
+      const i = S.proj.layers.indexOf(l);
+      let above = null;
+      for(let k = i - 1; k >= 0; k--){
+        const x = S.proj.layers[k];
+        if(ids.includes(x.id)) continue;
+        if(isDescendant(S.proj, x.id, l.id)) continue;
+        above = x; break;
+      }
+
+      let want = null;
+      if(above){
+        want = isFolder(above) ? above : nearestFolder(S.proj, above);
+      }
+      // 自分の中には 入れない
+      if(want && (want.id === l.id || isDescendant(S.proj, want.id, l.id))) want = cur;
+
+      const now = cur || null;
+      if((want || null) === now) continue;
+      if(setParent(S.proj, l, want ? want.id : null, S.time)) changed++;
+    }
+    if(changed){
+      toast(changed + 'まいの 入れる先を かえました');
+    }
+  }
+
+  /** ☑ でえらんだ レイヤーを 削除 */
+  function delPicked(){
+    const all = willRemove(S.proj, S.pick)
+      .map(id => S.proj.layers.find(l => l.id === id)).filter(Boolean);
+    if(!all.length) return;
+    const nl = String.fromCharCode(10);
+    const extra = all.length - S.pick.length;
+    if(!confirm(all.length + 'まい けしますか？'
+      + (extra > 0 ? '（フォルダの 中み ' + extra + 'まいも いっしょ）' : '')
+      + nl + nl + all.map(l => l.name).join('、'))) return;
+    const r = { n: 0 };
+    edit('レイヤーを削除', () => { r.n = removeLayers(S.proj, S.pick); });
+    S.pick = [];
+    if(S.sel && !S.proj.layers.some(l => l.id === S.sel)) S.sel = null;
+    S.selPins = { layer:null, times:[] };
+    toast(r.n + 'まい けしました（もどす で 戻せます）');
+    onChange();
+  }
+
+  /** 選んだキーフレームをおぼえる。2つ選んでいれば、その間のキーフレームも全部 */
+  function copyPins(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return toast('キーフレームをえらんでね');
+    const from = S.selPins.times[0];
+    const to = S.selPins.times.length > 1 ? S.selPins.times[1] : from;
+    const times = pinTimes(l).filter(t => t >= from - 1e-6 && t <= to + 1e-6);
+
+    S.clip = {
+      items: times.map(t => {
+        const chans = {};
+        channelsOf(l).forEach(c => {
+          const k = (l.tracks[c] || []).find(k => Math.abs(k.t - t) < 1e-3);
+          if(k) chans[c] = { v: k.v, c: k.c };
+        });
+        return { dt: +(t - from).toFixed(3), chans };
+      })
+    };
+    toast(times.length + 'コのキーフレームを おぼえました');
+    onChange();
+  }
+
+  /** おぼえたキーフレームを、いまの時間から貼る */
+  function pastePins(){
+    const l = S.proj.layers.find(x => x.id === S.sel);
+    if(!l) return toast('レイヤーをえらんでね');
+    if(!S.clip || !S.clip.items.length) return toast('さきに キーフレームをコピーしてね');
+
+    // 別のレイヤーに貼るときは、パペットピンのチャンネルは持っていけない
+    const sameLayer = S.selPins.layer === l.id;
+    let n = 0, skipped = 0;
+    edit('キーフレームをペースト', () => {
+      S.clip.items.forEach(it => {
+        const t = +(S.time + it.dt).toFixed(3);
+        if(t > S.proj.duration + 1e-6) return;
+        let put = false;
+        for(const ch in it.chans){
+          if(!sameLayer && ch[0] === 'P' && ch.includes(':')){ skipped++; continue; }
+          setPin(l, ch, t, it.chans[ch].v, it.chans[ch].c);
+          put = true;
+        }
+        if(put) n++;
+      });
+    });
+    toast(n ? n + 'コのキーフレームを はりました' + (skipped ? '（パペットピンは のぞく）' : '')
+            : 'はれませんでした');
+    onChange();
+  }
+
+  function toggleHold(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || S.selPins.times.length !== 1) return;
+    const t = S.selPins.times[0];
+    const on = isHoldAt(l, t);
+    edit(on ? 'なめらかに もどす' : 'そのままにする', () => setCurveAt(l, t, on ? 'smooth' : 'hold'));
+    toast(on ? 'なめらかに つながります'
+             : 'つぎのキーフレームまで うごきません（パッと切りかわる）');
+    onChange();
+  }
+
+  /** えらんでいる キーフレームの つなぎ方を かえる */
+  function setEase(mode, ease){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return;
+    edit('つなぎ方を かえる', () => {
+      S.selPins.times.forEach(t => setCurveAt(l, t, mode, ease));
+    });
+    onChange();
+  }
+
+  /** えらんでいる キーフレームに 入っている 自分の線 */
+  function currentShape(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return null;
+    return easeShapeAt(l, S.selPins.times[0]);
+  }
+
+  /** えらんでいる キーフレームの いまの つなぎ方 */
+  function currentEase(){
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer);
+    if(!l || !S.selPins.times.length) return null;
+    return easeAt(l, S.selPins.times[0]);
+  }
+
+  function setLoop(mode){
+    /* キーフレームを えらんで いなくても、えらんで いる レイヤーで きく。
+       まえは「キーフレームを えらんだ レイヤー」だけ だったので、
+       えらびが 外れると ループを やめられなく なって いた
+       （帯だけ のこって 消せない）。 */
+    const l = S.proj.layers.find(x => x.id === S.selPins.layer)
+           || S.proj.layers.find(x => x.id === S.sel);
+    if(!l) return toast('レイヤーを えらんでね');
+    /* すでに ループて いる ときは、どちらの ボタンでも やめられる。
+       （ループ→往復→ループ と おして いくと、いつまでも
+         消えない ように 見えて いた） */
+    if(l.loop && (l.loop.mode === mode || S.selPins.layer !== l.id
+                  || S.selPins.times.length !== 2)){
+      edit('ループをやめる', () => { l.loop = null; });
+      toast('ループを やめました');
+    } else if(S.selPins.layer === l.id && S.selPins.times.length === 2){
+      const [from, to] = S.selPins.times;
+      edit(mode === 'pingpong' ? '往復ループ' : 'ループ', () => { l.loop = { from, to, mode }; });
+      toast(mode === 'pingpong' ? '行ってもどってを ループます' : 'ここを ループます');
+    } else if(l.loop){
+      edit('ループを かえる', () => { l.loop.mode = mode; });
+    } else {
+      return toast('キーフレームを2つえらんでね');
+    }
+    onChange();
+  }
+
+  return { build, updatePlayhead, putPin, delPins, delPicked, delPickedKeys, toPin, toggleHold, setLoop,
+           askPinTime,
+           setEase, currentEase, currentShape, clearPins,
+           copyPins, pastePins, zoomTime };
+}

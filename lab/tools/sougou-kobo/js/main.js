@@ -1,0 +1,1761 @@
+/* 起動と組み立て。 */
+
+import { M } from './engine/math.js?v=320';
+import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
+         beginEdit, commitEdit,
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=320';
+import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=320';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=320';
+import { createRenderer } from './render/renderer.js?v=320';
+import { createTimeline } from './ui/timeline.js?v=320';
+import { fmtTime, setPin } from './engine/anim.js?v=320';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=320';
+import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
+         buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
+         buildFinishSheet,
+         buildParentSheet, buildDocSheet, buildBgSheet, buildFaceSheet, clipRow,
+         buildExportSheet, buildEaseSheet, buildDoneSheet,
+         setParentOpener, setBgPicker,
+         setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder, setImageReplacer,
+         setNotifier, buildPathSheet, buildPaintSheet, setPainter,
+         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
+         setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
+         setWarper } from './ui/sheet.js?v=320';
+
+import { showNewDoc } from './ui/newdoc.js?v=320';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=320';
+import { fitToCanvas, isBg } from './io/bg.js?v=320';
+import * as Audio from './io/audio.js?v=320';
+import { isTalk, blipTimes } from './engine/talk.js?v=320';
+import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
+         newId, whenText, MAX_DOCS } from './io/store.js?v=320';
+import { importPsd } from './io/psd.js?v=320';
+import { takeHandoff, doneHandoff } from './io/handoff.js?v=320';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=320';
+import { makeSabun } from './io/sabun.js?v=320';
+import { splitTextChars } from './io/text.js?v=320';
+import { exportAE } from './io/ae.js?v=320';
+import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
+         canUseWebCodecs } from './io/export.js?v=320';
+import { newNestLayer, isNest, openNestEdit, setNestRedraw, beginNestExport, endNestExport,
+         setNestLive } from './nest/nest.js?v=320';
+import { pathKeys, pathLength } from './engine/path.js?v=320';
+import { paintDirty } from './engine/paint.js?v=320';
+import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=320';
+
+const $ = (s) => document.querySelector(s);
+
+const stageHost = $('#stage');
+const canvas = $('#stageCv');
+const listHost = $('#list');
+const fileInput = $('#file');
+
+const stage = createStage(canvas, stageHost, toast, () => onTraced(), (n) => multiTap(n));
+
+/* ---------- 作業中の 画質 ----------
+   小さく 描いて 画面で ひきのばす ぶん、指の うごきが なめらかに なる。
+   書き出しは 作品の 大きさで 焼くので、ここを 下げても きれいなまま。 */
+function showQual(){
+  const b = document.getElementById('qBtn');
+  if(!b) return;
+  b.textContent = '画質 ' + qualName();
+  b.classList.toggle('low', quality() < 1);
+}
+document.getElementById('qBtn').onclick = () => {
+  setQuality(nextQuality());
+  showQual();
+  stage.resize();
+  stage.draw();
+  toast('画質を「' + qualName() + '」に した（書き出しは いつも きれい）', 2600);
+};
+showQual();
+
+/* 2本指トン＝もどす / 3本指トン＝やりなおし。
+   ボタンと おなじ ことを する（絵から 手を はなさずに やりなおせる）。
+
+   この トンを 見て いる ところは 2つ ある。
+     ・絵の 上（ポインタの できごと）
+     ・画面ぜんたい（タッチの できごと）
+   スマホは どちらも 送って くる ので、絵の 上で トンと すると
+   2つ とも 鳴って、2回 もどって しまった。
+   さいしょの 1回だけ 通して、すぐ あとの ぶんは 捨てる。 */
+let lastTapUndo = 0;
+function multiTap(n){
+  const now = performance.now();
+  if(now - lastTapUndo < 500) return;      // もう 鳴った ぶん
+  lastTapUndo = now;
+  /* つまみを なぞって いる とちゅう なら、そこまでを ひと区切りに する */
+  commitEdit();
+  if(n === 2){
+    const l = undo();
+    toast(l ? '↩ もどした: ' + l : 'もどせる ものが ないよ');
+  } else if(n === 3){
+    const l = redo();
+    toast(l ? '↪ やりなおし: ' + l : 'やりなおせる ものが ないよ');
+  }
+}
+const timeline = createTimeline(listHost, { toast });
+const sheet = createSheet($('#sheet'), $('#sheetBack'));
+
+/* ================= 画面の更新 ================= */
+let dirty = true;
+function refresh(){
+  dirty = true;
+  timeline.build();
+  if(S.spanEdit) spanInfo();
+  if(S.warpMode) warpUI();
+  $('#undo').disabled = !canUndo();
+  $('#redo').disabled = !canRedo();
+  $('#undo').title = canUndo() ? 'もどす: ' + undoLabel() : 'もどす';
+  $('#docSize').textContent = `${S.proj.w}×${S.proj.h} ／ ${S.proj.duration}秒`;
+  sheet.refresh();
+}
+onChange(refresh);
+onRestore(() => refresh());
+
+/* 設定を 右に つけた／はずした ぶん、絵の 場所を ずらす。
+   ずらさないと、見えて いた ところが 幕の 下に 入って しまう。
+   ズームは そのまま に する（つけるたび に 大きさが 変わると 目が つかれる）。 */
+setDockHook((on) => {
+  const w = parseFloat(getComputedStyle(document.documentElement)
+              .getPropertyValue('--dock-w')) || 340;
+  S.view.x += (on ? -w / 2 : w / 2);
+  setTimeout(() => { stage.resize(); refresh(); }, 0);
+});
+
+/* ---- じどう保存 ----
+   ブラウザで もどってしまっても 作りかけが 残るように、
+   手が止まったら 端末の中へ しまう。 */
+const saver = autoSaver(() => S.proj, {
+  wait: 1200,
+  getId: () => S.docId,
+  getAudio: () => (Audio.A.bytes ? { name: Audio.A.name, bytes: Audio.A.bytes } : null),
+  getThumb: () => makeThumb(),
+  onDone: (ok, err) => {
+    if(ok) return;
+    if(!saveWarned){ saveWarned = true; toast('じどう保存が できません（' + (err && err.message || '') + '）'); }
+  }
+});
+let saveWarned = false;
+onChange(() => { if(S.ready) saver.touch(); });
+window.addEventListener('pagehide', () => { if(S.ready) saver.now(); });
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden' && S.ready) saver.now();
+});
+
+let lastT = performance.now();
+let lastStageW = 0, lastStageH = 0;
+
+/* 💬 セリフの「ぽ」。さいせい中に、その コマで 出た 文字の ぶんだけ 鳴らす。
+   1コマに 何個も 重なる ことが ある ので、多くても 2つ までに して おく
+   （それ いじょう 重ねても うるさく なるだけ）。 */
+let blipSeen = -1;
+function blipBetween(a, b){
+  if(b - a > 0.5){ blipSeen = b; return; }       // 時間を とばした ときは 鳴らさない
+  const hits = [];
+  for(const l of S.proj.layers){
+    if(!isTalk(l) || l.visible === false) continue;
+    for(const q of blipTimes(l)){
+      if(q.t > a && q.t <= b && q.t > blipSeen){ hits.push(q); if(hits.length > 2) break; }
+    }
+    if(hits.length > 2) break;
+  }
+  blipSeen = b;
+  for(let i = 0; i < Math.min(2, hits.length); i++) Audio.playBlip(0.22, hits[i].hz);
+}
+(function loop(){
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - lastT) / 1000);
+  lastT = now;
+
+  if(S.playing){
+    /* 音が 鳴っているときは 音の時計に 合わせる。
+       絵のほうが 重くて遅れても、口の形が 声から ずれない。 */
+    const at = Audio.currentTime();
+    const was = S.time;
+    S.time = (at == null) ? S.time + dt : at;
+    /* 💬 この コマの あいだに 出た 文字の ぶんだけ「ぽ」と 鳴らす */
+    if(S.time > was) blipBetween(was, S.time);
+    if(S.time >= S.proj.duration){
+      S.time = 0;
+      blipSeen = -1;
+      if(Audio.hasAudio()){                        // くり返すときは 音も 頭から
+        const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
+        if(Audio.audioEnabled(S.proj)) Audio.play(0, v, (S.proj.audio && S.proj.audio.offset) || 0);
+      }
+    }
+    $('#tnow').textContent = S.time.toFixed(1);
+    timeline.updatePlayhead();
+    dirty = true;
+  }
+  // 目もりを さわるなど、ほかの所で 止まったときも 音を そろえる
+  if(!S.playing && Audio.isPlaying()) Audio.stop();
+
+  /* 絵の 欄の 大きさが 変わって いないか、毎コマ たしかめる。
+
+     ウィンドウを 変えなくても 欄の 大きさは 変わる
+     （シートの 出し入れ、タイムラインの たたみ、
+       アドレスバーの 出入り、道具の ならびなおし など）。
+     気づかないと 紙が 古いままに なって、下の ほうが 切れて 見える。
+     はかるだけ なので 軽い。 */
+  const sr = stageHost.getBoundingClientRect();
+  if(Math.abs(sr.width - lastStageW) > 0.5 || Math.abs(sr.height - lastStageH) > 0.5){
+    lastStageW = sr.width; lastStageH = sr.height;
+    stage.resize();
+    dirty = true;
+  }
+
+  if(dirty){ stage.draw(); dirty = false; }
+  requestAnimationFrame(loop);
+})();
+
+/* 作品の 見本の絵。さいしょの画面の ならびに つかう。
+   小さく描くだけなので 重くない。 */
+let thumbCv = null;
+function makeThumb(){
+  try{
+    if(!S.proj.layers.length) return null;
+    const long = Math.max(S.proj.w, S.proj.h);
+    const k = 220 / long;
+    if(!thumbCv) thumbCv = document.createElement('canvas');
+    thumbCv.width = Math.max(2, Math.round(S.proj.w * k));
+    thumbCv.height = Math.max(2, Math.round(S.proj.h * k));
+    const R = createRenderer(thumbCv);
+    R.draw(S.proj, S.imgs, 0, { x:0, y:0, z:1 }, { forExport: true, scale: k });
+    return thumbCv.toDataURL('image/jpeg', 0.7);
+  }catch(_){ return null; }
+}
+
+/* ================= 通知 ================= */
+let toastTimer = null;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+function busy(on, msg){
+  $('#busy').classList.toggle('on', !!on);
+  if(msg) $('#busyMsg').textContent = msg;
+}
+
+/* ================= 読み込み ================= */
+/** PSD かどうかを、名前・種類・中身の順に見て決める。
+    Android では名前も種類もあてにならないことがあるので、
+    最後は先頭4バイトの「8BPS」で確かめる。 */
+async function looksLikePsd(f){
+  if(/\.psd$/i.test(f.name)) return true;
+  if(/photoshop/i.test(f.type || '')) return true;
+  if(/^image\/(png|jpeg|jpg|webp|gif|bmp)$/i.test(f.type || '')) return false;
+  try{
+    const head = new Uint8Array(await f.slice(0, 4).arrayBuffer());
+    return head[0] === 0x38 && head[1] === 0x42 && head[2] === 0x50 && head[3] === 0x53;
+  }catch(_){ return false; }
+}
+
+/* 「うごき つきで よみこむ」を おした あいだだけ true。
+   PSD を 入れた あと、名前から あたりを つけて ゆれ・おやこ・じくを つける。 */
+let rigNext = false;
+let sabunNext = false;
+/* 入れる ときは 聞かない。
+   5秒で ひとまわり・うごきは「しぜん」で 入れて、
+   直したく なったら モーション →「🧍 キャラのうごき」で 変える。
+   （入れる たびに 2回 聞かれるのが わずらわしい、という ことで こう した） */
+const RIG_LOOP = 5;
+const RIG_MOTION = 'しぜん';
+
+async function handleFiles(files){
+  const all = [...files];
+  const psd = [], imgs = [], other = [];
+  for(const f of all){
+    if(await looksLikePsd(f)) psd.push(f);
+    else if(/^image\//.test(f.type || '')) imgs.push(f);
+    else other.push(f);
+  }
+  if(!psd.length && !imgs.length){
+    toast(other.length
+      ? 'これは読めません（PSD・PNG・JPEG をえらんでね）'
+      : 'PSD・PNG・JPEG を選んでね');
+    return;
+  }
+
+  try{
+    if(psd.length){
+      busy(true, 'PSDをよみこみ中…');
+      const r = await importPsd(psd[0]);
+      if(sabunNext && r.layers && r.layers.length){
+        let f = null;
+        edit('差分つなぎ', () => {
+          f = makeSabun(S.proj, r.layers, psd[0].name.replace(/\.psd$/i, '') || '差分');
+        });
+        toast(f ? `差分 ${f.sabun && S.proj.layers.filter(l => l.parent === f.id).length}まいを つなぎました`
+                : 'グループが 1つしか ないので つなげませんでした');
+      } else if(rigNext && r.layers && r.layers.length){
+        let rep = null;
+        edit('うごきを つける', () => {
+          rep = autoRig(S.proj, r.layers, (l) => frameAsset(l, 0), {
+            loop: RIG_LOOP,
+            motion: RIG_MOTION,
+            folder: true,
+            folderName: psd[0].name.replace(/\.psd$/i, '') || 'キャラ'
+          });
+        });
+        toast(`${r.count}まいのレイヤーをよみこみました`);
+        setTimeout(() => alert(rigReport(rep)), 320);
+      } else {
+        toast(`${r.count}まいのレイヤーをよみこみました`);
+      }
+    }
+    if(imgs.length){
+      busy(true, '画像をよみこみ中…');
+      // PNGを2枚以上まとめて選んだら、コマ列にするか聞く
+      let asFrames = false;
+      if(imgs.length > 1){
+        busy(false);
+        asFrames = confirm(
+          `${imgs.length}まい えらびました。\n\n` +
+          `OK … 1つのレイヤーの「コマ」にする（パラパラアニメ用）\n` +
+          `キャンセル … べつべつのレイヤーにする`
+        );
+        busy(true, '画像をよみこみ中…');
+      }
+      const n = await addImageFiles(imgs, asFrames);
+      toast(asFrames ? `${n}コマのレイヤーを作りました` : `${n}まいよみこみました`);
+    }
+  }catch(err){
+    toast(err.message || 'よみこめませんでした');
+  }finally{
+    busy(false);
+    refresh();
+  }
+}
+
+fileInput.addEventListener('change', (e) => {
+  handleFiles(e.target.files);
+  e.target.value = '';
+});
+
+/* ドラッグ＆ドロップ（PC） */
+['dragenter','dragover'].forEach(ev =>
+  stageHost.addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.add('on'); }));
+['dragleave','drop'].forEach(ev =>
+  stageHost.addEventListener(ev, (e) => { e.preventDefault(); $('#drop').classList.remove('on'); }));
+stageHost.addEventListener('drop', (e) => {
+  if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+});
+
+/* ================= ボタン ================= */
+/* ついか ＝ 絵をよみこむ。文字は となりの「もじ」ボタン。 */
+$('#add').addEventListener('click', () => { rigNext = false; sabunNext = false; fileInput.click(); });
+$('#addRig').addEventListener('click', () => { rigNext = true; sabunNext = false; fileInput.click(); });
+$('#addSabun').addEventListener('click', () => { rigNext = false; sabunNext = true; fileInput.click(); });
+
+/* もじ ＝ 文字を つくる／なおす。ここは 文字のことだけ。
+   「決定」を おすまで 画面には 出ない。 */
+$('#text').addEventListener('click', () => {
+  sheet.open('もじ', (box) => buildTextSheet(box, () => sheet.close()));
+});
+
+/* ---- クリップ ＝ えらんだレイヤーの形で ぬく ---- */
+$('#clip').addEventListener('click', () => {
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+  sheet.open('クリップ（' + l.name + '）', (box) => {
+    const nl = String.fromCharCode(10);
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = '「' + l.name + '」を、えらんだ レイヤーの形で ぬきます。' + nl
+      + 'かみのけを かおの形で ぬく、もようを からだの形で ぬく、' + nl
+      + 'といった 使いかたが できます。';
+    box.appendChild(e);
+    box.appendChild(clipRow(l));
+  });
+});
+
+/* ---- なぞって うごかす ----
+   ① みちを なぞる（絵の上）
+   ② 何秒で 通るかを きめる
+   ③ 道のりで 等分に キーフレームを うつ */
+function setTraceMode(on){
+  if(on && S.paintMode) setPaintMode(false);
+  S.traceMode = !!on;
+  if(!on){ S.tracePts = null; S.train = null; S.maskFor = null; }
+  $('#tracemode').hidden = !on;
+  if(on){
+    S.playing = false;
+    stopSound();
+    toast('ピンクの わくの 内がわから なぞってね');
+  }
+  refresh();
+}
+
+/* なぞった みち（キャンバスの ざひょう）を、
+   その レイヤーが 持っている ざひょう（親から 見た ところ）に 直す。 */
+function pathForLayer(l, pts){
+  const poses = computeAll(S.proj, S.time);
+  const pm = l.parent && poses[l.parent] ? poses[l.parent].m : null;
+  if(!pm) return pts.map(p => ({ x: p.x, y: p.y }));
+  const inv = M.inv(pm);
+  return pts.map(p => {
+    const q = M.apply(inv, p.x, p.y);
+    return { x: q.x, y: q.y };
+  });
+}
+
+/* ---- ✂ マスク ----
+   かこんだ 形で その レイヤーを 切りぬく。
+   形の もちかたが 2とおり ある。
+     ふつうの レイヤー … 絵の 中の ざひょう（動かすと ついてくる）
+     フォルダ         … 画面の ざひょう（画面に すわった まま）
+   アフターエフェクトの マスクと 同じ 考え方。 */
+setMasker((l, opt) => {
+  if(!l) return toast('レイヤーを えらんでね');
+  S.sel = l.id;
+  S.maskFor = l.id;
+  /* どう つかう かこみか … あたらしく 足す／その マスクを かこみ直す */
+  maskAim = { mode: (opt && opt.mode) || 'add', at: opt && opt.at != null ? opt.at : -1 };
+  sheet.close();
+  setTraceMode(true);
+  toast(maskAim.at >= 0 ? 'この マスクの 形を かこみ直してね'
+                        : (maskAim.mode === 'sub' ? 'ぬく ところを かこんでね'
+                                                  : '切りぬく 形を ぐるっと かこんでね'));
+});
+
+/* いま かこんで いる マスクの ゆくえ */
+let maskAim = { mode: 'add', at: -1 };
+
+function maskFromTrace(l, pts){
+  if(isFolder(l)) return pts.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+  const poses = computeAll(S.proj, S.time);
+  const po = poses[l.id];
+  const a = frameAsset(l, po ? po.v.frame : 0);
+  if(!po || !a) return null;
+  const pvx = (l.pivot && l.pivot.x != null) ? l.pivot.x : 0.5;
+  const pvy = (l.pivot && l.pivot.y != null) ? l.pivot.y : 0.5;
+  const inv = M.inv(po.m);
+  return pts.map(p => {
+    const q = M.apply(inv, p.x, p.y);
+    return { x: Math.round(q.x + a.w * pvx), y: Math.round(q.y + a.h * pvy) };
+  });
+}
+
+function onTraced(){
+  /* ✂ マスクを かこんで いる とちゅう なら、みちでは なく マスク */
+  if(S.maskFor){
+    const l = S.proj.layers.find(x => x.id === S.maskFor);
+    const pts = l && S.tracePts && S.tracePts.length >= 3
+      ? maskFromTrace(l, S.tracePts) : null;
+    S.maskFor = null;
+    if(!pts){ setTraceMode(false); return toast('うまく かこめませんでした'); }
+    edit('マスクを かける', () => {
+      const ms = toMasks(l);
+      const at = (maskAim.at >= 0 && maskAim.at < ms.length) ? maskAim.at : -1;
+      if(at < 0){
+        ms.push(newMask(pts, maskAim.mode));
+      } else {
+        const old = ms[at];
+        if(maskAnimated(l) && old.pts && old.pts.length >= 3){
+          /* キーフレームが うって あるなら、点の 数を そろえて
+             いまの 時こくの 形として キーフレームに する
+             （数が ずれると キーフレームと 形が 合わなく なる） */
+          const fit = resamplePoly(pts, old.pts.length);
+          setMaskKeys(l, at, S.time, fit, setPin);
+        } else {
+          old.pts = pts;
+        }
+      }
+      l._maskKey = null;
+    });
+    toast(pts.length + 'コの 点で 切りぬきました');
+    setTraceMode(false);
+    return;
+  }
+
+  const train = S.train;
+  const l = train ? train.chars[0] : selected();
+  if(!l || !S.tracePts || S.tracePts.length < 2) return;
+
+  const open = () => sheet.open(train ? '🚂 なぞった みち' : 'なぞった みち',
+    (box) => buildPathSheet(box, () => sheet.close(), S.tracePts, (opt) => {
+
+    /* ---- 列車 ----
+       1字ずつ おくれて 出発する。おくれる ぶんだけ
+       うしろに ならぶ ので、つながって 走って いるように 見える。 */
+    if(train){
+      const chars = train.chars;
+      const n = { v: 0 };
+      /* 車間は「みちの 上で 何ドット あける か」。
+         秒で きめると、ゆっくり 走らせた とき 車間まで つまって
+         団子に なって しまう。ドットで きめれば、はやさを かえても
+         ならびは 変わらない。 */
+      const len = Math.max(1, pathLength(S.tracePts));
+      const gapSec = (opt.gapPx || 0) / len * opt.dur;
+      edit('一文字ずつ みちを 走る', () => {
+        chars.forEach((c, i) => {
+          const start = S.time + i * gapSec;
+          n.v += pathKeys(c, pathForLayer(c, S.tracePts), {
+            start, dur: opt.dur, ease: opt.ease, count: opt.count,
+            orient: opt.orient, orientOff: opt.orientOff
+          });
+          /* 走って いる あいだ だけ 出す。
+             きめないと、出るまえ・着いたあとに はしっこへ たまる。 */
+          if(opt.only) c.span = { from: +start.toFixed(2),
+                                  to: +(start + opt.dur).toFixed(2) };
+          else delete c.span;
+          /* 文字は 読めないと 意味が ない ので、
+             残像は えらんだ ぶんだけ。0 なら カメラの ぶんも うけない。 */
+          c.mblur = opt.mb || 0;
+          c.noMB = !(opt.mb > 0.001);
+        });
+        /* まとめた フォルダにも 同じ きまりを かける。
+           フォルダに カメラの 残像が かかると、
+           中の 字の 設定は 通りこされて しまう。 */
+        if(train.folder){
+          train.folder.mblur = opt.mb || 0;
+          train.folder.noMB = !(opt.mb > 0.001);
+        }
+      });
+      toast(chars.length + '文字が 走ります');
+      S.train = null;
+      setTraceMode(false);
+      return;
+    }
+
+    const n = { v: 0 };
+    edit(opt.orient ? '進む むきに むけて うごかす' : 'なぞった みちで うごかす', () => {
+      n.v = pathKeys(l, pathForLayer(l, S.tracePts), {
+        start: S.time, dur: opt.dur, ease: opt.ease, count: opt.count,
+        orient: opt.orient, orientOff: opt.orientOff
+      });
+    });
+    toast(n.v ? (opt.orient ? '進む むきに 頭を むけて うごきます'
+                            : Math.round(n.v / 2) + 'コの キーフレームで うごきます')
+              : 'うてませんでした');
+    setTraceMode(false);
+  }));
+
+  setPathReopener(open);
+  open();
+}
+
+/* ---- 🚂 一文字ずつ 走らせる ----
+   えらんで いる 文字を 1字ずつの レイヤーに ばらしてから、
+   ふつうの「みちを なぞる」に 入る。 */
+setTrainer(async () => {
+  const l = selected();
+  if(!l || l.kind !== 'text') return toast('文字レイヤーを えらんでね');
+  beginEdit('一文字ずつに わける');
+  const r = await splitTextChars(l);
+  const made = r.chars || [];
+  if(!made.length){ commitEdit(); return toast('2文字いじょう ないと わけられません'); }
+  commitEdit();
+  S.train = { chars: made, folder: r.folder || null, from: l.id };
+  S.sel = made[0].id;
+  toast(made.length + '文字に わけました。みちを なぞってね');
+  sheet.close();
+  setTraceMode(true);
+});
+setTracer(() => {
+  if(!selected()) return toast('レイヤーを えらんでね');
+  sheet.close();
+  setTraceMode(true);
+});
+$('#trClose').addEventListener('click', () => setTraceMode(false));
+
+/* ---- ペイント ----
+   ペンで 書いている あいだは、絵の上の さわりを ぜんぶ ペンに する。
+   （うっかり レイヤーを 動かして しまわない ように） */
+function setPaintMode(on){
+  S.paintMode = on;
+  $('#paintmode').hidden = !on;
+  $('#paint').classList.toggle('on', on);
+  if(on){
+    if(S.pinMode) setPinMode(false);
+    if(S.traceMode) setTraceMode(false);
+    toast(S.penErase ? 'けしゴムです' : '絵の上を なぞって かこう');
+  }
+  paintUI();
+  refresh();
+}
+function paintUI(){
+  $('#pnPen').classList.toggle('on', !S.penErase);
+  $('#pnEraser').classList.toggle('on', S.penErase);
+  $('#pnSize').textContent = Math.round(S.penWidth);
+  $('#pnColor').style.color = S.penColor;
+}
+setPainter(() => {
+  const l = selected();
+  if(!l || l.kind !== 'paint'){
+    return toast('ペイントの かみを えらんでね');
+  }
+  sheet.close();
+  setPaintMode(true);
+});
+$('#paint').addEventListener('click', () => {
+  if(S.paintMode) return setPaintMode(false);
+  sheet.open('ペイント', (box) => buildPaintSheet(box, () => sheet.close()));
+});
+$('#pnClose').addEventListener('click', () => setPaintMode(false));
+
+/* 🎬 動画編集・🦴 骨キャラ のレイヤー。
+   えらんで いる のが その レイヤーなら 中を 編集、ちがえば 新しく 足して 中を ひらく。 */
+setNestRedraw(() => { dirty = true; });
+function nestTool(app){
+  const l = selected();
+  if(isNest(l) && l.nest.app === app) return openNestEdit(l);
+  sheet.close();
+  const made = {};
+  edit(app === 'douga' ? '動画編集を 足す' : '骨キャラを 足す', () => {
+    made.l = newNestLayer(app, S.proj);
+    S.proj.layers.unshift(made.l);
+    S.sel = made.l.id;
+  });
+  refresh();
+  openNestEdit(made.l);
+}
+$('#addDouga').addEventListener('click', () => nestTool('douga'));
+$('#addSpine').addEventListener('click', () => nestTool('spine'));
+
+/* ---- ワープ・自由変形 ----
+   絵の上に あみの目（かご）を かぶせて 引っぱる。
+   ・自由変形 … 赤い 四すみだけ。中は 自動で ついてくる
+   ・ワープ   … むらさきの あみの目を 1つずつ */
+const SOFTS = [['かたい', 0], ['やわ 小', 0.8], ['やわ 中', 1.2], ['やわ 大', 2]];
+const BRUSHES = [['筆 細', 0.10], ['筆 中', 0.18], ['筆 太', 0.30]];
+let brushI = 1;
+const GRIDS = [2, 3, 4, 6, 8];
+let softI = 2, gridI = 1;
+
+function warpUI(){
+  const lw = selected();
+  $('#wpKey').classList.toggle('on', !!(lw && cageHasKeys(lw)));
+  $('#wpFree').classList.toggle('on', S.warpMode === 'free');
+  $('#wpWarp').classList.toggle('on', S.warpMode === 'warp');
+  $('#wpLock').classList.toggle('on', S.warpMode === 'lock');
+  $('#wpLock').textContent = S.warpMode === 'lock' && S.lockErase ? '🧽 とかす' : '🖌 かためる';
+  $('#wpBrush').textContent = BRUSHES[brushI][0];
+  $('#wpBrush').hidden = S.warpMode !== 'lock';
+  $('#wpSoft').textContent = SOFTS[softI][0];
+  $('#wpSoft').disabled = S.warpMode !== 'warp';
+  const l = selected();
+  $('#wpGrid').textContent = 'あみ ' + (l && l.cage ? l.cage.cols + '×' + l.cage.rows
+                                                    : GRIDS[gridI] + '×' + GRIDS[gridI]);
+}
+
+function setWarpMode(mode){
+  if(mode && S.pinMode) setPinMode(false);
+  if(mode && S.paintMode) setPaintMode(false);
+  S.warpMode = mode || null;
+  S.warpSel = -1;
+  $('#warpmode').hidden = !S.warpMode;
+  warpUI();
+  refresh();
+}
+setWarper((l) => {
+  /* フォルダは 中身を 1まいに まとめてから ゆがめるので、
+     かごは キャンバスの 大きさで 作る（キーフレームのときと 同じ）。 */
+  const a = isFolder(l) ? { w: S.proj.w, h: S.proj.h } : frameAsset(l, 0);
+  if(!a) return toast('絵の ない レイヤーには つかえません');
+  if(!l.cage){
+    edit('ワープを はじめる', () => {
+      l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]);
+    });
+  }
+  sheet.close();
+  setWarpMode('free');
+  toast('赤い 四すみを ひっぱって 形を 変えよう');
+});
+$('#wpClose').addEventListener('click', () => setWarpMode(null));
+$('#wpFree').addEventListener('click', () => setWarpMode('free'));
+$('#wpWarp').addEventListener('click', () => {
+  setWarpMode('warp');
+  toast('むらさきの あみの目を つまんで ひっぱろう');
+});
+
+/* 筆で なぞって かためる。
+   ぬった ところは 動かなく なるので、
+   そのまわりを 引っぱっても 形が くずれない
+   （顔は そのままで かみだけ ゆらす、など）。
+   もう一度 おすと「とかす」がわに 切りかわる。 */
+/* 筆で なぞって「かたまり」に する。
+   なぞった ところは 中の 形を たもった まま まるごと 動く。
+   まわりは 近いほど ついてくるので、ゴムのように のびる。
+   （うでを まるごと 持ち上げる、顔を そのまま 動かす など） */
+$('#wpLock').addEventListener('click', () => {
+  if(S.warpMode === 'lock'){
+    S.lockErase = !S.lockErase;
+    warpUI();
+    return toast(S.lockErase ? 'なぞると とけます' : 'なぞると かたまります');
+  }
+  setWarpMode('lock');
+  S.lockErase = false;
+  warpUI();
+  toast('まとめて 動かしたい ところを 筆で なぞってね' + String.fromCharCode(10)
+    + 'そのあと「🫳 ワープ」で つまむと まるごと 持ち上がります');
+});
+$('#wpBrush').addEventListener('click', () => {
+  brushI = (brushI + 1) % BRUSHES.length;
+  S.lockBrush = BRUSHES[brushI][1];
+  warpUI();
+  refresh();
+});
+$('#wpSoft').addEventListener('click', () => {
+  softI = (softI + 1) % SOFTS.length;
+  S.warpSoft = SOFTS[softI][1];
+  warpUI();
+  toast('やわらかさ … ' + SOFTS[softI][0]);
+});
+$('#wpGrid').addEventListener('click', () => {
+  const l = selected();
+  if(!l || !l.cage) return;
+  if(!cageFlat(l.cage) && !confirm('あみの こまかさを 変えると、いまの ワープは 消えます。いいですか？')) return;
+  gridI = (gridI + 1) % GRIDS.length;
+  const a = isFolder(l) ? { w: S.proj.w, h: S.proj.h } : frameAsset(l, 0);
+  edit('あみの こまかさ', () => { l.cage = newCage(a.w, a.h, GRIDS[gridI], GRIDS[gridI]); });
+  warpUI();
+  refresh();
+});
+/* いまの 形を、その 時こくの キーフレームに する。
+   1回 うつと、あとは 引っぱるたび に その時間の キーフレームが
+   書きかわるので、そのまま ワープの アニメに なる。 */
+$('#wpKey').addEventListener('click', () => {
+  const l = selected();
+  if(!l || !l.cage) return;
+  /* おすたび に、いまの 形を その 時こくの キーフレームに する。
+     （とじる ボタンでは ない。けす ときは タイムラインで
+       その キーフレームを えらんで 🗑 けす） */
+  edit('ワープに キーフレームをうつ', () => { cageKeys(l, S.time); });
+  toast(S.time.toFixed(2) + '秒に キーフレームを うちました' + String.fromCharCode(10)
+    + '時間を うごかして 形を 変えると アニメに なります');
+  warpUI();
+  refresh();
+});
+
+$('#wpReset').addEventListener('click', () => {
+  const l = selected();
+  if(!l || !l.cage) return;
+  if(S.warpMode === 'lock'){
+    if(!hasLock(l.cage)) return toast('かためた ところは ありません');
+    edit('かためたのを ぜんぶ とかす', () => { clearLock(l.cage); });
+    toast('ぜんぶ とかしました');
+    return refresh();
+  }
+  edit('ワープを もどす', () => { resetCage(l.cage); });
+  toast('もとの 形に もどしました');
+  refresh();
+});
+
+/* ---- 長さを 調節（ここから ここまで 出す）----
+   ふだんは タイムラインに 出さない。ここを おした ときだけ 出す。
+   スマホの せまい タイムラインでは、いつも 出ていると 見にくいので。 */
+function spanLayer(){ return S.proj.layers.find(x => x.id === S.spanEdit) || null; }
+
+function spanInfo(){
+  const l = spanLayer();
+  if(!l) return;
+  $('#spanInfo').textContent = l.span
+    ? l.span.from.toFixed(2) + '〜' + l.span.to.toFixed(2) + '秒'
+    : 'ずっと 出す';
+}
+
+function setSpanMode(id){
+  S.spanEdit = id || null;
+  $('#spanmode').hidden = !S.spanEdit;
+  spanInfo();
+  refresh();
+}
+setSpanner((l) => { setSpanMode(l.id); });
+$('#spClose').addEventListener('click', () => setSpanMode(null));
+
+/* 再生バーの ところを「ここから」「ここまで」に する。
+
+   つまみを ひっぱるのは、画面の はしに 近いと スマホの
+   「もどる」に とられて しまう ことが ある。
+   こちらは 画面の まん中あたりの ボタンを おすだけなので、
+   はしを さわらずに きめられる。
+   （再生バーは タイムラインの どこを おしても 動かせる） */
+function setSpanEnd(which){
+  const l = spanLayer();
+  if(!l) return;
+  const t = +S.time.toFixed(2);
+  edit('出す ところ', () => {
+    const sp = l.span || (l.span = { from: 0, to: S.proj.duration });
+    if(which === 'from') sp.from = Math.min(t, sp.to - 0.05);
+    else                 sp.to   = Math.max(t, sp.from + 0.05);
+    sp.from = Math.max(0, +sp.from.toFixed(3));
+    sp.to   = Math.min(S.proj.duration, +sp.to.toFixed(3));
+    // ぜんぶの 長さに もどったら「きめて いない」ことに する
+    if(sp.from <= 1e-6 && sp.to >= S.proj.duration - 1e-6) l.span = null;
+  });
+  toast(l.span ? l.span.from.toFixed(2) + '秒 〜 ' + l.span.to.toFixed(2) + '秒 だけ 出します'
+               : 'ずっと 出します');
+  spanInfo();
+  refresh();
+}
+$('#spFrom').addEventListener('click', () => setSpanEnd('from'));
+$('#spTo').addEventListener('click', () => setSpanEnd('to'));
+$('#spAll').addEventListener('click', () => {
+  const l = spanLayer();
+  if(!l) return;
+  edit('ずっと 出す', () => { l.span = null; });
+  toast('ずっと 出すように しました');
+  spanInfo();
+  refresh();
+});
+$('#pnPen').addEventListener('click', () => { S.penErase = false; paintUI(); toast('ペン'); });
+$('#pnEraser').addEventListener('click', () => { S.penErase = true; paintUI(); toast('けしゴム'); });
+$('#pnThin').addEventListener('click', () => {
+  S.penWidth = Math.max(1, Math.round(S.penWidth * 0.75)); paintUI();
+});
+$('#pnThick').addEventListener('click', () => {
+  S.penWidth = Math.min(80, Math.round(S.penWidth * 1.35) + 1); paintUI();
+});
+$('#pnColor').addEventListener('click', () => {
+  sheet.open('ペンの色', (box) => {
+    box.appendChild(colorPick('ペンの色', () => S.penColor, v => { S.penColor = v; paintUI(); }));
+  });
+});
+$('#pnUndo').addEventListener('click', () => {
+  const l = selected();
+  if(!l || l.kind !== 'paint' || !(l.strokes || []).length) return toast('けす ものが ありません');
+  edit('ひとふで もどす', () => { l.strokes.pop(); paintDirty(l); });
+  refresh();
+});
+$('#trUndo').addEventListener('click', () => { S.tracePts = null; refresh(); });
+
+/* ---- パペットピン ---- */
+function setPinMode(on){
+  if(on && S.paintMode) setPaintMode(false);
+  S.pinMode = on;
+  S.pinSel = -1;
+  $('#pinmode').hidden = !on;
+  $('#pivot').classList.toggle('on', on);
+  if(on) toast('絵の上をおして パペットピンを さそう');
+  refresh();
+}
+$('#pivot').addEventListener('click', () => {
+  if(!selected()) return toast('レイヤーをえらんでね');
+  setPinMode(!S.pinMode);
+});
+$('#pmClose').addEventListener('click', () => setPinMode(false));
+const PIN_KINDS = [['pmMove','move'], ['pmFix','fix'], ['pmJoint','joint'], ['pmDel','del']];
+PIN_KINDS.forEach(([id, kind]) => {
+  $('#' + id).addEventListener('click', () => {
+    S.pinKind = kind;
+    PIN_KINDS.forEach(([x]) => $('#' + x).classList.toggle('on', x === id));
+    toast(kind === 'move'  ? 'おした所に うごかすキーフレーム'
+        : kind === 'fix'   ? 'おした所に とめるキーフレーム'
+        : kind === 'joint' ? 'ひじ・ゆびの ように カクッと 折れるキーフレーム（キーフレームをおすと 切りかえ）'
+        : 'キーフレームをおすと けせます');
+  });
+});
+
+/* ---------- 作業中だけ 音を 切る ----------
+   書き出しは 鳴らさずに 音の もとから つくる ので、
+   ここを 切って いても 動画には ちゃんと 音が 入る。 */
+function showMute(){
+  const b = $('#mute');
+  if(!b) return;
+  const off = Audio.isMuted();
+  b.textContent = off ? '🔇' : '🔊';
+  b.classList.toggle('on', off);
+  b.title = off ? '作業中の 音は 切って います（書き出しには 入ります）'
+                : '作業中の 音を 切る（書き出しには ちゃんと 入ります）';
+  b.setAttribute('aria-label', off ? '音を 出す' : '音を 切る');
+}
+$('#mute').addEventListener('click', () => {
+  Audio.setMuted(!Audio.isMuted());
+  showMute();
+  if(Audio.isMuted()) toast('作業中の 音を 切りました（書き出しには 入ります）');
+  else{
+    toast('音を 出すように しました');
+    if(S.playing) startSound();
+  }
+});
+showMute();
+
+/* ---------- 全画面 ----------
+   アドレスバーや タブを かくして、絵を 大きく 見る。
+   iPhone の Safari は 画面 ぜんたいの 全画面が できない ので、
+   その ときは ホーム画面に 追加 を すすめる。 */
+function fullOn(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function showFull(){
+  const b = $('#full');
+  if(!b) return;
+  const on = fullOn();
+  b.textContent = on ? '⊟' : '⛶';
+  b.classList.toggle('on', on);
+  b.title = on ? '全画面を やめる' : '全画面にする';
+  b.setAttribute('aria-label', b.title);
+}
+$('#full').addEventListener('click', async () => {
+  const el = document.documentElement;
+  try{
+    if(fullOn()){
+      await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else if(el.requestFullscreen){
+      await el.requestFullscreen({ navigationUI: 'hide' });
+    } else if(el.webkitRequestFullscreen){
+      el.webkitRequestFullscreen();
+    } else {
+      toast('この ブラウザは 全画面に できません（ホーム画面に 追加 すると 広く なります）');
+    }
+  }catch(e){
+    toast('全画面に できませんでした');
+  }
+});
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev =>
+  document.addEventListener(ev, () => { showFull(); stage.resize(); stage.draw(); }));
+showFull();
+
+/* ---- タイムライン ---- */
+/* 音は 再生ボタンと いっしょに 鳴らす。
+   ブラウザは「人が おした」ときしか 音を出せないので、ここで はじめる。 */
+function startSound(){
+  if(!Audio.hasAudio()) return;
+  const v = (S.proj.audio && S.proj.audio.volume != null) ? S.proj.audio.volume : 1;
+  if(!Audio.audioEnabled(S.proj)) return;
+  Audio.play(S.time, v, (S.proj.audio && S.proj.audio.offset) || 0);
+}
+function stopSound(){ Audio.stop(); }
+
+$('#play').addEventListener('click', () => {
+  S.playing = !S.playing;
+  if(S.playing && S.time >= S.proj.duration - 0.01) S.time = 0;
+  if(S.playing) startSound(); else stopSound();
+  refresh();
+});
+$('#toStart').addEventListener('click', () => {
+  S.time = 0; S.playing = false; stopSound(); refresh();
+});
+$('#ripple').addEventListener('click', () => {
+  S.ripple = !S.ripple;
+  toast(S.ripple ? 'キーフレームをずらすと 後ろも ついてきます' : '1つだけ ずらします');
+  refresh();
+});
+$('#key').addEventListener('click', () => timeline.putPin());
+$('#prevPin').addEventListener('click', () => timeline.toPin(-1));
+$('#nextPin').addEventListener('click', () => timeline.toPin(1));
+$('#pinDel').addEventListener('click', () => timeline.delPins());
+$('#pinPickDel').addEventListener('click', () => timeline.delPickedKeys());
+$('#pickKeyDel').addEventListener('click', () => timeline.delPickedKeys());
+$('#pininfo').addEventListener('click', () => timeline.askPinTime());
+$('#pinCopy').addEventListener('click', () => timeline.copyPins());
+$('#paste').addEventListener('click', () => timeline.pastePins());
+$('#tlIn').addEventListener('click', () => timeline.zoomTime(1.8));
+$('#tlOut').addEventListener('click', () => timeline.zoomTime(1 / 1.8));
+$('#pinHold').addEventListener('click', () => timeline.toggleHold());
+$('#pinEase').addEventListener('click', () => {
+  if(!S.selPins.times.length) return toast('キーフレームを えらんでね');
+  sheet.open('つなぎ方', (box) => buildEaseSheet(box, () => sheet.close(),
+    timeline.currentEase(),
+    (mode, ease) => timeline.setEase(mode, ease),
+    timeline.currentShape()));
+});
+setEaseAsker((now, shape, onPick) => {
+  sheet.open('つなぎ方', (box) => buildEaseSheet(box, () => sheet.close(), now, onPick, shape));
+});
+
+$('#pinLoop').addEventListener('click', () => timeline.setLoop('loop'));
+$('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
+/** 設定シートを、横にスライドできるページで開く */
+/* うごきは 中身が 多いので、まず えらぶ画面を 出して、
+   えらんだ ものだけを 別の画面で ひらく。 */
+const MOVE_PAGES = {
+  chara:  ['🧍 キャラのうごき', buildCharaSheet],
+  sabun:  ['🔁 差分つなぎ',    buildSabunSheet],
+  sway:   ['🌬 ゆれ',          buildSwaySheet],
+  path:   ['👆 みちを なぞる', buildTraceSheet],
+  beat:   ['🥁 リズム（BPM）', buildBeatSheet],
+  flip:   ['🎞 パラパラ',      buildFlipSheet],
+  finish: ['💨 仕上げ',        buildFinishSheet]
+};
+
+/* イン・ループ・アウトは 1つの画面の タブに する。
+   べつべつの 画面に すると、えらぶ画面の 行が ふえる うえに、
+   「出る」を つけてから「消える」を つけるのに いちいち もどる ことに なる。 */
+const ANIM_TABS = [
+  ['in',   'イン'],
+  ['loop', 'ループ'],
+  ['out',  'アウト']
+];
+
+function openAnim(startKey){
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+  sheet.openPages('モーション — ' + l.name,
+    ANIM_TABS.map(([key, label]) => ({
+      key, label,
+      build: (box) => buildEnterSheet(box, () => openMove(), key)
+    })),
+    startKey || 'in');
+}
+
+function openMove(key){
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+
+  if(!key){
+    return sheet.open('モーション — ' + l.name,
+      (box) => buildMotionSheet(box, (k) => openMove(k)));
+  }
+  if(key === 'anim' || key === 'form') return openAnim('in');
+  if(key === 'loop') return openAnim('loop');
+
+  const page = MOVE_PAGES[key];
+  if(!page) return openMove();
+  /* キャラの うごきは その キャラ ぜんたいの もの。
+     えらんで いる 1まいの 名前を 出すと まぎらわしい。 */
+  const root = key === 'chara' ? rigRootOf(S.proj, l) : null;
+  sheet.open(page[0] + '（' + ((root && root.name) || l.name) + '）',
+    (box) => page[1](box, () => openMove()));
+}
+
+/* かたち・うごき・かお は それぞれ 別の画面。
+   1つの画面に まとめると、なにを いじっているのか 分からなくなる。 */
+function openSheet(key){
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+
+  if(key === 'move') return openMove();
+  if(key === 'face'){
+    if(l.kind === 'text')   return toast('文字には つかえません');
+    if(l.kind === 'folder') return toast('フォルダには つかえません');
+    return sheet.open('表情 — ' + l.name, (box) => buildFaceSheet(box));
+  }
+  sheet.open('レイヤー — ' + l.name, (box) => buildLayerSheet(box, () => sheet.close()));
+}
+
+/* ---- 🎥 カメラ ----
+   カメラの ことは ぜんぶ ここに あつめる（左の 🎥 から）。
+   レイヤーを えらんで いなくても ひらける ―― カメラは
+   作品 ぜんたいの もので、どれか 1まいの もちものでは ない。 */
+function openCamSheet(){
+  sheet.open('🎥 カメラ', (box) => buildCamSheet(box, null));
+}
+$('#cam').addEventListener('click', openCamSheet);
+setCamOpener(openCamSheet);
+setLayerOpener(() => openSheet('form'));
+
+/* 親子付け ＝ 親をえらぶ画面。ほかの設定は まざらない。
+   ☑ をつけていれば まとめて、つけていなければ いま選んでいる1まいを つける。 */
+function openParentSheet(){
+  if(!S.pick.length && !selected()) return toast('レイヤーを えらんでね');
+  sheet.open('親子付け', (box) => buildParentSheet(box, () => sheet.close()));
+}
+$('#parent').addEventListener('click', openParentSheet);
+setParentOpener(openParentSheet);
+
+/* 作品ぜんたいの 設定（なまえ・長さ・音）。
+   上の「1080×1920／15秒」の札からも、下の ⚙設定 からも ひらける。 */
+function openDocSheet(){
+  sheet.open('作品の設定', (box) => buildDocSheet(box, () => sheet.close()));
+}
+$('#docSize').addEventListener('click', openDocSheet);
+
+/* 版のばんごうを おすと、ブラウザに のこっている 古いものを 捨てて
+   さいしんを 取りに行く（スマホは 古いままに なりやすい）。 */
+/* 版の ばんごうは、いま 読みこんだ ファイルの アドレスから 出す。
+   手で 書くと 直しわすれて、直って いるのに
+   古い ばんごうが 出た ままに なる（じっさい なった）。 */
+(() => {
+  const m = /[?&]v=(\d+)/.exec(import.meta.url);
+  $('#ver').textContent = 'v' + (m ? m[1] : '?');
+})();
+
+$('#ver').addEventListener('click', async () => {
+  if(S.ready){
+    busy(true, 'ほぞん しています…');
+    try{ await saver.now(); }catch(_){}
+    busy(false);
+  }
+  /* ホーム画面に おいた ときの しくみ（サービスワーカー）が
+     古いのを つかんだ ままに なる ことが ある。
+     ここを おしたら、しまってある ぶんも ぜんぶ 捨てて
+     まっさらから 取り直す。
+     ＝ この ボタンが いつでも きく 逃げ道。 */
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if(window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  }catch(_){}
+  location.href = location.pathname + '?fresh=' + Date.now();
+});
+
+/* 「アニメ工房」を おすと 作品 えらびへ もどる。
+   じどう保存ずみなので、そのまま つづきから ひらける。 */
+$('#home').addEventListener('click', async () => {
+  if(exporting) return;
+  S.playing = false;
+  stopSound();
+  if(S.ready){
+    busy(true, 'ほぞん しています…');
+    try{ await saver.now(); }catch(_){}
+    busy(false);
+  }
+  sheet.close();
+  S.ready = false;
+  boot();
+});
+$('#setting').addEventListener('click', openDocSheet);
+
+/* 音を えらんだとき */
+/* 音を 読んだら「おとの 行」を そろえる。
+   音は 1つしか 持たない ので 行も 1つ。いちばん 下に 置く
+   （絵には 出ないので ならび順は 見た目に ひびかない）。 */
+function syncAudioLayer(){
+  const has = Audio.hasAudio();
+  const rows = S.proj.layers.filter(l => l.kind === 'audio');
+  if(has && !rows.length){
+    const a = newAudioLayer(Audio.A.name || 'おと');
+    S.proj.layers.push(a);
+  } else if(!has && rows.length){
+    S.proj.layers = S.proj.layers.filter(l => l.kind !== 'audio');
+    if(rows.some(r => r.id === S.sel)) S.sel = null;
+  } else if(has && rows.length){
+    rows[0].name = Audio.A.name || 'おと';
+    rows.slice(1).forEach(r => {
+      S.proj.layers = S.proj.layers.filter(l => l !== r);
+    });
+  }
+}
+setAudioSync(syncAudioLayer);
+
+setAudioPicker(async (files) => {
+  const f = files && files[0];
+  if(!f) return 0;
+  try{
+    busy(true, '音を よみこみ中…');
+    await Audio.loadAudio(f, f.name);
+    S.proj.audio = { name: f.name, volume: 1, duration: Audio.A.buf.duration };
+    // 音より 動画が みじかいと 切れてしまうので、足りなければ のばす
+    let msg = '音を よみこみました';
+    if(Audio.A.buf.duration > S.proj.duration){
+      S.proj.duration = Math.ceil(Audio.A.buf.duration);
+      msg = '音に合わせて 長さを ' + S.proj.duration + '秒に しました';
+    }
+    /* 曲の はやさ（BPM）を その場で さがして おく。
+       タイムラインに 拍の めもりが 出て、キーフレームが 拍に すいつく。
+       リズムの 画面も この はやさから はじまる。 */
+    const bpm = Audio.guessBpm();
+    if(bpm){
+      S.proj.beat = { bpm, offset: Audio.firstOnset(), snap: true };
+      msg += '（だいたい ' + bpm + ' BPM）';
+    }
+    toast(msg);
+    syncAudioLayer();
+    return 1;
+  }catch(err){
+    toast(err.message || '音を よみこめませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
+});
+
+/* 背景に 写真を えらんだとき */
+setBgPicker(async (files, layer) => {
+  const f = files && files[0];
+  if(!f || !/^image\//.test(f.type || '')) { toast('PNG・JPEG を えらんでね'); return 0; }
+  try{
+    busy(true, '写真を よみこみ中…');
+    const n = await addFramesToLayer([f], layer);
+    if(n){
+      edit('背景の写真', () => {
+        layer.frames = [layer.frames[layer.frames.length - 1]];
+        layer.bgColor = null;
+        fitToCanvas(layer);
+      });
+      toast('背景を 写真に しました');
+    }
+    return n;
+  }catch(err){
+    toast(err.message || 'よみこめませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
+});
+
+/* ---- まとめる（フォルダ） ----
+   ☑ でえらんだものを ひとつのフォルダに入れる。
+   えらんでいなければ、いま選んでいる1まいだけ入れる。
+   フォルダを選んでいるときは ほどく。 */
+$('#group').addEventListener('click', () => {
+  const cur = selected();
+
+  if(cur && isFolder(cur) && !S.pick.length){
+    const n = membersOf(S.proj, cur).length;
+    edit('フォルダをほどく', () => { ungroup(S.proj, cur, S.time); });
+    S.sel = null;
+    toast(n + 'まいを 外に出しました');
+    return refresh();
+  }
+
+  const ids = S.pick.length ? [...S.pick] : (cur ? [cur.id] : []);
+  if(!ids.length) return toast('レイヤーの ☐ を おして えらんでね');
+
+  const made = { f: null };
+  edit('フォルダにまとめる', () => {
+    made.f = groupInto(S.proj, ids, S.time, 'フォルダ');
+  });
+  if(!made.f) return toast('まとめられませんでした');
+
+  S.pick = [];
+  S.sel = made.f.id;
+  toast(ids.length + 'まいを フォルダに入れました');
+  refresh();
+});
+/* かたち・うごき・かお は それぞれ 直に ひらく */
+$('#form').addEventListener('click', () => openSheet('form'));
+$('#move').addEventListener('click', () => openSheet('move'));
+$('#face').addEventListener('click', () => openSheet('face'));
+
+$('#undo').addEventListener('click', () => {
+  const l = undo();
+  if(l) toast('もどした: ' + l);
+});
+$('#redo').addEventListener('click', () => {
+  const l = redo();
+  if(l) toast('やりなおし: ' + l);
+});
+$('#fit').addEventListener('click', () => { stage.fit(); refresh(); });
+
+/* レイヤーの欄を たたむ。絵を 大きく見たいとき用 */
+$('#fold').addEventListener('click', () => {
+  const on = $('#list').classList.toggle('folded');
+  $('#fold').textContent = on ? '▴' : '▾';
+  $('#fold').classList.toggle('on', on);
+  $('#fold').title = on ? 'レイヤーの欄を ひろげる' : 'レイヤーの欄を たたむ';
+  setTimeout(() => { stage.resize(); stage.fit(); refresh(); }, 40);
+});
+
+/* タイムラインの 高さ。上の ふちの つまみを 上下に なぞる。
+   さわった だけでは 変わらない（数px 動いてから）。 */
+(() => {
+  const list = $('#list'), grip = $('#listGrip');
+  if(!grip) return;
+  const put = (h) => {
+    h = Math.max(90, Math.min(window.innerHeight * 0.8, h));
+    list.style.maxHeight = h + 'px';
+    list.style.height = h + 'px';
+    return h;
+  };
+  try{ const h = +localStorage.getItem('ak-list-h'); if(h) put(h); }catch(_){}
+  let d = null;
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    d = { y: e.clientY, h: list.getBoundingClientRect().height, on: false };
+  });
+  grip.addEventListener('pointermove', (e) => {
+    if(!d) return;
+    const dy = e.clientY - d.y;
+    if(!d.on && Math.abs(dy) < 6) return;
+    d.on = true;
+    put(d.h - dy);
+    stage.resize();
+  });
+  const end = () => {
+    if(!d) return;
+    if(d.on){
+      try{ localStorage.setItem('ak-list-h', Math.round(list.getBoundingClientRect().height)); }catch(_){}
+      setTimeout(() => { stage.resize(); refresh(); }, 20);
+    }
+    d = null;
+  };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+})();
+
+/* 背景。まだ無ければ すぐ足して、あれば その設定をひらく */
+$('#bg').addEventListener('click', () => {
+  sheet.open('背景', (box) => buildBgSheet(box, () => sheet.close()));
+});
+
+/* ================= 2本指タップで もどす =================
+   設定 の 画面を ひらいた まま、数字を いじって
+   「あ、しっぱいした」と なった ときに、その場で もどせる ように する。
+   ボタン（↶）は 画面の 上に あって、設定 を とじないと 押せない。
+
+   ・2本指で ちょんと たたく … もどす
+   ・3本指で ちょんと たたく … やりなおし
+
+   つまむ（ピンチ）と 見分ける ため、指が うごいたら やめる。
+   Procreate と 同じ 手ざわり。
+
+   聞く のは「捕まえる 段（capture）」。絵の 上の しくみが
+   とちゅうで 止めて しまうと、うごいた ことに 気づけず、
+   つまんだ だけ なのに もどって しまう。 */
+(() => {
+  const MOVE = 16;      // これいじょう うごいたら「たたいた」では ない
+  const TIME = 400;     // これいじょう ながく さわって いたら ちがう
+  let n = 0;            // いちどに 何本 のった か
+  let t0 = 0;
+  let moved = false;
+  const start = new Map();
+
+  const reset = () => { n = 0; moved = false; start.clear(); };
+
+  document.addEventListener('touchstart', (e) => {
+    if(e.touches.length === 1){ reset(); t0 = Date.now(); }
+    n = Math.max(n, e.touches.length);
+    for(const t of e.touches){
+      if(!start.has(t.identifier)) start.set(t.identifier, { x: t.clientX, y: t.clientY });
+    }
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchmove', (e) => {
+    for(const t of e.touches){
+      const s = start.get(t.identifier);
+      if(!s) continue;
+      if(Math.hypot(t.clientX - s.x, t.clientY - s.y) > MOVE) moved = true;
+    }
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchend', (e) => {
+    if(e.touches.length > 0) return;             // まだ 指が のこって いる
+    const quick = Date.now() - t0 < TIME;
+    const many = n;
+    const slid = moved;          // reset() で 消える ので 先に とっておく
+    reset();
+    if(!quick || slid || many < 2 || many > 3) return;
+    if(exporting) return;
+
+    multiTap(many);            // 絵の 上の ぶんと 二重に ならない ように 通す
+  }, { passive: true, capture: true });
+
+  document.addEventListener('touchcancel', reset, { passive: true, capture: true });
+})();
+
+window.addEventListener('keydown', (e) => {
+  if(/input|select|textarea/i.test(e.target.tagName)) return;
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){
+    e.preventDefault();
+    const l = e.shiftKey ? redo() : undo();
+    if(l) toast(l);
+  }
+  if(e.key === 'Escape'){ sheet.close(); timeline.clearPins(); }
+  if(e.key.toLowerCase() === 'f'){ stage.fit(); refresh(); }
+  if(e.key === ' '){ e.preventDefault(); $('#play').click(); }
+  if(e.key.toLowerCase() === 'k'){ timeline.putPin(); }
+  if(e.key === 'Delete' || e.key === 'Backspace'){ timeline.delPins(); }
+});
+
+/* ================= ホーム画面から ひらけるように =================
+   ホーム画面に おくと アドレスバーが 出ない ので、
+   絵の 下が バーに かくれる ことも なくなる。
+   電波が 無い ときも、前に 見た ぶんは ひらける。 */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', async () => {
+    try{
+      const reg = await navigator.serviceWorker.register('sw.js');
+      reg.update();                      // 新しいのが 出て ないか 見に行く
+    }catch(_){}
+  });
+
+  /* 新しい しくみが 入れかわったら、1回だけ 読み直す。
+     こうしないと、直した ばかりの ときに
+     ふるい ページの まま つかい つづける ことに なる。 */
+  /* はじめて 入れた ときは 読み直さない（べつに 古くない ので）。
+     すでに しくみが 動いて いた ときだけ ＝ 入れかわった ときだけ。 */
+  const had = !!navigator.serviceWorker.controller;
+  let swapped = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(!had || swapped) return;
+    swapped = true;
+    location.reload();
+  });
+}
+
+/* ================= 画面サイズの変化 ================= */
+let resizeTimer = null;
+function onResize(){
+  stage.resize();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { dirty = true; }, 30);
+  dirty = true;
+}
+window.addEventListener('resize', onResize);
+
+/* 絵の 欄の 大きさは、ウィンドウを 変えなくても 変わる
+   （シートの 出し入れ、タイムラインの たたみ、道具の ならびなおし など）。
+   そのとき「resize」は 来ない ので、紙の 大きさが 古いままに なり、
+   下の ほうが 切れて 見える。
+   欄そのものを 見はって、変わったら すぐ 作り直す。 */
+if(window.ResizeObserver){
+  new ResizeObserver(() => onResize()).observe(stageHost);
+}
+
+/* いま ほんとうに 見えて いる たかさを CSS に わたす。
+
+   スマホの アドレスバーが 出入りすると 見える ぶんが 変わる。
+   visualViewport は その「いま 見えて いる」大きさを 教えて くれる。
+   これを たかさに つかうと、バーが 出て いる あいだも
+   絵の 下が かくれない。 */
+function syncViewport(){
+  const vv = window.visualViewport;
+  const h = Math.round(vv ? vv.height : window.innerHeight);
+  /* おかしな 数（0 など）が 来る ことが ある。
+     そのまま つかうと 画面が つぶれて しまうので、
+     ちいさすぎる ときは CSS の 100dvh に まかせる。 */
+  if(h >= 200) document.documentElement.style.setProperty('--appH', h + 'px');
+  else document.documentElement.style.removeProperty('--appH');
+  onResize();
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', syncViewport);
+  window.visualViewport.addEventListener('scroll', syncViewport);
+}
+syncViewport();
+window.addEventListener('orientationchange', () => setTimeout(() => { onResize(); stage.fit(); }, 260));
+
+/* ================= 書き出し ================= */
+let exporting = false;
+let cancelExport = false;
+
+$('#exCancel').addEventListener('click', () => { cancelExport = true; });
+
+/* 書き出しの 中身。kind は 'mp4' か 'gif' */
+async function runExport(kind){
+  if(exporting) return;
+  if(!S.proj.layers.length) return toast('さきに 絵をよみこもう');
+
+  const box = $('#exporting');
+  const fill = $('#exFill'), pct = $('#exPct'), title = $('#exTitle');
+  exporting = true; cancelExport = false;
+  S.playing = false;
+  /* 書き出す 動画は いつも きれい。
+     作って いる あいだの「かるく」は ここには 持ちこまない。 */
+  const quality0 = S.proj.quality;
+  S.proj.quality = 'fine';
+  S.dragging = false;
+  box.classList.add('on');
+  title.textContent = kind === 'webm'
+    ? 'すける WebMを 録っています（実時間）'
+    : kind === 'gif'
+    ? 'すける GIFを つくっています'
+    : (kind === 'ae'
+        ? 'AE用に 焼いています（レイヤーごと）'
+        : (canUseWebCodecs() ? '動画を つくっています' : '動画を つくっています（実時間）'));
+  fill.style.width = '0%'; pct.textContent = '0%';
+
+  const onProgress = (p) => {
+    const v = Math.round(p * 100);
+    fill.style.width = v + '%';
+    pct.textContent = v + '%';
+  };
+
+  try{
+    await beginNestExport(S.proj);
+    if(kind === 'webm') setNestLive();
+    const g = S.proj.gif || {};
+    const r = kind === 'ae'
+      ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
+      : kind === 'webm'
+      ? await exportAlphaWebm(S.proj, {
+          fps: (S.proj.webm && S.proj.webm.fps) || 30,
+          seconds: S.proj.duration,
+          onProgress, shouldStop: () => cancelExport
+        })
+      : kind === 'gif'
+      ? await exportGif(S.proj, {
+          fps: g.fps || 12,
+          maxSide: g.maxSide || 480,
+          seconds: g.seconds || Math.min(6, S.proj.duration),
+          onProgress, shouldStop: () => cancelExport
+        })
+      : await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport });
+
+    const name = (S.proj.name || 'anime') + (kind === 'ae' ? '_AE' : '') + '.' + r.ext;
+    const mb = (r.blob.size / 1048576).toFixed(1);
+    box.classList.remove('on');
+
+    /* ここで 自動で 共有すると、スマホでは
+      「人が おした その場」ではないので ひらけない。
+       ボタンに して、おした その場で 共有する。 */
+    sheet.open('できあがり', (b) => buildDoneSheet(b, () => sheet.close(),
+      { name, mb, canShare: canShareFile(r.blob, name) },
+      (how) => saveVideo(r.blob, name, how)));
+  }catch(err){
+    toast(err.message === 'やめました' ? '書き出しを やめました'
+                                       : (err.message || '書き出せませんでした'));
+  }finally{
+    endNestExport();
+    S.proj.quality = quality0;
+    exporting = false;
+    box.classList.remove('on');
+    refresh();
+  }
+}
+
+/* 書き出す ＝ どの形で 出すか えらぶ */
+$('#export').addEventListener('click', () => {
+  if(exporting) return;
+  if(!S.proj.layers.length) return toast('さきに 絵をよみこもう');
+  S.proj.gif = S.proj.gif || { fps: 12, maxSide: 480, seconds: Math.min(6, S.proj.duration) };
+  sheet.open('書き出す', (b) => buildExportSheet(b, () => sheet.close(), runExport));
+});
+
+setNotifier(toast);
+setBusy(busy);
+setPlayer((on) => {
+  if(on === S.playing) return;
+  S.playing = !!on;
+  if(S.playing){ if(S.time >= S.proj.duration - 0.01) S.time = 0; startSound(); }
+  else stopSound();
+  refresh();
+});
+
+/* 設定シートの「🔁 絵を 入れかえる」から呼ばれる */
+setImageReplacer(async (files, layer, opt) => {
+  try{
+    busy(true, '絵を 入れかえ中…');
+    const n = await replaceLayerImages(files, layer, opt);
+    if(n) toast(opt && opt.all ? (n > 1 ? n + 'まいに 入れかえました' : '絵を 入れかえました')
+                               : 'この コマの 絵を 入れかえました');
+    else toast('PNG・JPEG を えらんでね');
+    return n;
+  }catch(err){
+    toast(err.message || '入れかえられませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
+});
+
+/* 設定シートの「＋コマを足す」から呼ばれる */
+setFrameAdder(async (files, layer) => {
+  try{
+    busy(true, 'コマをよみこみ中…');
+    const n = await addFramesToLayer(files, layer);
+    if(n) toast(n + 'コマ ふえました');
+    return n;
+  }catch(err){
+    toast(err.message || 'よみこめませんでした');
+    return 0;
+  }finally{
+    busy(false);
+    refresh();
+  }
+});
+
+/* 手元での動作確認用。localhost のときだけ中身をのぞけるようにする */
+if(location.hostname === 'localhost' || location.hostname === '127.0.0.1'){
+  window.__dbg = { S, stage, timeline, refresh, undoDepth, selected };
+}
+
+/* ================= まちがって「もどる」を おしたとき =================
+   スワイプの もどる じたいは 止められないので、
+   1回めは ここで受けとめて、2回めで ほんとうに出る。
+   （出るときも じどう保存ずみ） */
+let backAt = 0;
+function guardBack(){
+  if(!history.state || history.state.kobo !== 1){
+    history.pushState({ kobo: 1 }, '');
+  }
+  window.addEventListener('popstate', () => {
+    if(!S.ready){ history.back(); return; }
+
+    /* なぞっている あいだは ぜったいに 出ない。
+       スマホは 画面の はしから すべらせると「もどる」に なるので、
+       みちを かいている 途中で 出ると せっかくの あとが 消える。 */
+    if(S.traceMode || S.pinMode || S.paintMode || S.spanEdit){
+      history.pushState({ kobo: 1 }, '');
+      backAt = 0;
+      toast(S.traceMode  ? 'なぞり中です（「おわり」で とじられます）'
+          : S.paintMode  ? 'ペイント中です（「おわり」で とじられます）'
+          : S.spanEdit   ? '長さを 調節中です（「おわり」で とじられます）'
+                         : 'キーフレーム中です（「おわり」で とじられます）');
+      return;
+    }
+
+    const now = Date.now();
+    if(now - backAt < 2500){ history.back(); return; }   // 2回めは そのまま出る
+    backAt = now;
+    history.pushState({ kobo: 1 }, '');
+    saver.now();
+    toast('もう一度 もどると とじます（ほぞんずみ）');
+  });
+}
+
+/* ================= 起動 ================= */
+function startNew(resume){
+  showNewDoc($('#newdoc'), (w, h, seconds) => {
+    S.proj = newProject(w, h, seconds);
+    S.docId = newId();                  // あたらしい 作品の ばんごう
+    resetUndo();                        // 前の 作品へ もどらない ように
+    /* 音は 作品ごと。まえの こえを 持ちこさない。
+       音は プロジェクトの 外（Audio.A）に 持って いる ので、
+       ここで 消さないと まえの こえが そのまま 鳴り、
+       🔊 の 行も 出て、ほぞんにも 入って しまう。 */
+    Audio.stop();
+    Audio.clearAudio();
+    S.ready = true;
+    stage.resize();
+    stage.fit();
+    refresh();
+    guardBack();
+    saver.now();                        // ばんごうを すぐ おさえておく
+    toast('「ついか」から絵をよみこもう');
+  }, resume);
+}
+
+/** しまってあった 作品を ひらく。絵は src から 作りなおす */
+async function openDoc(id){
+  busy(true, '作品を ひらいています…');
+  try{
+    const rec = await loadDoc(id);
+    if(!rec || !rec.proj) throw new Error('ひらけませんでした');
+    S.proj = rec.proj;
+    S.docId = rec.id;
+    resetUndo();                        // 前の 作品へ もどらない ように
+    if(rec.audio && rec.audio.bytes){
+      try{ await Audio.loadAudio(rec.audio.bytes, rec.audio.name); }catch(_){}
+      syncAudioLayer();
+    } else {
+      Audio.clearAudio();
+    }
+    S.imgs = {};
+    for(const a of Object.values(rec.proj.assets || {})){
+      try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){}
+    }
+    S.sel = null;
+    S.time = 0;
+    S.ready = true;
+    $('#newdoc').style.display = 'none';
+    stage.resize();
+    stage.fit();
+    refresh();
+    guardBack();
+    toast('「' + (S.proj.name || 'むだい') + '」を ひらきました');
+  }catch(err){
+    toast(err.message || 'ひらけませんでした');
+    boot();
+  }finally{
+    busy(false);
+  }
+}
+
+/* ファイルから 読みこんだ 作品を ひらく。
+   もとの 作品は そのまま のこして、あたらしい 1つ として 入れる。 */
+async function openFromFile(pj){
+  busy(true, 'ファイルを ひらいています…');
+  try{
+    S.proj = pj;
+    S.docId = newId();                  // べつの 作品 として 入れる
+    resetUndo();
+    Audio.stop();
+    Audio.clearAudio();
+    S.imgs = {};
+    for(const a of Object.values(pj.assets || {})){
+      try{ if(a.src) S.imgs[a.id] = await loadImage(a.src); }catch(_){}
+    }
+    S.sel = null;
+    S.time = 0;
+    S.ready = true;
+    $('#newdoc').style.display = 'none';
+    sheet.close();
+    stage.resize();
+    stage.fit();
+    refresh();
+    guardBack();
+    saver.now();
+    toast('「' + (pj.name || 'むだい') + '」を ひらきました');
+  }catch(err){
+    toast(err.message || 'ひらけませんでした');
+  }finally{
+    busy(false);
+  }
+}
+setFileOpener(openFromFile);
+
+async function boot(){
+  /* ミニSpine から 送られて きた ときは、それを ひらく */
+  try{
+    const pj = await takeHandoff();
+    if(pj){ await openFromFile(pj); doneHandoff(); return; }
+  }catch(_){}
+
+  let docs = [];
+  try{
+    await migrateOld();               // むかしの ひとつだけの ほぞんを 引っこす
+    docs = await listDocs();
+  }catch(_){}
+
+  startNew({
+    docs: docs.map(d => Object.assign({}, d, { when: whenText(d.at) })),
+    max: MAX_DOCS,
+    full: docs.length >= MAX_DOCS,
+    onOpen: (id) => openDoc(id),
+    onDelete: async (id) => {
+      try{ await deleteDoc(id); }catch(_){}
+      boot();
+    }
+  });
+}
+boot();
+
+/* ---- タイムラインの ボタン列は アイコンだけ。さわると 名前が 出る ----
+   ボタンの 文字は あとから 書きかわる（ホールド中 など）ので、
+   書きかわる たびに 見はって アイコンだけに もどす。 */
+(() => {
+  const bar = $('#pinbar');
+  if(!bar) return;
+  const tip = document.createElement('div');
+  tip.id = 'btnTip';
+  document.body.appendChild(tip);
+  let tipT = 0;
+  const show = (b) => {
+    const t = b.dataset.tip;
+    if(!t) return;
+    tip.textContent = t;
+    tip.classList.add('on');
+    const r = b.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    tip.style.left = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2)) + 'px';
+    tip.style.top = (r.top - tip.offsetHeight - 6) + 'px';
+    clearTimeout(tipT);
+    tipT = setTimeout(() => tip.classList.remove('on'), 1400);
+  };
+  const iconize = (b) => {
+    const texts = [...b.childNodes].filter(n => n.nodeType === 3);
+    const lbl = texts.map(n => n.textContent).join('').trim();
+    if(!lbl) return;
+    let ico = b.querySelector('.ico');
+    let name = lbl;
+    if(!ico){
+      const m = lbl.match(/^(\S+)\s+(.+)$/);
+      ico = document.createElement('span');
+      ico.className = 'ico';
+      ico.textContent = m ? m[1] : lbl.slice(0, 1);
+      name = m ? m[2] : lbl;
+      b.prepend(ico);
+    }
+    texts.forEach(n => n.remove());
+    if(b.dataset.name) name = b.dataset.name;
+    b.dataset.tip = name;
+    b.setAttribute('aria-label', name);
+  };
+  const all = () => bar.querySelectorAll('button:not(#pininfo)').forEach(iconize);
+  all();
+  new MutationObserver(all).observe(bar, { childList:true, subtree:true, characterData:true });
+  bar.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('button');
+    if(b) show(b);
+  });
+})();

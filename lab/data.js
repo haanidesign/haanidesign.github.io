@@ -287,6 +287,17 @@ const TOOLS = [
     thumb: "thumbs/nokoshi-iro.svg",
     url: "tools/nokoshi-iro/index.html",
     status: "live"
+  },
+  {
+    no: 27,
+    slug: "sougou-kobo",
+    title: "総合工房",
+    desc: "アニメ工房に、動画工房と ミニSpine の 作品を レイヤーとして 入れられる ように した もの。",
+    tags: ["アニメーション", "動画編集", "ボーン", "MP4"],
+    cat: "anime",
+    thumb: "thumbs/sougou-kobo.svg",
+    url: "tools/sougou-kobo/index.html",
+    status: "wip"
   }
 ];
 

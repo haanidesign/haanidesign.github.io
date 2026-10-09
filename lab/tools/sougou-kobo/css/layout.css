@@ -1,0 +1,273 @@
+/* 3サイズとも同じ部品。画面が広くなるほど隠していたものが出てくるだけ。 */
+
+/* たかさは「いま ほんとうに 見えて いる ぶん」に あわせる。
+
+   スマホは 上の アドレスバーが 出たり ひっこんだり する。
+   inset:0 だけ だと、バーが ひっこんだ ときの 大きさの ままに なり、
+   バーが 出て いる あいだは 画面の 下が バーの 下に かくれる。
+   ＝ 絵の 下が 見えなく なる。
+
+   ・100dvh … いま 見えて いる ぶん（新しい ブラウザ）
+   ・--appH … JS が visualViewport から 入れる（いちばん たしか）
+   古い ブラウザ用に 100% も のこす。 */
+#app{
+  position:fixed; left:0; top:0; right:0;
+  height:100%;
+  height:100dvh;
+  height:var(--appH, 100dvh);
+  display:grid;
+  overflow:hidden;
+  grid-template-rows:auto 1fr auto auto;
+  grid-template-areas:
+    "top"
+    "stage"
+    "list"
+    "tools";
+  padding-top:var(--safe-t);
+  padding-bottom:var(--safe-b);
+  background:var(--cream);
+}
+/* グリッドの中身は そのままだと 中身のぶんだけ ふくらんで
+   画面から はみ出す。ちぢめてよいと 言っておく。 */
+#app > *{ min-width:0; }
+
+/* ---- 上のバー ---- */
+#top{
+  grid-area:top;
+  background:var(--main);
+  border-bottom:var(--bd);
+  display:flex; align-items:center; gap:.45rem;
+  padding:.4rem .6rem;
+  min-height:52px;
+}
+#top .name{
+  font-size:.95rem; font-weight:800;
+  background:transparent; border:none; box-shadow:none;
+  padding:.1rem .2rem; min-height:0; border-radius:8px;
+}
+#top .name:hover{ background:var(--main-deep); }
+#top .name:active{ transform:none; box-shadow:none; }
+#top .size{
+  font-size:.62rem; background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.05rem .6rem;
+  /* 狭い画面で1文字ずつ折り返して縦に伸びるのを防ぐ */
+  white-space:nowrap; flex:0 0 auto;
+}
+#top .name{ flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#top .ver{
+  font-size:.55rem; color:#5c5843; font-weight:400;
+  flex:0 0 auto; white-space:nowrap;
+  background:transparent; border:none; box-shadow:none;
+  min-height:0; padding:.1rem .2rem; border-radius:6px;
+}
+#top .ver:hover{ background:var(--main-deep); }
+#top .ver:active{ transform:none; box-shadow:none; }
+#top .spacer{ flex:1; }
+
+/* ---- ステージ ---- */
+#stage{
+  grid-area:stage;
+  position:relative;
+  overflow:hidden;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.15) 1.6px, transparent 1.7px);
+  background-size:14px 14px;
+  min-height:0;
+}
+#stageCv{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  display:block;
+  touch-action:none;   /* ブラウザのスクロール／ズームを止めて自前で扱う */
+}
+
+/* ---- レイヤー一覧（Phase 2 でタイムラインになる） ---- */
+#list{
+  grid-area:list;
+  background:var(--paper);
+  border-top:var(--bd);
+  max-height:38vh;
+  display:flex; flex-direction:column;
+  min-height:0; min-width:0;
+  overflow:hidden;
+}
+/* たたむと 再生バーだけ 残る。絵を大きく見たいときに */
+#list.folded{ max-height:none; }
+#list.folded #ruler,
+#list.folded #pinbar,
+#list.folded #tracks{ display:none; }
+#tracks{
+  position:relative;
+  flex:1; min-height:0;
+  overflow-y:auto; overscroll-behavior:contain;
+  padding:.3rem;
+  display:flex; flex-direction:column; gap:.25rem;
+}
+
+/* ---- 下のツールバー ---- */
+/* 道具は 横に スライドして ぜんぶ 見られる。
+   ボタンを ふやしても 1つずつが 小さくならない。 */
+#tools{
+  grid-area:tools;
+  background:var(--cream);
+  border-top:var(--bd);
+  display:flex;
+  gap:.35rem;
+  padding:.4rem .5rem calc(.4rem + var(--safe-b));
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+  -webkit-overflow-scrolling:touch;
+}
+#tools::-webkit-scrollbar{ height:4px; }
+#tools .tool{
+  flex:0 0 calc((100% - 5 * .35rem) / 6);   /* 1画面に 6つ */
+  scroll-snap-align:start;
+}
+
+/* ================= タブレット・PC：よこ画面 =================
+   絵を まん中に いちばん 大きく。
+     上バー
+     ひだり … 道具（たてに 1れつ）
+     まん中 … 絵
+     した   … タイムライン（画面の はしから はしまで）
+
+   タイムラインを 横いっぱいに するのが かんじん。
+   ひだりに 細く ならべると 帯が みじかくなって ピンが うちにくい。 */
+@media (min-width:760px) and (orientation:landscape){
+  #app{
+    grid-template-columns:104px 1fr;
+    grid-template-rows:auto 1fr auto;
+    grid-template-areas:
+      "top   top"
+      "tools stage"
+      "list  list";
+  }
+
+  /* 道具は ひだりに たて1れつ */
+  #tools{
+    flex-direction:column;
+    flex-wrap:nowrap;
+    overflow-x:hidden; overflow-y:auto;
+    border-right:var(--bd); border-top:none;
+    padding:.35rem .3rem calc(.35rem + var(--safe-b));
+    gap:.3rem;
+  }
+  #tools .tool{ flex:0 0 auto; width:100%; min-height:54px; }
+
+  /* タイムラインは 下いっぱい */
+  #list{
+    max-height:36vh;
+    border-top:var(--bd); border-right:none;
+  }
+  #list.folded{ max-height:none; }
+}
+
+/* ================= タブレット：たて画面 =================
+   ならべ方は スマホと 同じ（上から 絵・タイムライン・道具）。
+   画面が ひろいぶん、1つ1つを 大きく する。
+   よこ画面の ならべ方を たてに もってくると、
+   ひだりの はしらだけ ながく のびて 絵が 小さくなる。 */
+@media (min-width:760px) and (orientation:portrait){
+  #list{ max-height:34vh; }
+  #tools{
+    flex-wrap:wrap;
+    overflow-x:visible;
+    padding:.5rem .6rem calc(.5rem + var(--safe-b));
+    gap:.4rem;
+  }
+  #tools .tool{
+    flex:0 0 calc((100% - 5 * .4rem) / 6);
+    min-height:60px;
+  }
+}
+
+/* 右のプロパティ欄。
+   PHASE 1 では中身が無いので出さない。設定はどの画面でも下から出るシートで扱う。
+   PHASE 2 でタイムラインと一緒にここへ入れる。 */
+#props{ display:none; }
+
+
+/* ================= よこ画面（たてが みじかいとき） =================
+   スマホを よこに すると たてが 350〜450ドットしか ない。
+
+   ならべ方
+     上バー
+     ひだり … 道具（たてに 1れつ）
+     まん中 … 絵
+     した   … タイムライン（画面の はしから はしまで）
+
+   タイムラインを 横いっぱいに するのが かんじん。
+   よこに ならべると 帯が みじかくなって ピンが うちにくい。 */
+@media (orientation:landscape) and (max-height:560px){
+  #app{
+    /* 道具は 2れつ。たてが みじかいので 1れつだと
+       11こ ぜんぶ 見るのに ずっと スクロールする ことに なる。
+       絵は たてで きまるので、よこを 46ドット ゆずっても 小さくならない。 */
+    grid-template-columns:116px 1fr;
+    grid-template-rows:auto 1fr auto;
+    grid-template-areas:
+      "top   top"
+      "tools stage"
+      "list  list";
+  }
+
+  #top{ min-height:42px; padding:.2rem .45rem; gap:.3rem; }
+  #top .name{ font-size:.82rem; }
+  #top .size{ font-size:.56rem; }
+  #top .ver{ display:none; }
+  #top button{ min-height:32px; }
+  #top #export{ min-height:32px; font-size:.7rem; padding:0 .6rem; }
+
+  /* 道具は ひだりに 2れつ */
+  #tools{
+    flex-direction:row;
+    flex-wrap:wrap;
+    align-content:flex-start;
+    overflow-x:hidden; overflow-y:auto;
+    border-right:var(--bd); border-top:none;
+    padding:.25rem .2rem calc(.25rem + var(--safe-b));
+    gap:.22rem;
+  }
+  #tools .tool{
+    flex:0 0 calc((100% - .22rem) / 2);
+    min-height:42px; font-size:.5rem; padding:.15rem 0;
+  }
+  #tools .tool i{ font-size:1rem; }
+
+  /* タイムラインは 下いっぱい。ただし 絵が つぶれないよう 高さは ひかえめに */
+  #list{
+    border-top:var(--bd); border-right:none;
+  }
+  #list.folded{ max-height:none; }
+  #tracks{ padding:.2rem; gap:.18rem; }
+
+}
+
+/* タイムラインの 高さを 変える つまみ（上の ふち） */
+#list{ position:relative; }
+#listGrip{
+  position:absolute; left:50%; top:0; transform:translateX(-50%);
+  width:96px; height:16px; z-index:5;
+  display:flex; align-items:center; justify-content:center;
+  touch-action:none; cursor:ns-resize;
+}
+#listGrip::before{
+  content:''; width:48px; height:5px; border-radius:3px;
+  background:var(--ink); opacity:.35;
+}
+#list.folded #listGrip{ display:none; }
+#list.folded{ height:auto !important; max-height:none !important; }
+
+/* ---- 🎬🦴 中に 入れた 作品（総合工房） ----
+   ふだんは 見えない ところで うごかす。中を 編集する ときだけ 画面いっぱいに 出す。 */
+#nests{
+  position:fixed; left:0; top:0; width:100vw; height:var(--appH, 100dvh);
+  z-index:-1; visibility:hidden; pointer-events:none; overflow:hidden;
+}
+#nests iframe{
+  position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
+  background:var(--paper); visibility:hidden;
+}
+#nests.on{ z-index:1000; visibility:visible; pointer-events:auto; }
+#nests.on iframe.on{ visibility:visible; }

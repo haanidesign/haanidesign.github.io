@@ -1,0 +1,474 @@
+/* ミニSpine — はぁにデザイン工房テイスト × Spine準拠の画面構成 */
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --gray:#8A8470;
+  --pink:#F2A0B8; --mint:#7AC4A0;
+  --bd:2.5px solid var(--ink); --r:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{
+  font-family:'M PLUS Rounded 1c','Yu Gothic UI','Meiryo',sans-serif;
+  font-weight:700;color:var(--ink);background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
+  background-size:16px 16px;line-height:1.7;user-select:none;-webkit-font-smoothing:antialiased;
+}
+.dot{font-family:'DotGothic16','M PLUS Rounded 1c',monospace;font-weight:400;}
+
+/* ---------- ボタン ---------- */
+button{
+  display:inline-flex;align-items:center;justify-content:center;gap:.3rem;
+  background:var(--paper);color:var(--ink);
+  border:2px solid var(--ink);border-radius:var(--r);
+  padding:.35rem .75rem;font:inherit;font-size:.74rem;font-weight:700;
+  box-shadow:0 3px 0 var(--ink);cursor:pointer;
+  transition:transform .07s,box-shadow .07s,background .13s;white-space:nowrap;
+}
+button:hover{background:var(--main);}
+button:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink);}
+button.on{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+button:disabled{opacity:.35;cursor:default;box-shadow:0 3px 0 var(--ink);transform:none;}
+button:disabled:hover{background:var(--paper);}
+.btn-sm{padding:.24rem .6rem;font-size:.68rem;box-shadow:0 2.5px 0 var(--ink);}
+.btn-y{background:var(--main);}
+.btn-y:hover{background:var(--main-deep);}
+.btn-g{background:var(--ink);color:var(--main);}
+.btn-g:hover{background:#000;color:var(--main);}
+button.danger:hover{background:var(--pink);}
+button.mini{padding:0 .3rem;font-size:.55rem;box-shadow:0 2px 0 var(--ink);border-width:1.5px;border-radius:6px;}
+
+/* ---------- フォーム ---------- */
+input,select{
+  font:inherit;font-size:.72rem;font-weight:700;color:var(--ink);
+  background:var(--paper);border:2px solid var(--ink);border-radius:8px;
+  padding:.14rem .4rem;width:100%;
+}
+input[type=checkbox]{width:auto;accent-color:var(--main-deep);}
+input[type=range]{padding:0;border:none;background:transparent;height:16px;accent-color:var(--main-deep);}
+select{cursor:pointer;}
+.fld{width:auto;} .w70{width:66px;}
+
+/* ---------- レイアウト ---------- */
+#app{
+  display:grid;height:calc(100% - 16px);margin:8px;
+  grid-template-columns:236px 1fr 244px;
+  grid-template-rows:auto 1fr 208px;
+  grid-template-areas:"tb tb tb" "tree view props" "tl tl tl";
+  border:var(--bd);border-radius:18px;background:var(--paper);
+  box-shadow:0 6px 0 var(--ink);overflow:hidden;
+}
+
+#titlebar{
+  grid-area:tb;background:var(--main);border-bottom:var(--bd);
+  padding:.45rem .8rem;display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;
+}
+.tb-title{font-size:.98rem;text-shadow:0 2px 0 rgba(255,255,255,.55);}
+.tb-spec{font-size:.62rem;color:var(--main);background:var(--ink);
+  border-radius:100px;padding:.1rem .8rem;letter-spacing:.06em;}
+.tb-actions{margin-left:auto;display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;}
+.tb-sep{width:2px;height:18px;background:var(--ink);opacity:.3;border-radius:2px;}
+
+#tree,#props{background:var(--cream);overflow:auto;padding:.5rem .45rem;}
+#tree{grid-area:tree;border-right:var(--bd);display:flex;flex-direction:column;gap:.25rem;}
+#props{grid-area:props;border-left:var(--bd);}
+
+.pgroup-ttl{font-size:.58rem;color:var(--gray);font-weight:400;letter-spacing:.1em;padding:.35rem .2rem .1rem;}
+.title{
+  font-size:.65rem;background:var(--ink);color:var(--main);
+  border-radius:100px;padding:.12rem .8rem;margin:.7rem 0 .3rem;display:inline-block;
+}
+#props>.title:first-child{margin-top:0;}
+.sub{font-size:.62rem;color:var(--main-deep);padding:.3rem .2rem 0;}
+.tree{display:flex;flex-direction:column;gap:.2rem;}
+
+.item{
+  display:flex;align-items:center;gap:.3rem;
+  background:var(--paper);border:2px solid var(--ink);border-radius:8px;
+  padding:.14rem .4rem;font-size:.67rem;cursor:pointer;white-space:nowrap;
+  box-shadow:0 2px 0 var(--ink);transition:transform .07s,box-shadow .07s,background .13s;
+}
+.item:hover{background:var(--main-soft);}
+.item:active{transform:translateY(2px);box-shadow:0 0 0 var(--ink);}
+.item.sel{background:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+.item.slot{background:var(--main-soft);}
+.item.slot.sel{background:var(--main);}
+.item.drop{background:var(--mint);}
+.item.tiny{font-size:.62rem;padding:.1rem .3rem;}
+.item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;}
+.item .ic{font-size:.7rem;}
+.item .tag{font-size:.54rem;color:var(--gray);font-weight:400;}
+.item.sel .tag{color:#5c5843;}
+.badge{font-size:.5rem;background:var(--pink);border:1.5px solid var(--ink);
+  border-radius:100px;padding:0 .3rem;line-height:1.4;}
+.badge.ik{background:var(--mint);}
+.eye{width:13px;text-align:center;opacity:.35;font-size:.58rem;}
+.eye.on{opacity:1;}
+
+.row{display:flex;gap:.3rem;align-items:center;padding:.1rem .05rem;}
+.row>label{flex:0 0 62px;font-size:.61rem;color:var(--gray);font-weight:400;}
+.row>*{min-width:0;}
+.row .val{width:34px;font-size:.6rem;color:var(--gray);font-weight:400;text-align:right;}
+.hint{
+  font-size:.61rem;font-weight:400;color:#5c5843;line-height:1.7;
+  background:var(--main-soft);border:2px dashed var(--ink);border-radius:10px;
+  padding:.4rem .5rem;margin:.25rem 0;white-space:pre-line;
+}
+
+/* ---------- ビューポート ---------- */
+#view{
+  grid-area:view;position:relative;overflow:hidden;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle, rgba(30,28,20,.17) 1.8px, transparent 1.9px);
+  background-size:12px 12px;
+}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
+
+/* モード切替（本物と同じく左上） */
+/* モード切替は作業の入口なので、大きく・役割が読めるようにする */
+#modes{position:absolute;left:10px;top:10px;display:flex;gap:.4rem;z-index:3;}
+.mode{
+  display:flex;flex-direction:column;align-items:flex-start;gap:0;
+  font-size:.82rem;padding:.4rem .95rem;line-height:1.35;min-width:112px;
+}
+.mode b{font-weight:800;}
+.mode small{font-size:.6rem;font-weight:700;opacity:.62;}
+.mode.on{background:var(--ink);color:var(--main);box-shadow:0 0 0 var(--ink);transform:translateY(2px);}
+.mode.on small{opacity:.85;}
+
+/* 表示トグル（右上） */
+#viewToggles{position:absolute;right:10px;top:10px;display:flex;gap:.25rem;z-index:3;}
+.vt{padding:.25rem .45rem;font-size:.8rem;}
+
+/* メインツールバー（本物と同じく下部） */
+#maintools{
+  position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+  display:flex;gap:.4rem;align-items:stretch;z-index:3;
+  background:var(--cream);border:var(--bd);border-radius:14px;
+  box-shadow:0 4px 0 var(--ink);padding:.3rem .4rem;
+}
+.mt-col{display:flex;flex-direction:column;gap:.16rem;}
+.mt-col.wide button{min-width:118px;}
+.mt-sep{width:2px;background:var(--ink);opacity:.25;border-radius:2px;margin:0 .1rem;}
+#maintools button{
+  font-size:.65rem;padding:.1rem .5rem;justify-content:flex-start;
+  box-shadow:0 2.5px 0 var(--ink);min-width:74px;line-height:1.55;
+}
+#maintools button i{font-style:normal;width:14px;text-align:center;}
+.opt{font-size:.62rem !important;}
+
+#status{
+  position:absolute;left:10px;bottom:10px;background:var(--ink);color:var(--main);
+  font-size:.63rem;padding:.22rem .75rem;border-radius:100px;
+  pointer-events:none;white-space:pre;max-width:44%;overflow:hidden;text-overflow:ellipsis;
+}
+#drop{
+  position:absolute;inset:10px;display:none;align-items:center;justify-content:center;
+  background:rgba(225,221,96,.85);border:3px dashed var(--ink);border-radius:14px;z-index:5;
+}
+#drop span{background:var(--paper);border:var(--bd);border-radius:14px;padding:.7rem 1.4rem;font-size:.9rem;}
+#drop.on{display:flex;}
+
+/* ---------- ドープシート ---------- */
+#timeline{
+  grid-area:tl;background:var(--cream);border-top:var(--bd);
+  display:flex;flex-direction:column;padding:.45rem .6rem .55rem;gap:.4rem;
+}
+#tlbar{display:flex;gap:.3rem;align-items:center;flex-wrap:wrap;}
+.tl-label{font-size:.59rem;color:var(--gray);font-weight:400;}
+.tl-chk{font-size:.63rem;display:flex;align-items:center;gap:.2rem;}
+/* スクロールバーの分の幅を最初から空けておく。出入りで幅が変わると
+   キャンバスを作り直すことになり、下のバーが震える原因になる。 */
+#dope{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;
+      border:var(--bd);border-radius:10px;background:var(--paper);}
+#dopecv{display:block;cursor:pointer;}
+
+/* ---------- 配信モード ---------- */
+#liveout{position:fixed;right:14px;top:14px;z-index:10;display:none;}
+body.live{background:#0b0e11;background-image:none;}
+body.live #app{
+  grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"view";
+  border:none;border-radius:0;box-shadow:none;margin:0;height:100%;background:transparent;
+}
+body.live #titlebar,body.live #tree,body.live #props,body.live #timeline,
+body.live #status,body.live #modes,body.live #viewToggles,body.live #maintools{display:none;}
+body.live #view{background:transparent;background-image:none;}
+body.live #liveout{display:block;}
+
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:var(--main-soft);}
+::-webkit-scrollbar-thumb{background:var(--ink);border-radius:100px;border:2px solid var(--main-soft);}
+
+/* ==========================================================================
+   タブレット対応
+   ・指やペンでドラッグしてもブラウザ側がスクロール／ズームしないようにする
+   ・幅が足りないときは左右のパネルを引き出しに逃がして、キャンバスを広く使う
+   ========================================================================== */
+
+/* ドラッグをブラウザに横取りさせない */
+#cv, #dopecv{ touch-action:none; }
+#view{ overscroll-behavior:contain; }
+
+/* 指で押す前提のサイズに広げる（マウスのときは今までどおり） */
+@media (pointer:coarse){
+  .btn{ min-height:38px; padding:.5rem .9rem; }
+  .btn-sm{ min-height:34px; }
+  #maintools .btn, #modes .btn, #viewToggles .btn{ min-width:40px; }
+  .tree .row{ min-height:34px; }
+  input[type="number"], input[type="text"], select{ min-height:34px; font-size:16px; } /* 16px 未満は iOS が拡大する */
+}
+
+/* 横長タブレット: 左右を詰めてキャンバスを稼ぐ */
+@media (max-width:1180px){
+  #app{
+    grid-template-columns:196px 1fr 208px;
+    grid-template-rows:auto 1fr 168px;
+    margin:6px; height:calc(100% - 12px);
+  }
+}
+
+/* 引き出しのつまみ。既定は出さず、狭い画面でだけ出す */
+#paneTabs{ display:none; gap:.4rem; margin-left:.4rem; }
+
+/* 縦持ちタブレット・小さめの画面: 左右を引き出しにする */
+@media (max-width:900px){
+  #app{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr 156px;
+    grid-template-areas:"tb" "view" "tl";
+  }
+  /* パネルは画面の端から出てくる板にする */
+  #tree, #props{
+    position:absolute; top:0; bottom:0; z-index:40;
+    width:min(78vw, 300px);
+    background:var(--cream);
+    box-shadow:0 0 0 2.5px var(--ink), 0 10px 30px rgba(30,28,20,.35);
+    transition:transform .18s ease;
+  }
+  #tree{ left:0;  border-right:var(--bd); transform:translateX(-102%); }
+  #props{ right:0; border-left:var(--bd);  transform:translateX(102%); }
+  body.tree-open #tree{ transform:none; }
+  body.props-open #props{ transform:none; }
+
+  /* 引き出しを開くつまみ */
+  #paneTabs{ display:flex; }
+  /* 開いているときに外側を触ったら閉じるための膜 */
+  #paneVeil{ display:none; position:absolute; inset:0; z-index:35; background:rgba(30,28,20,.28); }
+  body.tree-open #paneVeil, body.props-open #paneVeil{ display:block; }
+}
+
+/* ---------- つかいかた（画面内パネル） ---------- */
+#helpBack{
+  display:none; position:fixed; inset:0; z-index:90;
+  background:rgba(30,28,20,.45);
+}
+#help{
+  display:none; position:fixed; z-index:91;
+  left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(92vw, 640px); max-height:86vh;
+  background:var(--paper); border:var(--bd); border-radius:16px;
+  box-shadow:0 6px 0 var(--ink); overflow:hidden;
+  flex-direction:column;
+}
+body.help-open #helpBack{ display:block; }
+body.help-open #help{ display:flex; }
+#helpBar{
+  background:var(--main); border-bottom:var(--bd);
+  padding:.6rem .8rem; display:flex; align-items:center; gap:.6rem;
+}
+#helpBar b{ font-size:.95rem; }
+#helpBar .btn{ margin-left:auto; }
+#helpBody{ padding:.9rem 1rem 1.1rem; overflow:auto; -webkit-overflow-scrolling:touch; }
+#helpQuick h4{
+  margin:.9rem 0 .3rem; font-size:.82rem;
+  background:var(--main-soft); border:2px solid var(--ink); border-radius:999px;
+  display:inline-block; padding:.1rem .7rem;
+}
+#helpQuick h4:first-child{ margin-top:0; }
+#helpQuick ol, #helpQuick ul{ margin:.2rem 0 .2rem; padding-left:1.3rem; }
+#helpQuick li{ font-size:.8rem; font-weight:500; line-height:1.85; }
+#helpQuick li b{ font-weight:800; }
+#helpMore{ margin-top:1rem; border-top:var(--bd); padding-top:.7rem; }
+#helpMore summary{ cursor:pointer; font-size:.8rem; }
+#helpFull{
+  white-space:pre-wrap; font-size:.72rem; font-weight:500; line-height:1.7;
+  margin:.6rem 0 0; font-family:inherit; color:#4a4636;
+}
+
+
+/* ---------- くわしい設定（既定では畳む） ---------- */
+#mtAdvanced{ display:none; gap:.4rem; align-items:stretch; }
+body.adv #mtAdvanced{ display:flex; }
+#btnAdv.on{ background:var(--main); }
+
+/* ---------- 下から出る 板（よくある動き・書き出し） ---------- */
+#sheetBack{ display:none; position:fixed; inset:0; z-index:90; background:rgba(30,28,20,.32); }
+#sheet{
+  position:fixed; left:50%; bottom:0; z-index:91; width:min(720px, 100%);
+  max-height:78vh; display:flex; flex-direction:column;
+  background:var(--cream); border:var(--bd); border-bottom:none; border-radius:18px 18px 0 0;
+  box-shadow:0 -6px 0 rgba(30,28,20,.12);
+  transform:translate(-50%, 104%); transition:transform .22s cubic-bezier(.2,.9,.3,1);
+}
+body.sheet-open #sheetBack{ display:block; }
+body.sheet-open #sheet{ transform:translate(-50%, 0); }
+@media (prefers-reduced-motion:reduce){ #sheet{ transition:none; } }
+#sheetBar{ display:flex; align-items:center; gap:.5rem; padding:.6rem .9rem; border-bottom:var(--bd); background:var(--main-soft); border-radius:16px 16px 0 0; }
+#sheetBar b{ font-size:.95rem; }
+#sheetBar .btn{ margin-left:auto; }
+#sheetBody{ padding:.6rem .9rem 1.2rem; overflow:auto; -webkit-overflow-scrolling:touch; }
+.sh-h{ font-size:.85rem; font-weight:800; margin:.7rem 0 .15rem; }
+.sh-h:first-child{ margin-top:0; }
+.sh-note{ font-size:.72rem; font-weight:500; color:var(--gray); line-height:1.6; margin-bottom:.45rem; }
+.sh-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:.5rem; }
+.sh-grid.wide{ grid-template-columns:1fr; }
+button.mv{
+  flex-direction:column; gap:.1rem; min-height:72px; padding:.45rem .3rem;
+  white-space:normal; line-height:1.3; font-size:.74rem;
+}
+button.mv i{ font-style:normal; font-size:1.45rem; line-height:1.2; }
+button.mv.wide{ flex-direction:row; flex-wrap:wrap; justify-content:flex-start; text-align:left; gap:.2rem .6rem; padding:.6rem .8rem; }
+button.mv.wide span{ font-size:.85rem; }
+button.mv.wide small{ flex-basis:100%; font-weight:500; font-size:.7rem; color:var(--gray); padding-left:2.1rem; }
+
+/* ---------- タップで骨組み ---------- */
+#tapBar{
+  display:none; position:absolute; left:50%; top:12px; transform:translateX(-50%); z-index:30;
+  align-items:center; gap:.4rem; flex-wrap:wrap; justify-content:center;
+  max-width:calc(100% - 24px); padding:.45rem .6rem;
+  background:var(--main); border:var(--bd); border-radius:14px; box-shadow:0 4px 0 var(--ink);
+}
+#tapBar .tb-msg{ font-size:.82rem; font-weight:800; padding:0 .3rem; }
+body.taprig #tapBar{ display:flex; }
+body.taprig #modes, body.taprig #maintools, body.taprig #viewToggles{ visibility:hidden; }
+#btnPreset2{ margin-left:.4rem; align-self:center; }
+
+/* ---------- 作業中 ---------- */
+#busy{ display:none; position:fixed; inset:0; z-index:120; background:rgba(251,250,236,.82); align-items:center; justify-content:center; }
+#busy.on{ display:flex; }
+#busy span{ background:var(--paper); border:var(--bd); border-radius:14px; box-shadow:0 4px 0 var(--ink); padding:.8rem 1.2rem; font-size:.9rem; }
+
+/* ---------- 揺れの やわらかさ ---------- */
+.soft-box{ margin:.2rem 0 .5rem; }
+.soft-row{ display:flex; flex-wrap:wrap; gap:.3rem; margin:.15rem 0 .35rem; }
+.soft-row .btn{ flex:1 1 auto; }
+
+/* ---------- つまみ（触っただけでは 動かない。rslider.js） ---------- */
+.rs{position:relative;height:30px;touch-action:none;cursor:ew-resize;min-width:60px;flex:1;}
+.rs-track{position:absolute;left:9px;right:9px;top:50%;height:6px;margin-top:-3px;background:var(--main-soft);border:1.5px solid var(--ink);border-radius:6px;overflow:hidden;}
+.rs-fill{height:100%;background:var(--main);}
+.rs-knob{position:absolute;top:50%;width:18px;height:24px;margin:-12px 0 0 -9px;background:var(--paper);border:2px solid var(--ink);border-radius:7px;box-shadow:0 2px 0 var(--ink);}
+.rs.drag .rs-knob{background:var(--main);}
+
+/* ---------- 描画順の 行の「親」（After Effects の 親の 列） ---------- */
+#orderBody .item{ gap:.25rem; }
+#orderBody .nm{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.par{ position:relative; flex:0 1 auto; max-width:46%; display:inline-flex; align-items:center; }
+.par-t{ display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:.6rem; font-weight:700; padding:.05rem .4rem; border:1.5px solid var(--ink); border-radius:999px;
+  background:var(--main-soft); }
+.par select{ position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; min-height:0; padding:0; border:0; }
+
+/* ---------- 閉じ目を つくる ---------- */
+#shapeBar{
+  display:none; position:absolute; left:50%; top:12px; transform:translateX(-50%); z-index:30;
+  flex-direction:column; gap:.35rem; width:min(640px, calc(100% - 24px)); padding:.5rem .7rem;
+  background:var(--main); border:var(--bd); border-radius:14px; box-shadow:0 4px 0 var(--ink);
+}
+body.shaping #shapeBar{ display:flex; }
+body.shaping #modes, body.shaping #viewToggles{ visibility:hidden; }
+#shapeBar .sb-msg{ font-size:.74rem; font-weight:800; line-height:1.5; }
+#shapeBar .sb-row{ display:flex; flex-wrap:wrap; gap:.4rem .8rem; align-items:center; }
+#shapeBar .sb-l{ display:flex; align-items:center; gap:.4rem; flex:1 1 200px; font-size:.7rem; }
+#shapeBar .sb-l span{ white-space:nowrap; }
+
+/* ---------- 親の 列を はっきり ---------- */
+.order-head{ display:flex; justify-content:space-between; gap:.4rem; }
+.par{ max-width:52%; }
+.par-t{ font-size:.66rem; padding:.12rem .5rem; box-shadow:0 2px 0 var(--ink); }
+.par-t::after{ content:' ▾'; font-size:.55rem; }
+@media (pointer:coarse){ .par-t{ font-size:.74rem; padding:.25rem .6rem; } }
+
+/* ---------- えらんで いる 行を はっきり ---------- */
+.tree .item.sel, #orderBody .item.sel{
+  background:var(--ink) !important; color:var(--main); transform:none;
+  box-shadow:inset 5px 0 0 var(--main), 0 0 0 2px var(--ink);
+}
+.tree .item.sel .nm, #orderBody .item.sel .nm{ color:var(--main); font-weight:800; }
+.tree .item.sel .tag, .tree .item.sel .badge{ color:var(--main); }
+#orderBody .item.sel .par-t{ background:var(--main); }
+#orderBody .item.sel button.mini{ background:var(--main); }
+#orderBody .item.sel .par-t{ color:var(--ink); }
+#orderBody .item.sel .nm, .tree .item.sel .nm, .tree .item.sel span{ color:var(--main) !important; }
+#orderBody .item.sel .par-t, #orderBody .item.sel .par-t *{ color:var(--ink) !important; }
+
+/* ---------- ツールの 枠を 動かす つまみ ---------- */
+.mt-grip{
+  display:flex; align-items:center; justify-content:center; width:22px; margin:-.1rem 0;
+  font-size:.9rem; letter-spacing:-.15em; color:var(--gray); cursor:grab; touch-action:none;
+  border-radius:8px; user-select:none;
+}
+.mt-grip:hover{ background:var(--main-soft); color:var(--ink); }
+#maintools.moving{ box-shadow:0 8px 0 var(--ink); }
+#maintools.moving .mt-grip{ cursor:grabbing; background:var(--main); color:var(--ink); }
+@media (pointer:coarse){ .mt-grip{ width:30px; font-size:1.1rem; } }
+
+/* ---------- 部品を くっつける ---------- */
+.att-list{ display:flex; flex-direction:column; gap:.3rem; margin:.3rem 0 .7rem; }
+.att-row{ display:flex; align-items:center; gap:.5rem; padding:.45rem .6rem; background:var(--paper);
+  border:2px solid var(--ink); border-radius:10px; cursor:pointer; }
+.att-row input{ width:20px; height:20px; }
+.att-row .att-n{ font-size:.82rem; font-weight:800; white-space:nowrap; }
+.att-row small{ font-size:.66rem; color:var(--gray); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.att-box{ margin-bottom:.4rem; }
+
+
+
+/* ---------- つながり図（map.js） ---------- */
+#mapBack{ display:none; position:fixed; inset:0; z-index:95; background:rgba(30,28,20,.35); }
+#map{ display:none; position:fixed; inset:4% 3%; z-index:96; flex-direction:column;
+  background:var(--cream); border:var(--bd); border-radius:18px; box-shadow:0 6px 0 var(--ink); overflow:hidden; }
+body.map-open #mapBack{ display:block; }
+body.map-open #map{ display:flex; }
+#mapBar{ display:flex; align-items:center; gap:.7rem; padding:.6rem .9rem; border-bottom:var(--bd); background:var(--main-soft); }
+#mapBar b{ font-size:1rem; }
+#mapBar .map-hint{ font-size:.72rem; color:var(--gray); font-weight:500; flex:1; }
+#mapScroll{ flex:1; overflow:auto; -webkit-overflow-scrolling:touch; background-image:radial-gradient(circle, rgba(30,28,20,.12) 1.5px, transparent 1.6px); background-size:18px 18px; }
+#mapStage{ position:relative; min-width:100%; min-height:100%; }
+#mapLines{ position:absolute; left:0; top:0; pointer-events:none; }
+.nd{ position:absolute; width:180px; background:var(--paper); border:2.5px solid var(--ink); border-radius:14px;
+  box-shadow:0 3px 0 var(--ink); padding:.3rem .35rem .4rem; touch-action:none; cursor:grab; user-select:none; }
+.nd.spring{ background:#EAF2FC; }
+.nd.sel{ outline:4px solid var(--main); outline-offset:2px; }
+.nd.drop{ background:var(--main); transform:scale(1.04); }
+.nd-h{ display:flex; align-items:center; gap:.3rem; font-size:.86rem; font-weight:800; padding:.1rem .2rem .25rem; }
+.nd-badge{ margin-left:auto; font-size:.62rem; padding:0 .35rem; border:1.5px solid var(--ink); border-radius:999px; background:#8FB7E8; }
+.nd-l{ font-size:.74rem; font-weight:700; margin-top:.2rem; padding:.22rem .45rem; background:var(--main-soft);
+  border:1.5px solid var(--ink); border-radius:999px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:grab; }
+.nd-l.sel{ background:var(--ink); color:var(--main); }
+.map-ghost{ position:fixed; z-index:200; pointer-events:none; transform:translate(-50%,-130%);
+  font-size:.8rem; font-weight:800; padding:.3rem .7rem; background:var(--main); border:2px solid var(--ink); border-radius:999px; box-shadow:0 3px 0 var(--ink); }
+.pgroup-ttl.with-btn{ display:flex; align-items:center; justify-content:space-between; }
+.map-open-tree{ font-size:.62rem !important; padding:.1rem .45rem !important; min-height:0 !important; }
+
+/* ---------- 表情の 差分 ---------- */
+.diff-box{ margin-bottom:.5rem; }
+.diff-opts{ display:flex; flex-wrap:wrap; gap:.3rem; margin:.3rem 0; }
+.diff-opts .btn{ flex:1 1 auto; }
+.diff-keys{ display:flex; flex-direction:column; gap:.2rem; margin:.2rem 0 .4rem; }
+.diff-key{ display:flex; align-items:center; justify-content:space-between; font-size:.7rem; font-weight:700;
+  padding:.15rem .4rem; background:var(--paper); border:1.5px solid var(--ink); border-radius:8px; }
+
+/* ---------- 動きの 大きさ・はやさ ---------- */
+.tune-row{ display:flex; flex-direction:column; gap:.2rem; margin:.4rem 0 .7rem; }
+.tune-l{ display:flex; justify-content:space-between; align-items:baseline; }
+.tune-l b{ font-size:.9rem; }
+.tune-v{ font-size:.8rem; font-weight:800; }
+.nd-h{ justify-content:space-between; }
+.nd-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.nd-acts{ display:flex; gap:.2rem; flex:none; }
+.nd-act{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 .25rem;
+  font-size:.72rem; font-weight:800; border:1.5px solid var(--ink); border-radius:8px; background:var(--paper); cursor:pointer; }
+.nd-act:hover{ background:var(--main); }
+.nd-act.on{ background:#8FB7E8; }
+@media (pointer:coarse){ .nd-act{ min-width:30px; height:30px; font-size:.8rem; } .nd{ width:200px; } }
+.nd{ width:216px; } @media (pointer:coarse){ .nd{ width:224px; } }
