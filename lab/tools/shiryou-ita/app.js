@@ -14,6 +14,7 @@ const S = {
   items: [],             // {id,key,w,h,x,y,s,r,cl,ct,cr,cb}
   view: { x: 0, y: 0, z: 1, rot: 0, f: 1 },
   locked: false, bg: '#5a5a60', ghost: 25, glass: 55,
+  pages: [], cur: 0,      // ページ。いま 開いて いる ページは items・view・locked に 出して ある
 };
 const assets = new Map(); // key -> {blob, url}
 let sel = null, cropping = false, seq = 1;
@@ -35,12 +36,69 @@ async function idb(store, mode, fn) {
   });
 }
 let saveT = 0;
-function autosave() {
+function autosave(now) {
   clearTimeout(saveT);
   saveT = setTimeout(() => {
-    const { items, view, locked, bg, ghost, glass } = S;
-    idb('b', 'readwrite', s => s.put({ items, view, locked, bg, ghost, glass, seq }, 'board')).catch(() => {});
-  }, 400);
+    stash();
+    const { pages, cur, bg, ghost, glass } = S;
+    idb('b', 'readwrite', s => s.put({ pages, cur, bg, ghost, glass, seq }, 'board')).catch(() => {});
+  }, now ? 0 : 400);
+}
+addEventListener('pagehide', () => autosave(true));
+document.addEventListener('visibilitychange', () => document.hidden && autosave(true));
+
+/* ---------- ページ ---------- */
+function stash() {
+  const p = S.pages[S.cur] || (S.pages[S.cur] = { name: 'ページ1' });
+  Object.assign(p, { items: S.items, view: S.view, locked: S.locked });
+}
+function newView() { return { x: app.clientWidth / 2, y: app.clientHeight / 2, z: 1, rot: 0, f: 1 }; }
+function goPage(i) {
+  stash();
+  S.cur = Math.max(0, Math.min(S.pages.length - 1, i));
+  const p = S.pages[S.cur];
+  S.items = p.items || []; S.view = p.view || newView(); S.locked = !!p.locked;
+  sel = null; cropping = false; undo.length = 0; redo.length = 0;
+  render(); autosave(true); paintPages();
+}
+let renaming = -1;
+function paintPages() {
+  $('pgBtn').textContent = S.pages[S.cur]?.name || 'ページ1';
+  $('pages').innerHTML = S.pages.map((p, i) => `<div class="pg${i === S.cur ? ' on' : ''}">` +
+    (i === renaming ? `<input class="pgName" value="${p.name.replace(/"/g, '&quot;')}" maxlength="20">`
+      : `<button class="pgGo" data-i="${i}">${p.name.replace(/</g, '&lt;')}<small>${(i === S.cur ? S.items : p.items || []).length}</small></button>`) +
+    `<button data-ren="${i}" title="名前を かえる">✏</button><button data-del="${i}" title="ページを 消す">🗑</button></div>`).join('');
+  const inp = $('pages').querySelector('.pgName');
+  if (inp) {
+    if (N) N.focus(true);
+    inp.focus(); inp.select();
+    const done = () => {
+      if (renaming < 0) return;
+      S.pages[renaming].name = inp.value.trim() || S.pages[renaming].name;
+      renaming = -1; if (N) N.focus(false);
+      paintPages(); autosave();
+    };
+    inp.addEventListener('blur', done);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  }
+}
+function addPage() {
+  stash();
+  S.pages.push({ name: 'ページ' + (S.pages.length + 1), items: [], view: newView(), locked: false });
+  goPage(S.pages.length - 1);
+  renaming = S.cur; paintPages();
+}
+function delPage(i) {
+  const n = (i === S.cur ? S.items : S.pages[i].items || []).length;
+  if (n && !confirm(`「${S.pages[i].name}」を 消しますか？（画像 ${n}まい）`)) return;
+  stash();
+  S.pages.splice(i, 1);
+  if (!S.pages.length) S.pages.push({ name: 'ページ1', items: [], view: newView(), locked: false });
+  S.cur = Math.min(S.cur > i ? S.cur - 1 : S.cur, S.pages.length - 1);
+  const p = S.pages[S.cur];
+  S.items = p.items; S.view = p.view; S.locked = !!p.locked;
+  sel = null; undo.length = 0; redo.length = 0;
+  render(); autosave(); paintPages(); cleanAssets();
 }
 
 /* ---------- 画像 ---------- */
@@ -316,7 +374,8 @@ stage.addEventListener('wheel', e => {
 
 /* ---------- ボタン ---------- */
 const act = {
-  menu: () => cls('sheet', !body().classList.contains('sheet')),
+  addPage, pages: () => { paintPages(); cls('sheet', true); },
+  menu: () => { paintPages(); cls('sheet', !body().classList.contains('sheet')); },
   lock: () => { S.locked = !S.locked; if (S.locked) { cropping = false; } toast(S.locked ? 'ロック 中（2本指で 回せる）' : 'ロック とき'); render(); autosave(); },
   fit, flip, rot0,
   mini: () => { if (N) return N.minimize(); cls('mini', true); pipSize(80, 80); },
@@ -345,6 +404,13 @@ function editSel(fn) {
   const b = snap(); fn(it); pushUndo(b); render(); autosave();
 }
 app.addEventListener('click', e => {
+  const t = e.target.closest('[data-i],[data-ren],[data-del]');
+  if (t) {
+    if (t.dataset.i != null) { goPage(+t.dataset.i); cls('sheet', false); }
+    else if (t.dataset.ren != null) { renaming = +t.dataset.ren; paintPages(); }
+    else delPage(+t.dataset.del);
+    return;
+  }
   const b = e.target.closest('[data-a]');
   if (b && act[b.dataset.a]) act[b.dataset.a]();
 });
@@ -471,26 +537,35 @@ async function download(blob, name) {
 const stampName = () => new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
 async function saveJson() {
   cls('sheet', false); toast('まとめ 中…');
-  const keys = [...new Set(S.items.map(i => i.key))], data = {};
+  stash();
+  const keys = [...new Set(S.pages.flatMap(p => (p.items || []).map(i => i.key)))], data = {};
   for (const k of keys) { const a = assets.get(k); if (a) data[k] = await blobToData(a.blob); }
-  const { items, view, locked, bg } = S;
-  download(new Blob([JSON.stringify({ app: 'shiryou-ita', v: 1, items, view, locked, bg, assets: data })], { type: 'application/json' }), `shiryou-${stampName()}.json`);
+  const { pages, cur, bg } = S;
+  download(new Blob([JSON.stringify({ app: 'shiryou-ita', v: 2, pages, cur, bg, assets: data })], { type: 'application/json' }), `shiryou-${stampName()}.json`);
 }
 $('fJson').addEventListener('change', e => { const f = e.target.files[0]; if (f) openJson(f); e.target.value = ''; });
 async function openJson(f) {
   cls('sheet', false);
   try {
     const j = JSON.parse(await f.text());
-    if (!Array.isArray(j.items)) throw 0;
+    // 前の 形（ページ なし）は 1ページ として 読む
+    const pages = j.pages || (Array.isArray(j.items) ? [{ name: f.name.replace(/\.json$/, ''), items: j.items, view: j.view, locked: j.locked }] : null);
+    if (!pages) throw 0;
     toast('ひらいて います…');
     for (const [k, d] of Object.entries(j.assets || {})) {
       const b = await (await fetch(d)).blob();
       await loadAsset(k, b); await idb('a', 'readwrite', s => s.put(b, k)).catch(() => {});
     }
-    const before = snap();
-    S.items = j.items; if (j.view) S.view = j.view; S.locked = !!j.locked; if (j.bg) S.bg = j.bg;
-    seq = Math.max(seq, ...S.items.map(i => i.id + 1));
-    pushUndo(before); sel = null; render(); autosave(); cleanAssets();
+    // 開いた ページは 後ろに 足す
+    stash();
+    const at = S.pages.length;
+    for (const p of pages) {
+      p.items = (p.items || []).map(i => ({ ...i, id: seq++ }));
+      S.pages.push(p);
+    }
+    if (j.bg) S.bg = j.bg;
+    goPage(at); cleanAssets();
+    toast(`${pages.length}ページ 開きました`);
   } catch { toast('ひらけません でした'); }
 }
 async function exportPng() {
@@ -518,7 +593,8 @@ async function exportPng() {
 }
 // もう 使って いない 画像を すてる
 async function cleanAssets() {
-  const used = new Set(S.items.map(i => i.key));
+  stash();
+  const used = new Set(S.pages.flatMap(p => (p.items || []).map(i => i.key)));
   for (const u of undo.concat(redo)) for (const i of JSON.parse(u)) used.add(i.key);
   const keys = await idb('a', 'readonly', s => s.getAllKeys()).catch(() => []);
   for (const k of keys || []) if (!used.has(k)) {
@@ -589,19 +665,28 @@ function toast(s) {
   try {
     const b = await idb('b', 'readonly', s => s.get('board'));
     if (b) {
-      Object.assign(S, b); seq = b.seq || 1;
-      for (const it of S.items) {
-        if (assets.has(it.key)) continue;
-        const blob = await idb('a', 'readonly', s => s.get(it.key));
-        if (blob) await loadAsset(it.key, blob);
+      // 前の 形（ページ なし）は 1ページ目 に する
+      if (!b.pages) b.pages = [{ name: 'ページ1', items: b.items || [], view: b.view, locked: b.locked }];
+      S.bg = b.bg || S.bg; S.ghost = b.ghost ?? S.ghost; S.glass = b.glass ?? S.glass;
+      S.pages = b.pages; S.cur = Math.min(b.cur || 0, b.pages.length - 1); seq = b.seq || 1;
+      for (const p of S.pages) {
+        for (const it of p.items || []) {
+          if (assets.has(it.key)) continue;
+          const blob = await idb('a', 'readonly', s => s.get(it.key));
+          if (blob) await loadAsset(it.key, blob);
+        }
+        p.items = (p.items || []).filter(i => assets.has(i.key));
+        p.view ||= newView();
       }
-      S.items = S.items.filter(i => assets.has(i.key));
+      const p = S.pages[S.cur];
+      S.items = p.items; S.view = p.view; S.locked = !!p.locked;
     } else {
       S.view.x = app.clientWidth / 2; S.view.y = app.clientHeight / 2;
     }
+    stash();
   } catch {}
   $('ghostA').value = S.ghost; $('glassA').value = S.glass;
-  paintSet(); render(); cleanAssets();
+  paintSet(); render(); paintPages(); cleanAssets();
 })();
 addEventListener('resize', render);
 if (N) {

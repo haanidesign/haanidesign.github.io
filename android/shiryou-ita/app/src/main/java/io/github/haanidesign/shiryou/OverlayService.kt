@@ -258,6 +258,13 @@ class OverlayService : Service() {
             showBubble()
         }.let { }
 
+        // 名前を 打つ ときだけ キーボードを 出せる ように する
+        @JavascriptInterface fun focus(on: Boolean) = ui.post {
+            lp.flags = if (on) lp.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                       else lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            if (shown) wm.updateViewLayout(root, lp)
+        }.let { }
+
         @JavascriptInterface fun close() = ui.post { stopSelf() }.let { }
 
         // クリップボードは 前に いる アプリ しか 読めない ので、少しの 間 窓に 入力を むける

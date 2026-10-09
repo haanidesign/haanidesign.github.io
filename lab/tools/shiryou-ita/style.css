@@ -89,3 +89,14 @@ body.native [data-a=pip]{display:none}
 body.native #sel{bottom:44px}
 html,body.native{background:transparent}
 body.native #app{border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.3)}
+
+/* ページ */
+#pgBtn{font-size:13px;max-width:9em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;background:rgba(0,0,0,.25);border-radius:999px;padding:0 12px;display:inline-block;line-height:40px}
+.h3b{margin-top:14px!important}
+.pg{display:flex;align-items:center;gap:2px;border-radius:12px}
+.pg.on{background:rgba(255,255,255,.2)}
+.pgGo{flex:1;justify-content:space-between;font-size:14px;height:42px;padding:0 10px;min-width:0;overflow:hidden;white-space:nowrap}
+.pgGo small{opacity:.6;font-size:11px}
+.pg>button:not(.pgGo){min-width:36px;height:36px}
+.pg>button:not(.pgGo) .ico svg{width:16px;height:16px}
+.pgName{flex:1;min-width:0;height:36px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.3);color:#fff;font:inherit;padding:0 10px}

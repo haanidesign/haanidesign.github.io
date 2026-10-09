@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#3a3a3e">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 <div id="app">
@@ -24,6 +24,7 @@
     <button data-a="mini" title="ちいさく">➖</button>
     <button data-a="pip" title="うかせる（前に 出しっぱなし）">⛶</button>
     <span class="sp"></span>
+    <button id="pgBtn" data-a="pages" title="ページ">ページ1</button>
     <button data-a="desel" title="えらぶのを やめる">✕</button>
   </div>
 
@@ -47,7 +48,10 @@
   </div>
 
   <div id="sheet" class="glass">
-    <h3>資料いた</h3>
+    <h3>ページ</h3>
+    <div id="pages"></div>
+    <button class="row" data-a="addPage">＋ ページを 足す</button>
+    <h3 class="h3b">資料いた</h3>
     <button class="row" data-a="add">＋ 画像を 足す</button>
     <button class="row" data-a="paste">📋 はりつけ</button>
     <button class="row" data-a="png">🖼 いたごと 画像で 保存</button>
@@ -71,6 +75,6 @@
   <input type="file" id="fJson" accept=".json,application/json" hidden>
 </div>
 <script type="module" src="../skin/icons.js?v=8"></script>
-<script type="module" src="app.js?v=1"></script>
+<script type="module" src="app.js?v=2"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@ android {
         applicationId = "io.github.haanidesign.shiryou"
         minSdk = 29
         targetSdk = 34
-        versionCode = 4
+        versionCode = 5
         versionName = "1.1"
     }
     compileOptions {
