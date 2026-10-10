@@ -1,23 +1,25 @@
 /* 起動と組み立て。 */
 
-import { duplicateLayers } from './engine/layer.js?v=357';
-import { createHoneUI } from './rig/honeui.js?v=357';
-import { isHone, newHoneLayer, setMouthSource } from './rig/hone.js?v=357';
-import { computeAll as computeAllH } from './engine/layer.js?v=357';
-import { createOverview } from './ui/overview.js?v=357';
-import { setMojiRedraw } from './moji/shim.js?v=357';
-import { BONE_KATA, kataStep } from './engine/bonekata.js?v=357';
-import { M } from './engine/math.js?v=357';
+import { setJzRedraw } from './moji/jizura.js?v=358';
+import { setJzToast } from './moji/jzshim.js?v=358';
+import { duplicateLayers } from './engine/layer.js?v=358';
+import { createHoneUI } from './rig/honeui.js?v=358';
+import { isHone, newHoneLayer, setMouthSource } from './rig/hone.js?v=358';
+import { computeAll as computeAllH } from './engine/layer.js?v=358';
+import { createOverview } from './ui/overview.js?v=358';
+import { setMojiRedraw } from './moji/shim.js?v=358';
+import { BONE_KATA, kataStep } from './engine/bonekata.js?v=358';
+import { M } from './engine/math.js?v=358';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=357';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=358';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=357';
-import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=357';
-import { createRenderer } from './render/renderer.js?v=357';
-import { createTimeline } from './ui/timeline.js?v=357';
-import { fmtTime, setPin } from './engine/anim.js?v=357';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=357';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=358';
+import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=358';
+import { createRenderer } from './render/renderer.js?v=358';
+import { createTimeline } from './ui/timeline.js?v=358';
+import { fmtTime, setPin } from './engine/anim.js?v=358';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=358';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -26,30 +28,30 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder, setImageReplacer,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildShigusaSheet, buildPartsSheet, buildUtaSheet, buildMojiSheet, buildHayasaSheet, buildShiageSheet, buildTsunagiSheet, buildHoneMotionSheet, buildHoneFaceSheet, buildSabunSheet, setSpanner,
+         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildShigusaSheet, buildPartsSheet, buildUtaSheet, buildMojiSheet, buildHayasaSheet, buildShiageSheet, buildTsunagiSheet, buildHoneMotionSheet, buildHoneFaceSheet, buildSozaiSheet, buildDanSheet, buildFudaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=357';
+         setWarper } from './ui/sheet.js?v=358';
 
-import { showNewDoc } from './ui/newdoc.js?v=357';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=357';
-import { fitToCanvas, isBg } from './io/bg.js?v=357';
-import * as Audio from './io/audio.js?v=357';
-import { isTalk, blipTimes } from './engine/talk.js?v=357';
+import { showNewDoc } from './ui/newdoc.js?v=358';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=358';
+import { fitToCanvas, isBg } from './io/bg.js?v=358';
+import * as Audio from './io/audio.js?v=358';
+import { isTalk, blipTimes } from './engine/talk.js?v=358';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=357';
-import { importPsd } from './io/psd.js?v=357';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=357';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=357';
-import { makeSabun } from './io/sabun.js?v=357';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=357';
-import { splitTextChars } from './io/text.js?v=357';
-import { exportAE } from './io/ae.js?v=357';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=358';
+import { importPsd } from './io/psd.js?v=358';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=358';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=358';
+import { makeSabun } from './io/sabun.js?v=358';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=358';
+import { splitTextChars } from './io/text.js?v=358';
+import { exportAE } from './io/ae.js?v=358';
 import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=357';
-import { pathKeys, pathLength } from './engine/path.js?v=357';
-import { paintDirty } from './engine/paint.js?v=357';
+         canUseWebCodecs } from './io/export.js?v=358';
+import { pathKeys, pathLength } from './engine/path.js?v=358';
+import { paintDirty } from './engine/paint.js?v=358';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=357';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=358';
 
 const $ = (s) => document.querySelector(s);
 
@@ -157,6 +159,11 @@ honeUI.setFace(() => sheet.open('👁 目・口', (box) => buildHoneFaceSheet(bo
 honeUI.setMotions(() => { honeUI.setPhase('anim', true); sheet.open('✨ よくある動き', (box) => buildHoneMotionSheet(box, honeUI.bone)); });
 
 /* 動画工房の 道具 */
+setJzRedraw(() => { dirty = true; });
+setJzToast((m) => toast(m));
+$('#dkSozai').addEventListener('click', () => sheet.open('📦 素材', (box) => buildSozaiSheet(box, () => { sheet.close(); $('#add').click(); })));
+$('#dkDan').addEventListener('click', () => sheet.open('🎚 だん', (box) => buildDanSheet(box)));
+$('#dkFuda').addEventListener('click', () => sheet.open('🎫 ふだ', (box) => buildFudaSheet(box)));
 $('#dkUta').addEventListener('click', () => sheet.open('🎵 うた', (box) => buildUtaSheet(box)));
 $('#dkMoji').addEventListener('click', () => sheet.open('🔤 もじ', (box) => buildMojiSheet(box)));
 $('#dkHayasa').addEventListener('click', () => sheet.open('🥁 はやさ', (box) => buildHayasaSheet(box)));

@@ -1,58 +1,61 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=357';
-import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles } from '../engine/ugoku.js?v=357';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=357';
-import { newMojiLayer } from '../moji/moji.js?v=357';
-import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=357';
-import { TRANS_LIST } from '../render/trans.js?v=357';
-import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=357';
-import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=357';
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=357';
+import { omakase } from '../moji/omakase.js?v=358';
+import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=358';
+import { newLayer } from '../engine/layer.js?v=358';
+import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=358';
+import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles } from '../engine/ugoku.js?v=358';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=358';
+import { newMojiLayer } from '../moji/moji.js?v=358';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=358';
+import { TRANS_LIST } from '../render/trans.js?v=358';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=358';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=358';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=358';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=357';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=357';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=358';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=358';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=357';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=358';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=357';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=357';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=357';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=357';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=357';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=357';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=357';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=357';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=358';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=358';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=358';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=358';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=358';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=358';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=358';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=358';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=357';
+         addTextLayer } from '../io/text.js?v=358';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=357';
-import { PATTERN_NAMES } from '../io/pattern.js?v=357';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=358';
+import { PATTERN_NAMES } from '../io/pattern.js?v=358';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=357';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=357';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=357';
+         PITCH_MAX } from '../engine/pano.js?v=358';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=358';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=358';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=357';
-import { readAsDataURL, loadImage } from '../io/image.js?v=357';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=358';
+import { readAsDataURL, loadImage } from '../io/image.js?v=358';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=357';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=357';
-import { newHand } from '../engine/hand.js?v=357';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=357';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=358';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=358';
+import { newHand } from '../engine/hand.js?v=358';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=358';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=357';
+  from './colorwheel.js?v=358';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=357';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=358';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=357';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=358';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -7236,6 +7239,8 @@ let lyricEach = 2.5;
 export function buildUtaSheet(box){
   box.appendChild(heading('🎵 うた（歌詞を ならべる）'));
   lyricsRow(box);
+  omakaseRow(box);
+  jizuraRow(box);
 }
 export function buildMojiSheet(box){ mojiSection(box, false); }
 export function buildShiageSheet(box){ fxRow(box); }
@@ -7344,4 +7349,225 @@ export function buildHoneFaceSheet(box){
     edit('まばたき', () => { h.blink = h.blink === false; });
     onChange();
   })));
+}
+
+
+/* ================= 🎲 おまかせ・🎬 JIZURA（うたの 画面に ならべる） ================= */
+let omaSeed = 1 + Math.floor(Math.random() * 99999);
+let omaText = '';
+function omakaseRow(box){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🎲 おまかせ組み立て'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '歌詞と BPM から、1行ずつ くじを 引いて 組み立てます。' + NL
+    + '文字の 出かた・動き・消えかた・色・場所、行の かわりめの つなぎ、動く背景、画面の 仕上げ まで。' + NL
+    + '🎲 で 引きなおし。まえに おまかせで 作った ものだけ 入れかわります。';
+  box.appendChild(n);
+  const ta = document.createElement('textarea');
+  ta.rows = 5; ta.className = 'textin'; ta.value = omaText;
+  ta.placeholder = '歌詞を 1行ずつ';
+  ta.addEventListener('input', () => { omaText = ta.value; });
+  box.appendChild(field('歌詞', ta));
+  const run = (reroll) => {
+    if(!ta.value.trim()) return notify('歌詞を 書いてね');
+    if(reroll) omaSeed = 1 + Math.floor(Math.random() * 99999);
+    let k = 0;
+    edit('おまかせ組み立て', () => { k = omakase(S.proj, ta.value, omaSeed, { from: S.time }); });
+    notify(k + '行 くみたてました（たね ' + omaSeed + '）');
+    onChange();
+  };
+  box.appendChild(btnRow(button('🎲 おまかせで 組む', () => run(false)), button('🎲 引きなおす', () => run(true))));
+}
+
+let jzText = '';
+function jizuraRow(box){
+  const NL = String.fromCharCode(10);
+  const cur = selected();
+  const L = cur && cur.kind === 'jz' ? cur : null;
+  box.appendChild(heading('🎬 JIZURA（文字PV を まるごと）'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = (L ? '「' + L.name + '」を 直して います。' : '歌詞から 文字PV を 1まいの レイヤーで まるごと 組み立てます。') + NL
+    + 'スタイル 24しゅ。BPM が あれば 拍に あわせます。JIZURA（MIT・hakoniwa）を つかって います。';
+  box.appendChild(n);
+  if(!jzReady()){
+    box.appendChild(btnRow(button('JIZURA を 読みこむ（2MB）', async () => {
+      notify('読みこんで います…');
+      const ok = await loadJz();
+      notify(ok ? '読みこみました' : '読みこめませんでした');
+      onChange();
+    })));
+    return;
+  }
+  const J = L ? L.jz : null;
+  const ta = document.createElement('textarea');
+  ta.rows = 5; ta.className = 'textin';
+  ta.value = J ? J.lyrics : jzText;
+  ta.placeholder = '歌詞を 1行ずつ';
+  ta.addEventListener('input', () => { if(!J) jzText = ta.value; });
+  ta.addEventListener('change', () => { if(J){ edit('JIZURA の 歌詞', () => { J.lyrics = ta.value; }); fitJz(L); onChange(); } });
+  box.appendChild(field('歌詞', ta));
+  const st = jzStyles();
+  const sel = document.createElement('select');
+  st.forEach(([k, name]) => { const o = document.createElement('option'); o.value = k; o.textContent = name; if(J ? J.style === k : k === 'noir') o.selected = true; sel.appendChild(o); });
+  if(J) sel.addEventListener('change', () => { edit('JIZURA の スタイル', () => { J.style = sel.value; }); fitJz(L); onChange(); });
+  box.appendChild(field('スタイル', sel));
+  if(!J){
+    box.appendChild(btnRow(button('🎬 JIZURA を つくる', () => {
+      if(!ta.value.trim()) return notify('歌詞を 書いてね');
+      let l = null;
+      edit('JIZURA を つくる', () => {
+        l = newJzLayer(S.proj, ta.value);
+        l.jz.style = sel.value;
+        l.span = { from: +S.time.toFixed(3), to: null };
+        S.proj.layers.unshift(l);
+        S.sel = l.id;
+        fitJz(l);
+      });
+      notify('JIZURA を つくりました');
+      onChange();
+    })));
+    return;
+  }
+  box.appendChild(btnRow(button('🎲 くじ引き（べつの 組み合わせ）', () => {
+    edit('JIZURA くじ引き', () => { J.seed = 1 + Math.floor(Math.random() * 99999); });
+    fitJz(L); onChange();
+  })));
+  const sl = (label, key) => slider(label, () => J[key], v => { J[key] = v; }, 0, 1, 0.05, v => Math.round(v * 100) + '%');
+  box.appendChild(sl('うごき', 'motion'));
+  box.appendChild(sl('グリッチ', 'glitch'));
+  box.appendChild(sl('色ずれ', 'chroma'));
+  box.appendChild(sl('かざり', 'decor'));
+  box.appendChild(sl('こみぐあい', 'density'));
+  box.appendChild(sl('きめ', 'texture'));
+  box.appendChild(btnRow(button((J.transparent ? '✓ ' : '') + 'うしろを すかす', () => { edit('すかす', () => { J.transparent = !J.transparent; }); onChange(); })));
+}
+/* JIZURA の 長さに 出す ところを あわせる */
+function fitJz(l){
+  const d = jzDur(l.jz);
+  if(!(d > 0)) return;
+  const from = l.span && l.span.from > 0 ? l.span.from : 0;
+  l.span = { from, to: +(from + d).toFixed(3) };
+  if(from + d > S.proj.duration) S.proj.duration = +(from + d).toFixed(2);
+}
+
+/* ================= 📦 素材・🎚 だん・🎫 ふだ ================= */
+export function buildSozaiSheet(box, onImport){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('📦 素材'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '読みこんだ 絵です。おすと いまの 時こくに レイヤーと して 足します。';
+  box.appendChild(n);
+  box.appendChild(btnRow(button('＋ 素材を 読みこむ（PSD・画像・動画・音）', () => onImport && onImport())));
+  const ids = Object.keys(S.proj.assets || {});
+  const wrap = document.createElement('div');
+  wrap.className = 'sozai';
+  ids.slice(0, 300).forEach(id => {
+    const a = S.proj.assets[id], im = S.imgs[id];
+    const b = document.createElement('button');
+    b.className = 'sozaiitem';
+    b.title = a.name || '';
+    const c = document.createElement('canvas');
+    c.width = 96; c.height = 72;
+    if(im && (im.naturalWidth || im.width)){
+      const g = c.getContext('2d'), w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+      const k = Math.min(96 / w, 72 / h);
+      try{ g.drawImage(im, (96 - w * k) / 2, (72 - h * k) / 2, w * k, h * k); }catch(_){}
+    }
+    const t = document.createElement('span'); t.textContent = a.name || '素材';
+    b.append(c, t);
+    b.addEventListener('click', () => {
+      let l = null;
+      edit('素材を 足す', () => {
+        l = newLayer(a.name || '素材', [id]);
+        l.x = S.proj.w / 2; l.y = S.proj.h / 2;
+        l.span = { from: +S.time.toFixed(3), to: null };
+        S.proj.layers.unshift(l);
+        S.sel = l.id;
+      });
+      notify('「' + (a.name || '素材') + '」を 足しました');
+      onChange();
+    });
+    wrap.appendChild(b);
+  });
+  if(!ids.length){
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'まだ 素材が ありません';
+    box.appendChild(e);
+  }
+  box.appendChild(wrap);
+}
+
+export function buildDanSheet(box){
+  box.appendChild(heading('🎚 だん（レイヤーの ならび）'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '上ほど 手前です。目・カギ・ならびかえ を ここで まとめて。';
+  box.appendChild(n);
+  S.proj.layers.filter(l => !l.parent).forEach((l, i, arr) => {
+    const nm = button((S.sel === l.id ? '▶ ' : '') + l.name, () => { S.sel = l.id; onChange(); });
+    nm.style.flex = '3';
+    const eye = button(l.visible === false ? '🚫' : '👁', () => { edit('出し入れ', () => { l.visible = l.visible === false; }); onChange(); });
+    const lock = button(l.locked ? '🔒' : '🔓', () => { edit('カギ', () => { l.locked = !l.locked; }); onChange(); });
+    const mv = (d) => () => {
+      const L = S.proj.layers, at = L.indexOf(l);
+      const other = arr[i + d]; if(!other) return;
+      const to = L.indexOf(other);
+      edit('ならびかえ', () => { L.splice(at, 1); L.splice(to, 0, l); });
+      onChange();
+    };
+    box.appendChild(btnRow(nm, eye, lock, button('▲', mv(-1)), button('▼', mv(1))));
+  });
+}
+
+export function buildFudaSheet(box){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+  box.appendChild(heading('🎫 ふだ（出す ところ）'));
+  if(!l){
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'レイヤーを えらんでね';
+    box.appendChild(e); return;
+  }
+  const s = l.span || {};
+  const from = s.from == null ? 0 : s.from, to = s.to == null ? S.proj.duration : s.to;
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '「' + l.name + '」は ' + from.toFixed(2) + '秒 から ' + to.toFixed(2) + '秒 まで（' + (to - from).toFixed(2) + '秒）。';
+  box.appendChild(n);
+  const num = (label, get, set) => {
+    const i = document.createElement('input');
+    i.type = 'number'; i.step = 0.05; i.min = 0; i.value = (+get()).toFixed(2);
+    i.addEventListener('change', () => { edit(label, () => set(Math.max(0, +i.value || 0))); onChange(); });
+    return field(label, i);
+  };
+  box.appendChild(num('はじまり（秒）', () => from, v => { l.span = Object.assign({}, l.span || {}, { from: v }); }));
+  box.appendChild(num('おわり（秒）', () => to, v => { l.span = Object.assign({}, l.span || {}, { to: v }); }));
+  box.appendChild(btnRow(
+    button('⏮ いまの 時こくへ 移す', () => {
+      const d = S.time - from;
+      edit('ふだを 移す', () => {
+        Object.values(l.tracks || {}).forEach(keys => keys.forEach(k => { k.t = +(k.t + d).toFixed(3); }));
+        l.span = { from: +(from + d).toFixed(3), to: s.to == null ? null : +(to + d).toFixed(3) };
+      });
+      onChange();
+    }),
+    button('ずっと 出す', () => { edit('ずっと 出す', () => { l.span = null; }); onChange(); })
+  ));
+  box.appendChild(heading('フェード'));
+  const fade = (sec, which) => () => {
+    edit('フェード', () => {
+      const op = l.opacity == null ? 1 : l.opacity;
+      if(which === 'in'){ setPin(l, 'opacity', from, 0, 'smooth'); setPin(l, 'opacity', from + sec, op, 'smooth'); }
+      else { setPin(l, 'opacity', to - sec, op, 'smooth'); setPin(l, 'opacity', to, 0, 'smooth'); }
+    });
+    notify(which === 'in' ? 'フェードイン' : 'フェードアウト');
+    onChange();
+  };
+  box.appendChild(btnRow(button('フェードイン 0.5秒', fade(0.5, 'in')), button('フェードアウト 0.5秒', fade(0.5, 'out'))));
 }
