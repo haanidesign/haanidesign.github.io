@@ -1016,3 +1016,16 @@ input[type=range].coarse{
 }
 #honemode[hidden]{ display:none; }
 #honemode button{ min-height:42px; font-size:.8rem; padding:.2rem .55rem; }
+
+/* 左の 道具の くぎり（総合工房） */
+#tools .toolsep{ font-size:.7rem; font-weight:800; color:#5c5843; text-align:center; padding:.5rem 0 .1rem; border-top:2.5px solid var(--ink); margin-top:.3rem; }
+/* 骨の 帯（ミニSpine の ならび） */
+#honemode{ flex-direction:column; align-items:stretch; }
+#honemode .honetabs, #honemode .honetools{ display:flex; flex-wrap:wrap; gap:.35rem; justify-content:center; align-items:center; }
+#honemode .honetab{ display:flex; flex-direction:column; align-items:flex-start; line-height:1.15; padding:.35rem .8rem; }
+#honemode .honetab b{ font-size:.95rem; font-weight:800; }
+#honemode .honetab small{ font-size:.72rem; color:#5c5843; }
+#honemode .honetab.on{ background:var(--ink); color:var(--paper); }
+#honemode .honetab.on small{ color:#e9e6d2; }
+#honemode .honemotion{ background:var(--main); font-weight:800; }
+#honemode .honenote{ font-size:.8rem; padding:0 .4rem; }

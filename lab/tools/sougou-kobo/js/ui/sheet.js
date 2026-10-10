@@ -1,57 +1,58 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles } from '../engine/ugoku.js?v=352';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=352';
-import { newMojiLayer } from '../moji/moji.js?v=352';
-import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=352';
-import { TRANS_LIST } from '../render/trans.js?v=352';
-import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=352';
-import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=352';
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=352';
+import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=354';
+import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles } from '../engine/ugoku.js?v=354';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=354';
+import { newMojiLayer } from '../moji/moji.js?v=354';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=354';
+import { TRANS_LIST } from '../render/trans.js?v=354';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=354';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=354';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=354';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=352';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=352';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=354';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=354';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=352';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=354';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=352';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=352';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=352';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=352';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=352';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=352';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=352';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=352';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=354';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=354';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=354';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=354';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=354';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=354';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=354';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=354';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=352';
+         addTextLayer } from '../io/text.js?v=354';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=352';
-import { PATTERN_NAMES } from '../io/pattern.js?v=352';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=354';
+import { PATTERN_NAMES } from '../io/pattern.js?v=354';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=352';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=352';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=352';
+         PITCH_MAX } from '../engine/pano.js?v=354';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=354';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=354';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=352';
-import { readAsDataURL, loadImage } from '../io/image.js?v=352';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=354';
+import { readAsDataURL, loadImage } from '../io/image.js?v=354';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=352';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=352';
-import { newHand } from '../engine/hand.js?v=352';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=352';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=354';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=354';
+import { newHand } from '../engine/hand.js?v=354';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=354';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=352';
+  from './colorwheel.js?v=354';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=352';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=354';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=352';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=354';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -7117,7 +7118,7 @@ function mojiSelect(label, list, get, set){
   sel.addEventListener('change', () => { edit(label + 'を かえる', () => set(sel.value)); onChange(); });
   return field(label, sel);
 }
-function mojiSection(box){
+function mojiSection(box, withLyrics){
   const NL = String.fromCharCode(10);
   const cur = selected();
   if(cur && cur.kind === 'moji'){
@@ -7179,6 +7180,12 @@ function mojiSection(box){
     onChange();
   })));
 
+  if(withLyrics !== false) lyricsRow(box);
+  return false;
+}
+
+function lyricsRow(box){
+  const NL = String.fromCharCode(10);
   /* 歌詞を まとめて。1行 1まいの 動く文字に して、いまの 時こくから 順に ならべる。
      行の あたまに「12.5 」の ように 秒を 書くと その 時こくに 置く（動画工房と 同じ） */
   const lt = document.createElement('textarea');
@@ -7221,6 +7228,91 @@ function mojiSection(box){
     notify(made.length + '行 ならべました');
     onChange();
   })));
-  return false;
 }
 let lyricEach = 2.5;
+
+
+/* ================= 動画工房の 道具（左の ならびから ひらく） ================= */
+export function buildUtaSheet(box){
+  box.appendChild(heading('🎵 うた（歌詞を ならべる）'));
+  lyricsRow(box);
+}
+export function buildMojiSheet(box){ mojiSection(box, false); }
+export function buildShiageSheet(box){ fxRow(box); }
+export function buildTsunagiSheet(box){ transRow(box); }
+
+/* 🥁 はやさ。曲の BPM と 拍の ずらし。拍に くっつく・拍で うごく ものが ぜんぶ これを 見る */
+export function buildHayasaSheet(box){
+  const NL = String.fromCharCode(10);
+  const B = S.proj.beat || (S.proj.beat = { bpm: 0, offset: 0, snap: true });
+  box.appendChild(heading('🥁 はやさ（BPM）'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '曲の はやさ です。キーを 拍に くっつける・画面の 仕上げの「拍で」・動く文字の 拍 が これに あわせます。' + NL
+    + (B.bpm > 0 ? 'いまは ' + B.bpm + ' BPM（1拍 ' + (60 / B.bpm).toFixed(2) + '秒）。' : 'まだ きめて いません。');
+  box.appendChild(n);
+  const inp = document.createElement('input');
+  inp.type = 'number'; inp.min = 20; inp.max = 400; inp.step = 1; inp.value = B.bpm || 120;
+  inp.addEventListener('change', () => {
+    const v = Math.max(20, Math.min(400, Math.round(+inp.value || 120)));
+    edit('BPM', () => { B.bpm = v; });
+    onChange();
+  });
+  box.appendChild(field('BPM', inp));
+  box.appendChild(slider('拍の ずらし', () => B.offset || 0, v => { B.offset = v; }, -2, 2, 0.01, v => v.toFixed(2) + '秒'));
+  const tap = [];
+  box.appendChild(btnRow(
+    button('👆 タップで はかる', () => {
+      const now = performance.now() / 1000;
+      if(tap.length && now - tap[tap.length - 1] > 2) tap.length = 0;
+      tap.push(now);
+      if(tap.length >= 3){
+        const d = (tap[tap.length - 1] - tap[0]) / (tap.length - 1);
+        const v = Math.round(60 / d);
+        edit('BPM', () => { B.bpm = v; });
+        notify(v + ' BPM');
+        onChange();
+      } else notify('拍に あわせて 何回か たたいてね');
+    }),
+    button((B.snap !== false ? '✓ ' : '') + '拍に くっつく', () => { edit('拍に くっつく', () => { B.snap = B.snap === false; }); onChange(); }),
+    button('BPM を けす', () => { edit('BPM を けす', () => { B.bpm = 0; }); onChange(); })
+  ));
+}
+
+/* ✨ 骨キャラの よくある動き（ミニSpine と 同じ 中身） */
+export function buildHoneMotionSheet(box, boneId){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+  if(!l || l.kind !== 'hone'){
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = '骨キャラを えらんでね';
+    box.appendChild(e); return;
+  }
+  const B = bonesFound(l, S.proj);
+  const nm = (b) => b ? b.name : 'なし';
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = 'いまの 時こく（' + S.time.toFixed(2) + '秒）から キーを うちます。' + NL
+    + '体: ' + nm(B.body) + '　頭: ' + nm(B.head) + '　うで: ' + nm(B.armR) + '・' + nm(B.armL) + NL
+    + 'ちがう ときは セットアップの「✏ 名前」で 頭・体・右腕・左腕 などに すると あたります。';
+  box.appendChild(n);
+  const repsOf = repsRow(box);
+  box.appendChild(heading('キャラ まるごと'));
+  shigusaGrid(box, HN_WHOLE, (m) => {
+    const r = repsOf(m);
+    edit(m.name, () => applyWholeHone(l, S.proj, m, S.time, r));
+    notify(m.name + 'を つけました');
+    onChange();
+  });
+  const sb = l.hone.bones.find(b => b.id === boneId);
+  box.appendChild(heading('えらんだ 骨だけ（' + (sb ? sb.name : '—') + '）'));
+  const one = HN_ONE.map(m => Object.assign({ dur: 2 }, m));
+  shigusaGrid(box, one, (m) => {
+    if(!sb) return notify('骨を えらんでね');
+    const r = repsOf(m);
+    edit(m.name, () => applyOneHone(l, S.proj, m, sb.id, S.time, r, m.dur));
+    notify(sb.name + 'に ' + m.name);
+    onChange();
+  });
+}

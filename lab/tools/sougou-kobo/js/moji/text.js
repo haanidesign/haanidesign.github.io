@@ -1,7 +1,7 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
 /* 動画工房（douga-kobo/js/text.js）から もってきた。動画工房の S・拍・bus は shim.js が かわりに 出す。 */
-import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=352';
+import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=354';
 
 /* ---------- フォント ---------- */
 export const FONTS = [

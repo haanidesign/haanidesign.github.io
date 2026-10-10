@@ -12,11 +12,11 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=352';
-import { computeAll } from '../engine/layer.js?v=352';
-import { setPin } from '../engine/anim.js?v=352';
-import { M } from './core.js?v=352';
-import { isHone, setupPose, honePose, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue } from './hone.js?v=352';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=354';
+import { computeAll } from '../engine/layer.js?v=354';
+import { setPin } from '../engine/anim.js?v=354';
+import { M } from './core.js?v=354';
+import { isHone, setupPose, honePose, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue } from './hone.js?v=354';
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -265,54 +265,106 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     ctx.restore();
   }
 
-  /* ---- 帯 ---- */
-  const TOOLS = [['pose', '✋ 動かす'], ['setup', '📐 組み立て'], ['add', '➕ 骨を足す'], ['bind', '🔗 つける']];
-  const btn = {};
-  TOOLS.forEach(([k, label]) => {
+  /* ---- 帯（ミニSpine と 同じ ならび）----
+     上の 段 … ① セットアップ（形をつくる）／ ② アニメート（動かす）／ よくある動き ／ 完了
+     下の 段 … その 段の 道具 */
+  const top = document.createElement('div');
+  top.className = 'honetabs';
+  const tools = document.createElement('div');
+  tools.className = 'honetools';
+  bar.append(top, tools);
+  const bigTab = (num, title, sub, fn) => {
     const b = document.createElement('button');
-    b.textContent = label;
-    b.onclick = () => setTool(k);
-    bar.appendChild(b); btn[k] = b;
-  });
-  const weigh = document.createElement('button');
-  weigh.textContent = '🕸 しならせる';
-  weigh.title = 'パーツが 近くの 骨に あわせて しなる ように する（自動ウェイト）';
-  weigh.onclick = () => {
+    b.className = 'honetab';
+    const t = document.createElement('b'); t.textContent = num + ' ' + title;
+    const s2 = document.createElement('small'); s2.textContent = sub;
+    b.append(t, s2);
+    b.onclick = fn;
+    top.appendChild(b);
+    return b;
+  };
+  const tabSetup = bigTab('①', 'セットアップ', '形をつくる', () => setPhase('setup'));
+  const tabAnim = bigTab('②', 'アニメート', '動かす', () => setPhase('anim'));
+  const motions = document.createElement('button');
+  motions.className = 'honemotion';
+  motions.textContent = '✨ よくある動き';
+  motions.onclick = () => onMotions();
+  const done = document.createElement('button');
+  done.className = 'btn-g'; done.textContent = '完了';
+  top.append(motions, done);
+
+  const btn = {};
+  const mk = (label, title, fn) => {
+    const b = document.createElement('button');
+    b.textContent = label; if(title) b.title = title;
+    b.onclick = fn;
+    return b;
+  };
+  const SETUP_TOOLS = [['add', '➕ 骨を足す'], ['setup', '📐 組み立て'], ['bind', '🔗 つける']];
+  SETUP_TOOLS.forEach(([k, label]) => { btn[k] = mk(label, '', () => setTool(k)); });
+  btn.pose = mk('✋ 動かす', '骨の 先を つまんで 回す。根もとの 骨は ずらせる', () => setTool('pose'));
+  const weigh = mk('🕸 しならせる', 'パーツが 近くの 骨に あわせて しなる ように する（自動ウェイト）', () => {
     const l = layer(); if(!l) return;
     const s = selSlot && l.hone.slots.find(x => x.id === selSlot);
     edit('しならせる', () => autoWeigh(l, s || null));
     toast(s ? '「' + s.name + '」を しならせました' : 'ぜんぶの パーツを しならせました');
     onChange();
-  };
-  const del = document.createElement('button');
-  del.textContent = '🗑 骨';
-  del.title = 'えらんだ 骨を けす（子は 親に つけかえ）';
-  del.onclick = () => {
+  });
+  const rename = mk('✏ 名前', '骨の 名前（頭・体・右腕 … に すると よくある動きが 見つけやすい）', () => {
+    const l = layer(); if(!l) return;
+    const b = l.hone.bones.find(x => x.id === selBone); if(!b) return;
+    const n = prompt('骨の 名前（頭・体・首・右腕・左腕・髪・しっぽ など）', b.name);
+    if(n == null || !n.trim()) return;
+    edit('骨の 名前', () => { b.name = n.trim(); });
+    onChange();
+  });
+  const del = mk('🗑 骨', 'えらんだ 骨を けす（子は 親に つけかえ）', () => {
     const l = layer(); if(!l) return;
     if(selBone === 'root') return toast('根もとの 骨は けせません');
     let ok = false;
     edit('骨を けす', () => { ok = removeBone(l, selBone); });
     if(ok){ selBone = 'root'; toast('骨を けしました'); onChange(); }
-  };
-  const done = document.createElement('button');
-  done.className = 'btn-g'; done.textContent = '完了';
-  bar.append(weigh, del, done);
+  });
+  const animNote = document.createElement('span');
+  animNote.className = 'dot honenote';
+  animNote.textContent = 'いまの 時こくに キーが 入ります';
+
+  let phase = 'setup';
+  let onMotions = () => {};
+  function setPhase(p, quiet){
+    phase = p;
+    S.honeSetup = p === 'setup';
+    tabSetup.classList.toggle('on', p === 'setup');
+    tabAnim.classList.toggle('on', p === 'anim');
+    tools.innerHTML = '';
+    if(p === 'setup'){
+      tools.append(btn.add, btn.setup, btn.bind, weigh, rename, del);
+      const l = layer();
+      setTool(l && l.hone.bones.length < 2 ? 'add' : 'setup', quiet);
+    } else {
+      tools.append(btn.pose, animNote);
+      setTool('pose', quiet);
+    }
+  }
 
   function setTool(k, quiet){
     tool = k; selSlot = k === 'bind' ? selSlot : null;
-    TOOLS.forEach(([x]) => btn[x].classList.toggle('on', x === k));
+    ['add', 'setup', 'bind', 'pose'].forEach(x => btn[x].classList.toggle('on', x === k));
     if(!quiet) toast(k === 'pose' ? '骨の 先を つまんで 回す（いまの 時こくに キー）。根もとは ずらせます'
         : k === 'setup' ? '骨の 先で 向きと 長さ、骨を つまんで 場所。絵は その場に のこります'
         : k === 'add' ? 'えらんだ 骨から 引っぱると 子の 骨が できます'
         : 'パーツを おして、つぎに 骨を おす');
     redraw();
   }
-  setTool('pose', true);
+  setPhase('setup', true);
 
   return {
     draw, done,
     setTool,
-    open(){ selBone = 'root'; selSlot = null; setTool('pose'); },
+    setPhase,
+    setMotions(fn){ onMotions = fn; },
+    get bone(){ return selBone; },
+    open(){ selBone = 'root'; selSlot = null; setPhase(layer() && layer().hone.bones.length > 1 ? 'anim' : 'setup'); },
   };
 }
 

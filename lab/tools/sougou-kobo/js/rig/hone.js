@@ -14,10 +14,10 @@
      'H:<骨のid>:sx/sy' … 大きさ（1 が そのまま）
    キーの ならびは ほかの キーと 同じ なので、ずらす・けす・イージングも そのまま きく。 */
 import { M, CH, computePose, applyIKs, invCache, bindSlot, deformSlot, buildGridMesh, drawSlot,
-         autoWeights, uid, topoBones } from './core.js?v=352';
-import { sample, mapTime, remapTime } from '../engine/anim.js?v=352';
-import { newLayer } from '../engine/layer.js?v=352';
-import { S } from '../state.js?v=352';
+         autoWeights, uid, topoBones } from './core.js?v=354';
+import { sample, mapTime, remapTime } from '../engine/anim.js?v=354';
+import { newLayer } from '../engine/layer.js?v=354';
+import { S } from '../state.js?v=354';
 
 export const boneCh = (id, ch) => 'H:' + id + ':' + ch;
 export const isBoneCh = (c) => /^H:.+:(rot|x|y|sx|sy|shear)$/.test(c);
@@ -126,7 +126,8 @@ export function honeCanvas(l, time, project){
   g.clearRect(0, 0, w, h);
   const H = l.hone;
   if(!H) return l._hnC;
-  const pose = honePose(l, time);
+  /* セットアップ中は 組み立ての 姿で 見せる（ミニSpine と 同じ） */
+  const pose = (S.honeMode && S.honeSetup && S.sel === l.id) ? setupPose(H) : honePose(l, time);
   l._hnPose = pose;
   for(const s of H.slots){
     if(s.visible === false) continue;
