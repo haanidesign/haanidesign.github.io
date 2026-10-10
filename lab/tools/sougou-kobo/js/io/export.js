@@ -7,11 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=320';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=320';
-import { isTalk, blipTimes } from '../engine/talk.js?v=320';
-import { encodeGif } from './gif.js?v=320';
-import { prepareNests, nestSounds, setNestLive } from '../nest/nest.js?v=320';
+import { createRenderer } from '../render/renderer.js?v=340';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=340';
+import { isTalk, blipTimes } from '../engine/talk.js?v=340';
+import { encodeGif } from './gif.js?v=340';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -65,18 +64,11 @@ export async function exportVideo(project, opts = {}){
     /* 🔊 の 行の 目を 切って いたら、書き出しにも 入れない */
     /* 💬 セリフの「ぽ」を こえに まぜて おく。
        動画には 音の みちが 1本 しか 無いので、先に 1つに する。 */
-    let abuf = talkAudio(project, total / fps);
-    /* 🎬 動画レイヤーの 音も まぜる（タイムラインの 時こくに そろえて 1本に） */
-    const extra = await nestSounds(project, total / fps);
-    if(extra.length){
-      const off0 = (abuf && abuf === AUD.buf) ? ((project.audio && project.audio.offset) || 0) : 0;
-      abuf = mixAt(abuf, off0, extra, total / fps);
-    }
+    const abuf = talkAudio(project, total / fps);
     const acfg = abuf ? await pickAudioCodec(abuf) : null;
     return await encodeWithWebCodecs({ cv, paint, project, fps, width, height,
                                        total, cfg, acfg, abuf, onProgress, shouldStop });
   }
-  setNestLive();               // 実時間で 録る ときは 動画も 再生して 合わせる
   return await recordWithMediaRecorder({ cv, paint, fps, duration,
                                          onProgress, shouldStop });
 }
@@ -94,36 +86,6 @@ function talkAudio(project, dur){
   const off = (project.audio && project.audio.offset) || 0;
   /* こえは もともと off だけ ずれて いる。まぜる ときに そろえる。 */
   return withBlips(voice, times, dur, voice ? -off : 0);
-}
-
-/* もとの 音（off だけ ずれて いる）と 動画レイヤーの 音を、
-   タイムラインの 0秒 はじまりの 1本に まとめる。 */
-function mixAt(base, off, extra, dur){
-  const sr = base ? base.sampleRate : extra[0].buf.sampleRate;
-  const len = Math.max(1, Math.round(dur * sr));
-  const out = new AudioBuffer({ length: len, numberOfChannels: 2, sampleRate: sr });
-  const add = (buf, at, until) => {
-    const k = buf.sampleRate / sr;
-    const s0 = Math.round(at * sr);
-    const s1 = Math.min(len, until == null ? len : Math.round(until * sr));
-    for(let ch = 0; ch < 2; ch++){
-      const d = out.getChannelData(ch);
-      const src = buf.getChannelData(Math.min(ch, buf.numberOfChannels - 1));
-      for(let i = Math.max(0, s0); i < s1; i++){
-        const j = Math.floor((i - s0) * k);
-        if(j < 0) continue;
-        if(j >= src.length) break;
-        d[i] += src[j];
-      }
-    }
-  };
-  if(base) add(base, off, null);
-  extra.forEach(x => add(x.buf, x.at, x.until));
-  for(let ch = 0; ch < 2; ch++){
-    const d = out.getChannelData(ch);
-    for(let i = 0; i < len; i++){ const v = d[i]; if(v > 1) d[i] = 1; else if(v < -1) d[i] = -1; }
-  }
-  return out;
 }
 
 /** 音を AAC で 詰められるか。だめなら null（絵だけ 書き出す） */
@@ -213,7 +175,6 @@ async function encodeWithWebCodecs({ cv, paint, project, fps, width, height,
     if(shouldStop()) { encoder.close(); throw new Error('やめました'); }
     if(failed) throw failed;
 
-    await prepareNests(project, i / fps);
     paint(i / fps, { forExport: true });
 
     const frame = new VideoFrame(cv, {
@@ -429,7 +390,6 @@ export async function exportGif(project, opt = {}){
   const frames = [];
   for(let i = 0; i < total; i++){
     if(shouldStop()) throw new Error('やめました');
-    await prepareNests(project, i / fps);
     // はいけいの色を ぬらずに 描く ＝ すけたまま
     R.draw(project, null, i / fps, view, { forExport: true, noBg: true });
     g.clearRect(0, 0, width, height);
@@ -474,4 +434,33 @@ function firmUp(im){
       if(solid >= 2) d[i * 4 + 3] = 255;
     }
   }
+}
+
+/* ---------- すける アニメPNG（動画工房へ 送る 用） ----------
+   色も すけぐあいも そのまま。1コマずつ 焼く ので 実時間は かからない。 */
+export async function exportApng(project, opt = {}){
+  const { makeApng } = await import('./apng.js?v=340');
+  const fps = Math.max(4, Math.min(30, opt.fps || 15));
+  const long = Math.max(project.w, project.h);
+  const scale = Math.min(1, (opt.maxSide || 1080) / long);
+  const width = Math.max(2, Math.round(project.w * scale));
+  const height = Math.max(2, Math.round(project.h * scale));
+  const seconds = Math.min(project.duration, opt.seconds || project.duration);
+  const total = Math.max(1, Math.round(seconds * fps));
+  const big = document.createElement('canvas');
+  big.width = Math.max(2, project.w);
+  big.height = Math.max(2, project.h);
+  const R = createRenderer(big);
+  const cv = document.createElement('canvas');
+  cv.width = width; cv.height = height;
+  const g = cv.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  const view = { x: 0, y: 0, z: 1 };
+  const r = await makeApng(total, fps, (i) => {
+    R.draw(project, null, i / fps, view, { forExport: true, noBg: true });
+    g.clearRect(0, 0, width, height);
+    g.drawImage(big, 0, 0, width, height);
+    return cv;
+  }, opt.onProgress, opt.shouldStop);
+  return { blob: r.blob, ext: 'png', w: width, h: height, how: 'アニメPNG' };
 }

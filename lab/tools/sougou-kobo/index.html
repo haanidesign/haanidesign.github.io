@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>総合工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=320">
+<link rel="manifest" href="manifest.webmanifest?v=340">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,10 +15,10 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <!-- ためしの 見た目（soft.css）で つかう、まるくない 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=320">
-<link rel="stylesheet" href="css/layout.css?v=320">
-<link rel="stylesheet" href="css/parts.css?v=320">
-<link rel="stylesheet" href="css/soft.css?v=320">
+<link rel="stylesheet" href="css/tokens.css?v=340">
+<link rel="stylesheet" href="css/layout.css?v=340">
+<link rel="stylesheet" href="css/parts.css?v=340">
+<link rel="stylesheet" href="css/soft.css?v=340">
 <script type="module" src="../skin/icons.js?v=8"></script>
 </head>
 <body>
@@ -85,6 +85,8 @@
       <button id="pmFix">📌 固定</button>
       <button id="pmJoint">🦴 関節</button>
       <button id="pmDel">🗑 けす</button>
+      <button id="pmKata" title="腕・脚・顔・髪 など、どこを どの 順に おすか 出します">🦴 骨の型</button>
+      <span class="dot" id="pmGuide" hidden></span>
       <button id="pmClose" class="btn-g">完了</button>
     </div>
   </div>
@@ -108,6 +110,7 @@
       <button id="parent" class="btn-sm">🔗 親子付け</button>
       <button id="group" class="btn-sm">📁 グループ</button>
       <button id="clip" class="btn-sm">✂ クリップ</button>
+      <button id="unfold" class="btn-sm" data-name="フォルダから 出す">📤 フォルダから出す</button>
       <button id="ripple" class="btn-sm" title="キーフレームをずらすとき、その後ろのキーフレームも一緒に動かす">⇥ リップル</button>
       <button id="pinCopy" class="btn-sm">⧉ コピー</button>
       <button id="paste" class="btn-sm" title="コピーしたキーフレームを いまの時間から はる" disabled>📋 ペースト</button>
@@ -137,8 +140,6 @@
     <button class="tool" id="text"><i>🅰</i>テキスト</button>
     <button class="tool" id="bg"><i>🎨</i>背景</button>
     <button class="tool" id="paint"><i>✏</i>ペイント</button>
-    <button class="tool" id="addDouga" title="動画工房の 作品を 1つの レイヤーに して 入れます。えらんで もう1回 おすと 中を 編集"><i>🎬</i>動画編集</button>
-    <button class="tool" id="addSpine" title="ミニSpine の 骨キャラを 1つの レイヤーに して 入れます。えらんで もう1回 おすと 中を 編集"><i>🦴</i>骨キャラ</button>
     <button class="tool" id="pivot"><i>📍</i>パペット</button>
     <button class="tool" id="form"><i>⬛</i>レイヤー</button>
     <button class="tool" id="move"><i>🏃</i>モーション</button>
@@ -170,8 +171,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=320"></script>
-<script src="lib/mp4-muxer.js?v=320"></script>
-<script type="module" src="js/main.js?v=320"></script>
+<script src="lib/ag-psd.js?v=340"></script>
+<script src="lib/mp4-muxer.js?v=340"></script>
+<script type="module" src="js/main.js?v=340"></script>
 </body>
 </html>

@@ -1,16 +1,18 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=320';
+import { setMojiRedraw } from './moji/shim.js?v=340';
+import { BONE_KATA, kataStep } from './engine/bonekata.js?v=340';
+import { M } from './engine/math.js?v=340';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=320';
-import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=320';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=320';
-import { createRenderer } from './render/renderer.js?v=320';
-import { createTimeline } from './ui/timeline.js?v=320';
-import { fmtTime, setPin } from './engine/anim.js?v=320';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=320';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=340';
+import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=340';
+import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=340';
+import { createRenderer } from './render/renderer.js?v=340';
+import { createTimeline } from './ui/timeline.js?v=340';
+import { fmtTime, setPin } from './engine/anim.js?v=340';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=340';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -19,31 +21,30 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setParentOpener, setBgPicker,
          setAudioPicker, setBusy, setPlayer, setTracer, setFrameAdder, setImageReplacer,
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
-         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
+         setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildShigusaSheet, buildPartsSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=320';
+         setWarper } from './ui/sheet.js?v=340';
 
-import { showNewDoc } from './ui/newdoc.js?v=320';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=320';
-import { fitToCanvas, isBg } from './io/bg.js?v=320';
-import * as Audio from './io/audio.js?v=320';
-import { isTalk, blipTimes } from './engine/talk.js?v=320';
+import { showNewDoc } from './ui/newdoc.js?v=340';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=340';
+import { fitToCanvas, isBg } from './io/bg.js?v=340';
+import * as Audio from './io/audio.js?v=340';
+import { isTalk, blipTimes } from './engine/talk.js?v=340';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=320';
-import { importPsd } from './io/psd.js?v=320';
-import { takeHandoff, doneHandoff } from './io/handoff.js?v=320';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=320';
-import { makeSabun } from './io/sabun.js?v=320';
-import { splitTextChars } from './io/text.js?v=320';
-import { exportAE } from './io/ae.js?v=320';
-import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=320';
-import { newNestLayer, isNest, openNestEdit, setNestRedraw, beginNestExport, endNestExport,
-         setNestLive } from './nest/nest.js?v=320';
-import { pathKeys, pathLength } from './engine/path.js?v=320';
-import { paintDirty } from './engine/paint.js?v=320';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=340';
+import { importPsd } from './io/psd.js?v=340';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=340';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=340';
+import { makeSabun } from './io/sabun.js?v=340';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=340';
+import { splitTextChars } from './io/text.js?v=340';
+import { exportAE } from './io/ae.js?v=340';
+import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
+         canUseWebCodecs } from './io/export.js?v=340';
+import { pathKeys, pathLength } from './engine/path.js?v=340';
+import { paintDirty } from './engine/paint.js?v=340';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=320';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=340';
 
 const $ = (s) => document.querySelector(s);
 
@@ -103,6 +104,7 @@ const sheet = createSheet($('#sheet'), $('#sheetBack'));
 let dirty = true;
 function refresh(){
   dirty = true;
+  if(S.pinMode) kataGuide();
   timeline.build();
   if(S.spanEdit) spanInfo();
   if(S.warpMode) warpUI();
@@ -113,6 +115,7 @@ function refresh(){
   sheet.refresh();
 }
 onChange(refresh);
+setMojiRedraw(() => { dirty = true; });   // 動く文字の 書たいが とどいたら 描きなおす
 onRestore(() => refresh());
 
 /* 設定を 右に つけた／はずした ぶん、絵の 場所を ずらす。
@@ -269,15 +272,46 @@ const RIG_MOTION = 'しぜん';
 
 async function handleFiles(files){
   const all = [...files];
-  const psd = [], imgs = [], other = [];
+  const psd = [], imgs = [], other = [], vids = [];
   for(const f of all){
-    if(await looksLikePsd(f)) psd.push(f);
+    if(isVideoFile(f)) vids.push(f);
+    else if(await looksLikePsd(f)) psd.push(f);
     else if(/^image\//.test(f.type || '')) imgs.push(f);
     else other.push(f);
   }
+  if(vids.length){
+    try{
+      for(const f of vids){
+        busy(true, '動画を よみこみ中…');
+        let r = null;
+        beginEdit('動画を 入れる');
+        try{
+          r = await addVideoFile(f, { onProgress: (i, n) => busy(true, '動画を 絵に して います… ' + i + ' / ' + n) });
+        }finally{ commitEdit(); }
+        /* 音が まだ なければ、動画の 音を 使う */
+        let au = '';
+        if(!Audio.hasAudio()){
+          try{
+            await Audio.loadAudio(f, f.name);
+            S.proj.audio = { name: f.name, volume: 1, duration: Audio.A.buf.duration };
+            au = '・音も 入れました';
+          }catch(_){}
+        }
+        if(r.sec > S.proj.duration) S.proj.duration = Math.ceil(r.sec);
+        toast('動画を ' + r.frames + 'コマに しました' + au
+          + (r.cut ? '（' + VIDEO_MAX_SEC + '秒で 切りました）' : ''));
+      }
+    }catch(err){
+      toast(err.message || '動画を よみこめませんでした');
+    }finally{
+      busy(false);
+      refresh();
+    }
+    if(!psd.length && !imgs.length) return;
+  }
   if(!psd.length && !imgs.length){
     toast(other.length
-      ? 'これは読めません（PSD・PNG・JPEG をえらんでね）'
+      ? 'これは読めません（PSD・PNG・JPEG・動画 をえらんでね）'
       : 'PSD・PNG・JPEG を選んでね');
     return;
   }
@@ -601,25 +635,6 @@ $('#paint').addEventListener('click', () => {
 });
 $('#pnClose').addEventListener('click', () => setPaintMode(false));
 
-/* 🎬 動画編集・🦴 骨キャラ のレイヤー。
-   えらんで いる のが その レイヤーなら 中を 編集、ちがえば 新しく 足して 中を ひらく。 */
-setNestRedraw(() => { dirty = true; });
-function nestTool(app){
-  const l = selected();
-  if(isNest(l) && l.nest.app === app) return openNestEdit(l);
-  sheet.close();
-  const made = {};
-  edit(app === 'douga' ? '動画編集を 足す' : '骨キャラを 足す', () => {
-    made.l = newNestLayer(app, S.proj);
-    S.proj.layers.unshift(made.l);
-    S.sel = made.l.id;
-  });
-  refresh();
-  openNestEdit(made.l);
-}
-$('#addDouga').addEventListener('click', () => nestTool('douga'));
-$('#addSpine').addEventListener('click', () => nestTool('spine'));
-
 /* ---- ワープ・自由変形 ----
    絵の上に あみの目（かご）を かぶせて 引っぱる。
    ・自由変形 … 赤い 四すみだけ。中は 自動で ついてくる
@@ -832,6 +847,7 @@ function setPinMode(on){
   if(on && S.paintMode) setPaintMode(false);
   S.pinMode = on;
   S.pinSel = -1;
+  if(!on) S.boneGuide = null;
   $('#pinmode').hidden = !on;
   $('#pivot').classList.toggle('on', on);
   if(on) toast('絵の上をおして パペットピンを さそう');
@@ -841,7 +857,53 @@ $('#pivot').addEventListener('click', () => {
   if(!selected()) return toast('レイヤーをえらんでね');
   setPinMode(!S.pinMode);
 });
-$('#pmClose').addEventListener('click', () => setPinMode(false));
+$('#pmClose').addEventListener('click', () => {
+  if(S.boneGuide){ finishKata(selected()); refresh(); return; }
+  setPinMode(false);
+});
+
+/* 🦴 骨の 型。どこを どの 順に おすか を 出して、ピンの 種類も 合わせる */
+function kataGuide(){
+  const g = S.boneGuide, el = $('#pmGuide');
+  el.hidden = !g;
+  if(g) el.textContent = g.kata.icon + ' つぎ: ' + kataStep(g).name + (g.kata.open && g.i > 1 ? '（おわりは 完了）' : '');
+}
+setKataNotify((g, l) => {
+  toast(g.kata.sway ? '骨を 打ちました。ゆれも つけました（モーション → ゆれ で 直せます）'
+                    : '骨を 打ちました。ピンを つまむと そこから 先が ついて きます');
+  kataGuide();
+});
+$('#pmKata').addEventListener('click', () => {
+  const l = selected();
+  if(!l) return toast('レイヤーをえらんでね');
+  sheet.open('骨の型', (box) => {
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.style.textAlign = 'left';
+    e.textContent = 'えらぶと、絵の 上の どこを どの 順に おすか 出します。'
+      + ((l.pins || []).length ? String.fromCharCode(10) + 'いまの ピンは 消して 打ちなおします（もどす で 戻せます）。' : '');
+    box.appendChild(e);
+    const wrap = document.createElement('div');
+    wrap.className = 'presets';
+    BONE_KATA.forEach(k => {
+      const b = document.createElement('button');
+      b.className = 'preset';
+      const f = document.createElement('span'); f.className = 'pfig emo'; f.textContent = k.icon;
+      const n = document.createElement('span'); n.className = 'pname'; n.textContent = k.name;
+      b.append(f, n);
+      b.title = k.steps.map(x => x[0]).join(' → ') + (k.open ? ' → …' : '');
+      b.addEventListener('click', () => {
+        S.boneGuide = { kata: k, i: 0, fresh: (l.pins || []).length > 0 };
+        sheet.close();
+        if(!S.pinMode) setPinMode(true);
+        toast('「' + kataStep(S.boneGuide).name + '」を おしてね');
+        kataGuide();
+      });
+      wrap.appendChild(b);
+    });
+    box.appendChild(wrap);
+  });
+});
 const PIN_KINDS = [['pmMove','move'], ['pmFix','fix'], ['pmJoint','joint'], ['pmDel','del']];
 PIN_KINDS.forEach(([id, kind]) => {
   $('#' + id).addEventListener('click', () => {
@@ -969,6 +1031,8 @@ $('#pinPing').addEventListener('click', () => timeline.setLoop('pingpong'));
    えらんだ ものだけを 別の画面で ひらく。 */
 const MOVE_PAGES = {
   chara:  ['🧍 キャラのうごき', buildCharaSheet],
+  shigusa: ['🙋 キャラの しぐさ', buildShigusaSheet],
+  parts:  ['🦴 パーツの うごき', buildPartsSheet],
   sabun:  ['🔁 差分つなぎ',    buildSabunSheet],
   sway:   ['🌬 ゆれ',          buildSwaySheet],
   path:   ['👆 みちを なぞる', buildTraceSheet],
@@ -1012,7 +1076,7 @@ function openMove(key){
   if(!page) return openMove();
   /* キャラの うごきは その キャラ ぜんたいの もの。
      えらんで いる 1まいの 名前を 出すと まぎらわしい。 */
-  const root = key === 'chara' ? rigRootOf(S.proj, l) : null;
+  const root = (key === 'chara' || key === 'shigusa') ? rigRootOf(S.proj, l) : null;
   sheet.open(page[0] + '（' + ((root && root.name) || l.name) + '）',
     (box) => page[1](box, () => openMove()));
 }
@@ -1188,6 +1252,36 @@ setBgPicker(async (files, layer) => {
     busy(false);
     refresh();
   }
+});
+
+/* ---- 📤 フォルダから 出す ----
+   ☑ の もの（なければ いま 選んで いる 1まい）を、入って いる
+   フォルダの 1つ 外へ 出す。フォルダの すぐ 上に 置く。
+   ドラッグだと、フォルダが いちばん 下の ときに 出す 先が なかった。 */
+$('#unfold').addEventListener('click', () => {
+  const cur = selected();
+  const ids = S.pick.length ? [...S.pick] : (cur ? [cur.id] : []);
+  if(!ids.length) return toast('出す ものを えらんでね（☑ か タップ）');
+  const byId = {};
+  S.proj.layers.forEach(x => byId[x.id] = x);
+  const set = new Set(ids);
+  /* 親も ☑ の ものは 親に ついて いく ので さわらない */
+  const targets = S.proj.layers.filter(l => set.has(l.id)
+    && l.parent && byId[l.parent] && isFolder(byId[l.parent]) && !set.has(l.parent));
+  if(!targets.length) return toast('フォルダに 入って いる ものを えらんでね');
+  let n = 0;
+  edit('フォルダから 出す', () => {
+    targets.forEach(l => {
+      const f = byId[l.parent];
+      if(setParent(S.proj, l, f.parent || null, S.time) === false) return;
+      const L = S.proj.layers;
+      L.splice(L.indexOf(l), 1);
+      L.splice(L.indexOf(f), 0, l);
+      n++;
+    });
+  });
+  toast(n + 'まいを フォルダの 外に 出しました');
+  refresh();
 });
 
 /* ---- まとめる（フォルダ） ----
@@ -1376,6 +1470,9 @@ if('serviceWorker' in navigator){
   let swapped = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if(!had || swapped) return;
+    /* ミニSpine から 受けとって いる 最中は 読み直さない
+       （読み直しと 受けとりが かさなると、受けとった ものが 消えて 最初の 画面に なる） */
+    if(new URLSearchParams(location.search).has('from') || S.ready) return;
     swapped = true;
     location.reload();
   });
@@ -1444,7 +1541,11 @@ async function runExport(kind){
   S.proj.quality = 'fine';
   S.dragging = false;
   box.classList.add('on');
-  title.textContent = kind === 'webm'
+  title.textContent = kind === 'douga'
+    ? '動画工房へ 送る 動画を つくっています'
+    : kind === 'douga-alpha'
+    ? '動画工房へ 送る アニメPNGを つくっています'
+    : kind === 'webm'
     ? 'すける WebMを 録っています（実時間）'
     : kind === 'gif'
     ? 'すける GIFを つくっています'
@@ -1460,9 +1561,21 @@ async function runExport(kind){
   };
 
   try{
-    await beginNestExport(S.proj);
-    if(kind === 'webm') setNestLive();
     const g = S.proj.gif || {};
+    if(kind === 'douga' || kind === 'douga-alpha'){
+      const r = kind === 'douga'
+        ? await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport })
+        : await exportApng(S.proj, { fps: 15, maxSide: 1080, onProgress, shouldStop: () => cancelExport });
+      title.textContent = '動画工房を ひらいています…';
+      try{ await saver.now(); }catch(_){}
+      const base = (S.proj.name || 'anime');
+      await sendToDouga({
+        name: 'アニメ工房・' + base,
+        w: r.w || S.proj.w, h: r.h || S.proj.h,
+        blob: r.blob, fileName: base + '.' + r.ext
+      });
+      return;
+    }
     const r = kind === 'ae'
       ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
       : kind === 'webm'
@@ -1494,7 +1607,6 @@ async function runExport(kind){
     toast(err.message === 'やめました' ? '書き出しを やめました'
                                        : (err.message || '書き出せませんでした'));
   }finally{
-    endNestExport();
     S.proj.quality = quality0;
     exporting = false;
     box.classList.remove('on');
@@ -1687,8 +1799,25 @@ setFileOpener(openFromFile);
 async function boot(){
   /* ミニSpine から 送られて きた ときは、それを ひらく */
   try{
-    const pj = await takeHandoff();
-    if(pj){ await openFromFile(pj); doneHandoff(); return; }
+    const box = await readHandoff();
+    if(box){
+      /* 「この 作品の うしろに 足す」で 送られた とき */
+      if(box.appendTo && await loadDoc(box.appendTo)){
+        await openDoc(box.appendTo);
+        const at = 0;                     // 足す ときも 0秒から
+        const len = appendHandoff(S.proj, box, at);
+        S.proj.duration = +Math.max(S.proj.duration || 0, len).toFixed(3);
+        for(const a of Object.values(S.proj.assets)){
+          if(!S.imgs[a.id] && a.src){ try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){} }
+        }
+        S.time = at;
+        refresh(); saver.now(); doneHandoff();
+        toast('足しました（0秒から）');
+        return;
+      }
+      const pj = handoffProject(box);
+      if(pj){ await openFromFile(pj); doneHandoff(); return; }
+    }
   }catch(_){}
 
   let docs = [];

@@ -18,9 +18,8 @@
    できない こと
      ・焼いた あとの 動き じたいを 直す（それは こちらで 直す） */
 
-import { prepareNests } from '../nest/nest.js?v=320';
-import { createRenderer } from '../render/renderer.js?v=320';
-import { drawOrder, nearestFolder } from '../engine/layer.js?v=320';
+import { createRenderer } from '../render/renderer.js?v=340';
+import { drawOrder, nearestFolder } from '../engine/layer.js?v=340';
 
 /* ---------- zip（おしこめない「ためるだけ」の zip） ----------
    PNG は もう ちぢんで いる ので、さらに おしこんでも 小さく ならない。
@@ -229,7 +228,6 @@ export async function exportAE(project, opt = {}){
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for(let i = 0; i < total; i++){
         if(shouldStop()) throw new Error('やめました');
-        await prepareNests(project, i / fps);
         Rs.draw(project, null, i / fps, view, { forExport: true, noBg: true, scale: s });
         const d = gs.getImageData(0, 0, sw, sh).data;
         for(let y = 0; y < sh; y++){
@@ -262,7 +260,6 @@ export async function exportAE(project, opt = {}){
       const base = safe(l.name, 'layer');
       for(let i = 0; i < total; i++){
         if(shouldStop()) throw new Error('やめました');
-        await prepareNests(project, i / fps);
         Rb.draw(project, null, i / fps, view, { forExport: true, noBg: true });
         gc.clearRect(0, 0, cw, ch);
         gc.drawImage(big, cx0, cy0, cw, ch, 0, 0, cw, ch);

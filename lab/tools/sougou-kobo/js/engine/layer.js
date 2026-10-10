@@ -1,15 +1,15 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=320';
-import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=320';
+import { M, uid, ptInQuad } from './math.js?v=340';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=340';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=320';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=320';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=320';
-import { handTime } from './hand.js?v=320';
-import { WORK_KEYS } from '../state.js?v=320';
+         withShake } from './camera.js?v=340';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=340';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=340';
+import { handTime } from './hand.js?v=340';
+import { WORK_KEYS } from '../state.js?v=340';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。
@@ -205,7 +205,17 @@ export function computeAll(project, time){
     if(tMemo[l.id] !== undefined) return tMemo[l.id];
     tMemo[l.id] = time;                       // ぐるぐる よけ
     const f = nearestFolder(project, l);
-    return tMemo[l.id] = f ? srcTime(f) : time;
+    let b = f ? srcTime(f) : time;
+    /* 🔁 差分つなぎ … その 差分が 出た ときに、中身を 頭から 動かす */
+    if(f && f.kidTime){
+      const k = f.kidTime;
+      const len = k.len > 0 ? k.len : 0;
+      const m = len ? ((b % len) + len) % len : b;
+      let lt = Math.max(0, m - k.t0);
+      if(k.span > 0) lt = lt % k.span;          // みじかい 動きは くり返す
+      b = lt + (k.from || 0);
+    }
+    return tMemo[l.id] = b;
   };
   const srcTime = (l) => remapTime(l, baseTime(l));
 
@@ -332,7 +342,10 @@ export function computeAll(project, time){
     /* 「ここから ここまで 出す」。
        フォルダに かけると 中身も いっしょに 出たり 消えたり する
        （中身は フォルダの 見え方を うけつぐ ので）。 */
-    let vis = l.visible !== false && inSpan(l, time) && (inFolder ? p.vis : true);
+    /* 出す ところは「その レイヤーに とどく 時こく」で みる。
+       フォルダが 時間を いじって いる（差分つなぎの 頭から など）ときに
+       作品の 時こくで みると、中身が 出る ところの 外に なって 消えて いた。 */
+    let vis = l.visible !== false && inSpan(l, baseTime(l)) && (inFolder ? p.vis : true);
     if(isCam(l) || l.kind === 'audio') vis = false;   // カメラ・音は 絵に 出ない
 
     /* パラパラフォルダの 中は、いまの コマ だけを 見せる */

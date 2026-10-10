@@ -999,3 +999,10 @@ input[type=range].coarse{
   opacity:0; transition:opacity .12s;
 }
 #btnTip.on{ opacity:1; }
+
+/* しぐさ・パーツの うごき（総合工房）。図の かわりに 絵文字 */
+.presets .pfig.emo{ font-size:1.6rem; line-height:34px; height:34px; display:block; }
+#pmGuide{ font-size:.8rem; font-weight:800; padding:.2rem .6rem; border:2.5px solid var(--ink); border-radius:100px; background:var(--main); white-space:nowrap; align-self:center; }
+#pmGuide[hidden]{ display:none; }
+.rowbtns.wrap{ flex-wrap:wrap; }
+.rowbtns.wrap button{ flex:1 1 7.5rem; }

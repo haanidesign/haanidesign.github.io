@@ -388,3 +388,14 @@ hr,.sep{ border-color:var(--line); }
 .tool.on .ico{ color:var(--ink) !important; }
 /* 音を 切って いる あいだは ひと目で わかるように */
 #top #mute.on{ background:#fff !important; color:var(--ink) !important; font-weight:700; }
+
+/* 目（表示・非表示）は いつも 見えて 押せる ように。
+   コマ数の しるし（1/26）が あると 名前の 最小幅と あわせて
+   はみ出し、目が タイムラインの 下に かくれて いた。 */
+.thead .nm{ min-width:0; }
+.thead .frames{ flex:0 0 auto; }
+.thead .eye{
+  flex:0 0 36px; min-width:36px; min-height:36px;
+  background:var(--paper); border:1px solid var(--line); border-radius:9px;
+}
+.trow.hidden .thead .eye, .thead .eye.off{ background:var(--fill); }

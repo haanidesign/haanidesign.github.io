@@ -1,7 +1,7 @@
 {
   "name": "総合工房",
   "short_name": "総合工房",
-  "description": "アニメ工房・動画工房・ミニSpine を ひとつに した 道具。",
+  "description": "絵をよみこんで、ピンと ゆがみで うごかす アニメの道具。",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",

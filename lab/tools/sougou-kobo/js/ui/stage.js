@@ -1,26 +1,28 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { M, clamp } from '../engine/math.js?v=320';
-import { cleanPath } from '../engine/path.js?v=320';
+import { kataStep, kataDone } from '../engine/bonekata.js?v=340';
+import { newSway as newSwayK } from '../engine/puppet.js?v=340';
+import { M, clamp } from '../engine/math.js?v=340';
+import { cleanPath } from '../engine/path.js?v=340';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=320';
-import { liveMasks } from '../engine/mask.js?v=320';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=320';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=320';
+         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=340';
+import { liveMasks } from '../engine/mask.js?v=340';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=340';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=340';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=320';
-import { createRenderer } from '../render/renderer.js?v=320';
-import { attachInput } from './input.js?v=320';
-import { bubbleGeom } from '../engine/talk.js?v=320';
-import { newStroke, paintDirty } from '../engine/paint.js?v=320';
+         bendChain } from '../engine/puppet.js?v=340';
+import { createRenderer } from '../render/renderer.js?v=340';
+import { attachInput } from './input.js?v=340';
+import { bubbleGeom } from '../engine/talk.js?v=340';
+import { newStroke, paintDirty } from '../engine/paint.js?v=340';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=320';
+         copyPts, setPts } from '../engine/warp.js?v=340';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=320';
-import { inCamView } from '../render/camview.js?v=320';
-import { ORBIT_MAX } from '../engine/camera.js?v=320';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=340';
+import { inCamView } from '../render/camview.js?v=340';
+import { ORBIT_MAX } from '../engine/camera.js?v=340';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
@@ -48,6 +50,19 @@ export function nextQuality(){
   const i = QUAL.findIndex(x => Math.abs(x[0] - qual) < .02);
   return QUAL[(i + 1 + QUAL.length) % QUAL.length][0];
 }
+
+/** 骨の 型を 打ち おわった とき。ゆれる 型なら ゆれを つける */
+export function finishKata(l){
+  const g = S.boneGuide;
+  if(!g) return;
+  S.boneGuide = null;
+  if(g.kata.sway && l && l.pins && l.pins.length >= 2){
+    edit('ゆれを つける', () => { l.sway = Object.assign(newSwayK(), { on: true }); });
+  }
+  if(kataNotify) kataNotify(g, l);
+}
+let kataNotify = null;
+export const setKataNotify = (fn) => { kataNotify = fn; };
 
 export function createStage(canvas, host, toast, onTraced, onGesture){
   const R = createRenderer(canvas);
@@ -758,13 +773,24 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
     }
     if(!ensureMesh(l)) return toast('絵を よみこみ中です');
 
-    edit('パペットピンをさす', () => {
+    /* 🦴 骨の 型を えらんで いる ときは、型の 順に ピンの 種類を きめる */
+    const g = S.boneGuide;
+    const gs = g ? kataStep(g) : null;
+    edit(g ? '骨を 打つ（' + gs.name + '）' : 'パペットピンをさす', () => {
+      if(g && g.i === 0 && g.fresh) l.pins = [];
       l.pins.push(newPin(ip.x, ip.y,
-        S.pinKind === 'fix' ? 'fix' : 'move',
-        S.pinKind === 'joint'));
+        gs ? (gs.fix ? 'fix' : 'move') : (S.pinKind === 'fix' ? 'fix' : 'move'),
+        gs ? gs.joint : S.pinKind === 'joint'));
       l.mesh.dirty = true;
     });
     S.pinSel = l.pins.length - 1;
+    if(g){
+      g.i++;
+      if(kataDone(g)) finishKata(l);
+      else toast('つぎは「' + kataStep(g).name + '」を おしてね');
+      onChange();
+      return;
+    }
     toast(S.pinKind === 'fix'   ? 'とめるパペットピンを さしました'
         : S.pinKind === 'joint' ? 'かんせつパペットピンを さしました（ここで折れる）'
         : 'うごかすパペットピンを さしました');

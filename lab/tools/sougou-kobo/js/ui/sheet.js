@@ -1,50 +1,55 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=320';
+import { newMojiLayer } from '../moji/moji.js?v=340';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=340';
+import { TRANS_LIST } from '../render/trans.js?v=340';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=340';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=340';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=340';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=320';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=320';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=340';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=340';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=320';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=340';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=320';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=320';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=320';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=320';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=320';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=320';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=320';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=320';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=340';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=340';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=340';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=340';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=340';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=340';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=340';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=340';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=320';
+         addTextLayer } from '../io/text.js?v=340';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=320';
-import { PATTERN_NAMES } from '../io/pattern.js?v=320';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=340';
+import { PATTERN_NAMES } from '../io/pattern.js?v=340';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=320';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=320';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=320';
+         PITCH_MAX } from '../engine/pano.js?v=340';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=340';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=340';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=320';
-import { readAsDataURL, loadImage } from '../io/image.js?v=320';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=340';
+import { readAsDataURL, loadImage } from '../io/image.js?v=340';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=320';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=320';
-import { newHand } from '../engine/hand.js?v=320';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=320';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=340';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=340';
+import { newHand } from '../engine/hand.js?v=340';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=340';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=320';
+  from './colorwheel.js?v=340';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=320';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=340';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=320';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=340';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -1240,6 +1245,8 @@ export function buildMotionSheet(box, open){
   const MENU = [
     ['anim',   '✨ うごきを つける', 'イン・ループ・アウト。出る／ゆれる／消える'],
     ['chara',  '🧍 キャラのうごき',  'うごき追加で 入れた キャラを まとめて 直す'],
+    ['shigusa', '🙋 キャラの しぐさ', 'うなずく・手を ふる・歩く・おじぎ など 20しゅ'],
+    ['parts',  '🦴 パーツの うごき', 'しっぽふり・手まねき・先まで ぶらぶら など'],
     ['sabun',  '🔁 差分つなぎ',      '差分の 長さ・はずみ'],
     ['sway',   '🌬 ゆれ（ずっと）',  'かたむきの 大きさ・ひとゆれの 長さ・おくれ'],
     ['path',   '👆 パスを なぞる', 'なぞった みちを 何秒で 通るか'],
@@ -1943,6 +1950,127 @@ export function buildEnterSheet(box, back, which){
    ここに 置かないと 数字が すぐ もどって しまう。 */
 let linesDraft = null;
 
+/* ---------- 🖼 紙の 仕上げ ----------
+   できあがった 絵ぜんたいに 紙の きめを かける。書き出しにも 入る。 */
+function paperRow(box){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🖼 紙の 仕上げ'));
+  const cur = (S.proj.paper && S.proj.paper.kind) || 'なし';
+  const row = document.createElement('div');
+  row.className = 'rowbtns';
+  ['なし', '画用紙', '和紙', '水彩'].forEach(k => {
+    const b = button((cur === k ? '✅ ' : '') + k, () => {
+      edit('紙の 仕上げ', () => {
+        S.proj.paper = Object.assign({ amount: 0.7 }, S.proj.paper || {}, { kind: k });
+      });
+      onChange();
+    });
+    row.appendChild(b);
+  });
+  box.appendChild(row);
+  if(cur !== 'なし'){
+    const bsel = document.createElement('select');
+    ['乗算', 'オーバーレイ', 'ソフトライト', 'スクリーン', 'ふつう'].forEach(k => {
+      const op = document.createElement('option');
+      op.value = k; op.textContent = k;
+      if((S.proj.paper.blend || '乗算') === k) op.selected = true;
+      bsel.appendChild(op);
+    });
+    bsel.addEventListener('change', () => {
+      edit('紙の のせ方', () => { S.proj.paper.blend = bsel.value; });
+      onChange();
+    });
+    box.appendChild(field('のせ方', bsel));
+    box.appendChild(slider('つよさ', () => S.proj.paper.amount == null ? 0.7 : S.proj.paper.amount,
+      v => { S.proj.paper.amount = v; }, 0, 1, 0.05, v => Math.round(v * 100) + '%'));
+  }
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '絵ぜんたいに 紙の きめを かけます。書き出しにも 入ります。' + NL
+    + '水彩は 色が すこし にじんで、ふちに 色が たまります。' + NL
+    + '乗算 … 暗く しずむ ／ オーバーレイ・ソフトライト … でこぼこが はっきり ／ スクリーン … 白っぽく';
+  box.appendChild(n);
+}
+
+/* ---------- 🎞 画面の 仕上げ（動画工房から） ----------
+   できあがった 絵ぜんたいに かける。書き出しにも 入る。 */
+let fxGroup = 'color';
+function fxRow(box){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🎞 画面の 仕上げ'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '絵ぜんたいに かけます。書き出しにも 入ります。' + NL
+    + '「拍で」の ものは BPM に 合わせて 動きます（曲が なければ 1秒に 2拍）。';
+  box.appendChild(n);
+  const looks = document.createElement('div');
+  looks.className = 'rowbtns';
+  FX_LOOKS.forEach(([name, v]) => looks.appendChild(button(name, () => {
+    edit('仕上げ: ' + name, () => { S.proj.fx = Object.assign({}, v); });
+    notify(name === 'なし' ? '仕上げを はずしました' : '仕上げ「' + name + '」');
+    onChange();
+  })));
+  box.appendChild(looks);
+  const tabs = document.createElement('div');
+  tabs.className = 'rowbtns';
+  FX_GROUPS.forEach(([k, label]) => {
+    const b = button(label, () => { fxGroup = k; onChange(); });
+    b.classList.toggle('on', fxGroup === k);
+    tabs.appendChild(b);
+  });
+  box.appendChild(tabs);
+  FX_KEYS.filter(x => x[2] === fxGroup).forEach(([k, label]) => {
+    const pct = isPct(k);
+    box.appendChild(slider(label,
+      () => { const f = S.proj.fx || {}; return f[k] == null ? (pct ? 100 : 0) : f[k]; },
+      v => { S.proj.fx = S.proj.fx || {}; S.proj.fx[k] = v; },
+      pct ? 0 : 0, pct ? 200 : 1, pct ? 1 : 0.05,
+      v => pct ? Math.round(v) + '%' : Math.round(v * 100) + '%'));
+  });
+}
+
+/* ---------- ✂ つなぎ（場面の きりかえ。動画工房から） ----------
+   その 時こくで、1コマ前の 絵が つなぎの かたちで けずれて いまの 絵に なる。 */
+let transLen = 0.4;
+function transRow(box){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('✂ つなぎ（場面の きりかえ）'));
+  const list = S.proj.trans || [];
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = 'いまの 時こく（' + S.time.toFixed(2) + '秒）に 入れます。' + NL
+    + 'その 1コマ前の 絵が、えらんだ かたちで 消えて いきます。'
+    + (list.length ? NL + 'いま ' + list.length + 'こ あります。' : '');
+  box.appendChild(n);
+  box.appendChild(slider('つなぎの 長さ', () => transLen, v => { transLen = v; }, 0.1, 2, 0.05, v => v.toFixed(2) + '秒'));
+  const wrap = document.createElement('div');
+  wrap.className = 'rowbtns wrap';
+  TRANS_LIST.filter(([k]) => k !== 'none').forEach(([k, name]) => wrap.appendChild(button(name, () => {
+    const at = +S.time.toFixed(3);
+    edit('つなぎ: ' + name, () => {
+      S.proj.trans = (S.proj.trans || []).filter(x => Math.abs(x.at - at) > 1e-3);
+      S.proj.trans.push({ at, kind: k, dur: transLen, seed: 1 + Math.floor(Math.random() * 9999) });
+      S.proj.trans.sort((a, b) => a.at - b.at);
+    });
+    notify(at.toFixed(2) + '秒に 「' + name + '」');
+    onChange();
+  })));
+  box.appendChild(wrap);
+  list.forEach((x) => {
+    const nm = (TRANS_LIST.find(t => t[0] === x.kind) || [0, x.kind])[1];
+    box.appendChild(btnRow(
+      button(x.at.toFixed(2) + '秒 ' + nm + '（' + (x.dur || .4).toFixed(2) + '秒）', () => { S.time = x.at; onChange(); }),
+      button('🗑', () => {
+        edit('つなぎを けす', () => { S.proj.trans = S.proj.trans.filter(y => y !== x); });
+        onChange();
+      })
+    ));
+  });
+}
+
 /* ---------- ⭕ まるの 背景 ---------- */
 let discDraft = null;
 function discRow(box){
@@ -2040,11 +2168,18 @@ export function buildSabunSheet(box){
     apply();
   };
   const o = { };
-  ['step','pop','tilt','jump','drift','glitch','gkind','bg'].forEach(k => {
+  ['step','pop','tilt','jump','drift','glitch','gkind','bg','restart'].forEach(k => {
     Object.defineProperty(o, k, { get: () => get(k), set: (v) => put(k, v) });
   });
+  {
+    const on = o.restart !== false;
+    box.appendChild(btnRow(button((on ? '✅' : '⬜') + ' 差分ごとに 動きを 頭から', () => {
+      edit('頭から 動かす', () => { o.restart = !on; });
+      onChange();
+    })));
+  }
   box.appendChild(slider('1まいの 長さ', () => o.step, v => { o.step = v; },
-    0.1, 2, 0.05, v => v.toFixed(2) + '秒'));
+    0.1, 5, 0.05, v => v.toFixed(2) + '秒'));
   box.appendChild(slider('はずみ', () => o.pop, v => { o.pop = v; },
     0, 0.3, 0.01, v => Math.round(v * 100) + '%'));
   box.appendChild(slider('かたむき', () => o.tilt, v => { o.tilt = v; },
@@ -3365,6 +3500,9 @@ export function buildTextSheet(box, closeFn){
     })
   ));
 
+  /* ---- 🔤 動く文字（動画工房から） ---- */
+  if(mojiSection(box)) return;
+
   const cur = selected();
   const editing = !!(cur && cur.kind === 'text');
   const l = editing ? cur : null;
@@ -3461,10 +3599,19 @@ export function buildTextSheet(box, closeFn){
   });
   box.appendChild(field('よせ方', asel));
 
-  redraw();
+  /* なおして いる ときは ここで 描き直さない。
+     描き直すと onChange で シートが 作り直され、打って いる とちゅうの
+     文字が 消えて（入れた 文字が 変わらない）いた。 */
+  if(!editing) redraw();
 
   box.appendChild(btnRow(
     button(editing ? '✓ できた' : '✓ 決定（画面に 出す）', async () => {
+      /* 打った 文字を まだ 読んで いなければ ここで 読む
+         （スマホでは ボタンを 押しても change が 来ない ことが ある） */
+      if(editing && ta.value !== t.str){
+        edit('文字をかえる', () => { t.str = ta.value; });
+        await redraw();
+      }
       if(!editing){
         if(!String(t.str || '').trim()) return notify('文字を 入れてね');
         await addTextLayer(null, t);
@@ -4894,6 +5041,9 @@ export function buildBgSheet(box, closeFn){
   /* ---------- 💥 集中線・流線 ----------
      1コマごとに 線を 引き直した 絵を 何まいか 焼いて、順ぐりに 出す。
      ふつうの レイヤーに なる ので、重ねる 順番も 大きさも あとから 自由。 */
+  paperRow(box);
+  fxRow(box);
+  transRow(box);
   discRow(box);
   linesRow(box, closeFn);
 
@@ -5387,6 +5537,19 @@ export function buildExportSheet(box, closeFn, run){
   box.appendChild(m);
   box.appendChild(btnRow(
     button('▶ MP4で 書き出す', () => { if(closeFn) closeFn(); run('mp4'); })
+  ));
+
+  box.appendChild(heading('🎬 動画工房へ 送る'));
+  const dn = document.createElement('div');
+  dn.className = 'empty';
+  dn.style.textAlign = 'left';
+  dn.textContent = 'できた 動きを 動画工房に わたして、つづきを 編集します。' + NL
+    + '背景ごと … 見たままの 動画（音つき）' + NL
+    + 'すけたまま … 背景を ぬかずに わたす（動画工房で 下に 何か しける。音なし）';
+  box.appendChild(dn);
+  box.appendChild(btnRow(
+    button('🎬 背景ごと 送る', () => { if(closeFn) closeFn(); run('douga'); }),
+    button('🫧 すけたまま 送る', () => { if(closeFn) closeFn(); run('douga-alpha'); })
   ));
 
   box.appendChild(heading('🫧 すける GIF'));
@@ -6697,3 +6860,228 @@ export function spanRow(box, l, closeFn){
     ));
   }
 }
+
+
+/* ================= 🙋 キャラの しぐさ・🦴 パーツの うごき =================
+   ミニSpine の「よくある動き」を この 道具の キーフレームで つける。
+   いまの 時こくから 1回ぶん（くり返しは 回数を えらぶ）。 */
+let shigusaReps = 1;
+
+function repsRow(box, durOf){
+  const row = document.createElement('div');
+  row.className = 'rowbtns';
+  const opts = [[1, '1回'], [3, '3回'], [0, '最後まで']];
+  const btns = opts.map(([n, label]) => {
+    const b = button(label, () => { shigusaReps = n; btns.forEach((x, i) => x.classList.toggle('on', opts[i][0] === n)); });
+    b.classList.toggle('on', shigusaReps === n);
+    row.appendChild(b);
+    return b;
+  });
+  box.appendChild(heading('くり返し'));
+  box.appendChild(row);
+  return (item) => shigusaReps > 0 ? shigusaReps
+    : Math.max(1, Math.floor((S.proj.duration - S.time) / item.dur + 1e-6));
+}
+
+function shigusaGrid(box, list, run){
+  const wrap = document.createElement('div');
+  wrap.className = 'presets';
+  list.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'preset';
+    b.title = p.name + '（1回 ' + p.dur + '秒）';
+    const fig = document.createElement('span');
+    fig.className = 'pfig emo';
+    fig.textContent = p.icon;
+    const t = document.createElement('span');
+    t.className = 'pname';
+    t.textContent = p.name;
+    b.append(fig, t);
+    b.addEventListener('click', () => run(p));
+    wrap.appendChild(b);
+  });
+  box.appendChild(wrap);
+}
+
+export function buildShigusaSheet(box, back){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+  backRow(box, back);
+  const root = l ? charRoot(S.proj, l, rigRootOf) : null;
+  const B = root ? findParts(S.proj, root) : null;
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  if(!root || (B.head === B.body && !B.armR && !B.armL && B.body === root && !root.rigRole)){
+    note.textContent = 'キャラ まるごとの しぐさです。' + NL
+      + 'さきに「🏃 うごき追加」で 頭・体・うで を 見つけて おいてね' + NL
+      + '（PSD の レイヤー名から さがします）。';
+    box.appendChild(note);
+    return;
+  }
+  const got = [B.head !== B.body && '頭', B.body.rigRole && '体',
+               (B.armR || B.armL) && 'うで', B.hair.length && '髪', B.eyes.length && '目'].filter(Boolean);
+  note.textContent = '「' + root.name + '」に つけます。見つけた ところ: ' + (got.join('・') || 'なし（まるごと 動きます）') + NL
+    + 'いまの 時こく（' + S.time.toFixed(2) + '秒）から はじまります。';
+  box.appendChild(note);
+  const repsOf = repsRow(box);
+  box.appendChild(heading('しぐさ'));
+  shigusaGrid(box, SHIGUSA, (item) => {
+    const n = repsOf(item);
+    edit('しぐさ: ' + item.name, () => applyShigusa(S.proj, root, item, S.time, n));
+    if(S.time + item.dur * n > S.proj.duration + 1e-3){
+      notify(item.name + 'を つけました（動画の 長さより 先まで あります）');
+    }else notify(item.name + 'を つけました');
+    onChange();
+  });
+}
+
+export function buildPartsSheet(box, back){
+  const NL = String.fromCharCode(10);
+  const l = selected();
+  backRow(box, back);
+  if(!l || l.kind === 'cam' || l.kind === 'audio'){
+    const e = document.createElement('div');
+    e.className = 'empty';
+    e.textContent = '動かす 絵を えらんでね';
+    box.appendChild(e);
+    return;
+  }
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.textContent = '「' + l.name + '」だけに つけます。' + NL
+    + 'まわる 中心（じく）が 付け根に ある と それらしく なります（しっぽ・うで・髪）。' + NL
+    + '「先まで」は 子の レイヤーにも おくれて つきます。';
+  box.appendChild(note);
+  const repsOf = repsRow(box);
+  box.appendChild(heading('パーツの うごき'));
+  shigusaGrid(box, PARTS, (item) => {
+    const n = repsOf(item);
+    edit('うごき: ' + item.name, () => applyPart(S.proj, l, item, S.time, n));
+    notify(item.name + 'を つけました');
+    onChange();
+  });
+}
+
+
+/* ================= 🔤 動く文字（動画工房の 1文字ずつ 動く 文字） =================
+   えらんで いる のが 動く文字 なら 直す 画面だけ 出す（true を かえす）。 */
+function mojiSelect(label, list, get, set){
+  const sel = document.createElement('select');
+  list.forEach(([k, name]) => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = name;
+    if(k === get()) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', () => { edit(label + 'を かえる', () => set(sel.value)); onChange(); });
+  return field(label, sel);
+}
+function mojiSection(box){
+  const NL = String.fromCharCode(10);
+  const cur = selected();
+  if(cur && cur.kind === 'moji'){
+    const T = cur.moji;
+    box.appendChild(heading('🔤 動く文字'));
+    const n = document.createElement('div');
+    n.className = 'empty';
+    n.style.textAlign = 'left';
+    n.textContent = '1文字ずつ 出て、動いて、消えます。' + NL
+      + '出る・消える 時こくは タイムラインの「出す ところ」で きめます。';
+    box.appendChild(n);
+    const ta = document.createElement('textarea');
+    ta.value = T.str; ta.rows = 2; ta.className = 'textin';
+    ta.addEventListener('change', () => { edit('文字を かえる', () => { T.str = ta.value; }); onChange(); });
+    box.appendChild(field('もじ', ta));
+    box.appendChild(mojiSelect('書たい', mjFonts(), () => T.font, v => { T.font = v; }));
+    box.appendChild(slider('大きさ', () => T.size, v => { T.size = v; }, 20, 400, 1, v => Math.round(v) + 'px'));
+    box.appendChild(colorPick('文字の色', () => T.color, v => { T.color = v; }));
+    box.appendChild(colorPick('ふちの色', () => T.stroke, v => { T.stroke = v; }));
+    box.appendChild(slider('ふちの 太さ', () => T.sw, v => { T.sw = v; }, 0, 40, 1, v => Math.round(v) + 'px'));
+    box.appendChild(heading('うごき'));
+    box.appendChild(mojiSelect('出かた', MJ_IN, () => T.fxIn, v => { T.fxIn = v; }));
+    box.appendChild(mojiSelect('ずっと', MJ_LOOP, () => T.fxLoop, v => { T.fxLoop = v; }));
+    box.appendChild(mojiSelect('消えかた', MJ_OUT, () => T.fxOut, v => { T.fxOut = v; }));
+    box.appendChild(mojiSelect('まとまり', [['char', '1文字ずつ'], ['word', 'ことばごと'], ['line', '1行ずつ'], ['all', 'まとめて']],
+      () => T.unit, v => { T.unit = v; }));
+    box.appendChild(mojiSelect('じゅんばん', MJ_ORDERS, () => T.order, v => { T.order = v; }));
+    box.appendChild(slider('ずらし', () => T.stagger, v => { T.stagger = v; }, 0, 0.3, 0.01, v => v.toFixed(2) + '秒'));
+    box.appendChild(slider('出る 長さ', () => T.inDur, v => { T.inDur = v; }, 0.05, 2, 0.05, v => v.toFixed(2) + '秒'));
+    box.appendChild(slider('消える 長さ', () => T.outDur, v => { T.outDur = v; }, 0.05, 2, 0.05, v => v.toFixed(2) + '秒'));
+    box.appendChild(slider('ずっとの 強さ', () => T.loopAmt, v => { T.loopAmt = v; }, 0, 3, 0.05, v => Math.round(v * 100) + '%'));
+    box.appendChild(heading('かざり'));
+    const tog = (label, key) => {
+      const b = button((T[key] ? '✓ ' : '') + label, () => { edit(label, () => { T[key] = !T[key]; }); onChange(); });
+      b.classList.toggle('on', !!T[key]);
+      return b;
+    };
+    box.appendChild(btnRow(tog('ひかり', 'glowOn'), tog('かげ', 'shadowOn'), tog('帯', 'bgOn'), tog('たて書き', 'vertical')));
+    if(T.glowOn) box.appendChild(colorPick('ひかりの色', () => T.glowColor, v => { T.glowColor = v; }));
+    if(T.bgOn) box.appendChild(colorPick('帯の色', () => T.bgColor, v => { T.bgColor = v; }));
+    return true;
+  }
+  box.appendChild(heading('🔤 動く文字（1文字ずつ）'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '1文字ずつ ぽんっと 出て、ゆれて、消える 文字です。' + NL
+    + '出かた 50しゅ 以上・ずっと 30しゅ・消えかた 40しゅ。';
+  box.appendChild(n);
+  box.appendChild(btnRow(button('🔤 動く文字を つくる', () => {
+    const made = {};
+    edit('動く文字を つくる', () => {
+      made.l = newMojiLayer(S.proj);
+      made.l.span = { from: +S.time.toFixed(3), to: +Math.min(S.proj.duration, S.time + 3).toFixed(3) };
+      S.proj.layers.unshift(made.l);
+      S.sel = made.l.id;
+    });
+    notify('動く文字を つくりました。下で 文字と 動きを えらべます');
+    onChange();
+  })));
+
+  /* 歌詞を まとめて。1行 1まいの 動く文字に して、いまの 時こくから 順に ならべる。
+     行の あたまに「12.5 」の ように 秒を 書くと その 時こくに 置く（動画工房と 同じ） */
+  const lt = document.createElement('textarea');
+  lt.rows = 4; lt.className = 'textin';
+  lt.placeholder = '1行ずつ 書く' + NL + '12.5 秒を 書くと その 時こくに';
+  box.appendChild(field('歌詞を まとめて', lt));
+  const PB = (S.proj.beat && S.proj.beat.bpm > 0) ? S.proj.beat.bpm : 0;
+  box.appendChild(slider('1行の 長さ', () => lyricEach, v => { lyricEach = v; }, 0.5, 8, 0.1,
+    v => v.toFixed(1) + '秒' + (PB ? '（' + (v * PB / 60).toFixed(1) + '拍）' : '')));
+  box.appendChild(btnRow(button('🎤 歌詞を ならべる', () => {
+    const lines = lt.value.split(NL).map(x => x.trim()).filter(Boolean);
+    if(!lines.length) return notify('歌詞を 書いてね');
+    const made = [];
+    let cur = S.time;
+    lines.forEach(line => {
+      const m = line.match(/^(?:(\d+):)?(\d+(?:\.\d+)?)\s+(.+)$/);
+      let at = cur, str = line;
+      if(m){ at = (+(m[1] || 0)) * 60 + (+m[2]); str = m[3]; }
+      made.push({ at, str });
+      cur = at + lyricEach;
+    });
+    made.sort((a, b) => a.at - b.at);
+    let top = null;
+    edit('歌詞を ならべる', () => {
+      made.forEach((x, i) => {
+        const nx = made[i + 1];
+        const to = Math.min(x.at + lyricEach, nx ? nx.at : Infinity);
+        const l = newMojiLayer(S.proj, x.str);
+        l.name = x.str.slice(0, 12);
+        l.moji.size = 90;
+        l.y = S.proj.h * 0.72;
+        l.span = { from: +x.at.toFixed(3), to: +Math.max(x.at + 0.2, to).toFixed(3) };
+        S.proj.layers.unshift(l);
+        top = l;
+      });
+      const end = made[made.length - 1].at + lyricEach;
+      if(end > S.proj.duration) S.proj.duration = +end.toFixed(2);
+      if(top) S.sel = top.id;
+    });
+    notify(made.length + '行 ならべました');
+    onChange();
+  })));
+  return false;
+}
+let lyricEach = 2.5;

@@ -258,16 +258,3 @@
 }
 #list.folded #listGrip{ display:none; }
 #list.folded{ height:auto !important; max-height:none !important; }
-
-/* ---- 🎬🦴 中に 入れた 作品（総合工房） ----
-   ふだんは 見えない ところで うごかす。中を 編集する ときだけ 画面いっぱいに 出す。 */
-#nests{
-  position:fixed; left:0; top:0; width:100vw; height:var(--appH, 100dvh);
-  z-index:-1; visibility:hidden; pointer-events:none; overflow:hidden;
-}
-#nests iframe{
-  position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
-  background:var(--paper); visibility:hidden;
-}
-#nests.on{ z-index:1000; visibility:visible; pointer-events:auto; }
-#nests.on iframe.on{ visibility:visible; }
