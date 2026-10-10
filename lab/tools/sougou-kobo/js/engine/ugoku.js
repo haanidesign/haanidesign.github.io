@@ -4,7 +4,7 @@
    ＋ 粒（キラッ・ハート・花びら・ゆき …）＋ 仕上げ（光もれ・ビネット・ざらざら …）。
    どれも「1周（loop 秒）で もとに もどる」ので、くり返しても つなぎ目が 出ない。
    作品と 同じ 大きさの 紙に 描いて、ふつうの レイヤーとして 出す。 */
-import { newLayer as newBaseLayer } from './layer.js?v=358';
+import { newLayer as newBaseLayer } from './layer.js?v=359';
 
 const TAU = Math.PI * 2;
 const frac = v => v - Math.floor(v);

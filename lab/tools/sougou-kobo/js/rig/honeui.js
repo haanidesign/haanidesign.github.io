@@ -12,13 +12,13 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=358';
-import { computeAll } from '../engine/layer.js?v=358';
-import { setPin } from '../engine/anim.js?v=358';
-import { M } from './core.js?v=358';
-import { paintWeight } from './core.js?v=358';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=359';
+import { computeAll } from '../engine/layer.js?v=359';
+import { setPin } from '../engine/anim.js?v=359';
+import { M } from './core.js?v=359';
+import { paintWeight } from './core.js?v=359';
 import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
-         addIK, autoBonesFromNames, SOFT } from './hone.js?v=358';
+         addIK, autoBonesFromNames, SOFT } from './hone.js?v=359';
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

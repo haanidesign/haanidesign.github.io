@@ -1,61 +1,62 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { omakase } from '../moji/omakase.js?v=358';
-import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=358';
-import { newLayer } from '../engine/layer.js?v=358';
-import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=358';
-import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles } from '../engine/ugoku.js?v=358';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=358';
-import { newMojiLayer } from '../moji/moji.js?v=358';
-import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=358';
-import { TRANS_LIST } from '../render/trans.js?v=358';
-import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=358';
-import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=358';
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=358';
+import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=359';
+import { omakase } from '../moji/omakase.js?v=359';
+import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=359';
+import { newLayer } from '../engine/layer.js?v=359';
+import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=359';
+import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles } from '../engine/ugoku.js?v=359';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=359';
+import { newMojiLayer } from '../moji/moji.js?v=359';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=359';
+import { TRANS_LIST } from '../render/trans.js?v=359';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=359';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=359';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=359';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=358';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=358';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=359';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=359';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=358';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=359';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=358';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=358';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=358';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=358';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=358';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=358';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=358';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=358';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=359';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=359';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=359';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=359';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=359';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=359';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=359';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=359';
 import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=358';
+         addTextLayer } from '../io/text.js?v=359';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=358';
-import { PATTERN_NAMES } from '../io/pattern.js?v=358';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=359';
+import { PATTERN_NAMES } from '../io/pattern.js?v=359';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=358';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=358';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=358';
+         PITCH_MAX } from '../engine/pano.js?v=359';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=359';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=359';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=358';
-import { readAsDataURL, loadImage } from '../io/image.js?v=358';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=359';
+import { readAsDataURL, loadImage } from '../io/image.js?v=359';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=358';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=358';
-import { newHand } from '../engine/hand.js?v=358';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=358';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=359';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=359';
+import { newHand } from '../engine/hand.js?v=359';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=359';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=358';
+  from './colorwheel.js?v=359';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=358';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=359';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=358';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=359';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -4679,6 +4680,18 @@ export function setAudioSync(fn){ onAudioSync = fn; }
 
 export function buildDocSheet(box, closeFn){
   const NL = String.fromCharCode(10);
+
+  /* 🔍 画面の パーツの 大きさ（この 端末だけ） */
+  box.appendChild(heading('🔍 画面の 大きさ'));
+  const zn = document.createElement('div');
+  zn.className = 'empty';
+  zn.style.textAlign = 'left';
+  zn.textContent = 'パーツごとに 大きく／小さく できます。この 端末だけの 設定です（作品には 入りません）。';
+  box.appendChild(zn);
+  UI_PARTS.forEach(([k, label]) => {
+    box.appendChild(slider(label, () => uiScale(k), v => setUI(k, v), 0.5, 1.5, 0.05, v => Math.round(v * 100) + '%'));
+  });
+  box.appendChild(btnRow(button('もとの 大きさに もどす', () => { resetUI(); onChange(); })));
 
   box.appendChild(heading('作品名'));
   const nameIn = document.createElement('input');

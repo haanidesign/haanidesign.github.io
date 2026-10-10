@@ -9,10 +9,10 @@
      作品の まん中を 0、右が X+、下が Y+、おくが Z+（camera.js と 同じ）。
      レイヤーの おくゆきは depthLen、カメラの 目は ドリーより CAM_F 手前。
    見る がわの カメラ（view）は yaw・pitch・dist で まわりを まわる。 */
-import { computeAll } from '../engine/layer.js?v=358';
-import { camOf, camDolly, camTarget, depthLen, CAM_F, isCam } from '../engine/camera.js?v=358';
-import { valuesAt } from '../engine/anim.js?v=358';
-import { frameAsset, frameImage } from '../state.js?v=358';
+import { computeAll } from '../engine/layer.js?v=359';
+import { camOf, camDolly, camTarget, depthLen, CAM_F, isCam } from '../engine/camera.js?v=359';
+import { valuesAt } from '../engine/anim.js?v=359';
+import { frameAsset, frameImage } from '../state.js?v=359';
 
 const INK = '#1E1C14';
 const GRID = 'rgba(30,28,20,.18)';

@@ -7,10 +7,10 @@
    保存は、共有シートが使えるならそこへ渡す（iPhoneはここから「ビデオを保存」で
    カメラロールに入る）。使えなければ ふつうのダウンロード。 */
 
-import { createRenderer } from '../render/renderer.js?v=358';
-import { A as AUD, audioEnabled, withBlips } from './audio.js?v=358';
-import { isTalk, blipTimes } from '../engine/talk.js?v=358';
-import { encodeGif } from './gif.js?v=358';
+import { createRenderer } from '../render/renderer.js?v=359';
+import { A as AUD, audioEnabled, withBlips } from './audio.js?v=359';
+import { isTalk, blipTimes } from '../engine/talk.js?v=359';
+import { encodeGif } from './gif.js?v=359';
 
 /** H.264 は縦横が偶数でないと通らない */
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
@@ -439,7 +439,7 @@ function firmUp(im){
 /* ---------- すける アニメPNG（動画工房へ 送る 用） ----------
    色も すけぐあいも そのまま。1コマずつ 焼く ので 実時間は かからない。 */
 export async function exportApng(project, opt = {}){
-  const { makeApng } = await import('./apng.js?v=358');
+  const { makeApng } = await import('./apng.js?v=359');
   const fps = Math.max(4, Math.min(30, opt.fps || 15));
   const long = Math.max(project.w, project.h);
   const scale = Math.min(1, (opt.maxSide || 1080) / long);

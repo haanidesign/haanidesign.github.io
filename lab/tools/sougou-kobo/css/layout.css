@@ -275,3 +275,10 @@
 @media (max-width:700px){
   #ovPanel{ top:auto; left:0; width:auto; height:46%; border-left:none; border-top:2.5px solid var(--ink); }
 }
+
+/* ---- 🔍 画面の パーツの 大きさ（総合工房。uiscale.js が きめる） ---- */
+#top{ zoom:calc(var(--z-all, 1) * var(--z-top, 1)); }
+#tools{ zoom:calc(var(--z-all, 1) * var(--z-tools, 1)); }
+#list{ zoom:calc(var(--z-all, 1) * var(--z-list, 1)); }
+#sheet{ zoom:calc(var(--z-all, 1) * var(--z-sheet, 1)); }
+#honemode, #pinmode{ zoom:calc(var(--z-all, 1) * var(--z-hone, 1)); }
