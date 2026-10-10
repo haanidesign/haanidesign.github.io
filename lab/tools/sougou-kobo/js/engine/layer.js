@@ -9,6 +9,7 @@ import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
 import { deformPoint, swayPose, swayTilt } from './puppet.js?v=340';
 import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=340';
 import { handTime } from './hand.js?v=340';
+import { physAngle } from './phys.js?v=340';
 import { WORK_KEYS } from '../state.js?v=340';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
@@ -244,6 +245,9 @@ export function computeAll(project, time){
         v.rot += swayTilt(l.sway, srcTime(l));
       }
     }
+    /* 🌀 ばね（物理）。親の 動きに ふられて ゆれる ぶん */
+    if(l.phys && l.phys.on) v.rot += physAngle(project, l, time, computeAll);
+
     const p = (l.parent && byId[l.parent]) ? solve(byId[l.parent]) : null;
 
     /* 親が パペットピンで 曲がっているときは、

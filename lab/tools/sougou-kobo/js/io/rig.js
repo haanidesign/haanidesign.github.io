@@ -15,6 +15,7 @@
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
 import { newSway } from '../engine/puppet.js?v=340';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=340';
 import { setPin } from '../engine/anim.js?v=340';
 import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=340';
 
@@ -353,6 +354,16 @@ export function autoRig(project, layers, assetOf, opt){
       period: fitPeriod(s.period, loop)
     });
     swayed++;
+  });
+
+  /* 🌀 ぶらさがる もの（髪・イヤリング）には ばねも つける。
+     頭が 動くと おくれて ふられる（ゆれ と いっしょに きく） */
+  const PHYS_ROLE = { earring: 'イヤリング', frontHair: '髪', backHair: '髪', hair: '髪' };
+  layers.forEach(l => {
+    const k = PHYS_ROLE[l.rigRole];
+    if(!k || (l.phys && l.phys.on)) return;
+    const look = PHYS_LOOKS.find(x => x[0] === k);
+    l.phys = Object.assign(newPhys(), look ? look[1] : {}, { on: true });
   });
 
   /* いき。体（なければ 頭）に だけ。 */

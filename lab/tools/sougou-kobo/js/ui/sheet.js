@@ -1,5 +1,6 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=340';
 import { newMojiLayer } from '../moji/moji.js?v=340';
 import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts } from '../moji/text.js?v=340';
 import { TRANS_LIST } from '../render/trans.js?v=340';
@@ -2451,6 +2452,44 @@ export function buildSwaySheet(box, back){
     return;
   }
   buildSway(box, l);
+  physRow(box, l);
+}
+
+/* ---------- 🌀 ばね（物理） ----------
+   親（頭・体）の 動きに ふられて ゆれる。じく（回る 中心）を 付け根に すると それらしい。 */
+function physRow(box, l){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('🌀 ばね（物理）'));
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = '親（頭・体 など）が 動いた いきおいで ふられて、ばねで もどります。' + NL
+    + 'じく（回る 中心）を 付け根に して おいてね（髪なら はえぎわ）。' + NL
+    + (l.parent ? '' : 'いまは 親が ない ので、この レイヤーを 動かした ときだけ ゆれます。');
+  box.appendChild(n);
+  const on = !!(l.phys && l.phys.on);
+  const row = document.createElement('div');
+  row.className = 'rowbtns wrap';
+  PHYS_LOOKS.forEach(([name, v]) => {
+    const b = button(name, () => {
+      edit('ばね: ' + name, () => { l.phys = Object.assign(newPhys(), v, { on: true }); });
+      notify('ばね「' + name + '」を つけました');
+      onChange();
+    });
+    row.appendChild(b);
+  });
+  if(on) row.appendChild(button('はずす', () => {
+    edit('ばねを はずす', () => { l.phys.on = false; });
+    onChange();
+  }));
+  box.appendChild(row);
+  if(!on) return;
+  const P = l.phys;
+  box.appendChild(slider('かたさ', () => P.stiff, v => { P.stiff = v; }, 0.3, 6, 0.05, v => v.toFixed(2) + '回/秒'));
+  box.appendChild(slider('おさまり', () => P.damp, v => { P.damp = v; }, 0.02, 1, 0.01, v => Math.round(v * 100) + '%'));
+  box.appendChild(slider('重さ（ふられ方）', () => P.inertia, v => { P.inertia = v; }, 0, 3, 0.05, v => Math.round(v * 100) + '%'));
+  box.appendChild(slider('ねじれ（まわった ときの のこり）', () => P.twist, v => { P.twist = v; }, 0, 1.5, 0.05, v => Math.round(v * 100) + '%'));
+  box.appendChild(slider('重力', () => P.grav, v => { P.grav = v; }, -1, 1, 0.05, v => Math.round(v * 100) + '%'));
 }
 
 /* ずっと うごく だけを ひらく 入口（むかしの 呼び出し方に そろえる用） */
