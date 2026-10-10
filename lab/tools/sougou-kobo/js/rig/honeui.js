@@ -12,11 +12,13 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=354';
-import { computeAll } from '../engine/layer.js?v=354';
-import { setPin } from '../engine/anim.js?v=354';
-import { M } from './core.js?v=354';
-import { isHone, setupPose, honePose, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue } from './hone.js?v=354';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=357';
+import { computeAll } from '../engine/layer.js?v=357';
+import { setPin } from '../engine/anim.js?v=357';
+import { M } from './core.js?v=357';
+import { paintWeight } from './core.js?v=357';
+import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
+         addIK, autoBonesFromNames, SOFT } from './hone.js?v=357';
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -46,13 +48,21 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     const iv = M.inv(m);
     return { ...M.apply(iv, px, py), sc: S.view.z * Math.hypot(m.a, m.b) / k };   // sc … 骨の 1 が 画面の 何px か
   }
-  const poseNow = (l) => tool === 'setup' || tool === 'add' ? setupPose(l.hone) : honePose(l, S.time);
+  const poseNow = (l) => S.honeSetup ? setupPose(l.hone) : honePoseLive(l, S.time);
 
   /* ---- 当たり ---- */
   function hitBone(l, p){
     const pose = poseNow(l);
     const R = 16 / p.sc;
     let best = null, bd = 1e9;
+    /* IK の まと（丸）が いちばん さき */
+    for(const b of l.hone.bones){
+      if(!b.ikTarget) continue;
+      const w = pose[b.id] && pose[b.id].world; if(!w) continue;
+      const d = Math.hypot(p.x - w.tx, p.y - w.ty);
+      if(d < R * 1.3 && d < bd){ bd = d; best = { b, part: 'body', w, tip: M.apply(w, b.len, 0) }; }
+    }
+    if(best) return best;
     for(const b of l.hone.bones){
       const w = pose[b.id] && pose[b.id].world; if(!w) continue;
       const tip = M.apply(w, b.len, 0);
@@ -125,6 +135,23 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
       toast(s ? '「' + s.name + '」。つぎに つける 骨を おしてね' : 'パーツを おしてね');
       redraw(); return;
     }
+    if(tool === 'ik'){
+      grab(e);
+      const hb = hitBone(l, p);
+      if(!hb || !hb.b.parent || hb.b.ikTarget){ toast('ひじから 先・ひざから 先 の 骨を おしてね'); return; }
+      let t = null;
+      edit('IK を つける', () => { t = addIK(l, hb.b.id); });
+      if(t){ selBone = t.id; toast('IK を つけました。② アニメート で 丸を 動かすと「' + hb.b.name + '」と その 親が 曲がって とどきます'); }
+      onChange(); return;
+    }
+    if(tool === 'weight' || tool === 'unweight'){
+      grab(e);
+      if(!selBone){ toast('さきに 骨を えらんでね'); return; }
+      beginEdit('ウェイトを ぬる');
+      drag = { kind: 'paint', l, R: 40 / p.sc };
+      paintAt(l, p, drag.R);
+      return;
+    }
     const hb = hitBone(l, p);
     if(!hb) return;                       // 骨の 外は ステージに まかせる
     grab(e);
@@ -139,7 +166,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     } else {
       beginEdit('骨を 動かす');
       const isRoot = !b.parent;
-      if(hb.part === 'body' && isRoot){
+      if((hb.part === 'body' && isRoot) || b.ikTarget){
         const pw = parentWorld(l, b, false);
         drag = { kind: 'pmove', l, b, p0: p, ipw: M.inv(pw),
                  x0: keyedValue(l, b.id, 'x', S.time), y0: keyedValue(l, b.id, 'y', S.time) };
@@ -155,6 +182,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     const l = drag.l, p = toHone(l, e);
     if(!p) return;
     if(drag.kind === 'add'){ preview = { a: drag.a, b: p }; redraw(); return; }
+    if(drag.kind === 'paint'){ paintAt(l, p, drag.R); redraw(); return; }
     const ang = Math.atan2(p.y - drag.org?.y, p.x - drag.org?.x) * 180 / Math.PI;
     let da = ang - drag.ang0;
     while(da > 180) da -= 360; while(da < -180) da += 360;
@@ -197,6 +225,12 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     }
     commitEdit();
     onChange();
+  }
+  /* 🖌 ウェイトの 筆。組み立ての 姿の 上で ぬる */
+  function paintAt(l, p, R){
+    const amt = tool === 'weight' ? 0.12 : -0.12;
+    for(const s of l.hone.slots) if(s.visible !== false) paintWeight(s, selBone, p.x, p.y, R, amt);
+    rebind(l);
   }
   const grab = (e) => { e.stopImmediatePropagation(); e.preventDefault(); };
   canvas.addEventListener('pointerdown', down, { capture: true });
@@ -241,15 +275,36 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
         ctx.strokeStyle = PINK; ctx.lineWidth = 1.5 * k; ctx.stroke();
       }
     }
+    if(tool === 'weight' || tool === 'unweight'){
+      for(const s of l.hone.slots){
+        if(s.visible === false) continue;
+        for(const v of s.verts){
+          const e = (v.w || []).find(x => x.b === selBone), wv = e ? e.w : 0;
+          const q = P(v.x, v.y);
+          ctx.beginPath(); ctx.arc(q.x, q.y, (2 + wv * 4) * k, 0, Math.PI * 2);
+          ctx.fillStyle = wv > 0.01 ? 'rgba(242,160,184,' + (0.35 + wv * 0.65) + ')' : 'rgba(30,28,20,.25)';
+          ctx.fill();
+        }
+      }
+    }
     for(const b of l.hone.bones){
       const w = pose[b.id] && pose[b.id].world; if(!w) continue;
+      if(b.ikTarget){
+        const q = P(w.tx, w.ty), r = 11 * k;
+        ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = b.id === selBone ? YEL : 'rgba(255,254,247,.9)'; ctx.fill();
+        ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * k; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(q.x - r * 1.5, q.y); ctx.lineTo(q.x + r * 1.5, q.y); ctx.moveTo(q.x, q.y - r * 1.5); ctx.lineTo(q.x, q.y + r * 1.5);
+        ctx.lineWidth = 1.5 * k; ctx.stroke();
+        continue;
+      }
       const o = P(w.tx, w.ty), tp = M.apply(w, b.len, 0), t = P(tp.x, tp.y);
       const dx = t.x - o.x, dy = t.y - o.y, L = Math.hypot(dx, dy) || 1;
       const nx = -dy / L, ny = dx / L, wd = Math.min(12 * k, L * 0.18);
       const mx = o.x + dx * 0.18, my = o.y + dy * 0.18;
       ctx.beginPath();
       ctx.moveTo(o.x, o.y); ctx.lineTo(mx + nx * wd, my + ny * wd); ctx.lineTo(t.x, t.y); ctx.lineTo(mx - nx * wd, my - ny * wd); ctx.closePath();
-      ctx.fillStyle = b.id === selBone ? YEL : 'rgba(255,254,247,.85)';
+      ctx.fillStyle = b.id === selBone ? YEL : b.spring ? 'rgba(242,160,184,.85)' : 'rgba(255,254,247,.85)';
       ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * k; ctx.stroke();
       ctx.beginPath(); ctx.arc(o.x, o.y, 4.5 * k, 0, Math.PI * 2); ctx.fillStyle = INK; ctx.fill();
       ctx.beginPath(); ctx.arc(t.x, t.y, 6 * k, 0, Math.PI * 2);
@@ -300,7 +355,8 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     b.onclick = fn;
     return b;
   };
-  const SETUP_TOOLS = [['add', '➕ 骨を足す'], ['setup', '📐 組み立て'], ['bind', '🔗 つける']];
+  const SETUP_TOOLS = [['add', '➕ 骨を足す'], ['setup', '📐 組み立て'], ['bind', '🔗 つける'], ['ik', '🎯 IK'],
+                       ['weight', '🖌 ウェイト＋'], ['unweight', '🖌 ウェイト－']];
   SETUP_TOOLS.forEach(([k, label]) => { btn[k] = mk(label, '', () => setTool(k)); });
   btn.pose = mk('✋ 動かす', '骨の 先を つまんで 回す。根もとの 骨は ずらせる', () => setTool('pose'));
   const weigh = mk('🕸 しならせる', 'パーツが 近くの 骨に あわせて しなる ように する（自動ウェイト）', () => {
@@ -325,6 +381,24 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     edit('骨を けす', () => { ok = removeBone(l, selBone); });
     if(ok){ selBone = 'root'; toast('骨を けしました'); onChange(); }
   });
+  const spring = mk('🌀 ばね', 'えらんだ 骨を ゆれる 骨に する（髪・しっぽ・リボン）。もう1回で もどす', () => {
+    const l = layer(); if(!l) return;
+    const b = l.hone.bones.find(x => x.id === selBone);
+    if(!b || !b.parent) return toast('ゆらす 骨を えらんでね');
+    edit('骨の ばね', () => { b.spring = !b.spring; if(b.spring && (b.stiff == null || b.stiff >= 0.3)) Object.assign(b, SOFT.hair); });
+    toast(b.spring ? '「' + b.name + '」が ゆれる ように なりました（② アニメート で 体を 動かすと ゆれます）' : '「' + b.name + '」の ばねを はずしました');
+    onChange();
+  });
+  const auto = mk('🤖 名前から骨', 'パーツの 名前（体・頭・腕・脚・髪・目・口）を 見て 骨を 組みなおす', () => {
+    const l = layer(); if(!l) return;
+    if(l.hone.bones.length > 1 && !confirm('いまの 骨を けして 組みなおします（もどす で 戻せます）')) return;
+    let n = 0;
+    edit('名前から 骨', () => { n = autoBonesFromNames(l); });
+    toast(n ? n + '本の 骨を 組みました（髪・しっぽは ばね つき）' : '名前から わかる パーツが ありませんでした（体・頭・腕・脚・髪 …）');
+    onChange();
+  });
+  let onFace = () => {};
+  const face = mk('👁 目・口', '目(開)・目(閉)・口(開)・口(閉) の パーツを きめる（まばたき・口ぱく）', () => onFace());
   const animNote = document.createElement('span');
   animNote.className = 'dot honenote';
   animNote.textContent = 'いまの 時こくに キーが 入ります';
@@ -338,7 +412,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     tabAnim.classList.toggle('on', p === 'anim');
     tools.innerHTML = '';
     if(p === 'setup'){
-      tools.append(btn.add, btn.setup, btn.bind, weigh, rename, del);
+      tools.append(btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, spring, auto, face, rename, del);
       const l = layer();
       setTool(l && l.hone.bones.length < 2 ? 'add' : 'setup', quiet);
     } else {
@@ -349,10 +423,13 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
 
   function setTool(k, quiet){
     tool = k; selSlot = k === 'bind' ? selSlot : null;
-    ['add', 'setup', 'bind', 'pose'].forEach(x => btn[x].classList.toggle('on', x === k));
+    ['add', 'setup', 'bind', 'pose', 'ik', 'weight', 'unweight'].forEach(x => btn[x].classList.toggle('on', x === k));
     if(!quiet) toast(k === 'pose' ? '骨の 先を つまんで 回す（いまの 時こくに キー）。根もとは ずらせます'
         : k === 'setup' ? '骨の 先で 向きと 長さ、骨を つまんで 場所。絵は その場に のこります'
         : k === 'add' ? 'えらんだ 骨から 引っぱると 子の 骨が できます'
+        : k === 'ik' ? 'ひじから 先（ひざから 先）の 骨を おすと、先に IK の 丸が つきます'
+        : k === 'weight' ? 'えらんだ 骨の ウェイトを ぬって ふやす（ピンクが こいほど よく ついて くる）'
+        : k === 'unweight' ? 'えらんだ 骨の ウェイトを けずる'
         : 'パーツを おして、つぎに 骨を おす');
     redraw();
   }
@@ -363,6 +440,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     setTool,
     setPhase,
     setMotions(fn){ onMotions = fn; },
+    setFace(fn){ onFace = fn; },
     get bone(){ return selBone; },
     open(){ selBone = 'root'; selSlot = null; setPhase(layer() && layer().hone.bones.length > 1 ? 'anim' : 'setup'); },
   };

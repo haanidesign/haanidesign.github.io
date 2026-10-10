@@ -14,10 +14,10 @@
      'H:<骨のid>:sx/sy' … 大きさ（1 が そのまま）
    キーの ならびは ほかの キーと 同じ なので、ずらす・けす・イージングも そのまま きく。 */
 import { M, CH, computePose, applyIKs, invCache, bindSlot, deformSlot, buildGridMesh, drawSlot,
-         autoWeights, uid, topoBones } from './core.js?v=354';
-import { sample, mapTime, remapTime } from '../engine/anim.js?v=354';
-import { newLayer } from '../engine/layer.js?v=354';
-import { S } from '../state.js?v=354';
+         autoWeights, uid, topoBones, applySprings } from './core.js?v=357';
+import { sample, mapTime, remapTime } from '../engine/anim.js?v=357';
+import { newLayer } from '../engine/layer.js?v=357';
+import { S, undoDepth } from '../state.js?v=357';
 
 export const boneCh = (id, ch) => 'H:' + id + ':' + ch;
 export const isBoneCh = (c) => /^H:.+:(rot|x|y|sx|sy|shear)$/.test(c);
@@ -127,10 +127,10 @@ export function honeCanvas(l, time, project){
   const H = l.hone;
   if(!H) return l._hnC;
   /* セットアップ中は 組み立ての 姿で 見せる（ミニSpine と 同じ） */
-  const pose = (S.honeMode && S.honeSetup && S.sel === l.id) ? setupPose(H) : honePose(l, time);
+  const pose = (S.honeMode && S.honeSetup && S.sel === l.id) ? setupPose(H) : honePoseLive(l, time);
   l._hnPose = pose;
   for(const s of H.slots){
-    if(s.visible === false) continue;
+    if(!slotShown(l, s, time)) continue;
     const img = S.imgs[s.asset];
     if(!img || !(img.naturalWidth || img.width)) continue;
     if(!s.verts.length || !s.verts[0].bind) rebind(l);
@@ -189,6 +189,178 @@ export function addBoneAt(l, parentId, ax, ay, bx, by){
   h.bones.push(b);
   rebind(l);
   return b;
+}
+
+
+/* ================= 🌀 骨の ばね =================
+   ミニSpine の applySprings を そのまま つかう。
+   止めて 見ても 書き出しても 同じに なる ように、0秒から 1/60秒ずつ 順に 回して
+   ばねの ようす（先の 場所）を ためて おく。直したら（もどすの 番号が かわったら）やりなおし。 */
+const SDT = 1 / 60;
+const SIM = new Map();
+const hasSpring = (h) => h.bones.some(b => b.spring);
+function cloneSt(st){
+  const o = {};
+  for(const k in st){ const s = st[k]; o[k] = { x: s.x, y: s.y, px: s.px, py: s.py }; }
+  return o;
+}
+export function honePoseLive(l, time){
+  const h = l.hone;
+  if(!hasSpring(h)) return honePose(l, time);
+  const u = undoDepth();
+  const key = [u.idx, u.size, JSON.stringify(h.bones.map(b => [b.id, b.spring, b.stiff, b.damp, b.grav, b.inertia, b.limit]))].join('|');
+  let c = SIM.get(l.id);
+  if(!c || c.key !== key){ c = { key, st: [] }; SIM.set(l.id, c); }
+  const k = Math.max(0, Math.floor(Math.max(0, time) / SDT));
+  for(let i = c.st.length; i <= k; i++){
+    const pose = honePose(l, i * SDT);
+    const st = i ? cloneSt(c.st[i - 1]) : {};
+    applySprings(h, pose, SDT, st, true);
+    c.st[i] = st;
+  }
+  const pose = honePose(l, time);
+  const st = k ? cloneSt(c.st[k - 1]) : {};
+  applySprings(h, pose, Math.max(1 / 240, time - (k - 1) * SDT), st, true);
+  return pose;
+}
+
+/* ================= 🎯 IK =================
+   えらんだ 骨（ひじから 先 など）と その 親で 2本の IK。
+   先に「IKの まと」の 骨を 置いて、それを 動かすと 2本が 曲がって とどく。 */
+export function addIK(l, childId){
+  const h = l.hone, c = h.bones.find(b => b.id === childId);
+  if(!c || !c.parent) return null;
+  const p = h.bones.find(b => b.id === c.parent);
+  if(!p) return null;
+  const sp = setupPose(h);
+  const tip = M.apply(sp[c.id].world, c.len, 0);
+  const o1 = sp[p.id].world, o2 = sp[c.id].world;
+  const cross = (o2.tx - o1.tx) * (tip.y - o2.ty) - (o2.ty - o1.ty) * (tip.x - o2.tx);
+  const t = addBoneAt(l, 'root', tip.x, tip.y, tip.x + 24, tip.y);
+  t.name = 'まと（' + c.name + '）'; t.ikTarget = true; t.len = 24;
+  h.iks = h.iks || [];
+  /* 親が 体の ように 子を いくつも もつ ときは、親は 曲げずに この 骨だけ 向ける。
+     ひじ・ひざの ように 1本で つながって いる ときは 2本で 曲げる */
+  const sibs = h.bones.filter(b => b.parent === p.id && !b.ikTarget).length;
+  const two = !!p.parent && sibs === 1;
+  h.iks.push({ id: uid('ik'), name: c.name, bones: two ? [p.id, c.id] : [c.id], target: t.id, mix: 1, bendPositive: cross >= 0 });
+  rebind(l);
+  return t;
+}
+
+/* ================= 🤖 名前から 骨を 組む =================
+   パーツの 名前（PSD の レイヤー名）で あたりを つけて 骨を 立てる。
+     体 … 下から 上へ   頭 … 首（体の 上）から 頭の てっぺんへ
+     うで・あし … 付け根（上）から 先（下）へ   髪・しっぽ・イヤリング … 付け根から 先へ、ばね つき
+   目・口・まゆ は 頭に、それ以外は 体に つける。 */
+const RX = {
+  body: /体|胴|からだ|body|torso|chest|むね|胸|服/i,
+  head: /頭|あたま|顔|かお|head|face/i,
+  arm: /腕|うで|手|hand|arm|袖/i,
+  leg: /脚|足|あし|leg|foot/i,
+  hair: /髪|かみ|hair|前髪|後ろ髪|もみあげ|アホ毛/i,
+  tail: /尾|しっぽ|tail|リボン|ribbon/i,
+  ear: /イヤリング|ピアス|earring/i,
+  eye: /目|瞳|眼|まぶた|eye|iris/i,
+  mouth: /口|くち|mouth|lip/i,
+  brow: /眉|まゆ|brow/i
+};
+function roleOfName(n){
+  for(const r of ['ear', 'hair', 'tail', 'brow', 'eye', 'mouth', 'head', 'arm', 'leg', 'body']) if(RX[r].test(n)) return r;
+  return null;
+}
+function boxOf(s){
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  s.verts.forEach(v => { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); });
+  return { x0, y0, x1, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
+}
+/* ゆれる 骨の やわらかさ（髪は ふわっと、イヤリングは よく ゆれる） */
+export const SOFT = {
+  hair: { stiff: 0.07, damp: 0.9, inertia: 1.3, limit: 40 },
+  ear:  { stiff: 0.05, damp: 0.93, inertia: 1.6, limit: 55 },
+  tail: { stiff: 0.06, damp: 0.92, inertia: 1.4, limit: 50 }
+};
+export function autoBonesFromNames(l){
+  const h = l.hone;
+  const roles = h.slots.map(s => ({ s, r: roleOfName(s.name), b: boxOf(s) }));
+  if(!roles.some(x => x.r)) return 0;
+  /* いまの 骨は 根もと だけに する */
+  h.bones = h.bones.filter(b => !b.parent);
+  h.iks = [];
+  Object.keys(l.tracks || {}).forEach(c => { if(/^H:/.test(c) && !c.startsWith('H:root:')) delete l.tracks[c]; });
+  const root = h.bones[0];
+  const all = roles.map(x => x.b);
+  const bottom = Math.max(...all.map(b => b.y1));
+  const bodyP = roles.find(x => x.r === 'body'), headP = roles.find(x => x.r === 'head');
+  const B = bodyP ? bodyP.b : { cx: (Math.min(...all.map(b => b.x0)) + Math.max(...all.map(b => b.x1))) / 2, y0: Math.min(...all.map(b => b.y0)), y1: bottom, h: bottom - Math.min(...all.map(b => b.y0)) };
+  root.x = B.cx; root.y = Math.min(bottom, B.y1); root.rot = -90; root.len = Math.max(30, B.h * 0.15);
+  const body = addBoneAt(l, 'root', B.cx, B.y1 - B.h * 0.1, B.cx, B.y0 + B.h * 0.05);
+  body.name = '体';
+  let head = null;
+  if(headP){
+    const H = headP.b;
+    head = addBoneAt(l, body.id, H.cx, Math.min(H.y1, B.y0 + B.h * 0.05), H.cx, H.y0);
+    head.name = '頭';
+  }
+  const set = (s, id) => { s.bone = id; s.verts.forEach(v => { v.w = [{ b: id, w: 1 }]; }); };
+  let n = 0;
+  roles.forEach(({ s, r, b }) => {
+    if(r === 'body'){ set(s, body.id); return; }
+    if(r === 'head'){ set(s, head ? head.id : body.id); return; }
+    if(r === 'eye' || r === 'mouth' || r === 'brow'){ set(s, head ? head.id : body.id); return; }
+    if(r === 'arm' || r === 'leg'){
+      const nb = addBoneAt(l, r === 'leg' ? 'root' : body.id, b.cx, b.y0 + b.h * 0.05, b.cx, b.y1 - b.h * 0.05);
+      nb.name = s.name; set(s, nb.id); n++; return;
+    }
+    if(r === 'hair' || r === 'ear' || r === 'tail'){
+      const par = (r === 'tail' ? body : head || body).id;
+      const nb = addBoneAt(l, par, b.cx, b.y0 + b.h * 0.05, b.cx, b.y1 - b.h * 0.1);
+      nb.name = s.name; nb.spring = true;
+      Object.assign(nb, SOFT[r]);
+      set(s, nb.id); n++; return;
+    }
+    set(s, body.id);
+  });
+  /* 目・口の あけ／とじ を 名前で */
+  const pick = (re, sub) => (h.slots.find(s => re.test(s.name) && sub.test(s.name)) || {}).id || null;
+  h.eyeClose = pick(RX.eye, /閉|とじ|close|ー/i) || h.eyeClose || null;
+  h.eyeOpen = pick(RX.eye, /開|あけ|open/i) || h.eyeOpen || null;
+  h.mouthOpen = pick(RX.mouth, /開|あ|open/i) || h.mouthOpen || null;
+  h.mouthClose = pick(RX.mouth, /閉|ん|close/i) || h.mouthClose || null;
+  rebind(l);
+  return h.bones.length - 1;
+}
+
+/* ================= 👁 目・口の 切りかえ =================
+   目(開)・目(閉) … まばたき（3〜4秒に 1回。いつも 同じ 時こくに なる）
+   口(開)・口(閉) … 曲・声が あれば しゃべって いる あいだ ぱくぱく */
+function blinkAt(l, t){
+  const h = l.hone;
+  if(h.blink === false) return false;
+  const per = 3.6;
+  const i = Math.floor(t / per);
+  const r = Math.abs(Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1;
+  const at = i * per + 0.4 + r * 2.4;
+  return t >= at && t < at + 0.13;
+}
+/* 口の あけ しめ は main が 声の 大きさから きめて わたす（t → true/false） */
+let mouthSrc = null;
+export function setMouthSource(fn){ mouthSrc = fn; }
+const mouthAt = (t) => mouthSrc ? !!mouthSrc(t) : false;
+export function slotShown(l, s, t){
+  const h = l.hone;
+  if(s.visible === false) return false;
+  if(h.eyeOpen || h.eyeClose){
+    const shut = blinkAt(l, t);
+    if(s.id === h.eyeOpen) return !shut;
+    if(s.id === h.eyeClose) return shut;
+  }
+  if(h.mouthOpen && h.mouthClose){
+    const open = mouthAt(t);
+    if(s.id === h.mouthOpen) return open;
+    if(s.id === h.mouthClose) return !open;
+  }
+  return true;
 }
 
 export { topoBones };
