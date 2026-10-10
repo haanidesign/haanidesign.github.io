@@ -1,19 +1,22 @@
 /* 起動と組み立て。 */
 
-import { createOverview } from './ui/overview.js?v=350';
-import { setMojiRedraw } from './moji/shim.js?v=350';
-import { BONE_KATA, kataStep } from './engine/bonekata.js?v=350';
-import { M } from './engine/math.js?v=350';
+import { createHoneUI } from './rig/honeui.js?v=352';
+import { isHone, newHoneLayer } from './rig/hone.js?v=352';
+import { computeAll as computeAllH } from './engine/layer.js?v=352';
+import { createOverview } from './ui/overview.js?v=352';
+import { setMojiRedraw } from './moji/shim.js?v=352';
+import { BONE_KATA, kataStep } from './engine/bonekata.js?v=352';
+import { M } from './engine/math.js?v=352';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=350';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=352';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=350';
-import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=350';
-import { createRenderer } from './render/renderer.js?v=350';
-import { createTimeline } from './ui/timeline.js?v=350';
-import { fmtTime, setPin } from './engine/anim.js?v=350';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=350';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=352';
+import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=352';
+import { createRenderer } from './render/renderer.js?v=352';
+import { createTimeline } from './ui/timeline.js?v=352';
+import { fmtTime, setPin } from './engine/anim.js?v=352';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=352';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -24,28 +27,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildShigusaSheet, buildPartsSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=350';
+         setWarper } from './ui/sheet.js?v=352';
 
-import { showNewDoc } from './ui/newdoc.js?v=350';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=350';
-import { fitToCanvas, isBg } from './io/bg.js?v=350';
-import * as Audio from './io/audio.js?v=350';
-import { isTalk, blipTimes } from './engine/talk.js?v=350';
+import { showNewDoc } from './ui/newdoc.js?v=352';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=352';
+import { fitToCanvas, isBg } from './io/bg.js?v=352';
+import * as Audio from './io/audio.js?v=352';
+import { isTalk, blipTimes } from './engine/talk.js?v=352';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=350';
-import { importPsd } from './io/psd.js?v=350';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=350';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=350';
-import { makeSabun } from './io/sabun.js?v=350';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=350';
-import { splitTextChars } from './io/text.js?v=350';
-import { exportAE } from './io/ae.js?v=350';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=352';
+import { importPsd } from './io/psd.js?v=352';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=352';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=352';
+import { makeSabun } from './io/sabun.js?v=352';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=352';
+import { splitTextChars } from './io/text.js?v=352';
+import { exportAE } from './io/ae.js?v=352';
 import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=350';
-import { pathKeys, pathLength } from './engine/path.js?v=350';
-import { paintDirty } from './engine/paint.js?v=350';
+         canUseWebCodecs } from './io/export.js?v=352';
+import { pathKeys, pathLength } from './engine/path.js?v=352';
+import { paintDirty } from './engine/paint.js?v=352';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=350';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=352';
 
 const $ = (s) => document.querySelector(s);
 
@@ -105,6 +108,7 @@ const sheet = createSheet($('#sheet'), $('#sheetBack'));
 let dirty = true;
 function refresh(){
   dirty = true;
+  if(S.honeMode && !isHone(selected())) setTimeout(() => setHoneMode(false), 0);
   if(S.pinMode) kataGuide();
   timeline.build();
   if(S.spanEdit) spanInfo();
@@ -126,7 +130,53 @@ function setOverview(on){
   dirty = true;
 }
 ov.setClose(() => setOverview(false));
-$('#ovBtn').addEventListener('click', () => setOverview(!ov.open));   // 動く文字の 書たいが とどいたら 描きなおす
+$('#ovBtn').addEventListener('click', () => setOverview(!ov.open));
+
+/* 🦴 骨モード。えらんで いる のが 骨キャラ なら 骨を 組む・動かす。
+   絵を えらんで いれば（☑ が あれば ☑ の ぶん）その 絵から 骨キャラを つくる。 */
+const honeUI = createHoneUI({ canvas: $('#stageCv'), bar: $('#honemode'), toast, redraw: () => { dirty = true; } });
+function setHoneMode(on){
+  if(on && S.pinMode) setPinMode(false);
+  if(on && S.paintMode) setPaintMode(false);
+  S.honeMode = on;
+  $('#honemode').hidden = !on;
+  $('#hone').classList.toggle('on', on);
+  if(on) honeUI.open();
+  dirty = true;
+}
+honeUI.done.addEventListener('click', () => setHoneMode(false));
+$('#hone').addEventListener('click', () => {
+  if(S.honeMode) return setHoneMode(false);
+  const l = selected();
+  if(isHone(l)) return setHoneMode(true);
+  const ids = [...new Set([...(S.pick || []), ...(l ? [l.id] : [])])];
+  const src = S.proj.layers.filter(x => ids.includes(x.id) && x.kind === 'image' && x.frames && x.frames.length);
+  if(!src.length) return toast('骨を つける 絵を えらんでね（☑ で いくつも えらべます）');
+  const all = computeAllH(S.proj, S.time);
+  const parts = [];
+  /* うしろの 絵から（あとに 足した ものが 手前に 描かれる） */
+  [...src].reverse().forEach(x => {
+    const e = all[x.id]; if(!e) return;
+    const aid = x.frames[0], a = S.proj.assets[aid]; if(!a) return;
+    const m = e.mNoCam || e.m, pv = x.pivot || { x: .5, y: .5 };
+    parts.push({ name: x.name, asset: aid,
+      place: { a: m.a, b: m.b, c: m.c, d: m.d,
+               tx: m.tx - (m.a * a.w * pv.x + m.c * a.h * pv.y),
+               ty: m.ty - (m.b * a.w * pv.x + m.d * a.h * pv.y) } });
+  });
+  let made = null;
+  edit('骨キャラを つくる', () => {
+    made = newHoneLayer(S.proj, parts);
+    const at = Math.min(...src.map(x => S.proj.layers.indexOf(x)));
+    S.proj.layers.splice(Math.max(0, at), 0, made);
+    src.forEach(x => { x.visible = false; });
+    S.sel = made.id; S.pick = [];
+  });
+  toast(parts.length + 'まいで 骨キャラを つくりました（もとの 絵は かくしました）。➕ で 骨を 足そう');
+  refresh();
+  setHoneMode(true);
+  honeUI.setTool('add');
+});   // 動く文字の 書たいが とどいたら 描きなおす
 onRestore(() => refresh());
 
 /* 設定を 右に つけた／はずした ぶん、絵の 場所を ずらす。
@@ -221,7 +271,7 @@ function blipBetween(a, b){
     dirty = true;
   }
 
-  if(dirty){ stage.draw(); ov.draw(S.proj, S.time); dirty = false; }
+  if(dirty){ stage.draw(); honeUI.draw($('#stageCv').getContext('2d')); ov.draw(S.proj, S.time); dirty = false; }
   else if(ov.open && ov.needs()) ov.draw(S.proj, S.time);
   requestAnimationFrame(loop);
 })();

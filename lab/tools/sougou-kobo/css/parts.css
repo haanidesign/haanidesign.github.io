@@ -1006,3 +1006,13 @@ input[type=range].coarse{
 #pmGuide[hidden]{ display:none; }
 .rowbtns.wrap{ flex-wrap:wrap; }
 .rowbtns.wrap button{ flex:1 1 7.5rem; }
+
+/* ---------- 🦴 骨モード（総合工房） ---------- */
+#honemode{
+  position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+  z-index:6; display:flex; flex-wrap:wrap; justify-content:center; gap:.35rem;
+  background:var(--cream); border:2.5px solid var(--ink); border-radius:16px;
+  padding:.35rem .4rem; max-width:calc(100% - 20px);
+}
+#honemode[hidden]{ display:none; }
+#honemode button{ min-height:42px; font-size:.8rem; padding:.2rem .55rem; }
