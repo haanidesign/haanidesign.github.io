@@ -2,7 +2,7 @@
    Undo はスナップショット方式（ミニSpineで動いている仕組みと同じ）。
    画像そのものは assets の外（imgs）に置いて、スナップショットに含めない。 */
 
-import { uid } from './engine/math.js?v=340';
+import { uid } from './engine/math.js?v=350';
 
 /** SNS でよく使う書き出しサイズ */
 export const SIZE_PRESETS = [
@@ -90,7 +90,8 @@ export const WORK_KEYS = new Set([
   '_rmC', '_rmKey', '_rmMesh',          // 🏠 部屋の 紙と あみ
   '_rmXY', '_rmUV', '_rmOK',
   '_tkC', '_tkKey',
-  '_mjC',                                // 🔤 動く文字の 紙                     // 💬 セリフ枠の 紙
+  '_mjC', '_ugC', '_uPts', '_uKey',     // 🔤 動く文字・✨ 動く背景の 紙
+                                 // 🔤 動く文字の 紙                     // 💬 セリフ枠の 紙
   '_maskC', '_maskKey', '_maskSrc',     // ✂ マスクで ぬいた あとの 紙
   '_mip', '_mipKey',                    // 小さくした 写し（ちらつき よけ）
   '_q3xy', '_q3flat',                   // 立体（3D）で 四すみに はめた あと
@@ -247,7 +248,7 @@ export const isDraft = () => {
 export const selected = () => S.proj.layers.find(l => l.id === S.sel) || null;
 
 /** 自分で 紙に 描く レイヤー（おえかき・いろ） */
-const paintKind = (l) => !!l && (l.kind === 'paint' || l.kind === 'solid' || l.kind === 'pano' || l.kind === 'room' || l.kind === 'talk' || l.kind === 'adjust' || l.kind === 'moji');
+const paintKind = (l) => !!l && (l.kind === 'paint' || l.kind === 'solid' || l.kind === 'pano' || l.kind === 'room' || l.kind === 'talk' || l.kind === 'adjust' || l.kind === 'moji' || l.kind === 'ugoku');
 
 /** レイヤーの、いま出すべき画像。
     おえかき・いろ の レイヤーは ファイルを 持たないので、
@@ -261,6 +262,7 @@ export function frameImage(layer, frameIndex){
   if(layer && layer.kind === 'room') return layer._rmC || null;
   if(layer && layer.kind === 'talk') return layer._tkC || null;
   if(layer && layer.kind === 'moji') return layer._mjC || null;
+  if(layer && layer.kind === 'ugoku') return layer._ugC || null;
   if(paintKind(layer)) return layer._pc || null;
   const id = layer.frames[frameIndex || 0] || layer.frames[0];
   return id ? S.imgs[id] : null;

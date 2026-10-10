@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>総合工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=340">
+<link rel="manifest" href="manifest.webmanifest?v=350">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,10 +15,10 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <!-- ためしの 見た目（soft.css）で つかう、まるくない 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=340">
-<link rel="stylesheet" href="css/layout.css?v=340">
-<link rel="stylesheet" href="css/parts.css?v=340">
-<link rel="stylesheet" href="css/soft.css?v=340">
+<link rel="stylesheet" href="css/tokens.css?v=350">
+<link rel="stylesheet" href="css/layout.css?v=350">
+<link rel="stylesheet" href="css/parts.css?v=350">
+<link rel="stylesheet" href="css/soft.css?v=350">
 <script type="module" src="../skin/icons.js?v=8"></script>
 </head>
 <body>
@@ -35,6 +35,7 @@
     <button id="mute" class="btn-sm" title="作業中の 音を 切る（書き出しには ちゃんと 入ります）" aria-label="音を 切る">🔊</button>
     <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
     <button id="redo" class="btn-sm" title="やりなおし（3本指で たたく）" aria-label="やりなおし" disabled>↷</button>
+    <button id="ovBtn" class="btn-sm" title="俯瞰（シーンを 外から 見る）" aria-label="俯瞰">🛰</button>
     <button id="fit" class="btn-sm" title="画面にあわせる" aria-label="画面にあわせる">⤢</button>
     <button id="export" class="btn-sm btn-g" title="MP4で書き出す">▶ 書き出す</button>
   </div>
@@ -171,8 +172,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=340"></script>
-<script src="lib/mp4-muxer.js?v=340"></script>
-<script type="module" src="js/main.js?v=340"></script>
+<script src="lib/ag-psd.js?v=350"></script>
+<script src="lib/mp4-muxer.js?v=350"></script>
+<script type="module" src="js/main.js?v=350"></script>
 </body>
 </html>

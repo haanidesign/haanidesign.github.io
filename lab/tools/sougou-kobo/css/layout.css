@@ -258,3 +258,20 @@
 }
 #list.folded #listGrip{ display:none; }
 #list.folded{ height:auto !important; max-height:none !important; }
+
+/* ---- 🛰 俯瞰（総合工房） ---- */
+#ovPanel{
+  position:absolute; top:0; right:0; bottom:0; width:min(46%, 620px); z-index:30;
+  display:flex; flex-direction:column;
+  background:var(--paper); border-left:2.5px solid var(--ink);
+}
+#ovPanel[hidden]{ display:none; }
+#ovPanel .ovbar{
+  display:flex; align-items:center; gap:.35rem; padding:.35rem .5rem;
+  border-bottom:2.5px solid var(--ink); background:var(--main);
+}
+#ovPanel .ovbar b{ font-size:1rem; font-weight:800; margin-right:auto; }
+#ovPanel canvas{ flex:1; width:100%; min-height:0; display:block; touch-action:none; cursor:grab; }
+@media (max-width:700px){
+  #ovPanel{ top:auto; left:0; width:auto; height:46%; border-left:none; border-top:2.5px solid var(--ink); }
+}

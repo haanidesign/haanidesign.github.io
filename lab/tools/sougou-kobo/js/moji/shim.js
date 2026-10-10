@@ -1,6 +1,6 @@
 /* 動画工房の 文字の しくみを ここで うごかす ための つなぎ。
    動画工房の S（作品の はば・画質）と 拍の 関数・bus の かわり。 */
-import { S as AS } from '../state.js?v=340';
+import { S as AS } from '../state.js?v=350';
 
 export const S = {
   get W(){ return (AS.proj && AS.proj.w) || 1080; },

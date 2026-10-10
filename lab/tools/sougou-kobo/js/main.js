@@ -1,18 +1,19 @@
 /* 起動と組み立て。 */
 
-import { setMojiRedraw } from './moji/shim.js?v=340';
-import { BONE_KATA, kataStep } from './engine/bonekata.js?v=340';
-import { M } from './engine/math.js?v=340';
+import { createOverview } from './ui/overview.js?v=350';
+import { setMojiRedraw } from './moji/shim.js?v=350';
+import { BONE_KATA, kataStep } from './engine/bonekata.js?v=350';
+import { M } from './engine/math.js?v=350';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=340';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=350';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=340';
-import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=340';
-import { createRenderer } from './render/renderer.js?v=340';
-import { createTimeline } from './ui/timeline.js?v=340';
-import { fmtTime, setPin } from './engine/anim.js?v=340';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=340';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=350';
+import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=350';
+import { createRenderer } from './render/renderer.js?v=350';
+import { createTimeline } from './ui/timeline.js?v=350';
+import { fmtTime, setPin } from './engine/anim.js?v=350';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=350';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -23,28 +24,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildShigusaSheet, buildPartsSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=340';
+         setWarper } from './ui/sheet.js?v=350';
 
-import { showNewDoc } from './ui/newdoc.js?v=340';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=340';
-import { fitToCanvas, isBg } from './io/bg.js?v=340';
-import * as Audio from './io/audio.js?v=340';
-import { isTalk, blipTimes } from './engine/talk.js?v=340';
+import { showNewDoc } from './ui/newdoc.js?v=350';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=350';
+import { fitToCanvas, isBg } from './io/bg.js?v=350';
+import * as Audio from './io/audio.js?v=350';
+import { isTalk, blipTimes } from './engine/talk.js?v=350';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=340';
-import { importPsd } from './io/psd.js?v=340';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=340';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=340';
-import { makeSabun } from './io/sabun.js?v=340';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=340';
-import { splitTextChars } from './io/text.js?v=340';
-import { exportAE } from './io/ae.js?v=340';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=350';
+import { importPsd } from './io/psd.js?v=350';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=350';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=350';
+import { makeSabun } from './io/sabun.js?v=350';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=350';
+import { splitTextChars } from './io/text.js?v=350';
+import { exportAE } from './io/ae.js?v=350';
 import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=340';
-import { pathKeys, pathLength } from './engine/path.js?v=340';
-import { paintDirty } from './engine/paint.js?v=340';
+         canUseWebCodecs } from './io/export.js?v=350';
+import { pathKeys, pathLength } from './engine/path.js?v=350';
+import { paintDirty } from './engine/paint.js?v=350';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=340';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=350';
 
 const $ = (s) => document.querySelector(s);
 
@@ -115,7 +116,17 @@ function refresh(){
   sheet.refresh();
 }
 onChange(refresh);
-setMojiRedraw(() => { dirty = true; });   // 動く文字の 書たいが とどいたら 描きなおす
+setMojiRedraw(() => { dirty = true; });
+
+/* 🛰 俯瞰。ステージの 右に 小窓で 出す（見るだけ） */
+const ov = createOverview($('#stage'));
+function setOverview(on){
+  ov.show(on);
+  $('#ovBtn').classList.toggle('on', on);
+  dirty = true;
+}
+ov.setClose(() => setOverview(false));
+$('#ovBtn').addEventListener('click', () => setOverview(!ov.open));   // 動く文字の 書たいが とどいたら 描きなおす
 onRestore(() => refresh());
 
 /* 設定を 右に つけた／はずした ぶん、絵の 場所を ずらす。
@@ -210,7 +221,8 @@ function blipBetween(a, b){
     dirty = true;
   }
 
-  if(dirty){ stage.draw(); dirty = false; }
+  if(dirty){ stage.draw(); ov.draw(S.proj, S.time); dirty = false; }
+  else if(ov.open && ov.needs()) ov.draw(S.proj, S.time);
   requestAnimationFrame(loop);
 })();
 
