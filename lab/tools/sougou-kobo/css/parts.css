@@ -1035,3 +1035,16 @@ input[type=range].coarse{
 .sozaiitem{ display:flex; flex-direction:column; align-items:center; gap:.2rem; padding:.3rem; min-height:0; }
 .sozaiitem canvas{ width:96px; height:72px; background:var(--cream); border-radius:6px; }
 .sozaiitem span{ font-size:.75rem; max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* 🔍 画面の 大きさ の ならび（総合工房） */
+.uirow{ display:flex; align-items:center; gap:.35rem; padding:.3rem 0; flex-wrap:wrap; }
+.uirow b{ flex:1 0 6.5rem; font-size:1rem; font-weight:800; }
+.uirow .uipre{ min-height:40px; padding:.2rem .6rem; font-size:.9rem; }
+.uirow .uipre.on{ background:var(--ink); color:var(--paper); }
+.uirow .uistep{ min-width:40px; min-height:40px; padding:0; font-size:1.1rem; font-weight:800; }
+.uirow .uival{ min-width:3.2rem; text-align:center; font-weight:800; }
+.uirow{ flex-wrap:wrap; gap:.3rem; border-bottom:1.5px dashed rgba(30,28,20,.2); padding:.45rem 0; }
+.uirow b{ flex:1 0 100%; }
+.uirow .uipre{ flex:1 1 0; min-width:0; }
+.uirow .uistep{ flex:0 0 40px; }
+.uirow .uival{ flex:0 0 3.2rem; }

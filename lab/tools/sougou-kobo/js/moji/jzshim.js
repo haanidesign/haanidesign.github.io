@@ -1,5 +1,5 @@
 /* JIZURA の つなぎ（動画工房の S・toast の かわり）。 */
-import { S as AS } from '../state.js?v=359';
+import { S as AS } from '../state.js?v=361';
 export const S = {
   get W(){ return (AS.proj && AS.proj.w) || 1080; },
   get H(){ return (AS.proj && AS.proj.h) || 1920; },

@@ -3,8 +3,8 @@
    作品と 同じ 大きさの 紙に、まん中を 0 に して 文字を 描く。
    レイヤーの 動かす・大きさ・回転・効果は ほかと 同じに きく。
    時間は レイヤーの「出す ところ」の はじまりが 0。おわりで 消えかたが 出る。 */
-import { newLayer } from '../engine/layer.js?v=359';
-import { drawText, ensureFont } from './text.js?v=359';
+import { newLayer } from '../engine/layer.js?v=361';
+import { drawText, ensureFont } from './text.js?v=361';
 
 export function newMojiText(){
   return {

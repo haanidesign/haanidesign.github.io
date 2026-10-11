@@ -3,9 +3,9 @@
    ミニSpine では「アニメ」1つに キーを うって いた。ここでは いったん その 形で
    つくって から、骨キャラ レイヤーの タイムラインへ いまの 時こくから 写す。
    値の 意味（回転・場所は 組み立てからの ずれ、大きさは 倍）は ミニSpine と 同じ。 */
-import { M, childMap } from './core.js?v=359';
-import { setupPose, boneCh } from './hone.js?v=359';
-import { setPin } from '../engine/anim.js?v=359';
+import { M, childMap } from './core.js?v=361';
+import { setupPose, boneCh } from './hone.js?v=361';
+import { setPin } from '../engine/anim.js?v=361';
 
 const CTX = { h: null, sp: null, H: 1000 };
 const boneById = id => CTX.h.bones.find(b => b.id === id);
