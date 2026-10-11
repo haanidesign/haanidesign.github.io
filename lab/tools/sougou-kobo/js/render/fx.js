@@ -80,7 +80,7 @@ function sheet(name, w, h){
  * 仕上げを かける。
  *   ctx … 描き おわった 紙
  *   tf  … 作品の 座標 → 紙の 座標（[a,0,0,d,e,f]）
- *   opt.light … 再生中の かるい 見せ方（おもい ものは 休む）
+ *   opt.light … 画質「いつも かるく」で 再生して いる とき（おもい ものは 休む）
  */
 export function applyFx(ctx, project, tf, time, opt = {}){
   const m = project.fx;
