@@ -304,3 +304,18 @@
 body.ovdrag{ user-select:none; -webkit-user-select:none; cursor:ew-resize; }
 body.ovdrag #ovPanel canvas, body.ovdrag #stageCv{ pointer-events:none; }
 #ovPanel .ovgrip{ z-index:35; }
+
+/* ---- 左の 道具の 形（総合工房）----
+   列の はばを ボタンに あわせる。こうすると 画面の 大きさの 設定で
+   小さく した とき、列ごと 細く なる（はばが 決まって いると よこ長に のこる）。
+   ボタンは 正方形に 近い 形に そろえる。 */
+@media (min-width:760px) and (orientation:landscape){
+  #app{ grid-template-columns:auto 1fr; }
+  #tools{ width:86px; align-items:center; }
+  #tools .tool{ flex:0 0 auto; width:70px; height:66px; min-height:0; padding:.2rem 0; }
+}
+@media (orientation:landscape) and (max-height:560px){
+  #app{ grid-template-columns:auto 1fr; }
+  #tools{ width:118px; justify-content:center; }
+  #tools .tool{ flex:0 0 auto; width:52px; height:48px; min-height:0; }
+}

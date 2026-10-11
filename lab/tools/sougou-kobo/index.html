@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>総合工房</title>
-<link rel="manifest" href="manifest.webmanifest?v=367">
+<link rel="manifest" href="manifest.webmanifest?v=368">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,10 +15,10 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <!-- ためしの 見た目（soft.css）で つかう、まるくない 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=367">
-<link rel="stylesheet" href="css/layout.css?v=367">
-<link rel="stylesheet" href="css/parts.css?v=367">
-<link rel="stylesheet" href="css/soft.css?v=367">
+<link rel="stylesheet" href="css/tokens.css?v=368">
+<link rel="stylesheet" href="css/layout.css?v=368">
+<link rel="stylesheet" href="css/parts.css?v=368">
+<link rel="stylesheet" href="css/soft.css?v=368">
 <script type="module" src="../skin/icons.js?v=8"></script>
 </head>
 <body>
@@ -138,28 +138,27 @@
 
   <div id="tools">
     <button class="tool" id="add"><i>＋</i>追加</button>
+    <button class="tool" id="dkSozai" title="読みこんだ 絵の 一覧。おすと いまの 時こくに 足す"><i>📦</i>素材</button>
     <button class="tool" id="addRig" title="PSDの レイヤー名を 見て、ゆれ・おやこ・じくを まとめて つけます"><i>🏃</i>うごき追加</button>
     <button class="tool" id="addSabun" title="PSDの いちばん上の グループを 差分として 順に 切りかえます"><i>🔁</i>差分つなぎ</button>
     <button class="tool" id="text"><i>🅰</i>テキスト</button>
+    <button class="tool" id="dkMoji" title="1文字ずつ 動く 文字"><i>🔤</i>もじ</button>
+    <button class="tool" id="dkUta" title="歌詞を 1行ずつ 動く文字に して ならべる"><i>🎵</i>うた</button>
     <button class="tool" id="bg"><i>🎨</i>背景</button>
     <button class="tool" id="paint"><i>✏</i>ペイント</button>
     <button class="tool" id="pivot"><i>📍</i>パペット</button>
     <button class="tool" id="hone" title="骨を 組んで 動かす（ミニSpine の 骨・メッシュ・ウェイト）。絵を えらんで おすと 骨キャラに なります"><i>🦴</i>骨</button>
-    <button class="tool" id="form"><i>⬛</i>レイヤー</button>
     <button class="tool" id="move"><i>🏃</i>モーション</button>
-    <button class="tool" id="cam"><i>🎥</i>カメラ</button>
     <button class="tool" id="face"><i>😊</i>表情</button>
-    <button class="tool" id="setting"><i>⚙</i>設定</button>
-    <span class="toolsep" aria-hidden="true">動画工房</span>
-    <button class="tool" id="dkSozai" title="読みこんだ 絵の 一覧。おすと いまの 時こくに 足す"><i>📦</i>素材</button>
+    <button class="tool" id="cam"><i>🎥</i>カメラ</button>
+    <button class="tool" id="form"><i>⬛</i>レイヤー</button>
     <button class="tool" id="dkDan" title="レイヤーの ならび・目・カギ"><i>🎚</i>だん</button>
     <button class="tool" id="dkFuda" title="えらんだ レイヤーの 出す ところ・フェード"><i>🎫</i>ふだ</button>
-    <button class="tool" id="dkUta" title="歌詞を 1行ずつ 動く文字に して ならべる"><i>🎵</i>うた</button>
-    <button class="tool" id="dkMoji" title="1文字ずつ 動く 文字"><i>🔤</i>もじ</button>
-    <button class="tool" id="dkHayasa" title="曲の はやさ（BPM）"><i>🥁</i>はやさ</button>
     <button class="tool" id="dkKiru" title="えらんだ レイヤーを いまの 時こくで 2つに きる"><i>✂</i>きる</button>
+    <button class="tool" id="dkHayasa" title="曲の はやさ（BPM）"><i>🥁</i>はやさ</button>
     <button class="tool" id="dkShiage" title="画面ぜんたいの 仕上げ（グリッチ・フィルム・拍で フラッシュ）"><i>🎞</i>しあげ</button>
     <button class="tool" id="dkTsunagi" title="場面の きりかえ（ワイプ・アイリス …）"><i>🔀</i>つなぎ</button>
+    <button class="tool" id="setting"><i>⚙</i>設定</button>
   </div>
 
   <div id="props"></div>
@@ -185,8 +184,8 @@
 <!-- Android のファイル選択は accept の拡張子を見ないことがあるので、しぼりこまない -->
 <input type="file" id="file" multiple hidden>
 
-<script src="lib/ag-psd.js?v=367"></script>
-<script src="lib/mp4-muxer.js?v=367"></script>
-<script type="module" src="js/main.js?v=367"></script>
+<script src="lib/ag-psd.js?v=368"></script>
+<script src="lib/mp4-muxer.js?v=368"></script>
+<script type="module" src="js/main.js?v=368"></script>
 </body>
 </html>
