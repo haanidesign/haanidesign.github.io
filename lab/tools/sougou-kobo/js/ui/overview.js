@@ -9,10 +9,10 @@
      作品の まん中を 0、右が X+、下が Y+、おくが Z+（camera.js と 同じ）。
      レイヤーの おくゆきは depthLen、カメラの 目は ドリーより CAM_F 手前。
    見る がわの カメラ（view）は yaw・pitch・dist で まわりを まわる。 */
-import { computeAll } from '../engine/layer.js?v=363';
-import { camOf, camDolly, camTarget, depthLen, CAM_F, isCam } from '../engine/camera.js?v=363';
-import { valuesAt } from '../engine/anim.js?v=363';
-import { frameAsset, frameImage } from '../state.js?v=363';
+import { computeAll } from '../engine/layer.js?v=364';
+import { camOf, camDolly, camTarget, depthLen, CAM_F, isCam } from '../engine/camera.js?v=364';
+import { valuesAt } from '../engine/anim.js?v=364';
+import { frameAsset, frameImage } from '../state.js?v=364';
 
 const INK = '#1E1C14';
 const GRID = 'rgba(30,28,20,.18)';
@@ -56,30 +56,37 @@ export function createOverview(host){
   }
   applySize();
   addEventListener('resize', applySize);
-  let g0 = null;
-  grip.addEventListener('pointerdown', (e) => {
-    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
-    const r = panel.getBoundingClientRect();
-    g0 = { x: e.clientX, y: e.clientY, w: r.width, h: r.height, moved: false };
-    e.preventDefault();
-  });
-  grip.addEventListener('pointermove', (e) => {
+  /* つまみは 動かすと 指の 下から ずれる。つまみ だけで 指を 追うと
+     すぐ 見うしなって 1回ずつ しか 動かない ので、画面ぜんたいで 追う。
+     描きなおしは 1コマに 1回 だけ */
+  let g0 = null, raf = 0, lastE = null;
+  const onMove = (e) => {
     if(!g0) return;
-    const hr = host.getBoundingClientRect();
-    /* zoom の ぶん（画面の 大きさの 設定）を ならす */
-    const z = hr.width / (host.offsetWidth || hr.width) || 1;
-    if(narrow()){
-      const h = Math.max(160, Math.min(hr.height - 80, g0.h - (e.clientY - g0.y)));
-      panel.style.height = Math.round(h / z) + 'px';
-    } else {
-      const w = Math.max(220, Math.min(hr.width - 160, g0.w - (e.clientX - g0.x)));
-      panel.style.width = Math.round(w / z) + 'px';
-    }
-    want();
-  });
+    e.preventDefault();
+    lastE = e;
+    if(raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const ev = lastE; if(!g0 || !ev) return;
+      const hr = host.getBoundingClientRect();
+      const z = hr.width / (host.offsetWidth || hr.width) || 1;
+      if(narrow()){
+        const h = Math.max(160, Math.min(hr.height - 80, g0.h - (ev.clientY - g0.y)));
+        panel.style.height = Math.round(h / z) + 'px';
+      } else {
+        const w = Math.max(220, Math.min(hr.width - 160, g0.w - (ev.clientX - g0.x)));
+        panel.style.width = Math.round(w / z) + 'px';
+      }
+      want();
+    });
+  };
   const gEnd = () => {
     if(!g0) return;
     g0 = null;
+    removeEventListener('pointermove', onMove);
+    removeEventListener('pointerup', gEnd);
+    removeEventListener('pointercancel', gEnd);
+    document.body.classList.remove('ovdrag');
     try{
       const v = JSON.parse(localStorage.getItem(SIZE_KEY) || '{}') || {};
       if(narrow()) v.h = parseInt(panel.style.height, 10) || undefined;
@@ -87,8 +94,15 @@ export function createOverview(host){
       localStorage.setItem(SIZE_KEY, JSON.stringify(v));
     }catch(_){}
   };
-  grip.addEventListener('pointerup', gEnd);
-  grip.addEventListener('pointercancel', gEnd);
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = panel.getBoundingClientRect();
+    g0 = { x: e.clientX, y: e.clientY, w: r.width, h: r.height };
+    document.body.classList.add('ovdrag');
+    addEventListener('pointermove', onMove, { passive: false });
+    addEventListener('pointerup', gEnd);
+    addEventListener('pointercancel', gEnd);
+  });
   const g = cv.getContext('2d');
 
   const V = { yaw: -35, pitch: 24, dist: 4200, cx: 0, cy: 0, cz: 600 };

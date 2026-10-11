@@ -9,7 +9,7 @@
    回転は 度、上下は 画面の 下が プラス。
 
    キーは いまの 時こくから 1回ぶん。くり返す ときは 回数ぶん ならべる。 */
-import { setPin } from './anim.js?v=363';
+import { setPin } from './anim.js?v=364';
 
 /* ---------- キャラの 中から 役どころを さがす ---------- */
 function under(project, root){

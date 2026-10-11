@@ -299,3 +299,8 @@
   #ovPanel .ovgrip{ left:0; right:0; top:-14px; bottom:auto; width:auto; height:26px; cursor:ns-resize; }
   #ovPanel .ovgrip::after{ width:56px; height:8px; }
 }
+
+/* つまみを 引いて いる あいだは 文字を えらばない・ほかを さわらない */
+body.ovdrag{ user-select:none; -webkit-user-select:none; cursor:ew-resize; }
+body.ovdrag #ovPanel canvas, body.ovdrag #stageCv{ pointer-events:none; }
+#ovPanel .ovgrip{ z-index:35; }
