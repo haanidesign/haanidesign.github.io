@@ -282,3 +282,20 @@
 #list{ zoom:calc(var(--z-all, 1) * var(--z-list, 1)); }
 #sheet{ zoom:calc(var(--z-all, 1) * var(--z-sheet, 1)); }
 #honemode, #pinmode{ zoom:calc(var(--z-all, 1) * var(--z-hone, 1)); }
+
+/* 俯瞰の さかいめの つまみ（総合工房） */
+#ovPanel{ max-width:calc(100% - 120px); }
+#ovPanel .ovgrip{
+  position:absolute; left:-14px; top:0; bottom:0; width:26px; z-index:2;
+  cursor:ew-resize; touch-action:none;
+  display:flex; align-items:center; justify-content:center;
+}
+#ovPanel .ovgrip::after{
+  content:''; width:8px; height:56px; border-radius:100px;
+  background:var(--paper); border:2.5px solid var(--ink);
+}
+@media (max-width:700px){
+  #ovPanel{ max-width:none; }
+  #ovPanel .ovgrip{ left:0; right:0; top:-14px; bottom:auto; width:auto; height:26px; cursor:ns-resize; }
+  #ovPanel .ovgrip::after{ width:56px; height:8px; }
+}

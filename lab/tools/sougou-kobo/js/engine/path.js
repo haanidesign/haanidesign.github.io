@@ -9,7 +9,7 @@
         時間の 割りふりを 変える。
         ゆっくり出る に すれば、はじめは のろのろ 進む。 */
 
-import { setPin, EASES, curveAt } from './anim.js?v=361';
+import { setPin, EASES, curveAt } from './anim.js?v=363';
 
 /** 点の ならびの 長さ（道のり） */
 export function pathLength(pts){

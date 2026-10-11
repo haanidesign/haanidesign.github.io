@@ -9,10 +9,10 @@
      作品の まん中を 0、右が X+、下が Y+、おくが Z+（camera.js と 同じ）。
      レイヤーの おくゆきは depthLen、カメラの 目は ドリーより CAM_F 手前。
    見る がわの カメラ（view）は yaw・pitch・dist で まわりを まわる。 */
-import { computeAll } from '../engine/layer.js?v=361';
-import { camOf, camDolly, camTarget, depthLen, CAM_F, isCam } from '../engine/camera.js?v=361';
-import { valuesAt } from '../engine/anim.js?v=361';
-import { frameAsset, frameImage } from '../state.js?v=361';
+import { computeAll } from '../engine/layer.js?v=363';
+import { camOf, camDolly, camTarget, depthLen, CAM_F, isCam } from '../engine/camera.js?v=363';
+import { valuesAt } from '../engine/anim.js?v=363';
+import { frameAsset, frameImage } from '../state.js?v=363';
 
 const INK = '#1E1C14';
 const GRID = 'rgba(30,28,20,.18)';
@@ -39,8 +39,56 @@ export function createOverview(host){
   close.setAttribute('aria-label', '俯瞰を とじる');
   bar.append(ttl, front, side, top, close);
   const cv = document.createElement('canvas');
-  panel.append(bar, cv);
+  /* さかいめの つまみ。よこに なぞると 窓の はば（下に 出る ときは 高さ）が かわる。
+     この 端末だけの 好み として おぼえる */
+  const grip = document.createElement('div');
+  grip.className = 'ovgrip';
+  grip.title = 'なぞって 大きさを かえる';
+  panel.append(grip, bar, cv);
   host.appendChild(panel);
+  const SIZE_KEY = 'sougou-kobo.ovsize';
+  const narrow = () => matchMedia('(max-width:700px)').matches;
+  function applySize(){
+    let v = null;
+    try{ v = JSON.parse(localStorage.getItem(SIZE_KEY)); }catch(_){}
+    panel.style.width = (!narrow() && v && v.w) ? v.w + 'px' : '';
+    panel.style.height = (narrow() && v && v.h) ? v.h + 'px' : '';
+  }
+  applySize();
+  addEventListener('resize', applySize);
+  let g0 = null;
+  grip.addEventListener('pointerdown', (e) => {
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    const r = panel.getBoundingClientRect();
+    g0 = { x: e.clientX, y: e.clientY, w: r.width, h: r.height, moved: false };
+    e.preventDefault();
+  });
+  grip.addEventListener('pointermove', (e) => {
+    if(!g0) return;
+    const hr = host.getBoundingClientRect();
+    /* zoom の ぶん（画面の 大きさの 設定）を ならす */
+    const z = hr.width / (host.offsetWidth || hr.width) || 1;
+    if(narrow()){
+      const h = Math.max(160, Math.min(hr.height - 80, g0.h - (e.clientY - g0.y)));
+      panel.style.height = Math.round(h / z) + 'px';
+    } else {
+      const w = Math.max(220, Math.min(hr.width - 160, g0.w - (e.clientX - g0.x)));
+      panel.style.width = Math.round(w / z) + 'px';
+    }
+    want();
+  });
+  const gEnd = () => {
+    if(!g0) return;
+    g0 = null;
+    try{
+      const v = JSON.parse(localStorage.getItem(SIZE_KEY) || '{}') || {};
+      if(narrow()) v.h = parseInt(panel.style.height, 10) || undefined;
+      else v.w = parseInt(panel.style.width, 10) || undefined;
+      localStorage.setItem(SIZE_KEY, JSON.stringify(v));
+    }catch(_){}
+  };
+  grip.addEventListener('pointerup', gEnd);
+  grip.addEventListener('pointercancel', gEnd);
   const g = cv.getContext('2d');
 
   const V = { yaw: -35, pitch: 24, dist: 4200, cx: 0, cy: 0, cz: 600 };
