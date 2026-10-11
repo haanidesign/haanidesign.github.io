@@ -3,8 +3,8 @@
    エンジン（lib/jizura-engine.js・2MB）は はじめて つかう ときに だけ 読みこむ。
    作品と 同じ 大きさの 紙に 描いて、ふつうの レイヤーとして 出す。
    時間は レイヤーの「出す ところ」の はじまりが 0。 */
-import { newLayer } from '../engine/layer.js?v=364';
-import { draw, newJz, durOf, ready, styles } from './jz.js?v=364';
+import { newLayer } from '../engine/layer.js?v=367';
+import { draw, newJz, durOf, ready, styles } from './jz.js?v=367';
 
 let loading = null;
 let redraw = () => {};
@@ -14,7 +14,7 @@ export function loadEngine(){
   if(loading) return loading;
   loading = new Promise((ok) => {
     const s = document.createElement('script');
-    s.src = 'lib/jizura-engine.js?v=364';
+    s.src = 'lib/jizura-engine.js?v=367';
     s.onload = () => { ok(true); redraw(); };
     s.onerror = () => { loading = null; ok(false); };
     document.head.appendChild(s);

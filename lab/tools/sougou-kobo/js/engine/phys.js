@@ -13,7 +13,7 @@
    作品を 直したら（もどす の 番号が かわったら）計算しなおす。
 
    計算の あいだは ばねを 切った 姿を 見る（物理の 入力は 親の 動き だけ）。 */
-import { S, undoDepth } from '../state.js?v=364';
+import { S, undoDepth } from '../state.js?v=367';
 
 export const DT = 1 / 60;
 const SUB = 4;                      // 1コマを さらに 細かく（かたい ばねでも くずれない）
