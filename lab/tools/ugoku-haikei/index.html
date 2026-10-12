@@ -88,6 +88,9 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
     <h2>おまかせ</h2>
     <div class="row2" id="presets"></div>
 
+    <h2>配色 <small>えらぶと 背景・下地・つぶの 色が かわる</small></h2>
+    <div id="haishoku"></div>
+
     <h2>大きさ・長さ</h2>
     <div class="row"><label>形</label>
       <select id="size">
@@ -203,6 +206,7 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
 <script src="lib/mp4-muxer.js"></script>
 <script type="module">
 import { watchRanges } from '../oekaki-kobo/js/rslider.js';
+import { haishokuPicker } from '../skin/haishoku.js';
 
 const $ = s => document.querySelector(s);
 const TAU = Math.PI * 2;
@@ -749,6 +753,15 @@ function applyPreset(name) {
   S.layers = [...keepImgs, ...P.layers]; S.sel = S.layers.length ? 0 : -1;
   syncInputs(); refresh();
 }
+/* 配色を まるごと 当てる（画像の つぶは そのまま） */
+$('#haishoku').append(haishokuPicker(p => {
+  [S.bg.c1, S.bg.c2, S.bg.c3] = p.bg;
+  if (S.bg.mode === 'none') S.bg.mode = 'grad';
+  [S.base.c1, S.base.c2] = [p.acc[1], p.acc[0]];
+  let k = 0;
+  for (const L of S.layers) if (L.shape !== 'image') { L.colors = [0, 1, 2].map(i => p.acc[(i + k) % 3]); k++; }
+  syncInputs(); refresh();
+}));
 for (const n of Object.keys(PRESETS)) {
   const b = document.createElement('button'); b.className = 'btn s'; b.textContent = n; b.onclick = () => applyPreset(n); $('#presets').append(b);
 }

@@ -7,6 +7,7 @@ import {
 import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=75';
 import { storeOk } from '../store.js?v=75';
 import { bus } from '../bus.js?v=75';
+import { haishokuPicker } from '../../../skin/haishoku.js';
 import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=75';
 import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=75';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
@@ -483,6 +484,13 @@ function clipBody(c) {
     ]));
 
     w.appendChild(group('いろ と かざり', [
+      grid('配色', [btn(hsOpen ? 'とじる' : '見本から えらぶ', 'btn-sm' + (hsOpen ? ' on' : ''), () => { hsOpen = !hsOpen; draw(); })]),
+      hsOpen ? haishokuPicker(p => {
+        T.color = p.text; T.stroke = p.stroke; T.color2 = p.acc[1];
+        T.glowColor = p.acc[1]; T.shadowColor = p.bg[0]; T.bgColor = p.bg[1];
+        if (!T.sw) T.sw = 8;
+        pushUndo(); live(); draw();
+      }) : null,
       color('いろ', T.color, v => { T.color = v; live(); }),
       grid('グラデ', [
         btn(T.grad ? 'あり' : 'なし', 'btn-sm' + (T.grad ? ' on' : ''),
@@ -748,7 +756,8 @@ let lyMood = 'all';
 let lyFix = {};           // きめうち（指定）した ところ
 let lyTarget = 'all';     // いま ある 文字に かける とき、どれに
 let lyKeepPos = true;     // いちは そのまま
-let lyKeepColor = false;  // 色は そのまま
+let lyKeepColor = false;
+let hsOpen = false;     // 文字の 配色見本を ひらく  // 色は そのまま
 let lyOpen = false;       // 「ここは きめる」を ひらいて いるか
 let lyHist = [];          // ためした たねの ならび
 let lyAt = -1;            // いま どこを 見て いるか
