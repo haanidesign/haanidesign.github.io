@@ -124,6 +124,8 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
       <button class="btn s" data-base="smoke">ダークもや</button>
       <button class="btn s" data-base="fire">炎</button>
       <button class="btn s" data-base="stripe">斜めストライプ</button>
+      <button class="btn s" data-base="light">光の筋</button>
+      <button class="btn s" data-base="swirl">うず</button>
     </div>
     <div id="baseBox">
       <div class="row2"><span class="note" style="width:88px">色</span><input type="color" id="b1"><input type="color" id="b2"></div>
@@ -379,7 +381,7 @@ function drawBg(c, p, W, H) {
 
 /* ---------- 下地の動き（どれも 1周で もとに もどる） ---------- */
 const BASE_COLORS = {
-  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#6b5a85', '#120d1c'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'],
+  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#6b5a85', '#120d1c'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'], light: ['#fff8dc', '#ffe0f0'], swirl: ['#ffc8e4', '#b9d6ff'],
 };
 
 /* つなぎ目の ない ノイズ（256 で 一回り）。1周で 256 ずらせば 動画も つながる */
@@ -437,6 +439,55 @@ function drawSmoke(c, p, W, H, B) {
   }
   wc.putImageData(img, 0, 0);
   c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(work, 0, 0, W, H);
+}
+
+// 光の筋: 上から 差しこむ 斜めの 光が ゆっくり 横に 流れ、ちりが 舞う
+function drawLight(c, p, W, H, B) {
+  const pw = B.power / 100, am = B.amount / 100, L = B.laps, r = rng(515), D = Math.hypot(W, H);
+  const n = Math.round(4 + am * 10);
+  c.save();
+  for (let i = 0; i < n; i++) {
+    const x0 = r(), wd = W * (.03 + r() * .09) * (.6 + am), o = r(), col = r() < .6 ? B.c1 : B.c2;
+    const x = (-.2 + frac(x0 + L * p) * 1.4) * W;
+    const a = (.25 + .5 * pw) * (.55 + .45 * Math.sin(TAU * (p * L * (1 + (r() * 2 | 0)) + o)));
+    c.save(); c.translate(x, -H * .05); c.rotate(.35);
+    const g = c.createLinearGradient(-wd, 0, wd, 0);
+    g.addColorStop(0, col + '00'); g.addColorStop(.5, col); g.addColorStop(1, col + '00');
+    c.globalAlpha = Math.max(0, a); c.fillStyle = g; c.fillRect(-wd, 0, wd * 2, D);
+    c.restore();
+  }
+  // 上の ほうを 明るく
+  const top = c.createLinearGradient(0, 0, 0, H * .7);
+  top.addColorStop(0, B.c1 + Math.round(120 * pw).toString(16).padStart(2, '0')); top.addColorStop(1, B.c1 + '00');
+  c.globalAlpha = 1; c.fillStyle = top; c.fillRect(0, 0, W, H);
+  // ちり
+  const U = Math.min(W, H), m = Math.round(40 + am * 120);
+  for (let i = 0; i < m; i++) {
+    const laps = L * (1 + (r() * 2 | 0)), q = frac(r() + laps * p), x0 = r(), o = r();
+    const x = (x0 + .03 * Math.sin(TAU * (q + o))) * W, y = (-.05 + q * 1.1) * H, rad = U * (.0015 + r() * .003);
+    c.globalAlpha = (.3 + .6 * pw) * Math.sin(q * Math.PI) * (.5 + .5 * Math.sin(TAU * (p * L * 3 + o)));
+    c.fillStyle = '#ffffff'; c.beginPath(); c.arc(x, y, rad, 0, TAU); c.fill();
+  }
+  c.restore();
+}
+
+// うず: まんなかを 中心に ねじれた ノイズで 2色を まぜる
+function drawSwirl(c, p, W, H, B) {
+  const { wc, img, w, h } = workImage(W, H, 240), d = img.data;
+  const pw = B.power / 100, am = B.amount / 100, sh = 256 * B.laps * p;
+  const A = hexRgb(B.c1), Bc = hexRgb(B.c2), unit = Math.max(w, h), twist = 1.5 + am * 5, arms = 1 + Math.round(am * 2);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const dx = (x - w / 2) / unit, dy = (y - h / 2) / unit, rr = Math.hypot(dx, dy);
+    const th = Math.atan2(dy, dx) / TAU + rr * twist * .5;
+    const n = nz(th * 256 * arms + sh, rr * 90 - sh) , n2 = nz(th * 256 + 77 - sh, rr * 40 + sh);
+    const m = Math.max(0, Math.min(1, (n * .7 + n2 * .3 - .5) * (2 + pw * 4) + .5));
+    const k = (y * w + x) * 4;
+    d[k] = A[0] + (Bc[0] - A[0]) * m; d[k + 1] = A[1] + (Bc[1] - A[1]) * m; d[k + 2] = A[2] + (Bc[2] - A[2]) * m;
+    d[k + 3] = 255 * (.35 + .65 * pw);
+  }
+  wc.putImageData(img, 0, 0);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.filter = `blur(${Math.min(W, H) * .004}px)`; c.drawImage(work, 0, 0, W, H); c.filter = 'none';
 }
 
 // 炎: 下から 上へ 流れる ノイズを、列ごとに 高さの ちがう 炎の 形で 切りぬく
@@ -513,6 +564,10 @@ function drawBase(c, p, W, H) {
     drawSmoke(c, p, W, H, B);
   } else if (B.type === 'fire') {
     drawFire(c, p, W, H, B);
+  } else if (B.type === 'light') {
+    drawLight(c, p, W, H, B);
+  } else if (B.type === 'swirl') {
+    drawSwirl(c, p, W, H, B);
   }
   c.restore();
 }
@@ -663,6 +718,23 @@ const PRESETS = {
       newLayer('shard', { count: 20, size: 2.5, motion: 'up', speed: 1, spin: 2, twinkle: 40, glow: 50, blend: 'lighter', opacity: 70, colors: ['#ff6a00', '#ffb400', '#ff3b1f'] })] }),
   'ゆき': () => ({ bg: { mode: 'grad', c1: '#9fb7d9', c2: '#e9f0fb', c3: '#cbd9ee' }, fx: { leak: 15, sweep: 0, vig: 20, grain: 8, rgb: 0 },
     layers: [newLayer('snow', { count: 160, size: 1.6, motion: 'down', speed: 1, sway: 60, twinkle: 0, glow: 0, depth: 90, colors: ['#ffffff'] })] }),
+'盛り上がり': () => ({ bg: { mode: 'solid', c1: '#fff3b8', c2: '#fff3b8', c3: '#fff3b8' }, fx: { leak: 30, sweep: 40, vig: 5, grain: 4, rgb: 0 },
+    base: { type: 'sunburst', c1: '#ffe879', c2: '#ff9f4d', laps: 1, power: 70, amount: 50 },
+    layers: [newLayer('sparkle', { count: 18, size: 3.5, motion: 'out', twinkle: 60, glow: 60, colors: ['#ffffff', '#fff6bc'] })] }),
+  '気合い・怒り': () => ({ bg: { mode: 'solid', c1: '#0c0506', c2: '#0c0506', c3: '#0c0506' }, fx: { leak: 10, sweep: 0, vig: 40, grain: 10, rgb: 20 },
+    base: { type: 'fire', c1: '#e83c10', c2: '#ffe077', laps: 2, power: 75, amount: 60 }, layers: [] }),
+  '不穏・緊張': () => ({ bg: { mode: 'solid', c1: '#090e17', c2: '#090e17', c3: '#090e17' }, fx: { leak: 0, sweep: 0, vig: 50, grain: 14, rgb: 10 },
+    base: { type: 'smoke', c1: '#73869b', c2: '#283445', laps: 1, power: 65, amount: 60 }, layers: [] }),
+  'ドン引き': () => ({ bg: { mode: 'solid', c1: '#1a1424', c2: '#1a1424', c3: '#1a1424' }, fx: { leak: 0, sweep: 0, vig: 55, grain: 12, rgb: 0 },
+    base: { type: 'smoke', c1: '#5d4f78', c2: '#0b0812', laps: 1, power: 75, amount: 45 }, layers: [] }),
+  'ほのぼの': () => ({ bg: { mode: 'solid', c1: '#fff8ee', c2: '#fff8ee', c3: '#fff8ee' }, fx: { leak: 25, sweep: 0, vig: 0, grain: 4, rgb: 0 },
+    base: { type: 'swirl', c1: '#ffe0ef', c2: '#d9ecff', laps: 1, power: 55, amount: 30 },
+    layers: [newLayer('bokeh', { count: 14, size: 8, motion: 'float', blend: 'screen', opacity: 60, glow: 0, colors: ['#ffffff'] })] }),
+  '紹介・会話': () => ({ bg: { mode: 'solid', c1: '#effbff', c2: '#effbff', c3: '#effbff' }, fx: { leak: 0, sweep: 0, vig: 0, grain: 0, rgb: 0 },
+    base: { type: 'stripe', c1: '#bfe8f5', c2: '#effbff', laps: 1, power: 60, amount: 35 }, layers: [] }),
+  '神々しい': () => ({ bg: { mode: 'grad', c1: '#b9a6dc', c2: '#f6d8c0', c3: '#e9c9e0' }, fx: { leak: 30, sweep: 0, vig: 5, grain: 4, rgb: 0 },
+    base: { type: 'light', c1: '#fff8dc', c2: '#ffe0f0', laps: 1, power: 70, amount: 50 },
+    layers: [newLayer('sparkle', { count: 14, size: 2.5, motion: 'float', twinkle: 90, glow: 60, colors: ['#ffffff', '#fff3b0'] })] }),
   '電脳': () => ({ bg: { mode: 'grad', c1: '#120a2a', c2: '#3b0a55', c3: '#0d2a4f' }, fx: { leak: 25, sweep: 40, vig: 35, grain: 15, rgb: 60 },
     layers: [newLayer('shard', { count: 26, size: 4, motion: 'up', speed: 1, spin: 1, twinkle: 50, glow: 70, blend: 'lighter', opacity: 70, colors: ['#ff3bd4', '#3bd9ff', '#a66bff'] }),
       newLayer('ring', { count: 12, size: 4, motion: 'out', speed: 1, twinkle: 0, glow: 60, blend: 'lighter', colors: ['#3bd9ff', '#ff3bd4'] }),
@@ -673,7 +745,7 @@ function applyPreset(name) {
   const keepImgs = S.layers.filter(L => L.shape === 'image');
   Object.assign(S.bg, P.bg, S.bg.img && S.bg.mode === 'img' ? { mode: 'img' } : {});
   Object.assign(S.fx, P.fx);
-  S.base.type = P.base || 'none';
+  if (P.base) Object.assign(S.base, P.base); else S.base.type = 'none';
   S.layers = [...keepImgs, ...P.layers]; S.sel = S.layers.length ? 0 : -1;
   syncInputs(); refresh();
 }
