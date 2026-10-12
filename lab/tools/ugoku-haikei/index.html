@@ -206,6 +206,7 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
 <script src="lib/mp4-muxer.js"></script>
 <script type="module">
 import { watchRanges } from '../oekaki-kobo/js/rslider.js';
+import { watchColors } from '../../haani-color.js';
 import { haishokuPicker } from '../skin/haishoku.js';
 
 const $ = s => document.querySelector(s);
@@ -1152,6 +1153,7 @@ $('#fullGo').onclick = () => {
 };
 
 watchRanges();
+watchColors();
 applyPreset('キラキラ');
 </script>
 </body>
