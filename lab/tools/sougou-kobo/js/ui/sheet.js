@@ -1,5 +1,6 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
+import { haishokuPicker } from '../../../skin/haishoku.js';
 import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=372';
 import { omakase } from '../moji/omakase.js?v=372';
 import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=372';
@@ -609,6 +610,19 @@ export function button(text, fn, cls){
  * 色えらび。おすと カラーサークルが 下に ひらく。
  * まわりの わっか＝色あい、まん中の 四角＝こさ と 明るさ。
  */
+/* 配色の 見本（ひらいた まま シートを 作り直しても とじない） */
+let hsOpen = false;
+function haishokuBox(apply){
+  const w = document.createElement('div');
+  const b = document.createElement('button');
+  b.className = 'btn-sm' + (hsOpen ? ' on' : '');
+  b.textContent = hsOpen ? '配色の 見本を とじる' : '🎨 配色の 見本から えらぶ';
+  b.addEventListener('click', () => { hsOpen = !hsOpen; onChange(); });
+  w.appendChild(b);
+  if(hsOpen) w.appendChild(haishokuPicker(apply));
+  return w;
+}
+
 export function colorPick(label, get, set){
   const NL = String.fromCharCode(10);
   const wrap = document.createElement('div');
@@ -2049,6 +2063,15 @@ function ugokuRow(box){
   const U = L.ugoku;
   box.appendChild(slider('1周の 長さ', () => U.loop, v => { U.loop = v; }, 1, 20, 0.5, v => v.toFixed(1) + '秒'));
 
+  box.appendChild(haishokuBox(p => {
+    edit('配色: ' + p.name, () => {
+      [U.bg.c1, U.bg.c2, U.bg.c3] = p.bg;
+      if(U.bg.mode === 'none') U.bg.mode = 'grad';
+      [U.base.c1, U.base.c2] = [p.acc[1], p.acc[0]];
+      U.layers.forEach((P, k) => { if(P.colors) P.colors = [0, 1, 2].map(i => p.acc[(i + k) % 3]); });
+    });
+    onChange();
+  }));
   box.appendChild(ugSelect('下じき', { grad: 'グラデ', solid: '1色', none: 'なし（すける）' }, () => U.bg.mode, v => { U.bg.mode = v; }));
   if(U.bg.mode !== 'none') box.appendChild(colorPick('色1', () => U.bg.c1, v => { U.bg.c1 = v; }));
   if(U.bg.mode === 'grad'){
@@ -3706,6 +3729,11 @@ export function buildTextSheet(box, closeFn){
   box.appendChild(field('しょたい', fsel));
 
   const colorRow = (label, get, set) => colorPick(label, get, (v) => { set(v); redraw(); });
+  box.appendChild(haishokuBox(p => {
+    const f = () => { t.color = p.text; t.stroke = p.stroke; if(!t.strokeWidth) t.strokeWidth = 8; };
+    if(editing) edit('配色: ' + p.name, f); else f();
+    redraw(); onChange();
+  }));
   box.appendChild(colorRow('もじの色', () => t.color,  v => t.color = v));
   box.appendChild(colorRow('ふちの色', () => t.stroke, v => t.stroke = v));
 
@@ -7169,6 +7197,14 @@ function mojiSection(box, withLyrics){
     box.appendChild(field('もじ', ta));
     box.appendChild(mojiSelect('書たい', mjFonts(), () => T.font, v => { T.font = v; }));
     box.appendChild(slider('大きさ', () => T.size, v => { T.size = v; }, 20, 400, 1, v => Math.round(v) + 'px'));
+    box.appendChild(haishokuBox(p => {
+      edit('配色: ' + p.name, () => {
+        T.color = p.text; T.stroke = p.stroke;
+        T.glowColor = p.acc[1]; T.bgColor = p.bg[1];
+        if(!T.sw) T.sw = 8;
+      });
+      onChange();
+    }));
     box.appendChild(colorPick('文字の色', () => T.color, v => { T.color = v; }));
     box.appendChild(colorPick('ふちの色', () => T.stroke, v => { T.stroke = v; }));
     box.appendChild(slider('ふちの 太さ', () => T.sw, v => { T.sw = v; }, 0, 40, 1, v => Math.round(v) + 'px'));
