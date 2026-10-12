@@ -379,15 +379,113 @@ function drawBg(c, p, W, H) {
 
 /* ---------- 下地の動き（どれも 1周で もとに もどる） ---------- */
 const BASE_COLORS = {
-  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#2a1f3d', '#000000'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'],
+  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#6b5a85', '#120d1c'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'],
 };
-const low = document.createElement('canvas');
-function lowCanvas(W, H, k) {
-  const w = Math.max(16, Math.round(W / k)), h = Math.max(16, Math.round(H / k));
-  if (low.width !== w || low.height !== h) { low.width = w; low.height = h; }
-  const lc = low.getContext('2d'); lc.setTransform(1, 0, 0, 1, 0, 0); lc.globalCompositeOperation = 'source-over'; lc.globalAlpha = 1; lc.clearRect(0, 0, w, h);
-  return lc;
+
+/* つなぎ目の ない ノイズ（256 で 一回り）。1周で 256 ずらせば 動画も つながる */
+const NZ = (() => {
+  const N = 256, f = new Float32Array(N * N), r = rng(9301);
+  for (let o = 0, wsum = 0, amp = 1; o < 5; o++, amp *= .5) {
+    const cells = 8 << o, g = new Float32Array(cells * cells);
+    for (let i = 0; i < g.length; i++) g[i] = r();
+    const k = N / cells;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const gx = x / k, gy = y / k, ix = gx | 0, iy = gy | 0;
+      let fx = gx - ix, fy = gy - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+      const x1 = (ix + 1) % cells, y1 = (iy + 1) % cells;
+      const top = g[iy * cells + ix] * (1 - fx) + g[iy * cells + x1] * fx;
+      const bot = g[y1 * cells + ix] * (1 - fx) + g[y1 * cells + x1] * fx;
+      f[y * N + x] += (top * (1 - fy) + bot * fy) * amp;
+    }
+    wsum += amp;
+    if (o === 4) for (let i = 0; i < f.length; i++) f[i] /= wsum;
+  }
+  return f;
+})();
+function nz(x, y) {
+  x = ((x % 256) + 256) % 256; y = ((y % 256) + 256) % 256;
+  const ix = x | 0, iy = y | 0, fx = x - ix, fy = y - iy, x1 = (ix + 1) & 255, y1 = (iy + 1) & 255;
+  return (NZ[iy * 256 + ix] * (1 - fx) + NZ[iy * 256 + x1] * fx) * (1 - fy) + (NZ[y1 * 256 + ix] * (1 - fx) + NZ[y1 * 256 + x1] * fx) * fy;
 }
+const hexRgb = h => { const n = parseInt(h.slice(1), 16); return [n >> 16, n >> 8 & 255, n & 255]; };
+const work = document.createElement('canvas');
+function workImage(W, H, long) {
+  const k = long / Math.max(W, H), w = Math.max(8, Math.round(W * k)), h = Math.max(8, Math.round(H * k));
+  if (work.width !== w || work.height !== h) { work.width = w; work.height = h; }
+  const wc = work.getContext('2d');
+  return { wc, img: wc.createImageData(w, h), w, h };
+}
+
+// もや: ゆがめた ノイズを 雲の 濃さに して、まわりほど 濃く
+function drawSmoke(c, p, W, H, B) {
+  const { wc, img, w, h } = workImage(W, H, 260), d = img.data;
+  const pw = B.power / 100, am = B.amount / 100, sh = 256 * B.laps * p;
+  const smoke = hexRgb(B.c1), deep = hexRgb(B.c2), unit = Math.min(w, h), sc = 70 / (.6 + am);
+  const cut = .5 - am * .18;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const u = (x - w / 2) / unit * sc + 128, v = (y - h / 2) / unit * sc + 128;
+    const q1 = nz(u * .6 + sh, v * .6) - .5, q2 = nz(u * .6 + 91, v * .6 - sh) - .5;
+    const n = nz(u + q1 * 60 + sh, v + q2 * 60);
+    const n2 = nz(u * 1.7 - q2 * 40, v * 1.7 + q1 * 40 - sh);
+    const ex = (x / w - .5) * 2, ey = (y / h - .5) * 2, edge = Math.min(1, Math.hypot(ex, ey * 1.1) * .8);
+    let den = Math.max(0, Math.min(1, (n - cut) * 2.8));
+    den = Math.pow(den, 1.4) * (.35 + .65 * edge) * (.35 + .75 * pw) + edge * edge * .35 * pw;
+    den = Math.min(1, den);
+    const hi = Math.max(0, Math.min(1, (n2 - .4) * 2.5)), k = (y * w + x) * 4;
+    d[k] = deep[0] + (smoke[0] - deep[0]) * hi; d[k + 1] = deep[1] + (smoke[1] - deep[1]) * hi; d[k + 2] = deep[2] + (smoke[2] - deep[2]) * hi;
+    d[k + 3] = den * 255;
+  }
+  wc.putImageData(img, 0, 0);
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(work, 0, 0, W, H);
+}
+
+// 炎: 下から 上へ 流れる ノイズを、列ごとに 高さの ちがう 炎の 形で 切りぬく
+function drawFire(c, p, W, H, B) {
+  const { wc, img, w, h } = workImage(W, H, 300), d = img.data;
+  const pw = B.power / 100, am = B.amount / 100, sh = 256 * B.laps * p;
+  const edgeC = hexRgb(B.c1), hotC = hexRgb(B.c2), unit = Math.min(w, h), sc = 55 * (.6 + am * .9);
+  const flameH = h * (.28 + .5 * pw);
+  for (let x = 0; x < w; x++) {
+    const u = x / unit * sc;
+    const colH = flameH * (.45 + .75 * nz(u * .35 + sh, 31.7));
+    for (let y = h - 1; y >= 0; y--) {
+      const rise = h - y; if (rise > colH * 1.6) break;
+      const v = rise / unit * sc;
+      const wx = nz(u * .8, v * .8 - sh) - .5, wy = nz(u * .8 + 57, v * .8 - sh + 23) - .5;
+      const n = nz(u + wx * 30, v * 1.3 + wy * 20 - sh * 2);
+      const t = rise / colH;
+      let it = (1 - t) * 1.25 + (n - .5) * 1.5;
+      it = Math.max(0, Math.min(1, it));
+      if (it < .02) continue;
+      it = Math.pow(it, 1.3);
+      const k = (y * w + x) * 4, warm = Math.min(1, it * 1.4), core = Math.max(0, (it - .75) * 2.5);
+      for (let ch = 0; ch < 3; ch++) {
+        const base = edgeC[ch] + (hotC[ch] - edgeC[ch]) * warm;
+        d[k + ch] = base + (255 - base) * core * .7;
+      }
+      d[k + 3] = Math.min(255, it * 2 * 255);
+    }
+  }
+  wc.putImageData(img, 0, 0);
+  const g = c.createLinearGradient(0, H * (1 - .5 * pw), 0, H);
+  g.addColorStop(0, B.c1 + '00'); g.addColorStop(1, B.c1 + '55');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.globalCompositeOperation = S.bg.mode === 'none' ? 'source-over' : 'screen';
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  c.filter = `blur(${Math.min(W, H) * .003}px)`; c.drawImage(work, 0, 0, W, H); c.filter = 'none';
+  // 火の粉（1周で 整数回 のぼる）
+  const r = rng(4242), n = Math.round(30 + am * 90), U = Math.min(W, H);
+  for (let i = 0; i < n; i++) {
+    const laps = B.laps * (1 + (r() * 2 | 0)), q = frac(r() + laps * p), x0 = r(), sway = r();
+    const x = (x0 + .02 * Math.sin(TAU * (q * 2 + sway))) * W, y = H * (1 - q * (.5 + .45 * pw));
+    const rad = U * (.002 + r() * .003);
+    c.globalAlpha = Math.sin(q * Math.PI) * (.5 + .5 * pw);
+    c.fillStyle = r() < .5 ? B.c2 : '#ffffff';
+    c.beginPath(); c.ellipse(x, y, rad, rad * 2.2, 0, 0, TAU); c.fill();
+  }
+  c.globalAlpha = 1;
+}
+
 function drawBase(c, p, W, H) {
   const B = S.base; if (B.type === 'none') return;
   const D = Math.hypot(W, H), pw = B.power / 100, am = B.amount / 100, L = B.laps;
@@ -412,36 +510,9 @@ function drawBase(c, p, W, H) {
     const n = Math.ceil(D / per) + 2;
     for (let k = -n; k <= n; k++) c.fillRect(k * per + off, -D, sw, D * 2);
   } else if (B.type === 'smoke') {
-    const lc = lowCanvas(W, H, 10), w = lc.canvas.width, h = lc.canvas.height, n = Math.round(8 + am * 22);
-    for (let i = 0; i < n; i++) {
-      const edge = r() < .55, f1 = 1 + (r() * 2 | 0), o = r(), o2 = r();
-      let x = r(), y = edge ? (r() < .5 ? r() * .25 : 1 - r() * .25) : .55 + r() * .5;
-      x += .12 * Math.sin(TAU * (p * L * f1 + o)); y += .08 * Math.cos(TAU * (p * L + o2));
-      const rad = Math.max(w, h) * (.12 + r() * .22) * (1 + .15 * Math.sin(TAU * (p * L + o)));
-      const g = lc.createRadialGradient(x * w, y * h, 0, x * w, y * h, rad);
-      g.addColorStop(0, B.c1); g.addColorStop(1, B.c1 + '00');
-      lc.globalAlpha = .35 + .5 * pw; lc.fillStyle = g; lc.fillRect(0, 0, w, h);
-    }
-    const g2 = lc.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .2, w / 2, h / 2, Math.max(w, h) * .75);
-    g2.addColorStop(0, B.c2 + '00'); g2.addColorStop(1, B.c2);
-    lc.globalAlpha = .5 + .5 * pw; lc.fillStyle = g2; lc.fillRect(0, 0, w, h);
-    c.filter = `blur(${Math.min(W, H) * .02}px)`; c.drawImage(low, 0, 0, W, H);
+    drawSmoke(c, p, W, H, B);
   } else if (B.type === 'fire') {
-    const lc = lowCanvas(W, H, 8), w = lc.canvas.width, h = lc.canvas.height, n = Math.round(60 + am * 140);
-    const g0 = lc.createLinearGradient(0, h, 0, h * (1 - .35 * pw - .1));
-    g0.addColorStop(0, B.c1); g0.addColorStop(1, B.c1 + '00'); lc.fillStyle = g0; lc.fillRect(0, 0, w, h);
-    lc.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < n; i++) {
-      const x0 = r(), o = r(), laps = L * (1 + (r() * 2 | 0)), t = frac(o + laps * p);
-      const hgt = .25 + .55 * pw * (.5 + r() * .5);
-      const x = (x0 + .03 * Math.sin(TAU * (t * 2 + o))) * w, y = h * (1.05 - t * hgt);
-      const rad = Math.min(w, h) * (.03 + .06 * (1 - t)) * (.6 + am * .8);
-      const g = lc.createRadialGradient(x, y, 0, x, y, rad);
-      g.addColorStop(0, t < .35 ? B.c2 : B.c1); g.addColorStop(1, B.c1 + '00');
-      lc.globalAlpha = (1 - t) * .55; lc.fillStyle = g; lc.fillRect(x - rad, y - rad, rad * 2, rad * 2);
-    }
-    c.globalCompositeOperation = S.bg.mode === 'none' ? 'source-over' : 'screen';
-    c.filter = `blur(${Math.min(W, H) * .008}px)`; c.drawImage(low, 0, 0, W, H);
+    drawFire(c, p, W, H, B);
   }
   c.restore();
 }
