@@ -15,13 +15,13 @@ const TOOLS = [
   },
   {
     no: 2,
-    slug: "flare-maker",
-    title: "フレアライトメーカー",
-    desc: "十字フラッシュ・集中光バースト・電撃アークなど13種の手描き風光エフェクト。コマ打ちとボイルを付けて透過連番PNGで出力。",
+    slug: "effect-maker",
+    title: "エフェクトメーカー",
+    desc: "光・衝撃・魔法・漫符・天気・画面効果など49種のアニメ風エフェクト。コマ打ちと線のゆれを付けて、透過の連番PNG・WebM・スプライトで書き出す。",
     tags: ["AE素材", "エフェクト", "連番PNG"],
     cat: "anime",
-    thumb: "thumbs/flare-maker.png",
-    url: "tools/flare-maker/index.html",
+    thumb: "thumbs/effect-maker.png",
+    url: "tools/effect-maker/index.html",
     status: "live"
   },
   {
