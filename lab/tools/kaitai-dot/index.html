@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ドット解体</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60;--main-deep:#B8B43F;--main-soft:#F2F0BE;
+  --cream:#FBFAEC;--paper:#FFFEF7;--ink:#1E1C14;--ink-2:#4F4A3B;--gray:#6E6857;
+  --pink:#F2A0B8;--rule:rgba(30,28,20,.22);
+  --bd:2.5px solid var(--ink);--r:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--cream);color:var(--ink);
+  font-family:'M PLUS Rounded 1c',sans-serif;font-weight:500;font-size:1rem;
+  display:flex;flex-direction:column;
+}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+::selection{background:var(--main);color:var(--ink)}
+
+.bar{
+  background:var(--main);border-bottom:var(--bd);
+  display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;flex-wrap:wrap;
+}
+.bar h1{margin:0;font-size:1.3rem;font-weight:800;margin-right:auto}
+.bar h1 a{color:inherit;text-decoration:none}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  background:var(--paper);color:var(--ink);border:var(--bd);border-radius:var(--r);
+  padding:.5rem 1rem;font:inherit;font-weight:700;font-size:.95rem;
+  cursor:pointer;transition:background-color .15s;white-space:nowrap;
+}
+.btn:hover{background:var(--main-soft)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn-g{background:var(--ink);color:var(--main)}
+.btn-g:hover{background:var(--ink);color:var(--paper)}
+
+.app{flex:1;display:flex;min-height:0}
+.view{
+  flex:1;min-width:0;position:relative;overflow:hidden;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
+  background-size:16px 16px;
+  display:flex;align-items:center;justify-content:center;
+}
+#out{image-rendering:pixelated;border:var(--bd);background:#000;max-width:none;display:none}
+.drop{
+  text-align:center;padding:2.2rem 2.4rem;background:var(--paper);
+  border:2.5px dashed var(--ink);border-radius:20px;cursor:pointer;max-width:26rem;
+}
+.drop b{display:block;font-size:1.35rem;font-weight:800;margin-bottom:.3rem}
+.drop p{margin:0;color:var(--ink-2)}
+.view.over .drop,.view.over #out{background:var(--main-soft)}
+.hint{
+  position:absolute;left:1rem;bottom:1rem;background:var(--paper);border:2px solid var(--ink);
+  border-radius:100px;padding:.15rem .8rem;font-size:.85rem;font-weight:700;display:none;
+}
+.size{
+  position:absolute;right:1rem;bottom:1rem;font-family:'DotGothic16',monospace;
+  background:var(--ink);color:var(--main);border-radius:8px;padding:.1rem .6rem;
+  font-variant-numeric:tabular-nums;display:none;
+}
+
+.side{
+  width:320px;flex:0 0 320px;border-left:var(--bd);background:var(--paper);
+  overflow-y:auto;padding:1rem 1.1rem 2rem;
+}
+.side h2{font-size:1.05rem;font-weight:800;margin:1.3rem 0 .5rem;padding-top:1rem;border-top:2.5px dotted var(--rule)}
+.side h2:first-child{margin-top:0;padding-top:0;border-top:0}
+.row{display:grid;grid-template-columns:5.5rem 1fr 2.6rem;align-items:center;gap:.5rem;margin:.35rem 0}
+.row label{font-weight:700;font-size:.9rem}
+.row output{font-family:'DotGothic16',monospace;text-align:right;font-variant-numeric:tabular-nums}
+
+/* パレット：ひとつずつ形のちがうボタンではなく、色見本の帯で選ぶ */
+.pals{display:flex;flex-direction:column;gap:.45rem}
+.pal{
+  display:flex;align-items:center;gap:.6rem;width:100%;text-align:left;
+  background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:.35rem .5rem;
+  font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;
+}
+.pal:hover{background:var(--main-soft)}
+.pal.on{background:var(--main)}
+.pal .sw{display:flex;border:2px solid var(--ink);border-radius:4px;overflow:hidden;flex:0 0 auto}
+.pal .sw i{width:12px;height:18px;display:block}
+.pal span{flex:1}
+
+.seg{display:flex;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
+.seg button{
+  flex:1;background:var(--paper);border:0;border-left:2px solid var(--ink);
+  font:inherit;font-weight:700;font-size:.85rem;padding:.4rem 0;cursor:pointer;
+}
+.seg button:first-child{border-left:0}
+.seg button:hover{background:var(--main-soft)}
+.seg button.on{background:var(--ink);color:var(--main)}
+
+.note{color:var(--gray);font-size:.85rem;margin:.4rem 0 0;line-height:1.6}
+.colrow{display:flex;align-items:center;gap:.5rem;margin:.4rem 0}
+.colrow label{font-weight:700;font-size:.9rem;flex:1}
+input[type=color]{width:2.6rem;height:1.9rem;border:2px solid var(--ink);border-radius:8px;padding:0;background:var(--paper);cursor:pointer}
+
+.rs{position:relative;height:30px;touch-action:none;cursor:ew-resize;min-width:60px}
+.rs-track{position:absolute;left:0;right:0;top:50%;height:10px;margin-top:-5px;background:var(--cream);border:2px solid var(--ink);border-radius:100px;overflow:hidden}
+.rs-fill{height:100%;background:var(--main)}
+.rs-knob{position:absolute;top:50%;width:18px;height:24px;margin:-12px 0 0 -9px;background:var(--paper);border:2px solid var(--ink);border-radius:7px}
+.rs.drag .rs-knob{background:var(--main)}
+
+@media(max-width:820px){
+  .app{flex-direction:column}
+  .view{min-height:55vh}
+  .side{width:auto;flex:0 0 auto;border-left:0;border-top:var(--bd)}
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1><a href="../../index.html">ドット解体</a></h1>
+  <button class="btn" id="bOpen">画像をひらく</button>
+  <button class="btn" id="bCmp" disabled>元と比べる</button>
+  <button class="btn btn-g" id="bSave" disabled>PNGで保存</button>
+  <input type="file" id="file" accept="image/*" hidden>
+</div>
+
+<div class="app">
+  <div class="view" id="view">
+    <div class="drop" id="drop">
+      <b>イラストをここへ</b>
+      <p>ドロップ・クリック・貼りつけ（Ctrl+V）で読み込む</p>
+    </div>
+    <canvas id="out"></canvas>
+    <div class="hint" id="hint">元の画像</div>
+    <div class="size" id="size"></div>
+  </div>
+
+  <div class="side">
+    <h2>色の組み</h2>
+    <div class="pals" id="pals"></div>
+    <div class="row" id="autoRow" style="display:none"><label>色の数</label><input type="range" id="kN" min="3" max="24" step="1" value="10"><output></output></div>
+
+    <h2>ドットの粗さ</h2>
+    <div class="row"><label>横のドット</label><input type="range" id="pw" min="48" max="480" step="4" value="200"><output></output></div>
+
+    <h2>ディザ（網かけ）</h2>
+    <div class="seg" id="dith">
+      <button data-v="none">なし</button>
+      <button data-v="b2">粗い</button>
+      <button data-v="b4" class="on">こまかい</button>
+      <button data-v="fs">散らす</button>
+    </div>
+    <div class="row"><label>かかり方</label><input type="range" id="dAmt" min="0" max="100" step="1" value="45"><output></output></div>
+
+    <h2>線</h2>
+    <div class="row"><label>ふち線</label><input type="range" id="edge" min="0" max="100" step="1" value="40"><output></output></div>
+    <div class="row"><label>外がわ線</label><input type="range" id="sil" min="0" max="1" step="1" value="1"><output></output></div>
+    <p class="note">外がわ線は透明な背景のイラストのとき、まわりを1ドットの線で囲む。</p>
+
+    <h2>色の調子</h2>
+    <div class="row"><label>明るさ</label><input type="range" id="bri" min="-50" max="50" step="1" value="0"><output></output></div>
+    <div class="row"><label>コントラスト</label><input type="range" id="con" min="-50" max="80" step="1" value="20"><output></output></div>
+    <div class="row"><label>あざやか</label><input type="range" id="sat" min="-100" max="100" step="1" value="25"><output></output></div>
+    <div class="row"><label>影の色</label><input type="range" id="shAmt" min="0" max="100" step="1" value="45"><output></output></div>
+    <div class="colrow"><label>影に寄せる色</label><input type="color" id="shCol" value="#4a2a8a"></div>
+    <div class="row"><label>光の色</label><input type="range" id="hlAmt" min="0" max="100" step="1" value="20"><output></output></div>
+    <div class="colrow"><label>光に寄せる色</label><input type="color" id="hlCol" value="#5ff0e0"></div>
+
+    <h2>保存</h2>
+    <div class="row"><label>倍率</label><input type="range" id="scale" min="1" max="8" step="1" value="4"><output></output></div>
+    <p class="note">ドットを崩さずに整数倍で大きくして保存する。</p>
+  </div>
+</div>
+
+<script type="module">
+import { enhanceAll } from '../oekaki-kobo/js/rslider.js';
+
+// 夜の街と怪異の調査をイメージした色の組み。auto は画像から拾う。
+const PALS = [
+  { id:'yoru',  name:'夜の調査',  c:['#0c0a18','#221a3e','#3d2f6e','#6a4fa6','#2a7f9a','#46c4c8','#b4f2e6','#f4ecd8','#e8457e','#f5c84a'] },
+  { id:'kaii',  name:'怪異',      c:['#0e0608','#2e0c18','#5e1028','#a61c34','#e24a3a','#f59a4a','#f8e0a0','#fff6e8','#26213e','#5a4c7c'] },
+  { id:'hiru',  name:'昼の街',    c:['#1a1a2e','#36406e','#5a7cc0','#96c8e6','#eef0e2','#f0d48a','#e09a5a','#b85848','#4e7a4a','#8cb86a'] },
+  { id:'monitor',name:'モニター越し',c:['#06060c','#1c2030','#3a4258','#6c7890','#b0bccc','#eef2f6','#ff3d6e','#3dffc8'] },
+  { id:'seppia',name:'古い記録',  c:['#140e0a','#3a2618','#6a4628','#a07040','#d0a868','#f0dcae','#fff8e6','#8a2a20'] },
+  { id:'auto',  name:'画像から拾う', c:[] },
+];
+
+const $ = id => document.getElementById(id);
+const out = $('out'), octx = out.getContext('2d');
+const view = $('view');
+let src = null;            // 読み込んだ画像
+let palId = 'yoru', dith = 'b4', showOrig = false;
+let autoPal = null, autoKey = '';
+let lastSmall = null;      // 縮小したもの（比べる用）
+
+/* ---------- パレットの帯 ---------- */
+const palsEl = $('pals');
+function drawPals(){
+  palsEl.innerHTML = '';
+  for (const p of PALS){
+    const b = document.createElement('button');
+    b.className = 'pal' + (p.id === palId ? ' on' : '');
+    const cols = p.id === 'auto' ? (autoPal ? autoPal.map(rgbHex) : ['#ddd','#bbb','#999','#777','#555']) : p.c;
+    b.innerHTML = `<span class="sw">${cols.map(c=>`<i style="background:${c}"></i>`).join('')}</span><span>${p.name}</span>`;
+    b.onclick = () => { palId = p.id; drawPals(); $('autoRow').style.display = palId==='auto'?'':'none'; render(); };
+    palsEl.appendChild(b);
+  }
+}
+const hexRgb = h => [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+const rgbHex = c => '#' + c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
+
+/* ---------- 読み込み ---------- */
+function load(file){
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    src = img; autoKey = '';
+    $('drop').style.display = 'none';
+    out.style.display = 'block';
+    $('size').style.display = 'block';
+    $('bSave').disabled = $('bCmp').disabled = false;
+    render();
+  };
+  img.src = url;
+}
+$('bOpen').onclick = () => $('file').click();
+$('drop').onclick = () => $('file').click();
+$('file').onchange = e => load(e.target.files[0]);
+view.addEventListener('dragover', e => { e.preventDefault(); view.classList.add('over'); });
+view.addEventListener('dragleave', () => view.classList.remove('over'));
+view.addEventListener('drop', e => { e.preventDefault(); view.classList.remove('over'); load(e.dataTransfer.files[0]); });
+window.addEventListener('paste', e => {
+  for (const it of e.clipboardData.items) if (it.type.startsWith('image/')) { load(it.getAsFile()); break; }
+});
+
+/* ---------- 縮小（何段かに分けて縮めると線がつぶれにくい） ---------- */
+function shrink(img, w, h){
+  let cw = img.naturalWidth, ch = img.naturalHeight;
+  let cur = img;
+  while (cw / 2 > w * 1.5){
+    cw = Math.round(cw/2); ch = Math.round(ch/2);
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+    x.drawImage(cur, 0, 0, cw, ch); cur = c;
+  }
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently:true }); x.imageSmoothingQuality = 'high';
+  x.drawImage(cur, 0, 0, w, h);
+  return c;
+}
+
+/* ---------- 色の調整 ---------- */
+function adjust(d){
+  const bri = +$('bri').value * 2.2, con = (+$('con').value + 100) / 100;
+  const sat = (+$('sat').value + 100) / 100;
+  const sa = +$('shAmt').value / 100, ha = +$('hlAmt').value / 100;
+  const sc = hexRgb($('shCol').value), hc = hexRgb($('hlCol').value);
+  for (let i = 0; i < d.length; i += 4){
+    let r = d[i], g = d[i+1], b = d[i+2];
+    r = (r - 128) * con + 128 + bri; g = (g - 128) * con + 128 + bri; b = (b - 128) * con + 128 + bri;
+    const l = 0.299*r + 0.587*g + 0.114*b;
+    r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
+    const t = Math.max(0, Math.min(1, l / 255));
+    // 暗いところを影の色へ（色を足すのではなく、明るさは保ったまま色みを寄せる）
+    const s = sa * Math.pow(1 - t, 1.6) * 0.85;
+    if (s > 0){ r += (sc[0]*(l/90+.35) - r) * s; g += (sc[1]*(l/90+.35) - g) * s; b += (sc[2]*(l/90+.35) - b) * s; }
+    const h = ha * Math.pow(t, 2.2) * 0.6;
+    if (h > 0){ r += (hc[0] - r) * h; g += (hc[1] - g) * h; b += (hc[2] - b) * h; }
+    d[i] = r; d[i+1] = g; d[i+2] = b;
+  }
+}
+
+/* ---------- 画像から色を拾う（k平均） ---------- */
+function kmeans(d, k){
+  const pts = [];
+  const step = Math.max(1, Math.floor(d.length / 4 / 6000));
+  for (let i = 0; i < d.length; i += 4*step) if (d[i+3] > 128) pts.push([d[i],d[i+1],d[i+2]]);
+  if (!pts.length) return [[0,0,0],[255,255,255]];
+  // 明るさ順に並べて等間隔に初期値をとる
+  pts.sort((a,b)=>(a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]));
+  let cs = Array.from({length:k},(_, i)=>pts[Math.floor((i+.5)/k*pts.length)].slice());
+  for (let it = 0; it < 10; it++){
+    const sum = cs.map(()=>[0,0,0,0]);
+    for (const p of pts){
+      let bi = 0, bd = 1e9;
+      for (let j = 0; j < k; j++){ const c = cs[j]; const dd = (p[0]-c[0])**2+(p[1]-c[1])**2+(p[2]-c[2])**2; if (dd < bd){ bd = dd; bi = j; } }
+      const s = sum[bi]; s[0]+=p[0]; s[1]+=p[1]; s[2]+=p[2]; s[3]++;
+    }
+    cs = cs.map((c,j)=>sum[j][3] ? [sum[j][0]/sum[j][3],sum[j][1]/sum[j][3],sum[j][2]/sum[j][3]] : c);
+  }
+  return cs.sort((a,b)=>(a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]));
+}
+
+/* ---------- 一番近い色（人の目に合わせて重みをつける） ---------- */
+function nearest(pal, r, g, b){
+  let bi = 0, bd = 1e12;
+  for (let j = 0; j < pal.length; j++){
+    const c = pal[j], rm = (c[0] + r) / 2;
+    const dr = c[0]-r, dg = c[1]-g, db = c[2]-b;
+    const dd = (2 + rm/256)*dr*dr + 4*dg*dg + (2 + (255-rm)/256)*db*db;
+    if (dd < bd){ bd = dd; bi = j; }
+  }
+  return bi;
+}
+const B2 = [0,2,3,1], B4 = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+
+/* ---------- 本体 ---------- */
+let pending = 0;
+function render(){ if (!pending) pending = requestAnimationFrame(()=>{ pending = 0; doRender(); }); }
+
+function doRender(){
+  if (!src) return;
+  const W = +$('pw').value;
+  const H = Math.max(1, Math.round(W * src.naturalHeight / src.naturalWidth));
+  const small = shrink(src, W, H); lastSmall = small;
+  const sctx = small.getContext('2d', { willReadFrequently:true });
+  const im = sctx.getImageData(0, 0, W, H), d = im.data;
+  adjust(d);
+
+  let pal;
+  if (palId === 'auto'){
+    const key = W + ':' + $('kN').value + ':' + ['bri','con','sat','shAmt','hlAmt','shCol','hlCol'].map(i=>$(i).value).join(',');
+    if (key !== autoKey){ autoPal = kmeans(d, +$('kN').value); autoKey = key; drawPals(); }
+    pal = autoPal;
+  } else pal = PALS.find(p=>p.id===palId).c.map(hexRgb);
+
+  // 線は減色の前の明るさから拾う
+  const lum = new Float32Array(W*H), alpha = new Uint8Array(W*H);
+  for (let i = 0, p = 0; p < W*H; i += 4, p++){ lum[p] = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]; alpha[p] = d[i+3] > 110 ? 1 : 0; }
+
+  const amt = +$('dAmt').value / 100;
+  const spread = 255 / Math.max(2, pal.length - 1) * 1.1;
+  const res = new Uint8Array(W*H);
+  if (dith === 'fs'){
+    const buf = new Float32Array(W*H*3);
+    for (let p = 0; p < W*H; p++){ buf[p*3]=d[p*4]; buf[p*3+1]=d[p*4+1]; buf[p*3+2]=d[p*4+2]; }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+      const p = y*W + x, r = buf[p*3], g = buf[p*3+1], b = buf[p*3+2];
+      const j = nearest(pal, r, g, b); res[p] = j;
+      const er = (r-pal[j][0])*amt, eg = (g-pal[j][1])*amt, eb = (b-pal[j][2])*amt;
+      const push = (xx, yy, f) => { if (xx<0||xx>=W||yy>=H) return; const q=(yy*W+xx)*3; buf[q]+=er*f; buf[q+1]+=eg*f; buf[q+2]+=eb*f; };
+      push(x+1,y,7/16); push(x-1,y+1,3/16); push(x,y+1,5/16); push(x+1,y+1,1/16);
+    }
+  } else {
+    const M = dith === 'b2' ? B2 : B4, n = dith === 'b2' ? 2 : 4;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+      const p = y*W + x, i = p*4;
+      const o = dith === 'none' ? 0 : ((M[(y%n)*n + (x%n)] + .5) / (n*n) - .5) * spread * amt;
+      res[p] = nearest(pal, d[i]+o, d[i+1]+o, d[i+2]+o);
+    }
+  }
+
+  // 一番暗い色を線に使う
+  let dark = 0, dl = 1e9;
+  pal.forEach((c,j)=>{ const l = c[0]+c[1]+c[2]; if (l < dl){ dl = l; dark = j; } });
+
+  const eg = +$('edge').value / 100;
+  const edge = new Uint8Array(W*H);
+  if (eg > 0){
+    const th = 260 - eg * 210;
+    for (let y = 1; y < H-1; y++) for (let x = 1; x < W-1; x++){
+      const p = y*W + x;
+      if (!alpha[p]) continue;
+      const gx = -lum[p-W-1]-2*lum[p-1]-lum[p+W-1]+lum[p-W+1]+2*lum[p+1]+lum[p+W+1];
+      const gy = -lum[p-W-1]-2*lum[p-W]-lum[p-W+1]+lum[p+W-1]+2*lum[p+W]+lum[p+W+1];
+      // 境目の暗い側だけに線を置く（線が太らない）
+      if (Math.hypot(gx, gy) > th){
+        const nb = Math.min(lum[p-1], lum[p+1], lum[p-W], lum[p+W]);
+        if (lum[p] <= nb + 18) edge[p] = 1;
+      }
+    }
+  }
+  const sil = +$('sil').value;
+
+  const o = new ImageData(W, H), od = o.data;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const p = y*W + x, i = p*4;
+    let c = null;
+    if (alpha[p]) c = pal[edge[p] ? dark : res[p]];
+    else if (sil){
+      const near = (x>0&&alpha[p-1])||(x<W-1&&alpha[p+1])||(y>0&&alpha[p-W])||(y<H-1&&alpha[p+W]);
+      if (near) c = pal[dark];
+    }
+    if (c){ od[i]=c[0]; od[i+1]=c[1]; od[i+2]=c[2]; od[i+3]=255; }
+  }
+  out.width = W; out.height = H;
+  if (showOrig) octx.drawImage(small, 0, 0); else octx.putImageData(o, 0, 0);
+  fit();
+  $('size').textContent = `${W}×${H}`;
+}
+
+function fit(){
+  if (!out.width) return;
+  const vw = view.clientWidth - 48, vh = view.clientHeight - 48;
+  let s = Math.min(vw / out.width, vh / out.height);
+  s = s >= 1 ? Math.floor(s) : s;   // 整数倍で見せてドットの大きさをそろえる
+  out.style.width = out.width * s + 'px';
+  out.style.height = out.height * s + 'px';
+  out.style.background = showOrig ? '#fff' : 'transparent';
+}
+new ResizeObserver(fit).observe(view);
+
+/* ---------- つまみ ---------- */
+for (const inp of document.querySelectorAll('.side input[type=range]')){
+  const o = inp.parentElement.querySelector('output');
+  const show = () => { o.textContent = inp.id === 'sil' ? (inp.value === '1' ? 'あり' : 'なし') : inp.id === 'scale' ? '×' + inp.value : inp.value; };
+  show();
+  inp.addEventListener('input', () => { show(); if (inp.id !== 'scale') render(); });
+}
+for (const id of ['shCol','hlCol']) $(id).addEventListener('input', render);
+enhanceAll();
+
+$('dith').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  dith = b.dataset.v;
+  for (const x of $('dith').children) x.classList.toggle('on', x === b);
+  render();
+};
+
+/* ---------- 比べる（押している間だけ元を見せる） ---------- */
+const cmp = $('bCmp');
+const on = v => { showOrig = v; $('hint').style.display = v ? 'block' : 'none'; doRender(); };
+cmp.addEventListener('pointerdown', () => on(true));
+for (const ev of ['pointerup','pointerleave','pointercancel']) cmp.addEventListener(ev, () => showOrig && on(false));
+
+/* ---------- 保存 ---------- */
+$('bSave').onclick = () => {
+  const s = +$('scale').value;
+  const c = document.createElement('canvas'); c.width = out.width * s; c.height = out.height * s;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  if (showOrig) return;
+  x.drawImage(out, 0, 0, c.width, c.height);
+  c.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = `dot_${out.width}x${out.height}_x${s}.png`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }, 'image/png');
+};
+
+drawPals();
+</script>
+</body>
+</html>

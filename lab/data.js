@@ -298,6 +298,17 @@ const TOOLS = [
     thumb: "thumbs/sougou-kobo.svg",
     url: "tools/sougou-kobo/index.html",
     status: "wip"
+  },
+  {
+    no: 28,
+    slug: "kaitai-dot",
+    title: "ドット解体",
+    desc: "イラストを 色数の 少ない ドット絵に する。色の組み・影と光の色・ディザ・ふち線を 選んで、整数倍の PNG で 保存する。",
+    tags: ["ドット絵", "画像変換", "パレット"],
+    cat: "other",
+    thumb: "thumbs/dot-maker.png",
+    url: "tools/kaitai-dot/index.html",
+    status: "live"
   }
 ];
 
