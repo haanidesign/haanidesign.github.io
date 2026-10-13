@@ -129,6 +129,7 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
       <button class="btn s" data-base="stripe">斜めストライプ</button>
       <button class="btn s" data-base="light">光の筋</button>
       <button class="btn s" data-base="swirl">うず</button>
+      <button class="btn s" data-base="dots">ドット</button>
     </div>
     <div id="baseBox">
       <div class="row2"><span class="note" style="width:88px">色</span><input type="color" id="b1"><input type="color" id="b2"></div>
@@ -386,7 +387,7 @@ function drawBg(c, p, W, H) {
 
 /* ---------- 下地の動き（どれも 1周で もとに もどる） ---------- */
 const BASE_COLORS = {
-  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#6b5a85', '#120d1c'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'], light: ['#fff8dc', '#ffe0f0'], swirl: ['#ffc8e4', '#b9d6ff'],
+  sunburst: ['#ffe36b', '#ffb13b'], smoke: ['#6b5a85', '#120d1c'], fire: ['#ff3d00', '#ffd23f'], stripe: ['#ffd6e7', '#ffffff'], light: ['#fff8dc', '#ffe0f0'], swirl: ['#ffc8e4', '#b9d6ff'], dots: ['#ffffff', '#ffd6e7'],
 };
 
 /* つなぎ目の ない ノイズ（256 で 一回り）。1周で 256 ずらせば 動画も つながる */
@@ -474,6 +475,24 @@ function drawLight(c, p, W, H, B) {
     c.fillStyle = '#ffffff'; c.beginPath(); c.arc(x, y, rad, 0, TAU); c.fill();
   }
   c.restore();
+}
+
+// ドット: 水玉を ななめに ずらし ながら、大きさを 波で ふくらませる（1周で ちょうど 1マス 動く）
+function drawDots(c, p, W, H, B) {
+  const pw = B.power / 100, am = B.amount / 100, L = B.laps;
+  // 行は 1つおきに 半マス ずれるので、たては 2行ぶん 動かすと ぴったり もどる
+  const gap = Math.min(W, H) * (.035 + (1 - am) * .09), ox = gap * L * p, oy = 2 * gap * L * p;
+  if (S.bg.mode !== 'none') { c.fillStyle = B.c2; c.globalAlpha = .35 * pw; c.fillRect(0, 0, W, H); }
+  c.fillStyle = B.c1; c.globalAlpha = .45 + .55 * pw;
+  const cols = Math.ceil(W / gap) + 3, rows = Math.ceil(H / gap) + 3;
+  for (let j = -3; j < rows; j++) for (let i = -2; i < cols; i++) {
+    // 1つおきの 行を 半マス ずらす（水玉もよう）
+    const x = (i + (j & 1) * .5) * gap + ox, y = j * gap + oy;
+    const wave = .5 + .5 * Math.sin(TAU * (L * p - (x / W + y / H) * .5));
+    const r = gap * (.14 + .14 * pw) * (.65 + .5 * wave);
+    c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+  }
+  c.globalAlpha = 1;
 }
 
 // うず: まんなかを 中心に ねじれた ノイズで 2色を まぜる
@@ -573,6 +592,8 @@ function drawBase(c, p, W, H) {
     drawLight(c, p, W, H, B);
   } else if (B.type === 'swirl') {
     drawSwirl(c, p, W, H, B);
+  } else if (B.type === 'dots') {
+    drawDots(c, p, W, H, B);
   }
   c.restore();
 }
