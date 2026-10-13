@@ -1048,3 +1048,6 @@ input[type=range].coarse{
 .uirow .uipre{ flex:1 1 0; min-width:0; }
 .uirow .uistep{ flex:0 0 40px; }
 .uirow .uival{ flex:0 0 3.2rem; }
+
+/* エフェクト: えらんで いる もの */
+.sozaiitem.on, .rowbtns button.on{ background:var(--main); }
