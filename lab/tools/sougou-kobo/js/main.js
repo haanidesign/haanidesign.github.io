@@ -1,5 +1,6 @@
 /* 起動と組み立て。 */
 
+import { addAnimImageFile, mayAnimate } from './io/animimg.js?v=374';
 import './ui/uiscale.js?v=374';
 import { setJzRedraw } from './moji/jizura.js?v=374';
 import { setJzToast } from './moji/jzshim.js?v=374';
@@ -417,6 +418,27 @@ async function handleFiles(files){
       busy(false);
       refresh();
     }
+    if(!psd.length && !imgs.length) return;
+  }
+  /* 🎞 動く GIF・WebP・APNG は コマに ほどいて パラパラの レイヤーに。
+     動かない ものは ふつうの 画像として 下で 読む */
+  if(imgs.some(mayAnimate)){
+    const still = [];
+    let made = 0;
+    for(const f of imgs){
+      if(!mayAnimate(f)){ still.push(f); continue; }
+      let r = null;
+      busy(true, '動く 画像を ほどいて います…');
+      beginEdit('動く 画像を 入れる');
+      try{
+        r = await addAnimImageFile(f, { onProgress: (i, n) => busy(true, '動く 画像を コマに して います… ' + i + ' / ' + n) });
+      }catch(err){ console.warn(err); }
+      finally{ commitEdit(); busy(false); }
+      if(r){ made++; toast('動く 画像を ' + r.frames + 'コマに しました（' + r.sec.toFixed(2) + '秒で くり返し）'); }
+      else still.push(f);
+    }
+    imgs.length = 0; imgs.push(...still);
+    if(made) refresh();
     if(!psd.length && !imgs.length) return;
   }
   if(!psd.length && !imgs.length){
