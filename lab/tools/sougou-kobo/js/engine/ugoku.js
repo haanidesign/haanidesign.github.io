@@ -4,7 +4,7 @@
    ＋ 粒（キラッ・ハート・花びら・ゆき …）＋ 仕上げ（光もれ・ビネット・ざらざら …）。
    どれも「1周（loop 秒）で もとに もどる」ので、くり返しても つなぎ目が 出ない。
    作品と 同じ 大きさの 紙に 描いて、ふつうの レイヤーとして 出す。 */
-import { newLayer as newBaseLayer } from './layer.js?v=375';
+import { newLayer as newBaseLayer } from './layer.js?v=376';
 
 const TAU = Math.PI * 2;
 const frac = v => v - Math.floor(v);
@@ -331,6 +331,34 @@ export function newUgokuLayer(project, name){
   return l;
 }
 
+/* 下じきの ドット。下じきの うえに 重ねる。
+   流す ときは 1周で ちょうど ます目 ひとつぶん ずれる（つなぎ目が 出ない） */
+export function newDots(){
+  return { on: true, color: '#1E1C14', size: 1.6, gap: 14, alpha: 15, move: 'none' };
+}
+function drawDots(c, p, W, H, U){
+  const d = U.dots;
+  if(!d || !d.on) return;
+  const k = Math.min(W, H) / 400;                 // 作品の 大きさに あわせる
+  const gap = Math.max(4, (d.gap || 14) * k), r = Math.max(0.5, (d.size || 1.6) * k);
+  let ox = 0, oy = 0;
+  const mv = d.move || 'none';
+  if(mv === 'right') ox = gap * p;
+  else if(mv === 'down') oy = gap * p;
+  else if(mv === 'diag'){ ox = gap * p; oy = gap * p; }
+  c.save();
+  c.globalAlpha = Math.max(0, Math.min(1, (d.alpha == null ? 15 : d.alpha) / 100));
+  c.fillStyle = d.color || '#1E1C14';
+  c.beginPath();
+  for(let y = -gap + oy; y < H + gap; y += gap){
+    for(let x = -gap + ox; x < W + gap; x += gap){
+      c.moveTo(x + r, y); c.arc(x, y, r, 0, Math.PI * 2);
+    }
+  }
+  c.fill();
+  c.restore();
+}
+
 /** その 時こくの 1まい */
 export function ugokuCanvas(l, time, project){
   const w = Math.max(1, project.w), h = Math.max(1, project.h);
@@ -347,6 +375,7 @@ export function ugokuCanvas(l, time, project){
   c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.shadowBlur = 0; c.filter = 'none';
   c.clearRect(0, 0, w, h);
   drawBg(c, p, w, h, U);
+  drawDots(c, p, w, h, U);
   drawBase(c, p, w, h, U);
   for (let i = U.layers.length - 1; i >= 0; i--) drawLayer(c, U.layers[i], p, w, h);
   c.setTransform(1, 0, 0, 1, 0, 0); c.shadowBlur = 0; c.filter = 'none';
