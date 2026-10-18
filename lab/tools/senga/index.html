@@ -762,6 +762,8 @@ function load(file) {
   img.src = URL.createObjectURL(file);
 }
 function prepare() {
+  // 長辺が 読めない とき（古い 設定など）は 2048 に もどす
+  if (!(P.size > 0)) { P.size = 2048; $('selSize').value = '2048'; }
   const k = Math.min(1, P.size / Math.max(src.naturalWidth, src.naturalHeight));
   W = Math.max(1, Math.round(src.naturalWidth * k)); H = Math.max(1, Math.round(src.naturalHeight * k));
   srcC.width = W; srcC.height = H;
