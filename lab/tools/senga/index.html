@@ -206,6 +206,13 @@ details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
       <div class="sl"><div class="lab">網点の 細かさ<b id="vScreen">200</b></div><input type="range" id="sScreen" min="60" max="400" step="10" value="200"><div class="ends"><span>あらい</span><span>こまかい</span></div></div>
       <div class="sl"><div class="lab">白の しきい値<b id="vWhite">80</b></div><input type="range" id="sWhite" min="30" max="100" value="80"><div class="ends"><span>白を ふやす</span><span>トーンを ふやす</span></div></div>
       <div class="sl"><div class="lab">ベタの しきい値<b id="vBlack">30</b></div><input type="range" id="sBlack" min="0" max="70" value="30"><div class="ends"><span>ひかえめ</span><span>黒を ふやす</span></div></div>
+      <label class="kv" style="cursor:pointer">下ごしらえ（明るさを 整えて から 変換）<input type="checkbox" id="cbLv" style="width:18px;height:18px;accent-color:var(--ink)"></label>
+      <div id="lvBox" style="display:none; flex-direction:column; gap:.5rem">
+        <div class="sl"><div class="lab">黒に する 暗さ<b id="vLvB">20</b></div><input type="range" id="sLvB" min="0" max="90" value="20"></div>
+        <div class="sl"><div class="lab">白に する 明るさ<b id="vLvW">70</b></div><input type="range" id="sLvW" min="10" max="100" value="70"><div class="ends"><span>肌も 白に</span><span>そのまま</span></div></div>
+        <div class="sl"><div class="lab">中間の 明るさ<b id="vLvG">130</b></div><input type="range" id="sLvG" min="30" max="300" step="5" value="130"></div>
+        <button class="link" id="rLv" style="align-self:flex-end">下ごしらえを もとに もどす</button>
+      </div>
       <details>
         <summary>濃さ・線の こまかい 調整</summary>
         <div>
@@ -232,6 +239,26 @@ details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
           <button data-v="#7A3B2E" style="background:#7A3B2E" aria-label="茶"></button>
           <button data-v="#C0392B" style="background:#C0392B" aria-label="赤"></button>
         </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><b>コマ</b><span class="grow"></span><button class="link" id="rPanel">もとに もどす</button></div>
+      <div class="kv">形
+        <select class="sel" id="selFrame">
+          <option value="none" selected>コマに しない</option><option value="orig">元の 形</option><option value="4:3">4:3 よこ</option><option value="16:9">16:9 よこ</option><option value="3:4">3:4 たて</option><option value="1:1">1:1</option>
+        </select>
+      </div>
+      <div id="panelBox" style="display:none; flex-direction:column; gap:.5rem">
+        <div class="sl"><div class="lab">切りぬく 位置（よこ）<b id="vCx">50</b></div><input type="range" id="sCx" min="0" max="100" value="50"><div class="ends"><span>左</span><span>右</span></div></div>
+        <div class="sl"><div class="lab">切りぬく 位置（たて）<b id="vCy">40</b></div><input type="range" id="sCy" min="0" max="100" value="40"><div class="ends"><span>上</span><span>下</span></div></div>
+        <div class="sl"><div class="lab">枠線の 太さ<b id="vBorder">5</b></div><input type="range" id="sBorder" min="0" max="40" value="5"></div>
+        <div class="sl"><div class="lab">紙の 余白<b id="vMargin">60</b></div><input type="range" id="sMargin" min="0" max="400" step="5" value="60"></div>
+        <div class="kv">紙
+          <select class="sel" id="selPaper"><option value="white" selected>白</option><option value="off">生成り</option><option value="cream">クリーム</option></select>
+        </div>
+        <div class="sl"><div class="lab">インクの 感じ<b id="vInkf">50</b></div><input type="range" id="sInkf" min="0" max="100" value="50"><div class="ends"><span>くっきり</span><span>にじみ・ムラ</span></div></div>
+        <p class="note">太さと 余白は 横 1024px の ときの 大きさ です。</p>
       </div>
     </div>
 
@@ -369,7 +396,8 @@ function boxPass(a, b, r, w, h) {
   }
 }
 function transpose(a, b, w, h) { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) b[x * h + y] = a[y * w + x]; }
-function blur(a, sigma) {
+function blur(a, sigma, W_ = W, H_ = H) {
+  const W = W_, H = H_;
   if (sigma < .3) return a.slice();
   const r = Math.max(1, Math.round(Math.sqrt(12 * sigma * sigma / 3 + 1) / 2 - .5));
   let p = a.slice(), q = new Float32Array(a.length);
@@ -527,8 +555,40 @@ const SPOT_N = 128, SPOT = new Float32Array(SPOT_N * SPOT_N);
 for (let j = 0; j < SPOT_N; j++) for (let i = 0; i < SPOT_N; i++)
   SPOT[j * SPOT_N + i] = 1 - (Math.cos(2 * Math.PI * i / SPOT_N) + Math.cos(2 * Math.PI * j / SPOT_N) + 2) / 4;
 
+// Manga Levels: 白黒に して レベル補正。肌や 明るい 髪を 紙の 白に 寄せる
+function levels(g) {
+  if (!P.lv) return g;
+  const b = P.lvB / 100, w = Math.max(b + .01, P.lvW / 100), e = 1 / (P.lvG / 100);
+  return mapTo(Float32Array, g, v => Math.pow(Math.min(1, Math.max(0, (v - b) / (w - b))), e));
+}
+
+// ふちを 残して 平らに する（バイラテラル）。横 → 縦 の 2回に 分けて 速く する
+function bilateral(a, r, sc, ss) {
+  const sw = new Float32Array(2 * r + 1);
+  for (let i = -r; i <= r; i++) sw[i + r] = Math.exp(-i * i / (2 * ss * ss));
+  const CN = 256, cw = new Float32Array(CN);
+  for (let i = 0; i < CN; i++) { const d = i / (CN - 1); cw[i] = Math.exp(-d * d / (2 * sc * sc)); }
+  const pass = (src, horiz) => {
+    const out = new Float32Array(src.length);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x, c = src[i];
+      let s = 0, ws = 0;
+      for (let t = -r; t <= r; t++) {
+        let j;
+        if (horiz) { const xx = x + t; if (xx < 0 || xx >= W) continue; j = i + t; }
+        else { const yy = y + t; if (yy < 0 || yy >= H) continue; j = i + t * W; }
+        const v = src[j], w = sw[t + r] * cw[Math.min(CN - 1, Math.abs(v - c) * (CN - 1) | 0)];
+        s += v * w; ws += w;
+      }
+      out[i] = s / ws;
+    }
+    return out;
+  };
+  return pass(pass(a, true), false);
+}
+
 function manga() {
-  const k = W / 1024, n = W * H, L = gray;
+  const k = W / 1024, n = W * H, L = levels(gray);
   // 線: まわりより 暗く、細長い ものだけ。点や 小さな かたまりは すてる
   const Ls = blur(L, 1.5 * k), Lb = blur(L, .7 * k);
   const solid = mapTo(Uint8Array, Ls, v => v < .22 ? 1 : 0);
@@ -561,7 +621,7 @@ function manga() {
   const A = blur(Lm, 2.5 * k), B = blur(m, 2.5 * k);
   let V = new Float32Array(n);
   for (let i = 0; i < n; i++) V[i] = A[i] / Math.max(B[i], 1e-3);
-  V = blur(V, 1.5 * k); // もとは バイラテラル。ここは 軽く ぼかすだけ
+  for (let t = 0; t < 2; t++) V = bilateral(V, odd(9 * k) >> 1, .10, 9 * k);
 
   // 4段: 0 白・1 うすい・2 こい・3 ベタ。小さな 島は まわりに とかす
   const white = P.white / 100, black = Math.min(P.black / 100, white - .02), split = (white + black) / 2;
@@ -634,7 +694,11 @@ function manga() {
 /* ---------- 画面 ---------- */
 const DEF_TONE = { screen: 200, white: 80, black: 30, grad: 100, light: 18, darkT: 42, wline: 40, pen: 0 };
 const DEF_LINE = { width: 30, amount: 50, dark: 50, clean: 30, fill: 0 };
-const P = { ...DEF_TONE, ...DEF_LINE, mode: 'pen', size: 2048, color: '#000000', view: 'out', wipe: 50, dpi: 300 };
+const DEF_LV = { lvB: 20, lvW: 70, lvG: 130 };
+const DEF_PANEL = { cx: 50, cy: 40, border: 5, margin: 60, inkf: 50 };
+const FRAMES = { orig: null, '4:3': 4 / 3, '16:9': 16 / 9, '3:4': 3 / 4, '1:1': 1 };
+const PAPERS = { white: [[255, 255, 255], 0], off: [[251, 250, 247], 1.5], cream: [[246, 243, 236], 3] };
+const P = { ...DEF_TONE, ...DEF_LINE, ...DEF_LV, ...DEF_PANEL, lv: 0, frame: 'none', paper: 'white', mode: 'pen', size: 2048, color: '#000000', view: 'out', wipe: 50, dpi: 300 };
 const LAYERS = [
   { key: 'line', name: '線・ベタ', sub: '線と 黒い ところ' },
   { key: 'tone', name: 'トーン', sub: '網点の 面' },
@@ -642,7 +706,7 @@ const LAYERS = [
   { key: 'src', name: '元画像', sub: '入れた 絵' },
 ];
 const vis = { line: true, tone: true, bg: true, src: false };
-let src = null, name = 'senga', gray = null, W = 0, H = 0, srcImg = null, res = null, busy = false;
+let src = null, name = 'senga', gray = null, W = 0, H = 0, OW = 0, OH = 0, srcC = document.createElement('canvas'), srcImg = null, res = null, busy = false;
 const lc = {}; // レイヤーごとの キャンバス
 for (const l of LAYERS) lc[l.key] = document.createElement('canvas');
 
@@ -669,26 +733,22 @@ function load(file) {
 function prepare() {
   const k = Math.min(1, P.size / Math.max(src.naturalWidth, src.naturalHeight));
   W = Math.max(1, Math.round(src.naturalWidth * k)); H = Math.max(1, Math.round(src.naturalHeight * k));
-  const c = lc.src; c.width = W; c.height = H;
-  const x = c.getContext('2d'); x.drawImage(src, 0, 0, W, H);
+  srcC.width = W; srcC.height = H;
+  srcC.getContext('2d').drawImage(src, 0, 0, W, H);
   const t = document.createElement('canvas'); t.width = W; t.height = H;
   const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, W, H); tx.drawImage(src, 0, 0, W, H);
   srcImg = tx.getImageData(0, 0, W, H);
   const d = srcImg.data; gray = new Float32Array(W * H);
   for (let i = 0; i < W * H; i++) gray[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
-  const b = lc.bg; b.width = W; b.height = H;
-  const bx = b.getContext('2d'); bx.fillStyle = '#fff'; bx.fillRect(0, 0, W, H);
-  cv.width = W; cv.height = H;
   $('empty').style.display = 'none'; $('wrap').style.display = 'block';
-  $('dims').textContent = `${W} × ${H} px`;
   for (const id of ['bRun', 'bPsd', 'bPng', 'bPngs']) $(id).disabled = false;
   for (const b of $('tabs').children) b.disabled = false;
 }
 
 /* ---------- 変換 ---------- */
 function paintLayer(c, a) {
-  c.width = W; c.height = H;
-  const x = c.getContext('2d'), im = x.createImageData(W, H), d = im.data;
+  c.width = OW; c.height = OH;
+  const x = c.getContext('2d'), im = x.createImageData(OW, OH), d = im.data;
   const n = parseInt(P.color.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;
   if (a) for (let i = 0, j = 0; i < a.length; i++, j += 4) { d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = a[i] * 255 + .5; }
   x.putImageData(im, 0, 0);
@@ -702,8 +762,7 @@ function convert() {
   requestAnimationFrame(() => setTimeout(() => {
     const t0 = performance.now();
     res = P.mode === 'manga' ? manga() : { line: lines(), tone: null };
-    paintLayer(lc.line, res.line);
-    paintLayer(lc.tone, res.tone);
+    panelize();
     $('took').textContent = `${((performance.now() - t0) / 1000).toFixed(1)} 秒`;
     busy = false; $('busy').style.display = 'none';
     if (redo) { redo = false; convert(); return; }
@@ -714,20 +773,97 @@ function convert() {
 let redo = false;
 const reconvert = () => { if (busy) redo = true; else convert(); };
 
+/* ---------- コマ（Manga Panel を うつした もの） ---------- */
+// 決まった 種から 作る なめらかな ゆらぎ（大きさ s の 目を 線形で のばす）
+function noise(w, h, scales, seed) {
+  let t = seed * 2654435761 >>> 0;
+  const rnd = () => { t = t + 0x6D2B79F5 | 0; let r = Math.imul(t ^ t >>> 15, 1 | t); r ^= r + Math.imul(r ^ r >>> 7, 61 | r); return ((r ^ r >>> 14) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-9)) * Math.cos(2 * Math.PI * rnd());
+  const out = new Float32Array(w * h);
+  for (const [s, amp] of scales) {
+    const gw = Math.max(2, Math.floor(w / s)), gh = Math.max(2, Math.floor(h / s)), g = new Float32Array(gw * gh);
+    for (let i = 0; i < g.length; i++) g[i] = gauss();
+    for (let y = 0; y < h; y++) {
+      const fy = y * (gh - 1) / Math.max(1, h - 1), y0 = Math.min(gh - 2, fy | 0), ty = fy - y0;
+      for (let x = 0; x < w; x++) {
+        const fx = x * (gw - 1) / Math.max(1, w - 1), x0 = Math.min(gw - 2, fx | 0), tx = fx - x0, o = y0 * gw + x0;
+        const top = g[o] + (g[o + 1] - g[o]) * tx, bot = g[o + gw] + (g[o + gw + 1] - g[o + gw]) * tx;
+        out[y * w + x] += amp * (top + (bot - top) * ty);
+      }
+    }
+  }
+  return out;
+}
+
+// 切りぬき・枠線・余白・紙と インクの 感じ。結果は レイヤーの キャンバスに 入る
+function panelize() {
+  const k = W / 1024, on = P.frame !== 'none';
+  let cw = W, ch = H, x0 = 0, y0 = 0, b = 0, m = 0;
+  if (on) {
+    const ratio = FRAMES[P.frame];
+    if (ratio) { if (W / H <= ratio) { cw = W; ch = Math.round(W / ratio); } else { cw = Math.round(H * ratio); ch = H; } }
+    cw = Math.min(cw, W); ch = Math.min(ch, H);
+    x0 = Math.round((W - cw) * P.cx / 100); y0 = Math.round((H - ch) * P.cy / 100);
+    b = Math.round(P.border * k); m = Math.round(P.margin * k);
+  }
+  OW = cw + 2 * m; OH = ch + 2 * m;
+  const cut = a => {
+    if (!a) return null;
+    const o = new Float32Array(OW * OH);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) o[(y + m) * OW + x + m] = a[(y + y0) * W + x + x0];
+    return o;
+  };
+  const line = cut(res.line), tone = cut(res.tone);
+  if (b) for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+    if (x < b || y < b || x >= cw - b || y >= ch - b) { const i = (y + m) * OW + x + m; line[i] = 1; if (tone) tone[i] = 0; }
+  }
+  const s = on ? P.inkf / 100 : 0;
+  if (s) {
+    // インクが 少し にじみ、ベタの こさが ほんの少し ゆれる
+    const nz = noise(OW, OH, [[Math.max(2, Math.round(64 * k)), 1], [Math.max(2, Math.round(16 * k)), .5]], 1);
+    for (const a of [line, tone]) {
+      if (!a) continue;
+      const bl = blur(a, .6 * k * s, OW, OH);
+      for (let i = 0; i < a.length; i++) {
+        const v = Math.min(1, Math.max(0, (bl[i] - .35) / .4));
+        a[i] = v * (1 - .05 * s * (.5 + .5 * Math.tanh(nz[i])));
+      }
+    }
+  }
+  paintLayer(lc.line, line);
+  paintLayer(lc.tone, tone);
+  const sc = lc.src; sc.width = OW; sc.height = OH;
+  sc.getContext('2d').drawImage(srcC, x0, y0, cw, ch, m, m, cw, ch);
+  // 紙: 色と 繊維の ざらつき
+  const [rgb, fibre] = on ? PAPERS[P.paper] : PAPERS.white, bg = lc.bg; bg.width = OW; bg.height = OH;
+  const bx = bg.getContext('2d');
+  if (!fibre) { bx.fillStyle = `rgb(${rgb})`; bx.fillRect(0, 0, OW, OH); }
+  else {
+    const im = bx.createImageData(OW, OH), d = im.data, nz = noise(OW, OH, [[3, 1], [1, .6]], 2);
+    for (let i = 0, j = 0; i < nz.length; i++, j += 4) {
+      const f = fibre * nz[i];
+      d[j] = rgb[0] + f; d[j + 1] = rgb[1] + f; d[j + 2] = rgb[2] + f; d[j + 3] = 255;
+    }
+    bx.putImageData(im, 0, 0);
+  }
+  cv.width = OW; cv.height = OH;
+  $('dims').textContent = `${OW} × ${OH} px`;
+}
+
 // 見えて いる レイヤーを 重ねる（下から 元画像 → 白背景 → トーン → 線・ベタ）
 function composite(x) {
-  x.clearRect(0, 0, W, H);
+  x.clearRect(0, 0, OW, OH);
   for (const k of ['src', 'bg', 'tone', 'line']) if (vis[k] && (k !== 'tone' || res?.tone)) x.drawImage(lc[k], 0, 0);
 }
 function compose() {
   if (!gray) return;
   const v = P.view;
-  if (v === 'src') { ctx.clearRect(0, 0, W, H); ctx.drawImage(lc.src, 0, 0); }
+  if (v === 'src') { ctx.clearRect(0, 0, OW, OH); ctx.drawImage(lc.src, 0, 0); }
   else composite(ctx);
   if (v === 'cmp') {
-    const x = Math.round(W * P.wipe / 100);
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, x, H); ctx.clip();
-    ctx.clearRect(0, 0, W, H); ctx.drawImage(lc.src, 0, 0); ctx.restore();
+    const x = Math.round(OW * P.wipe / 100);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, x, OH); ctx.clip();
+    ctx.clearRect(0, 0, OW, OH); ctx.drawImage(lc.src, 0, 0); ctx.restore();
     $('wipe').style.left = `calc(${P.wipe}% - 1px)`;
   }
   const cmp = v === 'cmp';
@@ -744,7 +880,7 @@ function layerList() {
     row.className = 'layer' + (vis[l.key] ? '' : ' off') + (na ? ' na' : '');
     row.innerHTML = `<input type="checkbox" ${vis[l.key] ? 'checked' : ''}><canvas width="72" height="72"></canvas><div>${l.name}<small>${na ? 'マンガ の とき だけ' : l.sub}</small></div>`;
     const th = row.querySelector('canvas'), tx = th.getContext('2d');
-    if (gray) { const s = Math.min(72 / W, 72 / H); tx.drawImage(lc[l.key], (72 - W * s) / 2, (72 - H * s) / 2, W * s, H * s); }
+    if (gray) { const s = Math.min(72 / OW, 72 / OH); tx.drawImage(lc[l.key], (72 - OW * s) / 2, (72 - OH * s) / 2, OW * s, OH * s); }
     row.querySelector('input').onchange = e => { vis[l.key] = e.target.checked; row.classList.toggle('off', !vis[l.key]); compose(); };
     box.appendChild(row);
   }
@@ -771,7 +907,7 @@ async function pngWithDpi(canvas) {
   return new Blob([out], { type: 'image/png' });
 }
 async function savePng() {
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const c = document.createElement('canvas'); c.width = OW; c.height = OH;
   composite(c.getContext('2d'));
   download(await pngWithDpi(c), `${name}_${P.mode}.png`);
   toast('PNG を 保存しました');
@@ -788,7 +924,7 @@ async function savePngs() {
 // レイヤー付き PSD（圧縮なし）。下から 元画像・白背景・トーン・線ベタ
 function savePsd() {
   const order = ['src', 'bg', 'tone', 'line'].filter(k => k !== 'tone' || res?.tone);
-  const n = W * H, parts = [];
+  const n = OW * OH, parts = [];
   let size = 0;
   const push = u => { parts.push(u); size += u.length; };
   const buf = len => { const u = new Uint8Array(len); return [u, new DataView(u.buffer)]; };
@@ -796,7 +932,7 @@ function savePsd() {
 
   // ヘッダー
   let [u, dv] = buf(26);
-  str(dv, 0, '8BPS'); dv.setUint16(4, 1); dv.setUint16(12, 3); dv.setUint32(14, H); dv.setUint32(18, W); dv.setUint16(22, 8); dv.setUint16(24, 3);
+  str(dv, 0, '8BPS'); dv.setUint16(4, 1); dv.setUint16(12, 3); dv.setUint32(14, OH); dv.setUint32(18, OW); dv.setUint16(22, 8); dv.setUint16(24, 3);
   push(u);
   [u, dv] = buf(4); push(u); // 色の 表 なし
   // 解像度
@@ -810,14 +946,14 @@ function savePsd() {
   const recs = [], chans = [];
   for (const k of order) {
     const l = LAYERS.find(x => x.key === k);
-    const px = lc[k].getContext('2d').getImageData(0, 0, W, H).data;
+    const px = lc[k].getContext('2d').getImageData(0, 0, OW, OH).data;
     // 名前（ASCII）＋ 日本語の 名前（luni）
     const ascii = k, pn = (1 + ascii.length + 3) & ~3;
     const ul = 4 + l.name.length * 2, ulp = (ul + 3) & ~3;
     const extra = 4 + 4 + pn + 12 + ulp;
     const [r, rv] = buf(16 + 2 + 6 * 4 + 12 + 4 + extra);
     let o = 0;
-    rv.setInt32(o, 0); rv.setInt32(o + 4, 0); rv.setInt32(o + 8, H); rv.setInt32(o + 12, W); o += 16;
+    rv.setInt32(o, 0); rv.setInt32(o + 4, 0); rv.setInt32(o + 8, OH); rv.setInt32(o + 12, OW); o += 16;
     rv.setUint16(o, 4); o += 2;
     for (const id of [-1, 0, 1, 2]) { rv.setInt16(o, id); rv.setUint32(o + 2, n + 2); o += 6; }
     str(rv, o, '8BIMnorm'); o += 8;
@@ -843,10 +979,10 @@ function savePsd() {
   push(new Uint8Array(pad + 4)); // すき間 ＋ マスク情報 なし
 
   // 重ねた 絵（見えて いる まま）
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
+  const c = document.createElement('canvas'); c.width = OW; c.height = OH;
+  const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, OW, OH);
   for (const k of order) if (vis[k]) cx.drawImage(lc[k], 0, 0);
-  const m = cx.getImageData(0, 0, W, H).data, flat = new Uint8Array(2 + n * 3);
+  const m = cx.getImageData(0, 0, OW, OH).data, flat = new Uint8Array(2 + n * 3);
   for (let ch = 0; ch < 3; ch++) for (let i = 0; i < n; i++) flat[2 + ch * n + i] = m[i * 4 + ch];
   push(flat);
 
@@ -856,22 +992,33 @@ function savePsd() {
 
 /* ---------- 操作 ---------- */
 enhanceAll();
-const sliders = { Screen: 'screen', White: 'white', Black: 'black', Grad: 'grad', Light: 'light', DarkT: 'darkT', Wline: 'wline', Pen: 'pen', Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill' };
+const sliders = { LvB: 'lvB', LvW: 'lvW', LvG: 'lvG', Cx: 'cx', Cy: 'cy', Border: 'border', Margin: 'margin', Inkf: 'inkf', Screen: 'screen', White: 'white', Black: 'black', Grad: 'grad', Light: 'light', DarkT: 'darkT', Wline: 'wline', Pen: 'pen', Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill' };
 for (const [k, key] of Object.entries(sliders)) {
   const s = $('s' + k);
+  const panel = key in DEF_PANEL;
   s.addEventListener('input', () => {
     P[key] = +s.value; $('v' + k).textContent = s.value;
-    if (P.mode !== 'manga' && res) reconvert();
+    if (!res) return;
+    if (panel) { if (!busy) { panelize(); compose(); } }
+    else if (P.mode !== 'manga') reconvert();
   });
   // マンガは 重い ので、はなした ときに 計算する
-  s.addEventListener('change', () => { if (P.mode === 'manga' && res) reconvert(); });
+  s.addEventListener('change', () => {
+    if (!res) return;
+    if (panel) layerList(); else if (P.mode === 'manga') reconvert();
+  });
 }
 function resetSliders(def) {
   for (const [k, key] of Object.entries(sliders)) if (key in def) { P[key] = def[key]; $('s' + k).value = def[key]; $('v' + k).textContent = def[key]; }
-  if (res) reconvert();
+  if (res) { if (Object.keys(def).some(x => x in DEF_PANEL)) { panelize(); compose(); layerList(); } else reconvert(); }
 }
 $('rTone').onclick = () => resetSliders(DEF_TONE);
 $('rLine').onclick = () => resetSliders(DEF_LINE);
+$('rLv').onclick = () => resetSliders(DEF_LV);
+$('rPanel').onclick = () => resetSliders(DEF_PANEL);
+$('cbLv').onchange = e => { P.lv = e.target.checked ? 1 : 0; $('lvBox').style.display = P.lv ? 'flex' : 'none'; if (res && P.mode === 'manga') reconvert(); };
+$('selFrame').onchange = e => { P.frame = e.target.value; $('panelBox').style.display = P.frame === 'none' ? 'none' : 'flex'; if (res) { panelize(); compose(); layerList(); } };
+$('selPaper').onchange = e => { P.paper = e.target.value; if (res) { panelize(); compose(); layerList(); } };
 
 $('modes').addEventListener('click', e => {
   const b = e.target.closest('.mode'); if (!b) return;
@@ -891,7 +1038,7 @@ $('swatch').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   for (const x of $('swatch').children) x.classList.toggle('on', x === b);
   P.color = b.dataset.v;
-  if (res) { paintLayer(lc.line, res.line); paintLayer(lc.tone, res.tone); compose(); layerList(); }
+  if (res) { panelize(); compose(); layerList(); }
 });
 $('selSize').onchange = e => { P.size = +e.target.value; if (src) { prepare(); convert(); } };
 $('selDpi').onchange = e => { P.dpi = +e.target.value; };
