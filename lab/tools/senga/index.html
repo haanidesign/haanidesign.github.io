@@ -97,7 +97,6 @@ body{
 <body>
 <!-- アイコン … Hugeicons（MIT）https://hugeicons.com -->
 <div class="bar">
-  <a class="btn btn-ic" href="../../index.html" aria-label="ラボへ"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M15 6C15 6 9.00001 10.4189 9 12C8.99999 13.5812 15 18 15 18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></a>
   <h1>せんが</h1>
   <span class="grow"></span>
   <button class="btn btn-ic" id="bOpen" aria-label="絵を えらぶ"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg></button>
@@ -146,8 +145,75 @@ body{
 <input type="file" id="file" accept="image/*" hidden>
 <div class="toast" id="toast"></div>
 
-<script type="module">
-import { enhanceAll } from '../oekaki-kobo/js/rslider.js';
+<script>
+(() => {
+/* 触った だけでは 動かない つまみ（oekaki-kobo/js/rslider.js と 同じ） */
+
+const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+
+function enhance(inp) {
+  if (inp.dataset.rs) return;
+  inp.dataset.rs = '1';
+  const box = document.createElement('div');
+  box.className = 'rs';
+  box.innerHTML = '<div class="rs-track"><div class="rs-fill"></div></div><div class="rs-knob"></div>';
+  inp.after(box);
+  inp.style.display = 'none';
+  const num = k => parseFloat(inp[k] || inp.getAttribute(k));
+  const paint = () => {
+    const min = num('min') || 0, max = isNaN(num('max')) ? 100 : num('max');
+    const t = max > min ? (parseFloat(desc.get.call(inp)) - min) / (max - min) : 0;
+    const p = Math.max(0, Math.min(1, t)) * 100;
+    box.querySelector('.rs-fill').style.width = p + '%';
+    box.querySelector('.rs-knob').style.left = `calc(9px + (100% - 18px) * ${p / 100})`;
+  };
+  Object.defineProperty(inp, 'value', {
+    get() { return desc.get.call(this); },
+    set(v) { desc.set.call(this, v); paint(); },
+  });
+  let drag = null;
+  box.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    box.setPointerCapture(e.pointerId);
+    drag = { x: e.clientX, v: parseFloat(desc.get.call(inp)), moved: false };
+    inp.dispatchEvent(new Event('pointerdown'));
+  });
+  box.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 4) return; // ふれただけ なら 動かさない
+    drag.moved = true;
+    box.classList.add('drag');
+    const min = num('min') || 0, max = isNaN(num('max')) ? 100 : num('max');
+    const w = Math.max(40, box.clientWidth - 18);
+    let v = drag.v + dx / w * (max - min);
+    const step = num('step');
+    if (step > 0) v = Math.round(v / step) * step;
+    v = Math.max(min, Math.min(max, v));
+    if (String(v) !== desc.get.call(inp)) {
+      desc.set.call(inp, v);
+      paint();
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  const up = () => {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    box.classList.remove('drag');
+    if (moved) inp.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  box.addEventListener('pointerup', up);
+  box.addEventListener('pointercancel', up);
+  new ResizeObserver(paint).observe(box);
+  paint();
+}
+
+function enhanceAll(root = document) {
+  for (const inp of root.querySelectorAll('input[type=range]')) enhance(inp);
+}
+
 enhanceAll();
 
 const $ = id => document.getElementById(id);
@@ -314,6 +380,7 @@ $('bSave').onclick = () => {
     toast('保存しました');
   }, 'image/png');
 };
+})();
 </script>
 </body>
 </html>
