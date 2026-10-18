@@ -329,79 +329,113 @@ function lines(mode = P.mode) {
    ComfyUI-MangaScreen の Manga Finish を うつした もの。
    Copyright (c) 2026 ashukae — MIT License https://github.com/ashukae/ComfyUI-MangaScreen ---------- */
 
-// つながった かたまりに 番号を ふる。st は かたまりごとの 幅・高さ・面積
+// つながった かたまりに 番号を ふる（2回 なめる 方式）。st は かたまりごとの 幅・高さ・面積
 function components(mask, conn8) {
-  const n = W * H, lab = new Int32Array(n), stack = new Int32Array(n);
-  const st = { w: [0], h: [0], area: [0] };
-  let id = 0;
-  for (let s0 = 0; s0 < n; s0++) {
-    if (!mask[s0] || lab[s0]) continue;
-    id++; lab[s0] = id;
-    let sp = 0, area = 0, x0 = W, x1 = 0, y0 = H, y1 = 0;
-    stack[sp++] = s0;
-    while (sp) {
-      const i = stack[--sp], x = i % W, y = (i - x) / W;
-      area++;
-      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        if (!dx && !dy || (!conn8 && dx && dy)) continue;
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-        const j = ny * W + nx;
-        if (mask[j] && !lab[j]) { lab[j] = id; stack[sp++] = j; }
+  const n = W * H, lab = new Int32Array(n);
+  let par = new Int32Array(1024), next = 1;
+  const find = a => { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; };
+  const join = (a, b) => { a = find(a); b = find(b); if (a < b) par[b] = a; else if (b < a) par[a] = b; return a < b ? a : b; };
+  for (let y = 0; y < H; y++) {
+    const o = y * W;
+    for (let x = 0; x < W; x++) {
+      const i = o + x;
+      if (!mask[i]) continue;
+      let l = x > 0 ? lab[i - 1] : 0, v;
+      if (y > 0) {
+        if ((v = lab[i - W])) l = l ? (l === v ? l : join(l, v)) : v;
+        if (conn8) {
+          if (x > 0 && (v = lab[i - W - 1])) l = l ? (l === v ? l : join(l, v)) : v;
+          if (x < W - 1 && (v = lab[i - W + 1])) l = l ? (l === v ? l : join(l, v)) : v;
+        }
       }
+      if (!l) {
+        if (next >= par.length) { const p2 = new Int32Array(par.length * 2); p2.set(par); par = p2; }
+        par[next] = next; l = next++;
+      }
+      lab[i] = l;
     }
-    st.w.push(x1 - x0 + 1); st.h.push(y1 - y0 + 1); st.area.push(area);
   }
-  return { lab, st, count: id + 1 };
+  const map = new Int32Array(next); let id = 0;
+  for (let a = 1; a < next; a++) { const r = find(a); map[a] = r === a ? ++id : 0; }
+  for (let a = 1; a < next; a++) map[a] = map[find(a)];
+  const count = id + 1, x0 = new Int32Array(count).fill(W), x1 = new Int32Array(count), y0 = new Int32Array(count).fill(H), y1 = new Int32Array(count), area = new Int32Array(count);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x; if (!lab[i]) continue;
+    const c = lab[i] = map[lab[i]];
+    area[c]++;
+    if (x < x0[c]) x0[c] = x; if (x > x1[c]) x1[c] = x; if (y < y0[c]) y0[c] = y; if (y > y1[c]) y1[c] = y;
+  }
+  const w = new Int32Array(count), h = new Int32Array(count);
+  for (let c = 1; c < count; c++) { w[c] = x1[c] - x0[c] + 1; h[c] = y1[c] - y0[c] + 1; }
+  return { lab, st: { w, h, area }, count };
 }
 
-// 四角の 窓の 合計（はしは のばす）。窓は 2r+1
-function boxSum(a, r) {
-  const q = new Float32Array(a.length), o = new Float32Array(a.length);
+// 四角の 窓の 平均（はしは 窓を ちぢめる）。窓は 2r+1。積分画像で 窓の 大きさに よらず 一定
+function boxMean(a, r) {
+  const w1 = W + 1, I = new Float64Array(w1 * (H + 1)), o = new Float32Array(W * H);
   for (let y = 0; y < H; y++) {
-    const b = y * W; let s = 0;
-    for (let x = -r; x <= r; x++) s += a[b + Math.min(W - 1, Math.max(0, x))];
-    for (let x = 0; x < W; x++) {
-      q[b + x] = s;
-      s += a[b + Math.min(W - 1, x + r + 1)] - a[b + Math.max(0, x - r)];
-    }
+    let row = 0;
+    for (let x = 0; x < W; x++) { row += a[y * W + x]; I[(y + 1) * w1 + x + 1] = I[y * w1 + x + 1] + row; }
   }
-  for (let x = 0; x < W; x++) {
-    let s = 0;
-    for (let y = -r; y <= r; y++) s += q[Math.min(H - 1, Math.max(0, y)) * W + x];
-    for (let y = 0; y < H; y++) {
-      o[y * W + x] = s;
-      s += q[Math.min(H - 1, y + r + 1) * W + x] - q[Math.max(0, y - r) * W + x];
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
+    for (let x = 0; x < W; x++) {
+      const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1);
+      o[y * W + x] = (I[y1 * w1 + x1] - I[y0 * w1 + x1] - I[y1 * w1 + x0] + I[y0 * w1 + x0]) / ((y1 - y0) * (x1 - x0));
     }
   }
   return o;
 }
+// .from(a, fn) は おそい ので ふつうの ループで
+function mapTo(T, a, fn) { const o = new T(a.length); for (let i = 0; i < a.length; i++) o[i] = fn(a[i], i); return o; }
 const odd = v => Math.max(3, Math.round(v) | 1);
 
-// 値の 種類が 少ない ときの メディアン（窓 n）
-function medianSmall(level, n, values) {
-  const r = n >> 1, half = n * n / 2, out = new Uint8Array(level.length);
-  const counts = values.map(v => boxSum(Float32Array.from(level, x => x === v ? 1 : 0), r));
-  for (let i = 0; i < level.length; i++) {
-    let c = 0;
-    for (let k = 0; k < values.length; k++) { c += counts[k][i]; if (c > half) { out[i] = values[k]; break; } }
+// 値の 種類が 少ない ときの メディアン（窓 n）。only が あれば そこだけ 求める
+function medianSmall(level, n, values, only) {
+  const r = n >> 1, w1 = W + 1, out = level.slice();
+  // 値ごとの 数の 積分画像
+  const I = values.map(v => {
+    const t = new Int32Array(w1 * (H + 1));
+    for (let y = 0; y < H; y++) {
+      let row = 0; const o = y * W, a = (y + 1) * w1, b = y * w1;
+      for (let x = 0; x < W; x++) { if (level[o + x] === v) row++; t[a + x + 1] = t[b + x + 1] + row; }
+    }
+    return t;
+  });
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.max(0, y - r) * w1, y1 = Math.min(H, y + r + 1) * w1, hh = Math.min(H, y + r + 1) - Math.max(0, y - r);
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (only && !only[i]) continue;
+      const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1), half = (x1 - x0) * hh / 2;
+      let c = 0;
+      for (let k = 0; k < values.length; k++) {
+        const t = I[k];
+        c += t[y1 + x1] - t[y0 + x1] - t[y1 + x0] + t[y0 + x0];
+        if (c > half) { out[i] = values[k]; break; }
+      }
+    }
   }
   return out;
 }
 function erode(mask, n) {
-  const r = n >> 1, s = boxSum(Float32Array.from(mask, v => v ? 1 : 0), r), full = (2 * r + 1) ** 2 - .5;
-  return Uint8Array.from(s, v => v > full ? 1 : 0);
+  const s = boxMean(mask, n >> 1);
+  return mapTo(Uint8Array, s, v => v > .999 ? 1 : 0);
 }
+
+// 網点の かたち（1周期ぶん）を 先に 表に して おく
+const SPOT_N = 128, SPOT = new Float32Array(SPOT_N * SPOT_N);
+for (let j = 0; j < SPOT_N; j++) for (let i = 0; i < SPOT_N; i++)
+  SPOT[j * SPOT_N + i] = 1 - (Math.cos(2 * Math.PI * i / SPOT_N) + Math.cos(2 * Math.PI * j / SPOT_N) + 2) / 4;
 
 function manga() {
   const k = W / 1024, n = W * H, L = gray;
   // 線: まわりより 暗く、細長い ものだけ。点や 小さな かたまりは すてる
   const Ls = blur(L, 1.5 * k), Lb = blur(L, .7 * k);
-  const solid = Uint8Array.from(Ls, v => v < .22 ? 1 : 0);
-  const loc = boxSum(Lb, odd(15 * k) >> 1), a2 = (odd(15 * k)) ** 2;
+  const solid = mapTo(Uint8Array, Ls, v => v < .22 ? 1 : 0);
+  const loc = boxMean(Lb, odd(15 * k) >> 1);
   const line = new Uint8Array(n);
-  for (let i = 0; i < n; i++) line[i] = Lb[i] < loc[i] / a2 - .07 && Lb[i] < .65 ? 1 : 0;
+  for (let i = 0; i < n; i++) line[i] = Lb[i] < loc[i] - .07 && Lb[i] < .65 ? 1 : 0;
   let cc = components(line, true);
   const keep = new Uint8Array(cc.count);
   for (let c = 1; c < cc.count; c++) {
@@ -423,7 +457,7 @@ function manga() {
   }
 
   // 明暗: 線を ぬいて 読む（線の まわりが 暗く ならない）
-  const m = Float32Array.from(ink, v => v ? 0 : 1), Lm = new Float32Array(n);
+  const m = mapTo(Float32Array, ink, v => v ? 0 : 1), Lm = new Float32Array(n);
   for (let i = 0; i < n; i++) Lm[i] = L[i] * m[i];
   const A = blur(Lm, 2.5 * k), B = blur(m, 2.5 * k);
   let V = new Float32Array(n);
@@ -432,24 +466,24 @@ function manga() {
 
   // 4段: 0 白・1 うすい・2 こい・3 ベタ。小さな 島は まわりに とかす
   const white = P.white / 100, black = Math.min(P.black / 100, white - .02), split = (white + black) / 2;
-  let level = Uint8Array.from(V, v => v >= white ? 0 : v >= split ? 1 : v >= black ? 2 : 3);
+  let level = mapTo(Uint8Array, V, v => v >= white ? 0 : v >= split ? 1 : v >= black ? 2 : 3);
   level = medianSmall(level, odd(11 * k), [0, 1, 2, 3]);
   for (const lv of [1, 2, 3, 0]) {
-    const c4 = components(Uint8Array.from(level, v => v === lv ? 1 : 0), false);
+    const c4 = components(mapTo(Uint8Array, level, v => v === lv ? 1 : 0), false);
     const hole = new Uint8Array(n); let any = false;
     for (let i = 0; i < n; i++) if (c4.lab[i] && c4.st.area[c4.lab[i]] < 600 * k * k) { hole[i] = 1; any = true; }
     if (!any) continue;
-    const fill = medianSmall(Uint8Array.from(level, (v, i) => hole[i] ? 255 : v), odd(21 * k), [0, 1, 2, 3, 255]);
+    const fill = medianSmall(mapTo(Uint8Array, level, (v, i) => hole[i] ? 255 : v), odd(21 * k), [0, 1, 2, 3, 255], hole);
     for (let i = 0; i < n; i++) if (hole[i] && fill[i] !== 255) level[i] = fill[i];
   }
   const tones = [0, P.light / 100, P.darkT / 100, 1];
-  const cover = Float32Array.from(level, v => tones[v]);
+  const cover = mapTo(Float32Array, level, v => tones[v]);
 
   // グラデトーン: 平らな 面の 中に なめらかな 影が かくれて いれば、暗さに あわせて 点を 大きく
   if (P.grad > 0) {
     const Vs = blur(V, 3 * k), spread = new Float32Array(n);
     for (let lv = 0; lv < 4; lv++) {
-      const c4 = components(Uint8Array.from(level, v => v === lv ? 1 : 0), false);
+      const c4 = components(mapTo(Uint8Array, level, v => v === lv ? 1 : 0), false);
       const cnt = new Float64Array(c4.count), sum = new Float64Array(c4.count), sq = new Float64Array(c4.count);
       for (let i = 0; i < n; i++) { const c = c4.lab[i]; if (c) { cnt[c]++; sum[c] += Vs[i]; sq[c] += Vs[i] * Vs[i]; } }
       for (let i = 0; i < n; i++) {
@@ -459,7 +493,7 @@ function manga() {
       }
     }
     const g = P.grad / 100;
-    const a = blur(Float32Array.from(spread, v => Math.min(1, Math.max(0, (v - .03) / .05)) * g), 4 * k);
+    const a = blur(mapTo(Float32Array, spread, v => Math.min(1, Math.max(0, (v - .03) / .05)) * g), 4 * k);
     for (let i = 0; i < n; i++) {
       const t = Math.min(1, Math.max(0, (white - Vs[i]) / (white - black)));
       cover[i] = cover[i] * (1 - a[i]) + t * a[i];
@@ -467,7 +501,7 @@ function manga() {
   }
 
   // 網点: ページに そろえた 45° の 丸点。3×3 で 取って 丸く する
-  const pitch = W / P.screen, ca = Math.SQRT1_2, out = new Float32Array(n);
+  const kp = Math.SQRT1_2 * P.screen / W, out = new Float32Array(n);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x;
     if (ink[i] || strokes[i]) { out[i] = 1; continue; }
@@ -475,21 +509,23 @@ function manga() {
     if (c <= 0) continue;
     if (c >= 1) { out[i] = 1; continue; }
     let hit = 0;
-    for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 3; sx++) {
+    smp: for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 3; sx++) {
       const px = x + (sx + .5) / 3, py = y + (sy + .5) / 3;
-      const u = (px * ca + py * ca) / pitch, v = (-px * ca + py * ca) / pitch;
-      if (1 - (Math.cos(2 * Math.PI * u) + Math.cos(2 * Math.PI * v) + 2) / 4 < c) hit++;
+      const u = (px + py) * kp, v = (py - px) * kp;
+      const iu = ((u - Math.floor(u)) * SPOT_N) | 0, iv = ((v - Math.floor(v)) * SPOT_N) | 0;
+      if (SPOT[iv * SPOT_N + iu] < c) hit++;
+      if (hit > 4 || hit + (8 - sy * 3 - sx) < 5) break smp;
     }
     out[i] = hit > 4 ? 1 : 0;
   }
 
   // 白ぬき線: ベタの 中の 長い 線を 細く 白で ぬく
   if (P.wline > 0) {
-    const beta = erode(Uint8Array.from(level, v => v === 3 ? 1 : 0), odd(3 * k));
-    const cand = pen ? Uint8Array.from(pen, v => v > 1 - P.wline / 100 ? 1 : 0) : strokes;
+    const beta = erode(mapTo(Uint8Array, level, v => v === 3 ? 1 : 0), odd(3 * k));
+    const cand = pen ? mapTo(Uint8Array, pen, v => v > 1 - P.wline / 100 ? 1 : 0) : strokes;
     const cw = components(cand, true), keepW = new Uint8Array(cw.count);
     for (let c = 1; c < cw.count; c++) keepW[c] = Math.max(cw.st.w[c], cw.st.h[c]) >= 40 * k * (1.4 - P.wline / 100) ? 1 : 0;
-    const cut = erode(Uint8Array.from(cw.lab, c => keepW[c]), k < 1.6 ? 2 : 3);
+    const cut = erode(mapTo(Uint8Array, cw.lab, c => keepW[c]), k < 1.6 ? 2 : 3);
     for (let i = 0; i < n; i++) if (beta[i]) out[i] = cut[i] ? 0 : 1;
   }
   return out;
