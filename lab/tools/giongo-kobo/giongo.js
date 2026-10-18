@@ -97,12 +97,14 @@ function rnd(seed) {
 const lines = st => st.text.split('\n').filter(l => l.length).slice(0, 6);
 function defPath(st, li, n) {
   const gap = st.size * 1.25;
+  const cs = [...(lines(st)[li] || '')];
+  const h = Math.max(330, (cs.length - 1) * st.size * 0.5 * Math.max(st.sizeA, st.sizeB) / 100); // 字数に 合わせて のばす
   if (st.vert) {
     const x = W / 2 + (n - 1) / 2 * gap - li * gap;
-    return { a: [x, 170], b: [x, 830], m: [x, 500] };
+    return { a: [x, 500 - h], b: [x, 500 + h], m: [x, 500] };
   }
   const y = W / 2 - (n - 1) / 2 * gap + li * gap;
-  return { a: [170, y], b: [830, y], m: [500, y] };
+  return { a: [500 - h, y], b: [500 + h, y], m: [500, y] };
 }
 function pathsOf(st) {
   const ls = lines(st);

@@ -309,6 +309,17 @@ const TOOLS = [
     thumb: "thumbs/dot-maker.png",
     url: "tools/kaitai-dot/index.html",
     status: "live"
+  },
+  {
+    no: 29,
+    slug: "giongo-kobo",
+    title: "擬音工房",
+    desc: "漫画の擬音の描き文字を作る。PNG・SVGで保存。",
+    tags: ["漫画", "擬音", "PNG"],
+    cat: "manga",
+    thumb: "thumbs/giongo-kobo.png",
+    url: "tools/giongo-kobo/index.html",
+    status: "live"
   }
 ];
 
