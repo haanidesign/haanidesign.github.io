@@ -81,6 +81,13 @@ body{
 .mode small{font-size:.54rem; font-weight:400; color:var(--ink2);}
 .mode.on{background:var(--main-soft); border-color:var(--ink);}
 
+/* AI */
+.aiTog{display:flex; align-items:center; justify-content:space-between; gap:.5rem; background:var(--cream); border-radius:12px; padding:.45rem .6rem; cursor:pointer; font-size:.72rem;}
+.aiTog small{display:block; font-size:.54rem; font-weight:400; color:var(--ink2);}
+.aiTog input{width:20px; height:20px; accent-color:var(--ink); margin:0;}
+.note.ok{color:#3E7E41;} .note.ng{color:#B5432F;}
+textarea.sel{width:100%; font-family:inherit; font-weight:400;}
+
 /* つまみ */
 .sl .lab{display:flex; justify-content:space-between; align-items:center; font-size:.62rem;}
 .sl .lab b{font-family:'DotGothic16',monospace; font-weight:400; background:var(--cream); border-radius:6px; padding:0 .35rem; min-width:2.6rem; text-align:right;}
@@ -170,7 +177,7 @@ details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
   <div class="logo"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M3.89089 20.8727L3 21L3.12727 20.1091C3.32086 18.754 3.41765 18.0764 3.71832 17.4751C4.01899 16.8738 4.50296 16.3898 5.47091 15.4218L16.9827 3.91009C17.4062 3.48654 17.618 3.27476 17.8464 3.16155C18.2811 2.94615 18.7914 2.94615 19.2261 3.16155C19.4546 3.27476 19.6663 3.48654 20.0899 3.91009C20.5135 4.33365 20.7252 4.54543 20.8385 4.77389C21.0539 5.20856 21.0539 5.71889 20.8385 6.15356C20.7252 6.38201 20.5135 6.59379 20.0899 7.01735L8.57816 18.5291C7.61022 19.497 7.12625 19.981 6.52491 20.2817C5.92357 20.5823 5.246 20.6791 3.89089 20.8727Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/><path d="M6 15L9 18" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/></svg></div>
   <h1>せんが<small>SENGA ・ MANGA</small></h1>
   <span class="grow"></span>
-  <span class="stat on"><i></i>この 端末で 変換</span>
+  <span class="stat"><i></i><span id="aiEngine">この 端末で 変換</span></span>
 </div>
 
 <div class="main">
@@ -192,6 +199,27 @@ details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
         <button class="mode on" data-v="pen">ペン<small>くっきりした 線</small></button>
         <button class="mode" data-v="pencil">えんぴつ<small>やわらかい 線</small></button>
         <button class="mode" data-v="edge">りんかく<small>かわり目 ぜんぶ</small></button>
+      </div>
+      <label class="aiTog" id="aiTog">
+        <span>AI で 描き直す<small>Qwen ・ パソコンの ComfyUI を 使う</small></span>
+        <input type="checkbox" id="cbAi">
+      </label>
+      <div id="aiBox" style="display:none; flex-direction:column; gap:.5rem">
+        <p class="note">下絵を AI が 白黒マンガ として 描き直して から、トーンと ベタを かけます。顔や 線が 少し 変わる ことが あります。</p>
+        <div class="kv">ComfyUI<input class="sel" id="aiUrl" style="width:10.5rem" spellcheck="false"></div>
+        <div class="row"><button class="btn" id="bAiConn">つなぐ</button></div>
+        <p class="note" id="aiStat">まだ つないで いません</p>
+        <div class="kv">モデル<select class="sel" id="aiUnet" style="max-width:10.5rem"></select></div>
+        <div class="kv">文字の モデル<select class="sel" id="aiClip" style="max-width:10.5rem"></select></div>
+        <div class="kv">VAE<select class="sel" id="aiVae" style="max-width:10.5rem"></select></div>
+        <details>
+          <summary>描き直しの 指示・シード</summary>
+          <div>
+            <textarea class="sel" id="aiPrompt" rows="6" style="resize:vertical; font-size:.6rem; line-height:1.5"></textarea>
+            <button class="link" id="aiPromptReset" style="align-self:flex-end">指示を もとに もどす</button>
+            <div class="kv">シード<span class="row" style="gap:.3rem"><input class="sel" id="aiSeed" type="number" min="0" style="width:7rem"><button class="btn" id="aiDice" style="min-height:34px">ランダム</button></span></div>
+          </div>
+        </details>
       </div>
       <div class="kv">仕上がりの 長辺
         <select class="sel" id="selSize">
@@ -294,7 +322,7 @@ details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
       <div class="hd"><b>レイヤー</b><span class="grow"></span><small id="lcount">0 LAYERS</small></div>
       <p class="note">表示を 切りかえて 仕上がりを 確かめます。</p>
       <div class="layers" id="layers"></div>
-      <p class="note">PSD にも この 4枚が 入ります。</p>
+      <p class="note">PSD にも ここの レイヤーが そのまま 入ります。</p>
     </div>
     <div class="card">
       <div class="hd"><b>書き出し</b><span class="grow"></span><small>EXPORT</small></div>
@@ -698,14 +726,17 @@ const DEF_LV = { lvB: 20, lvW: 70, lvG: 130 };
 const DEF_PANEL = { cx: 50, cy: 40, border: 5, margin: 60, inkf: 50 };
 const FRAMES = { orig: null, '4:3': 4 / 3, '16:9': 16 / 9, '3:4': 3 / 4, '1:1': 1 };
 const PAPERS = { white: [[255, 255, 255], 0], off: [[251, 250, 247], 1.5], cream: [[246, 243, 236], 3] };
-const P = { ...DEF_TONE, ...DEF_LINE, ...DEF_LV, ...DEF_PANEL, lv: 0, frame: 'none', paper: 'white', mode: 'pen', size: 2048, color: '#000000', view: 'out', wipe: 50, dpi: 300 };
+const P = { ...DEF_TONE, ...DEF_LINE, ...DEF_LV, ...DEF_PANEL, lv: 0, ai: 0, frame: 'none', paper: 'white', mode: 'pen', size: 2048, color: '#000000', view: 'out', wipe: 50, dpi: 300 };
 const LAYERS = [
   { key: 'line', name: '線・ベタ', sub: '線と 黒い ところ' },
   { key: 'tone', name: 'トーン', sub: '網点の 面' },
   { key: 'bg', name: '白背景', sub: '白い 下じき' },
+  { key: 'qwen', name: 'Qwen 下絵', sub: 'AI が 描き直した 絵' },
   { key: 'src', name: '元画像', sub: '入れた 絵' },
 ];
-const vis = { line: true, tone: true, bg: true, src: false };
+const vis = { line: true, tone: true, bg: true, qwen: false, src: false };
+// その レイヤーが いま あるか
+const has = k => k === 'tone' ? !!res?.tone : k === 'qwen' ? !!(P.ai && ai.img) : true;
 let src = null, name = 'senga', gray = null, W = 0, H = 0, OW = 0, OH = 0, srcC = document.createElement('canvas'), srcImg = null, res = null, busy = false;
 const lc = {}; // レイヤーごとの キャンバス
 for (const l of LAYERS) lc[l.key] = document.createElement('canvas');
@@ -735,15 +766,113 @@ function prepare() {
   W = Math.max(1, Math.round(src.naturalWidth * k)); H = Math.max(1, Math.round(src.naturalHeight * k));
   srcC.width = W; srcC.height = H;
   srcC.getContext('2d').drawImage(src, 0, 0, W, H);
-  const t = document.createElement('canvas'); t.width = W; t.height = H;
-  const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, W, H); tx.drawImage(src, 0, 0, W, H);
-  srcImg = tx.getImageData(0, 0, W, H);
-  const d = srcImg.data; gray = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) gray[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
+  setGray();
   $('empty').style.display = 'none'; $('wrap').style.display = 'block';
   for (const id of ['bRun', 'bPsd', 'bPng', 'bPngs']) $(id).disabled = false;
   for (const b of $('tabs').children) b.disabled = false;
 }
+
+// 変換に 使う 明るさ。AI の 下絵が あれば そちらから 読む
+function setGray() {
+  const from = P.ai && ai.img ? ai.img : src;
+  qwenC.width = W; qwenC.height = H;
+  if (P.ai && ai.img) qwenC.getContext('2d').drawImage(ai.img, 0, 0, W, H);
+  const t = document.createElement('canvas'); t.width = W; t.height = H;
+  const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, W, H); tx.drawImage(from, 0, 0, W, H);
+  srcImg = tx.getImageData(0, 0, W, H);
+  const d = srcImg.data; gray = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) gray[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
+}
+
+/* ---------- Qwen で 描き直す（パソコンの ComfyUI に たのむ） ---------- */
+const DEF_PROMPT = 'Redraw <image1> as a printed black-and-white manga page panel, as if inked by the original artist for serialization. Keep the exact composition, pose, character design, face, expression and drawing style of <image1>. Use confident ink lines with varied line weight, solid black for dark hair and deep shadows, white paper for skin and light surfaces, ink hatching lines for shadows on cloth, and regular screentone only where a mid tone is needed. No color and no smooth gradients. Do not add anything that is not in <image1>.';
+const ai = { url: 'http://127.0.0.1:8188', unet: '', clip: '', vae: '', prompt: DEF_PROMPT, seed: 1, img: null, key: '' };
+const qwenC = document.createElement('canvas');
+try { Object.assign(ai, JSON.parse(localStorage.getItem('senga.ai') || '{}'), { img: null, key: '' }); } catch (e) {}
+const saveAi = () => { try { const { img, key, ...keep } = ai; localStorage.setItem('senga.ai', JSON.stringify(keep)); } catch (e) {} };
+const api = path => ai.url.replace(/\/+$/, '') + path;
+
+// 選べる モデルの 名前を 聞く（古い 形 と 新しい COMBO の 形 の 両方）
+async function modelList(node, input) {
+  const j = await (await fetch(api('/object_info/' + node))).json();
+  const v = j[node].input.required[input];
+  return Array.isArray(v[0]) ? v[0] : v[1]?.options || [];
+}
+function fillSel(sel, list, cur, hint) {
+  sel.innerHTML = '';
+  for (const n of list) sel.add(new Option(n, n));
+  sel.value = list.includes(cur) ? cur : (list.find(n => hint.test(n)) || list[0] || '');
+  return sel.value;
+}
+async function aiConnect(quiet) {
+  const st = $('aiStat');
+  st.textContent = 'つないで います…'; st.className = 'note';
+  try {
+    const [u, c, v] = await Promise.all([modelList('UNETLoader', 'unet_name'), modelList('CLIPLoader', 'clip_name'), modelList('VAELoader', 'vae_name')]);
+    ai.unet = fillSel($('aiUnet'), u, ai.unet, /qwen.*image|qwen_image/i);
+    ai.clip = fillSel($('aiClip'), c, ai.clip, /qwen/i);
+    ai.vae = fillSel($('aiVae'), v, ai.vae, /qwen/i);
+    saveAi();
+    st.textContent = 'ComfyUI に つながりました'; st.className = 'note ok';
+    $('top').querySelector('.stat').classList.add('on');
+    $('aiEngine').textContent = 'ComfyUI 接続済み';
+    return true;
+  } catch (e) {
+    st.textContent = 'つながりません。ComfyUI を --enable-cors-header を つけて 起動して ください'; st.className = 'note ng';
+    $('aiEngine').textContent = 'ComfyUI 未接続';
+    if (!quiet) toast('ComfyUI に つながりません');
+    return false;
+  }
+}
+function qwenGraph(image) {
+  return {
+    1: { class_type: 'LoadImage', inputs: { image } },
+    2: { class_type: 'ImageScaleToTotalPixels', inputs: { image: ['1', 0], upscale_method: 'lanczos', megapixels: 2, resolution_steps: 32 } },
+    3: { class_type: 'UNETLoader', inputs: { unet_name: ai.unet, weight_dtype: 'default' } },
+    4: { class_type: 'CLIPLoader', inputs: { clip_name: ai.clip, type: 'qwen_image', device: 'default' } },
+    5: { class_type: 'VAELoader', inputs: { vae_name: ai.vae } },
+    7: { class_type: 'TextEncodeQwenImage21', inputs: { clip: ['4', 0], 'images.image_1': ['2', 0], vae: ['5', 0], prompt: ai.prompt, negative_prompt: '', resolution: 0 } },
+    8: { class_type: 'QwenImage21Cache', inputs: { model: ['3', 0], device: 'cpu', dtype: 'default' } },
+    9: { class_type: 'BasicGuider', inputs: { model: ['8', 0], conditioning: ['7', 0] } },
+    10: { class_type: 'RandomNoise', inputs: { noise_seed: ai.seed } },
+    11: { class_type: 'KSamplerSelect', inputs: { sampler_name: 'euler' } },
+    12: { class_type: 'ManualSigmas', inputs: { sigmas: '1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0.0' } },
+    13: { class_type: 'SamplerCustomAdvanced', inputs: { noise: ['10', 0], guider: ['9', 0], sampler: ['11', 0], sigmas: ['12', 0], latent_image: ['7', 2] } },
+    14: { class_type: 'VAEDecode', inputs: { samples: ['13', 0], vae: ['5', 0] } },
+    16: { class_type: 'SaveImage', inputs: { images: ['14', 0], filename_prefix: 'senga/qwen' } },
+  };
+}
+// 元の 絵を 送って、描き直した 絵が できるまで 待つ
+async function runQwen() {
+  const blob = await new Promise(r => srcFull().toBlob(r, 'image/png'));
+  const fd = new FormData(); fd.append('image', blob, 'senga_src.png'); fd.append('overwrite', 'true');
+  const up = await (await fetch(api('/upload/image'), { method: 'POST', body: fd })).json();
+  const image = up.subfolder ? up.subfolder + '/' + up.name : up.name;
+  const r = await fetch(api('/prompt'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: qwenGraph(image), client_id: 'senga' }) });
+  const j = await r.json();
+  if (!r.ok || !j.prompt_id) throw new Error(j.error?.message || j.node_errors && JSON.stringify(j.node_errors).slice(0, 200) || 'ComfyUI が 受けつけません');
+  const t0 = Date.now();
+  for (;;) {
+    await new Promise(r => setTimeout(r, 1000));
+    $('busyT').textContent = `Qwen で 下絵を 描いて います… ${Math.round((Date.now() - t0) / 1000)} 秒`;
+    const h = (await (await fetch(api('/history/' + j.prompt_id))).json())[j.prompt_id];
+    if (!h) continue;
+    if (h.status?.status_str === 'error') throw new Error('ComfyUI で エラーが 出ました');
+    const im = h.outputs?.[16]?.images?.[0];
+    if (!im) { if (h.status?.completed) throw new Error('絵が 返って きません'); continue; }
+    const q = new URLSearchParams({ filename: im.filename, subfolder: im.subfolder || '', type: im.type || 'output' });
+    const b = await (await fetch(api('/view?' + q))).blob();
+    const img = new Image();
+    await new Promise((ok, ng) => { img.onload = ok; img.onerror = ng; img.src = URL.createObjectURL(b); });
+    return img;
+  }
+}
+// 送る 絵は 元の 大きさの まま
+function srcFull() {
+  const c = document.createElement('canvas'); c.width = src.naturalWidth; c.height = src.naturalHeight;
+  c.getContext('2d').drawImage(src, 0, 0); return c;
+}
+const aiKey = () => [src?.src, ai.unet, ai.clip, ai.vae, ai.prompt, ai.seed].join('|');
 
 /* ---------- 変換 ---------- */
 function paintLayer(c, a) {
@@ -753,11 +882,24 @@ function paintLayer(c, a) {
   if (a) for (let i = 0, j = 0; i < a.length; i++, j += 4) { d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = a[i] * 255 + .5; }
   x.putImageData(im, 0, 0);
 }
-function convert() {
+async function convert() {
   if (!gray || busy) return;
   busy = true;
-  $('busyT').textContent = P.mode === 'manga' ? 'マンガに して います…' : '線を 拾って います…';
   $('busy').style.display = 'flex';
+  if (P.ai && ai.key !== aiKey()) {
+    $('busyT').textContent = 'Qwen で 下絵を 描いて います…';
+    $('bRun').disabled = true;
+    try {
+      ai.img = await runQwen(); ai.key = aiKey();
+      setGray();
+    } catch (e) {
+      busy = false; $('busy').style.display = 'none'; $('bRun').disabled = false;
+      toast('描き直せません: ' + (e.message || 'ComfyUI に つながりません'));
+      return;
+    }
+    $('bRun').disabled = false;
+  }
+  $('busyT').textContent = P.mode === 'manga' ? 'マンガに して います…' : '線を 拾って います…';
   // 表示を 先に 出して から 重い 計算に 入る
   requestAnimationFrame(() => setTimeout(() => {
     const t0 = performance.now();
@@ -834,6 +976,8 @@ function panelize() {
   paintLayer(lc.tone, tone);
   const sc = lc.src; sc.width = OW; sc.height = OH;
   sc.getContext('2d').drawImage(srcC, x0, y0, cw, ch, m, m, cw, ch);
+  const qc = lc.qwen; qc.width = OW; qc.height = OH;
+  if (has('qwen')) qc.getContext('2d').drawImage(qwenC, x0, y0, cw, ch, m, m, cw, ch);
   // 紙: 色と 繊維の ざらつき
   const [rgb, fibre] = on ? PAPERS[P.paper] : PAPERS.white, bg = lc.bg; bg.width = OW; bg.height = OH;
   const bx = bg.getContext('2d');
@@ -853,7 +997,7 @@ function panelize() {
 // 見えて いる レイヤーを 重ねる（下から 元画像 → 白背景 → トーン → 線・ベタ）
 function composite(x) {
   x.clearRect(0, 0, OW, OH);
-  for (const k of ['src', 'bg', 'tone', 'line']) if (vis[k] && (k !== 'tone' || res?.tone)) x.drawImage(lc[k], 0, 0);
+  for (const k of ['src', 'qwen', 'bg', 'tone', 'line']) if (vis[k] && has(k)) x.drawImage(lc[k], 0, 0);
 }
 function compose() {
   if (!gray) return;
@@ -875,16 +1019,16 @@ function compose() {
 function layerList() {
   const box = $('layers'); box.innerHTML = '';
   for (const l of LAYERS) {
-    const na = l.key === 'tone' && !res?.tone;
+    const na = !has(l.key);
     const row = document.createElement('label');
     row.className = 'layer' + (vis[l.key] ? '' : ' off') + (na ? ' na' : '');
-    row.innerHTML = `<input type="checkbox" ${vis[l.key] ? 'checked' : ''}><canvas width="72" height="72"></canvas><div>${l.name}<small>${na ? 'マンガ の とき だけ' : l.sub}</small></div>`;
+    row.innerHTML = `<input type="checkbox" ${vis[l.key] ? 'checked' : ''}><canvas width="72" height="72"></canvas><div>${l.name}<small>${na ? (l.key === 'tone' ? 'マンガ の とき だけ' : 'AI で 描き直した とき だけ') : l.sub}</small></div>`;
     const th = row.querySelector('canvas'), tx = th.getContext('2d');
     if (gray) { const s = Math.min(72 / OW, 72 / OH); tx.drawImage(lc[l.key], (72 - OW * s) / 2, (72 - OH * s) / 2, OW * s, OH * s); }
     row.querySelector('input').onchange = e => { vis[l.key] = e.target.checked; row.classList.toggle('off', !vis[l.key]); compose(); };
     box.appendChild(row);
   }
-  $('lcount').textContent = `${res?.tone ? 4 : 3} LAYERS`;
+  $('lcount').textContent = `${LAYERS.filter(l => has(l.key)).length} LAYERS`;
 }
 
 /* ---------- 書き出し ---------- */
@@ -914,7 +1058,7 @@ async function savePng() {
 }
 async function savePngs() {
   for (const l of LAYERS) {
-    if (l.key === 'tone' && !res?.tone) continue;
+    if (!has(l.key)) continue;
     download(await pngWithDpi(lc[l.key]), `${name}_${l.name}.png`);
     await new Promise(r => setTimeout(r, 350));
   }
@@ -923,7 +1067,7 @@ async function savePngs() {
 
 // レイヤー付き PSD（圧縮なし）。下から 元画像・白背景・トーン・線ベタ
 function savePsd() {
-  const order = ['src', 'bg', 'tone', 'line'].filter(k => k !== 'tone' || res?.tone);
+  const order = ['src', 'qwen', 'bg', 'tone', 'line'].filter(has);
   const n = OW * OH, parts = [];
   let size = 0;
   const push = u => { parts.push(u); size += u.length; };
@@ -1041,6 +1185,22 @@ $('swatch').addEventListener('click', e => {
   if (res) { panelize(); compose(); layerList(); }
 });
 $('selSize').onchange = e => { P.size = +e.target.value; if (src) { prepare(); convert(); } };
+$('cbAi').onchange = e => {
+  P.ai = e.target.checked ? 1 : 0; $('aiBox').style.display = P.ai ? 'flex' : 'none';
+  if (P.ai) { aiConnect(true); if (src) { setGray(); } }
+  else if (src) { setGray(); if (res) reconvert(); }
+  layerList();
+};
+$('bAiConn').onclick = () => aiConnect();
+$('aiUrl').value = ai.url;
+$('aiUrl').onchange = e => { ai.url = e.target.value.trim(); saveAi(); aiConnect(); };
+for (const k of ['Unet', 'Clip', 'Vae']) $('ai' + k).onchange = e => { ai[k.toLowerCase()] = e.target.value; saveAi(); };
+$('aiPrompt').value = ai.prompt;
+$('aiPrompt').onchange = e => { ai.prompt = e.target.value.trim() || DEF_PROMPT; saveAi(); };
+$('aiPromptReset').onclick = () => { ai.prompt = $('aiPrompt').value = DEF_PROMPT; saveAi(); };
+$('aiSeed').value = ai.seed;
+$('aiSeed').onchange = e => { ai.seed = Math.max(0, parseInt(e.target.value) || 0); saveAi(); };
+$('aiDice').onclick = () => { ai.seed = $('aiSeed').value = Math.floor(Math.random() * 1e9); saveAi(); };
 $('selDpi').onchange = e => { P.dpi = +e.target.value; };
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || b.disabled) return;
