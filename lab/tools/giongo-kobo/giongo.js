@@ -354,24 +354,34 @@ function thumb(cv, st) {
 
 /* ---------- プレビュー ---------- */
 const cv = $('#cv'), stage = $('#stage');
-let mode = 'path', sel = null, lastGs = [];
-function view() {
-  const r = stage.getBoundingClientRect();
-  return { s: r.width / W, r };
+let mode = 'path', sel = null, lastGs = [], drag = null;
+let V = { s: 1, ox: 0, oy: 0 }; // 世界 → 画面（CSS px）
+function view() { return { r: stage.getBoundingClientRect() }; }
+// 字と 通り道が ぜんぶ 入る ように 映す。ドラッグ中は 動かさない
+function fitView(r) {
+  const b = bounds(S, lastGs);
+  let x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h;
+  for (const p of pathsOf(S)) for (const q of [p.a, p.b, p.m]) {
+    x0 = Math.min(x0, q[0] - 30); y0 = Math.min(y0, q[1] - 30); x1 = Math.max(x1, q[0] + 30); y1 = Math.max(y1, q[1] + 30);
+  }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hw = Math.max(250, (x1 - x0) / 2), hh = Math.max(250, (y1 - y0) / 2);
+  x0 = cx - hw; x1 = cx + hw; y0 = cy - hh; y1 = cy + hh;
+  const pad = 16, s = Math.min((r.width - pad * 2) / (x1 - x0), (r.height - pad * 2) / (y1 - y0));
+  V = { s, ox: r.width / 2 - (x0 + x1) / 2 * s, oy: r.height / 2 - (y0 + y1) / 2 * s };
 }
 function draw() {
   const dpr = window.devicePixelRatio || 1;
   const { r } = view();
-  const px = Math.round(r.width * dpr);
-  if (cv.width !== px) { cv.width = px; cv.height = px; }
+  const pw = Math.round(r.width * dpr), ph = Math.round(r.height * dpr);
+  if (cv.width !== pw || cv.height !== ph) { cv.width = pw; cv.height = ph; }
   const ctx = cv.getContext('2d');
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, cv.width, cv.height);
-  const k = cv.width / W;
-  ctx.setTransform(k, 0, 0, k, 0, 0);
   lastGs = layout(S);
+  if (!drag) fitView(r);
+  ctx.setTransform(V.s * dpr, 0, 0, V.s * dpr, V.ox * dpr, V.oy * dpr);
   render(ctx, S, lastGs);
-  const u = W / r.width; // 画面の 1px
+  const u = 1 / V.s; // 画面の 1px
   if (mode === 'path') {
     pathsOf(S).forEach(p => {
       const sp = sampler(p);
@@ -416,9 +426,9 @@ function handles(g) {
 
 /* ---------- 指・ペン ---------- */
 const touches = new Map();
-let drag = null, multi = null, lastMulti = 0;
-const world = e => { const { r } = view(); return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * W]; };
-const near = (a, b, px) => Math.hypot(a[0] - b[0], a[1] - b[1]) < px * W / view().r.width;
+let  multi = null, lastMulti = 0;
+const world = e => { const { r } = view(); return [(e.clientX - r.left - V.ox) / V.s, (e.clientY - r.top - V.oy) / V.s]; };
+const near = (a, b, px) => Math.hypot(a[0] - b[0], a[1] - b[1]) < px / V.s;
 
 cv.addEventListener('pointerdown', e => {
   touches.set(e.pointerId, [e.clientX, e.clientY]);
