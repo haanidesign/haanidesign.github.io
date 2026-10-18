@@ -88,6 +88,14 @@ body{
 .note.ok{color:#3E7E41;} .note.ng{color:#B5432F;}
 textarea.sel{width:100%; font-family:inherit; font-weight:400;}
 
+/* お気に入り */
+.favs{display:flex; flex-wrap:wrap; gap:.4rem;}
+.fav{display:inline-flex; align-items:stretch; border:1.5px solid var(--ink); border-radius:100px; overflow:hidden; min-height:36px;}
+.fav button{background:var(--paper); border:0; font:inherit; font-size:.66rem; color:var(--ink); cursor:pointer; padding:0 .8rem;}
+.fav button:active{background:var(--main-soft);}
+.fav .x{border-left:1.5px solid var(--ink); padding:0 .55rem; color:var(--ink2);}
+.favAdd{border:1.5px dashed var(--ink); border-radius:100px; background:none; font:inherit; font-size:.64rem; padding:0 .8rem; min-height:36px; cursor:pointer; color:var(--ink);}
+
 /* つまみ */
 .sl .lab{display:flex; justify-content:space-between; align-items:center; font-size:.62rem;}
 .sl .lab b{font-family:'DotGothic16',monospace; font-weight:400; background:var(--cream); border-radius:6px; padding:0 .35rem; min-width:2.6rem; text-align:right;}
@@ -190,6 +198,11 @@ details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
         <div class="meta"><div id="srcName">まだ ありません</div><small id="srcSize">ドロップ・貼りつけ でも 入ります</small></div>
       </div>
       <button class="btn" id="bOpen"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg>絵を えらぶ</button>
+    </div>
+
+    <div class="card">
+      <div class="hd"><b>お気に入り</b><span class="grow"></span><small>FAVORITE</small></div>
+      <div class="favs" id="favs"></div>
     </div>
 
     <div class="card">
@@ -1203,6 +1216,59 @@ $('aiPromptReset').onclick = () => { ai.prompt = $('aiPrompt').value = DEF_PROMP
 $('aiSeed').value = ai.seed;
 $('aiSeed').onchange = e => { ai.seed = Math.max(0, parseInt(e.target.value) || 0); saveAi(); };
 $('aiDice').onclick = () => { ai.seed = $('aiSeed').value = Math.floor(Math.random() * 1e9); saveAi(); };
+/* ---------- お気に入り ---------- */
+// しまう のは 変換の 設定 だけ（表示の 切りかえ や AI の 接続は 入れない）
+const FAV_KEYS = [...Object.keys(DEF_TONE), ...Object.keys(DEF_LINE), ...Object.keys(DEF_LV), ...Object.keys(DEF_PANEL), 'lv', 'frame', 'paper', 'mode', 'size', 'color', 'dpi'];
+let favs = [];
+try { favs = JSON.parse(localStorage.getItem('senga.favs') || '[]'); } catch (e) {}
+const saveFavs = () => { try { localStorage.setItem('senga.favs', JSON.stringify(favs)); } catch (e) {} };
+// 選択肢に ない 値でも 空欄に ならない ように、足して から えらぶ
+function setSel(sel, v, label) {
+  v = String(v);
+  if (![...sel.options].some(o => o.value === v)) sel.add(new Option(label ? label(v) : v, v));
+  sel.value = v;
+}
+function applyFav(f) {
+  const old = { size: P.size, lv: P.lv };
+  for (const k of FAV_KEYS) if (k in f) P[k] = f[k];
+  if (!(P.size > 0)) P.size = 2048;
+  for (const [k, key] of Object.entries(sliders)) { $('s' + k).value = P[key]; $('v' + k).textContent = P[key]; }
+  setSel($('selSize'), P.size, v => Number(v).toLocaleString() + ' px');
+  setSel($('selFrame'), P.frame); setSel($('selPaper'), P.paper); setSel($('selDpi'), P.dpi);
+  $('panelBox').style.display = P.frame === 'none' ? 'none' : 'flex';
+  $('cbLv').checked = !!P.lv; $('lvBox').style.display = P.lv ? 'flex' : 'none';
+  for (const x of $('modes').children) x.classList.toggle('on', x.dataset.v === P.mode);
+  for (const x of $('swatch').children) x.classList.toggle('on', x.dataset.v === P.color);
+  modeUI();
+  if (!src) return;
+  if (P.size !== old.size) { prepare(); convert(); } else reconvert();
+}
+function favList() {
+  const box = $('favs'); box.innerHTML = '';
+  favs.forEach((f, i) => {
+    const el = document.createElement('span'); el.className = 'fav';
+    el.innerHTML = '<button class="go"></button><button class="x" aria-label="けす">×</button>';
+    el.querySelector('.go').textContent = f.name;
+    el.querySelector('.go').onclick = () => { applyFav(f); toast(`「${f.name}」に しました`); };
+    el.querySelector('.x').onclick = () => {
+      if (!confirm(`「${f.name}」を けしますか？`)) return;
+      favs.splice(i, 1); saveFavs(); favList();
+    };
+    box.appendChild(el);
+  });
+  const add = document.createElement('button'); add.className = 'favAdd'; add.textContent = '＋ 今の 設定を 登録';
+  add.onclick = () => {
+    const name = (prompt('名前を つけて ください', ['マンガ', 'ペン', 'えんぴつ', 'りんかく'][['manga', 'pen', 'pencil', 'edge'].indexOf(P.mode)] || '') || '').trim();
+    if (!name) return;
+    const f = { name }; for (const k of FAV_KEYS) f[k] = P[k];
+    const j = favs.findIndex(x => x.name === name);
+    if (j >= 0) favs[j] = f; else favs.push(f);
+    saveFavs(); favList(); toast(`「${name}」を 登録しました`);
+  };
+  box.appendChild(add);
+}
+favList();
+
 $('selDpi').onchange = e => { P.dpi = +e.target.value; };
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || b.disabled) return;
