@@ -309,6 +309,17 @@ const TOOLS = [
     thumb: "thumbs/dot-maker.png",
     url: "tools/kaitai-dot/index.html",
     status: "live"
+  },
+  {
+    no: 29,
+    slug: "senga",
+    title: "せんが",
+    desc: "絵や 写真を 線画に する。ペン・えんぴつ・りんかく の 3種。線の 太さ・拾う 量・ベタを 決めて、白か とうめいの PNG で 保存する。",
+    tags: ["線画", "画像変換", "PNG"],
+    cat: "manga",
+    thumb: "thumbs/senga.svg",
+    url: "tools/senga/index.html",
+    status: "live"
   }
 ];
 

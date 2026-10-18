@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#E1DD60">
+<title>せんが — 絵を 線画に する</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --ink2:#5C5843; --line:#E8E5D0;
+  --bd:2.5px solid var(--ink); --r:12px; --tap:44px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--cream); color:var(--ink);
+  font-family:'M PLUS Rounded 1c','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif;
+  font-weight:700; overflow:hidden; user-select:none; -webkit-user-select:none;
+  display:flex; flex-direction:column;
+}
+.ic{width:20px; height:20px; flex:none; display:block;}
+.bar{
+  display:flex; align-items:center; gap:.35rem; flex:none;
+  background:var(--main); border-bottom:var(--bd); padding:.35rem .5rem;
+  padding-top:calc(.35rem + env(safe-area-inset-top));
+}
+.bar h1{margin:0 .3rem; font-size:.9rem; white-space:nowrap;}
+.bar .grow{flex:1;}
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.3rem;
+  min-height:var(--tap); background:var(--paper); color:var(--ink);
+  border:var(--bd); border-radius:var(--r); padding:.35rem .65rem;
+  font:inherit; font-size:.76rem; box-shadow:0 3px 0 var(--ink); cursor:pointer; white-space:nowrap;
+}
+.btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink);}
+.btn-ic{width:var(--tap); padding:0;}
+.btn-g{background:var(--ink); color:var(--main);}
+.btn:disabled{opacity:.4;}
+
+.stage{
+  flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center; padding:.8rem;
+  background-color:var(--cream);
+  background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
+  background-size:16px 16px;
+}
+#cv{max-width:100%; max-height:100%; display:none; border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink);}
+#cv.alpha{background-color:#fff; background-image:repeating-conic-gradient(#e8e5d0 0 25%,#fff 0 50%); background-size:16px 16px;}
+.empty{
+  background:var(--paper); border:var(--bd); border-radius:18px; box-shadow:0 4px 0 var(--ink);
+  padding:1.2rem 1.1rem; text-align:center; width:min(100%,22rem);
+}
+.empty h2{margin:0 0 .3rem; font-size:1.2rem;}
+.empty p{margin:0 0 .9rem; font-size:.7rem; font-weight:400; color:var(--ink2); line-height:1.8;}
+.empty .btn{width:100%; min-height:52px;}
+.stage.over .empty{background:var(--main-soft);}
+#busy{position:absolute; top:1rem; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--main);
+  border-radius:100px; padding:.25rem .8rem; font-size:.65rem; display:none;}
+
+.dock{
+  flex:none; background:var(--paper); border-top:var(--bd); padding:.5rem .7rem;
+  padding-bottom:calc(.5rem + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:.45rem; max-height:46vh; overflow-y:auto;
+}
+.seg{display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:.35rem;}
+.seg button{
+  min-height:38px; background:var(--paper); border:2px solid var(--ink); border-radius:10px;
+  box-shadow:0 2.5px 0 var(--ink); font:inherit; font-size:.66rem; cursor:pointer; color:var(--ink);
+  display:flex; align-items:center; justify-content:center; gap:.25rem;
+}
+.seg button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
+.seg .sw{width:16px; height:16px; border-radius:50%; border:2px solid var(--ink);}
+.grid{display:grid; grid-template-columns:1fr 1fr; gap:.2rem .9rem;}
+.sl .lab{display:flex; justify-content:space-between; font-size:.6rem; font-weight:400; color:var(--ink2);}
+.sl .lab b{font-family:'DotGothic16',monospace; font-weight:400; color:var(--ink);}
+.sl.off{opacity:.35; pointer-events:none;}
+.rs{position:relative; height:30px; touch-action:none; cursor:ew-resize; min-width:60px;}
+.rs-track{position:absolute; left:0; right:0; top:50%; height:10px; margin-top:-5px; background:var(--cream); border:2px solid var(--ink); border-radius:100px; overflow:hidden;}
+.rs-fill{position:absolute; left:0; top:0; bottom:0; background:var(--main);}
+.rs-knob{position:absolute; top:50%; width:20px; height:24px; margin:-12px 0 0 -10px; background:var(--paper); border:2px solid var(--ink); border-radius:7px; box-shadow:0 2px 0 var(--ink);}
+.rs.drag .rs-knob{background:var(--main);}
+.lbl{font-size:.62rem; color:var(--ink2); font-weight:400; margin-bottom:-.2rem;}
+.toast{
+  position:fixed; left:50%; bottom:calc(1.2rem + env(safe-area-inset-bottom)); transform:translateX(-50%);
+  background:var(--ink); color:var(--main); border-radius:100px; padding:.45rem 1rem; font-size:.72rem;
+  z-index:50; opacity:0; transition:opacity .25s; pointer-events:none; white-space:nowrap;
+}
+.toast.show{opacity:1;}
+@media (min-width:760px){
+  .dock{padding-left:max(.7rem,calc(50vw - 320px)); padding-right:max(.7rem,calc(50vw - 320px));}
+}
+</style>
+</head>
+<body>
+<!-- アイコン … Hugeicons（MIT）https://hugeicons.com -->
+<div class="bar">
+  <a class="btn btn-ic" href="../../index.html" aria-label="ラボへ"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M15 6C15 6 9.00001 10.4189 9 12C8.99999 13.5812 15 18 15 18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/></svg></a>
+  <h1>せんが</h1>
+  <span class="grow"></span>
+  <button class="btn btn-ic" id="bOpen" aria-label="絵を えらぶ"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg></button>
+  <button class="btn btn-ic" id="bCmp" aria-label="押している間 元の絵" disabled><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M21.544 11.045C21.848 11.4713 22 11.6845 22 12C22 12.3155 21.848 12.5287 21.544 12.955C20.1779 14.8706 16.6892 19 12 19C7.31078 19 3.8221 14.8706 2.45604 12.955C2.15201 12.5287 2 12.3155 2 12C2 11.6845 2.15201 11.4713 2.45604 11.045C3.8221 9.12944 7.31078 5 12 5C16.6892 5 20.1779 9.12944 21.544 11.045Z" stroke="currentColor" stroke-width="1.7"/><path d="M15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12Z" stroke="currentColor" stroke-width="1.7"/></svg></button>
+  <button class="btn btn-ic btn-g" id="bSave" aria-label="PNG で 保存" disabled><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M16.9504 12.1817C17.1981 12.814 16.5076 13.5726 15.1267 15.0899C13.6702 16.6902 12.9201 17.4904 12 17.5C11.0799 17.4904 10.3298 16.6902 8.87331 15.0899C7.49239 13.5726 6.80193 12.814 7.04964 12.1817C7.34928 11.542 8.24477 11.5029 10 11.5002V4.99998C10 4.53501 10 4.30253 10.0511 4.11179C10.1898 3.59414 10.5941 3.1898 11.1118 3.05111C11.3025 3 11.535 3 12 3C12.4649 3 12.6974 3 12.8882 3.05111C13.4058 3.1898 13.8102 3.59414 13.9489 4.11179C14 4.30253 14 4.53501 14 4.99998V11.5002C15.7552 11.5029 16.6507 11.542 16.9209 12.1135Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M5 21H19" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg></button>
+</div>
+
+<div class="stage" id="stage">
+  <div class="empty" id="empty">
+    <h2>せんが</h2>
+    <p>絵や 写真を 入れると 線画に します。<br>ここへ ドロップ・貼りつけ でも 入ります。</p>
+    <button class="btn" id="bOpen2" style="background:var(--main)">絵を えらぶ</button>
+  </div>
+  <canvas id="cv"></canvas>
+  <div id="busy">けいさん中…</div>
+</div>
+
+<div class="dock">
+  <div class="seg" id="segMode">
+    <button data-v="pen" class="on">ペン</button>
+    <button data-v="pencil">えんぴつ</button>
+    <button data-v="edge">りんかく</button>
+  </div>
+  <div class="grid">
+    <div class="sl"><div class="lab">線の 太さ<b id="vWidth">30</b></div><input type="range" id="sWidth" min="0" max="100" value="30"></div>
+    <div class="sl"><div class="lab">拾う 量<b id="vAmount">50</b></div><input type="range" id="sAmount" min="0" max="100" value="50"></div>
+    <div class="sl"><div class="lab">こさ<b id="vDark">50</b></div><input type="range" id="sDark" min="0" max="100" value="50"></div>
+    <div class="sl"><div class="lab">ゴミとり<b id="vClean">30</b></div><input type="range" id="sClean" min="0" max="100" value="30"></div>
+    <div class="sl" id="slFill"><div class="lab">ベタ（黒く ぬる）<b id="vFill">0</b></div><input type="range" id="sFill" min="0" max="100" value="0"></div>
+    <div class="sl"><div class="lab">大きさ<b id="vSize">1600</b></div><input type="range" id="sSize" min="512" max="3072" step="64" value="1600"></div>
+  </div>
+  <div class="lbl">線の 色 ／ 下じき</div>
+  <div class="grid">
+    <div class="seg" id="segColor">
+      <button data-v="#000000" class="on"><i class="sw" style="background:#000"></i></button>
+      <button data-v="#1E3A8A"><i class="sw" style="background:#1E3A8A"></i></button>
+      <button data-v="#7A3B2E"><i class="sw" style="background:#7A3B2E"></i></button>
+      <button data-v="#C0392B"><i class="sw" style="background:#C0392B"></i></button>
+    </div>
+    <div class="seg" id="segBg">
+      <button data-v="white" class="on">白</button>
+      <button data-v="clear">とうめい</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { enhanceAll } from '../oekaki-kobo/js/rslider.js';
+enhanceAll();
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const P = { mode: 'pen', width: 30, amount: 50, dark: 50, clean: 30, fill: 0, size: 1600, color: '#000000', bg: 'white' };
+let src = null, name = 'senga', gray = null, W = 0, H = 0, outImg = null, srcImg = null;
+
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 1800); }
+
+/* ---------- 読みこみ ---------- */
+function load(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  name = (file.name || 'senga').replace(/\.[^.]+$/, '') + '_senga';
+  const img = new Image();
+  img.onload = () => { src = img; prepare(); URL.revokeObjectURL(img.src); };
+  img.onerror = () => toast('読めない 絵でした');
+  img.src = URL.createObjectURL(file);
+}
+function prepare() {
+  const k = Math.min(1, P.size / Math.max(src.naturalWidth, src.naturalHeight));
+  W = Math.max(1, Math.round(src.naturalWidth * k)); H = Math.max(1, Math.round(src.naturalHeight * k));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(src, 0, 0, W, H);
+  srcImg = x.getImageData(0, 0, W, H);
+  const d = srcImg.data; gray = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) gray[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
+  cv.width = W; cv.height = H; cv.style.display = 'block'; $('empty').style.display = 'none';
+  $('bSave').disabled = $('bCmp').disabled = false;
+  run();
+}
+
+/* ---------- ぼかし（箱ぼかし 3回 ≒ ガウス） ---------- */
+function boxPass(a, b, r, w, h) {
+  const n = 2 * r + 1;
+  for (let y = 0; y < h; y++) {
+    const o = y * w; let s = a[o] * (r + 1);
+    for (let i = 1; i <= r; i++) s += a[o + Math.min(w - 1, i)];
+    for (let x = 0; x < w; x++) {
+      b[o + x] = s / n;
+      s += a[o + Math.min(w - 1, x + r + 1)] - a[o + Math.max(0, x - r)];
+    }
+  }
+}
+function transpose(a, b, w, h) { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) b[x * h + y] = a[y * w + x]; }
+function blur(a, sigma) {
+  if (sigma < .3) return a.slice();
+  const r = Math.max(1, Math.round(Math.sqrt(12 * sigma * sigma / 3 + 1) / 2 - .5));
+  let p = a.slice(), q = new Float32Array(a.length);
+  for (let i = 0; i < 3; i++) { boxPass(p, q, r, W, H); [p, q] = [q, p]; }
+  transpose(p, q, W, H);
+  for (let i = 0; i < 3; i++) { boxPass(q, p, r, H, W); [p, q] = [q, p]; }
+  transpose(q, p, H, W);
+  return p;
+}
+const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/* ---------- 線を 出す。もどりは 0..1 の 線の こさ ---------- */
+function lines() {
+  const scale = Math.max(W, H) / 1024;
+  const base = blur(gray, (P.clean / 100) * 2.2 * scale);
+  const s = (.6 + P.width / 100 * 3.4) * scale;
+  const amt = P.amount / 100, n = W * H, L = new Float32Array(n);
+  if (P.mode === 'pen') {
+    // ちがう 大きさの ぼかしの 差（DoG）。暗い 側の ふちだけ 拾う
+    const g1 = blur(base, s * .5), g2 = blur(base, s * 1.6);
+    const t = .03 - amt * .028, soft = .026 - P.dark / 100 * .021;
+    for (let i = 0; i < n; i++) L[i] = smooth(t, t + soft, g2[i] - g1[i]);
+  } else if (P.mode === 'pencil') {
+    // 覆い焼き。灰色の なめらかな 線
+    const g = blur(base, s * 1.2);
+    const gam = 1 + P.dark / 100 * 5, lift = 1 - amt * .12;
+    for (let i = 0; i < n; i++) {
+      const v = Math.min(1, base[i] / Math.max(1e-3, g[i]) * lift + (1 - lift));
+      L[i] = 1 - Math.pow(v, gam);
+    }
+    const c = .05 * (1 - amt);
+    for (let i = 0; i < n; i++) L[i] = Math.max(0, (L[i] - c) / (1 - c));
+  } else {
+    // Sobel。明るさの かわり目 ぜんぶ
+    const g = blur(base, s * .5), gain = 2 + amt * 18, gam = 1.6 - P.dark / 100 * 1.1;
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      const gx = g[i - W + 1] + 2 * g[i + 1] + g[i + W + 1] - g[i - W - 1] - 2 * g[i - 1] - g[i + W - 1];
+      const gy = g[i + W - 1] + 2 * g[i + W] + g[i + W + 1] - g[i - W - 1] - 2 * g[i - W] - g[i - W + 1];
+      L[i] = Math.pow(Math.min(1, Math.hypot(gx, gy) * gain / 4), gam);
+    }
+  }
+  if (P.fill > 0) {
+    const g = blur(base, scale), bp = P.fill / 100 * .45;
+    for (let i = 0; i < n; i++) L[i] = Math.max(L[i], smooth(bp + .04, bp - .02, g[i]));
+  }
+  // 小さな ぽつぽつを 消す。まわりに 線の ない 点は 弱める
+  if (P.clean > 0 && P.mode !== 'pencil') {
+    const m = blur(L, 1.5 * scale), k = P.clean / 100 * .35;
+    for (let i = 0; i < n; i++) if (m[i] < k) L[i] *= m[i] / k;
+  }
+  return L;
+}
+
+function paint() {
+  const L = lines();
+  const c = parseInt(P.color.slice(1), 16), r = c >> 16, g = c >> 8 & 255, b = c & 255;
+  outImg = ctx.createImageData(W, H);
+  const d = outImg.data, clear = P.bg === 'clear';
+  for (let i = 0; i < W * H; i++) {
+    const a = L[i], j = i * 4;
+    if (clear) { d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = Math.round(a * 255); }
+    else { d[j] = 255 + (r - 255) * a; d[j + 1] = 255 + (g - 255) * a; d[j + 2] = 255 + (b - 255) * a; d[j + 3] = 255; }
+  }
+  ctx.putImageData(outImg, 0, 0);
+  cv.classList.toggle('alpha', clear);
+}
+
+let pend = 0;
+function run() {
+  if (!gray) return;
+  $('busy').style.display = 'block';
+  cancelAnimationFrame(pend);
+  pend = requestAnimationFrame(() => setTimeout(() => { paint(); $('busy').style.display = 'none'; }, 0));
+}
+
+/* ---------- 操作 ---------- */
+const sliders = { Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill', Size: 'size' };
+for (const [k, key] of Object.entries(sliders)) {
+  const s = $('s' + k);
+  s.addEventListener('input', () => {
+    P[key] = +s.value; $('v' + k).textContent = s.value;
+    if (key !== 'size') run();
+  });
+  if (key === 'size') s.addEventListener('change', () => { if (src) prepare(); });
+}
+function seg(id, key, after) {
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    for (const x of $(id).children) x.classList.toggle('on', x === b);
+    P[key] = b.dataset.v; after && after(); run();
+  });
+}
+seg('segMode', 'mode');
+seg('segColor', 'color');
+seg('segBg', 'bg');
+
+const pick = () => $('file').click();
+$('bOpen').onclick = $('bOpen2').onclick = pick;
+$('file').onchange = e => { load(e.target.files[0]); e.target.value = ''; };
+const st = $('stage');
+st.addEventListener('dragover', e => { e.preventDefault(); st.classList.add('over'); });
+st.addEventListener('dragleave', () => st.classList.remove('over'));
+st.addEventListener('drop', e => { e.preventDefault(); st.classList.remove('over'); load(e.dataTransfer.files[0]); });
+addEventListener('paste', e => {
+  for (const it of e.clipboardData.items) if (it.type.startsWith('image/')) { load(it.getAsFile()); break; }
+});
+
+const cmp = $('bCmp');
+const showSrc = on => { if (!srcImg) return; ctx.putImageData(on ? srcImg : outImg, 0, 0); };
+cmp.addEventListener('pointerdown', () => showSrc(true));
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) cmp.addEventListener(ev, () => showSrc(false));
+
+$('bSave').onclick = () => {
+  cv.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = name + '.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast('保存しました');
+  }, 'image/png');
+};
+</script>
+</body>
+</html>
