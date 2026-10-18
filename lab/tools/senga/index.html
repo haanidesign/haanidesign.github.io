@@ -119,7 +119,19 @@ body{
     <button data-v="pen" class="on">ペン</button>
     <button data-v="pencil">えんぴつ</button>
     <button data-v="edge">りんかく</button>
+    <button data-v="manga">マンガ</button>
   </div>
+  <div class="grid" id="gManga" style="display:none">
+    <div class="sl"><div class="lab">網点の 細かさ<b id="vScreen">200</b></div><input type="range" id="sScreen" min="60" max="400" step="10" value="200"></div>
+    <div class="sl"><div class="lab">白に する 明るさ<b id="vWhite">80</b></div><input type="range" id="sWhite" min="30" max="100" value="80"></div>
+    <div class="sl"><div class="lab">黒ベタに する 暗さ<b id="vBlack">30</b></div><input type="range" id="sBlack" min="0" max="70" value="30"></div>
+    <div class="sl"><div class="lab">グラデトーン<b id="vGrad">100</b></div><input type="range" id="sGrad" min="0" max="100" value="100"></div>
+    <div class="sl"><div class="lab">うすい トーン<b id="vLight">18</b></div><input type="range" id="sLight" min="2" max="90" value="18"></div>
+    <div class="sl"><div class="lab">こい トーン<b id="vDarkT">42</b></div><input type="range" id="sDarkT" min="2" max="95" value="42"></div>
+    <div class="sl"><div class="lab">白ぬき線（ベタの 中）<b id="vWline">40</b></div><input type="range" id="sWline" min="0" max="100" value="40"></div>
+    <div class="sl"><div class="lab">ペン線を かさねる<b id="vPen">0</b></div><input type="range" id="sPen" min="0" max="100" value="0"></div>
+  </div>
+  <div class="lbl" id="lPenHint" style="display:none">↓ かさねる ペン線</div>
   <div class="grid">
     <div class="sl"><div class="lab">線の 太さ<b id="vWidth">30</b></div><input type="range" id="sWidth" min="0" max="100" value="30"></div>
     <div class="sl"><div class="lab">拾う 量<b id="vAmount">50</b></div><input type="range" id="sAmount" min="0" max="100" value="50"></div>
@@ -218,7 +230,7 @@ enhanceAll();
 
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
-const P = { mode: 'pen', width: 30, amount: 50, dark: 50, clean: 30, fill: 0, size: 1600, color: '#000000', bg: 'white' };
+const P = { screen: 200, white: 80, black: 30, grad: 100, light: 18, darkT: 42, wline: 40, pen: 0, mode: 'pen', width: 30, amount: 50, dark: 50, clean: 30, fill: 0, size: 1600, color: '#000000', bg: 'white' };
 let src = null, name = 'senga', gray = null, W = 0, H = 0, outImg = null, srcImg = null;
 
 function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 1800); }
@@ -271,17 +283,17 @@ function blur(a, sigma) {
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 /* ---------- 線を 出す。もどりは 0..1 の 線の こさ ---------- */
-function lines() {
+function lines(mode = P.mode) {
   const scale = Math.max(W, H) / 1024;
   const base = blur(gray, (P.clean / 100) * 2.2 * scale);
   const s = (.6 + P.width / 100 * 3.4) * scale;
   const amt = P.amount / 100, n = W * H, L = new Float32Array(n);
-  if (P.mode === 'pen') {
+  if (mode === 'pen') {
     // ちがう 大きさの ぼかしの 差（DoG）。暗い 側の ふちだけ 拾う
     const g1 = blur(base, s * .5), g2 = blur(base, s * 1.6);
     const t = .03 - amt * .028, soft = .026 - P.dark / 100 * .021;
     for (let i = 0; i < n; i++) L[i] = smooth(t, t + soft, g2[i] - g1[i]);
-  } else if (P.mode === 'pencil') {
+  } else if (mode === 'pencil') {
     // 覆い焼き。灰色の なめらかな 線
     const g = blur(base, s * 1.2);
     const gam = 1 + P.dark / 100 * 5, lift = 1 - amt * .12;
@@ -301,20 +313,190 @@ function lines() {
       L[i] = Math.pow(Math.min(1, Math.hypot(gx, gy) * gain / 4), gam);
     }
   }
-  if (P.fill > 0) {
+  if (P.fill > 0 && P.mode !== 'manga') {
     const g = blur(base, scale), bp = P.fill / 100 * .45;
     for (let i = 0; i < n; i++) L[i] = Math.max(L[i], smooth(bp + .04, bp - .02, g[i]));
   }
   // 小さな ぽつぽつを 消す。まわりに 線の ない 点は 弱める
-  if (P.clean > 0 && P.mode !== 'pencil') {
+  if (P.clean > 0 && mode !== 'pencil') {
     const m = blur(L, 1.5 * scale), k = P.clean / 100 * .35;
     for (let i = 0; i < n; i++) if (m[i] < k) L[i] *= m[i] / k;
   }
   return L;
 }
 
+/* ---------- マンガ（線の 選び分け と 網点トーン）
+   ComfyUI-MangaScreen の Manga Finish を うつした もの。
+   Copyright (c) 2026 ashukae — MIT License https://github.com/ashukae/ComfyUI-MangaScreen ---------- */
+
+// つながった かたまりに 番号を ふる。st は かたまりごとの 幅・高さ・面積
+function components(mask, conn8) {
+  const n = W * H, lab = new Int32Array(n), stack = new Int32Array(n);
+  const st = { w: [0], h: [0], area: [0] };
+  let id = 0;
+  for (let s0 = 0; s0 < n; s0++) {
+    if (!mask[s0] || lab[s0]) continue;
+    id++; lab[s0] = id;
+    let sp = 0, area = 0, x0 = W, x1 = 0, y0 = H, y1 = 0;
+    stack[sp++] = s0;
+    while (sp) {
+      const i = stack[--sp], x = i % W, y = (i - x) / W;
+      area++;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy || (!conn8 && dx && dy)) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx;
+        if (mask[j] && !lab[j]) { lab[j] = id; stack[sp++] = j; }
+      }
+    }
+    st.w.push(x1 - x0 + 1); st.h.push(y1 - y0 + 1); st.area.push(area);
+  }
+  return { lab, st, count: id + 1 };
+}
+
+// 四角の 窓の 合計（はしは のばす）。窓は 2r+1
+function boxSum(a, r) {
+  const q = new Float32Array(a.length), o = new Float32Array(a.length);
+  for (let y = 0; y < H; y++) {
+    const b = y * W; let s = 0;
+    for (let x = -r; x <= r; x++) s += a[b + Math.min(W - 1, Math.max(0, x))];
+    for (let x = 0; x < W; x++) {
+      q[b + x] = s;
+      s += a[b + Math.min(W - 1, x + r + 1)] - a[b + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    for (let y = -r; y <= r; y++) s += q[Math.min(H - 1, Math.max(0, y)) * W + x];
+    for (let y = 0; y < H; y++) {
+      o[y * W + x] = s;
+      s += q[Math.min(H - 1, y + r + 1) * W + x] - q[Math.max(0, y - r) * W + x];
+    }
+  }
+  return o;
+}
+const odd = v => Math.max(3, Math.round(v) | 1);
+
+// 値の 種類が 少ない ときの メディアン（窓 n）
+function medianSmall(level, n, values) {
+  const r = n >> 1, half = n * n / 2, out = new Uint8Array(level.length);
+  const counts = values.map(v => boxSum(Float32Array.from(level, x => x === v ? 1 : 0), r));
+  for (let i = 0; i < level.length; i++) {
+    let c = 0;
+    for (let k = 0; k < values.length; k++) { c += counts[k][i]; if (c > half) { out[i] = values[k]; break; } }
+  }
+  return out;
+}
+function erode(mask, n) {
+  const r = n >> 1, s = boxSum(Float32Array.from(mask, v => v ? 1 : 0), r), full = (2 * r + 1) ** 2 - .5;
+  return Uint8Array.from(s, v => v > full ? 1 : 0);
+}
+
+function manga() {
+  const k = W / 1024, n = W * H, L = gray;
+  // 線: まわりより 暗く、細長い ものだけ。点や 小さな かたまりは すてる
+  const Ls = blur(L, 1.5 * k), Lb = blur(L, .7 * k);
+  const solid = Uint8Array.from(Ls, v => v < .22 ? 1 : 0);
+  const loc = boxSum(Lb, odd(15 * k) >> 1), a2 = (odd(15 * k)) ** 2;
+  const line = new Uint8Array(n);
+  for (let i = 0; i < n; i++) line[i] = Lb[i] < loc[i] / a2 - .07 && Lb[i] < .65 ? 1 : 0;
+  let cc = components(line, true);
+  const keep = new Uint8Array(cc.count);
+  for (let c = 1; c < cc.count; c++) {
+    const w = cc.st.w[c], h = cc.st.h[c], ar = cc.st.area[c];
+    keep[c] = (Math.max(w, h) >= 10 * k && ar >= 12 * k * k && ar < .6 * w * h + 40 * k * k) || ar >= 400 * k * k ? 1 : 0;
+  }
+  const ink0 = new Uint8Array(n);
+  for (let i = 0; i < n; i++) ink0[i] = solid[i] || keep[cc.lab[i]] ? 1 : 0;
+  cc = components(ink0, true);
+  const ink = new Uint8Array(n);
+  for (let i = 0; i < n; i++) ink[i] = cc.lab[i] && cc.st.area[cc.lab[i]] >= 6 * k * k ? 1 : 0;
+  const strokes = new Uint8Array(n);
+  for (let i = 0; i < n; i++) strokes[i] = ink[i] && !solid[i] ? 1 : 0;
+  let pen = null;
+  if (P.pen > 0) {
+    pen = lines('pen');
+    const th = .95 - P.pen / 100 * .8;
+    for (let i = 0; i < n; i++) if (pen[i] > th) strokes[i] = 1;
+  }
+
+  // 明暗: 線を ぬいて 読む（線の まわりが 暗く ならない）
+  const m = Float32Array.from(ink, v => v ? 0 : 1), Lm = new Float32Array(n);
+  for (let i = 0; i < n; i++) Lm[i] = L[i] * m[i];
+  const A = blur(Lm, 2.5 * k), B = blur(m, 2.5 * k);
+  let V = new Float32Array(n);
+  for (let i = 0; i < n; i++) V[i] = A[i] / Math.max(B[i], 1e-3);
+  V = blur(V, 1.5 * k); // もとは バイラテラル。ここは 軽く ぼかすだけ
+
+  // 4段: 0 白・1 うすい・2 こい・3 ベタ。小さな 島は まわりに とかす
+  const white = P.white / 100, black = Math.min(P.black / 100, white - .02), split = (white + black) / 2;
+  let level = Uint8Array.from(V, v => v >= white ? 0 : v >= split ? 1 : v >= black ? 2 : 3);
+  level = medianSmall(level, odd(11 * k), [0, 1, 2, 3]);
+  for (const lv of [1, 2, 3, 0]) {
+    const c4 = components(Uint8Array.from(level, v => v === lv ? 1 : 0), false);
+    const hole = new Uint8Array(n); let any = false;
+    for (let i = 0; i < n; i++) if (c4.lab[i] && c4.st.area[c4.lab[i]] < 600 * k * k) { hole[i] = 1; any = true; }
+    if (!any) continue;
+    const fill = medianSmall(Uint8Array.from(level, (v, i) => hole[i] ? 255 : v), odd(21 * k), [0, 1, 2, 3, 255]);
+    for (let i = 0; i < n; i++) if (hole[i] && fill[i] !== 255) level[i] = fill[i];
+  }
+  const tones = [0, P.light / 100, P.darkT / 100, 1];
+  const cover = Float32Array.from(level, v => tones[v]);
+
+  // グラデトーン: 平らな 面の 中に なめらかな 影が かくれて いれば、暗さに あわせて 点を 大きく
+  if (P.grad > 0) {
+    const Vs = blur(V, 3 * k), spread = new Float32Array(n);
+    for (let lv = 0; lv < 4; lv++) {
+      const c4 = components(Uint8Array.from(level, v => v === lv ? 1 : 0), false);
+      const cnt = new Float64Array(c4.count), sum = new Float64Array(c4.count), sq = new Float64Array(c4.count);
+      for (let i = 0; i < n; i++) { const c = c4.lab[i]; if (c) { cnt[c]++; sum[c] += Vs[i]; sq[c] += Vs[i] * Vs[i]; } }
+      for (let i = 0; i < n; i++) {
+        const c = c4.lab[i]; if (!c) continue;
+        const mu = sum[c] / cnt[c];
+        spread[i] = Math.sqrt(Math.max(0, sq[c] / cnt[c] - mu * mu));
+      }
+    }
+    const g = P.grad / 100;
+    const a = blur(Float32Array.from(spread, v => Math.min(1, Math.max(0, (v - .03) / .05)) * g), 4 * k);
+    for (let i = 0; i < n; i++) {
+      const t = Math.min(1, Math.max(0, (white - Vs[i]) / (white - black)));
+      cover[i] = cover[i] * (1 - a[i]) + t * a[i];
+    }
+  }
+
+  // 網点: ページに そろえた 45° の 丸点。3×3 で 取って 丸く する
+  const pitch = W / P.screen, ca = Math.SQRT1_2, out = new Float32Array(n);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (ink[i] || strokes[i]) { out[i] = 1; continue; }
+    const c = cover[i];
+    if (c <= 0) continue;
+    if (c >= 1) { out[i] = 1; continue; }
+    let hit = 0;
+    for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 3; sx++) {
+      const px = x + (sx + .5) / 3, py = y + (sy + .5) / 3;
+      const u = (px * ca + py * ca) / pitch, v = (-px * ca + py * ca) / pitch;
+      if (1 - (Math.cos(2 * Math.PI * u) + Math.cos(2 * Math.PI * v) + 2) / 4 < c) hit++;
+    }
+    out[i] = hit > 4 ? 1 : 0;
+  }
+
+  // 白ぬき線: ベタの 中の 長い 線を 細く 白で ぬく
+  if (P.wline > 0) {
+    const beta = erode(Uint8Array.from(level, v => v === 3 ? 1 : 0), odd(3 * k));
+    const cand = pen ? Uint8Array.from(pen, v => v > 1 - P.wline / 100 ? 1 : 0) : strokes;
+    const cw = components(cand, true), keepW = new Uint8Array(cw.count);
+    for (let c = 1; c < cw.count; c++) keepW[c] = Math.max(cw.st.w[c], cw.st.h[c]) >= 40 * k * (1.4 - P.wline / 100) ? 1 : 0;
+    const cut = erode(Uint8Array.from(cw.lab, c => keepW[c]), k < 1.6 ? 2 : 3);
+    for (let i = 0; i < n; i++) if (beta[i]) out[i] = cut[i] ? 0 : 1;
+  }
+  return out;
+}
+
 function paint() {
-  const L = lines();
+  const L = P.mode === 'manga' ? manga() : lines();
   const c = parseInt(P.color.slice(1), 16), r = c >> 16, g = c >> 8 & 255, b = c & 255;
   outImg = ctx.createImageData(W, H);
   const d = outImg.data, clear = P.bg === 'clear';
@@ -336,13 +518,15 @@ function run() {
 }
 
 /* ---------- 操作 ---------- */
-const sliders = { Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill', Size: 'size' };
+const sliders = { Screen: 'screen', White: 'white', Black: 'black', Grad: 'grad', Light: 'light', DarkT: 'darkT', Wline: 'wline', Pen: 'pen', Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill', Size: 'size' };
 for (const [k, key] of Object.entries(sliders)) {
   const s = $('s' + k);
   s.addEventListener('input', () => {
     P[key] = +s.value; $('v' + k).textContent = s.value;
-    if (key !== 'size') run();
+    if (key !== 'size' && P.mode !== 'manga') run();
   });
+  // マンガは 重い ので、はなした ときに 計算する
+  if (key !== 'size') s.addEventListener('change', () => { if (P.mode === 'manga') run(); });
   if (key === 'size') s.addEventListener('change', () => { if (src) prepare(); });
 }
 function seg(id, key, after) {
@@ -352,7 +536,13 @@ function seg(id, key, after) {
     P[key] = b.dataset.v; after && after(); run();
   });
 }
-seg('segMode', 'mode');
+seg('segMode', 'mode', modeUI);
+function modeUI() {
+  const m = P.mode === 'manga';
+  $('gManga').style.display = m ? '' : 'none';
+  $('lPenHint').style.display = m ? '' : 'none';
+  $('slFill').classList.toggle('off', m);
+}
 seg('segColor', 'color');
 seg('segBg', 'bg');
 
