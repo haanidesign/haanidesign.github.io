@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#E1DD60">
-<title>せんが — 絵を 線画に する</title>
+<title>せんが — 絵を 線画・マンガに する</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
@@ -12,145 +12,275 @@
 :root{
   --main:#E1DD60; --main-soft:#F2F0BE;
   --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --ink2:#5C5843; --line:#E8E5D0;
-  --bd:2.5px solid var(--ink); --r:12px; --tap:44px;
+  --r:14px; --tap:40px;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
 body{
   margin:0; background:var(--cream); color:var(--ink);
   font-family:'M PLUS Rounded 1c','Hiragino Maru Gothic ProN','Yu Gothic UI',sans-serif;
-  font-weight:700; overflow:hidden; user-select:none; -webkit-user-select:none;
+  font-weight:700; user-select:none; -webkit-user-select:none;
   display:flex; flex-direction:column;
 }
-.ic{width:20px; height:20px; flex:none; display:block;}
-.bar{
-  display:flex; align-items:center; gap:.35rem; flex:none;
-  background:var(--main); border-bottom:var(--bd); padding:.35rem .5rem;
-  padding-top:calc(.35rem + env(safe-area-inset-top));
+.ic{width:18px; height:18px; flex:none; display:block;}
+.dot{font-family:'DotGothic16',monospace; font-weight:400;}
+
+/* 上の 帯 */
+#top{
+  display:flex; align-items:center; gap:.6rem; flex:none; background:var(--main);
+  padding:.45rem .8rem; padding-top:calc(.45rem + env(safe-area-inset-top));
 }
-.bar h1{margin:0 .3rem; font-size:.9rem; white-space:nowrap;}
-.bar .grow{flex:1;}
+#top .logo{width:34px; height:34px; border-radius:10px; background:var(--ink); color:var(--main); display:grid; place-items:center;}
+#top h1{margin:0; font-size:1rem; line-height:1.1;}
+#top h1 small{display:block; font-size:.52rem; font-weight:400; color:var(--ink2); letter-spacing:.12em;}
+#top .grow{flex:1;}
+#top .stat{font-size:.6rem; font-weight:400; color:var(--ink2); display:flex; align-items:center; gap:.3rem;}
+#top .stat i{width:8px; height:8px; border-radius:50%; background:var(--ink2); opacity:.4;}
+#top .stat.on i{background:#3E8E41; opacity:1;}
+
+/* 3つの はしら */
+.main{flex:1; min-height:0; display:grid; grid-template-columns:290px 1fr 270px;}
+.side{overflow-y:auto; padding:.7rem; display:flex; flex-direction:column; gap:.6rem; background:var(--cream);}
+.side.l{border-right:1px solid var(--line);}
+.side.r{border-left:1px solid var(--line);}
+.card{background:var(--paper); border-radius:var(--r); padding:.65rem .7rem; box-shadow:0 1px 3px rgba(30,28,20,.08); display:flex; flex-direction:column; gap:.5rem;}
+.hd{display:flex; align-items:center; gap:.4rem;}
+.hd b{background:var(--ink); color:var(--paper); border-radius:100px; padding:.15rem .65rem; font-size:.66rem;}
+.hd .grow{flex:1;}
+.hd small{font-size:.5rem; font-weight:400; color:var(--ink2); letter-spacing:.1em;}
+.note{font-size:.58rem; font-weight:400; color:var(--ink2); line-height:1.7; margin:0;}
+.link{background:none; border:0; font:inherit; font-size:.58rem; color:var(--ink2); text-decoration:underline; cursor:pointer; padding:0;}
+
 .btn{
-  display:inline-flex; align-items:center; justify-content:center; gap:.3rem;
-  min-height:var(--tap); background:var(--paper); color:var(--ink);
-  border:var(--bd); border-radius:var(--r); padding:.35rem .65rem;
-  font:inherit; font-size:.76rem; box-shadow:0 3px 0 var(--ink); cursor:pointer; white-space:nowrap;
+  display:inline-flex; align-items:center; justify-content:center; gap:.35rem;
+  min-height:var(--tap); background:var(--paper); color:var(--ink); border:1.5px solid var(--line);
+  border-radius:12px; padding:.3rem .7rem; font:inherit; font-size:.7rem; cursor:pointer; white-space:nowrap;
 }
-.btn:active{transform:translateY(3px); box-shadow:0 0 0 var(--ink);}
-.btn-ic{width:var(--tap); padding:0;}
-.btn-g{background:var(--ink); color:var(--main);}
-.btn:disabled{opacity:.4;}
+.btn:active{transform:translateY(1px);}
+.btn:disabled{opacity:.4; cursor:default;}
+.btn.ink{background:var(--ink); color:var(--main); border-color:var(--ink);}
+.btn.big{min-height:48px; font-size:.8rem; background:var(--main); border-color:var(--main);}
+.row{display:flex; gap:.4rem;}
+.row .btn{flex:1;}
 
-.stage{
-  flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center; padding:.8rem;
-  background-color:var(--cream);
-  background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
-  background-size:16px 16px;
-}
-#cv{max-width:100%; max-height:100%; display:none; border:2px solid var(--ink); box-shadow:0 3px 0 var(--ink);}
-#cv.alpha{background-color:#fff; background-image:repeating-conic-gradient(#e8e5d0 0 25%,#fff 0 50%); background-size:16px 16px;}
-.empty{
-  background:var(--paper); border:var(--bd); border-radius:18px; box-shadow:0 4px 0 var(--ink);
-  padding:1.2rem 1.1rem; text-align:center; width:min(100%,22rem);
-}
-.empty h2{margin:0 0 .3rem; font-size:1.2rem;}
-.empty p{margin:0 0 .9rem; font-size:.7rem; font-weight:400; color:var(--ink2); line-height:1.8;}
-.empty .btn{width:100%; min-height:52px;}
-.stage.over .empty{background:var(--main-soft);}
-#busy{position:absolute; top:1rem; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--main);
-  border-radius:100px; padding:.25rem .8rem; font-size:.65rem; display:none;}
+/* 元の 絵 */
+.src{display:flex; gap:.6rem; align-items:center;}
+.src .th{width:64px; height:64px; border-radius:10px; flex:none; background:var(--cream) center/cover no-repeat; border:1.5px dashed var(--line);}
+.src .th.has{border-style:solid;}
+.src .meta{min-width:0; font-size:.68rem;}
+.src .meta div{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.src .meta small{font-size:.56rem; font-weight:400; color:var(--ink2);}
 
-.dock{
-  flex:none; background:var(--paper); border-top:var(--bd); padding:.5rem .7rem;
-  padding-bottom:calc(.5rem + env(safe-area-inset-bottom));
-  display:flex; flex-direction:column; gap:.45rem; max-height:46vh; overflow-y:auto;
+/* 変換の しかた */
+.modes{display:grid; grid-template-columns:1fr 1fr; gap:.4rem;}
+.mode{
+  display:flex; flex-direction:column; align-items:flex-start; gap:.1rem; text-align:left;
+  background:var(--paper); border:1.5px solid var(--line); border-radius:12px; padding:.45rem .55rem;
+  font:inherit; font-size:.72rem; color:var(--ink); cursor:pointer; min-height:52px;
 }
-.seg{display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:.35rem;}
-.seg button{
-  min-height:38px; background:var(--paper); border:2px solid var(--ink); border-radius:10px;
-  box-shadow:0 2.5px 0 var(--ink); font:inherit; font-size:.66rem; cursor:pointer; color:var(--ink);
-  display:flex; align-items:center; justify-content:center; gap:.25rem;
-}
-.seg button.on{background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px);}
-.seg .sw{width:16px; height:16px; border-radius:50%; border:2px solid var(--ink);}
-.grid{display:grid; grid-template-columns:1fr 1fr; gap:.2rem .9rem;}
-.sl .lab{display:flex; justify-content:space-between; font-size:.6rem; font-weight:400; color:var(--ink2);}
-.sl .lab b{font-family:'DotGothic16',monospace; font-weight:400; color:var(--ink);}
-.sl.off{opacity:.35; pointer-events:none;}
-.rs{position:relative; height:30px; touch-action:none; cursor:ew-resize; min-width:60px;}
-.rs-track{position:absolute; left:0; right:0; top:50%; height:10px; margin-top:-5px; background:var(--cream); border:2px solid var(--ink); border-radius:100px; overflow:hidden;}
-.rs-fill{position:absolute; left:0; top:0; bottom:0; background:var(--main);}
-.rs-knob{position:absolute; top:50%; width:20px; height:24px; margin:-12px 0 0 -10px; background:var(--paper); border:2px solid var(--ink); border-radius:7px; box-shadow:0 2px 0 var(--ink);}
+.mode small{font-size:.54rem; font-weight:400; color:var(--ink2);}
+.mode.on{background:var(--main-soft); border-color:var(--ink);}
+
+/* つまみ */
+.sl .lab{display:flex; justify-content:space-between; align-items:center; font-size:.62rem;}
+.sl .lab b{font-family:'DotGothic16',monospace; font-weight:400; background:var(--cream); border-radius:6px; padding:0 .35rem; min-width:2.6rem; text-align:right;}
+.sl .ends{display:flex; justify-content:space-between; font-size:.5rem; font-weight:400; color:var(--ink2); margin-top:-.2rem;}
+.rs{position:relative; height:28px; touch-action:none; cursor:ew-resize; min-width:60px;}
+.rs-track{position:absolute; left:0; right:0; top:50%; height:6px; margin-top:-3px; background:var(--line); border-radius:100px; overflow:hidden;}
+.rs-fill{position:absolute; left:0; top:0; bottom:0; background:var(--ink);}
+.rs-knob{position:absolute; top:50%; width:18px; height:18px; margin:-9px 0 0 -9px; background:#fff; border-radius:50%; box-shadow:0 1px 4px rgba(30,28,20,.35);}
 .rs.drag .rs-knob{background:var(--main);}
-.lbl{font-size:.62rem; color:var(--ink2); font-weight:400; margin-bottom:-.2rem;}
+.sel{
+  font:inherit; font-size:.66rem; background:var(--cream); border:1.5px solid var(--line); border-radius:10px;
+  padding:.3rem .5rem; color:var(--ink); min-height:34px;
+}
+.kv{display:flex; align-items:center; justify-content:space-between; font-size:.66rem; gap:.5rem;}
+.swatch{display:flex; gap:.35rem;}
+.swatch button{width:28px; height:28px; border-radius:50%; border:2px solid var(--paper); box-shadow:0 0 0 1.5px var(--line); cursor:pointer; padding:0;}
+.swatch button.on{box-shadow:0 0 0 2px var(--ink);}
+details summary{font-size:.62rem; cursor:pointer; color:var(--ink2); list-style:none;}
+details summary::before{content:"＋ ";}
+details[open] summary::before{content:"－ ";}
+details > div{display:flex; flex-direction:column; gap:.5rem; margin-top:.5rem;}
+
+/* まん中 */
+.center{display:flex; flex-direction:column; min-width:0; min-height:0;}
+.ctop{display:flex; align-items:center; gap:.5rem; padding:.5rem .8rem; flex:none;}
+.ctop .fname{flex:1; min-width:0; font-size:.62rem; font-weight:400; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.tabs{display:flex; background:var(--paper); border-radius:100px; padding:3px; box-shadow:0 1px 3px rgba(30,28,20,.08);}
+.tabs button{border:0; background:none; font:inherit; font-size:.64rem; padding:.3rem .8rem; border-radius:100px; cursor:pointer; color:var(--ink2); min-height:30px;}
+.tabs button.on{background:var(--main); color:var(--ink);}
+.tabs button:disabled{opacity:.4;}
+.stage{
+  flex:1; min-height:0; position:relative; display:flex; align-items:center; justify-content:center; padding:.6rem 1rem;
+  background-image:radial-gradient(circle,rgba(30,28,20,.12) 1.2px,transparent 1.3px); background-size:16px 16px;
+}
+.stage.over{background-color:var(--main-soft);}
+#wrap{position:relative; max-width:100%; max-height:100%; display:none; line-height:0;}
+#cv{max-width:100%; max-height:calc(100vh - 190px); display:block; box-shadow:0 4px 18px rgba(30,28,20,.18);}
+#cv.alpha{background-color:#fff; background-image:repeating-conic-gradient(#ECE9D6 0 25%,#fff 0 50%); background-size:16px 16px;}
+#wipe{position:absolute; top:0; bottom:0; width:2px; background:var(--main); box-shadow:0 0 0 1px var(--ink); display:none; pointer-events:none;}
+.tag{position:absolute; top:8px; font-size:.55rem; background:rgba(255,254,247,.92); border-radius:100px; padding:.1rem .5rem; line-height:1.6; display:none;}
+#tagA{left:8px;} #tagB{right:8px;}
+.empty{background:var(--paper); border-radius:18px; box-shadow:0 2px 10px rgba(30,28,20,.1); padding:1.4rem 1.2rem; text-align:center; width:min(100%,22rem);}
+.empty h2{margin:0 0 .3rem; font-size:1.1rem;}
+.empty p{margin:0 0 1rem; font-size:.66rem; font-weight:400; color:var(--ink2); line-height:1.8;}
+.empty .btn{width:100%;}
+#busy{
+  position:absolute; left:50%; bottom:1.2rem; transform:translateX(-50%); background:var(--paper); border-radius:12px;
+  box-shadow:0 2px 10px rgba(30,28,20,.18); padding:.5rem .9rem; font-size:.64rem; display:none; align-items:center; gap:.5rem; white-space:nowrap;
+}
+#busy i{width:14px; height:14px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--ink); animation:sp .8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.cbar{display:none; align-items:center; gap:.6rem; padding:0 1rem .3rem; font-size:.55rem; font-weight:400; color:var(--ink2); flex:none;}
+.cbar .sl{flex:1;}
+.cfoot{display:flex; gap:.6rem; padding:.3rem .9rem .5rem; font-size:.56rem; font-weight:400; color:var(--ink2); flex:none;}
+
+/* レイヤー */
+.layers{display:flex; flex-direction:column; gap:.35rem;}
+.layer{display:flex; align-items:center; gap:.5rem; background:var(--cream); border-radius:10px; padding:.35rem .45rem; min-height:48px; cursor:pointer;}
+.layer.off{opacity:.55;}
+.layer.na{opacity:.3; pointer-events:none;}
+.layer input{width:18px; height:18px; accent-color:var(--ink); flex:none; margin:0;}
+.layer canvas{width:36px; height:36px; border-radius:6px; background:#fff; object-fit:contain; flex:none; box-shadow:0 0 0 1px var(--line);}
+.layer div{font-size:.66rem; line-height:1.3; min-width:0;}
+.layer small{display:block; font-size:.52rem; font-weight:400; color:var(--ink2);}
+
 .toast{
   position:fixed; left:50%; bottom:calc(1.2rem + env(safe-area-inset-bottom)); transform:translateX(-50%);
-  background:var(--ink); color:var(--main); border-radius:100px; padding:.45rem 1rem; font-size:.72rem;
+  background:var(--ink); color:var(--main); border-radius:100px; padding:.45rem 1rem; font-size:.7rem;
   z-index:50; opacity:0; transition:opacity .25s; pointer-events:none; white-space:nowrap;
 }
 .toast.show{opacity:1;}
-@media (min-width:760px){
-  .dock{padding-left:max(.7rem,calc(50vw - 320px)); padding-right:max(.7rem,calc(50vw - 320px));}
+
+/* せまい 画面: 絵 → 設定 → レイヤー の 順に 縦に ならべる */
+@media (max-width:900px){
+  body{height:auto; min-height:100%;}
+  .main{display:flex; flex-direction:column;}
+  .center{order:1; height:62vh; min-height:340px;}
+  .side.l{order:2; border:0; overflow:visible;}
+  .side.r{order:3; border:0; overflow:visible; padding-bottom:calc(1rem + env(safe-area-inset-bottom));}
+  #cv{max-height:calc(62vh - 110px);}
 }
 </style>
 </head>
 <body>
 <!-- アイコン … Hugeicons（MIT）https://hugeicons.com -->
-<div class="bar">
-  <h1>せんが</h1>
+<div id="top">
+  <div class="logo"><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M3.89089 20.8727L3 21L3.12727 20.1091C3.32086 18.754 3.41765 18.0764 3.71832 17.4751C4.01899 16.8738 4.50296 16.3898 5.47091 15.4218L16.9827 3.91009C17.4062 3.48654 17.618 3.27476 17.8464 3.16155C18.2811 2.94615 18.7914 2.94615 19.2261 3.16155C19.4546 3.27476 19.6663 3.48654 20.0899 3.91009C20.5135 4.33365 20.7252 4.54543 20.8385 4.77389C21.0539 5.20856 21.0539 5.71889 20.8385 6.15356C20.7252 6.38201 20.5135 6.59379 20.0899 7.01735L8.57816 18.5291C7.61022 19.497 7.12625 19.981 6.52491 20.2817C5.92357 20.5823 5.246 20.6791 3.89089 20.8727Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/><path d="M6 15L9 18" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/></svg></div>
+  <h1>せんが<small>SENGA ・ MANGA</small></h1>
   <span class="grow"></span>
-  <button class="btn btn-ic" id="bOpen" aria-label="絵を えらぶ"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg></button>
-  <button class="btn btn-ic" id="bCmp" aria-label="押している間 元の絵" disabled><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M21.544 11.045C21.848 11.4713 22 11.6845 22 12C22 12.3155 21.848 12.5287 21.544 12.955C20.1779 14.8706 16.6892 19 12 19C7.31078 19 3.8221 14.8706 2.45604 12.955C2.15201 12.5287 2 12.3155 2 12C2 11.6845 2.15201 11.4713 2.45604 11.045C3.8221 9.12944 7.31078 5 12 5C16.6892 5 20.1779 9.12944 21.544 11.045Z" stroke="currentColor" stroke-width="1.7"/><path d="M15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12Z" stroke="currentColor" stroke-width="1.7"/></svg></button>
-  <button class="btn btn-ic btn-g" id="bSave" aria-label="PNG で 保存" disabled><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M16.9504 12.1817C17.1981 12.814 16.5076 13.5726 15.1267 15.0899C13.6702 16.6902 12.9201 17.4904 12 17.5C11.0799 17.4904 10.3298 16.6902 8.87331 15.0899C7.49239 13.5726 6.80193 12.814 7.04964 12.1817C7.34928 11.542 8.24477 11.5029 10 11.5002V4.99998C10 4.53501 10 4.30253 10.0511 4.11179C10.1898 3.59414 10.5941 3.1898 11.1118 3.05111C11.3025 3 11.535 3 12 3C12.4649 3 12.6974 3 12.8882 3.05111C13.4058 3.1898 13.8102 3.59414 13.9489 4.11179C14 4.30253 14 4.53501 14 4.99998V11.5002C15.7552 11.5029 16.6507 11.542 16.9209 12.1135Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"/><path d="M5 21H19" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/></svg></button>
+  <span class="stat on"><i></i>この 端末で 変換</span>
 </div>
 
-<div class="stage" id="stage">
-  <div class="empty" id="empty">
-    <h2>せんが</h2>
-    <p>絵や 写真を 入れると 線画に します。<br>ここへ ドロップ・貼りつけ でも 入ります。</p>
-    <button class="btn" id="bOpen2" style="background:var(--main)">絵を えらぶ</button>
-  </div>
-  <canvas id="cv"></canvas>
-  <div id="busy">けいさん中…</div>
-</div>
-
-<div class="dock">
-  <div class="seg" id="segMode">
-    <button data-v="pen" class="on">ペン</button>
-    <button data-v="pencil">えんぴつ</button>
-    <button data-v="edge">りんかく</button>
-    <button data-v="manga">マンガ</button>
-  </div>
-  <div class="grid" id="gManga" style="display:none">
-    <div class="sl"><div class="lab">網点の 細かさ<b id="vScreen">200</b></div><input type="range" id="sScreen" min="60" max="400" step="10" value="200"></div>
-    <div class="sl"><div class="lab">白に する 明るさ<b id="vWhite">80</b></div><input type="range" id="sWhite" min="30" max="100" value="80"></div>
-    <div class="sl"><div class="lab">黒ベタに する 暗さ<b id="vBlack">30</b></div><input type="range" id="sBlack" min="0" max="70" value="30"></div>
-    <div class="sl"><div class="lab">グラデトーン<b id="vGrad">100</b></div><input type="range" id="sGrad" min="0" max="100" value="100"></div>
-    <div class="sl"><div class="lab">うすい トーン<b id="vLight">18</b></div><input type="range" id="sLight" min="2" max="90" value="18"></div>
-    <div class="sl"><div class="lab">こい トーン<b id="vDarkT">42</b></div><input type="range" id="sDarkT" min="2" max="95" value="42"></div>
-    <div class="sl"><div class="lab">白ぬき線（ベタの 中）<b id="vWline">40</b></div><input type="range" id="sWline" min="0" max="100" value="40"></div>
-    <div class="sl"><div class="lab">ペン線を かさねる<b id="vPen">0</b></div><input type="range" id="sPen" min="0" max="100" value="0"></div>
-  </div>
-  <div class="lbl" id="lPenHint" style="display:none">↓ かさねる ペン線</div>
-  <div class="grid">
-    <div class="sl"><div class="lab">線の 太さ<b id="vWidth">30</b></div><input type="range" id="sWidth" min="0" max="100" value="30"></div>
-    <div class="sl"><div class="lab">拾う 量<b id="vAmount">50</b></div><input type="range" id="sAmount" min="0" max="100" value="50"></div>
-    <div class="sl"><div class="lab">こさ<b id="vDark">50</b></div><input type="range" id="sDark" min="0" max="100" value="50"></div>
-    <div class="sl"><div class="lab">ゴミとり<b id="vClean">30</b></div><input type="range" id="sClean" min="0" max="100" value="30"></div>
-    <div class="sl" id="slFill"><div class="lab">ベタ（黒く ぬる）<b id="vFill">0</b></div><input type="range" id="sFill" min="0" max="100" value="0"></div>
-    <div class="sl"><div class="lab">大きさ<b id="vSize">1600</b></div><input type="range" id="sSize" min="512" max="3072" step="64" value="1600"></div>
-  </div>
-  <div class="lbl">線の 色 ／ 下じき</div>
-  <div class="grid">
-    <div class="seg" id="segColor">
-      <button data-v="#000000" class="on"><i class="sw" style="background:#000"></i></button>
-      <button data-v="#1E3A8A"><i class="sw" style="background:#1E3A8A"></i></button>
-      <button data-v="#7A3B2E"><i class="sw" style="background:#7A3B2E"></i></button>
-      <button data-v="#C0392B"><i class="sw" style="background:#C0392B"></i></button>
+<div class="main">
+  <!-- 左: 設定 -->
+  <div class="side l">
+    <div class="card">
+      <div class="hd"><b>元の 絵</b><span class="grow"></span><small>SOURCE</small></div>
+      <div class="src">
+        <div class="th" id="thumb"></div>
+        <div class="meta"><div id="srcName">まだ ありません</div><small id="srcSize">ドロップ・貼りつけ でも 入ります</small></div>
+      </div>
+      <button class="btn" id="bOpen"><svg class="ic" viewBox="0 0 24 24" fill="none"><circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 21C9.37246 15.775 14.2741 8.88406 21.4975 13.5424" stroke="currentColor" stroke-width="1.7"/></svg>絵を えらぶ</button>
     </div>
-    <div class="seg" id="segBg">
-      <button data-v="white" class="on">白</button>
-      <button data-v="clear">とうめい</button>
+
+    <div class="card">
+      <div class="hd"><b>変換の しかた</b><span class="grow"></span><small>CONVERT</small></div>
+      <div class="modes" id="modes">
+        <button class="mode" data-v="manga">マンガ<small>線・ベタ・トーン</small></button>
+        <button class="mode on" data-v="pen">ペン<small>くっきりした 線</small></button>
+        <button class="mode" data-v="pencil">えんぴつ<small>やわらかい 線</small></button>
+        <button class="mode" data-v="edge">りんかく<small>かわり目 ぜんぶ</small></button>
+      </div>
+      <div class="kv">仕上がりの 長辺
+        <select class="sel" id="selSize">
+          <option value="1024">1,024 px</option><option value="1536">1,536 px</option><option value="2048" selected>2,048 px</option><option value="3072">3,072 px</option>
+        </select>
+      </div>
+      <p class="note">大きいほど 細かく なり、時間も かかります。</p>
+    </div>
+
+    <div class="card" id="cTone" style="display:none">
+      <div class="hd"><b>トーンと ベタ</b><span class="grow"></span><button class="link" id="rTone">もとに もどす</button></div>
+      <div class="sl"><div class="lab">網点の 細かさ<b id="vScreen">200</b></div><input type="range" id="sScreen" min="60" max="400" step="10" value="200"><div class="ends"><span>あらい</span><span>こまかい</span></div></div>
+      <div class="sl"><div class="lab">白の しきい値<b id="vWhite">80</b></div><input type="range" id="sWhite" min="30" max="100" value="80"><div class="ends"><span>白を ふやす</span><span>トーンを ふやす</span></div></div>
+      <div class="sl"><div class="lab">ベタの しきい値<b id="vBlack">30</b></div><input type="range" id="sBlack" min="0" max="70" value="30"><div class="ends"><span>ひかえめ</span><span>黒を ふやす</span></div></div>
+      <details>
+        <summary>濃さ・線の こまかい 調整</summary>
+        <div>
+          <div class="sl"><div class="lab">グラデトーン<b id="vGrad">100</b></div><input type="range" id="sGrad" min="0" max="100" value="100"></div>
+          <div class="sl"><div class="lab">うすい トーン<b id="vLight">18</b></div><input type="range" id="sLight" min="2" max="90" value="18"></div>
+          <div class="sl"><div class="lab">こい トーン<b id="vDarkT">42</b></div><input type="range" id="sDarkT" min="2" max="95" value="42"></div>
+          <div class="sl"><div class="lab">白ぬき線（ベタの 中）<b id="vWline">40</b></div><input type="range" id="sWline" min="0" max="100" value="40"></div>
+          <div class="sl"><div class="lab">ペン線を かさねる<b id="vPen">0</b></div><input type="range" id="sPen" min="0" max="100" value="0"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="card" id="cLine">
+      <div class="hd"><b id="lineTitle">線</b><span class="grow"></span><button class="link" id="rLine">もとに もどす</button></div>
+      <div class="sl"><div class="lab">線の 太さ<b id="vWidth">30</b></div><input type="range" id="sWidth" min="0" max="100" value="30"></div>
+      <div class="sl"><div class="lab">拾う 量<b id="vAmount">50</b></div><input type="range" id="sAmount" min="0" max="100" value="50"></div>
+      <div class="sl"><div class="lab">こさ<b id="vDark">50</b></div><input type="range" id="sDark" min="0" max="100" value="50"></div>
+      <div class="sl"><div class="lab">ゴミとり<b id="vClean">30</b></div><input type="range" id="sClean" min="0" max="100" value="30"></div>
+      <div class="sl" id="slFill"><div class="lab">ベタ（暗い ところを ぬる）<b id="vFill">0</b></div><input type="range" id="sFill" min="0" max="100" value="0"></div>
+      <div class="kv">線の 色
+        <div class="swatch" id="swatch">
+          <button data-v="#000000" class="on" style="background:#000" aria-label="黒"></button>
+          <button data-v="#1E3A8A" style="background:#1E3A8A" aria-label="紺"></button>
+          <button data-v="#7A3B2E" style="background:#7A3B2E" aria-label="茶"></button>
+          <button data-v="#C0392B" style="background:#C0392B" aria-label="赤"></button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn big" id="bRun" disabled>変換する →</button>
+  </div>
+
+  <!-- まん中: 絵 -->
+  <div class="center">
+    <div class="ctop">
+      <span class="fname" id="fname">—</span>
+      <div class="tabs" id="tabs">
+        <button data-v="out" class="on" disabled>仕上がり</button>
+        <button data-v="cmp" disabled>比較</button>
+        <button data-v="src" disabled>元画像</button>
+      </div>
+    </div>
+    <div class="stage" id="stage">
+      <div class="empty" id="empty">
+        <h2>絵を 入れて ください</h2>
+        <p>イラストや 写真を、線画や マンガの 絵に します。<br>計算は この 端末の 中だけで します。</p>
+        <button class="btn big" id="bOpen2">絵を えらぶ</button>
+      </div>
+      <div id="wrap"><canvas id="cv"></canvas><div id="wipe"></div><span class="tag" id="tagA">元画像</span><span class="tag" id="tagB">仕上がり</span></div>
+      <div id="busy"><i></i><span id="busyT">けいさん中…</span></div>
+    </div>
+    <div class="cbar" id="cbar"><span>元画像</span><div class="sl"><input type="range" id="sWipe" min="0" max="100" value="50"></div><span>仕上がり</span></div>
+    <div class="cfoot"><span id="dims">—</span><span class="grow" style="flex:1"></span><span id="took"></span></div>
+  </div>
+
+  <!-- 右: レイヤーと 書き出し -->
+  <div class="side r">
+    <div class="card">
+      <div class="hd"><b>レイヤー</b><span class="grow"></span><small id="lcount">0 LAYERS</small></div>
+      <p class="note">表示を 切りかえて 仕上がりを 確かめます。</p>
+      <div class="layers" id="layers"></div>
+      <p class="note">PSD にも この 4枚が 入ります。</p>
+    </div>
+    <div class="card">
+      <div class="hd"><b>書き出し</b><span class="grow"></span><small>EXPORT</small></div>
+      <div class="kv">解像度
+        <select class="sel" id="selDpi"><option>72</option><option>150</option><option selected>300</option><option>350</option><option>600</option></select>
+      </div>
+      <p class="note">印刷の 大きさを 決める 数字です。絵の 画素数は 変わりません。</p>
+      <button class="btn ink" id="bPsd" disabled><svg class="ic" viewBox="0 0 24 24" fill="none"><path d="M12 4V16M12 16C11.2998 16 9.99153 14.0057 9.5 13.5M12 16C12.7002 16 14.0085 14.0057 14.5 13.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/><path d="M20 18C20 19.6569 18.6569 20 17 20H7C5.34315 20 4 19.6569 4 18" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/></svg>レイヤー付き PSD</button>
+      <div class="row">
+        <button class="btn" id="bPng" disabled>PNG</button>
+        <button class="btn" id="bPngs" disabled>レイヤー PNG 一式</button>
+      </div>
+      <p class="note">PSD は Krita・CLIP STUDIO で 開けます。PNG は いま 見えて いる レイヤーを 重ねた もの です。</p>
     </div>
   </div>
 </div>
@@ -224,37 +354,6 @@ function enhance(inp) {
 
 function enhanceAll(root = document) {
   for (const inp of root.querySelectorAll('input[type=range]')) enhance(inp);
-}
-
-enhanceAll();
-
-const $ = id => document.getElementById(id);
-const cv = $('cv'), ctx = cv.getContext('2d');
-const P = { screen: 200, white: 80, black: 30, grad: 100, light: 18, darkT: 42, wline: 40, pen: 0, mode: 'pen', width: 30, amount: 50, dark: 50, clean: 30, fill: 0, size: 1600, color: '#000000', bg: 'white' };
-let src = null, name = 'senga', gray = null, W = 0, H = 0, outImg = null, srcImg = null;
-
-function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 1800); }
-
-/* ---------- 読みこみ ---------- */
-function load(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  name = (file.name || 'senga').replace(/\.[^.]+$/, '') + '_senga';
-  const img = new Image();
-  img.onload = () => { src = img; prepare(); URL.revokeObjectURL(img.src); };
-  img.onerror = () => toast('読めない 絵でした');
-  img.src = URL.createObjectURL(file);
-}
-function prepare() {
-  const k = Math.min(1, P.size / Math.max(src.naturalWidth, src.naturalHeight));
-  W = Math.max(1, Math.round(src.naturalWidth * k)); H = Math.max(1, Math.round(src.naturalHeight * k));
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(src, 0, 0, W, H);
-  srcImg = x.getImageData(0, 0, W, H);
-  const d = srcImg.data; gray = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) gray[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
-  cv.width = W; cv.height = H; cv.style.display = 'block'; $('empty').style.display = 'none';
-  $('bSave').disabled = $('bCmp').disabled = false;
-  run();
 }
 
 /* ---------- ぼかし（箱ぼかし 3回 ≒ ガウス） ---------- */
@@ -501,13 +600,13 @@ function manga() {
   }
 
   // 網点: ページに そろえた 45° の 丸点。3×3 で 取って 丸く する
-  const kp = Math.SQRT1_2 * P.screen / W, out = new Float32Array(n);
+  const kp = Math.SQRT1_2 * P.screen / W, oLine = new Float32Array(n), oTone = new Float32Array(n);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = y * W + x;
-    if (ink[i] || strokes[i]) { out[i] = 1; continue; }
+    if (ink[i] || strokes[i]) { oLine[i] = 1; continue; }
     const c = cover[i];
     if (c <= 0) continue;
-    if (c >= 1) { out[i] = 1; continue; }
+    if (c >= 1) { oLine[i] = 1; continue; }
     let hit = 0;
     smp: for (let sy = 0; sy < 3; sy++) for (let sx = 0; sx < 3; sx++) {
       const px = x + (sx + .5) / 3, py = y + (sy + .5) / 3;
@@ -516,7 +615,7 @@ function manga() {
       if (SPOT[iv * SPOT_N + iu] < c) hit++;
       if (hit > 4 || hit + (8 - sy * 3 - sx) < 5) break smp;
     }
-    out[i] = hit > 4 ? 1 : 0;
+    oTone[i] = hit > 4 ? 1 : 0;
   }
 
   // 白ぬき線: ベタの 中の 長い 線を 細く 白で ぬく
@@ -526,61 +625,286 @@ function manga() {
     const cw = components(cand, true), keepW = new Uint8Array(cw.count);
     for (let c = 1; c < cw.count; c++) keepW[c] = Math.max(cw.st.w[c], cw.st.h[c]) >= 40 * k * (1.4 - P.wline / 100) ? 1 : 0;
     const cut = erode(mapTo(Uint8Array, cw.lab, c => keepW[c]), k < 1.6 ? 2 : 3);
-    for (let i = 0; i < n; i++) if (beta[i]) out[i] = cut[i] ? 0 : 1;
+    for (let i = 0; i < n; i++) if (beta[i]) { oLine[i] = cut[i] ? 0 : 1; oTone[i] = 0; }
   }
-  return out;
+  return { line: oLine, tone: oTone };
 }
 
-function paint() {
-  const L = P.mode === 'manga' ? manga() : lines();
-  const c = parseInt(P.color.slice(1), 16), r = c >> 16, g = c >> 8 & 255, b = c & 255;
-  outImg = ctx.createImageData(W, H);
-  const d = outImg.data, clear = P.bg === 'clear';
-  for (let i = 0; i < W * H; i++) {
-    const a = L[i], j = i * 4;
-    if (clear) { d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = Math.round(a * 255); }
-    else { d[j] = 255 + (r - 255) * a; d[j + 1] = 255 + (g - 255) * a; d[j + 2] = 255 + (b - 255) * a; d[j + 3] = 255; }
-  }
-  ctx.putImageData(outImg, 0, 0);
-  cv.classList.toggle('alpha', clear);
+
+/* ---------- 画面 ---------- */
+const DEF_TONE = { screen: 200, white: 80, black: 30, grad: 100, light: 18, darkT: 42, wline: 40, pen: 0 };
+const DEF_LINE = { width: 30, amount: 50, dark: 50, clean: 30, fill: 0 };
+const P = { ...DEF_TONE, ...DEF_LINE, mode: 'pen', size: 2048, color: '#000000', view: 'out', wipe: 50, dpi: 300 };
+const LAYERS = [
+  { key: 'line', name: '線・ベタ', sub: '線と 黒い ところ' },
+  { key: 'tone', name: 'トーン', sub: '網点の 面' },
+  { key: 'bg', name: '白背景', sub: '白い 下じき' },
+  { key: 'src', name: '元画像', sub: '入れた 絵' },
+];
+const vis = { line: true, tone: true, bg: true, src: false };
+let src = null, name = 'senga', gray = null, W = 0, H = 0, srcImg = null, res = null, busy = false;
+const lc = {}; // レイヤーごとの キャンバス
+for (const l of LAYERS) lc[l.key] = document.createElement('canvas');
+
+const cv = $('cv'), ctx = cv.getContext('2d');
+function $(id) { return document.getElementById(id); }
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2200); }
+
+/* ---------- 読みこみ ---------- */
+function load(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  name = (file.name || 'senga').replace(/\.[^.]+$/, '');
+  const img = new Image();
+  img.onload = () => {
+    src = img;
+    $('thumb').style.backgroundImage = `url(${img.src})`; $('thumb').classList.add('has');
+    $('srcName').textContent = file.name || '貼りつけた 絵';
+    $('srcSize').textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
+    $('fname').textContent = file.name || '貼りつけた 絵';
+    prepare(); convert();
+  };
+  img.onerror = () => toast('読めない 絵でした');
+  img.src = URL.createObjectURL(file);
+}
+function prepare() {
+  const k = Math.min(1, P.size / Math.max(src.naturalWidth, src.naturalHeight));
+  W = Math.max(1, Math.round(src.naturalWidth * k)); H = Math.max(1, Math.round(src.naturalHeight * k));
+  const c = lc.src; c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.drawImage(src, 0, 0, W, H);
+  const t = document.createElement('canvas'); t.width = W; t.height = H;
+  const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, W, H); tx.drawImage(src, 0, 0, W, H);
+  srcImg = tx.getImageData(0, 0, W, H);
+  const d = srcImg.data; gray = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) gray[i] = (d[i * 4] * .299 + d[i * 4 + 1] * .587 + d[i * 4 + 2] * .114) / 255;
+  const b = lc.bg; b.width = W; b.height = H;
+  const bx = b.getContext('2d'); bx.fillStyle = '#fff'; bx.fillRect(0, 0, W, H);
+  cv.width = W; cv.height = H;
+  $('empty').style.display = 'none'; $('wrap').style.display = 'block';
+  $('dims').textContent = `${W} × ${H} px`;
+  for (const id of ['bRun', 'bPsd', 'bPng', 'bPngs']) $(id).disabled = false;
+  for (const b of $('tabs').children) b.disabled = false;
 }
 
-let pend = 0;
-function run() {
+/* ---------- 変換 ---------- */
+function paintLayer(c, a) {
+  c.width = W; c.height = H;
+  const x = c.getContext('2d'), im = x.createImageData(W, H), d = im.data;
+  const n = parseInt(P.color.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;
+  if (a) for (let i = 0, j = 0; i < a.length; i++, j += 4) { d[j] = r; d[j + 1] = g; d[j + 2] = b; d[j + 3] = a[i] * 255 + .5; }
+  x.putImageData(im, 0, 0);
+}
+function convert() {
+  if (!gray || busy) return;
+  busy = true;
+  $('busyT').textContent = P.mode === 'manga' ? 'マンガに して います…' : '線を 拾って います…';
+  $('busy').style.display = 'flex';
+  // 表示を 先に 出して から 重い 計算に 入る
+  requestAnimationFrame(() => setTimeout(() => {
+    const t0 = performance.now();
+    res = P.mode === 'manga' ? manga() : { line: lines(), tone: null };
+    paintLayer(lc.line, res.line);
+    paintLayer(lc.tone, res.tone);
+    $('took').textContent = `${((performance.now() - t0) / 1000).toFixed(1)} 秒`;
+    busy = false; $('busy').style.display = 'none';
+    if (redo) { redo = false; convert(); return; }
+    compose(); layerList();
+    if (P.mode === 'manga' && !convert.told) { convert.told = true; toast('変換 できました。レイヤーを 確かめて ください'); }
+  }, 0));
+}
+let redo = false;
+const reconvert = () => { if (busy) redo = true; else convert(); };
+
+// 見えて いる レイヤーを 重ねる（下から 元画像 → 白背景 → トーン → 線・ベタ）
+function composite(x) {
+  x.clearRect(0, 0, W, H);
+  for (const k of ['src', 'bg', 'tone', 'line']) if (vis[k] && (k !== 'tone' || res?.tone)) x.drawImage(lc[k], 0, 0);
+}
+function compose() {
   if (!gray) return;
-  $('busy').style.display = 'block';
-  cancelAnimationFrame(pend);
-  pend = requestAnimationFrame(() => setTimeout(() => { paint(); $('busy').style.display = 'none'; }, 0));
+  const v = P.view;
+  if (v === 'src') { ctx.clearRect(0, 0, W, H); ctx.drawImage(lc.src, 0, 0); }
+  else composite(ctx);
+  if (v === 'cmp') {
+    const x = Math.round(W * P.wipe / 100);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, x, H); ctx.clip();
+    ctx.clearRect(0, 0, W, H); ctx.drawImage(lc.src, 0, 0); ctx.restore();
+    $('wipe').style.left = `calc(${P.wipe}% - 1px)`;
+  }
+  const cmp = v === 'cmp';
+  $('wipe').style.display = $('tagA').style.display = $('tagB').style.display = cmp ? 'block' : 'none';
+  $('cbar').style.display = cmp ? 'flex' : 'none';
+  cv.classList.toggle('alpha', v !== 'src' && !vis.bg && !vis.src);
+}
+
+function layerList() {
+  const box = $('layers'); box.innerHTML = '';
+  for (const l of LAYERS) {
+    const na = l.key === 'tone' && !res?.tone;
+    const row = document.createElement('label');
+    row.className = 'layer' + (vis[l.key] ? '' : ' off') + (na ? ' na' : '');
+    row.innerHTML = `<input type="checkbox" ${vis[l.key] ? 'checked' : ''}><canvas width="72" height="72"></canvas><div>${l.name}<small>${na ? 'マンガ の とき だけ' : l.sub}</small></div>`;
+    const th = row.querySelector('canvas'), tx = th.getContext('2d');
+    if (gray) { const s = Math.min(72 / W, 72 / H); tx.drawImage(lc[l.key], (72 - W * s) / 2, (72 - H * s) / 2, W * s, H * s); }
+    row.querySelector('input').onchange = e => { vis[l.key] = e.target.checked; row.classList.toggle('off', !vis[l.key]); compose(); };
+    box.appendChild(row);
+  }
+  $('lcount').textContent = `${res?.tone ? 4 : 3} LAYERS`;
+}
+
+/* ---------- 書き出し ---------- */
+function download(blob, fn) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fn; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const CRC = new Int32Array(256).map((_, n) => { for (let k = 0; k < 8; k++) n = n & 1 ? 0xEDB88320 ^ (n >>> 1) : n >>> 1; return n; });
+function crc32(b) { let c = -1; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return ~c >>> 0; }
+// PNG に 解像度（pHYs）を 入れる
+async function pngWithDpi(canvas) {
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  const u = new Uint8Array(await blob.arrayBuffer());
+  const ppm = Math.round(P.dpi / .0254), ch = new Uint8Array(21), dv = new DataView(ch.buffer);
+  dv.setUint32(0, 9); ch.set([112, 72, 89, 115], 4); dv.setUint32(8, ppm); dv.setUint32(12, ppm); ch[16] = 1;
+  dv.setUint32(17, crc32(ch.subarray(4, 17)));
+  const out = new Uint8Array(u.length + 21);
+  out.set(u.subarray(0, 33)); out.set(ch, 33); out.set(u.subarray(33), 54);
+  return new Blob([out], { type: 'image/png' });
+}
+async function savePng() {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  composite(c.getContext('2d'));
+  download(await pngWithDpi(c), `${name}_${P.mode}.png`);
+  toast('PNG を 保存しました');
+}
+async function savePngs() {
+  for (const l of LAYERS) {
+    if (l.key === 'tone' && !res?.tone) continue;
+    download(await pngWithDpi(lc[l.key]), `${name}_${l.name}.png`);
+    await new Promise(r => setTimeout(r, 350));
+  }
+  toast('レイヤーを 1枚ずつ 保存しました');
+}
+
+// レイヤー付き PSD（圧縮なし）。下から 元画像・白背景・トーン・線ベタ
+function savePsd() {
+  const order = ['src', 'bg', 'tone', 'line'].filter(k => k !== 'tone' || res?.tone);
+  const n = W * H, parts = [];
+  let size = 0;
+  const push = u => { parts.push(u); size += u.length; };
+  const buf = len => { const u = new Uint8Array(len); return [u, new DataView(u.buffer)]; };
+  const str = (dv, o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+
+  // ヘッダー
+  let [u, dv] = buf(26);
+  str(dv, 0, '8BPS'); dv.setUint16(4, 1); dv.setUint16(12, 3); dv.setUint32(14, H); dv.setUint32(18, W); dv.setUint16(22, 8); dv.setUint16(24, 3);
+  push(u);
+  [u, dv] = buf(4); push(u); // 色の 表 なし
+  // 解像度
+  [u, dv] = buf(4 + 12 + 16);
+  dv.setUint32(0, 28); str(dv, 4, '8BIM'); dv.setUint16(8, 0x03ED); dv.setUint32(12, 16);
+  dv.setUint32(16, P.dpi * 65536); dv.setUint16(20, 1); dv.setUint16(22, 1);
+  dv.setUint32(24, P.dpi * 65536); dv.setUint16(28, 1); dv.setUint16(30, 1);
+  push(u);
+
+  // レイヤー
+  const recs = [], chans = [];
+  for (const k of order) {
+    const l = LAYERS.find(x => x.key === k);
+    const px = lc[k].getContext('2d').getImageData(0, 0, W, H).data;
+    // 名前（ASCII）＋ 日本語の 名前（luni）
+    const ascii = k, pn = (1 + ascii.length + 3) & ~3;
+    const ul = 4 + l.name.length * 2, ulp = (ul + 3) & ~3;
+    const extra = 4 + 4 + pn + 12 + ulp;
+    const [r, rv] = buf(16 + 2 + 6 * 4 + 12 + 4 + extra);
+    let o = 0;
+    rv.setInt32(o, 0); rv.setInt32(o + 4, 0); rv.setInt32(o + 8, H); rv.setInt32(o + 12, W); o += 16;
+    rv.setUint16(o, 4); o += 2;
+    for (const id of [-1, 0, 1, 2]) { rv.setInt16(o, id); rv.setUint32(o + 2, n + 2); o += 6; }
+    str(rv, o, '8BIMnorm'); o += 8;
+    rv.setUint8(o, 255); rv.setUint8(o + 1, 0); rv.setUint8(o + 2, (vis[k] ? 0 : 2) | 8); rv.setUint8(o + 3, 0); o += 4;
+    rv.setUint32(o, extra); o += 4;
+    rv.setUint32(o, 0); rv.setUint32(o + 4, 0); o += 8;
+    rv.setUint8(o, ascii.length); str(rv, o + 1, ascii); o += pn;
+    str(rv, o, '8BIMluni'); rv.setUint32(o + 8, ulp); o += 12;
+    rv.setUint32(o, l.name.length);
+    for (let i = 0; i < l.name.length; i++) rv.setUint16(o + 4 + i * 2, l.name.charCodeAt(i));
+    recs.push(r);
+    for (const c of [3, 0, 1, 2]) {
+      const ch = new Uint8Array(n + 2);
+      for (let i = 0; i < n; i++) ch[i + 2] = px[i * 4 + c];
+      chans.push(ch);
+    }
+  }
+  let infoLen = 2 + recs.reduce((s, r) => s + r.length, 0) + chans.reduce((s, c) => s + c.length, 0);
+  const pad = infoLen % 4 ? 4 - infoLen % 4 : 0; infoLen += pad;
+  [u, dv] = buf(4 + 4 + 2);
+  dv.setUint32(0, 4 + infoLen + 4); dv.setUint32(4, infoLen); dv.setInt16(8, order.length);
+  push(u); recs.forEach(push); chans.forEach(push);
+  push(new Uint8Array(pad + 4)); // すき間 ＋ マスク情報 なし
+
+  // 重ねた 絵（見えて いる まま）
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
+  for (const k of order) if (vis[k]) cx.drawImage(lc[k], 0, 0);
+  const m = cx.getImageData(0, 0, W, H).data, flat = new Uint8Array(2 + n * 3);
+  for (let ch = 0; ch < 3; ch++) for (let i = 0; i < n; i++) flat[2 + ch * n + i] = m[i * 4 + ch];
+  push(flat);
+
+  download(new Blob(parts, { type: 'image/vnd.adobe.photoshop' }), `${name}_${P.mode}.psd`);
+  toast('PSD を 保存しました');
 }
 
 /* ---------- 操作 ---------- */
-const sliders = { Screen: 'screen', White: 'white', Black: 'black', Grad: 'grad', Light: 'light', DarkT: 'darkT', Wline: 'wline', Pen: 'pen', Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill', Size: 'size' };
+enhanceAll();
+const sliders = { Screen: 'screen', White: 'white', Black: 'black', Grad: 'grad', Light: 'light', DarkT: 'darkT', Wline: 'wline', Pen: 'pen', Width: 'width', Amount: 'amount', Dark: 'dark', Clean: 'clean', Fill: 'fill' };
 for (const [k, key] of Object.entries(sliders)) {
   const s = $('s' + k);
   s.addEventListener('input', () => {
     P[key] = +s.value; $('v' + k).textContent = s.value;
-    if (key !== 'size' && P.mode !== 'manga') run();
+    if (P.mode !== 'manga' && res) reconvert();
   });
   // マンガは 重い ので、はなした ときに 計算する
-  if (key !== 'size') s.addEventListener('change', () => { if (P.mode === 'manga') run(); });
-  if (key === 'size') s.addEventListener('change', () => { if (src) prepare(); });
+  s.addEventListener('change', () => { if (P.mode === 'manga' && res) reconvert(); });
 }
-function seg(id, key, after) {
-  $(id).addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    for (const x of $(id).children) x.classList.toggle('on', x === b);
-    P[key] = b.dataset.v; after && after(); run();
-  });
+function resetSliders(def) {
+  for (const [k, key] of Object.entries(sliders)) if (key in def) { P[key] = def[key]; $('s' + k).value = def[key]; $('v' + k).textContent = def[key]; }
+  if (res) reconvert();
 }
-seg('segMode', 'mode', modeUI);
+$('rTone').onclick = () => resetSliders(DEF_TONE);
+$('rLine').onclick = () => resetSliders(DEF_LINE);
+
+$('modes').addEventListener('click', e => {
+  const b = e.target.closest('.mode'); if (!b) return;
+  for (const x of $('modes').children) x.classList.toggle('on', x === b);
+  P.mode = b.dataset.v; modeUI();
+  if (res) reconvert();
+});
 function modeUI() {
   const m = P.mode === 'manga';
-  $('gManga').style.display = m ? '' : 'none';
-  $('lPenHint').style.display = m ? '' : 'none';
-  $('slFill').classList.toggle('off', m);
+  $('cTone').style.display = m ? '' : 'none';
+  $('lineTitle').textContent = m ? 'かさねる ペン線' : '線';
+  $('cLine').style.display = m && !P.pen ? 'none' : '';
+  $('slFill').style.display = m ? 'none' : '';
 }
-seg('segColor', 'color');
-seg('segBg', 'bg');
+$('sPen').addEventListener('input', modeUI);
+$('swatch').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  for (const x of $('swatch').children) x.classList.toggle('on', x === b);
+  P.color = b.dataset.v;
+  if (res) { paintLayer(lc.line, res.line); paintLayer(lc.tone, res.tone); compose(); layerList(); }
+});
+$('selSize').onchange = e => { P.size = +e.target.value; if (src) { prepare(); convert(); } };
+$('selDpi').onchange = e => { P.dpi = +e.target.value; };
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  for (const x of $('tabs').children) x.classList.toggle('on', x === b);
+  P.view = b.dataset.v; compose();
+});
+$('sWipe').addEventListener('input', e => { P.wipe = +e.target.value; compose(); });
+$('bRun').onclick = () => reconvert();
+$('bPng').onclick = savePng;
+$('bPngs').onclick = savePngs;
+$('bPsd').onclick = savePsd;
 
 const pick = () => $('file').click();
 $('bOpen').onclick = $('bOpen2').onclick = pick;
@@ -592,20 +916,7 @@ st.addEventListener('drop', e => { e.preventDefault(); st.classList.remove('over
 addEventListener('paste', e => {
   for (const it of e.clipboardData.items) if (it.type.startsWith('image/')) { load(it.getAsFile()); break; }
 });
-
-const cmp = $('bCmp');
-const showSrc = on => { if (!srcImg) return; ctx.putImageData(on ? srcImg : outImg, 0, 0); };
-cmp.addEventListener('pointerdown', () => showSrc(true));
-for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) cmp.addEventListener(ev, () => showSrc(false));
-
-$('bSave').onclick = () => {
-  cv.toBlob(b => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(b); a.download = name + '.png'; a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast('保存しました');
-  }, 'image/png');
-};
+modeUI(); layerList();
 })();
 </script>
 </body>
