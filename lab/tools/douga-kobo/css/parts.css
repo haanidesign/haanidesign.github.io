@@ -71,6 +71,8 @@
 }
 .clip.audio{ background:#eceabf; }
 .clip.text{ background:#fbe2ea; }
+.clip.scene{ background:#dfe8f6; }
+.spmark{ position:absolute; top:0; bottom:0; background:repeating-linear-gradient(45deg, rgba(30,28,20,.22) 0 4px, transparent 4px 8px); border-left:2px solid var(--ink); pointer-events:none; }
 .clip.sel{ background:var(--main); box-shadow:0 0 0 var(--ink); transform:translateY(2.5px); }
 .clip .nm{
   flex:0 0 auto; font-size:.58rem; padding:0 .3rem;

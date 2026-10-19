@@ -2,12 +2,12 @@
 import {
   S, $, $$, clamp, r2, tc, uid, toast, buzz, snap as pushUndo,
   allClips, findClip, trackOf, duration, clipEnd, newTrack, freeSlot, selectedAll, setMany, syncLinked, fitsTrack
-} from '../state.js?v=79';
-import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=79';
-import { bus } from '../bus.js?v=79';
-import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=79';
-import { durOf as jzDur } from '../jz.js?v=79';
-import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=79';
+} from '../state.js?v=80';
+import { MEDIA, paintPoster, paintPeaks } from '../media.js?v=80';
+import { bus } from '../bus.js?v=80';
+import { beatOn, stepSec, beatSec, nearestStep, beatAt } from '../beat.js?v=80';
+import { durOf as jzDur } from '../jz.js?v=80';
+import { moveTrack, delTrack, renameTrack, delSel, dupSel } from '../edit.js?v=80';
 
 const el = {};
 export function init() {
@@ -277,11 +277,12 @@ function clipEl(c) {
   d.dataset.cid = c.id;
   const label = c.kind === 'text' ? (c.text.str.split('\n')[0] || 'もじ')
     : c.kind === 'jz' ? (c.name || 'うた')
+    : c.kind === 'scene' ? ((S.scenes[c.sid] || {}).name || 'シーン')
       : c.kind === 'color' ? (c.grad ? 'グラデ' : 'いろ') : (c.name || '素材');
   d.innerHTML = `<div class="nm"></div><div class="body"></div>
     <div class="grip l"></div><div class="grip r"></div>`;
   d.querySelector('.nm').textContent =
-    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'jz' ? '✦ '
+    (c.kind === 'audio' ? '🎵 ' : c.kind === 'text' ? '🅰 ' : c.kind === 'jz' ? '✦ ' : c.kind === 'scene' ? '▣ '
       : c.kind === 'color' ? '🎨 ' : '🎞 ') + label;
   const body = d.querySelector('.body');
   const pw = Math.max(26, Math.round(t2x(c.dur)));
@@ -300,6 +301,17 @@ function clipEl(c) {
     const cv = document.createElement('canvas');
     cv.width = Math.min(900, pw); cv.height = 30; body.appendChild(cv);
     paintPoster(cv, m, true);
+  }
+  if (c.kind === 'scene') {
+    const sc = S.scenes[c.sid];
+    if (sc && sc.sp >= 0 && c.dur > sc.dur) {
+      // のびる ところ：ここで 止まって いる あいだ
+      const f = document.createElement('div');
+      f.className = 'spmark';
+      f.style.left = t2x(sc.sp) + 'px'; f.style.width = Math.max(2, t2x(c.dur - sc.dur)) + 'px';
+      f.title = 'のびる ところ';
+      body.appendChild(f);
+    }
   }
   if (c.fin > 0) body.appendChild(fadeMark('left', t2x(c.fin)));
   if (c.fout > 0) body.appendChild(fadeMark('right', t2x(c.fout)));

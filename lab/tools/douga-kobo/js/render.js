@@ -1,12 +1,13 @@
 /* ステージ（プレビュー）に えがく。 */
-import { S, clamp, findClip } from './state.js?v=79';
-import { MEDIA, animFrame } from './media.js?v=79';
-import { drawText as paintText, textBox, glyphSpots } from './text.js?v=79';
-import { beatOn, beatAt } from './beat.js?v=79';
-import { drawPat, drawDeco } from './pattern.js?v=79';
-import { drawTrans } from './trans.js?v=79';
-import { camAt } from './camera.js?v=79';
-import { draw as jzDraw } from './jz.js?v=79';
+import { S, clamp, findClip } from './state.js?v=80';
+import { MEDIA, animFrame } from './media.js?v=80';
+import { drawText as paintText, textBox, glyphSpots } from './text.js?v=80';
+import { beatOn, beatAt } from './beat.js?v=80';
+import { drawPat, drawDeco } from './pattern.js?v=80';
+import { drawTrans } from './trans.js?v=80';
+import { camAt } from './camera.js?v=80';
+import { draw as jzDraw } from './jz.js?v=80';
+import { sceneTime, withArgs, repPose } from './scene.js?v=80';
 
 /* えがく 先は 2つ。
      out  … 作品の 大きさ そのまま。書き出し・録画・見本の 絵に つかう
@@ -74,14 +75,24 @@ export function zoomAt(sx, sy, k) {
 }
 export function panView(dx, dy) { view.x += dx; view.y += dy; }
 
-export function activeClips(t) {
+export function activeClips(t, tracks = S.tracks) {
   const out = [];
-  for (let i = S.tracks.length - 1; i >= 0; i--) {   // 下の段から さきに えがく
-    const tr = S.tracks[i];
+  for (let i = tracks.length - 1; i >= 0; i--) {   // 下の段から さきに えがく
+    const tr = tracks[i];
     if (tr.hidden) continue;
     for (const c of tr.clips) {
       if (t >= c.start - 1e-6 && t < c.start + c.dur - 1e-6) out.push({ c, tr });
     }
+  }
+  return out;
+}
+/** シーンの 中まで ひらいた ふだ。tt は その ふだの 段での 時こく */
+export function flatClips(t, tracks = S.tracks, depth = 0, outTr = null) {
+  const out = [];
+  for (const { c, tr } of activeClips(t, tracks)) {
+    const sc = c.kind === 'scene' ? S.scenes[c.sid] : null;
+    if (sc && depth < 4) out.push(...flatClips(sceneTime(c, sc, t - c.start), sc.tracks, depth + 1, outTr || tr));
+    else out.push({ c, tr: outTr || tr, tt: t });
   }
   return out;
 }
@@ -494,7 +505,7 @@ export function renderStage(t = S.time, handles = true) {
   V.strokeRect(bx - V.lineWidth / 2, by - V.lineWidth / 2, bw + V.lineWidth, bh + V.lineWidth);
   V.restore();
 
-  if (handles && !S.playing) drawHandles(V, dpr);
+  if (handles && !S.playing && !S.hideOv) drawHandles(V, dpr);
 }
 
 /* ---------- カット間の つなぎ ----------
@@ -624,11 +635,27 @@ function poseOf(c, local) {
   if (c.anim === 'zoom') sc = 0.86 + 0.14 * p;
   if (c.anim === 'up') dy = (1 - p) * S.H * 0.06;
   if (c.anim === 'kenburns') sc = 1.06 + 0.10 * (local / c.dur);
-  return { alpha, sc, dy };
+  const r = repPose(c, local);
+  return { alpha: alpha * r.alpha, sc: sc * r.sc, dy: dy + r.dy, dx: r.dx, rot: r.rot };
 }
 
-function paintScene(G, t) {
-  for (const { c } of activeClips(t)) {
+/* シーンの 中身を えがく 紙。入れ子の ふかさ ごとに 1まい */
+const subs = [];
+function subCanvas(depth) {
+  const q = quality();
+  const w = Math.max(1, Math.round(S.W * q)), h = Math.max(1, Math.round(S.H * q));
+  let s = subs[depth];
+  if (!s) { const cv = document.createElement('canvas'); s = subs[depth] = { cv, g: cv.getContext('2d') }; }
+  if (s.cv.width !== w || s.cv.height !== h) { s.cv.width = w; s.cv.height = h; }
+  s.g.setTransform(1, 0, 0, 1, 0, 0);
+  s.g.globalAlpha = 1; s.g.filter = 'none'; s.g.globalCompositeOperation = 'source-over';
+  s.g.clearRect(0, 0, w, h);
+  s.g.setTransform(q, 0, 0, q, 0, 0);
+  return s;
+}
+
+function paintScene(G, t, tracks = S.tracks, depth = 0) {
+  for (const { c } of activeClips(t, tracks)) {
     if (c.kind === 'audio') continue;
     const local = t - c.start;
 
@@ -648,11 +675,22 @@ function paintScene(G, t) {
 
       G.save();
       G.globalAlpha = clamp(alpha, 0, 1);
-      G.translate(S.W / 2 + c.x, S.H / 2 + c.y + pose.dy);
-      G.rotate(c.rot * Math.PI / 180);
+      if (c.blend && c.blend !== 'source-over') G.globalCompositeOperation = c.blend;
+      G.translate(S.W / 2 + c.x + pose.dx, S.H / 2 + c.y + pose.dy);
+      G.rotate((c.rot + pose.rot) * Math.PI / 180);
       G.scale(c.scale * pose.sc, c.scale * pose.sc);
 
-      if (c.kind === 'jz') {
+      if (c.kind === 'scene') {
+        const sc = S.scenes[c.sid];
+        if (sc && depth < 4) {
+          const sub = subCanvas(depth + 1);
+          withArgs(c, sc, () => paintScene(sub.g, sceneTime(c, sc, lt), sc.tracks, depth + 1));
+          G.filter = c.fxOff ? 'none' : filterStr(c.fx);
+          G.drawImage(sub.cv, -S.W / 2, -S.H / 2, S.W, S.H);
+          G.filter = 'none';
+        }
+      }
+      else if (c.kind === 'jz') {
         G.translate(-S.W / 2, -S.H / 2);
         /* inp は「素材の どこから えがくか」。
            ✂きる や はしを つまんだ ときに ここが 立つ ので、
@@ -697,7 +735,7 @@ function paintScene(G, t) {
         const bmp = m && m.anim ? animFrame(m, lt * (c.speed || 1)) : null;
         if (bmp) {
           const { w, h } = fitSize(c, m);
-          G.filter = filterStr(c.fx);
+          G.filter = c.fxOff ? 'none' : filterStr(c.fx);
           try { G.drawImage(bmp, -w / 2, -h / 2, w, h); } catch (e) { }
           G.filter = 'none';
           G.restore();
@@ -706,7 +744,7 @@ function paintScene(G, t) {
         const ok = el && (c.kind === 'image' ? el.complete && el.naturalWidth : el.readyState >= 2);
         if (ok) {
           const { w, h } = fitSize(c, m);
-          G.filter = filterStr(c.fx);
+          G.filter = c.fxOff ? 'none' : filterStr(c.fx);
           try { G.drawImage(el, -w / 2, -h / 2, w, h); } catch (e) { }
           G.filter = 'none';
         } else if (m && m.poster) {

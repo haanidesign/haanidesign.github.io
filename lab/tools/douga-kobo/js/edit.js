@@ -2,10 +2,10 @@
 import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
-  freeSlot, laneFor, freeLane
-} from './state.js?v=79';
-import { MEDIA, hookAudio } from './media.js?v=79';
-import { bus } from './bus.js?v=79';
+  freeSlot, laneFor, freeLane, rootTracks
+} from './state.js?v=80';
+import { MEDIA, hookAudio } from './media.js?v=80';
+import { bus } from './bus.js?v=80';
 
 /** 作品の 大きさを 素材に 合わせる（偶数に そろえ、長い辺は 3840 まで） */
 export function fitToMedia(m, quiet) {
@@ -142,7 +142,7 @@ export function saveProject(name = 'douga') {
     W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans, cams: S.cams,
     beat: S.beat, master: S.master,
     media: [...MEDIA.values()].map(m => ({ id: m.id, name: m.name, kind: m.kind, dur: m.dur })),
-    tracks: S.tracks
+    tracks: rootTracks(), scenes: S.scenes
   };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
@@ -162,7 +162,7 @@ export async function openProject(file) {
     S.cams = Array.isArray(o.cams) ? o.cams : [];
     if (o.beat) S.beat = Object.assign(S.beat, o.beat);
     if (o.master) S.master = Object.assign(S.master, o.master);
-    S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;
+    S.tracks = o.tracks; S.scenes = o.scenes || {}; S.edit = []; S.sel = null; S.selTrack = null; S.time = 0;
     const byName = new Map([...MEDIA.values()].map(m => [m.name, m]));
     const remap = new Map();
     (o.media || []).forEach(sm => { const hit = byName.get(sm.name); if (hit) remap.set(sm.id, hit.id); });

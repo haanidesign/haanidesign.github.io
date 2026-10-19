@@ -3,22 +3,27 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=79';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=79';
-import { storeOk } from '../store.js?v=79';
-import { bus } from '../bus.js?v=79';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=79';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=79';
+} from '../state.js?v=80';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=80';
+import { storeOk } from '../store.js?v=80';
+import { bus } from '../bus.js?v=80';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=80';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=80';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
   techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv,
-  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=79';
+  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=80';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=79';
+  offOf, setOff, clearOff } from '../text.js?v=80';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel, fitToMedia,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=79';
+} from '../edit.js?v=80';
+
+import {
+  groupScene, openScene, sceneClips, keysFor, addArg, REP_PROPS, REP_MODES, newRep,
+  copyFx, pasteFx, copyReps, pasteReps, hasFx, hasReps, BLENDS
+} from '../scene.js?v=80';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -485,9 +490,12 @@ function clipBody(c) {
       btn('✂ ここで 切る', 'btn-sm btn-y', () => bus.split()),
       btn('⧉ ふやす', 'btn-sm', dupSel),
       btn('⇤ 頭出し', 'btn-sm', () => { c.start = S.time; syncLinked(c); pushUndo(); bus.all(); }),
-      btn('🗑 けす', 'btn-sm btn-p', () => { delSel(); if (!docked()) close(); })
-    ])
+      btn('🗑 けす', 'btn-sm btn-p', () => { delSel(); if (!docked()) close(); }),
+      c.kind !== 'audio' ? btn('▣ シーンに まとめる', 'btn-sm', groupScene) : null
+    ].filter(Boolean))
   ]));
+
+  if (c.kind === 'scene') w.appendChild(sceneGroup(c));
 
   if (m && (m.kind === 'video' || m.kind === 'image') && m.w > 0) {
     w.appendChild(group('作品の 大きさ', [
@@ -641,7 +649,12 @@ function clipBody(c) {
     ]));
   }
 
-  if (c.kind === 'video' || c.kind === 'image') {
+  if (c.kind !== 'audio') {
+    w.appendChild(fxGroup(c));
+    w.appendChild(repGroup(c));
+  }
+
+  if ((c.kind === 'video' || c.kind === 'image' || c.kind === 'scene') && !c.fxOff) {
     const F = c.fx;
     w.appendChild(group('いろ', [
       range('あかるさ', F.br, 0, 300, 1, '%', v => { F.br = v; live(); }),
@@ -669,6 +682,132 @@ function clipBody(c) {
     w.appendChild(hint(`もとの 素材: ${m.name}<br>${r2(m.dur)}s の うち ${r2(c.inp)}s から つかって いる`));
   }
   return w;
+}
+
+/* --- エフェクト（かさね方・ON/OFF・写し） --- */
+function fxGroup(c) {
+  const many = () => { const l = selectedAll().map(x => x.c).filter(x => x.kind !== 'audio'); return l.length ? l : [c]; };
+  const hasColor = c.kind === 'video' || c.kind === 'image' || c.kind === 'scene';
+  return group('エフェクト', [
+    pick('かさね方', BLENDS, c.blend || 'source-over', v => { c.blend = v; live(); }),
+    grid(null, [
+      hasColor ? btn(c.fxOff ? '色: OFF' : '色: ON', 'btn-sm' + (c.fxOff ? '' : ' on'),
+        () => { c.fxOff = !c.fxOff; pushUndo(); live(); draw(); }) : null,
+      btn('写す', 'btn-sm', () => { copyFx(c); draw(); }),
+      hasFx() ? btn('はりつける', 'btn-sm', () => pasteFx(many())) : null
+    ].filter(Boolean)),
+    hint('写すと 色・かさね方・うごきの あと を まとめて 写せます。いくつか えらんで いれば ぜんぶに はります')
+  ]);
+}
+
+/* --- くりかえしの うごき --- */
+const REP_MAX = { x: 400, y: 400, scale: 100, rot: 180, opacity: 100 };
+const REP_UNIT = { x: 'px', y: 'px', scale: '%', rot: '°', opacity: '%' };
+function repGroup(c) {
+  const reps = c.reps || (c.reps = []);
+  const many = () => { const l = selectedAll().map(x => x.c).filter(x => x.kind !== 'audio'); return l.length ? l : [c]; };
+  const nodes = [];
+  reps.forEach((r, i) => {
+    const box = el('div', 'pgroup');
+    box.style.margin = '.3rem 0';
+    box.append(
+      grid(null, [
+        btn(r.on ? 'ON' : 'OFF', 'btn-sm' + (r.on ? ' on' : ''), () => { r.on = !r.on; pushUndo(); live(); draw(); }),
+        btn('▲', 'btn-sm', () => { if (i > 0) { reps.splice(i - 1, 0, reps.splice(i, 1)[0]); pushUndo(); live(); draw(); } }),
+        btn('▼', 'btn-sm', () => { if (i < reps.length - 1) { reps.splice(i + 1, 0, reps.splice(i, 1)[0]); pushUndo(); live(); draw(); } }),
+        btn('ここから 下を 写す', 'btn-sm', () => { copyReps(c, i); draw(); }),
+        btn('🗑', 'btn-sm btn-p', () => { reps.splice(i, 1); pushUndo(); live(); draw(); })
+      ]),
+      pick('うごかす', REP_PROPS, r.prop, v => { r.prop = v; r.amt = Math.min(r.amt, REP_MAX[v]); live(); draw(); }),
+      pick('かたち', REP_MODES, r.mode, v => { r.mode = v; live(); }),
+      range('はば', r.amt, 0, REP_MAX[r.prop] || 100, 1, REP_UNIT[r.prop] || '', v => { r.amt = v; live(); }),
+      grid('周期の 単位', [
+        btn('秒', 'btn-sm' + (r.unit !== 'beat' ? ' on' : ''), () => { r.unit = 's'; pushUndo(); live(); draw(); }),
+        btn('拍', 'btn-sm' + (r.unit === 'beat' ? ' on' : ''), () => { r.unit = 'beat'; pushUndo(); live(); draw(); })
+      ]),
+      range('周期', r.per, r.unit === 'beat' ? .25 : .05, r.unit === 'beat' ? 16 : 10, r.unit === 'beat' ? .25 : .05,
+        r.unit === 'beat' ? '拍' : 's', v => { r.per = v; live(); }),
+      range('位相', r.ph || 0, 0, 1, .01, '', v => { r.ph = v; live(); })
+    );
+    nodes.push(box);
+  });
+  return group('くりかえし', [
+    reps.length ? null : hint('ゆれ・点めつ・はねる など、同じ うごきを くりかえします。拍に すると 曲の はやさに 合います'),
+    ...nodes,
+    grid(null, [
+      btn('＋ たす', 'btn-sm btn-y', () => { reps.push(newRep()); pushUndo(); live(); draw(); }),
+      reps.length ? btn('ぜんぶ 写す', 'btn-sm', () => { copyReps(c, 0); draw(); }) : null,
+      hasReps() ? btn('はりつける', 'btn-sm', () => { pasteReps(many()); draw(); }) : null
+    ].filter(Boolean))
+  ]);
+}
+
+/* --- シーン --- */
+function sceneGroup(c) {
+  const sc = S.scenes[c.sid];
+  if (!sc) return hint('この シーンは 見つかりません');
+  c.args = c.args || {};
+  const nm = el('input'); nm.value = sc.name;
+  nm.addEventListener('change', () => { sc.name = nm.value || 'シーン'; pushUndo(); bus.all(); });
+  const nodes = [
+    row('名前', nm),
+    grid(null, [
+      btn('▣ 中を ひらく', 'btn-sm btn-y', () => { openScene(c); bus.fit && bus.fit(); }),
+      btn('⇔ もとの ながさ', 'btn-sm', () => { c.dur = sc.dur; pushUndo(); bus.all(); })
+    ]),
+    hint(`もとの ながさ ${r2(sc.dur)}s。いまは ${r2(c.dur)}s`),
+    range('のびる ところ', sc.sp >= 0 ? sc.sp : 0, 0, Math.max(.05, sc.dur), .05, 's', v => { sc.sp = v; live(); }),
+    grid(null, [
+      btn(sc.sp >= 0 ? 'のびる ところ: あり' : 'のびる ところ: なし（ぜんぶ のびる）', 'btn-sm' + (sc.sp >= 0 ? ' on' : ''),
+        () => { sc.sp = sc.sp >= 0 ? -1 : Math.min(sc.dur, sc.dur / 2); pushUndo(); live(); draw(); })
+    ]),
+    hint('のばすと、のびる ところで 止まって 長く なります。入りと 出の うごきは そのまま')
+  ];
+
+  // 引数：置いた ふだ ごとに 変えられる 値
+  const cl = sceneClips(sc);
+  const labelOf = x => x.kind === 'text' ? ('もじ「' + String(x.text.str || '').split('\n')[0].slice(0, 8) + '」')
+    : x.kind === 'color' ? 'いろ' : x.kind === 'scene' ? 'シーン' : (x.name || '素材');
+  (sc.args || []).forEach((a, i) => {
+    const cur = c.args[a.id] !== undefined ? c.args[a.id] : a.def;
+    const tgt = cl.find(x => x.id === a.cid);
+    const set = v => { c.args[a.id] = v; live(); };
+    const title = `${a.name}${tgt ? '（' + labelOf(tgt) + '）' : '（見つからない）'}`;
+    let ed;
+    if (a.type === 'color') ed = color(title, cur || '#ffffff', set);
+    else if (a.type === 'text') {
+      const ta = el('textarea'); ta.rows = 2; ta.value = cur == null ? '' : cur;
+      ta.addEventListener('input', () => set(ta.value));
+      ta.addEventListener('change', pushUndo);
+      ed = row(title, ta);
+    } else ed = num(title, +cur || 0, .1, v => set(v));
+    nodes.push(ed, grid(null, [
+      btn('きまりの 値に', 'btn-sm', () => { delete c.args[a.id]; pushUndo(); live(); draw(); }),
+      btn('この 値を きまりに', 'btn-sm', () => { a.def = cur; pushUndo(); draw(); }),
+      btn('引数を けす', 'btn-sm btn-p', () => {
+        sc.args.splice(i, 1);
+        allClips().forEach(({ c: x }) => { if (x.sid === sc.id && x.args) delete x.args[a.id]; });
+        pushUndo(); live(); draw();
+      })
+    ]));
+  });
+  const cand = cl.filter(x => x.kind !== 'audio');
+  if (cand.length) {
+    const sTgt = el('select'), sKey = el('select');
+    cand.forEach(x => { const o = el('option', null, labelOf(x)); o.value = x.id; sTgt.appendChild(o); });
+    const fillKeys = () => {
+      sKey.innerHTML = '';
+      const x = cand.find(y => y.id === sTgt.value) || cand[0];
+      keysFor(x).forEach(([k, l]) => { const o = el('option', null, l); o.value = k; sKey.appendChild(o); });
+    };
+    sTgt.addEventListener('change', fillKeys); fillKeys();
+    nodes.push(row('中の ふだ', sTgt), row('変える 値', sKey),
+      grid(null, [btn('＋ 引数を つくる', 'btn-sm', () => {
+        if (addArg(sc, sTgt.value, sKey.value)) { pushUndo(); draw(); }
+      })]),
+      hint('引数を つくると、同じ シーンを いくつ 置いても、置いた ふだ ごとに もじ や 色を 変えられます'));
+  }
+  return group('シーン', nodes);
 }
 
 /* --- 1文字ずつ --- */
@@ -1833,7 +1972,8 @@ function pickBody() {
       : 'タイムラインの ふだを さわると えらべます。<br>もう一度 さわると はずれます。'),
     n ? hint(got.slice(0, 12).map(x =>
       `${r2(x.c.start)}s ${(x.c.kind === 'text' ? (x.c.text.str || '').split('\n')[0] : x.c.name) || 'ふだ'}`
-    ).join(' / ') + (n > 12 ? ` …ほか ${n - 12}まい` : '')) : null
+    ).join(' / ') + (n > 12 ? ` …ほか ${n - 12}まい` : '')) : null,
+    n ? grid(null, [btn('▣ シーンに まとめる', 'btn-sm btn-y', groupScene)]) : null
   ]));
 
   w.appendChild(group('まとめて えらぶ', [

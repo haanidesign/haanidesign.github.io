@@ -1,9 +1,9 @@
 /* さいせいと 書き出し。 */
-import { S, clamp, r2, toast, duration, $ } from './state.js?v=79';
-import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=79';
-import { allClips, findClip, trackOf } from './state.js?v=79';
-import { activeClips, fadeAlpha, renderStage, canvas, setQuality, quality } from './render.js?v=79';
-import { bus } from './bus.js?v=79';
+import { S, clamp, r2, toast, duration, $ } from './state.js?v=80';
+import { MEDIA, audioCtx, recStream, recNode, hookAudio, hookAll } from './media.js?v=80';
+import { allClips, findClip, trackOf } from './state.js?v=80';
+import { activeClips, flatClips, fadeAlpha, renderStage, canvas, setQuality, quality } from './render.js?v=80';
+import { bus } from './bus.js?v=80';
 
 let raf = 0, t0 = 0, base = 0;
 
@@ -79,14 +79,14 @@ export function refreshVoices() {
 
 export function syncMedia(t) {
   const on = new Set();
-  for (const { c, tr } of activeClips(t)) {
+  for (const { c, tr, tt } of flatClips(t)) {
     if (!c.mid) continue;
     const m = MEDIA.get(c.mid);
     if (!m || m.kind === 'image') continue;
     if (m.kind === 'audio' && m.abuf) continue;   // これは Web Audio で 鳴らす
     on.add(m.id);
-    const want = clamp(c.inp + (t - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.02));
-    m.el.volume = silent(tr) ? 0 : clamp(c.vol * fadeAlpha(c, t - c.start), 0, 1);
+    const want = clamp(c.inp + (tt - c.start) * (c.speed || 1), 0, Math.max(0, m.dur - 0.02));
+    m.el.volume = silent(tr) ? 0 : clamp(c.vol * fadeAlpha(c, tt - c.start), 0, 1);
     m.el.playbackRate = c.speed || 1;
     if (S.playing) {
       if (Math.abs(m.el.currentTime - want) > 0.25) m.el.currentTime = want;

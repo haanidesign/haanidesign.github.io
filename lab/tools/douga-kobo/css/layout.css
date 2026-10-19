@@ -97,6 +97,16 @@
 }
 #modebar{ top:8px; }
 #modebar[hidden]{ display:none; }
+#scenebar{ bottom:8px; }
+#scenebar[hidden]{ display:none; }
+#hints{
+  position:absolute; left:8px; top:8px; z-index:4; pointer-events:none;
+  font-size:.62rem; color:var(--ink2); background:rgba(255,254,247,.85);
+  border-radius:8px; padding:.15rem .45rem; max-width:calc(100% - 70px);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#hints:empty{ display:none; }
+#hints b{ color:var(--ink); }
 
 /* ---- タイムライン ---- */
 #list{

@@ -2,26 +2,27 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, allClips, findClip, selected, freeLane,
   bootProject, resetHist, snap as pushUndo, undo, redo, canUndo, canRedo, tidyTracks
-} from './state.js?v=79';
-import { wire, bus } from './bus.js?v=79';
-import { MEDIA, importFiles, hookAll } from './media.js?v=79';
-import { takeHandoff, doneHandoff } from './handoff.js?v=79';
-import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=79';
-import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=79';
-import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=79';
-import { beatOn, beatSec, beatAt } from './beat.js?v=79';
-import * as TL from './ui/timeline.js?v=79';
-import * as P from './ui/panel.js?v=79';
-import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=79';
+} from './state.js?v=80';
+import { wire, bus } from './bus.js?v=80';
+import { MEDIA, importFiles, hookAll } from './media.js?v=80';
+import { takeHandoff, doneHandoff } from './handoff.js?v=80';
+import { useCanvas, renderStage, renderOut, renderFull, outCanvas, fitView, view, setQuality, clearTrans } from './render.js?v=80';
+import { seek, play, pause, toggle, exportMovie, cancelExport, canExport, refreshVoices } from './play.js?v=80';
+import { exportMp4, hasCodecs, clearAudioCache } from './mp4.js?v=80';
+import { beatOn, beatSec, beatAt } from './beat.js?v=80';
+import * as TL from './ui/timeline.js?v=80';
+import * as P from './ui/panel.js?v=80';
+import { attachTaps, attachStage, attachPinchZoom } from './ui/gesture.js?v=80';
 import {
   addFromMedia, addText, addColor, delSel, dupSel, openProject, relink
-} from './edit.js?v=79';
-import { addFontFile } from './text.js?v=79';
-import { makePack, openPack, zip } from './pack.js?v=79';
-import { showStart } from './ui/start.js?v=79';
-import { openDemo } from './demo.js?v=79';
-import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=79';
-import { trackOf } from './state.js?v=79';
+} from './edit.js?v=80';
+import { addFontFile } from './text.js?v=80';
+import { makePack, openPack, zip } from './pack.js?v=80';
+import { showStart } from './ui/start.js?v=80';
+import { openDemo } from './demo.js?v=80';
+import { autoSaver, loadDoc, getBlob, newId, listDocs } from './store.js?v=80';
+import { trackOf, rootTracks } from './state.js?v=80';
+import { closeScene, editing } from './scene.js?v=80';
 
 const cv = $('#stageCv');
 useCanvas(cv);
@@ -54,7 +55,30 @@ function drawAll() {
   tick();
   $('#undo').disabled = !canUndo();
   $('#redo').disabled = !canRedo();
+  sceneBar(); hints();
 }
+/* シーンの 中を ひらいて いる ときの 帯 */
+function sceneBar() {
+  const sc = editing();
+  $('#scenebar').hidden = !sc;
+  if (sc) $('#sceneInfo').textContent = 'シーンの 中: ' + S.edit.map(e => (S.scenes[e.sid] || {}).name || 'シーン').join(' › ');
+}
+/* 操作の ヒント。いま さわれる ことを 画面の すみに 出す */
+let hintZone = 'stage';
+function hints() {
+  const h = $('#hints');
+  if (!h) return;
+  let t;
+  if (hintZone === 'tl') t = '<b>ドラッグ</b> ならべかえ · <b>はし</b> のばす · <b>ピンチ / ＋−</b> ズーム · <b>S</b> 切る';
+  else if (S.tool === 'cut') t = '<b>タップ</b> その ところで 切る · <b>S</b> いまの ところで 切る';
+  else if (S.tool === 'pick') t = '<b>タップ</b> えらぶ・はずす · えらんで ふだ → <b>シーンに まとめる</b>';
+  else if (S.sel) t = '<b>ドラッグ</b> うごかす · <b>つまみ</b> 大きさ・回転 · <b>H</b> おして いる 間 わくを かくす';
+  else t = '<b>タップ</b> ふだを えらぶ · <b>ドラッグ</b> 見る ところを うごかす · <b>スペース</b> さいせい';
+  h.innerHTML = t;
+}
+$('#stage').addEventListener('pointerenter', () => { hintZone = 'stage'; hints(); });
+$('#list').addEventListener('pointerenter', () => { hintZone = 'tl'; hints(); });
+$('#sceneClose').onclick = () => { closeScene(); TL.fit(); };
 function tick() {
   if (S.timeMode === 'bar' && beatOn()) {
     const per = S.beat.per || 4;
@@ -244,6 +268,7 @@ const setTool = (t) => {
   $('#tCut').classList.toggle('on', t === 'cut');
   $('#tPick').classList.toggle('on', t === 'pick');
   $('#modebar').hidden = t === 'select';
+  hints();
   $('#modeInfo').textContent =
     t === 'cut' ? 'ふだを さわると そこで 切れます'
       : t === 'pick' ? 'ふだを さわると えらべます（もう一度で はずれる）'
@@ -440,6 +465,7 @@ async function exportPng(opt = {}) {
 }
 
 async function doExport(opt = {}) {
+  if (S.edit.length) { while (S.edit.length) closeScene(); toast('シーンを とじて 書き出します'); }
   if (!allClips().length) { toast('まだ なにも 置いていない'); return; }
   if (opt.kind === 'png' || opt.kind === 'pngalpha') {
     return exportPng({ name: opt.name, alpha: opt.kind === 'pngalpha' });
@@ -508,9 +534,15 @@ document.addEventListener('keydown', e => {
     case 's': case 'S': TL.splitHere(); break;
     case 'Escape': S.sel = null; S.selMany = []; setTool('select'); drawAll(); break;
     case '+': case ';': TL.zoomIn(); break;
+    case 'h': case 'H': if (!S.hideOv) { S.hideOv = true; renderStage(S.time); } break;
     case '-': TL.zoomOut(); break;
   }
 });
+
+document.addEventListener('keyup', e => {
+  if ((e.key === 'h' || e.key === 'H') && S.hideOv) { S.hideOv = false; renderStage(S.time); }
+});
+window.addEventListener('blur', () => { if (S.hideOv) { S.hideOv = false; renderStage(S.time); } });
 
 /* ---------- 指の わざ ---------- */
 attachTaps(undo, redo);
@@ -566,7 +598,7 @@ const auto = autoSaver(() => ({
   id: S.docId,
   doc: {
     name: S.name, W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans, cams: S.cams,
-    beat: S.beat, master: S.master, tracks: S.tracks
+    beat: S.beat, master: S.master, tracks: rootTracks(), scenes: S.scenes
   },
   media: [...MEDIA.values()],
   thumb: thumb()
@@ -642,7 +674,7 @@ async function openDoc(id) {
       const hit = byName.get(file.name);
       if (hit) remap.set(oldId, hit.id);
     });
-    S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;
+    S.tracks = o.tracks; S.scenes = o.scenes || {}; S.edit = []; S.sel = null; S.selTrack = null; S.time = 0;
     allClips().forEach(({ c }) => { if (c.mid && remap.has(c.mid)) c.mid = remap.get(c.mid); });
     applySize(); resetHist(); appH(); drawAll(); TL.fit();
     const miss = allClips().filter(({ c }) => c.mid && !MEDIA.has(c.mid)).length;

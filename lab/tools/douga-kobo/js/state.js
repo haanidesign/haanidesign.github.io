@@ -1,5 +1,5 @@
 /* 作品の 中身と、もどす／やりなおし。 */
-import { bus } from './bus.js?v=79';
+import { bus } from './bus.js?v=80';
 
 export const $  = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -24,7 +24,9 @@ export const S = {
   step: 0,               // コマ打ち（0=フル / 12=2コマ / 8=3コマ）
   trans: [],             // カット間の つなぎ [{at,dur,kind,seed}]
   cams: [],              // カットごとの カメラ [{at,dur,kind,seed}]
-  noBg: false,           // 下じきを ぬらない（透過PNG の あいだだけ true）
+  noBg: false,
+  scenes: {},            // まとめた シーン {id:{id,name,dur,sp,tracks,args}}
+  edit: [],              // シーンの 中を ひらいて いる とき [{sid,tracks,time}]           // 下じきを ぬらない（透過PNG の あいだだけ true）
   master: {
     vignette: 0, grain: 0, rgb: 0, flash: 0, shake: 0, zoom: 0,
     slice: 0, block: 0, scan: 0, invert: 0, bloom: 0, lines: 0,
@@ -114,6 +116,8 @@ export function setMany(ids) {
 }
 /** ふだが おわる ところ */
 export const clipEnd = () => Math.max(0.5, ...allClips().map(({ c }) => c.start + c.dur));
+/** いちばん 外の 段（シーンの 中を ひらいて いても 作品の 段） */
+export const rootTracks = () => S.edit.length ? S.edit[0].tracks : S.tracks;
 /** 作品の ながさ。きめて あれば その ながさ、なければ ふだに 合わせる */
 export const duration = () => (S.dur > 0 ? S.dur : clipEnd());
 
@@ -125,6 +129,7 @@ export function bootProject() {
     newTrack('audio', '音 1')
   ];
   S.time = 0; S.sel = null; S.selTrack = null;
+  S.scenes = {}; S.edit = [];
 }
 
 /* ---- ふだの 置き場さがし ---- */
@@ -156,7 +161,7 @@ export function freeLane(kind, items) {
 /* ---- もどす／やりなおし ---- */
 let HIST = [], HPOS = -1;
 export function snap() {
-  const s = JSON.stringify({ tracks: S.tracks, sel: S.sel, beat: S.beat, master: S.master, loop: S.loop });
+  const s = JSON.stringify({ tracks: S.tracks, sel: S.sel, beat: S.beat, master: S.master, loop: S.loop, scenes: S.scenes, edit: S.edit });
   if (HIST[HPOS] === s) return;
   HIST = HIST.slice(0, HPOS + 1);
   HIST.push(s); HPOS = HIST.length - 1;
@@ -171,6 +176,11 @@ function goto(i) {
   if (o.beat) S.beat = o.beat;
   if (o.master) S.master = o.master;
   if (o.loop) S.loop = o.loop;
+  S.scenes = o.scenes || {};
+  S.edit = o.edit || [];
+  // 中を ひらいて いる シーンは、いまの 段と 同じ もの を さす
+  const top = S.edit[S.edit.length - 1];
+  if (top && S.scenes[top.sid]) S.scenes[top.sid].tracks = S.tracks;
   bus.all();
   return true;
 }
