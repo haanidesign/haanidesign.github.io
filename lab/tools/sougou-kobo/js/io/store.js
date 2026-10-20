@@ -12,7 +12,7 @@
 
 const DB = 'sougou-kobo';
 const STORE = 'doc';      // むかしの ひとつだけの ほぞん（読みこむだけ）
-import { plain } from '../state.js?v=381';
+import { plain } from '../state.js?v=382';
 
 const DOCS = 'docs';      // いまの ほぞん。さくひんごとに 1件
 const KEY = 'last';
@@ -65,6 +65,18 @@ export function loadDoc(id){
 
 export function deleteDoc(id){
   return run(DOCS, 'readwrite', st => st.delete(id));
+}
+
+/** さくひんを まるごと 複製する。名前の うしろに「のコピー」。新しい ばんごうを かえす */
+export async function copyDoc(id){
+  const r = await loadDoc(id);
+  if(!r) throw new Error('見つかりませんでした');
+  const nid = newId();
+  const name = ((r.proj && r.proj.name) || r.name || 'むだい') + ' のコピー';
+  const rec = Object.assign({}, r, { id: nid, at: Date.now(), name });
+  if(rec.proj) rec.proj = Object.assign({}, rec.proj, { name });
+  await run(DOCS, 'readwrite', st => st.put(rec));
+  return nid;
 }
 
 /** 見出しだけの ならび（新しい順）。中身は 入っていない ＝ 軽い */

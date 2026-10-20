@@ -1,6 +1,6 @@
 /* いちばん最初の画面。どの形の動画を作るかを選ぶ。 */
 
-import { SIZE_PRESETS } from '../state.js?v=381';
+import { SIZE_PRESETS } from '../state.js?v=382';
 
 const LENGTHS = [5, 8, 10, 15, 30, 60];   /* ショートを 作る 人が 多い ので みじかい ほうを あつく */
 
@@ -52,6 +52,17 @@ export function showNewDoc(el, onStart, resume){
         resume.onOpen(d.id);
       });
       item.appendChild(openB);
+
+      /* ⧉ 複製。いっぱいの ときは けしてから */
+      if(resume.onCopy){
+        const cpB = document.createElement('button');
+        cpB.className = 'docdel doccopy';
+        cpB.textContent = '⧉';
+        cpB.title = 'この 作品を 複製する';
+        cpB.setAttribute('aria-label', '「' + (d.name || 'むだい') + '」を 複製');
+        cpB.addEventListener('click', async () => { await resume.onCopy(d.id); });
+        item.appendChild(cpB);
+      }
 
       const delB = document.createElement('button');
       delB.className = 'docdel';
