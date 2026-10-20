@@ -1,28 +1,28 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { kataStep, kataDone } from '../engine/bonekata.js?v=382';
-import { newSway as newSwayK } from '../engine/puppet.js?v=382';
-import { M, clamp } from '../engine/math.js?v=382';
-import { cleanPath } from '../engine/path.js?v=382';
+import { kataStep, kataDone } from '../engine/bonekata.js?v=383';
+import { newSway as newSwayK } from '../engine/puppet.js?v=383';
+import { M, clamp } from '../engine/math.js?v=383';
+import { cleanPath } from '../engine/path.js?v=383';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=382';
-import { liveMasks } from '../engine/mask.js?v=382';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=382';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=382';
+         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=383';
+import { liveMasks } from '../engine/mask.js?v=383';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=383';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=383';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=382';
-import { createRenderer } from '../render/renderer.js?v=382';
-import { attachInput } from './input.js?v=382';
-import { bubbleGeom } from '../engine/talk.js?v=382';
-import { newStroke, paintDirty } from '../engine/paint.js?v=382';
+         bendChain } from '../engine/puppet.js?v=383';
+import { createRenderer } from '../render/renderer.js?v=383';
+import { attachInput } from './input.js?v=383';
+import { bubbleGeom } from '../engine/talk.js?v=383';
+import { newStroke, paintDirty } from '../engine/paint.js?v=383';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=382';
+         copyPts, setPts } from '../engine/warp.js?v=383';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=382';
-import { inCamView } from '../render/camview.js?v=382';
-import { ORBIT_MAX } from '../engine/camera.js?v=382';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=383';
+import { inCamView } from '../render/camview.js?v=383';
+import { ORBIT_MAX } from '../engine/camera.js?v=383';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
