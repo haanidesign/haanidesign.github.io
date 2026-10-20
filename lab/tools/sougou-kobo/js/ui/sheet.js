@@ -1,63 +1,64 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { allTools as favAll, isFav, toggleFav } from './favtools.js?v=380';
-import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=380';
-import { omakase } from '../moji/omakase.js?v=380';
-import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=380';
-import { newLayer } from '../engine/layer.js?v=380';
-import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=380';
-import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles, newDots } from '../engine/ugoku.js?v=380';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=380';
-import { newMojiLayer } from '../moji/moji.js?v=380';
-import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts, addFontFile as mjAddFont, userFonts as mjUserFonts, removeFont as mjRemoveFont } from '../moji/text.js?v=380';
-import { TRANS_LIST } from '../render/trans.js?v=380';
-import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=380';
-import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=380';
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=380';
+import { fontReady } from '../moji/text.js?v=381';
+import { allTools as favAll, isFav, toggleFav } from './favtools.js?v=381';
+import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=381';
+import { omakase } from '../moji/omakase.js?v=381';
+import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=381';
+import { newLayer } from '../engine/layer.js?v=381';
+import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=381';
+import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles, newDots } from '../engine/ugoku.js?v=381';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=381';
+import { newMojiLayer } from '../moji/moji.js?v=381';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts, addFontFile as mjAddFont, userFonts as mjUserFonts, removeFont as mjRemoveFont } from '../moji/text.js?v=381';
+import { TRANS_LIST } from '../render/trans.js?v=381';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=381';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=381';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=381';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=380';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=380';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=381';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=381';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=380';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=381';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=380';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=380';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=380';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=380';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=380';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=380';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=380';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=380';
-import { FONTS, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=380';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=381';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=381';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=381';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=381';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=381';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=381';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=381';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=381';
+import { FONTS, allFonts, renderTextLayer, shortName, newTextStyle, textToCanvas,
+         addTextLayer } from '../io/text.js?v=381';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=380';
-import { PATTERN_NAMES } from '../io/pattern.js?v=380';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=381';
+import { PATTERN_NAMES } from '../io/pattern.js?v=381';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=380';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=380';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=380';
+         PITCH_MAX } from '../engine/pano.js?v=381';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=381';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=381';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=380';
-import { readAsDataURL, loadImage } from '../io/image.js?v=380';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=381';
+import { readAsDataURL, loadImage } from '../io/image.js?v=381';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=380';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=380';
-import { newHand } from '../engine/hand.js?v=380';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=380';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=381';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=381';
+import { newHand } from '../engine/hand.js?v=381';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=381';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=380';
+  from './colorwheel.js?v=381';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=380';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=381';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=380';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=381';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -3707,15 +3708,17 @@ export function buildTextSheet(box, closeFn){
   box.appendChild(field('もじ', ta));
 
   const fsel = document.createElement('select');
-  FONTS.forEach(f => {
+  allFonts().forEach(f => {
     const o = document.createElement('option');
     o.value = f.key; o.textContent = f.label;
     if(f.key === t.font) o.selected = true;
     fsel.appendChild(o);
   });
-  fsel.addEventListener('change', () => {
-    if(editing) edit('書体をかえる', () => { t.font = fsel.value; });
-    else t.font = fsel.value;
+  fsel.addEventListener('change', async () => {
+    const k = fsel.value;
+    await fontReady(k);              // 大きい フォントは 読みこんで から 描く
+    if(editing) edit('書体をかえる', () => { t.font = k; });
+    else t.font = k;
     redraw();
   });
   box.appendChild(field('しょたい', fsel));
@@ -3933,6 +3936,22 @@ function talkRow(box, l, closeFn){
   box.appendChild(slider('文字の 大きさ', () => t.size,
     v => { t.size = Math.round(v); dirty(); }, 16, Math.round(S.proj.h / 10), 1,
     v => Math.round(v) + 'px'));
+  /* セリフの 書たい */
+  const tfs = document.createElement('select');
+  [{ key: '', label: '端末の ふつうの 字' }, ...allFonts()].forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.key; o.textContent = f.label;
+    if((t.font || '') === f.key) o.selected = true;
+    tfs.appendChild(o);
+  });
+  tfs.addEventListener('change', async () => {
+    const k = tfs.value;
+    if(k) await fontReady(k);
+    edit('セリフの 書たい', () => { t.font = k || null; });
+    dirty();
+    onChange();
+  });
+  box.appendChild(field('書たい', tfs));
 
   if(t.shape === 'bubble'){
     /* ---- 💬 吹き出し ---- */

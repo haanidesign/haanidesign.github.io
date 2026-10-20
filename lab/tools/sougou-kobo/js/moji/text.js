@@ -1,7 +1,7 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
 /* 動画工房（douga-kobo/js/text.js）から もってきた。動画工房の S・拍・bus は shim.js が かわりに 出す。 */
-import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=380';
+import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=381';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -66,13 +66,26 @@ export const BUNDLED = [
   ['b-bestdot', 'ベストテン DOT', 'BestTenDOT', 'fonts/BestTen-DOT.otf']
 ];
 const bLoaded = new Set();
+const bWait = {};
+/** その 書たいが つかえる ように なるまで まつ（大きい フォントは 読みこみに 時間が かかる） */
+export function fontReady(key){
+  const b = BUNDLED.find(x => x[0] === key);
+  if(b){ ensureBundled(key); return bWait[key] || Promise.resolve(); }
+  const u = userFonts.find(f => f.key === key);
+  if(u) return document.fonts.load('40px "' + u.family + '"').catch(() => {});
+  const g = GFONTS.find(f => f[0] === key);
+  if(g){ ensureFont(key); return document.fonts.load('40px "' + g[2] + '"').catch(() => {}); }
+  return Promise.resolve();
+}
+/** テキスト・セリフ枠 でも つかう 一覧（[key, 名前]） */
+export const extraFonts = () => [...BUNDLED.map(f => [f[0], f[1]]), ...GFONTS.map(f => [f[0], f[1]]), ...userFonts.map(f => [f.key, f.label])];
 function ensureBundled(key){
   const b = BUNDLED.find(x => x[0] === key);
   if(!b || bLoaded.has(key)) return;
   bLoaded.add(key);
   const face = new FontFace(b[2], 'url(' + b[3] + ')');
-  face.load().then(f => { document.fonts.add(f); bus.stage(); bus.panel(); })
-    .catch(() => { bLoaded.delete(key); });
+  bWait[key] = face.load().then(f => { document.fonts.add(f); bus.stage(); bus.panel(); })
+    .catch(() => { bLoaded.delete(key); delete bWait[key]; });
 }      // {key,label,family}
 export function fontFamily(key) {
   const u = userFonts.find(f => f.key === key);

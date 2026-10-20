@@ -13,8 +13,9 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { S } from '../state.js?v=380';
-import { newLayer, newFolder } from './layer.js?v=380';
+import { fontFamily as mjFamily } from '../moji/text.js?v=381';
+import { S } from '../state.js?v=381';
+import { newLayer, newFolder } from './layer.js?v=381';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 
@@ -60,6 +61,9 @@ export function fixOverlaps(project){
   }
   return moved;
 }
+
+/* セリフ枠の 書たい。えらんで いなければ 端末の ふつうの 字 */
+function talkFont(t){ return t && t.font ? mjFamily(t.font) : 'system-ui, sans-serif'; }
 
 export function talkDefaults(project){
   const P = project || S.proj;
@@ -176,7 +180,7 @@ let _measure = null;
 export function bubbleGeom(t, w, h, gIn){
   const g = gIn || (_measure || (_measure = document.createElement('canvas').getContext('2d')));
   const size = Math.round(t.size);
-  g.font = size + 'px system-ui, sans-serif';
+  g.font = size + 'px ' + talkFont(t);
   /* 字の かたまりの 大きさ（ぜんぶの 字で はかる） */
   const maxW = Math.max(size * 3, w * (t.bw || 0.62) * 0.72);
   const lines = wrapLines(g, t.text, maxW);
@@ -199,7 +203,7 @@ function drawBubble(g, l, t, n, w, h){
   const ink = t.bInk || '#1E1C14';
   const fill = t.bFill || '#FFFFFF';
   const { size, lines, lineH, th, cx, cy, rx, ry, tipX, tipY } = bubbleGeom(t, w, h, g);
-  g.font = size + 'px system-ui, sans-serif';
+  g.font = size + 'px ' + talkFont(t);
   const lw = Math.max(2, h / 360);
   const tail = Math.hypot(tipX - cx, tipY - cy) > Math.min(rx, ry) * 1.05;
 
@@ -312,7 +316,7 @@ export function talkCanvas(l, time, project){
   }
   const t = l.talk || (l.talk = talkDefaults(P));
   const n = shownCount(l, time);
-  const key = [n, t.text, t.who, t.size, t.pad, t.line, t.hRatio,
+  const key = [n, t.text, t.who, t.font, document.fonts.size, t.size, t.pad, t.line, t.hRatio,
                t.bg, t.bgAlpha, t.fg, t.box ? 1 : 0, w, h,
                t.shape, t.bKind, t.bx, t.by, t.bw, t.tx, t.ty, t.bFill, t.bInk].join('|');
   if(l._tkKey === key) return l._tkC;
@@ -352,7 +356,7 @@ export function talkCanvas(l, time, project){
 
     /* 名前の ふだ。帯の 左上に すこし はみ出して 置く。 */
     if(t.who){
-      g.font = '600 ' + Math.round(t.size * 0.92) + 'px system-ui, sans-serif';
+      g.font = '600 ' + Math.round(t.size * 0.92) + 'px ' + talkFont(t);
       const tw = g.measureText(t.who).width;
       const nh = Math.round(t.size * 1.6);
       const nx = x0 + pad * 0.5, ny = y0 - nh * 0.62;
@@ -377,7 +381,7 @@ export function talkCanvas(l, time, project){
   }
 
   /* セリフ。出す ぶんだけ。改行は そのまま 改行。 */
-  g.font = Math.round(t.size) + 'px system-ui, sans-serif';
+  g.font = Math.round(t.size) + 'px ' + talkFont(t);
   g.textBaseline = 'top';
   g.fillStyle = t.box ? (t.fg || '#FFFEF7') : (t.bg || '#1E1C14');
   const lineH = t.size * (t.line || 1.55);

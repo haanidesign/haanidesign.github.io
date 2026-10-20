@@ -3,10 +3,11 @@
    こうすると、動かす・回す・塗る・ぼかす・ピンで曲げる が
    絵とまったく同じしくみで効く。文字を変えたら描き直すだけ。 */
 
-import { S, addAsset } from '../state.js?v=380';
-import { newLayer, groupInto } from '../engine/layer.js?v=380';
-import { M } from '../engine/math.js?v=380';
-import { loadImage } from './image.js?v=380';
+import { fontFamily as mjFamily, extraFonts } from '../moji/text.js?v=381';
+import { S, addAsset } from '../state.js?v=381';
+import { newLayer, groupInto } from '../engine/layer.js?v=381';
+import { M } from '../engine/math.js?v=381';
+import { loadImage } from './image.js?v=381';
 
 export const FONTS = [
   { key:'rounded', label:'まるゴシック', css:"'M PLUS Rounded 1c', sans-serif" },
@@ -29,9 +30,12 @@ export function newTextStyle(){
   };
 }
 
+/* もとの 4つ ＋ 総合工房の フォント（つなぎゴシック・装甲明朝・ベストテン・Google の 書たい・読みこんだ もの） */
+export const allFonts = () => [...FONTS.map(f => ({ key: f.key, label: f.label })),
+  ...extraFonts().filter(([k]) => !FONTS.some(f => f.key === k)).map(([key, label]) => ({ key, label }))];
 const fontCss = (t) => {
-  const f = FONTS.find(x => x.key === t.font) || FONTS[0];
-  return t.weight + ' ' + t.size + 'px ' + f.css;
+  const f = FONTS.find(x => x.key === t.font);
+  return t.weight + ' ' + t.size + 'px ' + (f ? f.css : (t.font ? mjFamily(t.font) : FONTS[0].css));
 };
 
 /** 文字を描いた canvas を作る。まわりに ふちどりのぶんの余白をとる */
