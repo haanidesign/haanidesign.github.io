@@ -1051,3 +1051,18 @@ input[type=range].coarse{
 
 /* エフェクト: えらんで いる もの */
 .sozaiitem.on, .rowbtns button.on{ background:var(--main); }
+
+/* ★ お気に入りの 道具（総合工房） */
+#favTools{ display:contents; }
+#favTools[hidden]{ display:none; }
+#tools .favhead{ flex:0 0 100%; text-align:center; font-size:.8rem; font-weight:800; color:var(--ink); padding:.15rem 0; }
+#tools .tool.favcopy{ background:var(--main); border:2.5px solid var(--ink); }
+#tools .tool.isfav{ position:relative; }
+#tools .tool.isfav::after{ content:'★'; position:absolute; top:2px; right:5px; font-size:.7rem; color:var(--ink); }
+#favTools + .tool{ }
+#favTools:not([hidden])::after{ content:''; flex:0 0 100%; border-bottom:2.5px solid var(--ink); margin:.1rem 0 .2rem; }
+/* 下に よこ ならびの とき（スマホ・たてタブレット）は 見出しと くぎりを 出さない（★の 色だけで わかる） */
+@media not all and (min-width:760px) and (orientation:landscape){
+  #tools .favhead{ display:none; }
+  #favTools:not([hidden])::after{ display:none; }
+}

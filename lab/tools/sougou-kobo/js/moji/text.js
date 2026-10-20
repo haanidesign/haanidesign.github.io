@@ -1,7 +1,7 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
 /* 動画工房（douga-kobo/js/text.js）から もってきた。動画工房の S・拍・bus は shim.js が かわりに 出す。 */
-import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=378';
+import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=380';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -55,10 +55,30 @@ export function ensureFont(key) {
     )).then(() => { bus.stage(); bus.panel(); });
   }
 }
-export const userFonts = [];      // {key,label,family}
+export const userFonts = [];
+
+/* 総合工房に 入れて ある フォント（fonts/ の 中。ライセンスは fonts/README.md）。
+   ファイルが 大きい ので、えらんだ ときに はじめて 読みこむ */
+export const BUNDLED = [
+  ['b-tsunagi', 'つなぎゴシック', 'TsunagiGothic', 'fonts/TsunagiGothic.ttf'],
+  ['b-soukou', '装甲明朝', 'SoukouMincho', 'fonts/SoukouMincho.ttf'],
+  ['b-bestcrt', 'ベストテン CRT', 'BestTenCRT', 'fonts/BestTen-CRT.otf'],
+  ['b-bestdot', 'ベストテン DOT', 'BestTenDOT', 'fonts/BestTen-DOT.otf']
+];
+const bLoaded = new Set();
+function ensureBundled(key){
+  const b = BUNDLED.find(x => x[0] === key);
+  if(!b || bLoaded.has(key)) return;
+  bLoaded.add(key);
+  const face = new FontFace(b[2], 'url(' + b[3] + ')');
+  face.load().then(f => { document.fonts.add(f); bus.stage(); bus.panel(); })
+    .catch(() => { bLoaded.delete(key); });
+}      // {key,label,family}
 export function fontFamily(key) {
   const u = userFonts.find(f => f.key === key);
   if (u) return `'${u.family}', sans-serif`;
+  const bd = BUNDLED.find(f => f[0] === key);
+  if (bd) { ensureBundled(key); return `'${bd[2]}', sans-serif`; }
   const g = GFONTS.find(f => f[0] === key);
   if (g) { ensureFont(key); return `'${g[2]}', sans-serif`; }
   const f = FONTS.find(f => f[0] === key);
@@ -67,6 +87,7 @@ export function fontFamily(key) {
 export function fontList() {
   return [
     ...FONTS.map(f => [f[0], f[1]]),
+    ...BUNDLED.map(f => [f[0], f[1]]),
     ...GFONTS.map(f => [f[0], f[1]]),
     ...userFonts.map(f => [f.key, f.label])
   ];
