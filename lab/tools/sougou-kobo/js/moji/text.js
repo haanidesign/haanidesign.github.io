@@ -1,7 +1,7 @@
 /* もじの 組み方（よこ書き・たて書き・ツメ）と、うごき（エフェクト）。
    1文字ずつ 置き場を 出して、1文字ずつ うごかす。 */
 /* 動画工房（douga-kobo/js/text.js）から もってきた。動画工房の S・拍・bus は shim.js が かわりに 出す。 */
-import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=376';
+import { S, clamp, beatOn, beatSec, beatAt, bus } from './shim.js?v=378';
 
 /* ---------- フォント ---------- */
 export const FONTS = [
@@ -71,15 +71,57 @@ export function fontList() {
     ...userFonts.map(f => [f.key, f.label])
   ];
 }
-export async function addFontFile(file) {
-  const buf = await file.arrayBuffer();
-  const family = 'uf' + Math.random().toString(36).slice(2, 7);
+/* 読みこんだ フォントは この 端末の 中（IndexedDB）に しまって、つぎに ひらいた ときも つかえる。
+   名前（ファイル名）を かぎに する ので、作品の 中の 書たいの しるしも かわらない */
+const FONT_DB = 'sougou-kobo-fonts';
+function fontDb(mode, fn){
+  return new Promise((ok, ng) => {
+    const r = indexedDB.open(FONT_DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('f');
+    r.onerror = () => ng(r.error);
+    r.onsuccess = () => {
+      const db = r.result, tx = db.transaction('f', mode), st = tx.objectStore('f');
+      const q = fn(st);
+      tx.oncomplete = () => { db.close(); ok(q && q.result); };
+      tx.onerror = () => { db.close(); ng(tx.error); };
+    };
+  });
+}
+async function register(label, buf){
+  const key = 'user:' + label;
+  if(userFonts.some(f => f.key === key)) return key;
+  const family = 'uf_' + label.replace(/[^\w]/g, '_') + '_' + label.length;
   const face = new FontFace(family, buf);
   await face.load();
   document.fonts.add(face);
-  const key = 'user:' + family;
-  userFonts.push({ key, label: file.name.replace(/\.[^.]+$/, ''), family });
+  userFonts.push({ key, label, family });
   return key;
+}
+export async function addFontFile(file) {
+  const buf = await file.arrayBuffer();
+  const label = file.name.replace(/\.[^.]+$/, '');
+  const key = await register(label, buf);
+  try{ await fontDb('readwrite', st => st.put(buf, label)); }catch(_){}
+  return key;
+}
+/** しまって ある フォントを ぜんぶ もどす（ひらいた ときに 1回） */
+export async function loadSavedFonts(){
+  try{
+    const names = await fontDb('readonly', st => st.getAllKeys()) || [];
+    for(const n of names){
+      const buf = await fontDb('readonly', st => st.get(n));
+      if(buf) await register(n, buf).catch(() => {});
+    }
+    bus.stage(); bus.panel();
+    return names.length;
+  }catch(_){ return 0; }
+}
+export async function removeFont(key){
+  const i = userFonts.findIndex(f => f.key === key);
+  if(i < 0) return;
+  const label = userFonts[i].label;
+  userFonts.splice(i, 1);
+  try{ await fontDb('readwrite', st => st.delete(label)); }catch(_){}
 }
 
 /* ---------- たて書きで まわす／ずらす 文字 ---------- */
@@ -223,7 +265,8 @@ export const FX_IN = [
   ['countin', 'カウントイン'], ['stroke1', '一画ずつ'], ['shutter', 'シャッター'], ['pend', 'ふりこ'],
   ['zip', 'ジッパー'], ['pushin', 'おし出し'], ['tilt', 'かたむき おき'], ['squash', 'つぶれ もどり'],
   ['crack', 'ひび'], ['magnify', 'ルーペ'], ['sheet', 'シール はり'], ['unfold', '手紙ひらき'],
-  ['gather', '分解→集合'], ['rise', 'せり上がり']
+  ['gather', '分解→集合'], ['rise', 'せり上がり'],
+  ['ghostin', 'ふちから（大きな ふちが ちぢんで 入る）'], ['blockin', '■から（■が 文字に かわる）']
 ];
 export const FX_LOOP = [
   ['none', 'なし'], ['bounce', 'はずむ'], ['pulse', 'どくどく'], ['shake', 'ゆれる'],
@@ -277,6 +320,8 @@ function inAt(kind, p, g, size, opt = {}) {
     case 'flipx': t.sx = Math.max(.04, Math.abs(Math.cos((1 - e) * Math.PI))); t.a = clamp(p * 2, 0, 1); break;
     case 'flipy': t.sy = Math.max(.04, Math.abs(Math.cos((1 - e) * Math.PI))); t.a = clamp(p * 2, 0, 1); break;
     case 'blur': t.blur = (1 - e) * size * .28; t.a = p; break;
+    case 'ghostin': t.a = clamp((p - .45) / .4, 0, 1); break;
+    case 'blockin': t.a = p > 0 ? 1 : 0; break;
     case 'type': t.a = p > 0 ? 1 : 0; break;
     case 'wipe': t.sx = e; t.a = clamp(p * 3, 0, 1); break;
     case 'scatter': {
@@ -694,6 +739,7 @@ export function glyphState(T, g, local, dur, total, absT) {
   const l = loopAt(T.fxLoop || 'none', beat + (T.loopLag ? key * .12 : 0), g, size, T.loopAmt === undefined ? 1 : T.loopAmt);
 
   return {
+    pin: pIn,
     dx: a.dx + bb.dx + l.dx,
     dy: a.dy + bb.dy + l.dy,
     sx: a.sx * bb.sx * l.sx,
@@ -739,7 +785,7 @@ export function drawText(G, c, local, absT) {
     for (let k = steps - 1; k >= 0; k--) {
       const back = k * (mb * 0.06);
       const st = glyphState(T, g, local - back, c.dur, total, absT - back);
-      if (st.a <= .004) continue;
+      if (st.a <= .004 && !(T.fxIn === 'ghostin' && st.pin < 1 && k === 0)) continue;
       const fade = k === 0 ? 1 : (1 - k / steps) * .45;
       const o = offOf(T, g.idx);
       G.save();
@@ -754,6 +800,20 @@ export function drawText(G, c, local, absT) {
       const col = st.hue ? shiftHue(T.color, st.hue) : T.color;
       const fill = T.grad ? gradFor(G, T, g, lay, size) : col;
 
+      /* ■から … 出はじめの あいだは ■ を 出して、とちゅうで 文字に かわる（AviUtl の よく ある やり方） */
+      const ch = (T.fxIn === 'blockin' && st.pin < .55) ? '■' : g.ch;
+      /* ふちから … 中を すかした 大きな ふちの 文字が ちぢみ ながら 消えて、本体が 出る */
+      if(T.fxIn === 'ghostin' && st.pin < 1 && k === 0){
+        const q = st.pin, gs = 1 + (1 - q) * 0.9;
+        G.save();
+        G.globalAlpha = clamp((1 - q) * 1.4, 0, 1) * clamp(q * 6, 0, 1);
+        G.scale(gs, gs);
+        G.lineWidth = Math.max(1.5, size * .045) / gs;
+        G.strokeStyle = T.color;
+        G.strokeText(g.ch, 0, 0);
+        G.restore();
+      }
+
       // ① ひかり（グロー）
       if (T.glowOn && k === 0) {
         G.save();
@@ -761,8 +821,8 @@ export function drawText(G, c, local, absT) {
         G.shadowBlur = Math.max(1, T.glowSize || 18);
         G.shadowOffsetX = 0; G.shadowOffsetY = 0;
         G.fillStyle = fill;
-        G.fillText(g.ch, 0, 0);
-        G.fillText(g.ch, 0, 0);          // 2回 かさねて しっかり 光らせる
+        G.fillText(ch, 0, 0);
+        G.fillText(ch, 0, 0);          // 2回 かさねて しっかり 光らせる
         G.restore();
       }
       // ② かげ
@@ -773,13 +833,13 @@ export function drawText(G, c, local, absT) {
         G.shadowOffsetX = T.shadowX === undefined ? 6 : T.shadowX;
         G.shadowOffsetY = T.shadowY === undefined ? 8 : T.shadowY;
         G.fillStyle = fill;
-        G.fillText(g.ch, 0, 0);
+        G.fillText(ch, 0, 0);
         G.restore();
       }
       // ③ 本体
-      if (T.sw > 0) { G.strokeStyle = T.stroke; G.lineWidth = T.sw; G.strokeText(g.ch, 0, 0); }
+      if (T.sw > 0) { G.strokeStyle = T.stroke; G.lineWidth = T.sw; G.strokeText(ch, 0, 0); }
       G.fillStyle = fill;
-      G.fillText(g.ch, 0, 0);
+      G.fillText(ch, 0, 0);
 
       G.filter = 'none';
       G.restore();
