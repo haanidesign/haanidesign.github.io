@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>プロットボード</title>
+<style>
+:root{--cream:#FBFAEC;--paper:#FFFEF7;--ink:#1E1C14;--ink2:#5C5843;--line:#E8E5D0;--main:#E1DD60;
+--shadow:0 1px 2px rgba(30,28,20,.06),0 8px 24px rgba(30,28,20,.08)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--cream);color:var(--ink);font-family:system-ui,"Hiragino Sans","Noto Sans JP",sans-serif;overflow:hidden;touch-action:none}
+#top{position:fixed;inset:0 0 auto 0;height:52px;background:var(--main);display:flex;align-items:center;gap:6px;padding:0 10px;z-index:10}
+#top h1{font-size:15px;margin:0 8px 0 4px;background:var(--ink);color:#fff;border-radius:99px;padding:4px 12px}
+#top input{border:0;background:rgba(255,255,255,.55);border-radius:10px;padding:6px 10px;font-size:14px;min-width:0;flex:0 1 200px}
+.sp{flex:1}
+button{font:inherit;border:0;background:var(--paper);color:var(--ink);border-radius:12px;min-width:38px;height:38px;padding:0 10px;box-shadow:var(--shadow);cursor:pointer}
+button.on{background:var(--ink);color:#fff}
+#side{position:fixed;left:10px;top:64px;display:flex;flex-direction:column;gap:8px;z-index:9}
+#side button{width:64px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;gap:2px}
+#side button b{font-size:20px;font-weight:normal}
+#view{position:fixed;inset:52px 0 0 0;overflow:hidden;
+background-image:radial-gradient(var(--line) 1.2px,transparent 1.2px);background-size:24px 24px}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+#links{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+#links path{stroke:var(--ink2);stroke-width:2;fill:none;pointer-events:stroke;cursor:pointer}
+#links path.sel{stroke:#E05A3C;stroke-width:3}
+.card{position:absolute;width:200px;min-height:90px;background:var(--paper);border-radius:16px;box-shadow:var(--shadow);
+padding:10px 12px 12px;border-top:8px solid var(--c);user-select:none}
+.card.sel{outline:3px solid var(--ink)}
+.card.from{outline:3px dashed #E05A3C}
+.card h3{margin:0 0 4px;font-size:15px;word-break:break-all}
+.card p{margin:0;font-size:12.5px;color:var(--ink2);white-space:pre-wrap;word-break:break-all}
+.card .tag{font-size:11px;background:var(--cream);border-radius:99px;padding:1px 8px;display:inline-block;margin-bottom:4px}
+#sheet{position:fixed;top:52px;right:0;bottom:0;width:min(320px,92vw);background:var(--paper);box-shadow:var(--shadow);
+padding:14px;z-index:11;transform:translateX(105%);transition:transform .2s;overflow:auto}
+#sheet.open{transform:none}
+#sheet h2{display:inline-block;background:var(--ink);color:#fff;border-radius:99px;font-size:14px;padding:4px 12px;margin:0 0 10px}
+#sheet label{display:block;font-size:12px;color:var(--ink2);margin:10px 0 4px}
+#sheet input,#sheet textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px;font:inherit;background:#fff}
+#sheet textarea{height:160px;resize:vertical}
+.cols{display:flex;gap:6px;flex-wrap:wrap}
+.cols button{width:36px;min-width:36px;padding:0;border:3px solid transparent}
+.cols button.on{border-color:var(--ink)}
+.empty{font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.6}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:99px;padding:8px 16px;font-size:13px;opacity:0;transition:opacity .2s;z-index:20;pointer-events:none}
+#toast.show{opacity:1}
+#zoom{position:fixed;right:10px;bottom:10px;display:flex;gap:6px;z-index:9}
+@media (max-width:560px){#top h1{display:none}#side{top:auto;bottom:10px;flex-direction:row}#side button{width:56px;height:50px}}
+</style>
+</head>
+<body>
+<div id="top">
+  <h1>プロットボード</h1>
+  <input id="name" placeholder="なまえ">
+  <span class="sp"></span>
+  <button id="undo" title="もどす">↶</button>
+  <button id="redo" title="やり直す">↷</button>
+  <button id="save" title="書き出す">💾</button>
+  <button id="load" title="読みこむ">📂</button>
+  <input type="file" id="file" accept=".json" hidden>
+</div>
+<div id="side">
+  <button id="add"><b>➕</b>カード</button>
+  <button id="link"><b>🔗</b>つなぐ</button>
+  <button id="del"><b>🗑️</b>けす</button>
+  <button id="fit"><b>🎯</b>ぜんぶ</button>
+</div>
+<div id="view"><div id="world"><svg id="links" width="1" height="1"></svg></div></div>
+<div id="zoom"><button id="zo">－</button><button id="zr">100%</button><button id="zi">＋</button></div>
+<div id="sheet">
+  <h2>カード</h2>
+  <label>見出し</label><input id="t">
+  <label>しるし</label><input id="g" placeholder="例: 第1幕 / 伏線">
+  <label>なかみ</label><textarea id="b"></textarea>
+  <label>色</label><div class="cols" id="cols"></div>
+  <div class="empty">カードを ダブルタップで ひらく。<br>なにもない ところを ドラッグで 動く、ピンチ・ホイールで 拡大。<br>2本指タップで もどす、3本指タップで やり直す。</div>
+  <p><button id="close">とじる</button></p>
+</div>
+<div id="toast"></div>
+<script src="../skin/icons.js"></script>
+<script>
+const COLS=['#E1DD60','#F05B4A','#7AC4A0','#6FA8DC','#B48CE0','#F5A623','#9AA0A8'];
+const KEY='plot-board-v1';
+const $=id=>document.getElementById(id);
+let S={name:'',cards:[],links:[],cam:{x:120,y:40,z:1}};
+let sel=null,selLink=null,linkMode=false,linkFrom=null,undoS=[],redoS=[],pending=null;
+try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.cards)S=d}catch(e){}
+if(!S.cards.length){S.cards=[{id:1,x:0,y:0,t:'はじまり',g:'第1幕',b:'主人公の ふだんの 日々',c:COLS[0]},{id:2,x:280,y:40,t:'事件',g:'第1幕',b:'',c:COLS[1]}];S.links=[[1,2]]}
+const snap=()=>JSON.stringify({name:S.name,cards:S.cards,links:S.links});
+function restore(s){const d=JSON.parse(s);S.name=d.name;S.cards=d.cards;S.links=d.links;sel=null;selLink=null;render();closeSheet()}
+function edit(fn){undoS.push(snap());if(undoS.length>200)undoS.shift();redoS=[];fn();onChange()}
+function beginEdit(){if(!pending)pending=snap()}
+function commitEdit(){if(pending&&pending!==snap()){undoS.push(pending);redoS=[]}pending=null;onChange()}
+function undo(){if(!undoS.length)return;redoS.push(snap());restore(undoS.pop());save();toast('もどした')}
+function redo(){if(!redoS.length)return;undoS.push(snap());restore(redoS.pop());save();toast('やり直した')}
+let st;function save(){clearTimeout(st);st=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}},300)}
+function onChange(){render();save()}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1400)}
+const card=id=>S.cards.find(c=>c.id===id);
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(){
+  const w=$('world');w.querySelectorAll('.card').forEach(e=>e.remove());
+  for(const c of S.cards){const e=document.createElement('div');e.className='card'+(c.id===sel?' sel':'')+(c.id===linkFrom?' from':'');
+    e.style.cssText=`left:${c.x}px;top:${c.y}px;--c:${c.c}`;e.dataset.id=c.id;
+    e.innerHTML=(c.g?`<span class="tag">${esc(c.g)}</span>`:'')+`<h3>${esc(c.t)||'（無題）'}</h3><p>${esc(c.b)}</p>`;w.appendChild(e)}
+  drawLinks();cam();$('name').value=S.name||''
+}
+function drawLinks(){
+  const svg=$('links');let h='<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5C5843" stroke="none"/></marker></defs>';
+  S.links.forEach(([a,b],i)=>{const A=document.querySelector(`.card[data-id="${a}"]`),B=document.querySelector(`.card[data-id="${b}"]`);if(!A||!B)return;
+    const ax=A.offsetLeft+A.offsetWidth/2,ay=A.offsetTop+A.offsetHeight/2,bx=B.offsetLeft+B.offsetWidth/2,by=B.offsetTop+B.offsetHeight/2;
+    // 線を カードの ふちで 止める
+    const clip=(x,y,dx,dy,el)=>{const hw=el.offsetWidth/2+4,hh=el.offsetHeight/2+4,k=Math.min(hw/Math.abs(dx||1e-9),hh/Math.abs(dy||1e-9));return[x+dx*k,y+dy*k]};
+    const [sx,sy]=clip(ax,ay,bx-ax,by-ay,A),[ex,ey]=clip(bx,by,ax-bx,ay-by,B);
+    h+=`<path data-i="${i}" class="${i===selLink?'sel':''}" d="M${sx} ${sy}L${ex} ${ey}" marker-end="url(#ar)"/>`});
+  svg.innerHTML=h
+}
+function cam(){const c=S.cam;$('world').style.transform=`translate(${c.x}px,${c.y}px) scale(${c.z})`;
+  $('view').style.backgroundPosition=`${c.x}px ${c.y}px`;$('view').style.backgroundSize=`${24*c.z}px ${24*c.z}px`;$('zr').textContent=Math.round(c.z*100)+'%'}
+function zoomAt(z,px,py){const c=S.cam;z=Math.max(.2,Math.min(3,z));c.x=px-(px-c.x)*z/c.z;c.y=py-(py-c.y)*z/c.z;c.z=z;cam();save()}
+function toWorld(px,py){const r=$('view').getBoundingClientRect();return[(px-r.left-S.cam.x)/S.cam.z,(py-r.top-S.cam.y)/S.cam.z]}
+
+/* ---- さわる ---- */
+const view=$('view'),pts=new Map();let drag=null,pinch=null,tapStart=0,tapMax=0,tapMoved=false,lastTap={t:0,id:null},gestLock=0;
+view.addEventListener('pointerdown',e=>{
+  view.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===1){tapStart=Date.now();tapMax=1;tapMoved=false}else tapMax=Math.max(tapMax,pts.size);
+  if(pts.size===2){if(drag&&drag.card&&drag.moved)commitEdit();drag=null;const[a,b]=[...pts.values()];
+    pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:S.cam.z,mx:(a.x+b.x)/2,my:(a.y+b.y)/2,cx:S.cam.x,cy:S.cam.y};return}
+  if(pts.size>2){pinch=null;return}
+  const ce=e.target.closest('.card'),pe=e.target.closest('path[data-i]');
+  if(pe){selLink=+pe.dataset.i;sel=null;render();return}
+  if(ce){const id=+ce.dataset.id;
+    if(linkMode){if(linkFrom==null){linkFrom=id;toast('つなぐ 先を えらぶ')}else if(linkFrom!==id){const f=linkFrom;
+        if(!S.links.some(l=>l[0]===f&&l[1]===id))edit(()=>S.links.push([f,id]));linkFrom=null}render();return}
+    sel=id;selLink=null;const c=card(id);drag={card:c,sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y,moved:false};
+    ce.classList.add('sel');document.querySelectorAll('.card.sel').forEach(x=>x!==ce&&x.classList.remove('sel'))
+  }else{if(sel!=null||selLink!=null){sel=null;selLink=null;render()}drag={pan:true,sx:e.clientX,sy:e.clientY,ox:S.cam.x,oy:S.cam.y}}
+});
+view.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&pts.size===2){const[a,b]=[...pts.values()];const d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    if(Math.abs(d-pinch.d)>8||Math.hypot(mx-pinch.mx,my-pinch.my)>8)tapMoved=true;
+    const r=view.getBoundingClientRect(),z=Math.max(.2,Math.min(3,pinch.z*d/pinch.d));
+    S.cam.z=z;S.cam.x=mx-r.left-(pinch.mx-r.left-pinch.cx)*z/pinch.z;S.cam.y=my-r.top-(pinch.my-r.top-pinch.cy)*z/pinch.z;cam();return}
+  if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(!drag.moved&&Math.hypot(dx,dy)<5)return;
+  if(!drag.moved){drag.moved=true;tapMoved=true;if(drag.card)beginEdit()}
+  if(drag.pan){S.cam.x=drag.ox+dx;S.cam.y=drag.oy+dy;cam()}
+  else{drag.card.x=Math.round(drag.ox+dx/S.cam.z);drag.card.y=Math.round(drag.oy+dy/S.cam.z);
+    const el=document.querySelector(`.card[data-id="${drag.card.id}"]`);el.style.left=drag.card.x+'px';el.style.top=drag.card.y+'px';drawLinks()}
+});
+function up(e){
+  if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);
+  if(pts.size===0){
+    if(tapMax>=2&&!tapMoved&&Date.now()-tapStart<400&&Date.now()>gestLock){gestLock=Date.now()+500;tapMax===2?undo():redo()}
+    else if(drag&&drag.card&&!drag.moved&&tapMax===1){const id=drag.card.id,now=Date.now();
+      if(lastTap.id===id&&now-lastTap.t<350){openSheet(id);lastTap={t:0,id:null}}else lastTap={t:now,id}}
+    if(drag&&drag.card&&drag.moved)commitEdit();if(pinch)save();drag=null;pinch=null
+  }else if(pts.size<2)pinch=null
+}
+view.addEventListener('pointerup',up);view.addEventListener('pointercancel',up);
+view.addEventListener('wheel',e=>{e.preventDefault();const r=view.getBoundingClientRect();
+  if(e.ctrlKey)zoomAt(S.cam.z*Math.exp(-e.deltaY*.0015),e.clientX-r.left,e.clientY-r.top);
+  else{S.cam.x-=e.deltaX;S.cam.y-=e.deltaY;cam();save()}},{passive:false});
+
+/* ---- ボタン ---- */
+$('add').onclick=()=>{const r=view.getBoundingClientRect(),[x,y]=toWorld(r.left+r.width/2-100*S.cam.z,r.top+r.height/2-45*S.cam.z);
+  const id=Math.max(0,...S.cards.map(c=>c.id))+1;
+  edit(()=>{S.cards.push({id,x:Math.round(x+Math.random()*30),y:Math.round(y+Math.random()*30),t:'',g:'',b:'',c:COLS[0]});
+    if(sel!=null)S.links.push([sel,id]);sel=id});openSheet(id)};
+$('link').onclick=()=>{linkMode=!linkMode;linkFrom=null;$('link').classList.toggle('on',linkMode);render();toast(linkMode?'つなぐ もとを えらぶ':'つなぐ おわり')};
+$('del').onclick=()=>{
+  if(selLink!=null){edit(()=>S.links.splice(selLink,1));selLink=null;render();return}
+  if(sel==null)return toast('カードか 線を えらぶ');const id=sel;
+  edit(()=>{S.cards=S.cards.filter(c=>c.id!==id);S.links=S.links.filter(l=>l[0]!==id&&l[1]!==id)});sel=null;closeSheet();render()};
+$('fit').onclick=()=>{if(!S.cards.length)return;const els=[...document.querySelectorAll('.card')];
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;els.forEach(e=>{x0=Math.min(x0,e.offsetLeft);y0=Math.min(y0,e.offsetTop);x1=Math.max(x1,e.offsetLeft+e.offsetWidth);y1=Math.max(y1,e.offsetTop+e.offsetHeight)});
+  const r=view.getBoundingClientRect(),pad=90,z=Math.max(.2,Math.min(1.5,(r.width-pad*2)/(x1-x0),(r.height-pad*2)/(y1-y0)));
+  S.cam={z,x:(r.width-(x1-x0)*z)/2-x0*z,y:(r.height-(y1-y0)*z)/2-y0*z};cam();save()};
+const vc=()=>{const r=view.getBoundingClientRect();return[r.width/2,r.height/2]};
+$('zi').onclick=()=>zoomAt(S.cam.z*1.25,...vc());$('zo').onclick=()=>zoomAt(S.cam.z/1.25,...vc());$('zr').onclick=()=>zoomAt(1,...vc());
+$('undo').onclick=undo;$('redo').onclick=redo;
+$('name').onfocus=beginEdit;$('name').oninput=()=>{S.name=$('name').value;save()};$('name').onblur=commitEdit;
+$('save').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));
+  a.download=(S.name||'plot-board')+'.json';a.click();URL.revokeObjectURL(a.href)};
+$('load').onclick=()=>$('file').click();
+$('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.cards))throw 0;
+  edit(()=>{S.name=d.name||'';S.cards=d.cards;S.links=d.links||[]});if(d.cam)S.cam=d.cam;render();toast('読みこんだ')}catch(_){toast('読みこめない ファイル')}e.target.value=''};
+addEventListener('keydown',e=>{if(e.target.matches('input,textarea'))return;
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();e.shiftKey?redo():undo()}
+  else if((e.ctrlKey||e.metaKey)&&e.key==='y'){e.preventDefault();redo()}
+  else if(e.key==='Delete'||e.key==='Backspace')$('del').click()});
+
+/* ---- シート ---- */
+let sheetId=null;
+function openSheet(id){sheetId=id;const c=card(id);if(!c)return;$('t').value=c.t;$('g').value=c.g;$('b').value=c.b;
+  $('cols').innerHTML=COLS.map(k=>`<button data-c="${k}" style="background:${k}" class="${k===c.c?'on':''}"></button>`).join('');$('sheet').classList.add('open')}
+function closeSheet(){if(pending)commitEdit();$('sheet').classList.remove('open');sheetId=null}
+for(const k of ['t','g','b']){$(k).onfocus=beginEdit;$(k).onblur=commitEdit;
+  $(k).oninput=()=>{const c=card(sheetId);if(!c)return;c[k]=$(k).value;render();save()}}
+$('cols').onclick=e=>{const k=e.target.dataset.c,c=card(sheetId);if(!k||!c)return;edit(()=>c.c=k);openSheet(sheetId)};
+$('close').onclick=closeSheet;
+render();
+</script>
+</body>
+</html>
