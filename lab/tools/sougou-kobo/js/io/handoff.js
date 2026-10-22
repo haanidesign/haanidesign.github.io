@@ -6,10 +6,10 @@
    ひらき おわったら doneHandoff() で 置き場と ?from= を 消す
    （とちゅうで 読みなおしに なっても、もう いちど 受けとれる ように）。 */
 
-import { newProject } from '../state.js?v=388';
-import { newLayer } from '../engine/layer.js?v=388';
-import { spreadFrames } from '../engine/anim.js?v=388';
-import { uid } from '../engine/math.js?v=388';
+import { newProject } from '../state.js?v=389';
+import { newLayer } from '../engine/layer.js?v=389';
+import { spreadFrames } from '../engine/anim.js?v=389';
+import { uid } from '../engine/math.js?v=389';
 
 const DB = 'haani-handoff';
 
