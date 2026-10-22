@@ -14,10 +14,10 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=384';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=384';
-import { setPin } from '../engine/anim.js?v=384';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=384';
+import { newSway } from '../engine/puppet.js?v=386';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=386';
+import { setPin } from '../engine/anim.js?v=386';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=386';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -26,6 +26,8 @@ const RULES = [
   /* ゆれもの（イヤリング など）は いちばん さきに 見る。
      「耳」まで 入れると 耳の 絵じたいが ゆれて しまう ので 入れない。 */
   ['earring',   /イヤリング|いやりんぐ|ピアス|ぴあす|耳飾|みみかざり|イヤーカフ|earring|pierc/i],
+  /* ぶらさがる・ゆれる 小物や 背景の 物。上の はしを じくに ゆれる */
+  ['swing',     /ゆれ|揺れ|ゆらす|ぶら|吊|つり|のれん|暖簾|風鈴|すず|鈴|葉っぱ|葉|草|花|旗|はた|カーテン|ひも|紐|リボン|鎖|くさり|ランプ|ランタン|ちょうちん|提灯|しっぽ|尻尾|swing|hang|leaf|leaves|flag|curtain|ribbon|lamp|tail/i],
   ['frontHair', /前髪|まえがみ|front\s*hair|bang|fringe/i],
   ['backHair',  /後ろ髪|うしろ髪|うしろがみ|back\s*hair|hair\s*back/i],
   ['hair',      /髪|かみ|hair/i],
@@ -51,6 +53,7 @@ export function roleOf(name){
 const SWAY = {
   /* ぶらさがって いる もの。かるい ので はやく、大きく ふれる */
   earring:   { angle: 9.0, period: 1.4, phase: 0.30 },
+  swing:     { angle: 3.0, period: 2.6, phase: 0.20 },
   frontHair: { angle: 2.6, period: 2.8, phase: 0.00 },
   backHair:  { angle: 3.4, period: 3.4, phase: 0.18 },
   hair:      { angle: 2.8, period: 3.0, phase: 0.10 },
@@ -65,6 +68,7 @@ const SWAY = {
    ゆれが それらしく なる。 */
 const PIVOT = {
   earring:   { x: 0.5, y: 0.05 },   // 耳に ついて いる ところ（上の はし）
+  swing:     { x: 0.5, y: 0.04 },   // ぶらさがって いる ところ（上の はし）
   frontHair: { x: 0.5, y: 0.12 },
   backHair:  { x: 0.5, y: 0.10 },
   hair:      { x: 0.5, y: 0.12 },
@@ -358,7 +362,7 @@ export function autoRig(project, layers, assetOf, opt){
 
   /* 🌀 ぶらさがる もの（髪・イヤリング）には ばねも つける。
      頭が 動くと おくれて ふられる（ゆれ と いっしょに きく） */
-  const PHYS_ROLE = { earring: 'イヤリング', frontHair: '髪', backHair: '髪', hair: '髪' };
+  const PHYS_ROLE = { earring: 'イヤリング', frontHair: '髪', backHair: '髪', hair: '髪', swing: 'リボン・布' };
   layers.forEach(l => {
     const k = PHYS_ROLE[l.rigRole];
     if(!k || (l.phys && l.phys.on)) return;

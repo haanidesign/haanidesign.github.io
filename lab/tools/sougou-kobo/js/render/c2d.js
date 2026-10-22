@@ -3,28 +3,28 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=384';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=384';
-import { liveMasks } from '../engine/mask.js?v=384';
-import { valuesAt } from '../engine/anim.js?v=384';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=384';
+         nearestFolder } from '../engine/layer.js?v=386';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=386';
+import { liveMasks } from '../engine/mask.js?v=386';
+import { valuesAt } from '../engine/anim.js?v=386';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=386';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=384';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=384';
-import { paintCanvas } from '../engine/paint.js?v=384';
-import { panoCanvas } from '../engine/pano.js?v=384';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=384';
-import { roomCanvas } from '../engine/room.js?v=384';
-import { talkCanvas } from '../engine/talk.js?v=384';
-import { applyFx } from './fx.js?v=384';
-import { drawTrans } from './trans.js?v=384';
-import { mojiCanvas } from '../moji/moji.js?v=384';
-import { ugokuCanvas } from '../engine/ugoku.js?v=384';
-import { jzCanvas } from '../moji/jizura.js?v=384';
-import { honeCanvas } from '../rig/hone.js?v=384';
-import { homography, applyH } from '../engine/warp.js?v=384';
-import { drawCamView } from './camview.js?v=384';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=384';
+         meshSizeFor } from '../engine/puppet.js?v=386';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=386';
+import { paintCanvas } from '../engine/paint.js?v=386';
+import { panoCanvas } from '../engine/pano.js?v=386';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=386';
+import { roomCanvas } from '../engine/room.js?v=386';
+import { talkCanvas } from '../engine/talk.js?v=386';
+import { applyFx } from './fx.js?v=386';
+import { drawTrans, swingE } from './trans.js?v=386';
+import { mojiCanvas } from '../moji/moji.js?v=386';
+import { ugokuCanvas } from '../engine/ugoku.js?v=386';
+import { jzCanvas } from '../moji/jizura.js?v=386';
+import { honeCanvas } from '../rig/hone.js?v=386';
+import { homography, applyH } from '../engine/warp.js?v=386';
+import { drawCamView } from './camview.js?v=386';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=386';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -2074,11 +2074,8 @@ function flatMesh(w, h){
     sg.setTransform(1, 0, 0, 1, 0, 0);
     sg.clearRect(0, 0, W, H);
     sg.drawImage(ctx.canvas, x0, y0, W, H, 0, 0, W, H);
-    const wob = tr.x.wob == null ? 0.5 : tr.x.wob;
-    const p = tr.p;
-    /* ゆれの 回数と おさまり。強いほど 大きく いきすぎて 長く ゆれる */
-    const k = 1 - Math.exp(-(9 - wob * 5) * p) * Math.cos(p * (8 + wob * 6));
-    const e = Math.max(-0.2, Math.min(1.35, k));
+    /* ゆれの 回数と おさまり。強いほど 大きく いきすぎて 長く ゆれる（ばねも 同じ 式を 見る） */
+    const e = swingE(tr.p, tr.x.wob);
     const kind = tr.x.kind;
     const hor = kind === 'swingL' || kind === 'swingR';
     const sgn = (kind === 'swingL' || kind === 'swingU') ? 1 : -1;

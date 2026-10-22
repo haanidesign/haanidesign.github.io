@@ -220,6 +220,30 @@ export const TRANS = [
   }]
 ];
 
+/** 慣性スライドの すすみ（0→1。いきすぎて ゆれて 1に おちつく）。c2d と ばねで 同じ 式を つかう */
+export function swingE(p, wob){
+  const w = wob == null ? 0.5 : wob;
+  const k = 1 - Math.exp(-(9 - w * 5) * p) * Math.cos(p * (8 + w * 6));
+  return Math.max(-0.2, Math.min(1.35, k));
+}
+/** その 時こくに 慣性スライドで 入って くる 場面が どれだけ ずれて いるか（作品の ざひょう）。
+    inScene(at) … その レイヤーが つなぎの あとに 出る 場面か */
+export function swingShift(project, t, inScene){
+  const out = { x: 0, y: 0 };
+  for(const x of (project.trans || [])){
+    if(!x || !/^swing/.test(x.kind)) continue;
+    const d = Math.max(.02, x.dur || .9);
+    if(t > x.at + d || !inScene(x.at)) continue;
+    const hor = x.kind === 'swingL' || x.kind === 'swingR';
+    const sgn = (x.kind === 'swingL' || x.kind === 'swingU') ? 1 : -1;
+    const span = hor ? project.w : project.h;
+    const e = t < x.at ? 0 : swingE((t - x.at) / d, x.wob);
+    const off = sgn * span * (1 - e);
+    if(hor) out.x += off; else out.y += off;
+  }
+  return out;
+}
+
 const MAP = new Map(TRANS.map(x => [x[0], x[2]]));
 export const TRANS_LIST = TRANS.map(x => [x[0], x[1]]);
 

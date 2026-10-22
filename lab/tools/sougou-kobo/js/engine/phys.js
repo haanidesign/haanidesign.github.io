@@ -13,11 +13,13 @@
    作品を 直したら（もどす の 番号が かわったら）計算しなおす。
 
    計算の あいだは ばねを 切った 姿を 見る（物理の 入力は 親の 動き だけ）。 */
-import { S, undoDepth } from '../state.js?v=384';
+import { swingShift } from '../render/trans.js?v=386';
+import { S, undoDepth } from '../state.js?v=386';
 
 export const DT = 1 / 60;
 const SUB = 4;                      // 1コマを さらに 細かく（かたい ばねでも くずれない）
 const MAX_DEG = 80;
+const SWING_K = 0.12;              // 慣性スライドが ばねに 効く 強さ
 
 export function newPhys(){
   return { on: true, stiff: 1.8, damp: 0.22, inertia: 1, twist: 0.7, grav: 0 };
@@ -39,7 +41,7 @@ const physLayers = (project) => project.layers.filter(l => l.phys && l.phys.on &
 
 function keyOf(project, list){
   const u = undoDepth();
-  return [S.docId, u.idx, u.size, project.layers.length, project.w, project.h,
+  return [S.docId, u.idx, u.size, project.layers.length, project.w, project.h, JSON.stringify(project.trans || []),
           JSON.stringify(list.map(l => [l.id, l.phys]))].join('|');
 }
 
@@ -50,6 +52,17 @@ function hang(project, l, m){
   let ox = (0.5 - pv.x) * a.w, oy = (0.5 - pv.y) * a.h;
   if(Math.hypot(ox, oy) < Math.max(a.w, a.h) * 0.08){ ox = 0; oy = a.h * 0.5; }  // じくが まん中なら 下に ぶらさがる
   return { x: m.a * ox + m.c * oy, y: m.b * ox + m.d * oy };
+}
+
+/* その 時こくに 出て いるか（出す ところ を 親まで たどる） */
+function shownAt(project, l, t){
+  let c = l, g = 0;
+  while(c && g++ < 64){
+    const s = c.span;
+    if(s && ((s.from != null && t < s.from) || (s.to != null && t > s.to))) return false;
+    c = c.parent ? project.layers.find(x => x.id === c.parent) : null;
+  }
+  return true;
 }
 
 function simulate(project, list, until, computeAll){
@@ -66,7 +79,10 @@ function simulate(project, list, until, computeAll){
         if(!s){ s = { th: 0, om: 0, P: [], A: [], hist: [] }; cache.st.set(l.id, s); }
         if(!e){ s.hist[k] = s.th; continue; }
         const m = e.mNoCam || e.m;
-        const P = { x: m.tx, y: m.ty };
+        /* 慣性スライドで 場面ごと 入って くる とき、その うごきも ふられる もとに する */
+        const sh = swingShift(project, t, (at) => shownAt(project, l, at + 0.01) && !shownAt(project, l, at - 0.01));
+        /* 画面ぶん まるごと 動く ので、そのままだと ふられすぎる。1わり ちょっとに おさえる */
+        const P = { x: m.tx + sh.x * SWING_K, y: m.ty + sh.y * SWING_K };
         /* まわる いきおいは 親の ぶん だけ（自分で 打った 回転は そのまま 出す） */
         const pe = l.parent ? all[l.parent] : null;
         const pm = pe ? (pe.mNoCam || pe.m) : null;
