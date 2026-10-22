@@ -8,9 +8,9 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=386';
-import { newFolder, setParent } from '../engine/layer.js?v=386';
-import { setPin } from '../engine/anim.js?v=386';
+import { S } from '../state.js?v=387';
+import { newFolder, setParent } from '../engine/layer.js?v=387';
+import { setPin } from '../engine/anim.js?v=387';
 
 export function newSabun(){
   return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ', restart: true };
@@ -165,6 +165,8 @@ export function applySabun(project, root){
     if(c.restart === false) u.kidTime = null;
     else {
       const sp = spanOf(project, u);
+      /* くり返しの 動き（ゆれ・しぐさ）は 切りかえで 頭に もどさない。もどすと 止まって 見える */
+      if(sp.looped){ u.kidTime = null; return; }
       u.kidTime = { t0, len, from: sp.from, span: (sp.span > 0.05 && sp.span < d - 1e-3) ? sp.span : 0 };
     }
   });
