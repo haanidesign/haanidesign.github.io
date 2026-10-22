@@ -14,10 +14,10 @@
      'H:<骨のid>:sx/sy' … 大きさ（1 が そのまま）
    キーの ならびは ほかの キーと 同じ なので、ずらす・けす・イージングも そのまま きく。 */
 import { M, CH, computePose, applyIKs, invCache, bindSlot, deformSlot, buildGridMesh, drawSlot,
-         autoWeights, uid, topoBones, applySprings } from './core.js?v=383';
-import { sample, mapTime, remapTime } from '../engine/anim.js?v=383';
-import { newLayer } from '../engine/layer.js?v=383';
-import { S, undoDepth } from '../state.js?v=383';
+         autoWeights, uid, topoBones, applySprings } from './core.js?v=384';
+import { sample, mapTime, remapTime } from '../engine/anim.js?v=384';
+import { newLayer } from '../engine/layer.js?v=384';
+import { S, undoDepth } from '../state.js?v=384';
 
 export const boneCh = (id, ch) => 'H:' + id + ':' + ch;
 export const isBoneCh = (c) => /^H:.+:(rot|x|y|sx|sy|shear)$/.test(c);

@@ -23,6 +23,13 @@ const ease = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 export const TRANS = [
   ['none', 'なし', null],
 
+  /* 慣性スライド … つぎの 場面が よこ（たて）から 入って、いきすぎて ゆれて 止まる。
+     画面ぜんたいを ずらす ので c2d.js で 描く（ここの 中身は つかわない） */
+  ['swingL', '慣性スライド ←（右から 入る）', null],
+  ['swingR', '慣性スライド →（左から 入る）', null],
+  ['swingU', '慣性スライド ↑（下から 入る）', null],
+  ['swingD', '慣性スライド ↓（上から 入る）', null],
+
   ['fade', 'かさねて 消える', (g, W, H, p, o) => {
     g.globalAlpha = 1 - p;
     g.drawImage(o.img, 0, 0, W, H);

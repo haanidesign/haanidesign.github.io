@@ -3,28 +3,28 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=383';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=383';
-import { liveMasks } from '../engine/mask.js?v=383';
-import { valuesAt } from '../engine/anim.js?v=383';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=383';
+         nearestFolder } from '../engine/layer.js?v=384';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=384';
+import { liveMasks } from '../engine/mask.js?v=384';
+import { valuesAt } from '../engine/anim.js?v=384';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=384';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=383';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=383';
-import { paintCanvas } from '../engine/paint.js?v=383';
-import { panoCanvas } from '../engine/pano.js?v=383';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=383';
-import { roomCanvas } from '../engine/room.js?v=383';
-import { talkCanvas } from '../engine/talk.js?v=383';
-import { applyFx } from './fx.js?v=383';
-import { drawTrans } from './trans.js?v=383';
-import { mojiCanvas } from '../moji/moji.js?v=383';
-import { ugokuCanvas } from '../engine/ugoku.js?v=383';
-import { jzCanvas } from '../moji/jizura.js?v=383';
-import { honeCanvas } from '../rig/hone.js?v=383';
-import { homography, applyH } from '../engine/warp.js?v=383';
-import { drawCamView } from './camview.js?v=383';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=383';
+         meshSizeFor } from '../engine/puppet.js?v=384';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=384';
+import { paintCanvas } from '../engine/paint.js?v=384';
+import { panoCanvas } from '../engine/pano.js?v=384';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=384';
+import { roomCanvas } from '../engine/room.js?v=384';
+import { talkCanvas } from '../engine/talk.js?v=384';
+import { applyFx } from './fx.js?v=384';
+import { drawTrans } from './trans.js?v=384';
+import { mojiCanvas } from '../moji/moji.js?v=384';
+import { ugokuCanvas } from '../engine/ugoku.js?v=384';
+import { jzCanvas } from '../moji/jizura.js?v=384';
+import { honeCanvas } from '../rig/hone.js?v=384';
+import { homography, applyH } from '../engine/warp.js?v=384';
+import { drawCamView } from './camview.js?v=384';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=384';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -2059,6 +2059,43 @@ function flatMesh(w, h){
     return trCv;
   }
 
+  /* ---- ↔ 慣性スライド ----
+     いまの 絵（つぎの 場面）を 写して、前の 場面と ならべて ずらす。
+     ばねの 式で 0→1。いきおいで 1を こえて、ゆれ ながら 1に もどる。
+     tr.x.wob … ゆれの 強さ（0〜1。なければ 0.5） */
+  let swCv = null;
+  function swingTrans(ctx, project, tf, tr, prev){
+    const z = Math.abs(tf[0]);
+    const W = Math.round(project.w * z), H = Math.round(project.h * z);
+    const x0 = Math.round(tf[4]), y0 = Math.round(tf[5]);
+    if(!swCv) swCv = document.createElement('canvas');
+    if(swCv.width !== W || swCv.height !== H){ swCv.width = W; swCv.height = H; }
+    const sg = swCv.getContext('2d');
+    sg.setTransform(1, 0, 0, 1, 0, 0);
+    sg.clearRect(0, 0, W, H);
+    sg.drawImage(ctx.canvas, x0, y0, W, H, 0, 0, W, H);
+    const wob = tr.x.wob == null ? 0.5 : tr.x.wob;
+    const p = tr.p;
+    /* ゆれの 回数と おさまり。強いほど 大きく いきすぎて 長く ゆれる */
+    const k = 1 - Math.exp(-(9 - wob * 5) * p) * Math.cos(p * (8 + wob * 6));
+    const e = Math.max(-0.2, Math.min(1.35, k));
+    const kind = tr.x.kind;
+    const hor = kind === 'swingL' || kind === 'swingR';
+    const sgn = (kind === 'swingL' || kind === 'swingU') ? 1 : -1;
+    const span = hor ? W : H;
+    const off = sgn * span * (1 - e);          // つぎの 場面の ずれ
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath(); ctx.rect(x0, y0, W, H); ctx.clip();
+    ctx.fillStyle = project.bg || '#FFFEF7';
+    ctx.fillRect(x0, y0, W, H);
+    const pdx = hor ? off - sgn * span : 0, pdy = hor ? 0 : off - sgn * span;
+    const ndx = hor ? off : 0, ndy = hor ? 0 : off;
+    ctx.drawImage(prev, x0 + pdx, y0 + pdy, W, H);
+    ctx.drawImage(swCv, x0 + ndx, y0 + ndy, W, H);
+    ctx.restore();
+  }
+
   function draw(project, imgs, time, view, opts = {}){
     curT = time;
     const W = canvas.width, H = canvas.height;
@@ -2262,7 +2299,8 @@ function flatMesh(w, h){
       const tr = transAt(project, time);
       if(tr){
         const img = outgoing(project, tr.x, tf, opts);
-        if(img){
+        if(img && /^swing/.test(tr.x.kind)) swingTrans(ctx, project, tf, tr, img);
+        else if(img){
           ctx.save();
           ctx.setTransform(...tf);
           ctx.beginPath(); ctx.rect(0, 0, project.w, project.h); ctx.clip();
