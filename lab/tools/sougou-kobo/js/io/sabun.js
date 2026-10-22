@@ -8,12 +8,12 @@
    フォルダの すけ具合は 中身に かかるので、
    グループの 中が 何まい あっても そのまま 使える。 */
 
-import { S } from '../state.js?v=387';
-import { newFolder, setParent } from '../engine/layer.js?v=387';
-import { setPin } from '../engine/anim.js?v=387';
+import { S } from '../state.js?v=388';
+import { newFolder, setParent } from '../engine/layer.js?v=388';
+import { setPin } from '../engine/anim.js?v=388';
 
 export function newSabun(){
-  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ', restart: true };
+  return { step: 0.5, pop: 0.1, tilt: 6, jump: 0.02, drift: 0.02, bg: 0.05, glitch: 0, gkind: 'すじ', restart: true, slide: 0, sdir: 'おまかせ', sbounce: 0.5 };
 }
 
 const byIdOf = (p) => { const m = {}; p.layers.forEach(l => m[l.id] = l); return m; };
@@ -36,7 +36,7 @@ function unitsOf(project, layers){
    1まいずつ かぶせた 入れもの（フォルダ）に 打つ。
    差分 そのものに 打つと、自分で つけた ループの うごきを
    消して しまい、つないだ とたん 止まって いた。 */
-const SABUN_CH = ['opacity','scaleX','scaleY','rot','y','glitch'];
+const SABUN_CH = ['opacity','scaleX','scaleY','rot','x','y','glitch'];
 function wrapUnits(project, root){
   const kids = project.layers.filter(l => l.parent === root.id);
   return kids.map(u => {
@@ -117,7 +117,7 @@ export function applySabun(project, root){
     const d = Math.max(0.05, +c.step || 0.5);
     const settle = Math.min(d * 0.45, 0.15);
     u.tracks = u.tracks || {};
-    ['opacity','scaleX','scaleY','rot','y','glitch'].forEach(ch => delete u.tracks[ch]);
+    SABUN_CH.forEach(ch => delete u.tracks[ch]);
     u.loop = null;
     const t0 = starts[i], t1 = r3(t0 + d), ts = r3(t0 + settle);
     if(n > 1){
@@ -157,6 +157,36 @@ export function applySabun(project, root){
     if(hop > 0){
       setPin(u, 'y', t0, y - hop, 'out');
       setPin(u, 'y', ts, y, 'hold');
+    }
+    /* ➡ スライド。つぎの 差分が 横（上下）から 入って きて、前の 差分は 反対へ 押し出される。
+       止まる ところで 行きすぎて もどる（慣性）。中の ばねも この 動きで ふられる */
+    const sl = slideOf(cfgs, i, project);
+    if(sl){
+      const x = u.x || 0, inn = sl.inn;
+      const b = sl.bounce;
+      if(!u.tracks.y) setPin(u, 'y', t0, y, 'hold');
+      setPin(u, 'x', t0, x + sl.dx, 'out');
+      setPin(u, 'y', t0, y + sl.dy, 'out');
+      setPin(u, 'x', r3(t0 + inn * 0.6), x - sl.dx * 0.08 * b, 'linear');
+      setPin(u, 'y', r3(t0 + inn * 0.6), y - sl.dy * 0.08 * b, 'linear');
+      setPin(u, 'x', r3(t0 + inn * 0.85), x + sl.dx * 0.025 * b, 'linear');
+      setPin(u, 'y', r3(t0 + inn * 0.85), y + sl.dy * 0.025 * b, 'linear');
+      setPin(u, 'x', r3(t0 + inn), x, 'hold');
+      setPin(u, 'y', r3(t0 + inn), y, 'hold');
+    }
+    /* つぎが スライドで 入る なら、自分は 反対へ 出て いく */
+    const nx = n > 1 ? slideOf(cfgs, (i + 1) % n, project) : null;
+    if(nx){
+      const x = u.x || 0, te = (i + 1) % n === 0 ? r3(len) : t1;
+      const out = r3(te + nx.inn * 0.6);
+      if(!u.tracks.x) setPin(u, 'x', 0, x, 'hold');
+      if(!u.tracks.y) setPin(u, 'y', 0, y, 'hold');
+      if(i < n - 1){
+        delete u.tracks.opacity; if(i > 0) setPin(u, 'opacity', 0, 0, 'hold');
+        setPin(u, 'opacity', t0, 1, 'hold'); setPin(u, 'opacity', out, 0, 'hold');
+        setPin(u, 'x', t1, x, 'in'); setPin(u, 'y', t1, y, 'in');
+        setPin(u, 'x', out, x - nx.dx, 'hold'); setPin(u, 'y', out, y - nx.dy, 'hold');
+      }
     }
     u.loop = { from: 0, to: len, mode: 'loop' };
     /* 中身の 動きを、この 差分が 出た ところから 頭で 動かす */
@@ -237,6 +267,19 @@ export function unSabun(project, f){
   const disc = project.layers.find(l => l.disc);
   if(disc && disc.tracks){ delete disc.tracks.scaleX; delete disc.tracks.scaleY; disc.loop = null; }
   delete f.sabun;
+}
+
+/* スライドの 向きと 長さ。なしなら null */
+function slideOf(cfgs, i, project){
+  const c = cfgs[i];
+  if(!(c && c.slide > 0)) return null;
+  const DIRS = { '←': [1, 0], '→': [-1, 0], '↑': [0, 1], '↓': [0, -1] };
+  let v = DIRS[c.sdir];
+  if(!v) v = i % 2 ? [-1, 0] : [1, 0];      // おまかせ … 左右 こうご
+  const d = Math.max(0.05, +c.step || 0.5);
+  const k = c.slide;
+  return { dx: v[0] * project.w * k, dy: v[1] * project.h * k,
+           inn: Math.min(d * 0.7, 0.45), bounce: c.sbounce == null ? 0.5 : c.sbounce * 2 };
 }
 
 /** ☑ で えらんだ レイヤーを 新しい フォルダに 入れて つなぐ。上から 順 */
