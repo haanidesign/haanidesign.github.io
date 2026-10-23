@@ -320,6 +320,17 @@ const TOOLS = [
     thumb: "thumbs/giongo-kobo.png",
     url: "tools/giongo-kobo/index.html",
     status: "live"
+  },
+  {
+    no: 30,
+    slug: "thumb-check",
+    title: "サムネ確認",
+    desc: "サムネを モノクロ・ぼかし・2値・縮小で 見て、明暗と 視線の 順番を 確かめる。下に 黒グラデを かけた ときの 比べも できる。",
+    tags: ["サムネ", "モノクロ", "コントラスト"],
+    cat: "other",
+    thumb: "thumbs/thumb-check.svg",
+    url: "tools/thumb-check/index.html",
+    status: "live"
   }
 ];
 
