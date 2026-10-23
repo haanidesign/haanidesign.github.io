@@ -1066,3 +1066,9 @@ input[type=range].coarse{
   #tools .favhead{ display:none; }
   #favTools:not([hidden])::after{ display:none; }
 }
+
+/* 👀 ためし見 */
+.pvbox{ border: 2.5px solid var(--ink, #1E1C14); border-radius: 14px; padding: 10px; margin: 8px 0 12px; background: #F2F0BE; }
+.pvhead{ font-weight: 800; margin-bottom: 6px; }
+.pvcv{ display: block; width: 100%; max-height: 46vh; object-fit: contain; border: 2px solid var(--ink, #1E1C14); border-radius: 8px; background: #FFFEF7; }
+.pvinfo{ font-size: .9rem; color: #5a574a; margin: 4px 0 6px; }

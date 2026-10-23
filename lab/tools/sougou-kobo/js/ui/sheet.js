@@ -1,66 +1,70 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { fontReady } from '../moji/text.js?v=389';
-import { allTools as favAll, isFav, toggleFav } from './favtools.js?v=389';
-import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=389';
-import { omakase } from '../moji/omakase.js?v=389';
-import { newTelopLayer, tplState, telopDur, MODES as TL_MODES, FONTS as TL_FONTS, INFX as TL_IN, IDLEFX as TL_IDLE, OUTFX as TL_OUT, KZ as TL_KZ } from '../moji/telop.js?v=389';
-import { newMichiLayer, MICHI_KINDS, MICHI_FONTS } from '../moji/michi.js?v=389';
-import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=389';
-import { newLayer } from '../engine/layer.js?v=389';
-import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=389';
-import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles, newDots } from '../engine/ugoku.js?v=389';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=389';
-import { newMojiLayer } from '../moji/moji.js?v=389';
-import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts, addFontFile as mjAddFont, userFonts as mjUserFonts, removeFont as mjRemoveFont } from '../moji/text.js?v=389';
-import { TRANS_LIST } from '../render/trans.js?v=389';
-import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=389';
-import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=389';
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=389';
+import { fontReady } from '../moji/text.js?v=390';
+import { allTools as favAll, isFav, toggleFav } from './favtools.js?v=390';
+import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=390';
+import { omakase } from '../moji/omakase.js?v=390';
+import { newTelopLayer, tplState, telopDur, MODES as TL_MODES, FONTS as TL_FONTS, INFX as TL_IN, IDLEFX as TL_IDLE, OUTFX as TL_OUT, KZ as TL_KZ } from '../moji/telop.js?v=390';
+import { newMichiLayer, MICHI_KINDS, MICHI_FONTS, michiCanvas } from '../moji/michi.js?v=390';
+import { telopCanvas } from '../moji/telop.js?v=390';
+import { ugokuCanvas } from '../engine/ugoku.js?v=390';
+import { jzCanvas } from '../moji/jizura.js?v=390';
+import { previewBox } from './preview.js?v=390';
+import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=390';
+import { newLayer } from '../engine/layer.js?v=390';
+import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=390';
+import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles, newDots } from '../engine/ugoku.js?v=390';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=390';
+import { newMojiLayer } from '../moji/moji.js?v=390';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts, addFontFile as mjAddFont, userFonts as mjUserFonts, removeFont as mjRemoveFont } from '../moji/text.js?v=390';
+import { TRANS_LIST } from '../render/trans.js?v=390';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=390';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=390';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=390';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=389';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=389';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=390';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=390';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=389';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=390';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=389';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=389';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=389';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=389';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=389';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=389';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=389';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=389';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=390';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=390';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=390';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=390';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=390';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=390';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=390';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=390';
 import { FONTS, allFonts, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=389';
+         addTextLayer } from '../io/text.js?v=390';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=389';
-import { PATTERN_NAMES } from '../io/pattern.js?v=389';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=390';
+import { PATTERN_NAMES } from '../io/pattern.js?v=390';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=389';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=389';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=389';
+         PITCH_MAX } from '../engine/pano.js?v=390';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=390';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=390';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=389';
-import { readAsDataURL, loadImage } from '../io/image.js?v=389';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=390';
+import { readAsDataURL, loadImage } from '../io/image.js?v=390';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=389';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=389';
-import { newHand } from '../engine/hand.js?v=389';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=389';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=390';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=390';
+import { newHand } from '../engine/hand.js?v=390';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=390';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=389';
+  from './colorwheel.js?v=390';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=389';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=390';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=389';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=390';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -2024,6 +2028,7 @@ function ugokuRow(box){
   const cur = selected();
   const L = cur && cur.kind === 'ugoku' ? cur : null;
   box.appendChild(heading('✨ 動く背景'));
+  pvShow(box, 'ugoku');
   const n = document.createElement('div');
   n.className = 'empty';
   n.style.textAlign = 'left';
@@ -2038,12 +2043,18 @@ function ugokuRow(box){
     if(L){
       edit('動く背景: ' + name, () => { const loop = L.ugoku.loop; L.ugoku = newUgoku(name); L.ugoku.loop = loop; });
     } else {
-      edit('動く背景を 足す', () => {
-        const l = newUgokuLayer(S.proj, name);
-        l.name = '動く背景 ' + name;
-        S.proj.layers.push(l);            // いちばん うしろ
-        S.sel = l.id;
-      });
+      const ul = newUgokuLayer(S.proj, name);
+      pvOpen({ kind: 'ugoku', title: '動く背景 ' + name, layer: ul, draw: ugokuCanvas, dur: ul.ugoku.loop || 6,
+        insert: () => {
+          edit('動く背景を 足す', () => {
+            const l = newUgokuLayer(S.proj, name);
+            l.name = '動く背景 ' + name;
+            S.proj.layers.push(l);            // いちばん うしろ
+            S.sel = l.id;
+          });
+          notify('動く背景「' + name + '」を 足しました');
+        } });
+      return;
     }
     notify('動く背景「' + name + '」');
     onChange();
@@ -7538,7 +7549,29 @@ function jizuraRow(box){
   if(J) sel.addEventListener('change', () => { edit('JIZURA の スタイル', () => { J.style = sel.value; }); fitJz(L); onChange(); });
   box.appendChild(field('スタイル', sel));
   if(!J){
-    box.appendChild(btnRow(button('🎬 JIZURA を つくる', () => {
+    if(pvShow(box, 'jz')) return;
+    box.appendChild(btnRow(button('👀 JIZURA を ためし見', () => {
+      if(!ta.value.trim()) return notify('歌詞を 書いてね');
+      const jl = newJzLayer(S.proj, ta.value);
+      jl.jz.style = sel.value;
+      jl.span = { from: 0, to: null };
+      let d = 8;
+      try{ d = Math.max(2, +jzDur(jl.jz) || 8); }catch(_){}
+      const lyr = ta.value, sty = sel.value;
+      pvOpen({ kind: 'jz', title: 'JIZURA', layer: jl, draw: jzCanvas, dur: d,
+        insert: () => {
+          let l = null;
+          edit('JIZURA を つくる', () => {
+            l = newJzLayer(S.proj, lyr);
+            l.jz.style = sty;
+            l.span = { from: +S.time.toFixed(3), to: null };
+            S.proj.layers.unshift(l);
+            S.sel = l.id;
+            fitJz(l);
+          });
+          notify('JIZURA を つくりました');
+        } });
+    }), button('🎬 すぐ つくる', () => {
       if(!ta.value.trim()) return notify('歌詞を 書いてね');
       let l = null;
       edit('JIZURA を つくる', () => {
@@ -7814,6 +7847,7 @@ function telopRow(box){
   const cur = selected();
   const L = cur && cur.kind === 'telop' ? cur : null;
   box.appendChild(heading('🎌 テロップ（文字APNG工房）'));
+  pvShow(box, 'telop');
   const n = document.createElement('div');
   n.className = 'empty';
   n.style.textAlign = 'left';
@@ -7837,13 +7871,19 @@ function telopRow(box){
           fitTelop(L);
         });
       } else {
-        edit('テロップを つくる', () => {
-          const l = newTelopLayer(S.proj, over);
-          fitTelop(l, true);
-          S.proj.layers.unshift(l);
-          S.sel = l.id;
-        });
-        notify('「' + name + '」を 置きました');
+        const tl = newTelopLayer(S.proj, over);
+        tl.span = { from: 0, to: null };
+        pvOpen({ kind: 'telop', title: name, layer: tl, draw: telopCanvas, dur: telopDur(tl.telop) + 0.4,
+          insert: () => {
+            edit('テロップを つくる', () => {
+              const l = newTelopLayer(S.proj, over);
+              fitTelop(l, true);
+              S.proj.layers.unshift(l);
+              S.sel = l.id;
+            });
+            notify('「' + name + '」を 置きました');
+          } });
+        return;
       }
       onChange();
     })));
@@ -7930,15 +7970,20 @@ function michiRow(box){
     n.style.textAlign = 'left';
     n.textContent = '文字を 円・弧・波・うずの 道に のせます。まわす・ながす で 動きます。';
     box.appendChild(n);
-    box.appendChild(btnRow(button('〰 文字のみちを つくる', () => {
-      edit('文字のみちを つくる', () => {
-        const l = newMichiLayer(S.proj);
-        l.span = { from: +S.time.toFixed(3), to: null };
-        S.proj.layers.unshift(l);
-        S.sel = l.id;
-      });
-      notify('文字のみちを 置きました');
-      onChange();
+    if(pvShow(box, 'michi')) return;
+    box.appendChild(btnRow(button('〰 文字のみちを ためし見', () => {
+      const ml = newMichiLayer(S.proj);
+      ml.span = { from: 0, to: null };
+      pvOpen({ kind: 'michi', title: '文字のみち', layer: ml, draw: michiCanvas, dur: ml.michi.duration,
+        insert: () => {
+          edit('文字のみちを つくる', () => {
+            const l = newMichiLayer(S.proj);
+            l.span = { from: +S.time.toFixed(3), to: null };
+            S.proj.layers.unshift(l);
+            S.sel = l.id;
+          });
+          notify('文字のみちを 置きました。えらぶと 形や 動きを 直せます');
+        } });
     })));
     return;
   }
@@ -7986,4 +8031,18 @@ function michiRow(box){
     })));
     box.appendChild(sl('1周の 秒数', 'duration', 2, 60, 1, '秒'));
   }
+}
+
+/* ================= 👀 ためし見（入れる まえに 見る） ================= */
+let pv = null;
+function pvOpen(o){ pv = o; onChange(); }
+function pvShow(box, kind){
+  if(!pv || pv.kind !== kind) return false;
+  const cur = pv;
+  previewBox(box, {
+    layer: cur.layer, draw: cur.draw, dur: cur.dur, title: cur.title,
+    insert: () => { pv = null; cur.insert(); onChange(); },
+    cancel: () => { pv = null; onChange(); }
+  });
+  return true;
 }
