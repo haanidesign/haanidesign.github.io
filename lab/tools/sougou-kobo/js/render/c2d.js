@@ -3,30 +3,30 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=390';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=390';
-import { liveMasks } from '../engine/mask.js?v=390';
-import { valuesAt } from '../engine/anim.js?v=390';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=390';
+         nearestFolder } from '../engine/layer.js?v=391';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=391';
+import { liveMasks } from '../engine/mask.js?v=391';
+import { valuesAt } from '../engine/anim.js?v=391';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=391';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=390';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=390';
-import { paintCanvas } from '../engine/paint.js?v=390';
-import { panoCanvas } from '../engine/pano.js?v=390';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=390';
-import { roomCanvas } from '../engine/room.js?v=390';
-import { talkCanvas } from '../engine/talk.js?v=390';
-import { applyFx } from './fx.js?v=390';
-import { drawTrans, swingE } from './trans.js?v=390';
-import { mojiCanvas } from '../moji/moji.js?v=390';
-import { ugokuCanvas } from '../engine/ugoku.js?v=390';
-import { jzCanvas } from '../moji/jizura.js?v=390';
-import { telopCanvas } from '../moji/telop.js?v=390';
-import { michiCanvas } from '../moji/michi.js?v=390';
-import { honeCanvas } from '../rig/hone.js?v=390';
-import { homography, applyH } from '../engine/warp.js?v=390';
-import { drawCamView } from './camview.js?v=390';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=390';
+         meshSizeFor } from '../engine/puppet.js?v=391';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=391';
+import { paintCanvas } from '../engine/paint.js?v=391';
+import { panoCanvas } from '../engine/pano.js?v=391';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=391';
+import { roomCanvas } from '../engine/room.js?v=391';
+import { talkCanvas } from '../engine/talk.js?v=391';
+import { applyFx } from './fx.js?v=391';
+import { drawTrans, swingE } from './trans.js?v=391';
+import { mojiCanvas } from '../moji/moji.js?v=391';
+import { ugokuCanvas } from '../engine/ugoku.js?v=391';
+import { jzCanvas } from '../moji/jizura.js?v=391';
+import { telopCanvas } from '../moji/telop.js?v=391';
+import { michiCanvas } from '../moji/michi.js?v=391';
+import { honeCanvas } from '../rig/hone.js?v=391';
+import { homography, applyH } from '../engine/warp.js?v=391';
+import { drawCamView } from './camview.js?v=391';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=391';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 

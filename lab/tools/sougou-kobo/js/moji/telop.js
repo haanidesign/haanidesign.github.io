@@ -2,7 +2,8 @@
    テンプレ（戦闘開始・場所テロップ・かざり枠 など）、出かた・ずっと・消えかた、帯、かざり、流す。
    描く ところは 文字APNG工房の まま。作品と 同じ 大きさの 紙に 描く。
    時間は レイヤーの「出す ところ」の はじまりが 0。 */
-import { newLayer } from '../engine/layer.js?v=390';
+import { newLayer } from '../engine/layer.js?v=391';
+import { drawMatome, MATOME, MATOME_LOOK } from './matome.js?v=391';
 
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Dela+Gothic+One&family=RocknRoll+One&family=Reggae+One&family=DotGothic16&family=Yusei+Magic&family=Zen+Antique&family=Shippori+Mincho:wght@800&family=Kaisei+Decol:wght@700&family=Noto+Sans+JP:wght@900&family=Mochiy+Pop+One&family=Hachi+Maru+Pop&display=swap';
 let fontsIn = false;
@@ -213,7 +214,12 @@ function drawKazari(c,L,t){
  c.restore()}
 
 /* ---- ここから 総合工房 むけ ---- */
-export { FONTS, INFX, IDLEFX, OUTFX, KZ, DEF, MODES };
+/* 🎬 動画の テロップと 同じ「まとめて 出る」出かたを いちばん 先に */
+const MODES2 = Object.assign({
+  ugoku: { name: 'うごく テロップ', groups: { '出かた': MATOME.filter(m => m[0] !== 'none').map(([k, n]) =>
+    [n, Object.assign({}, MATOME_LOOK, { main: n, wholeFx: k }, k === 'shake' ? { hold: 2.4 } : {})]) } }
+}, MODES);
+export { FONTS, INFX, IDLEFX, OUTFX, KZ, DEF, MODES2 as MODES };
 const WK = new Set(["fps","loopMode","loopN","colors","fname","trim","stillFirst","canvasSize"]);
 /** テンプレの 中身（DEF に かさねた もの。書き出し用の 項目は のぞく） */
 export function tplState(over){
@@ -248,7 +254,19 @@ export function telopCanvas(l, time, project){
     const key = JSON.stringify(S) + '|' + document.fonts.size + '|' + document.fonts.status;
     if(l._tlKey !== key){ l._tlL = layout(); l._tlKey = key; }
     const s = l.span;
-    drawFrame(Math.max(0, time - (s && s.from > 0 ? s.from : 0)), l._tlC.getContext('2d'), l._tlL);
+    const tl = Math.max(0, time - (s && s.from > 0 ? s.from : 0));
+    const wf = S.wholeFx;
+    if(wf && wf !== 'none'){
+      /* まとめて 出る … ふつうに 描いて から、まるごと 動かす */
+      if(!l._tlT || l._tlT.width !== w || l._tlT.height !== h){ l._tlT = document.createElement('canvas'); l._tlT.width = w; l._tlT.height = h; }
+      const d = S.inDur;
+      S = Object.assign({}, S, { inFx: 'none' });
+      drawFrame(tl, l._tlT.getContext('2d'), l._tlL);
+      const g = l._tlC.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, w, h);
+      drawMatome(g, l._tlT, wf, tl, d, l._tlL && l._tlL.box, w, h);
+    } else drawFrame(tl, l._tlC.getContext('2d'), l._tlL);
   } finally { S = prev; }
   return l._tlC;
 }
