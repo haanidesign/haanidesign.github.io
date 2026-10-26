@@ -13,8 +13,8 @@
    作品を 直したら（もどす の 番号が かわったら）計算しなおす。
 
    計算の あいだは ばねを 切った 姿を 見る（物理の 入力は 親の 動き だけ）。 */
-import { swingShift } from '../render/trans.js?v=391';
-import { S, undoDepth } from '../state.js?v=391';
+import { swingShift } from '../render/trans.js?v=394';
+import { S, undoDepth } from '../state.js?v=394';
 
 export const DT = 1 / 60;
 const SUB = 4;                      // 1コマを さらに 細かく（かたい ばねでも くずれない）
@@ -33,6 +33,29 @@ export const PHYS_LOOKS = [
   ['ぷるん', { stiff: 3.2, damp: 0.12, inertia: 0.8, twist: 0.3, grav: 0 }]
 ];
 
+/* 🔁 差分つなぎの 中の パーツ。
+   スライドは 画面 まるごと 動くので、そのままだと ふられすぎる（ぶんぶん 回る）。
+   ふだんから 1わり ちょっとに おさえて、「パーツの ゆれ」の つまみで 強さを かえる。
+   よわく するほど ゆっくり・おだやかに おさまる。 */
+const SABUN_K = 0.12;
+function loosen(project, l, ph){
+  let c = l, g = 0, root = null;
+  while(c && g++ < 64){
+    if(c.sabun){ root = c; break; }
+    c = c.parent ? project.layers.find(x => x.id === c.parent) : null;
+  }
+  if(!root) return ph;
+  const sl = root.sabun.slide > 0 || Object.values(root.sabun.per || {}).some(q => q && q.slide > 0);
+  if(!sl) return ph;
+  const y = root.sabun.yure == null ? 1 : root.sabun.yure;
+  const s = ph.stiff == null ? 1.8 : ph.stiff, d = ph.damp == null ? 0.22 : ph.damp, i = ph.inertia == null ? 1 : ph.inertia;
+  return Object.assign({}, ph, {
+    inertia: i * SABUN_K * y,
+    stiff: s * (y < 1 ? 0.7 + 0.3 * y : 1),
+    damp: d + (y < 1 ? (1 - y) * 0.25 : 0)
+  });
+}
+
 let cache = null;
 let busy = false;
 export const physBusy = () => busy;
@@ -42,7 +65,8 @@ const physLayers = (project) => project.layers.filter(l => l.phys && l.phys.on &
 function keyOf(project, list){
   const u = undoDepth();
   return [S.docId, u.idx, u.size, project.layers.length, project.w, project.h, JSON.stringify(project.trans || []),
-          JSON.stringify(list.map(l => [l.id, l.phys]))].join('|');
+          JSON.stringify(list.map(l => [l.id, l.phys])),
+          JSON.stringify(project.layers.filter(x => x.sabun).map(x => [x.sabun.yure, x.sabun.slide]))].join('|');
 }
 
 /* 絵の まん中が じくから 見て どこに あるか（作品の 中の 向き） */
@@ -88,7 +112,7 @@ function simulate(project, list, until, computeAll){
         const pm = pe ? (pe.mNoCam || pe.m) : null;
         const A = pm ? Math.atan2(pm.b, pm.a) : 0;
         const d0 = hang(project, l, m);
-        const ph = l.phys;
+        const ph = loosen(project, l, l.phys);
         if(s.P.length >= 2){
           const p1 = s.P[1], p0 = s.P[0];
           const ax = (P.x - 2 * p1.x + p0.x) / (DT * DT);
