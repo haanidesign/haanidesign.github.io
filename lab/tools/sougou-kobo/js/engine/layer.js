@@ -1,16 +1,16 @@
 /* レイヤーの形と、そこから世界の位置を出す計算。
    PHASE 1 ではトランスフォームは静的な値。PHASE 2 でここにピン（キーフレーム）が乗る。 */
 
-import { M, uid, ptInQuad } from './math.js?v=394';
-import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=394';
+import { M, uid, ptInQuad } from './math.js?v=396';
+import { valuesAt as evalAt, setPin, shiftTrack, remapTime } from './anim.js?v=396';
 import { isCam, camOf, camMatrix, depthLen, is3D, quad3D,
          camOrbiting, sheetQuad3D, quadFromM, camDefocus,
-         withShake } from './camera.js?v=394';
-import { deformPoint, swayPose, swayTilt } from './puppet.js?v=394';
-import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=394';
-import { handTime } from './hand.js?v=394';
-import { physAngle } from './phys.js?v=394';
-import { WORK_KEYS } from '../state.js?v=394';
+         withShake } from './camera.js?v=396';
+import { deformPoint, swayPose, swayTilt } from './puppet.js?v=396';
+import { cageDeformPoint, cageMoved, homography, applyH } from './warp.js?v=396';
+import { handTime } from './hand.js?v=396';
+import { physAngle } from './phys.js?v=396';
+import { WORK_KEYS } from '../state.js?v=396';
 
 /** レイヤーを1つ作る。frames はアセットIDの配列＝コマ列（PHASE 1 では1枚） */
 /** カメラを 1つ 作る。まん中に、ズーム1で 置く。

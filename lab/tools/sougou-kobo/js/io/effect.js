@@ -5,12 +5,12 @@
    足した あとは ふつうの レイヤーと 同じく 動かす・大きさ・ふだ が 使える。
    どの 設定で 作ったかは layer.effect に のこし、あとから 作り直せる。 */
 
-import { S, edit, addAsset, selected } from '../state.js?v=394';
-import { newLayer } from '../engine/layer.js?v=394';
-import { spreadFrames } from '../engine/anim.js?v=394';
-import { loadImage } from './image.js?v=394';
-import { field, btnRow, button, guardSlide } from '../ui/sheet.js?v=394';
-import { PALS, PAL, CATS, FX, FXI, fxDefaults, totalFrames, renderTo } from '../../../effect-maker/fx.js?v=394';
+import { S, edit, addAsset, selected } from '../state.js?v=396';
+import { newLayer } from '../engine/layer.js?v=396';
+import { spreadFrames } from '../engine/anim.js?v=396';
+import { loadImage } from './image.js?v=396';
+import { field, btnRow, button, guardSlide } from '../ui/sheet.js?v=396';
+import { PALS, PAL, CATS, FX, FXI, fxDefaults, totalFrames, renderTo } from '../../../effect-maker/fx.js?v=396';
 
 /* シートを 閉じても のこる 下書き */
 let draft = null;
