@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=416';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=416';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=417';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=417';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=416';
+         nearestFolder, setParent } from '../engine/layer.js?v=417';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=416';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=416';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=416';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=416';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=417';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=417';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=417';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=417';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -1181,7 +1181,9 @@ export function createTimeline(root, opts = {}){
           S._tlMove = null;
           document.querySelectorAll('.track.tlmove').forEach(t => t.classList.remove('tlmove'));
           commitEdit();
-          toast((moving.dt >= 0 ? '+' : '') + (moving.dt || 0).toFixed(2) + '秒 ずらしました');
+          /* 引っぱらずに はなしたら、ボタンで ずらす まどを 出す（指で 引っぱりにくい とき用） */
+          if(!moving.dt) shiftPanel(l, x0, y0);
+          else toast((moving.dt >= 0 ? '+' : '') + moving.dt.toFixed(2) + '秒 ずらしました');
           moving = null;
           onChange();
         }
@@ -1191,6 +1193,66 @@ export function createTimeline(root, opts = {}){
       window.addEventListener('pointerup', end);
       window.addEventListener('pointercancel', end);
     });
+  }
+
+  /* ---------- ⏱ タイミングを ボタンで ずらす まど ---------- */
+  function layerStart(l, all){
+    let m = Infinity;
+    all.forEach(x => {
+      for(const ch of Object.keys(x.tracks || {})){ const ks = x.tracks[ch]; if(Array.isArray(ks) && ks.length) m = Math.min(m, ks[0].t); }
+      m = Math.min(m, x.span ? (x.span.from || 0) : (x === l ? 0 : Infinity));
+    });
+    return isFinite(m) ? m : 0;
+  }
+  function shiftBy(l, dt){
+    const all = [l];
+    const walk = (id) => S.proj.layers.forEach(x => { if(x.parent === id){ all.push(x); walk(x.id); } });
+    walk(l.id);
+    dt = Math.max(-layerStart(l, all), dt);
+    if(Math.abs(dt) < 1e-6) return 0;
+    all.forEach(x => {
+      for(const ch of Object.keys(x.tracks || {})){ const ks = x.tracks[ch]; if(Array.isArray(ks)) ks.forEach(k => { k.t = +(k.t + dt).toFixed(4); }); }
+      if(x.span) x.span = { from: +((x.span.from || 0) + dt).toFixed(4), to: x.span.to == null ? null : +(x.span.to + dt).toFixed(4) };
+      else if(x === l) x.span = { from: +Math.max(0, dt).toFixed(4), to: null };
+      if(x._tkKey) x._tkKey = null;
+    });
+    return dt;
+  }
+  function shiftPanel(l, x, y){
+    document.querySelector('.tlshift')?.remove();
+    const p = document.createElement('div');
+    p.className = 'tlshift';
+    const info = document.createElement('div');
+    info.className = 'tlshift-h';
+    const all = () => { const a = [l]; const w = (id) => S.proj.layers.forEach(q => { if(q.parent === id){ a.push(q); w(q.id); } }); w(l.id); return a; };
+    const show = () => { info.textContent = '⏱「' + l.name + '」 はじまり ' + layerStart(l, all()).toFixed(2) + '秒'; };
+    show();
+    p.appendChild(info);
+    const row = document.createElement('div');
+    row.className = 'tlshift-r';
+    const mk = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.addEventListener('click', (e) => { e.stopPropagation(); fn(); show(); }); row.appendChild(b); return b; };
+    const by = (d) => () => { edit('タイミングを ずらす', () => shiftBy(l, d)); onChange(); };
+    mk('−1秒', by(-1)); mk('−0.1', by(-0.1)); mk('+0.1', by(0.1)); mk('+1秒', by(1));
+    p.appendChild(row);
+    const row2 = document.createElement('div');
+    row2.className = 'tlshift-r';
+    const b2 = document.createElement('button');
+    b2.textContent = '▶ いまの 時こく（再生位置）から はじめる';
+    b2.addEventListener('click', (e) => {
+      e.stopPropagation();
+      edit('タイミングを そろえる', () => shiftBy(l, S.time - layerStart(l, all())));
+      onChange(); show();
+    });
+    const bx = document.createElement('button');
+    bx.textContent = '✕ とじる';
+    bx.addEventListener('click', (e) => { e.stopPropagation(); p.remove(); });
+    row2.append(b2, bx);
+    p.appendChild(row2);
+    document.body.appendChild(p);
+    const w = Math.min(360, innerWidth - 16);
+    p.style.width = w + 'px';
+    p.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2)) + 'px';
+    p.style.top = Math.max(8, y - 150) + 'px';
   }
 
   /* ---------- 並びかえ ---------- */

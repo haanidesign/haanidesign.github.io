@@ -13,9 +13,9 @@
    しゃべり はじめは その レイヤーの「出す ところ」の あたま。
    きめて いなければ 0秒から。 */
 
-import { fontFamily as mjFamily } from '../moji/text.js?v=416';
-import { S } from '../state.js?v=416';
-import { newLayer, newFolder } from './layer.js?v=416';
+import { fontFamily as mjFamily } from '../moji/text.js?v=417';
+import { S } from '../state.js?v=417';
+import { newLayer, newFolder } from './layer.js?v=417';
 
 export const isTalk = (l) => !!l && l.kind === 'talk';
 

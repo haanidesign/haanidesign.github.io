@@ -1077,3 +1077,10 @@ input[type=range].coarse{
 .track.tlmove{ background-color: rgba(225,221,96,.45); outline: 2.5px solid #1E1C14; outline-offset: -2px; }
 
 .track{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+
+/* ⏱ タイミングを ずらす まど */
+.tlshift{ position:fixed; z-index:200; background:var(--paper,#FFFEF7); border:2.5px solid #1E1C14; border-radius:16px; padding:10px; }
+.tlshift-h{ font-weight:800; margin:0 2px 8px; }
+.tlshift-r{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.tlshift-r button{ flex:1 1 auto; min-height:44px; border:2.5px solid #1E1C14; border-radius:12px; background:#FFFEF7; font:inherit; font-weight:800; }
+.tlshift-r button:first-child{ }
