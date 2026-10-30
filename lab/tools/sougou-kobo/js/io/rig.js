@@ -14,10 +14,10 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=410';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=410';
-import { setPin } from '../engine/anim.js?v=410';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=410';
+import { newSway } from '../engine/puppet.js?v=411';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=411';
+import { setPin } from '../engine/anim.js?v=411';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=411';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -167,7 +167,9 @@ const HAIR_ROLES = ['frontHair', 'backHair', 'hair', 'earring'];
 function swayFor(l, set){
   const base = SWAY[l.rigRole];
   if(!base) return false;
-  const k = (HAIR_ROLES.includes(l.rigRole) ? set.hair : set.face) * set.gain;
+  /* パーツごとの 直し（set.per[id]）。なければ ぜんたいの 数字 */
+  const po = (set.per && set.per[l.id]) || {};
+  const k = (HAIR_ROLES.includes(l.rigRole) ? set.hair : set.face) * set.gain * (po.gain == null ? 1 : po.gain);
   /* 左右の イヤリングが そろって ふれると 機械っぽい。
      名前から 左右を 見て、はじまりを すこし ずらす */
   let phase = base.phase;
@@ -175,10 +177,10 @@ function swayFor(l, set){
   const isHair = HAIR_ROLES.includes(l.rigRole);
   /* パーツの おくれ … 頭 < うで < 髪 の じゅんに おくれて ついて くる */
   const lagK = { head: 0.5, armR: 0.8, armL: 0.8, arm: 0.8 }[l.rigRole] || (isHair ? 1.2 : 0.3);
-  phase += (set.lag || 0) * 0.35 * lagK;
-  /* 左右 反対 … ゆれの はじまりを 半分 ずらすと 逆むきに なる */
-  if(set.flip) phase += 0.5;
-  const soft = isHair ? (set.soft || 0) : 0;
+  phase += (po.lag == null ? (set.lag || 0) : po.lag) * 0.35 * lagK;
+  /* 左右 反対 … ゆれの はじまりを 半分 ずらすと 逆むきに なる（パーツの 反対は ぜんたいの 逆） */
+  if(!!set.flip !== !!po.flip) phase += 0.5;
+  const soft = po.soft != null ? po.soft : isHair ? (set.soft || 0) : 0;
   l.sway = Object.assign(newSway(), base, {
     on: true,
     phase: phase % 1,
@@ -205,7 +207,7 @@ function driveHone(l, mix){
   h.bones.forEach(b => {
     if(!b.parent) return;
     const role = roleOf(b.name); if(!role || !SWAY[role]) return;
-    const fake = { rigRole: role, name: b.name };
+    const fake = { rigRole: role, name: b.name, id: 'b:' + l.id + ':' + b.id };
     if(!swayFor(fake, mix)) return;
     const sw = fake.sway;
     /* 同じ 役の 骨が つづく（髪の 先 など）ほど おくれる */
@@ -256,7 +258,7 @@ export function applyRig(project, root){
     hair: set.hair * (M.hair == null ? 1 : M.hair),
     face: set.face * (M.face == null ? 1 : M.face),
     breath: set.breath * (M.breath == null ? 1 : M.breath),
-    soft: set.soft || 0, lag: set.lag || 0, flip: !!set.flip
+    soft: set.soft || 0, lag: set.lag || 0, flip: !!set.flip, per: set.per || {}
   };
 
   /* 骨キャラ 1まい だけで うごきを もって いる とき */
@@ -485,4 +487,22 @@ export function rigReport(r){
     + (r.folder ? 'フォルダ「' + r.folder + '」に まとめました。' + NL : '')
     + (r.motion ? 'うごきは「' + r.motion + '」。' : '')
     + (r.loop ? r.loop + '秒 で ひとまわり する ように そろえました。' : '');
+}
+
+/** パーツごとに 直せる もの の 一覧 [{ id, name, role }]（レイヤーと 骨） */
+export function rigParts(project, root){
+  const out = [];
+  const addHone = (h) => (h.hone && h.hone.bones || []).forEach(b => {
+    if(!b.parent) return;
+    const r = roleOf(b.name); if(r && SWAY[r]) out.push({ id: 'b:' + h.id + ':' + b.id, name: '🦴 ' + b.name, role: r });
+  });
+  if(root.kind === 'hone'){ addHone(root); return out; }
+  const walk = (id) => project.layers.forEach(l => {
+    if(l.parent !== id) return;
+    if(l.kind === 'hone') addHone(l);
+    else if(l.rigRole && SWAY[l.rigRole]) out.push({ id: l.id, name: l.name, role: l.rigRole });
+    walk(l.id);
+  });
+  walk(root.id);
+  return out;
 }
