@@ -3,9 +3,9 @@
    ミニSpine では「アニメ」1つに キーを うって いた。ここでは いったん その 形で
    つくって から、骨キャラ レイヤーの タイムラインへ いまの 時こくから 写す。
    値の 意味（回転・場所は 組み立てからの ずれ、大きさは 倍）は ミニSpine と 同じ。 */
-import { M, childMap } from './core.js?v=402';
-import { setupPose, boneCh } from './hone.js?v=402';
-import { setPin } from '../engine/anim.js?v=402';
+import { M, childMap } from './core.js?v=404';
+import { setupPose, boneCh } from './hone.js?v=404';
+import { setPin } from '../engine/anim.js?v=404';
 
 const CTX = { h: null, sp: null, H: 1000 };
 const boneById = id => CTX.h.bones.find(b => b.id === id);
@@ -293,8 +293,27 @@ export { WHOLE, ONE };
 
 /* つくった キーを レイヤーへ。いまの 時こくから reps 回 ならべる */
 function put(l, a, t0, reps){
+  /* 根もと いがいの 骨を ずらすと、つなぎ目の 絵が のびる。
+     ずらす 動きは 根もとへ うつして、キャラ ごと 動かす（いちばん はじめの 1本 ぶん だけ） */
+  const root = (l.hone.bones.find(b => !b.parent) || {}).id;
+  if(root){
+    for(const id of Object.keys(a.tracks)){
+      if(id === root) continue;
+      for(const ch of ['x', 'y']){
+        const ks = a.tracks[id][ch];
+        if(!ks) continue;
+        delete a.tracks[id][ch];
+        if(l.tracks) delete l.tracks[boneCh(id, ch)];
+        a.tracks[root] = a.tracks[root] || {};
+        if(!a.tracks[root][ch]) a.tracks[root][ch] = ks;
+      }
+    }
+  }
   for(const id of Object.keys(a.tracks)){
     for(const ch of Object.keys(a.tracks[id])){
+      /* 骨は 伸び縮み させない（顔などの 絵が のびて 気もち わるく なる）。
+         回転と 位置 だけ つかう。前に 入った 伸び縮みも ここで 消す */
+      if(ch === 'sx' || ch === 'sy' || ch === 'shear'){ if(l.tracks) delete l.tracks[boneCh(id, ch)]; continue; }
       const keys = a.tracks[id][ch];
       const name = boneCh(id, ch), t1 = t0 + a.dur * reps;
       const old = (l.tracks && l.tracks[name]) || [];
