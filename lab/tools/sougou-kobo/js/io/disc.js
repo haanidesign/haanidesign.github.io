@@ -1,8 +1,8 @@
 /* ⭕ まるの 背景。1色の 地に まるを 1つ のせた 絵を 焼いて、いちばん 下に 置く。 */
 
-import { S, addAsset } from '../state.js?v=399';
-import { newLayer } from '../engine/layer.js?v=399';
-import { loadImage } from './image.js?v=399';
+import { S, addAsset } from '../state.js?v=400';
+import { newLayer } from '../engine/layer.js?v=400';
+import { loadImage } from './image.js?v=400';
 
 export function newDisc(){
   return { bg: '#3FA7A0', color: '#F2D54B', size: 0.8, cx: 0.5, cy: 0.5 };
