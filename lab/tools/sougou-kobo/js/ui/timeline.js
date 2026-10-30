@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=413';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=413';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=415';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=415';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=413';
+         nearestFolder, setParent } from '../engine/layer.js?v=415';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=413';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=413';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=413';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=413';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=415';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=415';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=415';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=415';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -1119,19 +1119,71 @@ export function createTimeline(root, opts = {}){
       clearPins();
       S.playing = false;
       const rect = track.getBoundingClientRect();
+      const x0 = e.clientX, y0 = e.clientY;
+      let moving = null, far = false;
       const scrub = (ev) => {
+        if(moving){ shiftTo(ev); return; }
+        if(Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6){ far = true; clearTimeout(lp); }
         S.time = snap(x2t(ev.clientX - rect.left));
+        onChange();
+      };
+      /* ⏱ 長おし … この レイヤー（フォルダなら 中身ごと）の タイミングを まるごと ずらす。
+         出す ところ と キーフレームを いっしょに うごかす */
+      const lp = setTimeout(() => {
+        if(far) return;
+        const all = [l];
+        const walk = (id) => S.proj.layers.forEach(x => { if(x.parent === id){ all.push(x); walk(x.id); } });
+        walk(l.id);
+        let min = Infinity;
+        const snap0 = all.map(x => {
+          const tr = {};
+          for(const ch of Object.keys(x.tracks || {})){
+            const ks = x.tracks[ch]; if(!Array.isArray(ks) || !ks.length) continue;
+            tr[ch] = ks.map(k => k.t);
+            min = Math.min(min, ks[0].t);
+          }
+          const sp = x.span ? { from: x.span.from || 0, to: x.span.to } : null;
+          min = Math.min(min, sp ? sp.from : 0);
+          return { x, tr, sp };
+        });
+        moving = { t0: x2t(x0 - rect.left), snap0, min: isFinite(min) ? min : 0 };
+        beginEdit('タイミングを ずらす');
+        document.querySelectorAll('.track').forEach(t => { if(t.parentElement && t.parentElement.dataset.id === l.id) t.classList.add('tlmove'); });
+        track.classList.add('tlmove');
+        if(navigator.vibrate) navigator.vibrate(15);
+      }, 500);
+      const shiftTo = (ev) => {
+        const m = moving;
+        let dt = snap(x2t(ev.clientX - rect.left)) - snap(m.t0);
+        dt = Math.max(-m.min, dt);
+        m.snap0.forEach(({ x, tr, sp }) => {
+          for(const ch of Object.keys(tr)) x.tracks[ch].forEach((k, i) => { k.t = +(tr[ch][i] + dt).toFixed(4); });
+          if(sp) x.span = { from: +(sp.from + dt).toFixed(4), to: sp.to == null ? null : +(sp.to + dt).toFixed(4) };
+          else if(x === l && dt > 1e-4) x.span = { from: +dt.toFixed(4), to: null };
+          else if(x === l) x.span = null;
+          if(x._tkKey) x._tkKey = null;
+        });
+        m.dt = dt;
         onChange();
       };
       scrub(e);
       const end = () => {
-        track.removeEventListener('pointermove', scrub);
-        track.removeEventListener('pointerup', end);
-        track.removeEventListener('pointercancel', end);
+        clearTimeout(lp);
+        window.removeEventListener('pointermove', scrub);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        if(moving){
+          track.classList.remove('tlmove');
+          commitEdit();
+          toast((moving.dt >= 0 ? '+' : '') + (moving.dt || 0).toFixed(2) + '秒 ずらしました');
+          moving = null;
+          onChange();
+        }
       };
-      track.addEventListener('pointermove', scrub);
-      track.addEventListener('pointerup', end);
-      track.addEventListener('pointercancel', end);
+      /* 指の 行き先は window で 聞く（とちゅうで 行が 作りなおされても 取りこぼさない） */
+      window.addEventListener('pointermove', scrub);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
     });
   }
 

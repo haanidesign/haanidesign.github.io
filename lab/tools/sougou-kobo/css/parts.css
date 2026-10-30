@@ -1072,3 +1072,6 @@ input[type=range].coarse{
 .pvhead{ font-weight: 800; margin-bottom: 6px; }
 .pvcv{ display: block; width: 100%; max-height: 46vh; object-fit: contain; border: 2px solid var(--ink, #1E1C14); border-radius: 8px; background: #FFFEF7; }
 .pvinfo{ font-size: .9rem; color: #5a574a; margin: 4px 0 6px; }
+
+/* ⏱ 長おしで タイミングを ずらして いる 行 */
+.track.tlmove{ background-color: rgba(225,221,96,.45); outline: 2.5px solid #1E1C14; outline-offset: -2px; }
