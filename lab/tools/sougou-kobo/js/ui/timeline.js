@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=417';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=417';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=418';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=418';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=417';
+         nearestFolder, setParent } from '../engine/layer.js?v=418';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=417';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=417';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=417';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=417';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=418';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=418';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=418';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=418';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -1634,7 +1634,15 @@ export function createTimeline(root, opts = {}){
     onChange();
   }
 
-  return { build, updatePlayhead, putPin, delPins, delPicked, delPickedKeys, toPin, toggleHold, setLoop,
+  /* ⏱ ずらす ボタンから。えらんで いる レイヤーの まどを 画面の まん中 下に 出す */
+  function openShift(){
+    const l = S.proj.layers.find(x => x.id === S.sel);
+    if(!l){ toast('ずらしたい レイヤーを えらんでね（下の 名前を タップ）'); return; }
+    const b = document.getElementById('tlShift');
+    const r = b ? b.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0 };
+    shiftPanel(l, r.left + r.width / 2, r.top + 40);
+  }
+  return { openShift, build, updatePlayhead, putPin, delPins, delPicked, delPickedKeys, toPin, toggleHold, setLoop,
            askPinTime,
            setEase, currentEase, currentShape, clearPins,
            copyPins, pastePins, zoomTime };
