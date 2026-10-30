@@ -1075,3 +1075,5 @@ input[type=range].coarse{
 
 /* ⏱ 長おしで タイミングを ずらして いる 行 */
 .track.tlmove{ background-color: rgba(225,221,96,.45); outline: 2.5px solid #1E1C14; outline-offset: -2px; }
+
+.track{ -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }

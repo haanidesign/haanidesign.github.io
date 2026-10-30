@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=415';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=415';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=416';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=416';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=415';
+         nearestFolder, setParent } from '../engine/layer.js?v=416';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=415';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=415';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=415';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=415';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=416';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=416';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=416';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=416';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -732,6 +732,7 @@ export function createTimeline(root, opts = {}){
       track.appendChild(b);
     });
 
+    if(S._tlMove === l.id) track.classList.add('tlmove');
     attachScrub(track, l);
     row.appendChild(track);
     return row;
@@ -1112,6 +1113,9 @@ export function createTimeline(root, opts = {}){
 
   /* ---------- トラックを触ると時間が動く ---------- */
   function attachScrub(track, l){
+    /* 長おしで 出る メニュー（スマホ・タブレット）を 止める。
+       出ると 指の うごきが とちゅうで 切られて しまう */
+    track.addEventListener('contextmenu', (e) => e.preventDefault());
     track.addEventListener('pointerdown', (e) => {
       if(e.target !== track) return;      // キーフレームの上は除く
       try{ track.setPointerCapture(e.pointerId); }catch(_){}
@@ -1123,7 +1127,7 @@ export function createTimeline(root, opts = {}){
       let moving = null, far = false;
       const scrub = (ev) => {
         if(moving){ shiftTo(ev); return; }
-        if(Math.hypot(ev.clientX - x0, ev.clientY - y0) > 6){ far = true; clearTimeout(lp); }
+        if(Math.hypot(ev.clientX - x0, ev.clientY - y0) > 12){ far = true; clearTimeout(lp); }
         S.time = snap(x2t(ev.clientX - rect.left));
         onChange();
       };
@@ -1148,10 +1152,11 @@ export function createTimeline(root, opts = {}){
         });
         moving = { t0: x2t(x0 - rect.left), snap0, min: isFinite(min) ? min : 0 };
         beginEdit('タイミングを ずらす');
-        document.querySelectorAll('.track').forEach(t => { if(t.parentElement && t.parentElement.dataset.id === l.id) t.classList.add('tlmove'); });
-        track.classList.add('tlmove');
+        S._tlMove = l.id;
+        document.querySelectorAll('.trow').forEach(r => { if(r.dataset.id === l.id){ const t = r.querySelector('.track'); if(t) t.classList.add('tlmove'); } });
+        toast('⏱ そのまま よこに 引っぱると ずれます');
         if(navigator.vibrate) navigator.vibrate(15);
-      }, 500);
+      }, 450);
       const shiftTo = (ev) => {
         const m = moving;
         let dt = snap(x2t(ev.clientX - rect.left)) - snap(m.t0);
@@ -1173,7 +1178,8 @@ export function createTimeline(root, opts = {}){
         window.removeEventListener('pointerup', end);
         window.removeEventListener('pointercancel', end);
         if(moving){
-          track.classList.remove('tlmove');
+          S._tlMove = null;
+          document.querySelectorAll('.track.tlmove').forEach(t => t.classList.remove('tlmove'));
           commitEdit();
           toast((moving.dt >= 0 ? '+' : '') + (moving.dt || 0).toFixed(2) + '秒 ずらしました');
           moving = null;

@@ -2,8 +2,8 @@
    テンプレ（戦闘開始・場所テロップ・かざり枠 など）、出かた・ずっと・消えかた、帯、かざり、流す。
    描く ところは 文字APNG工房の まま。作品と 同じ 大きさの 紙に 描く。
    時間は レイヤーの「出す ところ」の はじまりが 0。 */
-import { newLayer } from '../engine/layer.js?v=415';
-import { drawMatome, MATOME, MATOME_LOOK } from './matome.js?v=415';
+import { newLayer } from '../engine/layer.js?v=416';
+import { drawMatome, MATOME, MATOME_LOOK } from './matome.js?v=416';
 
 const FONT_CSS = 'https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Dela+Gothic+One&family=RocknRoll+One&family=Reggae+One&family=DotGothic16&family=Yusei+Magic&family=Zen+Antique&family=Shippori+Mincho:wght@800&family=Kaisei+Decol:wght@700&family=Noto+Sans+JP:wght@900&family=Mochiy+Pop+One&family=Hachi+Maru+Pop&display=swap';
 let fontsIn = false;
