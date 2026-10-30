@@ -1,71 +1,71 @@
 /* 下から出てくる設定シート。細かい数字はここに隠す。 */
 
-import { fontReady } from '../moji/text.js?v=398';
-import { allTools as favAll, isFav, toggleFav } from './favtools.js?v=398';
-import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=398';
-import { omakase } from '../moji/omakase.js?v=398';
-import { newTelopLayer, tplState, telopDur, MODES as TL_MODES, FONTS as TL_FONTS, INFX as TL_IN, IDLEFX as TL_IDLE, OUTFX as TL_OUT, KZ as TL_KZ } from '../moji/telop.js?v=398';
-import { newMichiLayer, MICHI_KINDS, MICHI_FONTS, michiCanvas } from '../moji/michi.js?v=398';
-import { telopCanvas } from '../moji/telop.js?v=398';
-import { MATOME } from '../moji/matome.js?v=398';
-import { ugokuCanvas } from '../engine/ugoku.js?v=398';
-import { jzCanvas } from '../moji/jizura.js?v=398';
-import { previewBox } from './preview.js?v=398';
-import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=398';
-import { newLayer } from '../engine/layer.js?v=398';
-import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=398';
-import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles, newDots } from '../engine/ugoku.js?v=398';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=398';
-import { newMojiLayer } from '../moji/moji.js?v=398';
-import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts, addFontFile as mjAddFont, userFonts as mjUserFonts, removeFont as mjRemoveFont } from '../moji/text.js?v=398';
-import { TRANS_LIST } from '../render/trans.js?v=398';
-import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=398';
-import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=398';
-import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=398';
+import { fontReady } from '../moji/text.js?v=399';
+import { allTools as favAll, isFav, toggleFav } from './favtools.js?v=399';
+import { UI_PARTS, uiScale, setUI, resetUI } from './uiscale.js?v=399';
+import { omakase } from '../moji/omakase.js?v=399';
+import { newTelopLayer, tplState, telopDur, MODES as TL_MODES, FONTS as TL_FONTS, INFX as TL_IN, IDLEFX as TL_IDLE, OUTFX as TL_OUT, KZ as TL_KZ } from '../moji/telop.js?v=399';
+import { newMichiLayer, MICHI_KINDS, MICHI_FONTS, michiCanvas } from '../moji/michi.js?v=399';
+import { telopCanvas } from '../moji/telop.js?v=399';
+import { MATOME } from '../moji/matome.js?v=399';
+import { ugokuCanvas } from '../engine/ugoku.js?v=399';
+import { jzCanvas } from '../moji/jizura.js?v=399';
+import { previewBox } from './preview.js?v=399';
+import { newJzLayer, loadEngine as loadJz, ready as jzReady, styles as jzStyles, durOf as jzDur } from '../moji/jizura.js?v=399';
+import { newLayer } from '../engine/layer.js?v=399';
+import { WHOLE as HN_WHOLE, ONE as HN_ONE, applyWholeHone, applyOneHone, bonesFound } from '../rig/honemotion.js?v=399';
+import { PRESETS as UG_PRESETS, BASES as UG_BASES, SHAPE_NAMES as UG_SHAPES, MOTIONS as UG_MOTIONS, newUgokuLayer, newUgoku, newParticles, newDots } from '../engine/ugoku.js?v=399';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=399';
+import { newMojiLayer } from '../moji/moji.js?v=399';
+import { FX_IN as MJ_IN, FX_LOOP as MJ_LOOP, FX_OUT as MJ_OUT, ORDERS as MJ_ORDERS, fontList as mjFonts, addFontFile as mjAddFont, userFonts as mjUserFonts, removeFont as mjRemoveFont } from '../moji/text.js?v=399';
+import { TRANS_LIST } from '../render/trans.js?v=399';
+import { FX_KEYS, FX_GROUPS, FX_LOOKS, isPct, anyFx } from '../render/fx.js?v=399';
+import { SHIGUSA, PARTS, findParts, charRoot, applyShigusa, applyPart } from '../engine/shigusa.js?v=399';
+import { S, onChange, beginEdit, commitEdit, edit, selected, addAsset, plain, frameAsset } from '../state.js?v=399';
 import { isDescendant, setParent, isFolder, membersOf, ungroup, mergeAsFrames,
          attachMany, copyLayers, pasteLayers, removeLayers, willRemove,
          duplicateLayers, newPaintLayer, newSolidLayer, newAdjustLayer,
          newFlip, isFlip, flipIndex, groupInto,
-         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=398';
-import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=398';
+         splitFrames, newCamLayer, nearestFolder } from '../engine/layer.js?v=399';
+import { masksOf, toMasks, maskAnimated, clearMaskKeys, setMaskKeys } from '../engine/mask.js?v=399';
 import { hasPins, setPin, channelValue, valuesAt, spreadFrames,
          framePinTimes, removePin, pinChX, pinChY, EASES, EASE_LIST,
-         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=398';
+         curveAt, MY_EASE_MAX } from '../engine/anim.js?v=399';
 import { swayKeys, swayPose, newSway, RIGID,
-         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=398';
-import { pathKeys, pathLength, resample } from '../engine/path.js?v=398';
-import { blinkKeys, talkKeys } from '../engine/anim.js?v=398';
-import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=398';
-import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=398';
-import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=398';
-import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=398';
-import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=398';
+         afterKeys, afterAngle, afterLen, stopTimes } from '../engine/puppet.js?v=399';
+import { pathKeys, pathLength, resample } from '../engine/path.js?v=399';
+import { blinkKeys, talkKeys } from '../engine/anim.js?v=399';
+import { PRESET_GROUPS, CATS } from '../engine/presets.js?v=399';
+import { applyRig, rigRootOf, newRigSet, MOTION_NAMES, autoRig, rigReport } from '../io/rig.js?v=399';
+import { addLinesLayer, newLines, isLines } from '../io/lines.js?v=399';
+import { addDiscLayer, newDisc, isDisc } from '../io/disc.js?v=399';
+import { applySabun, sabunRootOf, sabunFolder, unSabun, sabunPick, GLITCH_KINDS } from '../io/sabun.js?v=399';
 import { FONTS, allFonts, renderTextLayer, shortName, newTextStyle, textToCanvas,
-         addTextLayer } from '../io/text.js?v=398';
+         addTextLayer } from '../io/text.js?v=399';
 import { addBgLayer, paintBg, fitToCanvas, isBg,
-         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=398';
-import { PATTERN_NAMES } from '../io/pattern.js?v=398';
+         paintPattern, addPatternBg, DIR_PRESETS } from '../io/bg.js?v=399';
+import { PATTERN_NAMES } from '../io/pattern.js?v=399';
 import { isPano, addPanoLayer, spinKeys, sweepKeys, panoDefaults,
-         PITCH_MAX } from '../engine/pano.js?v=398';
-import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=398';
-import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=398';
+         PITCH_MAX } from '../engine/pano.js?v=399';
+import { ballOn, ballDefaults, ballSpinKeys } from '../engine/ball.js?v=399';
+import { isRoom, addRoomLayer, FACES as ROOM_FACES } from '../engine/room.js?v=399';
 import { isTalk, addTalkLayer, addNextTalk, talkDefaults, talkMouthKeys,
          talkEnd, talkStart, talkOut, niceHold,
-         overlapping, fixOverlaps } from '../engine/talk.js?v=398';
-import { readAsDataURL, loadImage } from '../io/image.js?v=398';
+         overlapping, fixOverlaps } from '../engine/talk.js?v=399';
+import { readAsDataURL, loadImage } from '../io/image.js?v=399';
 import { isCam, camOf, resetCam, depthScale, is3D, ORBIT_MAX,
          DOLLY_MIN, DOLLY_MAX, depthOf, CAM_CHANNELS,
-         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=398';
-import { bakeLayers, applyBake } from '../io/flatten.js?v=398';
-import { newHand } from '../engine/hand.js?v=398';
-import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=398';
+         DEPTH_MIN, DEPTH_MAX, DEPTH_PRESETS } from '../engine/camera.js?v=399';
+import { bakeLayers, applyBake } from '../io/flatten.js?v=399';
+import { newHand } from '../engine/hand.js?v=399';
+import { newReveal, totalLen, paintDirty } from '../engine/paint.js?v=399';
 import { createWheel, favs, addFav, delFav, hasFav, parseHex, hex as toHex }
-  from './colorwheel.js?v=398';
+  from './colorwheel.js?v=399';
 import { A as AUD, hasAudio, clearAudio, voiceMouthKeys, speechSpans, levels,
          startRec, stopRec, cancelRec, isRecording, setPitch,
-         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=398';
+         guessBpm, firstOnset, playBlip } from '../io/audio.js?v=399';
 import { rhythmKeys, rhythmChannels, beatTimes, beatSec, markKeys,
-         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=398';
+         RHYTHM_KINDS, putHit } from '../engine/rhythm.js?v=399';
 
 /* スライダーを つまんでいる間は 中身を作り直さない。
    作り直すと つまんでいた部品が 消えてしまい、
@@ -7517,6 +7517,7 @@ export function buildHoneMotionSheet(box, boneId){
     + '体: ' + nm(B.body) + '　頭: ' + nm(B.head) + '　うで: ' + nm(B.armR) + '・' + nm(B.armL) + NL
     + 'ちがう ときは セットアップの「✏ 名前」で 頭・体・右腕・左腕 などに すると あたります。';
   box.appendChild(n);
+  honeLoopRow(box, l);
   const repsOf = repsRow(box);
   box.appendChild(heading('キャラ まるごと'));
   shigusaGrid(box, HN_WHOLE, (m) => {
@@ -8128,4 +8129,57 @@ function pvShow(box, kind){
     cancel: () => { pv = null; onChange(); }
   });
   return true;
+}
+
+/* ⏱ 骨の うごきを 秒数で くり返す。
+   「この 長さで くり返す」… はじめの キーから その 秒数ぶんを ずっと くり返す
+   「うごきを この 長さに 合わせる」… いまの 動き ぜんぶを その 秒数に のばす／ちぢめて くり返す */
+let honeLoopSec = 2;
+function honeTimes(l){
+  let a = Infinity, b = -Infinity;
+  for(const k of Object.keys(l.tracks || {})){
+    if(!k.startsWith('H:')) continue;
+    const ks = l.tracks[k]; if(!ks || !ks.length) continue;
+    a = Math.min(a, ks[0].t); b = Math.max(b, ks[ks.length - 1].t);
+  }
+  return isFinite(a) ? { a, b } : null;
+}
+function honeLoopRow(box, l){
+  const NL = String.fromCharCode(10);
+  box.appendChild(heading('⏱ 秒数で くり返す'));
+  const r = honeTimes(l);
+  const lp = l.loop;
+  const n = document.createElement('div');
+  n.className = 'empty';
+  n.style.textAlign = 'left';
+  n.textContent = (r ? 'いまの 動き：' + r.a.toFixed(2) + '〜' + r.b.toFixed(2) + '秒（' + (r.b - r.a).toFixed(2) + '秒）' : 'まだ 動きが ありません')
+    + NL + (lp ? 'くり返し中：' + lp.from.toFixed(2) + '〜' + lp.to.toFixed(2) + '秒（1周 ' + (lp.to - lp.from).toFixed(2) + '秒）' : 'くり返し なし');
+  box.appendChild(n);
+  box.appendChild(slider('1周の 長さ', () => honeLoopSec, v => { honeLoopSec = v; }, 0.2, 20, 0.1, v => v.toFixed(1) + '秒'));
+  box.appendChild(btnRow(
+    button('🔁 この 長さで くり返す', () => {
+      if(!r) return notify('さきに 動きを つけてね');
+      const from = +r.a.toFixed(3);
+      edit('骨の くり返し', () => { l.loop = { from, to: +(from + honeLoopSec).toFixed(3), mode: 'loop' }; });
+      notify(honeLoopSec.toFixed(1) + '秒ごとに くり返します');
+      onChange();
+    }),
+    button('↔ 動きを この 長さに 合わせる', () => {
+      if(!r || r.b - r.a < 1e-3) return notify('さきに 動きを つけてね');
+      const k = honeLoopSec / (r.b - r.a);
+      edit('骨の 動きの 長さ', () => {
+        for(const key of Object.keys(l.tracks)){
+          if(!key.startsWith('H:')) continue;
+          l.tracks[key].forEach(p => { p.t = +(r.a + (p.t - r.a) * k).toFixed(3); });
+        }
+        l.loop = { from: +r.a.toFixed(3), to: +(r.a + honeLoopSec).toFixed(3), mode: 'loop' };
+      });
+      notify('動きを ' + honeLoopSec.toFixed(1) + '秒に して くり返します');
+      onChange();
+    })
+  ));
+  if(lp) box.appendChild(btnRow(button('くり返しを やめる', () => {
+    edit('骨の くり返しを やめる', () => { l.loop = null; });
+    onChange();
+  })));
 }
