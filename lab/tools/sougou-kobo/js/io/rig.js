@@ -14,10 +14,10 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=411';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=411';
-import { setPin } from '../engine/anim.js?v=411';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=411';
+import { newSway, newPin } from '../engine/puppet.js?v=413';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=413';
+import { setPin } from '../engine/anim.js?v=413';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=413';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -505,4 +505,28 @@ export function rigParts(project, root){
   });
   walk(root.id);
   return out;
+}
+
+/** 🧷 パペットを 自動で 組む。じく（つけね）から 反対がわの はしへ ピンを ならべる。
+    髪・イヤリング・リボン・うで など、しなって ほしい ものに。 */
+export function autoPins(project, l, n){
+  const a = l.frames && project.assets[l.frames[0]];
+  if(!a || !a.w || !a.h) return false;
+  /* じくが まん中の まま（決めて いない）なら、役の つけねを つかう */
+  const mid = !l.pivot || (Math.abs(l.pivot.x - 0.5) < 0.01 && Math.abs(l.pivot.y - 0.5) < 0.01);
+  const pv = (!mid && l.pivot) || PIVOT[l.rigRole] || { x: 0.5, y: 0.05 };
+  const x0 = pv.x * a.w, y0 = pv.y * a.h;
+  /* いちばん とおい はしへ（たて長なら たて、よこ長なら よこ） */
+  let x1 = (1 - pv.x) * a.w, y1 = (1 - pv.y) * a.h;
+  if(Math.abs(pv.x - 0.5) < 0.2) x1 = x0;
+  if(Math.abs(pv.y - 0.5) < 0.2) y1 = y0;
+  if(Math.hypot(x1 - x0, y1 - y0) < Math.max(a.w, a.h) * 0.2){ x1 = x0; y1 = a.h * 0.95; }
+  const k = Math.max(3, n || 4);
+  l.pins = [];
+  for(let i = 0; i < k; i++){
+    const t = i / (k - 1) * 0.92;
+    l.pins.push(newPin(+(x0 + (x1 - x0) * t).toFixed(1), +(y0 + (y1 - y0) * t).toFixed(1), i === 0 ? 'fix' : 'move', false));
+  }
+  if(l.mesh) l.mesh.dirty = true;
+  return true;
 }
