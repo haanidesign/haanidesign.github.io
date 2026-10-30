@@ -3,9 +3,9 @@
    ミニSpine では「アニメ」1つに キーを うって いた。ここでは いったん その 形で
    つくって から、骨キャラ レイヤーの タイムラインへ いまの 時こくから 写す。
    値の 意味（回転・場所は 組み立てからの ずれ、大きさは 倍）は ミニSpine と 同じ。 */
-import { M, childMap } from './core.js?v=404';
-import { setupPose, boneCh } from './hone.js?v=404';
-import { setPin } from '../engine/anim.js?v=404';
+import { M, childMap } from './core.js?v=406';
+import { setupPose, boneCh } from './hone.js?v=406';
+import { setPin } from '../engine/anim.js?v=406';
 
 const CTX = { h: null, sp: null, H: 1000 };
 const boneById = id => CTX.h.bones.find(b => b.id === id);
@@ -357,11 +357,58 @@ function ready(l, project){
   CTX.h = l.hone; CTX.sp = setupPose(l.hone); CTX.H = project.h;
 }
 /** キャラ まるごと */
+/* おまけ … 左右 反対・髪の やわらかさ（しぐさと 同じ） */
+export const HONE_OPT = { flip: false, hair: 0, lag: 0 };
+/* おくれ … [f(0〜1), 値] の ならびを、f ぶん うしろへ ずらす。
+   はじめと おわりが 同じ（くり返す 動き）なら 1周の 中で まわして つなぎ目を 出さない */
+export function lagList(list, f){
+  if(!(f > 0) || list.length < 2) return list;
+  const at = (x) => {
+    if(x <= list[0][0]) return list[0][1];
+    for(let i = 1; i < list.length; i++){
+      if(x <= list[i][0]){ const a = list[i - 1], b = list[i], u = (x - a[0]) / ((b[0] - a[0]) || 1); return a[1] + (b[1] - a[1]) * u; }
+    }
+    return list[list.length - 1][1];
+  };
+  const cyc = Math.abs(list[0][1] - list[list.length - 1][1]) < 1e-6;
+  const fs = new Set([0, 1]);
+  list.forEach(([x]) => { const y = cyc ? (x + f) % 1 : x + f; if(y < 1) fs.add(+y.toFixed(4)); });
+  return [...fs].sort((a, b) => a - b).map(x => [x, +at(cyc ? ((x - f) % 1 + 1) % 1 : Math.max(0, x - f)).toFixed(4)]);
+}
+
+const HAIR_RE = /髪|かみ|hair|ヘア|もみあげ|アホ毛|おさげ|ツイン|ポニー/i;
 export function applyWholeHone(l, project, m, t0, reps){
   ready(l, project);
   const a = { dur: m.dur, loop: true, tracks: {} };
-  const B = smartBones();
+  const B0 = smartBones();
+  const B = HONE_OPT.flip ? Object.assign({}, B0, { armR: B0.armL, armL: B0.armR }) : B0;
   m.fn(a, B);
+  if(HONE_OPT.flip){
+    for(const id of Object.keys(a.tracks)) for(const ch of ['rot', 'x']){
+      const ks = a.tracks[id][ch]; if(ks) ks.forEach(k => { k.v = -k.v; });
+    }
+  }
+  /* パーツの おくれ … 体から 先へ いくほど すこしずつ おくれる */
+  if(HONE_OPT.lag > 0 && B.body){
+    const depth = (id) => { let d = 0, b = boneById(id), g = 0; while(b && b.id !== B.body.id && b.parent && g++ < 50){ d++; b = boneById(b.parent); } return b && b.id === B.body.id ? d : 0; };
+    for(const id of Object.keys(a.tracks)){
+      const d = depth(id); if(!d) continue;
+      const f = Math.min(0.45, HONE_OPT.lag * d / a.dur);
+      for(const ch of Object.keys(a.tracks[id])){
+        const ks = a.tracks[id][ch]; if(!ks || ks.length < 2) continue;
+        const c = ks[0].c;
+        a.tracks[id][ch] = lagList(ks.map(k => [k.t / a.dur, k.v]), f).map(([x, v]) => ({ t: +(x * a.dur).toFixed(4), v, c }));
+      }
+    }
+  }
+  if(HONE_OPT.hair > 0){
+    const s = HONE_OPT.hair;
+    l.hone.bones.forEach(b => {
+      if(!(b.spring || HAIR_RE.test(b.name || ''))) return;
+      Object.assign(b, { spring: true, stiff: +(0.07 * (1 - 0.6 * s)).toFixed(3), damp: +Math.min(0.97, 0.9 + 0.06 * s).toFixed(3),
+        inertia: +(1.3 * (1 + 1.2 * s)).toFixed(3), limit: Math.round(40 + 30 * s) });
+    });
+  }
   put(l, a, t0, Math.max(1, reps | 0));
   return B;
 }

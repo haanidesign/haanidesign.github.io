@@ -9,7 +9,32 @@
    回転は 度、上下は 画面の 下が プラス。
 
    キーは いまの 時こくから 1回ぶん。くり返す ときは 回数ぶん ならべる。 */
-import { setPin } from './anim.js?v=404';
+import { setPin } from './anim.js?v=406';
+import { newPhys, PHYS_LOOKS } from './phys.js?v=406';
+
+/* しぐさを つける ときの おまけ。
+   flip … 左右 反対（回転と よこの 動きを 逆に、右うでと 左うでを 入れかえ）
+   hair … 髪の やわらかさ（0 = さわらない。上げるほど おくれて 大きく ゆれる） */
+export const SHIGUSA_OPT = { flip: false, hair: 0, lag: 0 };
+/* パーツの おくれ（秒）。体が 先、頭・うで・髪が すこし あとから ついて くる */
+const LAG = new Map();
+/* おくれ … [f(0〜1), 値] の ならびを、f ぶん うしろへ ずらす。
+   はじめと おわりが 同じ（くり返す 動き）なら 1周の 中で まわして つなぎ目を 出さない */
+export function lagList(list, f){
+  if(!(f > 0) || list.length < 2) return list;
+  const at = (x) => {
+    if(x <= list[0][0]) return list[0][1];
+    for(let i = 1; i < list.length; i++){
+      if(x <= list[i][0]){ const a = list[i - 1], b = list[i], u = (x - a[0]) / ((b[0] - a[0]) || 1); return a[1] + (b[1] - a[1]) * u; }
+    }
+    return list[list.length - 1][1];
+  };
+  const cyc = Math.abs(list[0][1] - list[list.length - 1][1]) < 1e-6;
+  const fs = new Set([0, 1]);
+  list.forEach(([x]) => { const y = cyc ? (x + f) % 1 : x + f; if(y < 1) fs.add(+y.toFixed(4)); });
+  return [...fs].sort((a, b) => a - b).map(x => [x, +at(cyc ? ((x - f) % 1 + 1) % 1 : Math.max(0, x - f)).toFixed(4)]);
+}
+
 
 /* ---------- キャラの 中から 役どころを さがす ---------- */
 function under(project, root){
@@ -74,8 +99,10 @@ function rec(t0, dur, reps){
     if(!touched.has(l)) touched.set(l, new Set());
     if(!touched.get(l).has(ch)){ clearRange(l, ch, t0, t1); touched.get(l).add(ch); }
     for(let r = 0; r < reps; r++){
-      list.forEach(([f, v]) => {
+      const lg = LAG.get(l) || 0;
+      (lg > 0 ? lagList(list, lg / dur) : list).forEach(([f, v]) => {
         if(r > 0 && f === 0) return;                       // つなぎ目は 1つで いい
+        if(SHIGUSA_OPT.flip && (c === 'rot' || c === 'x')) v = -v;
         const val = c === 'sx' || c === 'sy' ? b[c] * v : b[c] + v;
         setPin(l, ch, t0 + (r + f) * dur, val, curve || 'smooth');
       });
@@ -236,10 +263,33 @@ export const SHIGUSA = [
  * 戻り値 … 動かした レイヤーの 数
  */
 export function applyShigusa(project, root, item, t0, reps){
-  const B = findParts(project, root);
+  const B0 = findParts(project, root);
+  const B = SHIGUSA_OPT.flip ? Object.assign({}, B0, { armR: B0.armL, armL: B0.armR }) : B0;
   const R = rec(t0, item.dur, Math.max(1, reps | 0));
+  LAG.clear();
+  const g = SHIGUSA_OPT.lag || 0;
+  if(g > 0){
+    if(B.head && B.head !== B.body) LAG.set(B.head, g);
+    [B.armR, B.armL].forEach(x => { if(x) LAG.set(x, g * 1.4); });
+    (B.hair || []).forEach(x => LAG.set(x, g * 1.8));
+  }
   item.fn(kit(R, charSize(project, B)), B);
-  return B;
+  LAG.clear();
+  if(SHIGUSA_OPT.hair > 0) softHair(B0.hair || [], SHIGUSA_OPT.hair);
+  return B0;
+}
+/** 髪を やわらかく ゆらす（🌀 ばねを つけて、かたさを さげる） */
+export function softHair(list, s){
+  const base = (PHYS_LOOKS.find(x => x[0] === '髪') || [0, {}])[1];
+  list.forEach(h => {
+    h.phys = Object.assign(newPhys(), base, {
+      on: true,
+      stiff: +(base.stiff * (1 - 0.65 * s)).toFixed(3),
+      damp: +(base.damp * (1 - 0.5 * s)).toFixed(3),
+      inertia: +(base.inertia * (1 + 1.5 * s)).toFixed(3),
+      twist: +Math.min(1, base.twist + 0.3 * s).toFixed(3)
+    });
+  });
 }
 
 /* ================= パーツの うごき（えらんだ 1まい） =================

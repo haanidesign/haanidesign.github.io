@@ -14,10 +14,10 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=404';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=404';
-import { setPin } from '../engine/anim.js?v=404';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=404';
+import { newSway } from '../engine/puppet.js?v=406';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=406';
+import { setPin } from '../engine/anim.js?v=406';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=406';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
