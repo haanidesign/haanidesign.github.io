@@ -6,10 +6,10 @@
      ・すける ところは すけた まま（WebP で しまう）
      ・作品の 長さいっぱい くり返す
    ほどき方 … ブラウザの ImageDecoder が あれば それ。なければ GIF だけ 自前で ほどく。 */
-import { S, addAsset } from '../state.js?v=408';
-import { newLayer } from '../engine/layer.js?v=408';
-import { loadImage } from './image.js?v=408';
-import { setPin } from '../engine/anim.js?v=408';
+import { S, addAsset } from '../state.js?v=410';
+import { newLayer } from '../engine/layer.js?v=410';
+import { loadImage } from './image.js?v=410';
+import { setPin } from '../engine/anim.js?v=410';
 
 const MAX_FRAMES = 300;
 const MAX_SIDE = 1080;

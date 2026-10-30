@@ -3,11 +3,11 @@
    こうすると、動かす・回す・塗る・ぼかす・ピンで曲げる が
    絵とまったく同じしくみで効く。文字を変えたら描き直すだけ。 */
 
-import { fontFamily as mjFamily, extraFonts } from '../moji/text.js?v=408';
-import { S, addAsset } from '../state.js?v=408';
-import { newLayer, groupInto } from '../engine/layer.js?v=408';
-import { M } from '../engine/math.js?v=408';
-import { loadImage } from './image.js?v=408';
+import { fontFamily as mjFamily, extraFonts } from '../moji/text.js?v=410';
+import { S, addAsset } from '../state.js?v=410';
+import { newLayer, groupInto } from '../engine/layer.js?v=410';
+import { M } from '../engine/math.js?v=410';
+import { loadImage } from './image.js?v=410';
 
 export const FONTS = [
   { key:'rounded', label:'まるゴシック', css:"'M PLUS Rounded 1c', sans-serif" },

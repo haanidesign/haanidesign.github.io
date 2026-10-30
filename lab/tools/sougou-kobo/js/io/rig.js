@@ -14,10 +14,10 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=408';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=408';
-import { setPin } from '../engine/anim.js?v=408';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=408';
+import { newSway } from '../engine/puppet.js?v=410';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=410';
+import { setPin } from '../engine/anim.js?v=410';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=410';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -194,6 +194,39 @@ function swayFor(l, set){
  * まとめ役の フォルダの 下 ぜんぶに、いまの 数字を かけ直す。
  *   root … 「うごき追加」で できた フォルダ（rig を 持って いる）
  */
+/* 🦴 骨キャラを キャラの うごきに 連動させる。
+   骨の 名前から 役（頭・髪・うで・体 …）を あてて、パペットと 同じ ゆれを 回転の キーで 入れる。
+   伸び縮みは しない（回転 だけ）。ひとまわりで ぴったり つながる。 */
+function driveHone(l, mix){
+  const h = l.hone; if(!h || !h.bones) return false;
+  const loop = Math.max(0.5, mix.loop || 4);
+  const byId = {}; h.bones.forEach(b => byId[b.id] = b);
+  let n = 0;
+  h.bones.forEach(b => {
+    if(!b.parent) return;
+    const role = roleOf(b.name); if(!role || !SWAY[role]) return;
+    const fake = { rigRole: role, name: b.name };
+    if(!swayFor(fake, mix)) return;
+    const sw = fake.sway;
+    /* 同じ 役の 骨が つづく（髪の 先 など）ほど おくれる */
+    let d = 0, p = byId[b.parent], g = 0;
+    while(p && roleOf(p.name) === role && g++ < 20){ d++; p = byId[p.parent]; }
+    const ph = sw.phase + d * (sw.delay || 0.25) * 0.4;
+    const key = 'H:' + b.id + ':rot';
+    l.tracks = l.tracks || {};
+    delete l.tracks[key];
+    if(!(sw.angle > 0.01)) return;
+    const steps = Math.max(8, Math.round(loop / sw.period) * 12);
+    for(let i = 0; i <= steps; i++){
+      const t = loop * i / steps;
+      setPin(l, key, +t.toFixed(4), +(sw.angle * Math.sin((t / sw.period + ph) * Math.PI * 2)).toFixed(3), 'smooth');
+    }
+    n++;
+  });
+  if(n) l.loop = { from: 0, to: +loop.toFixed(3), mode: 'loop' };
+  return n > 0;
+}
+
 export function applyRig(project, root){
   /* いれものは 作り直さない。
      作り直すと、つまみの 画面が 持って いる ものと 別ものに なり、
@@ -226,8 +259,14 @@ export function applyRig(project, root){
     soft: set.soft || 0, lag: set.lag || 0, flip: !!set.flip
   };
 
+  /* 骨キャラ 1まい だけで うごきを もって いる とき */
+  if(root.kind === 'hone'){ driveHone(root, mix); return; }
   let swayed = 0, breathOn = null, headOn = null;
   kids.forEach(l => {
+    /* 🦴 骨キャラも いっしょに 動かす */
+    if(l.kind === 'hone'){ if(driveHone(l, mix)) swayed++; return; }
+    /* あとから 入れた パペットなど、役が まだ ない ものは 名前から あてる */
+    if(!l.rigRole && l.kind !== 'folder' && l.pins && l.pins.length >= 2){ const r = roleOf(l.name); if(r) l.rigRole = r; }
     if(!l.rigRole) return;
     /* 前に つけた 味つけの キーフレームは 消してから */
     if(l.tracks){ delete l.tracks.rot; delete l.tracks.y; }
