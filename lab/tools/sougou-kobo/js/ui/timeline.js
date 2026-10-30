@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=418';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=418';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=419';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=419';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=418';
+         nearestFolder, setParent } from '../engine/layer.js?v=419';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=418';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=418';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=418';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=418';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=419';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=419';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=419';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=419';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -126,6 +126,9 @@ export function createTimeline(root, opts = {}){
   function build(){
     // 再生バー
     root.querySelector('#tnow').textContent = S.time.toFixed(1);
+    /* 指で 行を おさえて いる あいだは 行を 作りなおさない。
+       作りなおすと タブレットでは 指の うごきが そこで 切れて しまう */
+    if(S._tlHold){ updatePlayhead(); return; }
     ['#pickKeyDel', '#pinPickDel'].forEach(q => {
       const b = root.querySelector(q);
       if(b) b.hidden = !S.pick.length;
@@ -1122,6 +1125,7 @@ export function createTimeline(root, opts = {}){
       S.sel = l.id;
       clearPins();
       S.playing = false;
+      S._tlHold = true;
       const rect = track.getBoundingClientRect();
       const x0 = e.clientX, y0 = e.clientY;
       let moving = null, far = false;
@@ -1153,7 +1157,13 @@ export function createTimeline(root, opts = {}){
         moving = { t0: x2t(x0 - rect.left), snap0, min: isFinite(min) ? min : 0 };
         beginEdit('タイミングを ずらす');
         S._tlMove = l.id;
-        document.querySelectorAll('.trow').forEach(r => { if(r.dataset.id === l.id){ const t = r.querySelector('.track'); if(t) t.classList.add('tlmove'); } });
+        track.classList.add('tlmove');
+        /* ずれた 秒数を 行の 上に 出す */
+        const lab = document.createElement('div');
+        lab.className = 'tlmovelab';
+        lab.textContent = '⏱ 0.00秒';
+        track.appendChild(lab);
+        moving.lab = lab;
         toast('⏱ そのまま よこに 引っぱると ずれます');
         if(navigator.vibrate) navigator.vibrate(15);
       }, 450);
@@ -1169,11 +1179,16 @@ export function createTimeline(root, opts = {}){
           if(x._tkKey) x._tkKey = null;
         });
         m.dt = dt;
+        /* 行は 作りなおさない ので、キーの しるしを 見た目だけ ずらす */
+        const px = t2x(dt) - t2x(0);
+        track.querySelectorAll('.pin,.pinline,.span,.talkbar,.talkhold,.stretch').forEach(el => { el.style.transform = 'translateX(' + px.toFixed(1) + 'px)'; });
+        if(m.lab) m.lab.textContent = '⏱ ' + (dt >= 0 ? '+' : '') + dt.toFixed(2) + '秒';
         onChange();
       };
       scrub(e);
       const end = () => {
         clearTimeout(lp);
+        S._tlHold = false;
         window.removeEventListener('pointermove', scrub);
         window.removeEventListener('pointerup', end);
         window.removeEventListener('pointercancel', end);
@@ -1186,7 +1201,7 @@ export function createTimeline(root, opts = {}){
           else toast((moving.dt >= 0 ? '+' : '') + moving.dt.toFixed(2) + '秒 ずらしました');
           moving = null;
           onChange();
-        }
+        } else onChange();
       };
       /* 指の 行き先は window で 聞く（とちゅうで 行が 作りなおされても 取りこぼさない） */
       window.addEventListener('pointermove', scrub);

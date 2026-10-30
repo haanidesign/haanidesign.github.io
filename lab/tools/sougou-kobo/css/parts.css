@@ -1084,3 +1084,6 @@ input[type=range].coarse{
 .tlshift-r{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
 .tlshift-r button{ flex:1 1 auto; min-height:44px; border:2.5px solid #1E1C14; border-radius:12px; background:#FFFEF7; font:inherit; font-weight:800; }
 .tlshift-r button:first-child{ }
+
+.tlmovelab{ position:absolute; left:8px; top:50%; transform:translateY(-50%); background:#1E1C14; color:#FFFEF7; font-weight:800; font-size:.95rem; padding:2px 10px; border-radius:999px; pointer-events:none; z-index:3; }
+.track{ position:relative; }
