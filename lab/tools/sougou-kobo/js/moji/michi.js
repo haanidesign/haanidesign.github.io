@@ -4,7 +4,7 @@
    うごき … とめる・まわす（ぜんたいが 回る）・ながす（道の 上を 流れる）。
    600×600 の 場で 組んで、作品の 紙に おさまる 大きさで 描く。
    時間は レイヤーの「出す ところ」の はじまりが 0。 */
-import { newLayer } from '../engine/layer.js?v=406';
+import { newLayer } from '../engine/layer.js?v=408';
 
 export const MICHI_KINDS = [['circle', '円'], ['arc', '弧'], ['wave', '波'], ['spiral', 'うず'], ['line', '直線']];
 export const MICHI_FONTS = [

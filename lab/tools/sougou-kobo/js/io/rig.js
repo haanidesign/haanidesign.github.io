@@ -14,10 +14,10 @@
    あちらは その場で 動かして 見せる もの。ここは 動画に する ための
    道具なので、ゆれは この 道具が もともと 持って いる しくみに のせる。 */
 
-import { newSway } from '../engine/puppet.js?v=406';
-import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=406';
-import { setPin } from '../engine/anim.js?v=406';
-import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=406';
+import { newSway } from '../engine/puppet.js?v=408';
+import { newPhys, PHYS_LOOKS } from '../engine/phys.js?v=408';
+import { setPin } from '../engine/anim.js?v=408';
+import { setParent, moveAnchorKeepAll, newFolder } from '../engine/layer.js?v=408';
 
 /* 名前から あたりを つける。日本語も 英語も 見る。
    ならびは 大事 ―― 上に ある ものから 先に あてはめる
@@ -153,7 +153,10 @@ export function newRigSet(){
     gain: 1,        // ゆれの 強さ（ぜんたい）
     hair: 1,        // 髪だけ 強さ
     face: 1,        // 頭・うで・胸だけ 強さ
-    breath: 1       // いきの 深さ
+    breath: 1,      // いきの 深さ
+    soft: 0,        // 髪の やわらかさ（0〜1）
+    lag: 0,         // パーツの おくれ（0〜1。体から はなれる ほど おくれる）
+    flip: false     // 左右 反対
   };
 }
 
@@ -169,11 +172,20 @@ function swayFor(l, set){
      名前から 左右を 見て、はじまりを すこし ずらす */
   let phase = base.phase;
   if(l.rigRole === 'earring' && /右|みぎ|right|_r\b|R$/i.test(l.name || '')) phase += 0.18;
+  const isHair = HAIR_ROLES.includes(l.rigRole);
+  /* パーツの おくれ … 頭 < うで < 髪 の じゅんに おくれて ついて くる */
+  const lagK = { head: 0.5, armR: 0.8, armL: 0.8, arm: 0.8 }[l.rigRole] || (isHair ? 1.2 : 0.3);
+  phase += (set.lag || 0) * 0.35 * lagK;
+  /* 左右 反対 … ゆれの はじまりを 半分 ずらすと 逆むきに なる */
+  if(set.flip) phase += 0.5;
+  const soft = isHair ? (set.soft || 0) : 0;
   l.sway = Object.assign(newSway(), base, {
     on: true,
-    phase,
-    angle: Math.max(0, base.angle * k),
-    period: fitPeriod(base.period, set.loop)
+    phase: phase % 1,
+    angle: Math.max(0, base.angle * k * (1 + 0.5 * soft)),
+    /* やわらかい 髪は ゆっくり、先ほど 大きく おくれて しなる */
+    period: fitPeriod(base.period * (1 + 0.8 * soft), set.loop),
+    delay: Math.min(0.9, (base.delay == null ? 0.25 : base.delay) + 0.45 * soft)
   });
   return true;
 }
@@ -210,7 +222,8 @@ export function applyRig(project, root){
     gain: set.gain * (M.gain == null ? 1 : M.gain),
     hair: set.hair * (M.hair == null ? 1 : M.hair),
     face: set.face * (M.face == null ? 1 : M.face),
-    breath: set.breath * (M.breath == null ? 1 : M.breath)
+    breath: set.breath * (M.breath == null ? 1 : M.breath),
+    soft: set.soft || 0, lag: set.lag || 0, flip: !!set.flip
   };
 
   let swayed = 0, breathOn = null, headOn = null;
@@ -243,7 +256,7 @@ export function applyRig(project, root){
     if(!l || !(amp > 0.01)) return;
     const n = Math.max(1, Math.round(beat || 1));
     const per = Math.max(0.2, mix.loop / n);
-    const a = amp * mix.gain;
+    const a = amp * mix.gain * (mix.flip && kind !== 'bob' && ch === 'rot' ? -1 : 1);
     for(let i = 0; i < n; i++){
       const t0 = i * per;
       if(kind === 'bob'){
