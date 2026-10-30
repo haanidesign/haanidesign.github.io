@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=419';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=419';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=421';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=421';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=419';
+         nearestFolder, setParent } from '../engine/layer.js?v=421';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=419';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=419';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=419';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=419';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=421';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=421';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=421';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=421';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -511,6 +511,10 @@ export function createTimeline(root, opts = {}){
     /* --- 右：トラック --- */
     const track = document.createElement('div');
     track.className = 'track';
+    /* 🎞 レイヤーの 帯（アフターエフェクトの レイヤーバー と 同じ）。
+       まん中を 引っぱる … まるごと ずらす（キーフレームも いっしょ）
+       はしを 引っぱる … 出はじめ・出おわりを 切る */
+    if(l.kind !== 'audio' && !isCam(l)) layerBar(track, l);
 
     /* 拍の すじ（うすい たて線）。
        1本ずつ 部品に すると 数が 多く なるので、もようで 出す。 */
@@ -1208,6 +1212,77 @@ export function createTimeline(root, opts = {}){
       window.addEventListener('pointerup', end);
       window.addEventListener('pointercancel', end);
     });
+  }
+
+  /* ---------- 🎞 レイヤーの 帯 ---------- */
+  function layerBar(track, l){
+    const bar = document.createElement('div');
+    bar.className = 'lbar' + (l.id === S.sel ? ' sel' : '') + (l.span ? ' cut' : '');
+    const place = () => {
+      const a = l.span ? (l.span.from || 0) : 0;
+      const b = l.span && l.span.to != null ? l.span.to : S.proj.duration;
+      bar.style.left = t2x(a) + 'px';
+      bar.style.width = Math.max(14, t2x(b) - t2x(a)) + 'px';
+    };
+    place();
+    const hl = document.createElement('div'); hl.className = 'lbar-h L';
+    const hr = document.createElement('div'); hr.className = 'lbar-h R';
+    const lab = document.createElement('div'); lab.className = 'lbar-lab';
+    bar.append(hl, hr, lab);
+    bar.addEventListener('contextmenu', (e) => e.preventDefault());
+    bar.addEventListener('pointerdown', (e) => {
+      if(e.target.closest('.pin')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const mode = e.target === hl ? 'L' : e.target === hr ? 'R' : 'M';
+      const rect = track.getBoundingClientRect();
+      const x0 = e.clientX;
+      const from0 = l.span ? (l.span.from || 0) : 0;
+      const to0 = l.span && l.span.to != null ? l.span.to : S.proj.duration;
+      let applied = 0, moved = false;
+      S._tlHold = true;
+      S.sel = l.id;
+      beginEdit(mode === 'M' ? 'タイミングを ずらす' : '出る 長さを かえる');
+      const move = (ev) => {
+        if(!moved && Math.abs(ev.clientX - x0) < 4) return;
+        moved = true;
+        const dt = snap(x2t(ev.clientX - rect.left)) - snap(x2t(x0 - rect.left));
+        if(mode === 'M'){
+          applied += shiftBy(l, dt - applied);
+          const px = t2x(applied) - t2x(0);
+          track.querySelectorAll('.pin,.pinline').forEach(el => { el.style.transform = 'translateX(' + px.toFixed(1) + 'px)'; });
+          lab.textContent = (applied >= 0 ? '+' : '') + applied.toFixed(2) + '秒';
+        } else if(mode === 'L'){
+          const f = Math.max(0, Math.min(to0 - 0.05, from0 + dt));
+          l.span = { from: +f.toFixed(3), to: to0 >= S.proj.duration - 1e-3 ? null : to0 };
+          lab.textContent = 'はじまり ' + f.toFixed(2) + '秒';
+        } else {
+          const t = Math.max(from0 + 0.05, Math.min(S.proj.duration, to0 + dt));
+          const full = t >= S.proj.duration - 1e-3;
+          l.span = (from0 <= 1e-6 && full) ? null : { from: from0, to: full ? null : +t.toFixed(3) };
+          lab.textContent = 'おわり ' + t.toFixed(2) + '秒';
+        }
+        if(l._tkKey) l._tkKey = null;
+        bar.classList.add('drag');
+        place();
+        onChange();
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        S._tlHold = false;
+        commitEdit();
+        /* うごかさずに はなした … ふつうに その 時こくへ */
+        if(!moved){ S.time = snap(x2t(x0 - rect.left)); S.playing = false; }
+        if(moved && mode === 'M') toast((applied >= 0 ? '+' : '') + applied.toFixed(2) + '秒 ずらしました');
+        onChange();
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
+    });
+    track.appendChild(bar);
   }
 
   /* ---------- ⏱ タイミングを ボタンで ずらす まど ---------- */

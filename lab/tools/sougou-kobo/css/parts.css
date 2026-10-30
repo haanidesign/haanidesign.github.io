@@ -1087,3 +1087,14 @@ input[type=range].coarse{
 
 .tlmovelab{ position:absolute; left:8px; top:50%; transform:translateY(-50%); background:#1E1C14; color:#FFFEF7; font-weight:800; font-size:.95rem; padding:2px 10px; border-radius:999px; pointer-events:none; z-index:3; }
 .track{ position:relative; }
+
+/* 🎞 レイヤーの 帯 */
+.lbar{ position:absolute; top:5px; bottom:5px; background:#F2F0BE; border:2px solid #1E1C14; border-radius:8px; z-index:0; touch-action:none; cursor:grab; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+.lbar.sel{ background:#E1DD60; }
+.lbar.drag{ cursor:grabbing; }
+.lbar-h{ position:absolute; top:-2px; bottom:-2px; width:16px; background:#1E1C14; cursor:ew-resize; touch-action:none; }
+.lbar-h.L{ left:-2px; border-radius:7px 0 0 7px; }
+.lbar-h.R{ right:-2px; border-radius:0 7px 7px 0; }
+.lbar-h::after{ content:''; position:absolute; left:6px; top:30%; bottom:30%; width:4px; border-left:1.5px solid #FFFEF7; border-right:1.5px solid #FFFEF7; }
+.lbar-lab{ position:absolute; left:22px; top:50%; transform:translateY(-50%); font-size:.85rem; font-weight:800; white-space:nowrap; pointer-events:none; }
+.track .pin, .track .pinline{ z-index:2; }
