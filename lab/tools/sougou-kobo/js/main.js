@@ -1,29 +1,29 @@
 /* 起動と組み立て。 */
 
-import { initFavTools } from './ui/favtools.js?v=401';
-import { loadSavedFonts } from './moji/text.js?v=401';
-import { addAnimImageFile, mayAnimate } from './io/animimg.js?v=401';
-import './ui/uiscale.js?v=401';
-import { setJzRedraw } from './moji/jizura.js?v=401';
-import { setJzToast } from './moji/jzshim.js?v=401';
-import { duplicateLayers } from './engine/layer.js?v=401';
-import { createHoneUI } from './rig/honeui.js?v=401';
-import { isHone, newHoneLayer, setMouthSource } from './rig/hone.js?v=401';
-import { computeAll as computeAllH } from './engine/layer.js?v=401';
-import { createOverview } from './ui/overview.js?v=401';
-import { setMojiRedraw } from './moji/shim.js?v=401';
-import { BONE_KATA, kataStep } from './engine/bonekata.js?v=401';
-import { M } from './engine/math.js?v=401';
+import { initFavTools } from './ui/favtools.js?v=402';
+import { loadSavedFonts } from './moji/text.js?v=402';
+import { addAnimImageFile, mayAnimate } from './io/animimg.js?v=402';
+import './ui/uiscale.js?v=402';
+import { setJzRedraw } from './moji/jizura.js?v=402';
+import { setJzToast } from './moji/jzshim.js?v=402';
+import { duplicateLayers } from './engine/layer.js?v=402';
+import { createHoneUI } from './rig/honeui.js?v=402';
+import { isHone, newHoneLayer, setMouthSource } from './rig/hone.js?v=402';
+import { computeAll as computeAllH } from './engine/layer.js?v=402';
+import { createOverview } from './ui/overview.js?v=402';
+import { setMojiRedraw } from './moji/shim.js?v=402';
+import { BONE_KATA, kataStep } from './engine/bonekata.js?v=402';
+import { M } from './engine/math.js?v=402';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=401';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=402';
 import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=401';
-import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=401';
-import { createRenderer } from './render/renderer.js?v=401';
-import { createTimeline } from './ui/timeline.js?v=401';
-import { fmtTime, setPin } from './engine/anim.js?v=401';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=401';
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=402';
+import { createStage, finishKata, setKataNotify, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=402';
+import { createRenderer } from './render/renderer.js?v=402';
+import { createTimeline } from './ui/timeline.js?v=402';
+import { fmtTime, setPin } from './engine/anim.js?v=402';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=402';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -34,29 +34,29 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildShigusaSheet, buildPartsSheet, buildUtaSheet, buildMojiSheet, buildHayasaSheet, buildShiageSheet, buildTsunagiSheet, buildHoneMotionSheet, buildHoneFaceSheet, buildSozaiSheet, buildDanSheet, buildFudaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=401';
+         setWarper } from './ui/sheet.js?v=402';
 
-import { showNewDoc } from './ui/newdoc.js?v=401';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=401';
-import { fitToCanvas, isBg } from './io/bg.js?v=401';
-import * as Audio from './io/audio.js?v=401';
-import { isTalk, blipTimes } from './engine/talk.js?v=401';
+import { showNewDoc } from './ui/newdoc.js?v=402';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=402';
+import { fitToCanvas, isBg } from './io/bg.js?v=402';
+import * as Audio from './io/audio.js?v=402';
+import { isTalk, blipTimes } from './engine/talk.js?v=402';
 import { autoSaver, listDocs, loadDoc, deleteDoc, copyDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=401';
-import { importPsd } from './io/psd.js?v=401';
-import { buildEffectSheet } from './io/effect.js?v=401';
-import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=401';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=401';
-import { makeSabun } from './io/sabun.js?v=401';
-import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=401';
-import { splitTextChars } from './io/text.js?v=401';
-import { exportAE } from './io/ae.js?v=401';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=402';
+import { importPsd } from './io/psd.js?v=402';
+import { buildEffectSheet } from './io/effect.js?v=402';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=402';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=402';
+import { makeSabun } from './io/sabun.js?v=402';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=402';
+import { splitTextChars } from './io/text.js?v=402';
+import { exportAE } from './io/ae.js?v=402';
 import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=401';
-import { pathKeys, pathLength } from './engine/path.js?v=401';
-import { paintDirty } from './engine/paint.js?v=401';
+         canUseWebCodecs } from './io/export.js?v=402';
+import { pathKeys, pathLength } from './engine/path.js?v=402';
+import { paintDirty } from './engine/paint.js?v=402';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=401';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=402';
 
 const $ = (s) => document.querySelector(s);
 

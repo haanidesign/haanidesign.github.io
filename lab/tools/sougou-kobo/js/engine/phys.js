@@ -13,8 +13,8 @@
    作品を 直したら（もどす の 番号が かわったら）計算しなおす。
 
    計算の あいだは ばねを 切った 姿を 見る（物理の 入力は 親の 動き だけ）。 */
-import { swingShift } from '../render/trans.js?v=401';
-import { S, undoDepth } from '../state.js?v=401';
+import { swingShift } from '../render/trans.js?v=402';
+import { S, undoDepth } from '../state.js?v=402';
 
 export const DT = 1 / 60;
 const SUB = 4;                      // 1コマを さらに 細かく（かたい ばねでも くずれない）
