@@ -9,8 +9,8 @@
    回転は 度、上下は 画面の 下が プラス。
 
    キーは いまの 時こくから 1回ぶん。くり返す ときは 回数ぶん ならべる。 */
-import { setPin } from './anim.js?v=421';
-import { newPhys, PHYS_LOOKS } from './phys.js?v=421';
+import { setPin } from './anim.js?v=422';
+import { newPhys, PHYS_LOOKS } from './phys.js?v=422';
 
 /* しぐさを つける ときの おまけ。
    flip … 左右 反対（回転と よこの 動きを 逆に、右うでと 左うでを 入れかえ）

@@ -364,3 +364,27 @@ function vignetteColor({ g, W, H }, amt, col){
   g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = amt;
   g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore();
 }
+
+/* 🎬 映画の 黒帯（レターボックス）。画面の 上と 下に 帯を 出す。
+   project.cine = { on, size（帯 1本の 高さ、画面の 何わり）, color, slide（すっと 出る）, inDur } */
+export function newCine(){ return { on: true, size: 0.12, color: '#000000', slide: true, inDur: 0.8 }; }
+export function drawCine(ctx, project, tf, time){
+  const c = project.cine;
+  if(!c || !c.on || !(c.size > 0)) return;
+  const z = Math.abs(tf[0]);
+  const x0 = tf[4], y0 = tf[5], pw = project.w * z, ph = project.h * z;
+  let k = 1;
+  if(c.slide){
+    const d = Math.max(0.05, c.inDur || 0.8), p = Math.min(1, Math.max(0, time / d));
+    k = 1 - Math.pow(1 - p, 3);
+  }
+  const bh = ph * c.size * k;
+  if(bh < 0.5) return;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+  ctx.fillStyle = c.color || '#000000';
+  ctx.fillRect(Math.floor(x0), Math.floor(y0), Math.ceil(pw), Math.ceil(bh));
+  ctx.fillRect(Math.floor(x0), Math.floor(y0 + ph - bh), Math.ceil(pw), Math.ceil(bh) + 1);
+  ctx.restore();
+}

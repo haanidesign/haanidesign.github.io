@@ -3,30 +3,30 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=421';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=421';
-import { liveMasks } from '../engine/mask.js?v=421';
-import { valuesAt } from '../engine/anim.js?v=421';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=421';
+         nearestFolder } from '../engine/layer.js?v=422';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=422';
+import { liveMasks } from '../engine/mask.js?v=422';
+import { valuesAt } from '../engine/anim.js?v=422';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=422';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=421';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=421';
-import { paintCanvas } from '../engine/paint.js?v=421';
-import { panoCanvas } from '../engine/pano.js?v=421';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=421';
-import { roomCanvas } from '../engine/room.js?v=421';
-import { talkCanvas } from '../engine/talk.js?v=421';
-import { applyFx } from './fx.js?v=421';
-import { drawTrans, swingE } from './trans.js?v=421';
-import { mojiCanvas } from '../moji/moji.js?v=421';
-import { ugokuCanvas } from '../engine/ugoku.js?v=421';
-import { jzCanvas } from '../moji/jizura.js?v=421';
-import { telopCanvas } from '../moji/telop.js?v=421';
-import { michiCanvas } from '../moji/michi.js?v=421';
-import { honeCanvas } from '../rig/hone.js?v=421';
-import { homography, applyH } from '../engine/warp.js?v=421';
-import { drawCamView } from './camview.js?v=421';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=421';
+         meshSizeFor } from '../engine/puppet.js?v=422';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=422';
+import { paintCanvas } from '../engine/paint.js?v=422';
+import { panoCanvas } from '../engine/pano.js?v=422';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=422';
+import { roomCanvas } from '../engine/room.js?v=422';
+import { talkCanvas } from '../engine/talk.js?v=422';
+import { applyFx, drawCine } from './fx.js?v=422';
+import { drawTrans, swingE } from './trans.js?v=422';
+import { mojiCanvas } from '../moji/moji.js?v=422';
+import { ugokuCanvas } from '../engine/ugoku.js?v=422';
+import { jzCanvas } from '../moji/jizura.js?v=422';
+import { telopCanvas } from '../moji/telop.js?v=422';
+import { michiCanvas } from '../moji/michi.js?v=422';
+import { honeCanvas } from '../rig/hone.js?v=422';
+import { homography, applyH } from '../engine/warp.js?v=422';
+import { drawCamView } from './camview.js?v=422';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=422';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -2315,6 +2315,8 @@ function flatMesh(w, h){
 
     /* 🎞 画面の 仕上げ（グリッチ・フィルム・拍で フラッシュ など）。書き出しにも 入る */
     if(project.fx && !opts.noFx) applyFx(ctx, project, tf, time, { light: !opts.forExport && !!S.playing && project.quality === 'light' });
+    /* 🎬 映画の 黒帯。いちばん 上に のせる（書き出しにも 入る） */
+    if(project.cine && !opts.noFx) drawCine(ctx, project, tf, time);
 
     if(showOut){
       /* 見えて いる ところ ぜんぶ（キャンバスざひょう）を 出して、
