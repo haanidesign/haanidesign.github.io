@@ -1,10 +1,10 @@
 /* JPEG / PNG の読み込み。
    PNG を複数枚まとめて選んだときは、名前順に並べて1レイヤーのコマ列にする。 */
 
-import { S, addAsset, edit, WORK_KEYS } from '../state.js?v=423';
-import { newLayer } from '../engine/layer.js?v=423';
-import { pinChX, pinChY, warpChX, warpChY, maskChX, maskChY, valuesAt } from '../engine/anim.js?v=423';
-import { masksOf } from '../engine/mask.js?v=423';
+import { S, addAsset, edit, WORK_KEYS } from '../state.js?v=424';
+import { newLayer } from '../engine/layer.js?v=424';
+import { pinChX, pinChY, warpChX, warpChY, maskChX, maskChY, valuesAt } from '../engine/anim.js?v=424';
+import { masksOf } from '../engine/mask.js?v=424';
 
 /** File を dataURL にする */
 export function readAsDataURL(file){

@@ -1098,3 +1098,26 @@ input[type=range].coarse{
 .lbar-h::after{ content:''; position:absolute; left:6px; top:30%; bottom:30%; width:4px; border-left:1.5px solid #FFFEF7; border-right:1.5px solid #FFFEF7; }
 .lbar-lab{ position:absolute; left:22px; top:50%; transform:translateY(-50%); font-size:.85rem; font-weight:800; white-space:nowrap; pointer-events:none; }
 .track .pin, .track .pinline{ z-index:2; }
+
+/* 🗺 骨の つながり図 */
+.hmap-back{ position:fixed; inset:0; z-index:300; background:rgba(30,28,20,.35); }
+.hmap{ position:fixed; inset:4% 3%; z-index:301; display:flex; flex-direction:column; background:#FFFEF7; border:2.5px solid #1E1C14; border-radius:18px; overflow:hidden; }
+.hmap-bar{ display:flex; align-items:center; gap:.7rem; padding:.6rem .9rem; border-bottom:2.5px solid #1E1C14; background:#F2F0BE; }
+.hmap-bar b{ font-size:1.05rem; }
+.hmap-hint{ flex:1; font-size:.9rem; color:#5a574a; }
+.hmap-bar button{ min-height:40px; border:2.5px solid #1E1C14; border-radius:12px; background:#FFFEF7; font:inherit; font-weight:800; padding:0 .8rem; }
+.hmap-scroll{ flex:1; overflow:auto; -webkit-overflow-scrolling:touch; background-image:radial-gradient(circle, rgba(30,28,20,.12) 1.5px, transparent 1.6px); background-size:18px 18px; }
+.hmap-stage{ position:relative; min-width:100%; min-height:100%; }
+.hmap-lines{ position:absolute; left:0; top:0; pointer-events:none; }
+.hnd{ position:absolute; width:200px; background:#FFFEF7; border:2.5px solid #1E1C14; border-radius:12px; padding:4px; -webkit-user-select:none; user-select:none; touch-action:none; cursor:grab; }
+.hnd.sel{ background:#E1DD60; }
+.hnd.spring{ border-style:dashed; }
+.hnd.drop{ outline:3px solid #F2A0B8; outline-offset:2px; }
+.hnd-h{ display:flex; align-items:center; gap:4px; min-height:30px; padding:0 4px; font-weight:800; }
+.hnd-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hnd-acts{ display:flex; gap:3px; }
+.hnd-act{ display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border:2px solid #1E1C14; border-radius:8px; background:#FFFEF7; font-size:.85rem; cursor:pointer; }
+.hnd-act.on{ background:#F2A0B8; }
+.hnd-l{ margin:3px 2px 0; padding:4px 8px; border-radius:8px; background:#F2F0BE; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hnd-l.sel{ background:#E1DD60; outline:2px solid #1E1C14; }
+.hmap-ghost{ position:fixed; z-index:400; transform:translate(-50%,-120%); background:#1E1C14; color:#FFFEF7; padding:4px 10px; border-radius:999px; font-weight:800; pointer-events:none; white-space:nowrap; }

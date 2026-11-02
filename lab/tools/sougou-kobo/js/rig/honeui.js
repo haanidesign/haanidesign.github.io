@@ -12,13 +12,14 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=423';
-import { computeAll } from '../engine/layer.js?v=423';
-import { setPin } from '../engine/anim.js?v=423';
-import { M } from './core.js?v=423';
-import { paintWeight } from './core.js?v=423';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=424';
+import { computeAll } from '../engine/layer.js?v=424';
+import { setPin } from '../engine/anim.js?v=424';
+import { M } from './core.js?v=424';
+import { paintWeight } from './core.js?v=424';
 import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
-         addIK, autoBonesFromNames, SOFT } from './hone.js?v=423';
+         addIK, autoBonesFromNames, SOFT } from './hone.js?v=424';
+import { openHoneMap } from './honemap.js?v=424';
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -397,6 +398,16 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     toast(n ? n + '本の 骨を 組みました（髪・しっぽは ばね つき）' : '名前から わかる パーツが ありませんでした（体・頭・腕・脚・髪 …）');
     onChange();
   });
+  /* 🗺 つながり図（ミニSpine と 同じ） */
+  const map = mk('🗺 つながり図', '骨と パーツの つながりを 図で 見る。ドラッグで つけかえ', () => {
+    const l = layer(); if(!l) return;
+    openHoneMap(l, {
+      selBone, selSlot,
+      onSelect(b, s){ selBone = b; selSlot = s; redraw(); },
+      onChange(){ onChange(); },
+      toast
+    });
+  });
   let onFace = () => {};
   const face = mk('👁 目・口', '目(開)・目(閉)・口(開)・口(閉) の パーツを きめる（まばたき・口ぱく）', () => onFace());
   const animNote = document.createElement('span');
@@ -412,7 +423,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     tabAnim.classList.toggle('on', p === 'anim');
     tools.innerHTML = '';
     if(p === 'setup'){
-      tools.append(btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, spring, auto, face, rename, del);
+      tools.append(map, btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, spring, auto, face, rename, del);
       const l = layer();
       setTool(l && l.hone.bones.length < 2 ? 'add' : 'setup', quiet);
     } else {
