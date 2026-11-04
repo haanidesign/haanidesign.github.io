@@ -1,13 +1,13 @@
 /* コマ割り表。台本（ネームの 表）を はると、ページ・コマ割り・キャラ・フキダシを いっぺんに 作る。 */
-import { S, $, clamp, blankProj, toast, buzz, edit, undo, redo, canUndo, canRedo, resetHist, setOnChange } from './state.js?v=2';
-import { parseScript } from './parse.js?v=2';
-import { sheetsOf, sheetSVG, PW, PH } from './render.js?v=2';
-import { loadProj, autoSave } from './store.js?v=2';
-import { exportZip, svgToPng, download, safeName } from './export.js?v=2';
-import { SAMPLE } from './sample.js?v=2';
-import * as Panel from './panel.js?v=2';
-import { watchRanges } from './rslider.js?v=2';
-import { aiConf, listModels, chat, toTable, direct, applyDirect, castLook, applyCast } from './ai.js?v=2';
+import { S, $, clamp, blankProj, toast, buzz, edit, undo, redo, canUndo, canRedo, resetHist, setOnChange } from './state.js?v=3';
+import { parseScript } from './parse.js?v=3';
+import { sheetsOf, sheetSVG, PW, PH } from './render.js?v=3';
+import { loadProj, autoSave } from './store.js?v=3';
+import { exportZip, svgToPng, download, safeName } from './export.js?v=3';
+import { SAMPLE } from './sample.js?v=3';
+import * as Panel from './panel.js?v=3';
+import { watchRanges } from './rslider.js?v=3';
+import { aiConf, listModels, chat, toTable, direct, applyDirect, castLook, applyCast } from './ai.js?v=3';
 
 /* ---------- 画面の たかさ ---------- */
 function appH() {

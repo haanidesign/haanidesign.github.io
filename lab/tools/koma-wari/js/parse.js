@@ -14,7 +14,7 @@
      タイトル：『…』               … 大きな 字
      「（…）」                      … こころの 声 */
 
-import { EXPR, POSE } from './figure.js?v=2';
+import { EXPR, POSE } from './figure.js?v=3';
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 const BR = /<br\s*\/?>/gi;
@@ -216,13 +216,13 @@ export function makeCast(pages, old = []) {
 }
 
 /* 文の 中で、ことばに いちばん 近い 名前を さがす */
-function nearestName(sent, idx, names) {
+function nearestName(sent, idx, names, klen = 0) {
   let best = null, bd = 1e9;
   for (const n of names) {
     let i = sent.indexOf(n);
     while (i >= 0) {
       if (sent.startsWith('より', i + n.length)) { i = sent.indexOf(n, i + 1); continue; }   // 「Aより 背が高い」は A では ない
-      const d = i > idx ? i - idx : idx - (i + n.length);
+      const d = i >= idx ? i - (idx + klen) : idx - (i + n.length);
       if (d < bd) { bd = d; best = n; }
       i = sent.indexOf(n, i + 1);
     }
@@ -232,11 +232,10 @@ function nearestName(sent, idx, names) {
 function sentences(t) { return String(t || '').split(/[。\n]/).map(s => s.trim()).filter(Boolean); }
 
 const LOOK = [
-  [/着ぐるみ|マスコット|ゆるキャラ|球体|まん丸|の羽|くちばし/, c => { c.kind = 'mascot'; c.tone = c.tone || 'white'; c.hair = 'none'; }],
   [/金髪|白髪|銀髪|ブリーチ|茶髪/, c => { c.tone = 'white'; }],
   [/黒髪/, c => { c.tone = 'black'; }],
   [/ウルフ/, c => { c.hair = 'wolf'; }],
-  [/天然パーマ|くせ毛|ふわっと|もじゃ/, c => { c.hair = 'curl'; }],
+  [/天然パーマ|くせ毛|もじゃ/, c => { c.hair = 'curl'; }],
   [/おだんご/, c => { c.hair = 'odango'; }],
   [/ぱっつん/, c => { c.hair = 'bang'; }],
   [/ロング|長い髪|ポニーテール/, c => { c.hair = 'long'; }],
@@ -246,13 +245,24 @@ const LOOK = [
   [/背が低|小柄|背伸び/, c => { c.h = Math.min(c.h, .95); }],
 ];
 function guessLook(c, i, memos, names) {
-  for (const memo of memos) for (const s of sentences(memo)) {
-    if (!s.includes(c.name)) continue;
-    for (const [re, fn] of LOOK) {
-      const m = s.match(re);
-      if (m && nearestName(s, m.index, names) === c.name) fn(c);
+  // マスコット … 名前の すぐ あとに「着ぐるみ・羽・くちばし」が 2回 いじょう、
+  //               または「名前（マスコット）」の ように はっきり 書いて ある とき
+  const nm = c.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const near = new RegExp(nm + '[のがは（(]?(着ぐるみ|羽|くちばし|マスコット|ゆるキャラ)', 'g');
+  const sure = new RegExp(nm + '[（(]?(マスコット|着ぐるみ|ゆるキャラ)');
+  let hits = 0, isSure = false;
+  for (const memo of memos) {
+    hits += (memo.match(near) || []).length;
+    if (sure.test(memo)) isSure = true;
+    for (const s of sentences(memo)) {
+      if (!s.includes(c.name)) continue;
+      for (const [re, fn] of LOOK) {
+        const m = s.match(re);
+        if (m && nearestName(s, m.index, names, m[0].length) === c.name) fn(c);
+      }
     }
   }
+  if (isSure || hits >= 2) { c.kind = 'mascot'; c.hair = 'none'; c.tone = c.tone || 'white'; c.h = Math.max(c.h, 1); }
   if (/子ども|子供|女の子|男の子|幼|赤ちゃん|ちびっこ/.test(c.name)) c.h = .7;
   const HAIR_CYCLE = ['short', 'ahoge', 'bang', 'spike', 'long', 'odango'];
   if (!c.hair) c.hair = HAIR_CYCLE[i % HAIR_CYCLE.length];
@@ -351,7 +361,7 @@ export function autoPanel(p, cast) {
       for (const [re, v] of keys) {
         const m = s.match(re);
         if (!m) continue;
-        const who = nearestName(s, m.index, figs.map(f => nameOf(f.id)));
+        const who = nearestName(s, m.index, figs.map(f => nameOf(f.id)), m[0].length);
         const f = who ? fig(who) : figs[0];
         if (!f || done.has(f)) continue;
         f[field] = v; done.add(f);
