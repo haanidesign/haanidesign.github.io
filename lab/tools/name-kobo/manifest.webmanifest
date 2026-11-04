@@ -1,0 +1,17 @@
+{
+  "name": "ネーム工房",
+  "short_name": "ネーム工房",
+  "description": "台本から ネームの コマ割りを 作る 道具。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FFFEF7",
+  "theme_color": "#E1DD60",
+  "icons": [
+    { "src": "icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-mask.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
