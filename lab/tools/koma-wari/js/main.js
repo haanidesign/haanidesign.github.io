@@ -1,4 +1,4 @@
-/* ネーム工房。台本（ネームの 表）を はると、ページ・コマ割り・キャラ・フキダシを いっぺんに 作る。 */
+/* コマ割り表。台本（ネームの 表）を はると、ページ・コマ割り・キャラ・フキダシを いっぺんに 作る。 */
 import { S, $, clamp, blankProj, toast, buzz, edit, undo, redo, canUndo, canRedo, resetHist, setOnChange } from './state.js?v=1';
 import { parseScript } from './parse.js?v=1';
 import { sheetsOf, sheetSVG, PW, PH } from './render.js?v=1';
@@ -307,7 +307,7 @@ function wire() {
   });
   // 下の 帯の 高さ（上の ふちの つまみ）
   const grip = $('#listGrip'), list = $('#list');
-  try { const h = +localStorage.getItem('name-kobo:listH'); if (h > 80) list.style.height = h + 'px'; } catch (e) { }
+  try { const h = +localStorage.getItem('koma-wari:listH'); if (h > 80) list.style.height = h + 'px'; } catch (e) { }
   let gy = null, gh = 0;
   grip.addEventListener('pointerdown', e => { grip.setPointerCapture(e.pointerId); gy = e.clientY; gh = list.getBoundingClientRect().height; });
   grip.addEventListener('pointermove', e => {
@@ -318,7 +318,7 @@ function wire() {
   grip.addEventListener('pointerup', () => {
     if (gy == null) return;
     gy = null;
-    try { localStorage.setItem('name-kobo:listH', String(Math.round(list.getBoundingClientRect().height))); } catch (e) { }
+    try { localStorage.setItem('koma-wari:listH', String(Math.round(list.getBoundingClientRect().height))); } catch (e) { }
     fit();
   });
 }

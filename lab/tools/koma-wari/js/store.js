@@ -1,6 +1,6 @@
 /* 作品を 端末の 中（IndexedDB）に しまう。手が 止まる たびに しまう。 */
 
-const DB = 'name-kobo', ST = 'kv';
+const DB = 'koma-wari', ST = 'kv';
 
 function open() {
   return new Promise((ok, ng) => {

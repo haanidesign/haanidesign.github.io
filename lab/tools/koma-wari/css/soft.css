@@ -562,7 +562,7 @@ hr,.sep{ border-color:var(--line); }
 #clipbar{ background:var(--paper); border:1px solid var(--line); box-shadow:0 4px 12px rgba(30,28,20,.14); }
 #clipbar .cb{ box-shadow:none; border:1px solid var(--line); }
 
-/* ネーム工房：つまみ・下の 帯 */
+/* コマ割り表：つまみ・下の 帯 */
 .rs-track{ border:0; background:var(--fill2, #EAE7D2); height:8px; margin-top:-4px; }
 .rs-knob{ width:20px; height:20px; margin:-10px 0 0 -10px; border:0; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(16,17,20,.3), 0 0 0 1px rgba(16,17,20,.06); }
 .rs.drag .rs-knob{ background:var(--main); }

@@ -1,6 +1,6 @@
 {
-  "name": "ネーム工房",
-  "short_name": "ネーム工房",
+  "name": "コマ割り表",
+  "short_name": "コマ割り表",
   "description": "台本から ネームの コマ割りを 作る 道具。",
   "lang": "ja",
   "start_url": "./index.html",

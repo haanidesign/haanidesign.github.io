@@ -12,7 +12,7 @@
      そのかわり 電波が 無い ときも 前に 見た ぶんは ひらける。 */
 
 const VER = 'v1';
-const BOX = 'name-kobo-' + VER;
+const BOX = 'koma-wari-' + VER;
 
 self.addEventListener('install', (e) => {
   // すぐ 入れかわる（古いのを 待たない）
@@ -23,7 +23,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     // 古い しまい場所を 片づける
     const names = await caches.keys();
-    await Promise.all(names.map(n => n.startsWith('name-kobo-') && n !== BOX
+    await Promise.all(names.map(n => n.startsWith('koma-wari-') && n !== BOX
       ? caches.delete(n) : null));
     await self.clients.claim();
   })());
