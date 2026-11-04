@@ -1,7 +1,7 @@
 /* ページを SVG に する。
    見開きで 見る ときは 右に 偶数ページ、左に 奇数ページ（1ページ目は 左に ひとり）。 */
-import { PW, PH, M, frameOf, layoutPanels, layoutSpread, bbox } from './layout.js?v=1';
-import { figuresSVG, N } from './figure.js?v=1';
+import { PW, PH, M, frameOf, layoutPanels, layoutSpread, bbox } from './layout.js?v=2';
+import { figuresSVG, N } from './figure.js?v=2';
 
 const INK = '#1E1C14', RED = '#E4586A', BLUE = '#9EC8E0';
 const FONT = `'M PLUS Rounded 1c','Hiragino Maru Gothic ProN','Hiragino Sans','Yu Gothic','Meiryo',sans-serif`;

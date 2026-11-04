@@ -8,20 +8,20 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex">
 <title>コマ割り表</title>
-<link rel="manifest" href="manifest.webmanifest?v=1">
+<link rel="manifest" href="manifest.webmanifest?v=2">
 <link rel="icon" href="icons/icon.svg">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css?v=1">
-<link rel="stylesheet" href="css/layout.css?v=1">
-<link rel="stylesheet" href="css/parts.css?v=1">
+<link rel="stylesheet" href="css/tokens.css?v=2">
+<link rel="stylesheet" href="css/layout.css?v=2">
+<link rel="stylesheet" href="css/parts.css?v=2">
 <!-- 共通の 見た目で つかう 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- はぁにラボ 共通の 見た目（さいごに 読む） -->
 <link rel="stylesheet" href="../skin/soft.css?v=11">
-<link rel="stylesheet" href="css/soft.css?v=1">
+<link rel="stylesheet" href="css/soft.css?v=2">
 <script type="module" src="../skin/icons.js?v=8"></script>
 </head>
 <body>
@@ -31,7 +31,7 @@
   <div id="top">
     <button class="name" id="home" title="コマ割り表">コマ割り表</button>
     <button class="size dot" id="docName" title="さくひんの 名前">むだい</button>
-    <button class="ver dot" id="ver" title="この版の ばんごう。おすと さいしんに します">v1</button>
+    <button class="ver dot" id="ver" title="この版の ばんごう。おすと さいしんに します">v2</button>
     <button class="size dot" id="docSize" title="ページ数">—</button>
     <span class="spacer"></span>
     <button id="undo" class="btn-sm" title="もどす（2本指で たたいても もどせます）" aria-label="もどす" disabled>↶</button>
@@ -64,6 +64,7 @@
     <button class="tool" data-k="cast"><i>😊</i>キャラ</button>
     <button class="tool" data-k="panel"><i>⬛</i>コマ</button>
     <button class="tool" data-k="page"><i>📄</i>ページ</button>
+    <button class="tool" data-k="ai"><i>🪄</i>AI</button>
     <button class="tool" data-k="view"><i>👁</i>表示</button>
     <button class="tool" data-k="file"><i>📂</i>さくひん</button>
   </div>
@@ -80,7 +81,8 @@
 <div id="busy"><div class="card">
   <b id="busyMsg">書き出して います</b>
   <div class="bar"><span id="busyFill"></span></div>
-  <span id="busyPct" class="dot">0%</span>
+  <span id="busyPct" class="dot"></span>
+  <button id="busyCancel" class="btn-sm" type="button" hidden>やめる</button>
 </div></div>
 
 <!-- うまく 立ち上がらなかった ときの 知らせ -->
@@ -132,6 +134,6 @@
 <div id="toast" role="status" aria-live="polite"></div>
 <!-- Android の ファイル選びは accept の 拡張子を 見ない ことが ある ので しぼりこまない -->
 <input type="file" id="fileIn" hidden>
-<script type="module" src="js/main.js?v=1"></script>
+<script type="module" src="js/main.js?v=2"></script>
 </body>
 </html>

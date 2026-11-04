@@ -3,10 +3,11 @@
 
    シートは 変える たびに 作り直す。つまみの 値は 作品の 中に 持つ
    （シートの 中に 写しを 持つと 作り直した とたん 効かなく なる）。 */
-import { S, $, edit, beginEdit, commitEdit, toast, selPanel } from './state.js?v=1';
-import { SIZES, SHOTS, EXPR_NAMES, POSE_NAMES, parseLines, linesToText, autoPanel, newPanel, newPage, uid } from './parse.js?v=1';
-import { HAIRS, TONES, faceChip } from './figure.js?v=1';
-import { sheetsOf } from './render.js?v=1';
+import { S, $, edit, beginEdit, commitEdit, toast, selPanel } from './state.js?v=2';
+import { SIZES, SHOTS, EXPR_NAMES, POSE_NAMES, parseLines, linesToText, autoPanel, newPanel, newPage, uid } from './parse.js?v=2';
+import { HAIRS, TONES, faceChip } from './figure.js?v=2';
+import { sheetsOf } from './render.js?v=2';
+import { aiConf, saveConf, blocked } from './ai.js?v=2';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;
@@ -32,7 +33,7 @@ export function close() {
 }
 export const isOpen = () => docked() || sheetOn;
 
-const TITLES = { script: '台本', cast: 'キャラ', panel: 'コマ', page: 'ページ', view: '表示', file: 'さくひん', help: 'つかいかた' };
+const TITLES = { ai: 'AI', script: '台本', cast: 'キャラ', panel: 'コマ', page: 'ページ', view: '表示', file: 'さくひん', help: 'つかいかた' };
 
 export function draw() {
   document.querySelectorAll('#tools .tool').forEach(b => b.classList.toggle('on', b.dataset.k === S.kind && isOpen()));
@@ -45,7 +46,7 @@ export function draw() {
     h.append(el('span', 'title', TITLES[S.kind] || 'せってい'), el('span', 'spacer'), btn('とじる', 'btn-sm btn-g', close));
     box.appendChild(h);
   } else $('#propTtl').textContent = TITLES[S.kind] || 'せってい';
-  const f = { script, cast, panel, page, view, file, help }[S.kind] || panel;
+  const f = { script, cast, panel, page, view, file, help, ai }[S.kind] || panel;
   box.appendChild(f());
   box.scrollTop = keep;
 }
@@ -117,7 +118,9 @@ function script() {
   );
   w.appendChild(rb);
   const rb2 = el('div', 'rowbtns');
-  rb2.append(btn('見本を 入れる', '', () => { t.value = api.sample(); }));
+  rb2.append(
+    btn('🪄 AIで 表に する', '', async () => { const out = await api.aiTable(t.value); if (out) { t.value = out; toast('できた 表を 見てから「読みこむ」を おして ください'); } }, 'あらすじや ふつうの 台本を、読める 表に 書きなおします'),
+    btn('見本を 入れる', '', () => { t.value = api.sample(); }));
   w.appendChild(rb2);
   w.appendChild(note(
     '読める 形\n' +
@@ -219,7 +222,9 @@ function panel() {
   const memo = textarea(p.memo, 3);
   memo.addEventListener('change', () => edit('メモ', () => { p.memo = memo.value; }));
   w.appendChild(memo);
-  w.appendChild(row(null, btn('メモから 決めなおす', 'btn-sm', () => edit('決めなおす', () => { autoPanel(p, P.cast); }), '出る人・顔・ポーズを メモから もう一度 決めます')));
+  w.appendChild(row(null,
+    btn('メモから 決めなおす', 'btn-sm', () => edit('決めなおす', () => { autoPanel(p, P.cast); }), '出る人・顔・ポーズを メモから もう一度 決めます'),
+    btn('🪄 AIで このコマ', 'btn-sm', () => api.aiDirect('panel'), 'AI に 出る人・顔・ポーズ・うつりを 考えて もらいます')));
 
   w.appendChild(h2('セリフ（1行に 1つ）'));
   const ln = textarea(linesToText(p.lines), 4, 'ヒナタ：「セリフ」\n効果音：`ドン`');
@@ -355,5 +360,35 @@ function help() {
   <p>ページごとの PNG を ZIP に まとめます。見開きは 2まいに 分けます。</p>
   <h3>ゆび</h3>
   <ul><li>2本指で トン … もどす</li><li>3本指で トン … やりなおし</li><li>2本指で つまむ … 大きく／小さく</li></ul>`;
+  return w;
+}
+
+/* ---------- AI ---------- */
+let MODELS = [];
+function ai() {
+  const w = el('div');
+  const c = aiConf();
+  w.appendChild(h2('つなぐ AI'));
+  const url = el('input'); url.value = c.url; url.placeholder = 'http://192.168.0.10:11434/v1';
+  url.addEventListener('change', () => { saveConf({ ...aiConf(), url: url.value.trim() }); MODELS = []; draw(); });
+  w.appendChild(row('入口', url));
+  const list = MODELS.length ? MODELS : (c.model ? [c.model] : []);
+  const ms = select(['（さいしょの もの）', ...list], c.model || '（さいしょの もの）', v => saveConf({ ...aiConf(), model: v.startsWith('（') ? '' : v }));
+  w.appendChild(row('モデル', ms, btn('🔄', 'btn-sm', async () => { const m = await api.aiModels(); if (m) { MODELS = m; draw(); toast(m.length + 'こ 見つかりました'); } }, 'モデルの 一覧を 読む')));
+  const key = el('input'); key.type = 'password'; key.value = c.key; key.placeholder = 'いらない ときは 空で';
+  key.addEventListener('change', () => saveConf({ ...aiConf(), key: key.value.trim() }));
+  w.appendChild(row('キー', key));
+  w.appendChild(row(null, btn('つながるか ためす', 'btn-sm', () => api.aiTest())));
+  if (blocked(c)) w.appendChild(note('いまの ページは https なので http の AI に つながりません\nランチャー（http）から ひらいて ください'));
+
+  w.appendChild(h2('AI に まかせる'));
+  const r1 = el('div', 'rowbtns');
+  r1.append(btn('🪄 ぜんぶの コマ', 'btn-y', () => api.aiDirect('all'), '出る人・顔・ポーズ・うつりを ぜんぶの コマで 考えます'),
+    btn('🪄 この ページ', '', () => api.aiDirect('sheet')));
+  w.appendChild(r1);
+  const r2 = el('div', 'rowbtns');
+  r2.append(btn('🪄 キャラの 見た目', '', () => api.aiCast(), '髪がた・髪の 色・背を 絵の 説明から 決めます'));
+  w.appendChild(r2);
+  w.appendChild(note('「台本」の「AIで 表に する」で、あらすじを 表に できます\nAI の 結果は「もどす」で 1回で もどせます\n\nつながらない とき\nOllama … OLLAMA_ORIGINS=* を つけて 起動\nLM Studio … サーバーの CORS を オン'));
   return w;
 }

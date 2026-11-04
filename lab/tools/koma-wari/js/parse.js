@@ -14,7 +14,7 @@
      タイトル：『…』               … 大きな 字
      「（…）」                      … こころの 声 */
 
-import { EXPR, POSE } from './figure.js?v=1';
+import { EXPR, POSE } from './figure.js?v=2';
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 const BR = /<br\s*\/?>/gi;

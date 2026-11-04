@@ -1,12 +1,13 @@
 /* コマ割り表。台本（ネームの 表）を はると、ページ・コマ割り・キャラ・フキダシを いっぺんに 作る。 */
-import { S, $, clamp, blankProj, toast, buzz, edit, undo, redo, canUndo, canRedo, resetHist, setOnChange } from './state.js?v=1';
-import { parseScript } from './parse.js?v=1';
-import { sheetsOf, sheetSVG, PW, PH } from './render.js?v=1';
-import { loadProj, autoSave } from './store.js?v=1';
-import { exportZip, svgToPng, download, safeName } from './export.js?v=1';
-import { SAMPLE } from './sample.js?v=1';
-import * as Panel from './panel.js?v=1';
-import { watchRanges } from './rslider.js?v=1';
+import { S, $, clamp, blankProj, toast, buzz, edit, undo, redo, canUndo, canRedo, resetHist, setOnChange } from './state.js?v=2';
+import { parseScript } from './parse.js?v=2';
+import { sheetsOf, sheetSVG, PW, PH } from './render.js?v=2';
+import { loadProj, autoSave } from './store.js?v=2';
+import { exportZip, svgToPng, download, safeName } from './export.js?v=2';
+import { SAMPLE } from './sample.js?v=2';
+import * as Panel from './panel.js?v=2';
+import { watchRanges } from './rslider.js?v=2';
+import { aiConf, listModels, chat, toTable, direct, applyDirect, castLook, applyCast } from './ai.js?v=2';
 
 /* ---------- 画面の たかさ ---------- */
 function appH() {
@@ -274,6 +275,58 @@ function clearAll() {
   S.sel = null; S.sheet = 0;
 }
 
+/* ---------- AI ---------- */
+let aiAbort = null;
+async function aiRun(msg, job) {
+  const ac = new AbortController();
+  aiAbort = ac;
+  busy(true, msg);
+  $('#busyFill').style.width = '0%';
+  $('#busyPct').textContent = '';
+  $('#busyCancel').hidden = false;
+  try { return await job(ac.signal); }
+  catch (e) { toast(e.name === 'AbortError' ? 'やめました' : (e.message === 'Failed to fetch' ? 'AI に つながりません（入口・CORS を 見て ください）' : e.message)); return null; }
+  finally { busy(false); aiAbort = null; $('#busyCancel').hidden = true; }
+}
+function prog(i, n, txt) {
+  $('#busyFill').style.width = Math.round(i / n * 100) + '%';
+  $('#busyPct').textContent = `${txt}　${i + 1} / ${n}`;
+}
+async function aiDirect(scope) {
+  const P = S.proj;
+  let targets = [];
+  if (scope === 'all') targets = P.pages.map((pg, i) => ({ pg: i, idx: pg.panels.map((_, k) => k) }));
+  else if (scope === 'sheet' && SHEETS[S.sheet]) targets = SHEETS[S.sheet].items.map(it => ({ pg: it.pg, idx: P.pages[it.pg].panels.map((_, k) => k) }));
+  else if (scope === 'panel' && S.sel) targets = [{ pg: S.sel.pg, idx: [S.sel.i] }];
+  if (!targets.length) { toast('ページが ありません'); return; }
+  if (!P.cast.length) { toast('キャラが いません。さきに 台本を 読みこんで ください'); return; }
+  const snap = JSON.parse(JSON.stringify(P));
+  const res = await aiRun('AI が 演出を 考えて います', sig => direct(aiConf(), snap, targets, (i, n, pg) => prog(i, n, pg.no + 'ページ目'), sig));
+  if (!res) return;
+  let n = 0;
+  edit('AIで 演出', () => { n = applyDirect(S.proj, res); });
+  toast(n ? `${n}コマを AI が 決めました` : 'AI の こたえを あてはめられませんでした');
+}
+async function aiCast() {
+  if (!S.proj.cast.length) { toast('キャラが いません'); return; }
+  const list = await aiRun('AI が 見た目を 考えて います', sig => castLook(aiConf(), S.proj, sig));
+  if (!list) return;
+  let n = 0;
+  edit('AIで 見た目', () => { n = applyCast(S.proj, list); });
+  toast(`${n}人の 見た目を 決めました`);
+}
+async function aiTable(text) {
+  if (!String(text || '').trim()) { toast('台本が 空です'); return null; }
+  return aiRun('AI が 表に して います', sig => toTable(aiConf(), text, sig));
+}
+async function aiModels() {
+  return aiRun('モデルを さがして います', () => listModels(aiConf()));
+}
+async function aiTest() {
+  const t = await aiRun('AI に 話しかけて います', sig => chat(aiConf(), [{ role: 'user', content: '「つながりました」と だけ 返して ください。' }], sig));
+  if (t != null) toast('AI：' + String(t).replace(/<think>[\s\S]*?<\/think>/g, '').trim().slice(0, 40));
+}
+
 /* ---------- ボタン ---------- */
 function wire() {
   document.querySelectorAll('#tools .tool').forEach(b => b.addEventListener('click', () => {
@@ -296,6 +349,7 @@ function wire() {
   $('#reroll').onclick = reroll;
   $('#fold').onclick = () => { $('#list').classList.toggle('folded'); setTimeout(fit, 50); };
   $('#ver').onclick = () => location.reload();
+  $('#busyCancel').onclick = () => { if (aiAbort) aiAbort.abort(); };
   window.addEventListener('keydown', e => {
     if (e.target.closest('input,textarea,select')) return;
     const mod = e.ctrlKey || e.metaKey;
@@ -332,7 +386,7 @@ function reroll() {
 async function boot() {
   appH();
   watchRanges();
-  Panel.init({ importScript, pickScript, sample: () => SAMPLE, step, select, reroll, exportAll, exportNow, saveFile, loadFile, clearAll, stage: () => drawStage() });
+  Panel.init({ aiDirect, aiCast, aiTable, aiModels, aiTest, importScript, pickScript, sample: () => SAMPLE, step, select, reroll, exportAll, exportNow, saveFile, loadFile, clearAll, stage: () => drawStage() });
   wire();
   attachStage();
   attachTaps();
