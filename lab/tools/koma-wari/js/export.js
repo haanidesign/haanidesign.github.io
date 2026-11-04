@@ -1,6 +1,6 @@
 /* 書き出し。ページごとに PNG に して、ZIP に まとめる。
    フォルダ名は 半角英数字、ファイル名は「作品名＋ページ数」。 */
-import { pageSVGs, PW, PH } from './render.js?v=3';
+import { pageSVGs, PW, PH } from './render.js?v=4';
 
 export async function svgToPng(svg, w, h) {
   const img = new Image();

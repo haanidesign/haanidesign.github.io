@@ -14,7 +14,7 @@
      タイトル：『…』               … 大きな 字
      「（…）」                      … こころの 声 */
 
-import { EXPR, POSE } from './figure.js?v=3';
+import { EXPR, POSE } from './figure.js?v=4';
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 const BR = /<br\s*\/?>/gi;
@@ -61,7 +61,7 @@ function kindOf(who, body) {
   if (/効果音|^SE$|擬音|^音$/i.test(w)) return 'se';
   if (/タイトル/.test(w)) return 'title';
   if (/モノローグ|ナレーション|心の声/.test(w)) return 'mono';
-  if (/看板|張り紙|貼り紙|ボード|テロップ|掲示|字幕|画面|手紙|メモ|ポスター|のぼり/.test(w)) return 'sign';
+  if (/看板|張り紙|貼り紙|ボード|テロップ|掲示|字幕|画面|手紙|メモ|ポスター|のぼり|チラシ|ビラ|スマホ|メール|LINE/.test(w)) return 'sign';
   if (/小さ|ひそひそ|手書き|小声|中から/.test(w)) return 'whisper';
   return 'talk';
 }
@@ -189,7 +189,7 @@ export function parseScript(text) {
 }
 
 /* ---------- 出てくる 人 ---------- */
-const NOT_CAST = /^(中の人|効果音|看板|張り紙|貼り紙|ボード|タイトル|テロップ|ナレーション|全員|みんな|一同|声|音)$/;
+const NOT_CAST = /^(中の人|効果音|看板|張り紙|貼り紙|ボード|チラシ|ビラ|タイトル|テロップ|ナレーション|全員|みんな|一同|声|音)$/;
 const simple = n => n && n.length <= 8 && !/[、。]/.test(n) && !NOT_CAST.test(n);
 
 export function makeCast(pages, old = []) {

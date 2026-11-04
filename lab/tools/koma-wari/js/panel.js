@@ -3,11 +3,11 @@
 
    シートは 変える たびに 作り直す。つまみの 値は 作品の 中に 持つ
    （シートの 中に 写しを 持つと 作り直した とたん 効かなく なる）。 */
-import { S, $, edit, beginEdit, commitEdit, toast, selPanel } from './state.js?v=3';
-import { SIZES, SHOTS, EXPR_NAMES, POSE_NAMES, parseLines, linesToText, autoPanel, newPanel, newPage, uid } from './parse.js?v=3';
-import { HAIRS, TONES, faceChip } from './figure.js?v=3';
-import { sheetsOf } from './render.js?v=3';
-import { aiConf, saveConf, blocked } from './ai.js?v=3';
+import { S, $, edit, beginEdit, commitEdit, toast, selPanel } from './state.js?v=4';
+import { SIZES, SHOTS, EXPR_NAMES, POSE_NAMES, parseLines, linesToText, autoPanel, newPanel, newPage, uid } from './parse.js?v=4';
+import { HAIRS, TONES, faceChip } from './figure.js?v=4';
+import { sheetsOf } from './render.js?v=4';
+import { aiConf, saveConf, blocked } from './ai.js?v=4';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;

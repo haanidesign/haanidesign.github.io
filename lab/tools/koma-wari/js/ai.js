@@ -5,8 +5,8 @@
    ・入口と モデルは この 端末に だけ おぼえる（作品には 入れない）
    ・https の ページから http の AI には つながらない（ブラウザの きまり）。
      ランチャーなど http で ひらいた ときに つかう */
-import { EXPR_NAMES, POSE_NAMES, SHOTS } from './parse.js?v=3';
-import { HAIRS } from './figure.js?v=3';
+import { EXPR_NAMES, POSE_NAMES, SHOTS } from './parse.js?v=4';
+import { HAIRS } from './figure.js?v=4';
 
 const KEY = 'koma-wari:ai';
 const defUrl = () => `http://${location.hostname || 'localhost'}:11434/v1`;
