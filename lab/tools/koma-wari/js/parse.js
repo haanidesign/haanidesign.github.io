@@ -14,7 +14,7 @@
      タイトル：『…』               … 大きな 字
      「（…）」                      … こころの 声 */
 
-import { EXPR, POSE } from './figure.js?v=4';
+import { EXPR, POSE } from './figure.js?v=5';
 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 const BR = /<br\s*\/?>/gi;
@@ -237,11 +237,11 @@ const LOOK = [
   [/ウルフ/, c => { c.hair = 'wolf'; }],
   [/天然パーマ|くせ毛|もじゃ/, c => { c.hair = 'curl'; }],
   [/おだんご/, c => { c.hair = 'odango'; }],
-  [/ぱっつん/, c => { c.hair = 'bang'; }],
+  [/ぱっつん|マッシュ/, c => { c.hair = 'bang'; }],
   [/ロング|長い髪|ポニーテール/, c => { c.hair = 'long'; }],
   [/ハチマキ/, c => { c.hair = 'band'; }],
   [/坊主|ボウズ|スキンヘッド/, c => { c.hair = 'none'; }],
-  [/背が高|長身|見下ろ/, c => { c.h = Math.max(c.h, 1.06); }],
+  [/背が高|背の高|長身|見下ろ/, c => { c.h = Math.max(c.h, 1.06); }],
   [/背が低|小柄|背伸び/, c => { c.h = Math.min(c.h, .95); }],
 ];
 function guessLook(c, i, memos, names) {
