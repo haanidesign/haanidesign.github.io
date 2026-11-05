@@ -244,48 +244,56 @@ function draw(){
   showSel();
 }
 
-// ---- 大きさを 変えた 画像が あるとき: 区切りを 入れ子に して 面積を 割りふる ----
-// 箱を 横か 縦に 2つに 割る を くりかえす。割る 比率は 大きさの 重み から 決めて、
-// 絵の 縦横比と 合わない 分（＝余白）が 少なく なる 割り方を 探す
+// ---- 大きさを 変えた 画像が あるとき: 横か 縦に 2つに 割る を 入れ子に する ----
+// 割る 比率は 絵の 縦横比 から 決める ので、絵と 箱が ぴったり 合って 中に すき間が 出ない。
+// どこで どちら向きに 割るか を、大きさの 重みに 近く・全体が 紙の 形に 近く なる よう 探す
 function treeLayout(seq, X, Y, W, H, gap, al){
-  const n=seq.length, as=seq.map(i=>imgs[i].a), ws=seq.map(i=>{const s=imgs[i].s||1; return s*s;});
+  const n=seq.length, Q=n>24?.25:n>12?.16:.1, LIM=n>12?3:4;
+  const las=seq.map(i=>Math.log(imgs[i].a)), ws=seq.map(i=>{const s=imgs[i].s||1; return s*s;});
   const pw=[0]; for (const w of ws) pw.push(pw[pw.length-1]+w);
-  const free=-Math.log(1-Math.min(al,.9)), FM=[1,.8,1.25,.65,1.55], memo=new Map();
-  const solve=(i,j,A)=>{
-    const qa=Math.max(-60,Math.min(60,Math.round(Math.log(A)*6)));
-    const key=(i*(n+1)+j)*128+qa+64;
-    let m=memo.get(key); if (m) return m;
-    const Aq=Math.exp(qa/6), Wt=pw[j]-pw[i];
-    if (j-i===1){
-      const ex=Math.max(0,Math.abs(Math.log(as[i]/Aq))-free);
-      m={c:Wt*(1-Math.exp(-ex))}; memo.set(key,m); return m;
-    }
+  // T[i][j]: Map(縦横比の 目もり → {la:縦横比の log, S1, S2:重みとの ずれ, 割り方})
+  const T=[...Array(n+1)].map(()=>[]);
+  for (let i=0;i<n;i++) T[i][i+1]=new Map([[0,{la:las[i],S1:0,S2:0}]]);
+  const nc = n>30?3:n>16?4:6;
+  for (let len=2;len<=n;len++) for (let i=0;i+len<=n;i++){
+    const j=i+len, Wt=pw[j]-pw[i], M=new Map();
     let cuts=[]; for (let k=i+1;k<j;k++) cuts.push(k);
-    if (cuts.length>6){ const half=pw[i]+Wt/2; cuts.sort((a,b)=>Math.abs(pw[a]-half)-Math.abs(pw[b]-half)); cuts=cuts.slice(0,6); }
-    m={c:Infinity};
+    if (cuts.length>nc){ const half=pw[i]+Wt/2; cuts.sort((a,b)=>Math.abs(pw[a]-half)-Math.abs(pw[b]-half)); cuts=cuts.slice(0,nc); }
     for (const k of cuts){
-      const wl=pw[k]-pw[i], wr=pw[j]-pw[k], fw=wl/Wt;
-      for (const fm of FM){
-        const f=fw*fm; if (f<=.06||f>=.94) continue;
-        const pen=(wl*Math.abs(Math.log(fm))+wr*Math.abs(Math.log((1-f)/(1-fw))))*.35;
-        const h=solve(i,k,Aq*f).c+solve(k,j,Aq*(1-f)).c+pen;
-        if (h<m.c) m={c:h,k,f,d:'h'};
-        const v=solve(i,k,Aq/f).c+solve(k,j,Aq/(1-f)).c+pen;
-        if (v<m.c) m={c:v,k,f,d:'v'};
+      const WL=pw[k]-pw[i], WR=Wt-WL, fw=WL/Wt;
+      for (const [lb,L] of T[i][k]) for (const [rb,R] of T[k][j]){
+        const aL=Math.exp(L.la), aR=Math.exp(R.la);
+        for (const d of ['h','v']){
+          const a = d==='h' ? aL+aR : 1/(1/aL+1/aR);
+          const la=Math.log(a); if (Math.abs(la)>LIM) continue;
+          const fL = d==='h' ? aL/(aL+aR) : aR/(aL+aR);   // 左（上）の 面積の 割合
+          const dl=Math.log(fL/fw), dr=Math.log((1-fL)/(1-fw));
+          const S2=L.S2+2*dl*L.S1+dl*dl*WL + R.S2+2*dr*R.S1+dr*dr*WR;
+          const key=Math.round(la/Q), old=M.get(key);
+          if (!old || S2<old.S2) M.set(key,{la,S1:L.S1+dl*WL+R.S1+dr*WR,S2,k,d,lb,rb});
+        }
       }
     }
-    memo.set(key,m); return m;
-  };
+    T[i][j]=M;
+  }
+  // いちばん 上: 紙の 形に 合わせる。見切れ の 分までは 全体を のばして よい
+  const R0=W/H, lo=1-Math.min(al,.9), hi=1/lo;
+  let best=null;
+  for (const [b,e] of T[0][n]){
+    const A=Math.exp(e.la), st=Math.min(hi,Math.max(lo,R0/A)), used=Math.min(A*st/R0, R0/(A*st));
+    const c=e.S2/pw[n] + 3*(-Math.log(used));
+    if (!best || c<best.c) best={c,b,e,A:A*st,used};
+  }
   const out=[];
-  const place=(i,j,x,y,w,h)=>{
-    w=Math.max(1,w); h=Math.max(1,h);
-    if (j-i===1){ out.push({t:i,i:seq[i],...fitBox(imgs[seq[i]],x,y,w,h,al)}); return; }
-    const m=solve(i,j,w/h);
-    if (m.d==='h'){ const lw=(w-gap)*m.f; place(i,m.k,x,y,lw,h); place(m.k,j,x+lw+gap,y,w-gap-lw,h); }
-    else { const lh=(h-gap)*m.f; place(i,m.k,x,y,w,lh); place(m.k,j,x,y+lh+gap,w,h-gap-lh); }
+  const place=(i,j,b,x,y,w,h)=>{
+    if (j-i===1){ out.push({t:i,i:seq[i],x:Math.round(x),y:Math.round(y),w:Math.round(w),h:Math.round(h),al:1}); return; }
+    const e=T[i][j].get(b), aL=Math.exp(T[i][e.k].get(e.lb).la), aR=Math.exp(T[e.k][j].get(e.rb).la);
+    if (e.d==='h'){ const lw=(w-gap)*aL/(aL+aR); place(i,e.k,e.lb,x,y,lw,h); place(e.k,j,e.rb,x+lw+gap,y,w-gap-lw,h); }
+    else { const lh=(h-gap)*aR/(aL+aR); place(i,e.k,e.lb,x,y,w,lh); place(e.k,j,e.rb,x,y+lh+gap,w,h-gap-lh); }
   };
-  place(0,n,X,Y,W,H);
-  return {boxes:out, score:solve(0,n,W/H).c/pw[n]};
+  let w=W, h=H; if (best.A>R0) h=W/best.A; else w=H*best.A;
+  place(0,n,best.b,X+(W-w)/2,Y+(H-h)/2,w,h);
+  return {boxes:out, score:best.c};
 }
 // 箱の 中で 実際に 絵が 出る 範囲（見切れの 分は 切って、残りは 余白）
 function fitBox(it,x,y,w,h,allow){
