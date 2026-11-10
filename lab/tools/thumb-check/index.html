@@ -47,9 +47,11 @@ body{
   background-color:var(--cream);
   background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
   background-size:16px 16px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;padding:1rem;
+  display:flex;padding:1rem;
 }
-#out{border:var(--bd);background:#000;max-width:min(100%,960px);height:auto;display:none}
+/* margin:auto で まん中に。はみ出した ときも 上が 切れずに スクロールできる */
+.stage{margin:auto;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:.8rem}
+#out{border:var(--bd);background:#000;max-width:100%;height:auto;display:none}
 .drop{
   text-align:center;padding:2.2rem 2.4rem;background:var(--paper);
   border:2.5px dashed var(--ink);border-radius:20px;cursor:pointer;max-width:26rem;
@@ -131,13 +133,15 @@ body{
 
 <div class="app">
   <div class="view" id="view">
-    <div class="drop" id="drop">
-      <b>サムネを ここへ</b>
-      <p>ドロップ・クリック・貼りつけ（Ctrl+V）で 読みこむ。<br>画像は この 端末の 中だけで 見る。</p>
+    <div class="stage">
+      <div class="drop" id="drop">
+        <b>サムネを ここへ</b>
+        <p>ドロップ・クリック・貼りつけ（Ctrl+V）で 読みこむ。<br>画像は この 端末の 中だけで 見る。</p>
+      </div>
+      <canvas id="out"></canvas>
+      <div id="shrink"></div>
+      <div class="cap" id="cap"></div>
     </div>
-    <canvas id="out"></canvas>
-    <div id="shrink"></div>
-    <div class="cap" id="cap"></div>
     <div class="size" id="size"></div>
   </div>
 
@@ -296,8 +300,24 @@ function draw(){
     out.width = p.width; out.height = p.height; octx.drawImage(p, 0, 0);
     out.style.display = 'block';
     $('size').style.display = 'block'; $('size').textContent = img.naturalWidth + ' × ' + img.naturalHeight;
+    fit();
   }
 }
+
+/* 画面に 収まる 大きさに する（縦にも 横にも はみ出さない） */
+function fit(){
+  if(out.style.display === 'none' || !out.width) return;
+  const cs = getComputedStyle(view);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const bd = 5; // 縁 2.5px × 2
+  const capH = $('cap').offsetHeight + 13; // メモ＋すき間
+  const avW = view.clientWidth - padX - bd;
+  const avH = view.clientHeight - padY - bd - capH;
+  const s = Math.min(1, avW / out.width, Math.max(160, avH) / out.height);
+  out.style.width = Math.floor(out.width * s) + 'px';
+}
+new ResizeObserver(fit).observe(view);
 
 /* ---------- 入力 ---------- */
 function load(file){
