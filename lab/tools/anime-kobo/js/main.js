@@ -1,16 +1,16 @@
 /* 起動と組み立て。 */
 
-import { M } from './engine/math.js?v=320';
+import { M } from './engine/math.js?v=340';
 import { S, newProject, onChange, onRestore, undo, redo, edit, resetUndo,
          beginEdit, commitEdit,
-         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=320';
-import { groupInto, ungroup, isFolder, membersOf, newAudioLayer,
-         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=320';
-import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=320';
-import { createRenderer } from './render/renderer.js?v=320';
-import { createTimeline } from './ui/timeline.js?v=320';
-import { fmtTime, setPin } from './engine/anim.js?v=320';
-import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=320';
+         canUndo, canRedo, undoLabel, undoDepth, selected, frameAsset } from './state.js?v=340';
+import { groupInto, ungroup, isFolder, membersOf, newAudioLayer, setParent,
+         copyLayers, pasteLayers, removeLayers, computeAll } from './engine/layer.js?v=340';
+import { createStage, QUAL, quality, setQuality, qualName, nextQuality } from './ui/stage.js?v=340';
+import { createRenderer } from './render/renderer.js?v=340';
+import { createTimeline } from './ui/timeline.js?v=340';
+import { fmtTime, setPin } from './engine/anim.js?v=340';
+import { toMasks, newMask, maskAnimated, resamplePoly, setMaskKeys } from './engine/mask.js?v=340';
 import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSheet, buildTextSheet,
          buildEnterSheet, buildTraceSheet, buildBeatSheet, buildCamSheet,
          buildFinishSheet,
@@ -21,27 +21,28 @@ import { createSheet, setDockHook, setFileOpener, buildLayerSheet, buildMotionSh
          setNotifier, buildPathSheet, buildPaintSheet, setPainter,
          setEaseAsker, colorPick, buildFlipSheet, buildSwaySheet, buildCharaSheet, buildSabunSheet, setSpanner,
          setTrainer, setPathReopener, setCamOpener, setLayerOpener, setMasker, setAudioSync,
-         setWarper } from './ui/sheet.js?v=320';
+         setWarper } from './ui/sheet.js?v=340';
 
-import { showNewDoc } from './ui/newdoc.js?v=320';
-import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=320';
-import { fitToCanvas, isBg } from './io/bg.js?v=320';
-import * as Audio from './io/audio.js?v=320';
-import { isTalk, blipTimes } from './engine/talk.js?v=320';
+import { showNewDoc } from './ui/newdoc.js?v=340';
+import { addImageFiles, addFramesToLayer, replaceLayerImages, loadImage } from './io/image.js?v=340';
+import { fitToCanvas, isBg } from './io/bg.js?v=340';
+import * as Audio from './io/audio.js?v=340';
+import { isTalk, blipTimes } from './engine/talk.js?v=340';
 import { autoSaver, listDocs, loadDoc, deleteDoc, migrateOld,
-         newId, whenText, MAX_DOCS } from './io/store.js?v=320';
-import { importPsd } from './io/psd.js?v=320';
-import { takeHandoff, doneHandoff } from './io/handoff.js?v=320';
-import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=320';
-import { makeSabun } from './io/sabun.js?v=320';
-import { splitTextChars } from './io/text.js?v=320';
-import { exportAE } from './io/ae.js?v=320';
-import { exportVideo, exportGif, exportAlphaWebm, saveVideo, canShareFile,
-         canUseWebCodecs } from './io/export.js?v=320';
-import { pathKeys, pathLength } from './engine/path.js?v=320';
-import { paintDirty } from './engine/paint.js?v=320';
+         newId, whenText, MAX_DOCS } from './io/store.js?v=340';
+import { importPsd } from './io/psd.js?v=340';
+import { readHandoff, handoffProject, appendHandoff, doneHandoff, sendToDouga } from './io/handoff.js?v=340';
+import { autoRig, rigReport, rigRootOf } from './io/rig.js?v=340';
+import { makeSabun } from './io/sabun.js?v=340';
+import { addVideoFile, isVideoFile, VIDEO_MAX_SEC } from './io/video.js?v=340';
+import { splitTextChars } from './io/text.js?v=340';
+import { exportAE } from './io/ae.js?v=340';
+import { exportVideo, exportGif, exportAlphaWebm, exportApng, saveVideo, canShareFile,
+         canUseWebCodecs } from './io/export.js?v=340';
+import { pathKeys, pathLength } from './engine/path.js?v=340';
+import { paintDirty } from './engine/paint.js?v=340';
 import { newCage, resetCage, cageFlat, cageKeys, cageHasKeys,
-         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=320';
+         clearCageKeys, clearLock, hasLock } from './engine/warp.js?v=340';
 
 const $ = (s) => document.querySelector(s);
 
@@ -267,15 +268,46 @@ const RIG_MOTION = 'しぜん';
 
 async function handleFiles(files){
   const all = [...files];
-  const psd = [], imgs = [], other = [];
+  const psd = [], imgs = [], other = [], vids = [];
   for(const f of all){
-    if(await looksLikePsd(f)) psd.push(f);
+    if(isVideoFile(f)) vids.push(f);
+    else if(await looksLikePsd(f)) psd.push(f);
     else if(/^image\//.test(f.type || '')) imgs.push(f);
     else other.push(f);
   }
+  if(vids.length){
+    try{
+      for(const f of vids){
+        busy(true, '動画を よみこみ中…');
+        let r = null;
+        beginEdit('動画を 入れる');
+        try{
+          r = await addVideoFile(f, { onProgress: (i, n) => busy(true, '動画を 絵に して います… ' + i + ' / ' + n) });
+        }finally{ commitEdit(); }
+        /* 音が まだ なければ、動画の 音を 使う */
+        let au = '';
+        if(!Audio.hasAudio()){
+          try{
+            await Audio.loadAudio(f, f.name);
+            S.proj.audio = { name: f.name, volume: 1, duration: Audio.A.buf.duration };
+            au = '・音も 入れました';
+          }catch(_){}
+        }
+        if(r.sec > S.proj.duration) S.proj.duration = Math.ceil(r.sec);
+        toast('動画を ' + r.frames + 'コマに しました' + au
+          + (r.cut ? '（' + VIDEO_MAX_SEC + '秒で 切りました）' : ''));
+      }
+    }catch(err){
+      toast(err.message || '動画を よみこめませんでした');
+    }finally{
+      busy(false);
+      refresh();
+    }
+    if(!psd.length && !imgs.length) return;
+  }
   if(!psd.length && !imgs.length){
     toast(other.length
-      ? 'これは読めません（PSD・PNG・JPEG をえらんでね）'
+      ? 'これは読めません（PSD・PNG・JPEG・動画 をえらんでね）'
       : 'PSD・PNG・JPEG を選んでね');
     return;
   }
@@ -1169,6 +1201,36 @@ setBgPicker(async (files, layer) => {
   }
 });
 
+/* ---- 📤 フォルダから 出す ----
+   ☑ の もの（なければ いま 選んで いる 1まい）を、入って いる
+   フォルダの 1つ 外へ 出す。フォルダの すぐ 上に 置く。
+   ドラッグだと、フォルダが いちばん 下の ときに 出す 先が なかった。 */
+$('#unfold').addEventListener('click', () => {
+  const cur = selected();
+  const ids = S.pick.length ? [...S.pick] : (cur ? [cur.id] : []);
+  if(!ids.length) return toast('出す ものを えらんでね（☑ か タップ）');
+  const byId = {};
+  S.proj.layers.forEach(x => byId[x.id] = x);
+  const set = new Set(ids);
+  /* 親も ☑ の ものは 親に ついて いく ので さわらない */
+  const targets = S.proj.layers.filter(l => set.has(l.id)
+    && l.parent && byId[l.parent] && isFolder(byId[l.parent]) && !set.has(l.parent));
+  if(!targets.length) return toast('フォルダに 入って いる ものを えらんでね');
+  let n = 0;
+  edit('フォルダから 出す', () => {
+    targets.forEach(l => {
+      const f = byId[l.parent];
+      if(setParent(S.proj, l, f.parent || null, S.time) === false) return;
+      const L = S.proj.layers;
+      L.splice(L.indexOf(l), 1);
+      L.splice(L.indexOf(f), 0, l);
+      n++;
+    });
+  });
+  toast(n + 'まいを フォルダの 外に 出しました');
+  refresh();
+});
+
 /* ---- まとめる（フォルダ） ----
    ☑ でえらんだものを ひとつのフォルダに入れる。
    えらんでいなければ、いま選んでいる1まいだけ入れる。
@@ -1355,6 +1417,9 @@ if('serviceWorker' in navigator){
   let swapped = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if(!had || swapped) return;
+    /* ミニSpine から 受けとって いる 最中は 読み直さない
+       （読み直しと 受けとりが かさなると、受けとった ものが 消えて 最初の 画面に なる） */
+    if(new URLSearchParams(location.search).has('from') || S.ready) return;
     swapped = true;
     location.reload();
   });
@@ -1423,7 +1488,11 @@ async function runExport(kind){
   S.proj.quality = 'fine';
   S.dragging = false;
   box.classList.add('on');
-  title.textContent = kind === 'webm'
+  title.textContent = kind === 'douga'
+    ? '動画工房へ 送る 動画を つくっています'
+    : kind === 'douga-alpha'
+    ? '動画工房へ 送る アニメPNGを つくっています'
+    : kind === 'webm'
     ? 'すける WebMを 録っています（実時間）'
     : kind === 'gif'
     ? 'すける GIFを つくっています'
@@ -1440,6 +1509,20 @@ async function runExport(kind){
 
   try{
     const g = S.proj.gif || {};
+    if(kind === 'douga' || kind === 'douga-alpha'){
+      const r = kind === 'douga'
+        ? await exportVideo(S.proj, { onProgress, shouldStop: () => cancelExport })
+        : await exportApng(S.proj, { fps: 15, maxSide: 1080, onProgress, shouldStop: () => cancelExport });
+      title.textContent = '動画工房を ひらいています…';
+      try{ await saver.now(); }catch(_){}
+      const base = (S.proj.name || 'anime');
+      await sendToDouga({
+        name: 'アニメ工房・' + base,
+        w: r.w || S.proj.w, h: r.h || S.proj.h,
+        blob: r.blob, fileName: base + '.' + r.ext
+      });
+      return;
+    }
     const r = kind === 'ae'
       ? await exportAE(S.proj, { onProgress, shouldStop: () => cancelExport })
       : kind === 'webm'
@@ -1663,8 +1746,25 @@ setFileOpener(openFromFile);
 async function boot(){
   /* ミニSpine から 送られて きた ときは、それを ひらく */
   try{
-    const pj = await takeHandoff();
-    if(pj){ await openFromFile(pj); doneHandoff(); return; }
+    const box = await readHandoff();
+    if(box){
+      /* 「この 作品の うしろに 足す」で 送られた とき */
+      if(box.appendTo && await loadDoc(box.appendTo)){
+        await openDoc(box.appendTo);
+        const at = 0;                     // 足す ときも 0秒から
+        const len = appendHandoff(S.proj, box, at);
+        S.proj.duration = +Math.max(S.proj.duration || 0, len).toFixed(3);
+        for(const a of Object.values(S.proj.assets)){
+          if(!S.imgs[a.id] && a.src){ try{ S.imgs[a.id] = await loadImage(a.src); }catch(_){} }
+        }
+        S.time = at;
+        refresh(); saver.now(); doneHandoff();
+        toast('足しました（0秒から）');
+        return;
+      }
+      const pj = handoffProject(box);
+      if(pj){ await openFromFile(pj); doneHandoff(); return; }
+    }
   }catch(_){}
 
   let docs = [];

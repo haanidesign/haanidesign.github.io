@@ -2,13 +2,27 @@
 import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
-  freeSlot, laneFor, freeLane
-} from './state.js?v=75';
-import { MEDIA, hookAudio } from './media.js?v=75';
-import { bus } from './bus.js?v=75';
+  freeSlot, laneFor, freeLane, rootTracks
+} from './state.js?v=81';
+import { MEDIA, hookAudio } from './media.js?v=81';
+import { bus } from './bus.js?v=81';
+
+/** 作品の 大きさを 素材に 合わせる（偶数に そろえ、長い辺は 3840 まで） */
+export function fitToMedia(m, quiet) {
+  if (!m || !(m.w > 0 && m.h > 0)) { if (!quiet) toast('この 素材の 大きさが わからない'); return false; }
+  const k = Math.min(1, 3840 / Math.max(m.w, m.h));
+  const w = Math.max(16, Math.round(m.w * k / 2) * 2), h = Math.max(16, Math.round(m.h * k / 2) * 2);
+  if (w === S.W && h === S.H) { if (!quiet) toast(`もう ${w}×${h} です`); return false; }
+  S.W = w; S.H = h;
+  bus.size(); bus.all();
+  toast(`作品を ${w}×${h} に した`, 2600);
+  return true;
+}
 
 export function addFromMedia(m, at = 0, track = null) {
   if (!m) return null;
+  /* 絵や 動画を はじめて 置く ときは、作品の 大きさを その 素材に 合わせる */
+  if ((m.kind === 'video' || m.kind === 'image') && !allClips().some(x => x.c.kind !== 'audio')) fitToMedia(m, true);
   const t = track && track.kind === (m.kind === 'audio' ? 'audio' : 'video') ? track : laneFor(m.kind);
   const c = newClip(m.kind, {
     mid: m.id, name: m.name,
@@ -128,7 +142,7 @@ export function saveProject(name = 'douga') {
     W: S.W, H: S.H, fps: S.fps, bg: S.bg, dur: S.dur, step: S.step, trans: S.trans, cams: S.cams,
     beat: S.beat, master: S.master,
     media: [...MEDIA.values()].map(m => ({ id: m.id, name: m.name, kind: m.kind, dur: m.dur })),
-    tracks: S.tracks
+    tracks: rootTracks(), scenes: S.scenes
   };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
@@ -148,7 +162,7 @@ export async function openProject(file) {
     S.cams = Array.isArray(o.cams) ? o.cams : [];
     if (o.beat) S.beat = Object.assign(S.beat, o.beat);
     if (o.master) S.master = Object.assign(S.master, o.master);
-    S.tracks = o.tracks; S.sel = null; S.selTrack = null; S.time = 0;
+    S.tracks = o.tracks; S.scenes = o.scenes || {}; S.edit = []; S.sel = null; S.selTrack = null; S.time = 0;
     const byName = new Map([...MEDIA.values()].map(m => [m.name, m]));
     const remap = new Map();
     (o.media || []).forEach(sm => { const hit = byName.get(sm.name); if (hit) remap.set(sm.id, hit.id); });

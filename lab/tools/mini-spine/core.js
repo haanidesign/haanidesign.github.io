@@ -502,6 +502,38 @@ function meshSheet2(w, h){
   return c;
 }
 
+const _sheets3 = [];
+function meshSheet3(w, h){
+  for(const c of _sheets3) if(c.width === w && c.height === h) return c;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  _sheets3.unshift(c); if(_sheets3.length > 2) _sheets3.length = 2;
+  return c;
+}
+
+/* 絵の「ぬりつぶし ぶん」。こさを 16じょう して、すけた ところを ほぼ 0 に する。
+   絵ごとに 1回 だけ 作って とっておく */
+const _solid = new WeakMap();
+function solidOf(img){
+  let c = _solid.get(img);
+  if(c) return c;
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if(!w || !h) return img;
+  c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const gt = t.getContext('2d');
+  for(let k = 0; k < 4; k++){
+    gt.globalCompositeOperation = 'copy';
+    gt.drawImage(c, 0, 0);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(t, 0, 0);
+  }
+  g.globalCompositeOperation = 'source-over';
+  _solid.set(img, c);
+  return c;
+}
+
 function drawSlot(ctx, slot, imgEl, xy){
   const t = slot.tris, v = slot.verts, cv0 = ctx.canvas;
   const m0 = ctx.getTransform();
@@ -532,10 +564,10 @@ function drawSlot(ctx, slot, imgEl, xy){
      ① ふくらませずに 足し算（lighter）で つなぐ … すけ具合が ぴったり つながる
      ② ふくらませて ふつうに ぬった 色を「すけ具合は そのまま」で かぶせる（source-atop）
         … 足し算で 角に 出る 明るい 点を 消す */
-  const paint = (gg, e) => {
+  const paint = (gg, e, src) => {
     for(let i=0;i<t.length;i+=3){
       const i0=t[i], i1=t[i+1], i2=t[i+2];
-      drawTri(gg, imgEl,
+      drawTri(gg, src || imgEl,
         xy[i0*2],xy[i0*2+1], xy[i1*2],xy[i1*2+1], xy[i2*2],xy[i2*2+1],
         v[i0].u,v[i0].v, v[i1].u,v[i1].v, v[i2].u,v[i2].v, e);
     }
@@ -552,6 +584,20 @@ function drawSlot(ctx, slot, imgEl, xy){
   g.setTransform(1,0,0,1,0,0);
   g.globalCompositeOperation = 'source-atop';
   g.drawImage(sc2, x0, y0, bw, bh, x0, y0, bw, bh);
+  /* ③ 三角の 角（いくつも 集まる 点）では、足し算でも こさが
+     1〜2わり たりない（ふちの ぼかし方の くせ）。黒い ところに
+     うしろの 絵が 点々と すけて、動くと すじに 見えて いた。
+     絵の「ぬりつぶし ぶん」だけ（すけた ところを ぬいた 絵）を
+     ふくらませて 下に しいて うめる。
+     すけた 絵（ほお など）は もとから 0 なので こく ならない。 */
+  const core = solidOf(imgEl);
+  const sc3 = meshSheet3(cv0.width, cv0.height), g3 = sc3.getContext('2d');
+  g3.setTransform(1,0,0,1,0,0); g3.clearRect(x0, y0, bw, bh);
+  g3.setTransform(m0.a,m0.b,m0.c,m0.d,m0.e,m0.f);
+  paint(g3, ex, core);
+  g3.setTransform(1,0,0,1,0,0);
+  g.globalCompositeOperation = 'destination-over';
+  g.drawImage(sc3, x0, y0, bw, bh, x0, y0, bw, bh);
   g.globalCompositeOperation = 'source-over';
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);

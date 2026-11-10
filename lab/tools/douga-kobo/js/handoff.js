@@ -1,10 +1,12 @@
 /* ほかの 道具から 受けとる。
 
-   ミニSpine の「動画工房へ 送る」は、動画を
+   ミニSpine・アニメ工房 の「動画工房へ 送る」は、動画を
    端末の中（IndexedDB の haani-handoff）に 置いてから ここを ひらく。
-   ?from=mini-spine が ついて いたら それを とりだす。受けとったら 置き場は 消す。 */
+   ?from=mini-spine／anime-kobo が ついて いたら それを とりだす。受けとったら 置き場は 消す。 */
 
 const DB = 'haani-handoff';
+/* どこから 来たか（?from=）→ 置き場の 名前 */
+const KEYS = { 'mini-spine': 'mini-spine-video', 'anime-kobo': 'anime-kobo-video' };
 
 function shelf(key, del) {
   return new Promise((ok, ng) => {
@@ -24,15 +26,24 @@ function shelf(key, del) {
 
 /** { name, w, h, file } か null */
 export async function takeHandoff() {
-  if (new URLSearchParams(location.search).get('from') !== 'mini-spine') return null;
-    const box = await shelf('mini-spine-video');
-  if (!box || !box.blob) return null;
+  const from = new URLSearchParams(location.search).get('from');
+  const key = KEYS[from];
+  if (!key) return null;
+  const box = await shelf(key);
+  if (!box) return null;
+  /* いくつも まとめて 送られた ときは box.items = [{ blob, fileName, len }]（len ＝ ならべる 長さ 秒） */
+  if (box.items && box.items.length) {
+    const files = box.items.map(it => new File([it.blob], it.fileName, { type: it.blob.type || 'image/png' }));
+    return { name: box.name || 'ミニSpine', w: box.w, h: box.h, files, lens: box.items.map(it => it.len || 0), appendTo: box.appendTo || null };
+  }
+  if (!box.blob) return null;
   const file = new File([box.blob], box.fileName || 'minispine.mp4', { type: box.blob.type || 'video/mp4' });
-  return { name: box.name || 'ミニSpine', w: box.w, h: box.h, file };
+  return { name: box.name || 'ミニSpine', w: box.w, h: box.h, file, files: box.appendTo ? [file] : null, lens: [0], appendTo: box.appendTo || null };
 }
 
 /** ひらき おわったら よぶ。置き場を 消して、読みなおしで 2回 入らない ように する */
 export function doneHandoff(){
+  const key = KEYS[new URLSearchParams(location.search).get('from')];
   history.replaceState(history.state, '', location.pathname);
-  return shelf('mini-spine-video', true).catch(() => {});
+  return key ? shelf(key, true).catch(() => {}) : Promise.resolve();
 }

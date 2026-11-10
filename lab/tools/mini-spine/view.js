@@ -1,0 +1,273 @@
+/* ミニSpine — 見る ための 道具
+   ↔ 反転 … 画面を 左右 反対に して バランスを 見る（絵や データは 変えない）
+   🔒 レイヤー固定 … 左の 一覧で えらんだ レイヤーは、画面を さわっても ほかの レイヤーに 切りかわらない。
+                     ゆがみ・メッシュ・移動 などで 上の 絵を さわって しまう のを ふせぐ。 */
+'use strict';
+
+S.flip = false;
+function setFlip(on){
+  S.flip = on;
+  cv.style.transform = on ? 'scaleX(-1)' : '';
+  const b = $('#btnFlip'); if(b) b.classList.toggle('btn-y', on);
+  setStatus(on ? '左右 反転して 見ています（絵は 変わりません）' : '反転を もどしました');
+}
+(() => {
+  const b = el('button', 'btn btn-sm', '↔ 反転・表示'); b.id = 'btnFlip';
+  b.title = '画面を 左右 反対に して バランスを 見る';
+  b.onclick = () => setFlip(!S.flip);
+  const p = $('#btnFaces') || $('#btnPreset'); if(p) p.after(b);
+})();
+
+/* ---------- レイヤー固定 ---------- */
+S.lockSlot = false;
+const _pickSlotL = pickSlot;
+pickSlot = function(w){
+  const hit = _pickSlotL(w);
+  // 固定中は、どこを さわっても（絵の 上なら）えらんだ レイヤーの まま。
+  // 「くっつける」など 絵を えらぶ 手順の ときは ふつうに えらぶ
+  if(hit && S.lockSlot && !S.tapRig && slotById(S.sel.slot)) return slotById(S.sel.slot);
+  return hit;
+};
+// 一覧から えらんだ ときだけ 固定。骨を えらんだら はずす
+const lockFrom = ev => {
+  const it = ev.target.closest('.item'); if(!it || ev.target.closest('.eye')) return;
+  setTimeout(() => {
+    S.lockSlot = !!S.sel.slot && (it.classList.contains('slot') || it.closest('#orderBody') !== null);
+    lockChip();
+  }, 0);
+};
+['#treeBody', '#orderBody'].forEach(q => { const h = $(q); if(h) h.addEventListener('click', lockFrom); });
+
+const chip = el('div', 'lock-chip'); chip.style.display = 'none';
+const chipTx = el('span'); const chipX = el('button', 'btn btn-sm', 'はずす');
+chipX.onclick = () => { S.lockSlot = false; lockChip(); };
+chip.append(chipTx, chipX);
+(document.querySelector('#view') || document.body).appendChild(chip);
+function lockChip(){
+  const sl = slotById(S.sel.slot);
+  if(!sl) S.lockSlot = false;
+  chip.style.display = S.lockSlot ? '' : 'none';
+  if(sl) chipTx.textContent = '🔒「' + sl.name + '」だけ さわる';
+}
+const _refreshUIL = refreshUI;
+refreshUI = function(){ _refreshUIL(); lockChip(); };
+
+/* 固定中に 骨を さわる（アニメートなど）ときは、その レイヤーに ついた 骨だけ */
+const _pickBoneL = pickBone;
+pickBone = function(w){
+  const hit = _pickBoneL(w);
+  const sl = S.lockSlot && !S.tapRig && slotById(S.sel.slot);
+  if(!sl || !hit) return hit;
+  return slotBones(sl).ids.includes(hit.id) ? hit : null;
+};
+
+/* ---------- 揺れ物理の ON/OFF を 作品に しまう ----------
+   まえは 画面だけの 切りかえで、ひらき直すと OFF に もどって いた。
+   S.spring を 作品（S.proj.spring）に つなぐ。まえの 作品は、揺れる 骨が あれば ON */
+Object.defineProperty(S, 'spring', {
+  configurable: true,
+  get(){
+    const p = S.proj; if(!p) return false;
+    if(p.spring === undefined) return (p.bones || []).some(b => b.spring);
+    return !!p.spring;
+  },
+  set(v){ if(S.proj){ S.proj.spring = !!v; if(typeof saveSoon === 'function') saveSoon(); } }
+});
+
+/* ================= 絵 そのものを 左右 反転 =================
+   キャラ ぜんぶ … 絵・骨・動き・くっつけ を 画面の まんなかで 鏡に うつす
+   えらんだ 絵   … その 絵の 形だけ、その 絵の まんなかで 左右 反対に
+   骨の 計算: 鏡を R、骨の 中の 向きの 鏡を Q（y を 反対）と すると、
+     新しい 世界 = R・いまの 世界・Q
+     根もとの 骨: x → 2cx − x、角度 → 180 − 角度、シアー → −シアー
+     子の 骨  : y → −y、角度 → −角度、シアー → −シアー
+   動きの キーは 差分なので、角度・シアーは −、x は 根もとだけ −、y は 子だけ − */
+function flipAll(){
+  const cx = S.proj.canvas.w / 2;
+  edit('キャラを 左右 反転', () => {
+    S.proj.bones.forEach(b => {
+      if(!b.parent){ b.x = 2 * cx - b.x; b.rot = 180 - b.rot; }
+      else { b.y = -b.y; b.rot = -b.rot; }
+      b.shear = -(b.shear || 0);
+    });
+    const isRoot = id => { const b = boneById(id); return !b || !b.parent; };
+    for(const n in S.proj.anims){
+      const a = S.proj.anims[n];
+      const fix = tracks => { for(const id in tracks){ const t = tracks[id], root = isRoot(id);
+        ['rot', 'shear'].forEach(ch => (t[ch] || []).forEach(k => { k.v = -k.v; }));
+        if(root) (t.x || []).forEach(k => { k.v = -k.v; }); else (t.y || []).forEach(k => { k.v = -k.v; }); } };
+      fix(a.tracks || {});
+      if(a.base && a.base.tracks) fix(a.base.tracks);
+      if(a.warps) for(const id in a.warps) a.warps[id].forEach(w => { for(let i = 0; i < w.d.length; i += 2) w.d[i] = -w.d[i]; });
+    }
+    S.proj.slots.forEach(s => s.verts.forEach(v => { v.x = 2 * cx - v.x; }));
+    (S.proj.pins || []).forEach(p => { if(p.fl) p.fl.y = -p.fl.y; if(p.tl) p.tl.y = -p.tl.y; if(p.al) p.al.y = -p.al.y; });
+    (S.proj.iks || []).forEach(k => { k.bendPositive = !k.bendPositive; });
+    markDirty();
+  });
+  S.springState = {}; refreshUI();
+  setStatus('キャラを 左右 反転しました（もどすときは もう いちど か ↶）');
+}
+function flipPart(sl){
+  const b = slotBox(sl), cx = b.cx;
+  edit('「' + sl.name + '」を 左右 反転', () => { sl.verts.forEach(v => { v.x = 2 * cx - v.x; }); markDirty(); });
+  refreshUI();
+  setStatus('「' + sl.name + '」を 左右 反転しました');
+}
+function openFlip(){
+  sheet.show('↔ 反転・表示', body => {
+    const sl = slotById(S.sel.slot);
+    const g = el('div', 'sh-grid wide');
+    const big = (icon, ttl, note, fn) => { const b = mkBtn('', () => { sheet.hide(); fn(); }, 'mv wide'); b.append(el('i', null, icon), el('span', null, ttl), el('small', null, note)); g.appendChild(b); };
+    big('👀', S.flip ? '画面の 反転を もどす' : '画面だけ 反転（見るだけ）', 'バランスを 見る ため。絵や 書き出しは 変わらない。', () => setFlip(!S.flip));
+    big('🧍', 'キャラ ぜんぶを 反転', '絵・骨・つけた 動き まで まるごと 左右 反対に する。', flipAll);
+    if(sl) big('🖼', '「' + sl.name + '」だけ 反転', 'えらんだ 絵の 形だけ 左右 反対に する（場所は そのまま）。', () => flipPart(sl));
+    else g.appendChild(el('div', 'sh-note', '絵を 1まい えらぶと、その 絵だけ 反転も できます。'));
+    body.appendChild(g);
+  });
+}
+$('#btnFlip').onclick = openFlip;
+
+/* ---------- 絵を 消す（右パネルの 上に 🗑） ----------
+   消した 絵を、差分・表情・くっつけ・クリップ からも はずす */
+function deletePart(sl){
+  if(!confirm('「' + sl.name + '」を 消しますか？（↶ で もどせます）')) return;
+  edit('絵を 消す', () => {
+    const id = sl.id;
+    S.proj.slots = S.proj.slots.filter(s => s !== sl);
+    (S.proj.sets || []).forEach(st => { st.slots = st.slots.filter(x => x !== id); if(st.def === id) st.def = st.slots[0]; });
+    S.proj.sets = (S.proj.sets || []).filter(st => st.slots.length >= 2);
+    (S.proj.faces || []).forEach(f => { if(f.show) f.show = f.show.filter(x => x !== id); });
+    S.proj.pins = (S.proj.pins || []).filter(p => p.slot !== id && p.tslot !== id && !(p.tri && p.tri.s === id));
+    S.proj.slots.forEach(s => { if(s.clipTo === id) s.clipTo = null; });
+    for(const n in S.proj.anims){ const a = S.proj.anims[n]; if(a.warps) delete a.warps[id]; }
+    S.sel.slot = null; S.lockSlot = false;
+  });
+  refreshUI();
+  setStatus('「' + sl.name + '」を 消しました');
+}
+const _buildPropsD = buildProps;
+buildProps = function(){
+  _buildPropsD();
+  const sl = slotById(S.sel.slot); if(!sl) return;
+  const host = $('#props');
+  const row = btnRow(mkBtn('🗑 この 絵を 消す', () => deletePart(sl), 'btn btn-sm danger'));
+  host.insertBefore(row, host.firstChild);
+};
+
+/* ---------- 絵を さしかえる ----------
+   おなじ 場所・おなじ 大きさに 新しい 画像を はめる。骨・動き・重み は そのまま。
+   いまの 絵の「画像の 点 → 画面の 点」を 頂点から もとめて、新しい 画像を その 四角に のせる。
+   網は 新しい 画像の 形で 作り直し、重みは いちばん 近い もとの 頂点から もらう。 */
+function fitPlace(verts){
+  // x = a·u + c·v + tx,  y = b·u + d·v + ty を 最小二乗で
+  let S00=0,S01=0,S02=0,S11=0,S12=0,S22=0, X0=0,X1=0,X2=0, Y0=0,Y1=0,Y2=0;
+  verts.forEach(p => { const u = p.u, v = p.v;
+    S00+=u*u; S01+=u*v; S02+=u; S11+=v*v; S12+=v; S22+=1;
+    X0+=u*p.x; X1+=v*p.x; X2+=p.x; Y0+=u*p.y; Y1+=v*p.y; Y2+=p.y; });
+  const A = [[S00,S01,S02],[S01,S11,S12],[S02,S12,S22]];
+  const solve = r => { const m = A.map((row, i) => row.concat([r[i]]));
+    for(let i = 0; i < 3; i++){ let p = i; for(let j = i + 1; j < 3; j++) if(Math.abs(m[j][i]) > Math.abs(m[p][i])) p = j;
+      [m[i], m[p]] = [m[p], m[i]]; const d = m[i][i] || 1e-9;
+      for(let j = 0; j < 3; j++) if(j !== i){ const f = m[j][i] / d; for(let k = i; k < 4; k++) m[j][k] -= f * m[i][k]; } }
+    return [m[0][3] / (m[0][0] || 1e-9), m[1][3] / (m[1][1] || 1e-9), m[2][3] / (m[2][2] || 1e-9)]; };
+  const [a, c, tx] = solve([X0, X1, X2]), [b, d, ty] = solve([Y0, Y1, Y2]);
+  return { a, b, c, d, tx, ty };
+}
+/** 画像の 見えて いる ところ（すけて いない ところ）の 四角 */
+function alphaBox(img){
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for(let y = 0; y < h; y++) for(let x = 0; x < w; x++) if(d[(y * w + x) * 4 + 3] > 8){
+    if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; }
+  if(x1 < 0) return { x0: 0, y0: 0, x1: w, y1: h, w, h, c };
+  return { x0, y0, x1: x1 + 1, y1: y1 + 1, w: x1 + 1 - x0, h: y1 + 1 - y0, c };
+}
+function replaceImage(sl, file){
+  const rd = new FileReader();
+  rd.onload = () => {
+    const img0 = new Image();
+    img0.onload = () => {
+      const C = S.proj.canvas, P = fitPlace(sl.verts);
+      let src, img, place, how;
+      if(img0.naturalWidth === C.w && img0.naturalHeight === C.h){
+        /* キャンバスと おなじ 大きさの PNG（PSD から 1まいずつ 書き出した もの など）は
+           その 位置の まま はめる（ずれも のびも なし） */
+        const B = alphaBox(img0);
+        const cut = document.createElement('canvas'); cut.width = B.w; cut.height = B.h;
+        cut.getContext('2d').drawImage(img0, -B.x0, -B.y0);
+        src = cut.toDataURL('image/png'); place = M.fromTRS(B.x0, B.y0, 0, 1, 1, 0); how = 'キャンバスの 位置の まま';
+      }else{
+        /* ほかの 大きさは、すけた ふちを 切って はめる */
+        const nb = alphaBox(img0);
+        const cut = document.createElement('canvas'); cut.width = nb.w; cut.height = nb.h;
+        cut.getContext('2d').drawImage(img0, -nb.x0, -nb.y0);
+        src = cut.toDataURL('image/png');
+        const ob = S.imgs[sl.image] && S.imgs[sl.image].complete ? alphaBox(S.imgs[sl.image]) : null;
+        const old = S.proj.images[sl.image] || {};
+        const ox = ob ? ob.x0 : 0, oy = ob ? ob.y0 : 0, ow = ob ? ob.w : (old.w || nb.w), oh = ob ? ob.h : (old.h || nb.h);
+        /* 縦横を べつべつに のばすと 縦長・横長に なるので、のばさない（画像の 1ドット ＝ もとの 1ドット）。
+           もとの 絵の 見えて いる ところの まんなかに あわせる */
+        const cx = ox + ow / 2, cy = oy + oh / 2;
+        place = M.mul(P, { a: 1, b: 0, c: 0, d: 1, tx: cx - nb.w / 2, ty: cy - nb.h / 2 }); how = 'もとの 絵の まんなかに・のばさずに';
+      }
+      img = new Image();
+      img.onload = () => {
+        edit('「' + sl.name + '」を さしかえ', () => {
+          const id = uid('img');
+          S.proj.images[id] = { id, name: file.name, src, w: img.naturalWidth, h: img.naturalHeight };
+          S.imgs[id] = img;
+          const m = buildGridMesh(img, S.meshRes.cols, S.meshRes.rows, place);
+          const ov = sl.verts;
+          m.verts.forEach(v => {
+            let best = null, bd = 1e18;
+            ov.forEach(o => { const d = (o.x - v.x) ** 2 + (o.y - v.y) ** 2; if(d < bd){ bd = d; best = o; } });
+            v.w = best && best.w ? best.w.map(x => ({ b: x.b, w: x.w })) : [];
+          });
+          sl.image = id; sl.verts = m.verts; sl.tris = m.tris; sl.bound = false;
+          if(sl.shapes) delete sl.shapes;
+          if(typeof checkerTris === 'function') checkerTris(sl);
+          for(const n in S.proj.anims){ const a = S.proj.anims[n]; if(a.warps) delete a.warps[sl.id]; }
+          markDirty();
+        });
+        refreshUI();
+        setStatus('「' + sl.name + '」を さしかえました（' + how + '・骨と 動きは そのまま）');
+      };
+      img.src = src;
+    };
+    img0.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+const repIn = el('input'); repIn.type = 'file'; repIn.hidden = true; document.body.appendChild(repIn);
+repIn.onchange = () => { const f = repIn.files[0], sl = slotById(S.sel.slot); repIn.value = ''; if(f && sl) replaceImage(sl, f); };
+const _buildPropsR = buildProps;
+buildProps = function(){
+  _buildPropsR();
+  const sl = slotById(S.sel.slot); if(!sl) return;
+  const host = $('#props'), first = host.firstChild;
+  if(first) first.prepend(mkBtn('🔁 絵を さしかえ', () => repIn.click(), 'btn btn-sm'));
+};
+
+/* ---------- 画面の 紐づけ線 ----------
+   えらんだ 絵と 骨を むすぶ 線・「⛓ 〇〇 に ついている」の 札 は、はじめは 出さない（見づらい）。
+   えらんだ 絵の わくと 名前は 出す。つながりは 🗺 つながり図 で 見られる */
+const linksOn = () => { try{ return localStorage.getItem('ms-links') === 'on'; }catch(_){ return false; } };
+const _linkLineV = linkLine;
+linkLine = function(a, b, z, col){ if(linksOn()) _linkLineV(a, b, z, col); };
+const _drawParentLinksV = drawParentLinks;
+drawParentLinks = function(){ if(linksOn() || S.sel.slot) _drawParentLinksV(); };
+const _openFlipL = openFlip;
+openFlip = function(){
+  _openFlipL();
+  const g = document.querySelector('.sh-grid.wide'); if(!g) return;
+  const on = linksOn();
+  g.after(btnRow(mkBtn(on ? '⛓ 紐づけ線を けす' : '⛓ 紐づけ線を 出す', () => {
+    try{ localStorage.setItem('ms-links', on ? 'off' : 'on'); }catch(_){}
+    sheet.hide(); try{ render(); }catch(_){}
+  }, 'btn btn-sm')));
+};
+$('#btnFlip').onclick = () => openFlip();

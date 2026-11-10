@@ -232,6 +232,22 @@ const WHOLE = [
       squash(a, B.root, [[0,1],[.08,1.05],[.2,1],[.5,1],[.58,1.05],[.7,1],[1,1]]);
       bobY(a, B.root, [[0,0],[.08,-charSize()*.012],[.2,0],[.5,0],[.58,-charSize()*.012],[.7,0],[1,0]]);
   }},
+  /* こきざみに 拍を とる。1拍ごとに 小さく 沈んで はね、首と 手も ちょこっと うごく。
+     かたむきは 拍ごとに 左右 交互（120BPM・4拍で 1ループ） */
+  { name:'こきざみ ビート', icon:'🎶', dur:2, fn:(a,B) => {
+      const n = 4, h = charSize() * .008, beat = (on, off, rest) => {
+        const out = [];
+        for(let i = 0; i < n; i++){ const f = i / n;
+          out.push([f, rest], [f + .12 / n, on(i)], [f + .45 / n, off(i)]); }
+        out.push([1, rest]); return out;
+      };
+      bobY(a, B.root, beat(() => h, () => -h * .3, 0));
+      squash(a, B.root, beat(() => .975, () => 1.01, 1));
+      keys(a, B.root, 'rot', beat(i => i % 2 ? -1.6 : 1.6, i => i % 2 ? -1 : 1, 0));
+      keys(a, B.head, 'rot', beat(() => -3.5, () => .8, 0));
+      keys(a, B.armR, 'rot', beat(() => 5, () => -1.5, 0));
+      keys(a, B.armL, 'rot', beat(() => -3, () => 1, 0));
+  }},
   /* ゆっくり かたむき ながら すこし ふくらむ（止め絵を 生きて 見せる） */
   { name:'ゆらゆら ポートレート', icon:'🖼', dur:4, fn:(a,B) => {
       keys(a, B.root, 'rot', wave(1, 2.5));
@@ -327,12 +343,26 @@ function applyWhole(m){
   refreshUI();
 }
 
+/* パーツ（絵）を えらんで いる ときは、その 絵に ついた 骨 ぜんぶに つける（親から 順に）。
+   「先まで」の 動きは 子へ 自分で ひろがるので、いちばん 上の 骨だけに つける */
+function partBones(sl){
+  const ids = slotBones(sl).ids.filter(id => boneById(id));
+  const depth = id => { let d = 0, b = boneById(id); while(b && b.parent){ d++; b = boneById(b.parent); } return d; };
+  return ids.sort((x, y) => depth(x) - depth(y)).map(boneById);
+}
 function applyOne(m){
-  const b = boneById(S.sel.bone), a = anim();
-  if(!b || !a) return;
-  edit(m.name, () => m.fn(a, b));
+  const a = anim(), sl = slotById(S.sel.slot);
+  if(!a) return;
+  let list = sl ? partBones(sl) : [boneById(S.sel.bone)].filter(Boolean);
+  if(sl && /先まで/.test(m.name)){
+    const set = new Set(list.map(x => x.id));
+    list = list.filter(x => { let p = boneById(x.parent); while(p){ if(set.has(p.id)) return false; p = boneById(p.parent); } return true; });
+  }
+  if(!list.length) return;
+  edit(m.name, () => list.forEach(x => m.fn(a, x)));
+  const b = list[0];
   S.mode = 'anim'; S.playing = true; S.springState = {};
-  setStatus(m.name + ' を ' + b.name + (/先まで/.test(m.name) ? ' から 先に' : ' に') + ' つけました（大きさ・はやさは 🎚）');
+  setStatus(m.name + ' を ' + (list.length > 1 ? '「' + sl.name + '」の 骨 ' + list.length + '本' : b.name) + (/先まで/.test(m.name) ? ' から 先に' : ' に') + ' つけました（大きさ・はやさは 🎚）');
   refreshUI();
 }
 
@@ -353,8 +383,9 @@ function openMotions(){
     });
     body.appendChild(g1);
 
-    const sb = boneById(S.sel.bone);
-    body.appendChild(el('div', 'sh-h', 'えらんだ ボーンだけ（' + (sb ? sb.name : '—') + '）'));
+    const sb = boneById(S.sel.bone), ss = slotById(S.sel.slot);
+    body.appendChild(el('div', 'sh-h', ss ? 'えらんだ パーツだけ（' + ss.name + '）' : 'えらんだ ボーンだけ（' + (sb ? sb.name : '—') + '）'));
+    if(ss) body.appendChild(el('div', 'sh-note', 'この 絵に ついた 骨 ぜんぶ（' + partBones(ss).map(b => b.name).join('・') + '）に つけます。'));
     body.appendChild(el('div', 'sh-note', 'いまの アニメ「' + S.proj.current + '」に 足します。同じ 動きの キーは 上書き。'));
     const g2 = el('div', 'sh-grid');
     ONE.forEach(m => {
@@ -937,7 +968,7 @@ async function makeVideo(withBg){
   await nextPaint();
   const fps = 30;
   const r0 = renderFrames(fps, 1080);
-  const loops0 = Math.max(1, Math.ceil(6 / r0.dur));
+  const loops0 = videoOneLoop() ? 1 : Math.max(1, Math.ceil(6 / r0.dur));
   // 背景ありは 1コマずつ 書きこむ（ずれない）。すける 動画は webm で 今までどおり
   if(withBg){
     try{ const v = await makeVideoExact(r0, fps, loops0, true); if(v) return v; }catch(e){ console.warn(e); }
@@ -985,15 +1016,36 @@ async function saveVideo(withBg){
   finally{ busy(''); }
 }
 
+/** いまの アニメを すける アニメPNG に（15こま/秒） */
+async function makeApngNow(){
+  busy('こまを つくっています…');
+  await nextPaint();
+  const r = renderFrames(15, 1080);
+  const blob = await makeApng(r.frames, r.fps, (i, n) => { if(i % 4 === 0) busy('アニメPNG に しています… ' + Math.round(i / n * 100) + '%'); });
+  return { blob, w: r.W, h: r.H };
+}
+async function saveApng(){
+  if(!S.proj.slots.length) return setStatus('絵が ありません');
+  sheet.hide();
+  try{
+    const v = await makeApngNow();
+    download(baseName() + '.png', v.blob);
+    setStatus('すける アニメPNG を 保存しました（' + Math.round(v.blob.size / 1024) + 'KB）');
+  }catch(err){ alert(err.message || err); }
+  finally{ busy(''); }
+}
+
 async function sendToDouga(){
   if(!S.proj.slots.length) return setStatus('絵が ありません');
   sheet.hide();
   try{
-    const v = await makeVideo(true);
+    /* 動画（mp4）は すけない ので、背景が 焼きこまれて 動画工房で 背景を 足せなかった。
+       すける アニメPNG で わたす（動画工房は そのまま くり返して 再生する） */
+    const v = await makeApngNow();
     busy('動画工房へ 送っています…');
     await handoffPut('mini-spine-video', {
       at: Date.now(), name: 'ミニSpine・' + S.proj.current,
-      w: v.w, h: v.h, blob: v.blob, fileName: baseName() + '.' + v.ext
+      w: v.w, h: v.h, blob: v.blob, fileName: baseName() + '.png'
     });
     await saveNow();
     location.href = '../douga-kobo/?from=mini-spine';
@@ -1013,9 +1065,10 @@ function openExport(){
       g.appendChild(b);
     };
     big('🎬', 'アニメ工房へ 送る', 'こま（12まい/秒）の レイヤーに なって ひらきます。文字や 背景を 足して 仕上げる 用。', sendToKobo);
-    big('📼', '動画工房へ 送る', '動画（背景あり・6秒ほど）に して ひらきます。音楽や ほかの 動画と つなぐ 用。', sendToDouga);
-    big('🎞', '動画で 保存（背景あり）', 'mp4 か webm。6秒ほど くり返します。', () => saveVideo(true));
-    big('🫥', '動画で 保存（すける）', '背景なしの webm（Chrome）。重ねて 使う 用。', () => saveVideo(false));
+    big('📼', '動画工房へ 送る', 'すける アニメPNG に して ひらきます（背景は 動画工房で 下に しける）。音楽や ほかの 動画と つなぐ 用。', sendToDouga);
+    big('🎞', '動画で 保存（背景あり）', 'mp4 か webm。くり返しの 回数は 下で えらべます。', () => saveVideo(true));
+    big('🫥', 'アニメPNG で 保存（すける）', '背景なしで ずっと くり返す 動く 画像。ふちも きれいに すける。重ねて 使う 用。', saveApng);
+    big('🌫', '動画で 保存（すける）', '背景なしの webm（Chrome だけ）。', () => saveVideo(false));
     body.appendChild(g);
   });
 }
@@ -1451,12 +1504,15 @@ function paintParts(g, pose, sp, k){
     const sq = (!swap && !hasLids && !useShapes && blinkOn && k > 0 && isEye(slot) && !slot.lidCover) ? Math.max(0.08, 1 - k * 0.92) : 1;
     const cy = lines && lines.get(slot.id);
     const shaped = k > 0 && slot.shapes && slot.shapes.close;
-    if(!shaped && drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
+    // ゆがみ（warp.js）。その 時こくの ずれが あれば 三角で 描く
+    const wo = (typeof warpAt === 'function') ? warpAt(slot) : null;
+    if(!shaped && !wo && drawRigid(gg, slot, img, pose, sp, sq, cy)) return;
     const n = slot.verts.length;
     let buf = slot._xy;
     if(!buf || buf.length < n*2) buf = slot._xy = new Float32Array(n*2);
     deformSlot(slot, pose, buf);
     if(shaped) addShape(slot, buf, pose, sp, k);
+    if(wo) addOffsets(slot, buf, pose, sp, wo, 1);
     if(sq < 1){
       let y0 = 1e9, y1 = -1e9;
       for(let i = 0; i < n; i++){ const y = buf[i*2+1]; if(y < y0) y0 = y; if(y > y1) y1 = y; }
@@ -1576,7 +1632,10 @@ const hasShapes = () => S.proj.slots.some(sl => sl.shapes && sl.shapes.close);
 
 /** 閉じ目の ずれを k だけ 足す（buf は 骨で 動かした あとの 点） */
 function addShape(slot, buf, pose, sp, k){
-  const off = slot.shapes && slot.shapes.close;
+  addOffsets(slot, buf, pose, sp, slot.shapes && slot.shapes.close, k);
+}
+/** 点ごとの ずれ off を k だけ、骨の 向きに あわせて 足す（閉じ目・ゆがみ 共通） */
+function addOffsets(slot, buf, pose, sp, off, k){
   if(!off || k <= 0) return;
   const id = rigidBone(slot) || slot.bone;
   const p = pose[id], s0 = sp[id];
@@ -1804,10 +1863,19 @@ function drawParentLinks(){
 }
 
 /* えらんだ 行が 一覧の 外に かくれて いたら 見える ところへ */
+/* ただし 見える・見えないを 切りかえた だけ など、えらんだ ものが 変わって いない ときは
+   一覧の 位置を そのまま に する（作り直すと 一番上や えらんだ 行へ とんで しまう） */
+let _lastSelKey = '';
 const _refreshUI1 = refreshUI;
 refreshUI = function(){
+  const boxes = [];
+  ['#treeBody', '#orderBody'].forEach(q => { let e = document.querySelector(q);
+    while(e && e !== document.body){ if(e.scrollHeight > e.clientHeight) boxes.push([e, e.scrollTop]); e = e.parentElement; } });
   _refreshUI1();
-  requestAnimationFrame(() => document.querySelectorAll('#treeBody .item.sel, #orderBody .item.sel').forEach(e => {
+  const key = S.sel.bone + '|' + S.sel.slot + '|' + S.sel.ik;
+  const moved = key !== _lastSelKey; _lastSelKey = key;
+  boxes.forEach(([e, t]) => { e.scrollTop = t; });
+  if(moved) requestAnimationFrame(() => document.querySelectorAll('#treeBody .item.sel, #orderBody .item.sel').forEach(e => {
     try{ e.scrollIntoView({ block:'nearest' }); }catch(_){}
   }));
 };

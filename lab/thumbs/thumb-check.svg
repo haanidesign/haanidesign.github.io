@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs><pattern id="d" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.5" fill="rgba(30,28,20,.13)"/></pattern></defs>
+  <rect width="600" height="400" fill="#FBFAEC"/><rect width="600" height="400" fill="url(#d)"/>
+  <g stroke="#1E1C14" stroke-width="3">
+    <rect x="50" y="80" width="230" height="130" rx="6" fill="#FFFEF7"/>
+    <rect x="320" y="80" width="230" height="130" rx="6" fill="#FFFEF7"/>
+  </g>
+  <g stroke="#1E1C14" stroke-width="2.5">
+    <rect x="62" y="92" width="64" height="70" fill="#F2A0B8"/><rect x="132" y="92" width="136" height="70" fill="#E1DD60"/><rect x="62" y="168" width="206" height="30" fill="#9CC8E8"/>
+    <rect x="332" y="92" width="64" height="70" fill="#B0B0B0"/><rect x="402" y="92" width="136" height="70" fill="#DADADA"/><rect x="332" y="168" width="206" height="30" fill="#8A8A8A"/>
+  </g>
+  <g stroke="#1E1C14" stroke-width="3" fill="#E1DD60">
+    <rect x="50" y="250" width="500" height="22" rx="11" fill="#FFFEF7"/><rect x="50" y="250" width="320" height="22" rx="11"/>
+    <rect x="50" y="290" width="500" height="22" rx="11" fill="#FFFEF7"/><rect x="50" y="290" width="180" height="22" rx="11"/>
+  </g>
+</svg>

@@ -375,7 +375,7 @@ async function importPsd(file){
     const slot = newSlot(id, { name:l.name });
     slot.name = l.name;
     slot.alpha = clamp(l.opacity, 0, 1);
-    if(l.hidden) slot.visible = false;
+    if(l.hidden){ slot.visible = false; slot.psdHidden = true; }
     slot.bone = groupBone[l.group] || rootId;
     slot.gpath = l.gpath || [];
     if(l.clipping && lastBase) slot.clipTo = lastBase;
@@ -745,17 +745,19 @@ function withCompensate(bone, fn){
 }
 
 /* ================= マウス ================= */
+/* 左右反転（見るだけ。S.flip）の ときは、画面の x を 鏡に うつして から つかう */
+function flipX(x){ if(!S.flip) return x; const r = cv.getBoundingClientRect(); return r.left + r.right - x; }
 function evPos(e){
   const r = cv.getBoundingClientRect();
   const dpr = cv.width / r.width;
-  return { sx:(e.clientX - r.left)*dpr, sy:(e.clientY - r.top)*dpr };
+  return { sx:(flipX(e.clientX) - r.left)*dpr, sy:(e.clientY - r.top)*dpr };
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
 
 cv.addEventListener('pointerdown', e => {
   const { sx, sy } = evPos(e);
   const w = s2w(sx, sy);
-  if(S.shapeEdit && e.button === 0) return;   // 閉じ目づくり中（kobo.js）
+  if((S.shapeEdit || S.warpEdit) && e.button === 0) return;   // 閉じ目づくり・ゆがみ 中（kobo.js / warp.js）
 
   // 右／中ドラッグ = パン（本物と同じ）
   if(e.button === 1 || e.button === 2){
@@ -818,6 +820,16 @@ cv.addEventListener('pointerdown', e => {
       slot.verts.forEach((v,i) => { const d = Math.hypot(v.x-w.x, v.y-w.y); if(d < bd){ bd = d; best = i; } });
       if(best >= 0){ beginEdit('メッシュ頂点を移動'); S.drag = { type:'vert', slot, i:best }; return; }
     }
+  }
+
+  /* レイヤー固定中（左の 一覧で えらんだ とき。view.js）の セットアップの 移動・回転・拡大は、
+     どこを さわっても その レイヤーだけを 動かす。上に 重なった 絵や 骨には さわらない */
+  const lk = S.lockSlot && slotById(S.sel.slot);
+  if(lk && S.mode === 'setup' && isTransformTool(S.tool)){
+    const op = S.tool === 'pose' ? 'translate' : S.tool;
+    beginEdit('パーツを' + ({translate:'移動',rotate:'回転',scale:'スケール',shear:'シアー'})[op]);
+    S.drag = { type:'slot', op, slot:lk, w0:w, verts:lk.verts.map(v => ({x:v.x, y:v.y})) };
+    return;
   }
 
   // クリックで選択（どのツールでも。本物どおり選択専用ツールは無い）
@@ -899,7 +911,7 @@ const _dist = () => { const a = [..._pts.values()]; return Math.hypot(a[0].x-a[1
 
 cv.addEventListener('pointerdown', e => {
   if(e.pointerType === 'mouse') return;
-  _pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  _pts.set(e.pointerId, { x:flipX(e.clientX), y:e.clientY });
   if(_pts.size === 2){
     S.drag = null;          // 1本目で始まりかけた編集は捨てる（誤爆防止）
     _pinch = null;          // 次の move で基準を取る
@@ -908,7 +920,7 @@ cv.addEventListener('pointerdown', e => {
 
 cv.addEventListener('pointermove', e => {
   if(!_pts.has(e.pointerId)) return;
-  _pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  _pts.set(e.pointerId, { x:flipX(e.clientX), y:e.clientY });
   if(_pts.size < 2) return;
   e.preventDefault();
 
@@ -1157,8 +1169,25 @@ function buildTree(){
 
   const walk = (id, depth) => {
     const b = boneById(id); if(!b) return;
-    const it = el('div', 'item' + (id === S.sel.bone && !S.sel.slot ? ' sel' : ''));
-    it.style.paddingLeft = (6 + depth*11) + 'px';
+    /* 絵を 上に、その 絵の 骨を 下に（絵を さがし やすく） */
+    (slotsOf[id] || []).forEach(s => {
+      const si = el('div', 'item slot' + (s.id === S.sel.slot ? ' sel' : ''));
+      si.style.paddingLeft = (6 + depth*11) + 'px';
+      si.draggable = true;
+      si.ondragstart = ev => ev.dataTransfer.setData('slot', s.id);
+      const eye = el('span', 'eye' + (s.visible ? ' on' : ''), s.visible ? '●' : '○');
+      eye.onclick = ev => { ev.stopPropagation(); s.visible = !s.visible; refreshUI(); };
+      si.appendChild(eye);
+      si.appendChild(el('span', 'nm', s.name));
+      si.appendChild(el('span', 'tag', s.verts.length + 'v'));
+      si.onclick = () => { S.sel.slot = s.id; refreshUI(); };
+      si.ondblclick = () => { const n = prompt('パーツ名', s.name); if(n) edit('名前を変更', () => s.name = n), refreshUI(); };
+      host.appendChild(si);
+    });
+
+    const under = (slotsOf[id] || []).length > 0;
+    const it = el('div', 'item' + (under ? ' bone-under' : '') + (id === S.sel.bone && !S.sel.slot ? ' sel' : ''));
+    it.style.paddingLeft = (6 + (depth + (under ? 1 : 0))*11) + 'px';
     it.appendChild(el('span', 'ic', '🦴'));
     it.appendChild(el('span', 'nm', b.name));
     if(b.spring) it.appendChild(el('span', 'badge', '揺'));
@@ -1176,22 +1205,7 @@ function buildTree(){
     };
     host.appendChild(it);
 
-    (slotsOf[id] || []).forEach(s => {
-      const si = el('div', 'item slot' + (s.id === S.sel.slot ? ' sel' : ''));
-      si.style.paddingLeft = (6 + (depth+1)*11) + 'px';
-      si.draggable = true;
-      si.ondragstart = ev => ev.dataTransfer.setData('slot', s.id);
-      const eye = el('span', 'eye' + (s.visible ? ' on' : ''), s.visible ? '●' : '○');
-      eye.onclick = ev => { ev.stopPropagation(); s.visible = !s.visible; refreshUI(); };
-      si.appendChild(eye);
-      si.appendChild(el('span', 'nm', s.name));
-      si.appendChild(el('span', 'tag', s.verts.length + 'v'));
-      si.onclick = () => { S.sel.slot = s.id; refreshUI(); };
-      si.ondblclick = () => { const n = prompt('パーツ名', s.name); if(n) edit('名前を変更', () => s.name = n), refreshUI(); };
-      host.appendChild(si);
-    });
-
-    (kids[id] || []).forEach(k => walk(k, depth+1));
+    (kids[id] || []).forEach(k => walk(k, depth + 1 + (under ? 1 : 0)));
   };
   S.proj.bones.filter(b => !b.parent).forEach(b => walk(b.id, 0));
 

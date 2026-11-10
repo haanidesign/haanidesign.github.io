@@ -15,13 +15,13 @@ const TOOLS = [
   },
   {
     no: 2,
-    slug: "flare-maker",
-    title: "フレアライトメーカー",
-    desc: "十字フラッシュ・集中光バースト・電撃アークなど13種の手描き風光エフェクト。コマ打ちとボイルを付けて透過連番PNGで出力。",
+    slug: "effect-maker",
+    title: "エフェクトメーカー",
+    desc: "光・衝撃・魔法・漫符・天気・画面効果など49種のアニメ風エフェクト。コマ打ちと線のゆれを付けて、透過の連番PNG・WebM・スプライトで書き出す。",
     tags: ["AE素材", "エフェクト", "連番PNG"],
     cat: "anime",
-    thumb: "thumbs/flare-maker.png",
-    url: "tools/flare-maker/index.html",
+    thumb: "thumbs/effect-maker.png",
+    url: "tools/effect-maker/index.html",
     status: "live"
   },
   {
@@ -290,6 +290,17 @@ const TOOLS = [
   },
   {
     no: 27,
+    slug: "sougou-kobo",
+    title: "総合工房",
+    desc: "アニメ工房に、動画工房と ミニSpine の 作品を レイヤーとして 入れられる ように した もの。",
+    tags: ["アニメーション", "動画編集", "ボーン", "MP4"],
+    cat: "anime",
+    thumb: "thumbs/sougou-kobo.svg",
+    url: "tools/sougou-kobo/index.html",
+    status: "wip"
+  },
+  {
+    no: 28,
     slug: "kaitai-dot",
     title: "ドット解体",
     desc: "イラストを 色数の 少ない ドット絵に する。色の組み・影と光の色・ディザ・ふち線を 選んで、整数倍の PNG で 保存する。",
@@ -297,6 +308,28 @@ const TOOLS = [
     cat: "other",
     thumb: "thumbs/dot-maker.png",
     url: "tools/kaitai-dot/index.html",
+    status: "live"
+  },
+  {
+    no: 29,
+    slug: "giongo-kobo",
+    title: "擬音工房",
+    desc: "漫画の擬音の描き文字を作る。PNG・SVGで保存。",
+    tags: ["漫画", "擬音", "PNG"],
+    cat: "manga",
+    thumb: "thumbs/giongo-kobo.png",
+    url: "tools/giongo-kobo/index.html",
+    status: "live"
+  },
+  {
+    no: 30,
+    slug: "thumb-check",
+    title: "サムネ確認",
+    desc: "サムネを モノクロ・ぼかし・2値・縮小で 見て、明暗と 視線の 順番を 確かめる。下に 黒グラデを かけた ときの 比べも できる。",
+    tags: ["サムネ", "モノクロ", "コントラスト"],
+    cat: "other",
+    thumb: "thumbs/thumb-check.svg",
+    url: "tools/thumb-check/index.html",
     status: "live"
   }
 ];

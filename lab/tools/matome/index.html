@@ -41,6 +41,9 @@ main{padding:1rem;display:flex;justify-content:center}
 body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
 [hidden]{display:none!important}
 #info{font-size:.66rem;font-weight:400}
+#sel{position:absolute;pointer-events:none;outline:4px solid var(--main);border:2.5px solid var(--ink)}
+.grp.off{opacity:.45}.grp.off .btn{pointer-events:none}
+#oSz{min-width:3em}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../skin/soft.css?v=11">
@@ -52,6 +55,8 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
   <button class="btn btn-sm tab on" data-m="pic">🖼 1枚にまとめる</button>
   <button class="btn btn-sm tab" data-m="mov">🎬 動画にする</button>
   <span style="flex:1"></span>
+  <button class="btn btn-sm" id="bUndo" title="元に戻す（Ctrl+Z）">↶</button>
+  <button class="btn btn-sm" id="bRedo" title="やり直す（Ctrl+Y）">↷</button>
   <button class="btn btn-sm" id="bAdd">🖼 画像を足す</button>
   <button class="btn btn-sm" id="bShuffle">🔄 並びを変える</button>
   <button class="btn btn-sm" id="bClear">🗑 ぜんぶ消す</button>
@@ -86,8 +91,13 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
   <div class="grp"><label>すき間</label><input type="range" id="gap" min="0" max="60" value="8"><output id="oGap">8</output></div>
   <div class="grp"><label>ふち</label><input type="range" id="pad" min="0" max="120" value="0"><output id="oPad">0</output></div>
   <div class="grp"><label>並び</label>
-    <select id="order"><option value="best">おまかせ（すき間が少ない順）</option><option value="keep">入れた順</option></select>
+    <select id="order"><option value="best">おまかせ（すき間が少ない順）</option><option value="keep">入れた順（ファイル名順）</option></select>
   </div>
+  <div class="grp off" id="gSel"><label>選んだ画像</label>
+    <button class="btn btn-sm" id="bSmall">－</button><output id="oSz">—</output><button class="btn btn-sm" id="bBig">＋</button>
+    <button class="btn btn-sm" id="bOne">元の大きさ</button><button class="btn btn-sm" id="bDel">外す</button>
+  </div>
+  <button class="btn btn-sm" id="bAllOne">大きさを ぜんぶ そろえる</button>
   </span>
   <span class="m-mov" hidden>
   <div class="grp"><label>1枚</label><input type="range" id="dur" min="3" max="50" value="17"><output id="oDur">1.7秒</output></div>
@@ -103,7 +113,8 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
 <main>
   <div id="stage">
     <canvas id="cv"></canvas>
-    <div id="drop">ここに画像を落とすか<br>「画像を足す」から選ぶ<br>（貼り付けでも入る）</div>
+    <div id="sel" hidden></div>
+    <div id="drop">ここに画像を落とすか<br>「画像を足す」から選ぶ<br>（貼り付けでも入る）<br><br>タップで選んで、ピンチで大きさ<br>（パソコンは Ctrl＋ホイール）</div>
   </div>
 </main>
 <script>
@@ -200,7 +211,12 @@ function build(){
   if (mode==='mov'){ stopPlay(); drawFrame(0); info(); return; }
   const gap = +$('gap').value, pad = +$('pad').value, al=allow();
   layout=[];
-  if (imgs.length){
+  if (imgs.length && sized()){
+    const t=treeLayout(order, pad, pad, W-pad*2, H-pad*2, gap, al);
+    layout=t.boxes;
+    const used=layout.reduce((s,L)=>s+L.w*L.h,0)/((W-pad*2)*(H-pad*2));
+    $('info').textContent = `${imgs.length}枚 / ${W}×${H}px / 埋まり 約${Math.round(used*100)}%`;
+  } else if (imgs.length){
     const iw=W-pad*2, ih=H-pad*2;
     const p = plan(order, iw, ih, gap, al);
     const g=[]; let y=0;
@@ -223,9 +239,71 @@ function info(){
 
 function draw(){
   ctx.fillStyle=$('bg').value; ctx.fillRect(0,0,cv.width,cv.height);
-  for (const L of layout) drawFit(ctx, imgs[L.i], L.x,L.y,L.w,L.h, 1);
+  for (const L of layout) drawFit(ctx, imgs[L.i], L.x,L.y,L.w,L.h, L.al ?? 1);
   $('drop').style.display = imgs.length?'none':'flex';
+  showSel();
 }
+
+// ---- 大きさを 変えた 画像が あるとき: 横か 縦に 2つに 割る を 入れ子に する ----
+// 割る 比率は 絵の 縦横比 から 決める ので、絵と 箱が ぴったり 合って 中に すき間が 出ない。
+// どこで どちら向きに 割るか を、大きさの 重みに 近く・全体が 紙の 形に 近く なる よう 探す
+function treeLayout(seq, X, Y, W, H, gap, al){
+  const n=seq.length, Q=n>24?.25:n>12?.16:.1, LIM=n>12?3:4;
+  const las=seq.map(i=>Math.log(imgs[i].a)), ws=seq.map(i=>{const s=imgs[i].s||1; return s*s;});
+  const pw=[0]; for (const w of ws) pw.push(pw[pw.length-1]+w);
+  // T[i][j]: Map(縦横比の 目もり → {la:縦横比の log, S1, S2:重みとの ずれ, 割り方})
+  const T=[...Array(n+1)].map(()=>[]);
+  for (let i=0;i<n;i++) T[i][i+1]=new Map([[0,{la:las[i],S1:0,S2:0}]]);
+  const nc = n>30?3:n>16?4:6;
+  for (let len=2;len<=n;len++) for (let i=0;i+len<=n;i++){
+    const j=i+len, Wt=pw[j]-pw[i], M=new Map();
+    let cuts=[]; for (let k=i+1;k<j;k++) cuts.push(k);
+    if (cuts.length>nc){ const half=pw[i]+Wt/2; cuts.sort((a,b)=>Math.abs(pw[a]-half)-Math.abs(pw[b]-half)); cuts=cuts.slice(0,nc); }
+    for (const k of cuts){
+      const WL=pw[k]-pw[i], WR=Wt-WL, fw=WL/Wt;
+      for (const [lb,L] of T[i][k]) for (const [rb,R] of T[k][j]){
+        const aL=Math.exp(L.la), aR=Math.exp(R.la);
+        for (const d of ['h','v']){
+          const a = d==='h' ? aL+aR : 1/(1/aL+1/aR);
+          const la=Math.log(a); if (Math.abs(la)>LIM) continue;
+          const fL = d==='h' ? aL/(aL+aR) : aR/(aL+aR);   // 左（上）の 面積の 割合
+          const dl=Math.log(fL/fw), dr=Math.log((1-fL)/(1-fw));
+          const S2=L.S2+2*dl*L.S1+dl*dl*WL + R.S2+2*dr*R.S1+dr*dr*WR;
+          const key=Math.round(la/Q), old=M.get(key);
+          if (!old || S2<old.S2) M.set(key,{la,S1:L.S1+dl*WL+R.S1+dr*WR,S2,k,d,lb,rb});
+        }
+      }
+    }
+    T[i][j]=M;
+  }
+  // いちばん 上: 紙の 形に 合わせる。見切れ の 分までは 全体を のばして よい
+  const R0=W/H, lo=1-Math.min(al,.9), hi=1/lo;
+  let best=null;
+  for (const [b,e] of T[0][n]){
+    const A=Math.exp(e.la), st=Math.min(hi,Math.max(lo,R0/A)), used=Math.min(A*st/R0, R0/(A*st));
+    const c=e.S2/pw[n] + 3*(-Math.log(used));
+    if (!best || c<best.c) best={c,b,e,A:A*st,used};
+  }
+  const out=[];
+  const place=(i,j,b,x,y,w,h)=>{
+    if (j-i===1){ out.push({t:i,i:seq[i],x:Math.round(x),y:Math.round(y),w:Math.round(w),h:Math.round(h),al:1}); return; }
+    const e=T[i][j].get(b), aL=Math.exp(T[i][e.k].get(e.lb).la), aR=Math.exp(T[e.k][j].get(e.rb).la);
+    if (e.d==='h'){ const lw=(w-gap)*aL/(aL+aR); place(i,e.k,e.lb,x,y,lw,h); place(e.k,j,e.rb,x+lw+gap,y,w-gap-lw,h); }
+    else { const lh=(h-gap)*aR/(aL+aR); place(i,e.k,e.lb,x,y,w,lh); place(e.k,j,e.rb,x,y+lh+gap,w,h-gap-lh); }
+  };
+  let w=W, h=H; if (best.A>R0) h=W/best.A; else w=H*best.A;
+  place(0,n,best.b,X+(W-w)/2,Y+(H-h)/2,w,h);
+  return {boxes:out, score:best.c};
+}
+// 箱の 中で 実際に 絵が 出る 範囲（見切れの 分は 切って、残りは 余白）
+function fitBox(it,x,y,w,h,allow){
+  const ba=w/h, r=it.r; let sw=r.w, sh=r.h;
+  if (it.a>ba) sw=Math.max(sh*ba, sw*(1-allow)); else sh=Math.max(sw/ba, sh*(1-allow));
+  const na=sw/sh; let dw=w, dh=h;
+  if (na>ba) dh=w/na; else dw=h*na;
+  return {x:Math.round(x+(w-dw)/2), y:Math.round(y+(h-dh)/2), w:Math.round(dw), h:Math.round(dh), al:allow};
+}
+const sized=()=>imgs.some(o=>(o.s||1)!==1);
 
 // ---- 動画 ----
 function drawFrame(t){
@@ -323,19 +401,24 @@ function record(){
   step();
 }
 
+// 並びを 決める。「入れた順」は 今の 並びを そのまま 使う（足した 分は 後ろに つく）
 function arrange(){
   const n=imgs.length;
   applyTrim();
-  order=[...Array(n).keys()];
+  order=order.filter(i=>i<n);
+  for (let i=0;i<n;i++) if (!order.includes(i)) order.push(i);
   if (mode==='pic' && $('order').value==='best' && n>2){
     const [W,H]=getSize(), gap=+$('gap').value, pad=+$('pad').value, al=allow();
-    let best=plan(order,W-pad*2,H-pad*2,gap,al).score, bestO=order.slice();
-    const tries = n>60?40:n>25?120:300;
+    const tree=sized();
+    const score=o=> tree ? treeLayout(o,0,0,W-pad*2,H-pad*2,gap,al).score : plan(o,W-pad*2,H-pad*2,gap,al).score;
+    const base=[...Array(n).keys()];
+    let best=score(base), bestO=base;
+    const tries = tree ? (n>20?0:n>10?10:30) : n>60?40:n>25?120:300;
     for (let k=0;k<tries;k++){
       const o=bestO.slice();
       if (k%3===0) o.sort(()=>Math.random()-.5);
       else { const a=Math.random()*n|0,b=Math.random()*n|0; [o[a],o[b]]=[o[b],o[a]]; }
-      const s=plan(o,W-pad*2,H-pad*2,gap,al).score;
+      const s=score(o);
       if (s<best){best=s;bestO=o;}
     }
     order=bestO;
@@ -343,35 +426,127 @@ function arrange(){
   build();
 }
 
+// 読みこみの 終わる 順は ばらばら なので、ファイル名の 順に そろえてから 足す
+const byName=(a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true});
 function addFiles(files){
-  const list=[...files].filter(f=>f && f.type.startsWith('image/'));
+  const list=[...files].filter(f=>f && f.type.startsWith('image/')).sort(byName);
   if (!list.length) return;
-  let left=list.length;
-  list.forEach(f=>{
+  Promise.all(list.map(f=>new Promise(res=>{
     const img=new Image();
-    img.onload=()=>{ imgs.push({img}); if(--left===0) arrange(); };
-    img.onerror=()=>{ if(--left===0) arrange(); };
+    img.onload=()=>res(img); img.onerror=()=>res(null);
     img.src=URL.createObjectURL(f);
+  }))).then(loaded=>{
+    const got=loaded.filter(Boolean); if (!got.length) return;
+    snap();
+    for (const img of got) imgs.push({img, s:1});
+    arrange();
   });
 }
 
-function hit(e){
-  const r=cv.getBoundingClientRect(), x=(e.clientX-r.left)*cv.width/r.width, y=(e.clientY-r.top)*cv.height/r.height;
-  return layout.find(L=>x>=L.x&&x<L.x+L.w&&y>=L.y&&y<L.y+L.h);
+// ---- 元に戻す ----
+let undoS=[], redoS=[];
+const state=()=>({imgs:imgs.slice(), s:imgs.map(o=>o.s||1), order:order.slice(), sel});
+function snap(){ undoS.push(state()); if (undoS.length>100) undoS.shift(); redoS=[]; }
+function restore(st){ imgs=st.imgs; imgs.forEach((o,k)=>o.s=st.s[k]); order=st.order; sel=st.sel; build(); }
+function undo(){ if (!undoS.length) return; redoS.push(state()); restore(undoS.pop()); }
+function redo(){ if (!redoS.length) return; undoS.push(state()); restore(redoS.pop()); }
+
+// ---- 選ぶ・入れかえる・ピンチで 大きさ ----
+let sel=-1; // imgs の 番号
+const SMIN=.4, SMAX=3;
+function showSel(){
+  const b=$('sel'), L=mode==='pic' && layout.find(L=>L.i===sel);
+  $('gSel').classList.toggle('off', !L);
+  if (!L){ b.hidden=true; $('oSz').textContent='—'; return; }
+  const k=cv.clientWidth/cv.width, ox=cv.offsetLeft+cv.clientLeft, oy=cv.offsetTop+cv.clientTop;
+  Object.assign(b.style,{left:ox+L.x*k+'px',top:oy+L.y*k+'px',width:L.w*k+'px',height:L.h*k+'px'});
+  b.hidden=false;
+  $('oSz').textContent=Math.round((imgs[sel].s||1)*100)+'%';
 }
-cv.addEventListener('pointerdown',e=>{ if(mode!=='pic')return; const L=hit(e); dragFrom=L?L.t:-1;});
-cv.addEventListener('pointerup',e=>{
-  if(mode!=='pic')return;
-  const L=hit(e);
-  if (dragFrom>=0 && L && L.t!==dragFrom){ [order[dragFrom],order[L.t]]=[order[L.t],order[dragFrom]]; build(); }
-  dragFrom=-1;
+function setSize(i,s){
+  if (i<0||!imgs[i]) return;
+  imgs[i].s=Math.round(Math.min(SMAX,Math.max(SMIN,s))*100)/100;
+  if (Math.abs(imgs[i].s-1)<.04) imgs[i].s=1;
+  build();
+}
+let lateBuild=0;
+function setSizeSoon(i,s){ // ピンチ中は 間を あけて 並べなおす
+  imgs[i].s=Math.min(SMAX,Math.max(SMIN,s)); $('oSz').textContent=Math.round(imgs[i].s*100)+'%';
+  if (!lateBuild) lateBuild=setTimeout(()=>{lateBuild=0; build();},90);
+}
+function canvasPt(e){ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]; }
+function hitAt(x,y){ return layout.find(L=>x>=L.x&&x<L.x+L.w&&y>=L.y&&y<L.y+L.h); }
+function hit(e){ return hitAt(...canvasPt(e)); }
+
+const pts=new Map(); let pinch=null, down=null;
+cv.addEventListener('pointerdown',e=>{
+  if (mode!=='pic') return;
+  try{ cv.setPointerCapture(e.pointerId); }catch{}
+  pts.set(e.pointerId,[e.clientX,e.clientY]);
+  if (pts.size===1){ const L=hit(e); down={t:L?L.t:-1, x:e.clientX, y:e.clientY}; }
+  else if (pts.size===2){
+    const [a,b]=[...pts.values()];
+    const r=cv.getBoundingClientRect(), mx=((a[0]+b[0])/2-r.left)*cv.width/r.width, my=((a[1]+b[1])/2-r.top)*cv.height/r.height;
+    if (sel<0){ const L=hitAt(mx,my); if (L) sel=L.i; }
+    down=null;
+    if (sel>=0){ snap(); pinch={d0:Math.hypot(a[0]-b[0],a[1]-b[1]), s0:imgs[sel].s||1}; }
+  }
 });
+cv.addEventListener('pointermove',e=>{
+  if (!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId,[e.clientX,e.clientY]);
+  if (pinch && pts.size>=2 && sel>=0){
+    const [a,b]=[...pts.values()], d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+    setSizeSoon(sel, pinch.s0*d/pinch.d0);
+  }
+});
+function ptEnd(e){
+  if (!pts.has(e.pointerId)) return;
+  pts.delete(e.pointerId);
+  if (pinch){ if (pts.size<2){ pinch=null; clearTimeout(lateBuild); lateBuild=0; setSize(sel, imgs[sel]?.s||1); } return; }
+  if (!down || e.type==='pointercancel'){ down=null; return; }
+  const L=hit(e), moved=Math.hypot(e.clientX-down.x,e.clientY-down.y)>8;
+  if (down.t>=0 && L && L.t!==down.t){ snap(); [order[down.t],order[L.t]]=[order[L.t],order[down.t]]; build(); }
+  else if (!moved){ sel = L ? (L.i===sel ? -1 : L.i) : -1; showSel(); }
+  down=null;
+}
+cv.addEventListener('pointerup',ptEnd);
+cv.addEventListener('pointercancel',ptEnd);
+// パソコン: Ctrl＋ホイール（タッチパッドの ピンチも これで 来る）
+let wheelT=0;
+cv.addEventListener('wheel',e=>{
+  if (mode!=='pic' || !e.ctrlKey) return;
+  e.preventDefault();
+  if (sel<0){ const L=hit(e); if (!L) return; sel=L.i; }
+  if (performance.now()-wheelT>500) snap();
+  wheelT=performance.now();
+  setSizeSoon(sel,(imgs[sel].s||1)*Math.exp(-e.deltaY*.01));
+},{passive:false});
+function removeImg(i){
+  if (i<0||!imgs[i]) return;
+  snap();
+  imgs.splice(i,1); order=order.filter(v=>v!==i).map(v=>v>i?v-1:v);
+  sel=-1; build();
+}
 cv.addEventListener('dblclick',e=>{
   if(mode!=='pic')return;
-  const L=hit(e); if(!L) return;
-  if (!confirm('この画像を外す？')) return;
-  const i=L.i; imgs.splice(i,1); order=order.filter(v=>v!==i).map(v=>v>i?v-1:v); build();
+  const L=hit(e); if(L) removeImg(L.i);
 });
+addEventListener('resize',showSel);
+addEventListener('keydown',e=>{
+  if (e.target.closest('input,select')) return;
+  const k=e.key.toLowerCase();
+  if ((e.ctrlKey||e.metaKey) && k==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); }
+  else if ((e.ctrlKey||e.metaKey) && k==='y'){ e.preventDefault(); redo(); }
+  else if (mode==='pic' && sel>=0 && (k==='delete'||k==='backspace')){ e.preventDefault(); removeImg(sel); }
+  else if (k==='escape'){ sel=-1; showSel(); }
+});
+$('bBig').onclick=()=>{ if(sel>=0){ snap(); setSize(sel,(imgs[sel].s||1)*1.2); } };
+$('bSmall').onclick=()=>{ if(sel>=0){ snap(); setSize(sel,(imgs[sel].s||1)/1.2); } };
+$('bOne').onclick=()=>{ if(sel>=0){ snap(); setSize(sel,1); } };
+$('bDel').onclick=()=>removeImg(sel);
+$('bAllOne').onclick=()=>{ if(sized()){ snap(); imgs.forEach(o=>o.s=1); build(); } };
+$('bUndo').onclick=undo; $('bRedo').onclick=redo;
 
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
   mode=b.dataset.m;
@@ -383,8 +558,8 @@ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
 });
 $('bAdd').onclick=()=>$('fIn').click();
 $('fIn').onchange=e=>{addFiles(e.target.files); e.target.value='';};
-$('bShuffle').onclick=()=>{ if(mode==='mov'||$('order').value==='keep'){order.sort(()=>Math.random()-.5);build();} else arrange(); };
-$('bClear').onclick=()=>{ if(imgs.length&&confirm('ぜんぶ消す？')){imgs=[];order=[];build();} };
+$('bShuffle').onclick=()=>{ snap(); if(mode==='mov'||$('order').value==='keep'||sized()){order.sort(()=>Math.random()-.5);build();} else arrange(); };
+$('bClear').onclick=()=>{ if(imgs.length&&confirm('ぜんぶ消す？')){imgs=[];order=[];sel=-1;undoS=[];redoS=[];build();} };
 $('size').onchange=()=>{ $('gCustom').hidden=$('size').value!=='custom'; arrange(); };
 $('cw').onchange=$('ch').onchange=arrange;
 $('order').onchange=arrange;

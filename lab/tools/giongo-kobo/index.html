@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>擬音工房</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Dela+Gothic+One&family=Reggae+One&family=RocknRoll+One&family=Rampart+One&family=Mochiy+Pop+One&family=Potta+One&family=Hachi+Maru+Pop&family=Yusei+Magic&family=Klee+One:wght@600&family=Zen+Maru+Gothic:wght@900&family=Zen+Kaku+Gothic+New:wght@900&family=Yuji+Syuku&family=Yuji+Boku&family=Shippori+Mincho+B1:wght@800&family=Kaisei+Decol:wght@700&family=DotGothic16&family=Train+One&family=Stick&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60;--main-deep:#B8B43F;--main-soft:#F2F0BE;
+  --cream:#FBFAEC;--paper:#FFFEF7;--ink:#1E1C14;--ink-2:#4F4A3B;--gray:#6E6857;
+  --rule:rgba(30,28,20,.22);--bd:2.5px solid var(--ink);--r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:clip}
+body{
+  background:var(--cream);
+  background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);
+  background-size:16px 16px;
+  color:var(--ink);font-family:'M PLUS Rounded 1c',sans-serif;font-weight:500;font-size:1rem;line-height:1.6;
+  min-height:100vh;display:flex;flex-direction:column;
+}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+button,select,input,textarea{font:inherit;color:inherit}
+
+.bar{position:sticky;top:0;z-index:10;background:var(--main);border-bottom:var(--bd);
+  display:flex;align-items:center;gap:.6rem;padding:.55rem 1rem;flex-wrap:wrap}
+.bar h1{font-size:1.3rem;font-weight:800;margin-right:auto;white-space:nowrap}
+.bar h1 a{color:inherit;text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:36px;
+  background:var(--paper);border:var(--bd);border-radius:var(--r);
+  padding:.4rem .9rem;font-weight:700;font-size:.95rem;cursor:pointer;white-space:nowrap;color:var(--ink)}
+.btn:hover{background:var(--main-soft)}
+.btn-y{background:var(--main)}
+.btn-y:hover{background:var(--main-deep)}
+.ico{width:2.6rem;padding:.4rem 0}
+
+.main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:auto minmax(0,1fr);gap:.7rem 1rem;padding:.7rem 1rem;min-height:0}
+@media(min-width:981px){body{height:100dvh;min-height:0}}
+.props{overflow-y:auto;min-height:0;padding-right:.2rem}
+@media(max-width:980px){.main{grid-template-columns:minmax(0,1fr);grid-template-rows:none;height:auto}.props{overflow:visible}}
+@media(max-width:760px){.main{padding:.75rem}}
+
+/* 種類の ならび */
+.kinds{grid-column:1 / -1;display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.3rem}
+.kind{flex:none;width:72px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);cursor:pointer;padding:0;overflow:hidden}
+.kind:hover{background:var(--main-soft)}
+.kind.on{background:var(--main);border-width:2.5px}
+.kind canvas{width:100%;aspect-ratio:1;display:block;border-bottom:2px solid var(--ink);background:#fff}
+.kind span{font-size:.8rem;font-weight:700;display:block;padding:.15rem}
+
+.stagecol{display:flex;flex-direction:column;gap:.5rem;min-width:0;min-height:0}
+.stagebar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.seg{display:inline-flex;border:var(--bd);border-radius:var(--r);overflow:hidden;background:var(--paper)}
+.seg button{border:0;border-right:2px solid var(--ink);background:transparent;padding:.3rem .7rem;min-height:34px;font-weight:700;font-size:.9rem;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--main-soft)}
+.seg button.on{background:var(--main)}
+.stage{position:relative;border:var(--bd);border-radius:var(--r);overflow:hidden;touch-action:none;flex:1;min-height:0;width:100%}
+@media(max-width:980px){.stage{flex:none;height:min(70dvh,100vw)}}
+.stage.bg-checker{background:repeating-conic-gradient(#e4e1d2 0 25%,#f7f5ea 0 50%) 0 0/24px 24px}
+.stage.bg-white{background:#fff}
+.stage.bg-dark{background:#3a372c}
+.stage canvas{display:block;width:100%;height:100%}
+.hint{font-size:.85rem;color:var(--gray)}
+
+.props{display:flex;flex-direction:column;gap:1rem}
+.box{background:var(--paper);border:var(--bd);border-radius:var(--r);padding:.85rem .95rem}
+.box h3{display:inline-block;background:var(--ink);color:var(--paper);border-radius:100px;padding:.05rem .8rem;font-size:.95rem;font-weight:800;margin-bottom:.55rem}
+.box h3 small{font-weight:700;opacity:.75;margin-left:.3rem}
+textarea{width:100%;border:2px solid var(--ink);border-radius:10px;background:var(--paper);padding:.4rem .6rem;font-size:1.3rem;font-weight:800;resize:vertical;min-height:3.2rem}
+input[type=text],select{width:100%;border:2px solid var(--ink);border-radius:10px;background:var(--paper);padding:.35rem .5rem;font-weight:700}
+input[type=color]{width:46px;height:34px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);padding:2px;cursor:pointer;flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.35rem 0}
+.chip{border:2px solid var(--ink);border-radius:100px;background:var(--paper);padding:.1rem .75rem;min-height:34px;font-weight:700;font-size:.85rem;cursor:pointer}
+.chip:hover{background:var(--main-soft)}
+.chip.on{background:var(--main)}
+.fonts{display:grid;grid-template-columns:4.2rem minmax(0,1fr);gap:.3rem .5rem;align-items:center}
+.fonts .lab{font-size:.78rem;font-weight:700;color:var(--gray);text-align:right}
+.fonts .row{display:flex;flex-wrap:wrap;gap:.3rem}
+.fbtn{border:2px solid var(--ink);border-radius:8px;background:#fff;padding:.05rem .45rem;min-height:36px;font-size:1.05rem;cursor:pointer;line-height:1.5}
+.fbtn:hover{background:var(--main-soft)}
+.fbtn.on{background:var(--main)}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.2rem .7rem}
+@media(max-width:420px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.param .lab{display:flex;justify-content:space-between;font-weight:700;font-size:.82rem}
+.param .lab output{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.line{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.3rem 0}
+.line > span{font-weight:700;font-size:.85rem}
+.strokes .st{display:flex;align-items:center;gap:.5rem;margin:.25rem 0}
+.strokes .st .param{flex:1}
+.mini{border:2px solid var(--ink);border-radius:8px;background:var(--paper);width:36px;height:34px;cursor:pointer;font-weight:800;flex:none}
+.mini:hover{background:var(--main-soft)}
+.exbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;margin-top:.5rem}
+.note,.empty{font-size:.82rem;color:var(--gray);line-height:1.6;margin-top:.4rem}
+details summary{cursor:pointer;font-weight:800}
+.dict[hidden]{display:none}
+.dict{display:flex;flex-direction:column;gap:.3rem;margin-top:.4rem}
+.dict b{font-size:.8rem;color:var(--gray)}
+.gacha{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem;margin-top:.5rem}
+.gacha canvas{width:100%;aspect-ratio:1;border:2px solid var(--ink);border-radius:8px;background:#fff;cursor:pointer}
+.gacha canvas:hover{outline:3px solid var(--main)}
+.favs{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}
+
+.help{background:var(--paper);border:var(--bd);border-radius:var(--r);padding:.85rem 1.1rem;font-size:.9rem}
+.help ol{padding-left:1.4rem;margin-top:.4rem}
+.help li{margin:.2rem 0}
+
+#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:.5rem 1.1rem;border-radius:100px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
+#toast.show{opacity:1}
+
+.rs{position:relative;height:28px;touch-action:none;cursor:ew-resize}
+.rs-track{position:absolute;left:9px;right:9px;top:9px;height:10px;border:2px solid var(--ink);border-radius:6px;background:var(--cream);overflow:hidden}
+.rs-fill{height:100%;background:var(--main)}
+.rs-knob{position:absolute;top:4px;width:20px;height:20px;margin-left:-10px;border:2.5px solid var(--ink);border-radius:50%;background:var(--paper)}
+.rs:hover .rs-knob,.rs.drag .rs-knob{background:var(--main)}
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1><a href="../../index.html" title="HAANI LAB へ">擬音工房</a></h1>
+  <span class="hint" id="sizeinfo"></span>
+  <button class="btn ico" id="undo" title="もどす (Ctrl+Z)">↶</button>
+  <button class="btn ico" id="redo" title="やり直す (Ctrl+Y)">↷</button>
+  <button class="btn btn-y" id="savePng" title="PNG で 保存">⬇ PNG</button>
+</header>
+
+<div class="main">
+  <div class="kinds" id="kinds"></div>
+
+  <section class="stagecol">
+    <div class="stagebar">
+      <div class="seg" id="modeseg">
+        <button data-m="path" class="on">通り道</button>
+        <button data-m="char">字を動かす</button>
+      </div>
+      <div class="seg" id="bgseg">
+        <button data-bg="checker" class="on">市松</button>
+        <button data-bg="white">白</button>
+        <button data-bg="dark">黒</button>
+      </div>
+      <span class="param" style="flex:1;min-width:150px"><span class="lab"><span>字の大きさ</span><output></output></span><input type="range" data-k="size" min="30" max="400" step="1"></span>
+    </div>
+    <div class="stage bg-checker" id="stage"><canvas id="cv"></canvas></div>
+    <div class="stagebar">
+      <button class="btn" id="omakase">✨ おまかせ</button>
+      <button class="btn" id="reseed">🔄 別の形</button>
+      <button class="btn" id="resetChars">字の手直しを戻す</button>
+      <button class="btn" id="resetPath">通り道を戻す</button>
+    </div>
+    <p class="hint" id="modehint"></p>
+  </section>
+
+  <aside class="props">
+    <div class="box">
+      <h3>文字</h3>
+      <textarea id="text" rows="2" maxlength="40"></textarea>
+      <div class="chips">
+        <button class="chip" data-v="0">横書き</button>
+        <button class="chip" data-v="1">縦書き</button>
+        <button class="chip" id="dictBtn">🔍 擬音の辞書</button>
+      </div>
+      <div class="dict" id="dict" hidden></div>
+      <div class="line"><span>添え字</span><input type="text" data-k="soe" placeholder="例: BOOM" maxlength="20" style="flex:1"></div>
+      <p class="empty">改行で 分けた 字は それぞれ 別の 通り道に 並ぶ。</p>
+    </div>
+
+    <div class="box">
+      <h3>字の形</h3>
+      <div class="fonts" id="fonts"></div>
+    </div>
+
+    <div class="box">
+      <h3>並び</h3>
+      <div class="grid3">
+        <div class="param"><div class="lab"><span>大きさ・始め</span><output></output></div><input type="range" data-k="sizeA" min="30" max="200" step="1"></div>
+        <div class="param"><div class="lab"><span>大きさ・終わり</span><output></output></div><input type="range" data-k="sizeB" min="30" max="200" step="1"></div>
+        <div class="param"><div class="lab"><span>立ち方</span><output></output></div><input type="range" data-k="upright" min="0" max="100" step="1"></div>
+        <div class="param"><div class="lab"><span>斜体</span><output></output></div><input type="range" data-k="skew" min="-40" max="40" step="1"></div>
+        <div class="param"><div class="lab"><span>右上がり</span><output></output></div><input type="range" data-k="rise" min="-30" max="30" step="1"></div>
+        <div class="param"><div class="lab"><span>横の つぶし</span><output></output></div><input type="range" data-k="squash" min="50" max="150" step="1"></div>
+        <div class="param"><div class="lab"><span>角度の ばらつき</span><output></output></div><input type="range" data-k="jRot" min="0" max="40" step="1"></div>
+        <div class="param"><div class="lab"><span>大きさの ばらつき</span><output></output></div><input type="range" data-k="jSize" min="0" max="60" step="1"></div>
+        <div class="param"><div class="lab"><span>上下の ばらつき</span><output></output></div><input type="range" data-k="jPos" min="0" max="60" step="1"></div>
+      </div>
+      <div class="line"><span>全体の変形</span>
+        <div class="seg" data-seg="warp"><button data-v="none">なし</button><button data-v="trap">台形</button><button data-v="bulge">ふくらみ</button></div>
+      </div>
+      <div class="param" id="warpAmt"><div class="lab"><span>変形の 強さ</span><output></output></div><input type="range" data-k="warpAmt" min="-100" max="100" step="1"></div>
+    </div>
+
+    <div class="box">
+      <h3>塗り</h3>
+      <div class="chips" data-chips="fill">
+        <button class="chip" data-v="beta">ベタ</button><button class="chip" data-v="white">白</button><button class="chip" data-v="gray">グレー</button>
+        <button class="chip" data-v="dots">網点</button><button class="chip" data-v="dotsGrad">網点のグラデ</button>
+        <button class="chip" data-v="lines">線トーン</button><button class="chip" data-v="none">線だけ</button>
+      </div>
+      <div class="line"><span>色</span><input type="color" data-k="fillColor">
+        <label class="chip" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" data-k="nega">ネガ</label></div>
+    </div>
+
+    <div class="box">
+      <h3>フチ</h3>
+      <div class="strokes" id="strokes"></div>
+      <div class="line">
+        <button class="chip" id="addStroke">＋ フチを 足す</button>
+        <div class="seg" data-seg="strokeMode"><button data-v="each">文字ごと</button><button data-v="merge">まとめて</button></div>
+        <label class="chip" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" data-k="sharp">尖る</label>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3>影・動き</h3>
+      <div class="grid3">
+        <div class="param"><div class="lab"><span>影 よこ</span><output></output></div><input type="range" data-k="shX" min="-40" max="40" step="1"></div>
+        <div class="param"><div class="lab"><span>影 たて</span><output></output></div><input type="range" data-k="shY" min="-40" max="40" step="1"></div>
+        <div class="param"><div class="lab"><span>残像</span><output></output></div><input type="range" data-k="trail" min="0" max="6" step="1"></div>
+      </div>
+      <div class="line"><span>影の色</span><input type="color" data-k="shColor"><span class="empty" style="margin:0">影が 0・0 なら 出ない</span></div>
+    </div>
+
+    <div class="box">
+      <h3>保存</h3>
+      <div class="line"><span>背景</span>
+        <div class="seg" data-seg="exBg"><button data-v="clear">透明</button><button data-v="white">白</button></div>
+        <span>大きさ</span>
+        <div class="seg" data-seg="exScale"><button data-v="1">1倍</button><button data-v="2">2倍</button><button data-v="3">3倍</button><button data-v="4">4倍</button></div>
+      </div>
+      <div class="exbtns">
+        <button class="btn btn-y" id="exPng">⬇ PNG</button>
+        <button class="btn" id="exSvg">⬇ SVG</button>
+        <button class="btn" id="exCopy">📋 コピー</button>
+        <button class="btn" id="exLink">🔗 共有リンク</button>
+        <button class="btn" id="exJson">💾 設定を 書き出す</button>
+        <button class="btn" id="imJson">📂 設定を 読む</button>
+      </div>
+      <input type="file" id="jsonFile" accept=".json,application/json" hidden>
+      <p class="note">SVG は 字を 文字の まま 入れる。開く 側に 同じ 書体が ないと 形が 変わるので、クリスタ などには PNG が おすすめ。</p>
+    </div>
+
+    <div class="box">
+      <h3>ガチャ</h3>
+      <div class="line">
+        <button class="btn btn-y" id="gachaBtn">🔄 案を 引く</button>
+        <label class="chip" style="display:inline-flex;align-items:center;gap:.3rem"><input type="checkbox" id="gMix" checked>種類も 混ぜる</label>
+      </div>
+      <div class="param"><div class="lab"><span>変異度</span><output></output></div><input type="range" data-g="var" min="0" max="100" step="1" value="35"></div>
+      <div class="gacha" id="gacha"></div>
+    </div>
+
+    <div class="box">
+      <h3>お気に入り</h3>
+      <div class="line"><button class="btn" id="favAdd">⭐ 今の 設定を しまう</button><button class="btn" id="resetAll">初めに 戻す</button></div>
+      <div class="favs" id="favs"></div>
+      <p class="empty">字 以外の 設定を しまう。押すと 今の 字の まま 取りこむ。長押しで 消す。</p>
+    </div>
+  <section class="help">
+    <details>
+      <summary>使い方</summary>
+      <ol>
+        <li>字を 打つと、上に 12 通りの 種類が 並ぶ。押すと その 種類に なる。</li>
+        <li>「通り道」で 青い ● を 始め、だいだいの ● を 終わり、◆ で 曲げる。字は 通り道に そって 並ぶ。</li>
+        <li>「字を動かす」で 字を 押して ドラッグで 移動、○ で 回す、□ で 大きさ。ダブルクリックで 戻す。</li>
+        <li>2本指タップで もどす、3本指タップで やり直す。</li>
+        <li>設定は この ブラウザに しまわれる。作った 字は どこにも 送られない。</li>
+      </ol>
+      <p class="note">書体は Google Fonts（SIL Open Font License）。</p>
+    </details>
+  </section>
+  </aside>
+
+</div>
+<div id="toast"></div>
+
+<script type="module" src="./giongo.js?v=3"></script>
+<script type="module" src="../skin/icons.js?v=8"></script>
+</body>
+</html>

@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="site.css?v=1">
 <style>
 /* ============ スケジュール専用（見た目は style.css に合わせる） ============ */
 .sch-head{
@@ -277,34 +277,32 @@
 </head>
 <body>
 
-<!-- ================= アプリバー ================= -->
-<div class="app">
-  <div class="titlebar">
-    <div class="tb-title">スケジュール</div>
-    <span class="tb-spec dot">SCHEDULE　／　更新日とお休み</span>
-    <div class="tb-actions">
-      <a href="price.html" class="btn btn-sm">料金表</a>
-      <a href="index.html#contact" class="btn btn-sm btn-g">✉ ご依頼</a>
-    </div>
+<header class="nav">
+  <div class="nav-in">
+    <a href="index.html" class="mark">はぁにデザイン工房</a>
+    <nav class="nav-links" aria-label="サイト内">
+      <a href="index.html#works">作品</a>
+      <a href="price.html">料金</a>
+      <a href="flow.html">流れ</a>
+      <a href="index.html#about">プロフィール</a>
+    </nav>
+    <a href="index.html#contact" class="btn btn-g btn-sm">ご依頼</a>
   </div>
-  <div class="subrail">
-    <a href="index.html#works"   class="tool"><i>✏️</i>作品</a>
-    <a href="price.html"   class="tool"><i>🎨</i>料金</a>
-    <a href="flow.html"    class="tool"><i>📋</i>流れ</a>
-    <a href="schedule.html" class="tool on"><i>📅</i>予定</a>
-    <a href="index.html#contact" class="tool"><i>✉️</i>依頼</a>
-  </div>
+</header>
+<main class="sub">
+<div class="page-head">
+  <p class="crumb"><a href="index.html">TOP</a> ／ スケジュール</p>
+  <h1>スケジュール</h1>
+  <p>更新日とお休み（土日祝）。</p>
 </div>
 
-<div class="crumb"><a href="index.html">TOP</a> ／ スケジュール</div>
-
 <!-- ================= カレンダー ================= -->
-<section class="win">
-  <div class="win-bar">
-    <h2>📅 カレンダー</h2>
-    <span class="tb-spec dot">土日祝はお休みです</span>
+<section class="sec">
+  <div class="sec-head">
+    <h2>カレンダー</h2>
+    <p>土日祝はお休みです</p>
   </div>
-  <div class="win-body">
+  <div class="sec-body">
 
     <div class="sch-head">
       <span class="sch-en"><span id="monthEn">—</span><i>月</i></span>
@@ -326,12 +324,12 @@
 </section>
 
 <!-- ================= 直近の予定 ================= -->
-<section class="win">
-  <div class="win-bar">
-    <h2>🗒 これからの予定</h2>
-    <span class="tb-spec dot">直近8件</span>
+<section class="sec">
+  <div class="sec-head">
+    <h2>これからの予定</h2>
+    <p>直近8件</p>
   </div>
-  <div class="win-body">
+  <div class="sec-body">
     <ul class="up" id="upcoming"></ul>
     <p class="note">
       土日祝はお休みをいただいております。お返事は翌営業日以降になりますが、
@@ -340,15 +338,13 @@
   </div>
 </section>
 
+</main>
+
 <footer class="foot">
-  <div style="font-size:.9rem;">はぁにデザイン工房</div>
-  <div class="fl">
-    <a href="index.html">TOP</a>
-    <a href="price.html">料金表</a>
-    <a href="flow.html">ご依頼の流れ</a>
-    <a href="schedule.html">スケジュール</a>
-  </div>
-  <small>© 2026 はぁにデザイン工房. All rights reserved.</small>
+  <span>© 2026 はぁにデザイン工房</span>
+  <a href="index.html">TOP</a>
+  <a href="price.html">料金表</a>
+  <a href="flow.html">ご依頼の流れ</a>
 </footer>
 
 <div class="pic" id="pic">
