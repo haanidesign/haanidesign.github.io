@@ -7,9 +7,15 @@
    await HaaniTana.put(blob, { name, tool, tags })  棚に 入れる（サムネは 自動）
    const files = await HaaniTana.pick({ kinds: ['image','video'], multiple: true })  棚から 選ぶ
    HaaniTana.show(el)                               つながる ときだけ el を 見せる
-   HaaniTana.palettes() / savePalette(p) / removePalette(id) / pickPalette()   配色帳 */
+   HaaniTana.palettes() / savePalette(p) / removePalette(id) / pickPalette()   配色帳
+
+   手を 入れずに つなぐ（道具の HTML に 1行 足す だけ）:
+   <script src="../../tana.js" data-dock data-tool="道具の名前" data-in="#file:絵,#bg:背景"></script>
+   すみに「棚」の ボタンが 出る。棚から 選んだ ものを data-in の 読みこみ口へ 渡し、
+   「書き出しを 棚へ」を 入れて いる 間は、保存（<a download>・共有）を 棚に 入れる。 */
 (function () {
   'use strict';
+  const me = document.currentScript;
   const PORT = 8640;
   const LOCAL = ['127.0.0.1', 'localhost', '[::1]'];
 
@@ -205,7 +211,7 @@
     opt = opt || {};
     const kinds = opt.kinds || ['image', 'video', 'audio'];
     if (!(await ready())) { toast('棚が 動いて いません（ランチャーで「素材の棚」を 起こす）', 3600); return []; }
-    const d = dialog('棚から 選ぶ');
+    const d = dialog(opt.title || '棚から 選ぶ');
     const q = el('input'); q.type = 'search'; q.placeholder = '名前・タグで さがす'; q.setAttribute('aria-label', 'さがす');
     const dark = el('button', 'htn-b', '下地'); dark.type = 'button'; dark.title = 'サムネの 下地を 紙／黒で 切りかえ';
     const x = el('button', 'htn-b', 'とじる'); x.type = 'button'; x.onclick = () => d.close(null);
@@ -224,7 +230,7 @@
     let items = [], kind = 'all', failed = false;
     const sel = new Set();
     grid.appendChild(el('div', 'htn-empty', '読みこみ中…'));
-    try { items = (await list()).filter(it => kinds.includes(it.kind)); }
+    try { items = (await list()).filter(opt.filter || (it => kinds.includes(it.kind))); }
     catch (e) { failed = true; grid.textContent = ''; grid.appendChild(el('div', 'htn-empty', '棚を 読めませんでした。' + e.message)); }
 
     const give = async chosen => {
@@ -236,7 +242,7 @@
 
     function draw() {
       bar.textContent = '';
-      const have = kinds.filter(k => items.some(it => it.kind === k));
+      const have = ['image', 'video', 'audio', 'other'].filter(k => items.some(it => it.kind === k));
       if (have.length > 1) [['all', 'ぜんぶ']].concat(have.map(k => [k, KIND[k]])).forEach(([k, l]) => {
         const b = el('button', 'htn-b' + (kind === k ? ' on' : ''), l); b.type = 'button';
         b.setAttribute('aria-pressed', kind === k);
@@ -294,6 +300,155 @@
     });
     x.focus();
     return d.result;
+  }
+
+  /* ---------- すみの ボタン（data-dock） ---------- */
+  const DOCK_CSS = `
+.htn-dock{position:fixed;z-index:9980;left:10px;bottom:10px;font:700 15px/1.4 'M PLUS Rounded 1c',system-ui,sans-serif;color:#1E1C14;touch-action:none;user-select:none;-webkit-user-select:none}
+.htn-dbtn{font:inherit;color:inherit;min-width:48px;height:44px;padding:0 12px;background:#E1DD60;border:2.5px solid #1E1C14;border-radius:12px;cursor:pointer;white-space:nowrap}
+.htn-dbtn:hover{background:#B8B43F}
+.htn-dock.on .htn-dbtn{background:#1E1C14;color:#E1DD60}
+.htn-dbtn:focus-visible,.htn-menu button:focus-visible,.htn-menu a:focus-visible{outline:3px solid #1E1C14;outline-offset:2px}
+.htn-menu{position:absolute;left:0;bottom:52px;min-width:230px;background:#FFFEF7;border:2.5px solid #1E1C14;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.htn-menu[hidden]{display:none}
+.htn-dock.top .htn-menu{bottom:auto;top:52px}
+.htn-dock.right .htn-menu{left:auto;right:0}
+.htn-menu button,.htn-menu a{font:inherit;color:inherit;text-align:left;text-decoration:none;background:none;border:0;border-bottom:2.5px dotted rgba(30,28,20,.22);padding:10px 14px;min-height:44px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;box-sizing:border-box}
+.htn-menu > :last-child{border-bottom:0}
+.htn-menu button:hover,.htn-menu a:hover{background:#F2F0BE}
+.htn-menu button[aria-checked=true]{background:#E1DD60}
+.htn-menu i{font-style:normal;width:1.2em;text-align:center}
+`;
+  function acceptOk(accept, it) {
+    const list = String(accept || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    if (!list.length) return it.kind !== 'other';
+    return list.some(a => a.endsWith('/*') ? it.mime.startsWith(a.slice(0, -1))
+      : a[0] === '.' ? it.ext === a.slice(1) || (a === '.jpeg' && it.ext === 'jpg') : it.mime === a);
+  }
+  function dock(conf) {
+    const tool = conf.tool || document.title;
+    const ins = String(conf.in || '').split(',').map(x => x.trim()).filter(Boolean).map(x => {
+      const i = x.lastIndexOf(':'); return i > 0 ? { sel: x.slice(0, i), label: x.slice(i + 1) } : { sel: x, label: '' };
+    });
+    let sendOn = false;
+
+    /* 書き出しを つかまえる。blob: の アドレスは すぐ 消される ので、作った ときに 中身を 覚えて おく */
+    const blobs = new Map();
+    const mkUrl = URL.createObjectURL, rmUrl = URL.revokeObjectURL;
+    URL.createObjectURL = function (o) {
+      const u = mkUrl.call(URL, o);
+      if (o instanceof Blob) { blobs.set(u, o); if (blobs.size > 8) blobs.delete(blobs.keys().next().value); }
+      return u;
+    };
+    URL.revokeObjectURL = function (u) { setTimeout(() => blobs.delete(u), 15000); return rmUrl.call(URL, u); };
+    let line = Promise.resolve();
+    function send(blob, name) {
+      line = line.then(() => put(blob, { name: String(name || 'むだい').replace(/\.[^.]+$/, ''), tool, tags: [] }))
+        .then(m => toast('棚に 入れた: ' + m.name), e => toast('棚に 入りませんでした。' + e.message, 3600));
+    }
+    const isProject = (name, type) => /\.json$/i.test(name || '') || type === 'application/json';
+    function grab(a) {
+      const href = a.href || '', name = a.getAttribute('download') || 'むだい';
+      if (!sendOn || !/^(blob|data):/.test(href)) return false;
+      const b = blobs.get(href);
+      if (b) { if (isProject(name, b.type)) return false; send(b, name); return true; }
+      if (isProject(name, '')) return false;
+      fetch(href).then(r => r.blob()).then(x => send(x, name), () => toast('棚に 入りませんでした', 3600));
+      return true;
+    }
+    const aClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.hasAttribute('download') && grab(this)) return;
+      return aClick.call(this);
+    };
+    document.addEventListener('click', e => {
+      const a = e.target && e.target.closest && e.target.closest('a[download]');
+      if (a && grab(a)) e.preventDefault();
+    }, true);
+    if (navigator.share) {
+      const share = navigator.share.bind(navigator);
+      navigator.share = function (data) {
+        if (sendOn && data && data.files && data.files.length) { [...data.files].forEach(f => send(f, f.name)); return Promise.resolve(); }
+        return share(data);
+      };
+    }
+
+    /* 棚から 選んで、道具の 読みこみ口（input[type=file]）へ 渡す */
+    async function bring(inp, label) {
+      const files = await pick({
+        multiple: inp.multiple, title: '棚から 選ぶ' + (label ? '（' + label + '）' : ''),
+        filter: it => acceptOk(inp.accept, it)
+      });
+      if (!files.length) return;
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      inp.files = dt.files;
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    ready().then(ok => {
+      if (!ok) return;
+      style();
+      const st = document.createElement('style'); st.textContent = DOCK_CSS; document.head.appendChild(st);
+      const box = el('div', 'htn-dock'), btn = el('button', 'htn-dbtn', '棚'), menu = el('div', 'htn-menu');
+      btn.type = 'button'; btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'false'); btn.title = '素材の棚';
+      menu.hidden = true; menu.setAttribute('role', 'menu');
+      const item = (icon, text, fn) => {
+        const b = el('button'); b.type = 'button'; b.setAttribute('role', 'menuitem');
+        b.append(el('i', null, icon), el('span', null, text)); b.onclick = fn; menu.appendChild(b); return b;
+      };
+      const shut = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+      ins.forEach(x => item('⬇', '棚から 入れる' + (x.label ? '（' + x.label + '）' : ''), () => {
+        shut();
+        const inp = document.querySelector(x.sel);
+        if (inp) bring(inp, x.label); else toast('いまは 入れる ところが ありません');
+      }));
+      const sw = item('⬆', '書き出しを 棚へ', () => {
+        sendOn = !sendOn; sw.setAttribute('aria-checked', sendOn); box.classList.toggle('on', sendOn);
+        btn.textContent = sendOn ? '棚へ' : '棚';
+        toast(sendOn ? 'これから 保存する ものは 棚に 入ります' : '保存は PC に もどしました', 2800);
+        shut();
+      });
+      sw.setAttribute('role', 'menuitemcheckbox'); sw.setAttribute('aria-checked', 'false');
+      const open = el('a'); open.href = base + '/'; open.target = '_blank'; open.rel = 'noopener'; open.setAttribute('role', 'menuitem');
+      open.append(el('i', null, '🗄'), el('span', null, '棚を ひらく')); open.onclick = shut; menu.appendChild(open);
+      box.append(menu, btn); document.body.appendChild(box);
+
+      /* 置き場所。じゃまな ときは つまんで 動かせる（道具ごとに 覚える） */
+      const KEY = 'haani-tana-dock:' + location.pathname;
+      const place = (x, y) => {
+        x = Math.max(4, Math.min(innerWidth - box.offsetWidth - 4, x)); y = Math.max(4, Math.min(innerHeight - box.offsetHeight - 4, y));
+        box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.bottom = 'auto';
+        box.classList.toggle('top', y < innerHeight / 2); box.classList.toggle('right', x > innerWidth / 2);
+      };
+      try { const p = JSON.parse(localStorage.getItem(KEY)); if (p) place(p.x * innerWidth, p.y * innerHeight); } catch (_) {}
+      addEventListener('resize', () => { if (box.style.top) place(box.offsetLeft, box.offsetTop); });
+      let drag = null, moved = false;
+      btn.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, l: box.offsetLeft, t: box.offsetTop, moved: false }; btn.setPointerCapture(e.pointerId); });
+      btn.addEventListener('pointermove', e => {
+        if (!drag) return;
+        if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+        drag.moved = true; shut(); place(drag.l + e.clientX - drag.x, drag.t + e.clientY - drag.y);
+      });
+      const up = () => {
+        moved = !!(drag && drag.moved); drag = null;
+        if (moved) { try { localStorage.setItem(KEY, JSON.stringify({ x: box.offsetLeft / innerWidth, y: box.offsetTop / innerHeight })); } catch (_) {} }
+      };
+      btn.addEventListener('pointercancel', up);
+      btn.addEventListener('pointerup', up);
+      btn.addEventListener('click', () => {
+        if (moved) { moved = false; return; }
+        menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', !menu.hidden);
+        if (!menu.hidden) menu.querySelector('button,a').focus();
+      });
+      document.addEventListener('pointerdown', e => { if (!menu.hidden && !box.contains(e.target)) shut(); }, true);
+      box.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { shut(); btn.focus(); } });
+    });
+  }
+  if (me && me.dataset.dock !== undefined && base !== null) {
+    const go = () => dock({ tool: me.dataset.tool, in: me.dataset.in });
+    if (document.body) go(); else addEventListener('DOMContentLoaded', go);
   }
 
   window.HaaniTana = {

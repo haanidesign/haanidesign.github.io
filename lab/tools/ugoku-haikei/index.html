@@ -207,7 +207,6 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
 <script src="lib/mp4-muxer.js"></script>
 <script type="module">
 import { watchRanges } from '../oekaki-kobo/js/rslider.js';
-import '../../tana.js';   // 素材の棚（手元の サーバー）に つなぐ。window.HaaniTana
 import { watchColors } from '../../haani-color.js';
 import { haishokuPicker } from '../skin/haishoku.js';
 
@@ -1178,5 +1177,6 @@ watchRanges();
 watchColors();
 applyPreset('キラキラ');
 </script>
+<script src="../../tana.js" data-dock data-tool="うごく背景" data-in="#bgFile:背景,#spFile:つぶの 絵"></script>
 </body>
 </html>
