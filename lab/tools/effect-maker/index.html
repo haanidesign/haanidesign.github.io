@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="../../tana.js"></script>
 <style>
 :root{
   --main:#E1DD60;--main-deep:#B8B43F;--main-soft:#F2F0BE;
@@ -61,7 +62,8 @@ button,select,input{font:inherit;color:inherit}
 
 /* 左: エフェクト一覧 */
 .lib{background:var(--paper);border:var(--bd);border-radius:var(--r);display:flex;flex-direction:column;max-height:calc(100vh - 6rem);position:sticky;top:4.6rem}
-@media(max-width:760px){.lib{position:static;max-height:none}}
+@media(max-width:1180px){.lib{position:static}}
+@media(max-width:760px){.lib{max-height:none}}
 .lib-head{padding:.8rem .9rem .6rem;border-bottom:var(--bd)}
 .lib-head h2{font-size:1.15rem;font-weight:800;line-height:1.3}
 .lib-head p{font-size:.85rem;color:var(--gray)}
@@ -239,6 +241,10 @@ input[type=text]:focus,select:focus{background:var(--main-soft)}
           <option value="1080x1920">縦長 1080×1920</option>
           <option value="512x512">小さめ 512×512</option>
         </select></label>
+      <div class="seg" id="exdest" style="margin-top:.6rem" hidden>
+        <button data-dest="pc" class="on" aria-pressed="true">PC に 保存</button>
+        <button data-dest="tana" aria-pressed="false">棚に 入れる</button>
+      </div>
       <div class="exbtns">
         <button class="btn btn-y wide" id="exZip">連番PNG（透過・ZIP）</button>
         <button class="btn" id="exWebm">WebM 動画</button>
@@ -449,7 +455,21 @@ function tick(now){
 const status = $('#status');
 const fname = () => `${S.fx}_${S.fps}fps`;
 function exCanvas(){ const [w,h] = exDims(); const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
-function download(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+/* 出す先。棚サーバーが 動いて いる ときだけ「棚に 入れる」を 選べる */
+let exDest = 'pc';
+window.HaaniTana?.show($('#exdest'));
+for (const b of $('#exdest').children) b.onclick = () => {
+  exDest = b.dataset.dest;
+  for (const x of $('#exdest').children){ x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }
+};
+function download(blob, name){
+  if (exDest === 'tana'){
+    HaaniTana.put(blob, { name: name.replace(/\.[^.]+$/, ''), tool: 'エフェクトメーカー', tags: [FXI[S.fx].name, FXI[S.fx].cat] })
+      .then(() => { status.textContent = '棚に 入れました'; HaaniTana.toast('棚に 入れた'); })
+      .catch(e => { status.textContent = '棚に 入りませんでした: ' + e.message; });
+    return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
 const toBlob = c => new Promise(r => c.toBlob(r, 'image/png'));
 function busy(on){ for (const id of ['#exZip','#exWebm','#exSheet','#exStill']) $(id).disabled = on; }
 

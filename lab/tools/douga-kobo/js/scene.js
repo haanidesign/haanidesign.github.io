@@ -1,7 +1,7 @@
 /* シーン（ふだを まとめた 部品）と、くりかえしの うごき・エフェクトの 写し。 */
-import { S, uid, toast, newClip, newTrack, selectedAll, snap as pushUndo } from './state.js?v=80';
-import { beatSec } from './beat.js?v=80';
-import { bus } from './bus.js?v=80';
+import { S, uid, toast, newClip, newTrack, selectedAll, snap as pushUndo } from './state.js?v=81';
+import { beatSec } from './beat.js?v=81';
+import { bus } from './bus.js?v=81';
 
 /* ---------- まとめる ---------- */
 export function groupScene() {
