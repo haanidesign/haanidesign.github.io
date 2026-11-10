@@ -6,30 +6,35 @@
 <title>素材メーカー</title>
 <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#17171f;--panel:#1f1f2a;--line:#32323f;--txt:#e8e6ef;--dim:#8b8899;--acc:#ff9a3c;--acc2:#ff5c8a}
+:root{--bg:#FBFAEC;--panel:#FFFEF7;--line:#1E1C14;--txt:#1E1C14;--dim:#5C5843;--acc:#E1DD60;--acc2:#F2A0B8}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font-family:'Zen Maru Gothic',sans-serif;padding:16px}
-h1{font-family:'Mochiy Pop One';font-size:18px;margin-bottom:12px}
-h1 span{color:var(--acc)}
+body{background:var(--bg);background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);background-size:16px 16px;color:var(--txt);font-family:'M PLUS Rounded 1c','Hiragino Sans','Yu Gothic UI',sans-serif;font-weight:500;padding:16px}
+h1{font-weight:800;font-size:22px;margin-bottom:12px}
+h1 span{background:var(--acc2);border:2px solid var(--line);border-radius:100px;padding:0 .5em;font-size:.7em;vertical-align:middle}
 .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.tabs button{background:var(--panel);border:1px solid var(--line);border-radius:10px 10px 0 0;color:var(--dim);font-family:'Mochiy Pop One';font-size:13px;padding:10px 18px;cursor:pointer}
-.tabs button.on{background:var(--acc);color:#1a1005;border-color:var(--acc)}
+.tabs button{background:var(--panel);border:2.5px solid var(--line);border-radius:12px;color:var(--txt);font-family:inherit;font-weight:700;font-size:15px;padding:10px 18px;min-height:44px;cursor:pointer}
+.tabs button:hover{background:#F2F0BE}
+.tabs button.on{background:var(--acc);font-weight:800}
 .main{display:grid;grid-template-columns:1fr 300px;gap:12px}
 @media(max-width:800px){.main{grid-template-columns:1fr}}
-.preview{background:repeating-conic-gradient(#222 0 25%,#1a1a1a 0 50%) 0 0/20px 20px;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:300px}
+.preview{background:repeating-conic-gradient(#D9D5BC 0 25%,#FFFEF7 0 50%) 0 0/20px 20px;border:2.5px solid var(--line);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:300px}
 .preview canvas{max-width:100%;max-height:70vh}
-.ctrl{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:11px;font-size:13px}
-.ctrl label{color:var(--dim);font-size:11px;display:block;margin-bottom:3px}
-.ctrl select,.ctrl input[type=number]{width:100%;background:#12121a;border:1px solid var(--line);border-radius:8px;color:var(--txt);padding:7px;font-family:inherit;font-size:13px}
+.ctrl{background:var(--panel);border:2.5px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:11px;font-size:15px}
+.ctrl label{color:var(--txt);font-weight:700;font-size:14px;display:block;margin-bottom:3px}
+.ctrl select,.ctrl input[type=number]{width:100%;background:var(--panel);border:2.5px solid var(--line);border-radius:10px;color:var(--txt);padding:7px;min-height:40px;font-family:inherit;font-weight:700;font-size:15px}
 .ctrl input[type=range]{width:100%}
-.ctrl input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer}
+.ctrl input[type=color]{width:44px;height:32px;border:2.5px solid var(--line);border-radius:8px;background:none;cursor:pointer}
 .row{display:flex;gap:8px;align-items:center}
-button.act{background:linear-gradient(135deg,var(--acc),var(--acc2));border:none;border-radius:8px;color:#fff;font-family:'Mochiy Pop One';font-size:13px;padding:10px;cursor:pointer}
-button.sub{background:#12121a;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;padding:8px;cursor:pointer;font-family:inherit}
-#status{font-size:12px;color:var(--acc);min-height:16px}
-.note{font-size:10px;color:var(--dim);line-height:1.5}
-hr{border:none;border-top:1px solid var(--line)}
+button.act{background:var(--acc);border:2.5px solid var(--line);border-radius:12px;color:var(--txt);font-family:inherit;font-weight:800;font-size:15px;padding:10px;min-height:44px;cursor:pointer}
+button.act:hover{background:#B8B43F}
+button.sub{background:var(--panel);border:2.5px solid var(--line);border-radius:12px;color:var(--txt);font-weight:700;font-size:14px;padding:8px;min-height:40px;cursor:pointer;font-family:inherit}
+button.sub:hover{background:#F2F0BE}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--line);outline-offset:2px}
+#status{font-size:14px;font-weight:700;color:var(--txt);min-height:20px}
+.note{font-size:13px;color:var(--dim);line-height:1.7}
+hr{border:none;border-top:2.5px dotted rgba(30,28,20,.22)}
 </style>
 </head>
 <body>

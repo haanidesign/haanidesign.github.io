@@ -4,48 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ボーン変形アニメ / BoneWiggle</title>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#1b1d22;--pn:#24272e;--ln:#3a3f4a;--tx:#e8e8ea;--ac:#4aa3ff;--sub:#9aa0ab;--hot:#ff7a45}
+:root{--bg:#FBFAEC;--pn:#FFFEF7;--ln:#1E1C14;--tx:#1E1C14;--ac:#E1DD60;--sub:#5C5843;--hot:#F2A0B8}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font-family:"Segoe UI","Yu Gothic UI",sans-serif;font-size:13px;overflow:hidden}
-header{padding:8px 12px;border-bottom:1px solid var(--ln);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-h1{font-size:15px;margin:0 8px 0 0}
-button{background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:5px;padding:6px 11px;cursor:pointer}
-button:hover{border-color:var(--ac)}
-button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
-button.hot{background:var(--hot);border-color:var(--hot);color:#fff}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'M PLUS Rounded 1c','Hiragino Sans','Yu Gothic UI',sans-serif;font-weight:500;font-size:14px;overflow:hidden}
+header{padding:8px 12px;background:var(--ac);font-weight:700;border-bottom:2px solid var(--ln);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;font-weight:800;margin:0 8px 0 0}
+button{background:var(--pn);color:var(--tx);border:2px solid var(--ln);border-radius:10px;padding:6px 11px;min-height:36px;font:inherit;font-weight:700;cursor:pointer}
+button:hover{background:#F2F0BE}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--ln);outline-offset:2px}
+button.pri{background:var(--tx);color:var(--ac)}
+button.hot{background:var(--hot)}
 button:disabled{opacity:.4;cursor:default}
-input[type=number],input[type=text]{background:#1b1d22;color:var(--tx);border:1px solid var(--ln);border-radius:4px;padding:4px}
-#wrap{display:flex;height:calc(100vh - 47px)}
-#side{width:400px;overflow:auto;border-right:1px solid var(--ln);padding:10px}
-#stage{flex:1;position:relative;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
+input[type=number],input[type=text]{background:var(--pn);font:inherit;font-weight:700;min-height:32px;color:var(--tx);border:2px solid var(--ln);border-radius:4px;padding:4px}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#wrap{display:flex;flex:1;min-height:0}
+#side{width:400px;overflow:auto;border-right:2px solid var(--ln);padding:10px}
+#stage{flex:1;position:relative;background:#EFEDD8;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #holder{position:relative}
-canvas{display:block;background:repeating-conic-gradient(#2a2a2a 0 25%,#222 0 50%) 50%/20px 20px;touch-action:none}
+canvas{display:block;background:repeating-conic-gradient(#D9D5BC 0 25%,#FFFEF7 0 50%) 50%/20px 20px;touch-action:none}
 #ov{position:absolute;left:0;top:0;background:none}
-.row{background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:8px;margin-bottom:6px}
-.row.sel{border-color:var(--ac);border-width:2px;padding:7px;background:#26344a;box-shadow:0 0 0 1px rgba(74,163,255,.35)}
-.row.sel .nm{color:#8fc6ff;font-weight:700}
+.row{background:var(--pn);border:2px solid var(--ln);border-radius:6px;padding:8px;margin-bottom:6px}
+.row.sel{background:#F2F0BE;outline:2.5px solid var(--ln);outline-offset:-1px}
+.row.sel .nm{font-weight:800}
 .ord{display:flex;flex-direction:column;gap:2px;flex:none}
-.ord button{padding:0 6px;line-height:15px;font-size:11px;border-radius:3px}
+.ord button{padding:0 8px;min-height:20px;line-height:16px;font-size:12px;border-radius:6px}
 .grab{cursor:grab;color:var(--sub);padding:0 3px;flex:none;font-size:15px}
 .row.drag{opacity:.4}
-.row.over{border-color:var(--hot);border-style:dashed}
+.row.over{border-style:dashed;background:var(--hot)}
 .top{display:flex;gap:8px;align-items:center}
-.thumb{width:38px;height:38px;object-fit:contain;background:#111;border-radius:4px;flex:none}
+.thumb{width:38px;height:38px;object-fit:contain;background:#EFEDD8;border:1.5px solid var(--ln);border-radius:6px;flex:none}
 .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
-select{background:#1b1d22;color:var(--tx);border:1px solid var(--ln);border-radius:4px;padding:4px;max-width:150px}
-.prm{margin-top:6px;display:none;grid-template-columns:auto 1fr 42px;gap:4px 8px;align-items:center;font-size:12px;color:var(--sub)}
+select{background:var(--pn);font:inherit;font-weight:700;min-height:32px;color:var(--tx);border:2px solid var(--ln);border-radius:4px;padding:4px;max-width:150px}
+.prm{margin-top:6px;display:none;grid-template-columns:auto 1fr 42px;gap:4px 8px;align-items:center;font-size:13px;color:var(--tx)}
 .prm.on{display:grid}
 input[type=range]{width:100%}
-.hint{color:var(--sub);font-size:12px;line-height:1.7;margin:6px 0 12px}
-.tag{font-size:11px;padding:1px 6px;border-radius:9px;background:#333;color:var(--sub)}
-.tag.ok{background:#1d4a2b;color:#7fe0a0}
-#log{color:var(--sub);font-size:12px}
-#edbar{position:absolute;left:0;right:0;top:0;background:rgba(255,122,69,.92);color:#fff;padding:6px 10px;display:none;gap:8px;align-items:center;font-size:12px;z-index:5}
+.hint{color:var(--sub);font-size:13px;line-height:1.8;margin:6px 0 12px}
+.tag{font-size:12px;font-weight:700;padding:1px 8px;border-radius:100px;border:1.5px solid var(--ln);background:var(--pn);color:var(--sub)}
+.tag.ok{background:var(--ac);color:var(--tx)}
+#log{color:var(--tx);font-size:13px}
+#edbar{position:absolute;left:0;right:0;top:0;background:var(--hot);color:var(--tx);font-weight:700;border-bottom:2px solid var(--ln);padding:6px 10px;display:none;gap:8px;align-items:center;font-size:12px;z-index:5}
 #edbar.on{display:flex}
 #ov.edit{cursor:crosshair}
 #ov.move{cursor:move}
-#mvbar{position:absolute;left:0;right:0;top:0;background:rgba(74,163,255,.92);color:#fff;padding:6px 10px;display:none;gap:8px;align-items:center;font-size:12px;z-index:6}
+#mvbar{position:absolute;left:0;right:0;top:0;background:var(--ac);color:var(--tx);font-weight:700;border-bottom:2px solid var(--ln);padding:6px 10px;display:none;gap:8px;align-items:center;font-size:12px;z-index:6}
 #mvbar.on{display:flex}
 </style>
 </head>
@@ -57,7 +60,7 @@ input[type=range]{width:100%}
   <label>ループ<input id="frames" type="number" value="60" min="8" max="300" style="width:56px"></label>
   <label>fps<input id="fps" type="number" value="30" min="8" max="60" style="width:46px"></label>
   <label>繰返<input id="rep" type="number" value="3" min="1" max="30" style="width:42px"></label>
-  <label>背景<input id="bgc" type="color" value="#ffffff" style="width:32px;height:26px;background:none;border:1px solid #3a3f4a;border-radius:4px;padding:1px"></label>
+  <label>背景<input id="bgc" type="color" value="#ffffff" style="width:32px;height:26px;background:none;border:2px solid #1E1C14;border-radius:6px;padding:1px"></label>
   <input id="bgHex" type="text" value="#ffffff" spellcheck="false" style="width:80px;font-family:monospace">
   <button id="bgGreen">GB</button>
   <label style="display:flex;gap:4px;align-items:center"><input id="bgPrev" type="checkbox">背景反映</label>
@@ -514,7 +517,7 @@ function build(){
     <div class="bonebar" style="margin-top:6px;display:none;gap:6px;flex-wrap:wrap">
       <button class="draw hot">ボーンを引く</button>
       ${Object.keys(PRESETS).map(k=>`<button class="ps" data-k="${k}">${PRESETS[k].label}</button>`).join('')}
-      <label style="color:#9aa0ab">分割<input type="number" class="rows" value="${L.rows}" min="4" max="30" style="width:48px"></label>
+      <label style="color:#5C5843">分割<input type="number" class="rows" value="${L.rows}" min="4" max="30" style="width:48px"></label>
     </div>
     <div class="prm">
       <span class="ampL">曲がり角度</span><input type="range" class="a" min="0" max="45" step="0.5" value="${L.prm.amp}"><span class="av">${L.prm.amp}</span>
@@ -523,7 +526,7 @@ function build(){
       <span class="lagL">遅延</span><input type="range" class="g" min="0" max="0.6" step="0.02" value="${L.prm.lag}"><span class="gv">${L.prm.lag}</span>
       <span class="riseL">上下量</span><input type="range" class="rz" min="0" max="3" step="0.1" value="${L.prm.rise||0}"><span class="rzv">${L.prm.rise||0}</span>
     </div>
-    <div style="margin-top:5px;display:flex;gap:6px;align-items:center;font-size:12px;color:#9aa0ab">
+    <div style="margin-top:5px;display:flex;gap:6px;align-items:center;font-size:13px;color:#5C5843">
       <label style="display:flex;gap:4px;align-items:center;white-space:nowrap"><input type="checkbox" class="root">親レイヤー</label>
       <span>親</span><select class="par" style="flex:1"></select>
     </div>`;
@@ -574,7 +577,7 @@ function build(){
 function normHex(v){v=String(v).trim().replace(/^#?/,'');if(/^[0-9a-fA-F]{3}$/.test(v))v=v.split('').map(c=>c+c).join('');return /^[0-9a-fA-F]{6}$/.test(v)?'#'+v.toLowerCase():null;}
 function setBG(v,from){const h=normHex(v);if(!h)return;bgc.value=h;if(from!=='txt')bgHex.value=h;}
 bgc.oninput=()=>setBG(bgc.value);
-bgHex.oninput=()=>{const h=normHex(bgHex.value);bgHex.style.borderColor=h?'#3a3f4a':'#c05050';if(h)setBG(h,'txt');};
+bgHex.oninput=()=>{const h=normHex(bgHex.value);bgHex.style.borderColor=h?'#1E1C14':'#D8344A';if(h)setBG(h,'txt');};
 document.getElementById('bgGreen').onclick=()=>setBG('#00ff00');
 
 /* ---------- 書き出し ---------- */

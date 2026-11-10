@@ -15,13 +15,13 @@
   :root{
     --main:#E1DD60;          /* 主役の黄色 */
     --main-deep:#B8B43F;
-    --ink:#0E0D08;           /* 影と枠に使う、いちばん暗い色 */
-    --bg:#1A1913;            /* 地 */
-    --panel:#232219;         /* 操作パネル */
-    --panel2:#2E2C20;        /* パネルの中の一段くぼんだところ */
-    --text:#F2F0DE;
-    --dim:#9C977C;
-    --line:#443F2C;
+    --ink:#1E1C14;           /* 影と枠に使う、いちばん暗い色 */
+    --bg:#FBFAEC;            /* 地 */
+    --panel:#FFFEF7;         /* 操作パネル */
+    --panel2:#F4F2DC;        /* パネルの中の一段くぼんだところ */
+    --text:#1E1C14;
+    --dim:#5C5843;
+    --line:#C9C5A8;
     --hot:#FF8A4A;           /* 編集中を知らせる橙 */
     --bd:2px solid var(--ink);
     --r:10px;
@@ -38,10 +38,10 @@
   /* ---------------- ステージ ---------------- */
   #stage{
     flex:1; display:flex; align-items:center; justify-content:center; min-width:0; position:relative;
-    background-image:radial-gradient(circle, rgba(226,221,96,.09) 1.5px, transparent 1.6px);
+    background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px);
     background-size:16px 16px;
   }
-  #stage.transparent{background-image:conic-gradient(#2A2820 0 25%,#1C1B14 0 50%,#2A2820 0 75%,#1C1B14 0);background-size:24px 24px}
+  #stage.transparent{background-image:conic-gradient(#E8E5D0 0 25%,#FFFEF7 0 50%,#E8E5D0 0 75%,#FFFEF7 0);background-size:24px 24px}
   #stage.gb{background:#00b140; background-image:none}
   #stage.dark{background:#0B0A07; background-image:none}
   #holder{position:relative; line-height:0}
@@ -50,7 +50,7 @@
   #ov.edit{cursor:crosshair}
   #ov.adj{cursor:move}
   #drop{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(226,221,96,.16); color:var(--main); font-size:20px; font-weight:800;
+    background:rgba(225,221,96,.6); color:var(--ink); font-size:20px; font-weight:800;
     letter-spacing:.05em; pointer-events:none; border:4px dashed var(--main); border-radius:16px}
 
   /* ---------------- 上に出る帯 ---------------- */
@@ -63,11 +63,11 @@
   .bar b{flex-shrink:0; font-weight:800; letter-spacing:.04em}
   .bar .btn{
     background:rgba(255,255,255,.92); border:var(--bd); color:var(--ink);
-    padding:3px 11px; box-shadow:0 2px 0 var(--ink);
+    padding:3px 11px;
   }
-  .bar .btn:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink); background:#fff}
-  .bar .btn:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
-  .bar .btn.go{background:var(--ink); border-color:var(--ink); color:var(--main)}
+  .bar .btn:hover{background:#fff}
+  .bar .btn:active{}
+  .bar .btn.go{background:var(--ink); border-color:var(--ink); color:var(--ink)}
   .bar select{background:rgba(255,255,255,.92); color:var(--ink); border:var(--bd); font-weight:700}
   #edbar{background:var(--hot); color:#2A1200; z-index:6}
   #edbar .edhint{color:#6B3000; flex:1; min-width:140px}
@@ -96,47 +96,45 @@
   #titlebar .ttl{font-weight:800; font-size:14px; letter-spacing:.03em}
   #titlebar .back{
     margin-left:auto; font-size:11px; font-weight:700; text-decoration:none; color:var(--ink);
-    background:#FFFEF7; border:var(--bd); border-radius:8px; padding:2px 10px; box-shadow:0 2px 0 var(--ink);
+    background:#FFFEF7; border:var(--bd); border-radius:8px; padding:2px 10px;
   }
-  #titlebar .back:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink)}
-  #titlebar .back:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  #titlebar .back:hover{}
+  #titlebar .back:active{}
 
   h3{
     font-size:11px; color:var(--ink); background:var(--main); font-weight:800;
     margin:20px -6px 10px; padding:3px 10px; letter-spacing:.08em;
-    border:var(--bd); border-radius:6px; box-shadow:0 2px 0 var(--ink); display:inline-block;
+    border:var(--bd); border-radius:6px; display:inline-block;
   }
 
   /* ---------------- 部品 ---------------- */
   .chips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px}
   .chip{
-    padding:4px 12px; border-radius:14px; background:var(--panel2); border:var(--bd);
-    box-shadow:0 2px 0 var(--ink); cursor:pointer; user-select:none;
+    padding:4px 12px; border-radius:14px; background:var(--panel2); border:var(--bd); cursor:pointer; user-select:none;
     font-size:12px; font-weight:700; color:var(--dim);
-    transition:transform .08s, box-shadow .08s;
+    transition:;
   }
-  .chip:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink)}
-  .chip:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .chip:hover{}
+  .chip:active{}
   .chip.on{background:var(--main); color:var(--ink)}
 
   .btns{display:flex; flex-wrap:wrap; gap:7px}
   .btn{
-    padding:5px 13px; border-radius:8px; background:var(--panel2); border:var(--bd);
-    box-shadow:0 2px 0 var(--ink); color:var(--text); cursor:pointer;
+    padding:5px 13px; border-radius:8px; background:var(--panel2); border:var(--bd); color:var(--text); cursor:pointer;
     font:inherit; font-size:12px; font-weight:700;
-    transition:transform .08s, box-shadow .08s, background .15s;
+    transition:background .15s;
   }
-  .btn:hover{transform:translateY(-1px); box-shadow:0 3px 0 var(--ink); background:#3A3728}
-  .btn:active{transform:translateY(2px); box-shadow:0 0 0 var(--ink)}
+  .btn:hover{background:#F2F0BE}
+  .btn:active{}
   .btn.on{background:var(--main); color:var(--ink)}
   .btn.go{background:var(--main); color:var(--ink); font-weight:800}
-  .btn.go:hover{background:#EFEB7A}
-  .btn:disabled{opacity:.4; cursor:default; box-shadow:0 2px 0 var(--ink); transform:none}
+  .btn.go:hover{background:var(--main-deep)}
+  .btn:disabled{opacity:.4; cursor:default; transform:none}
 
   .row{display:flex; align-items:center; gap:8px; margin:6px 0}
   .row label{width:88px; flex-shrink:0; color:var(--text); font-size:12px; font-weight:700}
   .row input[type=range]{flex:1; accent-color:var(--main); height:4px}
-  .row .val{width:38px; text-align:right; color:var(--main); font-size:11px; font-weight:700}
+  .row .val{width:38px; text-align:right; color:var(--ink); font-size:11px; font-weight:700}
   select{
     background:var(--panel2); color:var(--text); border:var(--bd); border-radius:6px;
     font:inherit; font-size:11px; font-weight:700; padding:2px 5px;
@@ -150,8 +148,7 @@
   /* ---------------- レイヤー一覧 ---------------- */
   #layerlist .row label{width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   #layerlist .lrow{
-    border:var(--bd); border-radius:var(--r); background:var(--panel2);
-    box-shadow:0 2px 0 var(--ink); padding:8px 10px; margin-bottom:9px;
+    border:var(--bd); border-radius:var(--r); background:var(--panel2); padding:8px 10px; margin-bottom:9px;
   }
   #layerlist .lrow.off{opacity:.45}
   #layerlist .row{margin:3px 0}
@@ -159,19 +156,19 @@
   #layerlist .sub{padding-left:20px}
   #layerlist .sub label{width:auto; color:var(--dim); font-size:11px}
   #layerlist .rootchk{display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer}
-  #layerlist .rootchk:hover{color:var(--main)}
+  #layerlist .rootchk:hover{color:var(--ink)}
   #layerlist .lrow.isroot{border-color:var(--main)}
-  #layerlist .lrow.isroot .rootchk{color:var(--main)}
+  #layerlist .lrow.isroot .rootchk{color:var(--ink)}
   #layerlist .sub select{flex:1; min-width:0}
   #layerlist .sub .val{width:32px}
-  #layerlist .lrow.editing{border-color:var(--hot); box-shadow:0 2px 0 var(--ink), 0 0 0 2px var(--hot)}
+  #layerlist .lrow.editing{border-color:var(--hot); outline:2.5px solid var(--hot)}
   #layerlist .bonebar{gap:6px; flex-wrap:wrap}
   #layerlist .btn.tiny{padding:2px 9px; font-size:11px; border-radius:6px}
   #layerlist .bulkbar{gap:7px; margin:0 0 10px; flex-wrap:wrap}
   #layerlist .bulkbar .btn{flex:1; min-width:0}
-  #layerlist .reftag{font-size:10.5px; color:var(--main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  #layerlist .reftag{font-size:10.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   #layerlist .gbrow{background:var(--panel); border-color:var(--main)}
-  #layerlist .gbrow > .row:first-child label{color:var(--main); font-size:12px; font-weight:800}
+  #layerlist .gbrow > .row:first-child label{color:var(--ink); font-size:12px; font-weight:800}
   #layerlist .gbrow .hint{margin-top:4px}
 
   /* ---------------- 読み込み口 ---------------- */
@@ -182,9 +179,12 @@
     color:var(--dim); cursor:pointer; margin-bottom:14px; font-size:12px; user-select:none;
     transition:border-color .15s, color .15s, background .15s;
   }
-  #psdBox:hover, #psdBox.dragging{border-color:var(--main); color:var(--main); background:rgba(226,221,96,.07)}
-  #psdInfo{margin-top:5px; font-size:11px; color:var(--main); word-break:break-all}
+  #psdBox:hover, #psdBox.dragging{border-color:var(--main); color:var(--ink); background:#F2F0BE}
+  #psdInfo{margin-top:5px; font-size:11px; color:var(--ink); word-break:break-all}
   .hint{color:var(--dim); font-size:11px; font-weight:500; line-height:1.7; margin-top:7px}
+
+  .bar .btn.go{color:var(--main)}
+  .btn:disabled{transform:none}
 </style>
 <!-- 共通の 見た目で つかう 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">

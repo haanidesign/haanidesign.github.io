@@ -547,3 +547,12 @@ body.warping #modes, body.warping #viewToggles{ visibility:hidden; }
 /* 絵の 下の 骨は 小さく うすく（絵を 目立たせる） */
 #treeBody .item.bone-under{min-height:0;padding-top:3px;padding-bottom:3px;font-size:12px;opacity:.75;background:transparent;border-color:transparent}
 #treeBody .item.bone-under.sel{opacity:1}
+
+/* スマホ幅: モードの ならびを つめる */
+@media (max-width:600px){
+  .mode{ min-width:0; padding:.35rem .6rem; }
+  .mode small{ display:none; }
+  #modes{ right:10px; flex-wrap:wrap; }
+  #viewToggles{ top:auto; bottom:10px; flex-direction:column; }
+  .tb-spec{ display:none; }
+}

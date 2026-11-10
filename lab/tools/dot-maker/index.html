@@ -4,51 +4,54 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DOT MAKER — イラストのドット絵化</title>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#12131a; --panel:#1b1d27; --line:#2e3140;
-  --ink:#e8e6df; --dim:#8b8fa3;
-  --acc:#ffd447; --acc2:#4fd1c5;
+  --bg:#FBFAEC; --panel:#FFFEF7; --line:#1E1C14;
+  --ink:#1E1C14; --dim:#5C5843;
+  --acc:#E1DD60; --acc2:#1E1C14;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;}
-header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-h1{font-size:17px;margin:0;letter-spacing:.16em;font-family:ui-monospace,Menlo,monospace}
-h1 b{color:var(--acc)}
-header span{font-size:12px;color:var(--dim)}
+body{margin:0;background:var(--bg);background-image:radial-gradient(circle,rgba(30,28,20,.13) 1.5px,transparent 1.6px);background-size:16px 16px;color:var(--ink);font-weight:500;
+  font-family:'M PLUS Rounded 1c','Hiragino Sans','Yu Gothic UI',sans-serif;}
+header{padding:14px 18px;background:var(--acc);border-bottom:2.5px solid var(--line);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-size:20px;margin:0;letter-spacing:.08em;font-weight:800}
+h1 b{background:var(--acc);border:2px solid var(--ink);border-radius:8px;padding:0 .35em;margin-left:.3em}
+header span{font-size:14px;color:var(--ink);font-weight:700}
 .wrap{display:flex;gap:0;align-items:stretch;min-height:calc(100vh - 52px);flex-wrap:wrap}
-.side{width:300px;flex:0 0 300px;border-right:1px solid var(--line);padding:14px;background:var(--panel)}
+.side{width:300px;flex:0 0 300px;border-right:2.5px solid var(--line);padding:14px;background:var(--panel)}
 .main{flex:1 1 420px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:320px}
-@media(max-width:760px){.side{width:100%;flex:0 0 auto;border-right:none;border-bottom:1px solid var(--line)}}
+@media(max-width:760px){.side{width:100%;flex:0 0 auto;border-right:none;border-bottom:2.5px solid var(--line)}}
 
-.drop{border:2px dashed var(--line);border-radius:6px;padding:22px 12px;text-align:center;
-  color:var(--dim);font-size:13px;cursor:pointer;transition:.15s}
-.drop:hover,.drop.on{border-color:var(--acc);color:var(--ink)}
-label.f{display:block;margin:14px 0 6px;font-size:11px;letter-spacing:.1em;color:var(--dim);
-  font-family:ui-monospace,monospace;text-transform:uppercase}
-label.f em{float:right;font-style:normal;color:var(--acc);}
-input[type=range]{width:100%;accent-color:var(--acc)}
-select,button{width:100%;background:#22242f;color:var(--ink);border:1px solid var(--line);
-  border-radius:4px;padding:8px;font-size:13px;font-family:inherit}
+.drop{border:2.5px dashed var(--line);border-radius:12px;background:var(--panel);padding:22px 12px;text-align:center;
+  color:var(--dim);font-size:15px;font-weight:700;cursor:pointer}
+.drop:hover,.drop.on{background:#F2F0BE;color:var(--ink)}
+label.f{display:block;margin:14px 0 6px;font-size:14px;font-weight:700;color:var(--ink);
+  }
+label.f em{float:right;font-style:normal;font-weight:800;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+select,button{width:100%;background:var(--panel);color:var(--ink);border:2.5px solid var(--line);font-weight:700;min-height:44px;
+  border-radius:12px;padding:8px;font-size:15px;font-family:inherit}
+button:hover{background:#F2F0BE}
+button:focus-visible,select:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 button{cursor:pointer}
-button.go{background:var(--acc);color:#12131a;font-weight:700;border:none;padding:11px;letter-spacing:.08em}
-button.go:hover{background:#ffe073}
+button.go{background:var(--acc);color:var(--ink);font-weight:800;padding:11px}
+button.go:hover{background:#B8B43F}
 .row{display:flex;gap:8px;margin-top:8px}
-.chk{display:flex;align-items:center;gap:7px;font-size:13px;margin-top:9px;color:var(--ink);cursor:pointer}
-.chk input{accent-color:var(--acc);width:16px;height:16px}
+.chk{display:flex;align-items:center;gap:9px;font-size:15px;min-height:36px;margin-top:9px;color:var(--ink);cursor:pointer}
+.chk input{accent-color:var(--ink);width:22px;height:22px}
 .stage{flex:1;display:flex;align-items:center;justify-content:center;
   background:
-    linear-gradient(45deg,#1a1c24 25%,transparent 25%,transparent 75%,#1a1c24 75%),
-    linear-gradient(45deg,#1a1c24 25%,#161822 25%,#161822 75%,#1a1c24 75%);
+    linear-gradient(45deg,#E8E5D0 25%,transparent 25%,transparent 75%,#E8E5D0 75%),
+    linear-gradient(45deg,#E8E5D0 25%,#FFFEF7 25%,#FFFEF7 75%,#E8E5D0 75%);
   background-size:16px 16px;background-position:0 0,8px 8px;
-  border:1px solid var(--line);border-radius:6px;padding:12px;overflow:auto}
+  border:2.5px solid var(--line);border-radius:12px;padding:12px;overflow:auto}
 canvas{image-rendering:pixelated;max-width:100%;max-height:70vh;display:block}
-.meta{font-size:12px;color:var(--dim);font-family:ui-monospace,monospace;display:flex;gap:16px;flex-wrap:wrap}
-.meta b{color:var(--acc2);font-weight:500}
+.meta{font-size:14px;color:var(--dim);font-variant-numeric:tabular-nums;display:flex;gap:16px;flex-wrap:wrap}
+.meta b{color:var(--ink);font-weight:800}
 .pal{display:flex;flex-wrap:wrap;gap:3px;margin-top:8px}
-.pal i{width:16px;height:16px;border-radius:2px;border:1px solid #0006}
-hr{border:none;border-top:1px solid var(--line);margin:16px 0}
+.pal i{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--ink)}
+hr{border:none;border-top:2.5px dotted rgba(30,28,20,.22);margin:16px 0}
 </style>
 </head>
 <body>
