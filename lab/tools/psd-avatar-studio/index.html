@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PSD アバタースタジオ</title>
 <script src="lib/ag-psd.js"></script>
 <link rel="icon" type="image/png" href="../../../favicon.png">
@@ -189,6 +190,12 @@
 @media (pointer:coarse){
   .btn,.chip,select,input[type=number],input[type=text]{min-height:36px}
   #layerlist .row input[type=checkbox]{width:22px;height:22px}
+}
+/* せまい 画面: 絵を 上、操作を 下に */
+@media (max-width:760px){
+  body{flex-direction:column; overflow:hidden}
+  #stage{flex:0 0 46%; min-height:0}
+  #panel{width:auto; flex:1; min-height:0; border-left:0; border-top:3px solid var(--ink)}
 }
 </style>
 <!-- 共通の 見た目で つかう 字 -->
