@@ -91,6 +91,23 @@
   function redo() { if (!o || !o.undo) return; check(); if (!red.length) return; und.push(last); apply(red.pop()); say('やり直した'); }
   function cut() { if (!o) return; clearTimeout(timer); und.length = 0; red.length = 0; last = snap(); store(); btns(); }
 
+
+  /* ほかの ボタンや つまみに かぶらない 置き場所を えらぶ */
+  function freeSpot(box, cands) {
+    const w = box.offsetWidth, h = box.offsetHeight;
+    let best = cands[0], bestN = 1e9;
+    for (const [x, y] of cands) {
+      let n = 0;
+      for (const [px, py] of [[x + 3, y + 3], [x + w - 3, y + 3], [x + w / 2, y + h / 2], [x + 3, y + h - 3], [x + w - 3, y + h - 3]])
+        for (const e of document.elementsFromPoint(px, py)) {
+          if (box.contains(e)) continue;
+          if (e.closest('button,a[href],select,input,textarea,label,[role=button],.rs,.htn-dock,.obo')) n++;
+          break;
+        }
+      if (n < bestN) { bestN = n; best = [x, y]; if (!n) break; }
+    }
+    return best;
+  }
   function start(conf) {
     o = Object.assign({ undo: true, save: true, touch: true }, conf);
     if (o.forms === undefined) o.forms = !o.get;
@@ -113,7 +130,36 @@
     const box = document.createElement('div'); box.className = 'obo';
     bU = document.createElement('button'); bU.type = 'button'; bU.textContent = '↶'; bU.title = 'もどす (Ctrl+Z)'; bU.setAttribute('aria-label', 'もどす');
     bR = document.createElement('button'); bR.type = 'button'; bR.textContent = '↷'; bR.title = 'やり直す (Ctrl+Shift+Z)'; bR.setAttribute('aria-label', 'やり直す');
-    bU.onclick = undo; bR.onclick = redo; box.append(bU, bR); document.body.appendChild(box); btns();
+    box.append(bU, bR); document.body.appendChild(box); btns();
+    /* 置き場所。じゃまな ときは つまんで 動かせる（道具ごとに 覚える） */
+    const KEY = 'oboeru-pos:' + o.key;
+    const place = (x, y) => {
+      x = Math.max(4, Math.min(innerWidth - box.offsetWidth - 4, x)); y = Math.max(4, Math.min(innerHeight - box.offsetHeight - 4, y));
+      box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.right = 'auto'; box.style.bottom = 'auto';
+    };
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (_) {}
+    if (saved) place(saved.x * innerWidth, saved.y * innerHeight);
+    else setTimeout(() => {
+      const W = innerWidth, H = innerHeight, w = box.offsetWidth, h = box.offsetHeight;
+      const [x, y] = freeSpot(box, [[W - w - 10, H - h - 10], [70, H - h - 10], [W - w - 10, H * .62], [10, H * .62], [W - w - 10, H * .4], [10, H * .4], [W - w - 10, H * .2], [10, H * .2]]);
+      if (x !== W - w - 10 || y !== H - h - 10) place(x, y);
+    }, 1300);
+    addEventListener('resize', () => { if (box.style.top) place(box.offsetLeft, box.offsetTop); });
+    let drag = null, moved = false;
+    box.style.touchAction = 'none';
+    box.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, l: box.offsetLeft, t: box.offsetTop, moved: false }; });
+    addEventListener('pointermove', e => {
+      if (!drag) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 10) return;
+      drag.moved = true; place(drag.l + e.clientX - drag.x, drag.t + e.clientY - drag.y);
+    });
+    const up = () => {
+      moved = !!(drag && drag.moved); drag = null;
+      if (moved) { try { localStorage.setItem(KEY, JSON.stringify({ x: box.offsetLeft / innerWidth, y: box.offsetTop / innerHeight })); } catch (_) {} setTimeout(() => { moved = false; }, 0); }
+    };
+    addEventListener('pointerup', up); addEventListener('pointercancel', up);
+    bU.onclick = () => { if (!moved) undo(); }; bR.onclick = () => { if (!moved) redo(); };
 
     addEventListener('keydown', e => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
@@ -129,10 +175,11 @@
     if (o.touch) {
       let n = 0, t0 = 0, sx = 0, sy = 0, far = false, lastTap = 0;
       addEventListener('touchstart', e => {
-        if (e.touches.length === 1) { t0 = performance.now(); far = false; n = 1; }
-        n = Math.max(n, e.touches.length); sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+        if (n === 0) { t0 = performance.now(); far = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }
+        n = Math.max(n, e.touches.length);
       }, { passive: true });
       addEventListener('touchmove', e => { if (Math.hypot(e.touches[0].clientX - sx, e.touches[0].clientY - sy) > 14) far = true; }, { passive: true });
+      addEventListener('touchcancel', () => { n = 0; }, { passive: true });
       addEventListener('touchend', e => {
         if (e.touches.length) return;
         const now = performance.now();

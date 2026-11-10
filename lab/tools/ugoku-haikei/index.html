@@ -633,7 +633,7 @@ function drawFx(c, p, t, W, H) {
   }
   if (!clear && F.grain) {
     c.save(); c.globalCompositeOperation = 'overlay'; c.globalAlpha = F.grain / 100 * .5;
-    c.fillStyle = c.createPattern(grainTiles[Math.floor(t * 12) % 4], 'repeat'); c.fillRect(0, 0, W, H); c.restore();
+    c.fillStyle = c.createPattern((grainTiles[((Math.floor(t * 12) % 4) + 4) % 4] || grainTiles[0]), 'repeat'); c.fillRect(0, 0, W, H); c.restore();
   }
   if (F.frame) {
     const b = F.frame / 1000 * Math.min(W, H) * 1.0, r = b * 1.2;

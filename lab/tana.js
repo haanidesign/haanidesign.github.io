@@ -325,6 +325,23 @@
     return list.some(a => a.endsWith('/*') ? it.mime.startsWith(a.slice(0, -1))
       : a[0] === '.' ? it.ext === a.slice(1) || (a === '.jpeg' && it.ext === 'jpg') : it.mime === a);
   }
+
+  /* ほかの ボタンや つまみに かぶらない 置き場所を えらぶ */
+  function freeSpot(box, cands) {
+    const w = box.offsetWidth, h = box.offsetHeight;
+    let best = cands[0], bestN = 1e9;
+    for (const [x, y] of cands) {
+      let n = 0;
+      for (const [px, py] of [[x + 3, y + 3], [x + w - 3, y + 3], [x + w / 2, y + h / 2], [x + 3, y + h - 3], [x + w - 3, y + h - 3]])
+        for (const e of document.elementsFromPoint(px, py)) {
+          if (box.contains(e)) continue;
+          if (e.closest('button,a[href],select,input,textarea,label,[role=button],.rs,.htn-dock,.obo')) n++;
+          break;
+        }
+      if (n < bestN) { bestN = n; best = [x, y]; if (!n) break; }
+    }
+    return best;
+  }
   function dock(conf) {
     const tool = conf.tool || document.title;
     const ins = String(conf.in || '').split(',').map(x => x.trim()).filter(Boolean).map(x => {
@@ -422,7 +439,14 @@
         box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.bottom = 'auto';
         box.classList.toggle('top', y < innerHeight / 2); box.classList.toggle('right', x > innerWidth / 2);
       };
-      try { const p = JSON.parse(localStorage.getItem(KEY)); if (p) place(p.x * innerWidth, p.y * innerHeight); } catch (_) {}
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (_) {}
+      if (saved) place(saved.x * innerWidth, saved.y * innerHeight);
+      else setTimeout(() => {
+        const W = innerWidth, H = innerHeight, w = box.offsetWidth, h = box.offsetHeight;
+        const [x, y] = freeSpot(box, [[10, H - h - 10], [10, H * .62], [10, H * .4], [W - w - 10, H * .62], [W - w - 10, H * .4], [W - w - 10, H - h - 10], [10, H * .2], [W - w - 10, H * .2]]);
+        if (x !== 10 || y !== H - h - 10) place(x, y);
+      }, 900);
       addEventListener('resize', () => { if (box.style.top) place(box.offsetLeft, box.offsetTop); });
       let drag = null, moved = false;
       btn.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, l: box.offsetLeft, t: box.offsetTop, moved: false }; btn.setPointerCapture(e.pointerId); });

@@ -25,7 +25,9 @@ header .sp{flex:1}
 .side{width:320px;flex:0 0 320px;border-right:2px solid var(--line);padding:14px;background:var(--panel)}
 .side.r{border-right:none;border-left:2px solid var(--line);width:350px;flex:0 0 350px}
 .main{flex:1 1 400px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:320px}
-@media(max-width:1200px){.side,.side.r{width:100%;flex:0 0 auto;border:none;border-bottom:2px solid var(--line)}}
+/* タブレット横: 3列の まま、左右を つめる */
+@media(max-width:1300px){.side{width:268px;flex:0 0 268px;padding:12px}.side.r{width:290px;flex:0 0 290px}.main{min-width:300px;padding:12px}}
+@media(max-width:900px){.side,.side.r{width:100%;flex:0 0 auto;border:none;border-bottom:2px solid var(--line)}}
 
 h2.sec{font-size:15px;font-weight:800;color:var(--ink);margin:20px 0 8px;
   border-bottom:2px solid var(--line);padding-bottom:5px}

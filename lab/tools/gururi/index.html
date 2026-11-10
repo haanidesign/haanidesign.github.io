@@ -176,9 +176,9 @@ select{
   position:fixed; left:50%; bottom:6.5rem; transform:translate(-50%,240%);
   background:var(--ink); color:var(--main); border-radius:100px;
   padding:.45rem 1rem; font-size:.7rem; max-width:88vw; text-align:center;
-  transition:transform .18s; pointer-events:none; z-index:9;
+  transition:transform .18s, opacity .18s; pointer-events:none; z-index:9; opacity:0;
 }
-#toast.show{transform:translate(-50%,0);}
+#toast.show{transform:translate(-50%,0); opacity:1;}
 #toast.bad{background:#7a2338; color:#fff;}
 input[type=file]{display:none;}
 </style>
