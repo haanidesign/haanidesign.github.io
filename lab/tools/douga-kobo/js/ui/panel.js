@@ -3,28 +3,28 @@
 import {
   S, $, $$, clamp, r2, tc, toast, duration, clipEnd, allClips, findClip, selected, selectedAll, setMany, newTrack, newClip,
   snap as pushUndo, syncLinked, uid, linkedOf, unlink
-} from '../state.js?v=81';
-import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=81';
-import { storeOk } from '../store.js?v=81';
-import { bus } from '../bus.js?v=81';
-import { haishokuPicker } from '../../../skin/haishoku.js?v=81';
-import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=81';
-import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=81';
+} from '../state.js?v=82';
+import { MEDIA, paintPoster, mediaLabel, importFiles, LOG } from '../media.js?v=82';
+import { storeOk } from '../store.js?v=82';
+import { bus } from '../bus.js?v=82';
+import { haishokuPicker } from '../../../skin/haishoku.js?v=82';
+import { autoCompose, autoApply, cutsOf, LAYOUTS, DECOR, BGS, PALETTES, MOODS, CAM_OPTS, UNIT_OPTS, PAT_LIST, DECO_LIST, STEPS, TRANS_OPTS } from '../auto.js?v=82';
+import { beatOn, beatSec, stepSec, guessBpm, tapTempo, analyse } from '../beat.js?v=82';
 import { ready as jzReady, styles as jzStyles, newJz, durOf as jzDur, clearCache as jzClear, linesOf as jzLines, cutsOf as jzCuts,
   EDIT_GROUPS as JZ_EDIT, partList as jzParts, cutNow as jzCutNow, partPool as jzPool,
   techOf as jzTech, setTech as jzSetTech, setCutCount as jzSetCuts, cutCountOf as jzCutCount, ovOf as jzOv,
-  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=81';
+  paintPreview as jzPaint, previewSize as jzPrevSize } from '../jz.js?v=82';
 import { FX_IN, FX_OUT, FX_LOOP, EASES, ORDERS, fontList, addFontFile,
-  offOf, setOff, clearOff } from '../text.js?v=81';
+  offOf, setOff, clearOff } from '../text.js?v=82';
 import {
   addFromMedia, addText, addColor, addLyrics, delSel, dupSel, fitToMedia,
   addTrack, moveTrack, delTrack, renameTrack, saveProject, relink
-} from '../edit.js?v=81';
+} from '../edit.js?v=82';
 
 import {
   groupScene, openScene, sceneClips, keysFor, addArg, REP_PROPS, REP_MODES, newRep,
   copyFx, pasteFx, copyReps, pasteReps, hasFx, hasReps, BLENDS
-} from '../scene.js?v=81';
+} from '../scene.js?v=82';
 
 const DOCK_Q = '(min-width:980px) and (orientation:landscape)';
 export const docked = () => window.matchMedia(DOCK_Q).matches;

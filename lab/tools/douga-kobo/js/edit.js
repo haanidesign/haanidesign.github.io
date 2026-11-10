@@ -3,9 +3,9 @@ import {
   S, uid, r2, toast, snap as pushUndo, resetHist,
   newClip, newTrack, allClips, findClip, duration,
   freeSlot, laneFor, freeLane, rootTracks
-} from './state.js?v=81';
-import { MEDIA, hookAudio } from './media.js?v=81';
-import { bus } from './bus.js?v=81';
+} from './state.js?v=82';
+import { MEDIA, hookAudio } from './media.js?v=82';
+import { bus } from './bus.js?v=82';
 
 /** 作品の 大きさを 素材に 合わせる（偶数に そろえ、長い辺は 3840 まで） */
 export function fitToMedia(m, quiet) {
