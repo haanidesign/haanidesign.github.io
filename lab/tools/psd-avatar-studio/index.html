@@ -2441,5 +2441,6 @@ let rafAlive = false;
 (function loop(now){ rafAlive = true; realtimeFrame(now); requestAnimationFrame(loop); })(performance.now());
 setInterval(()=>{ if(!rafAlive) realtimeFrame(performance.now()); rafAlive = false; }, 33);
 </script>
+<script type="module" src="../skin/rslider-auto.js"></script>
 </body>
 </html>

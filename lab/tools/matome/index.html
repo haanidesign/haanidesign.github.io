@@ -586,5 +586,6 @@ addEventListener('drop',e=>{e.preventDefault();document.body.classList.remove('o
 addEventListener('paste',e=>addFiles([...e.clipboardData.items].map(i=>i.getAsFile()).filter(Boolean)));
 build();
 </script>
+<script type="module" src="../skin/rslider-auto.js"></script>
 </body>
 </html>

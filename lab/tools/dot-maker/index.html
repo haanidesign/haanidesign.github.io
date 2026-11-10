@@ -283,5 +283,6 @@ const lbl={scale:v=>v+' px',colors:v=>v+' 色',sat:v=>v+'%',con:v=>v+'%'};
 ['palette','dither','smooth','grid','alpha'].forEach(id=>$(id).onchange=render);
 $('palette').onchange=()=>{const auto=$('palette').value==='auto'||$('palette').value==='gray';$('colors').disabled=!auto;render();};
 </script>
+<script type="module" src="../skin/rslider-auto.js"></script>
 </body>
 </html>
