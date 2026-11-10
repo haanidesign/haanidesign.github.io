@@ -321,6 +321,14 @@ function exportStill(){
 }
 </script>
 <script type="module" src="../skin/rslider-auto.js"></script>
+<script src="../skin/oboeru.js"></script>
+<script>
+addEventListener('load',()=>Oboeru.start({key:'sozai-maker',
+ get:()=>({S,tab}),
+ set:d=>{for(const k in S)if(d.S&&d.S[k])Object.assign(S[k],d.S[k]);
+  tab=d.tab||0;[...tabsEl.children].forEach((x,j)=>x.className=j===tab?'on':'');buildUI();
+  if(window.HaaniRslider)HaaniRslider()}}));
+</script>
 <script src="../../tana.js" data-dock data-tool="素材メーカー"></script>
 </body>
 </html>

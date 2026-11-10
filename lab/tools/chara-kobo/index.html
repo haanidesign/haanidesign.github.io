@@ -153,7 +153,7 @@ details > div{padding-top:.5rem;display:flex;flex-direction:column;gap:.5rem}
         </div>
         <div class="sld">
           <div class="lab"><span>再生位置</span><span class="v dot" id="vTime">0.00 / 0.00 秒</span></div>
-          <input type="range" id="sTime" min="0" max="1000" value="0">
+          <input type="range" id="sTime" min="0" max="1000" value="0" data-oboeru="off">
         </div>
         <div class="sld">
           <div class="lab"><span>再生速度</span><span class="v dot" id="vSpeed">1.00 倍</span></div>
@@ -882,5 +882,6 @@ requestAnimationFrame(tick);
 new ResizeObserver(resize).observe(cv.parentElement);
 </script>
 <script type="module" src="../skin/rslider-auto.js"></script>
+<script src="../skin/oboeru.js" data-key="chara-kobo"></script>
 </body>
 </html>

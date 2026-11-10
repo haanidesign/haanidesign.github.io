@@ -205,6 +205,7 @@ hr{border:0;border-top:2.5px dotted var(--rule);margin:20px 0}
 </div>
 
 <script src="lib/mp4-muxer.js"></script>
+<script src="../skin/oboeru.js"></script>
 <script type="module">
 import { watchRanges } from '../oekaki-kobo/js/rslider.js';
 import { watchColors } from '../../haani-color.js';
@@ -1176,6 +1177,21 @@ $('#fullGo').onclick = () => {
 watchRanges();
 watchColors();
 applyPreset('キラキラ');
+
+/* もどす／やり直す と 自動で しまう。絵（背景・つぶの 絵）は しまわない */
+Oboeru.start({ key: 'ugoku-haikei',
+  get: () => { const { img, ...bg } = S.bg;
+    return { W: S.W, H: S.H, loop: S.loop, bg, base: S.base, fx: S.fx, sel: S.sel, layers: S.layers.map(({ _pts, _key, imgs, ...L }) => L) }; },
+  set: d => {
+    S.W = d.W; S.H = d.H; S.loop = d.loop; $('#size').value = `${S.W}x${S.H}`; sizeView();
+    Object.assign(S.bg, d.bg); Object.assign(S.base, d.base); Object.assign(S.fx, d.fx);
+    if (S.bg.mode === 'img' && !S.bg.img) S.bg.mode = 'grad';
+    const old = new Map(S.layers.map(L => [L.id, L]));
+    S.layers = d.layers.map(L => ({ ...L, imgs: (old.get(L.id) || {}).imgs || [], _key: '', _pts: null }))
+      .filter(L => L.shape !== 'image' || L.imgs.length);
+    for (const L of S.layers) uid = Math.max(uid, L.id + 1);
+    S.sel = Math.min(d.sel, S.layers.length - 1); syncInputs(); refresh();
+  } });
 </script>
 <script src="../../tana.js" data-dock data-tool="うごく背景" data-in="#bgFile:背景,#spFile:つぶの 絵"></script>
 </body>

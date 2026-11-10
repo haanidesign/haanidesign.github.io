@@ -211,7 +211,7 @@ body.live #liveout{display:block;}
 /* 指で押す前提のサイズに広げる（マウスのときは今までどおり） */
 @media (pointer:coarse){
   .btn{ min-height:38px; padding:.5rem .9rem; }
-  .btn-sm{ min-height:34px; }
+  .btn-sm{ min-height:36px; }
   #maintools .btn, #modes .btn, #viewToggles .btn{ min-width:40px; }
   .tree .row{ min-height:34px; }
   input[type="number"], input[type="text"], select{ min-height:34px; font-size:16px; } /* 16px 未満は iOS が拡大する */

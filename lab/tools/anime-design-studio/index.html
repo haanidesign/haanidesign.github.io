@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>アニメデザイン工房</title>
 <style>
 :root{
@@ -156,9 +157,14 @@ h4:first-child{margin-top:0}
 #layerlist select{font-size:10.5px; padding:1px 3px; border-width:1px; border-radius:5px}
 #layerlist .row label{width:106px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .hidden{display:none !important}
+#toMobile{display:none}
+@media (max-width:700px){
+  #toMobile{display:block;position:fixed;left:8px;right:8px;top:8px;z-index:9990;background:#E1DD60;color:#1E1C14;border:2.5px solid #1E1C14;border-radius:12px;padding:10px 14px;font:700 15px/1.5 'M PLUS Rounded 1c',system-ui,sans-serif;text-align:center;text-decoration:none}
+}
 </style>
 </head>
 <body>
+<a id="toMobile" href="../anime-design-mobile/">スマホは こちらの モバイル版が 使いやすいです →</a>
 
 <div id="top">
   <button class="tbtn ghost" id="btnUndoTop">↶</button>
@@ -548,6 +554,7 @@ function pushUndo(all){
   undoStack.push(all ? snapshotDoc() : snapshot());
   if(undoStack.length > 40) undoStack.shift();
   redoStack.length = 0;
+  autoLater();
 }
 /* 戻す先が全コマ記録なら、今の状態も全コマで控えておく */
 function undo(){
@@ -555,12 +562,14 @@ function undo(){
   const s = undoStack.pop();
   redoStack.push(s.type === "doc" ? snapshotDoc() : snapshot());
   restore(s);
+  autoLater();
 }
 function redo(){
   if(!redoStack.length) return;
   const s = redoStack.pop();
   undoStack.push(s.type === "doc" ? snapshotDoc() : snapshot());
   restore(s);
+  autoLater();
 }
 
 /* =========================================================
@@ -1152,21 +1161,27 @@ function dl(blob, name){
 }
 function docNameVal(){ return (document.getElementById("docName").value||"memo").replace(/[\\\/:*?"<>|]/g,"_"); }
 
-document.getElementById("btnSave").onclick = ()=>{
-  const data = {
+function docData(){
+  return {
     v:1, w:W, h:H, paper, fps:fps(), name:docNameVal(),
     frames: frames.map(f=>({layers: f.layers.map(l=>({
       name:l.name, visible:l.visible, alpha:l.alpha, png:l.cv.toDataURL("image/png")
     }))})),
   };
-  dl(new Blob([JSON.stringify(data)], {type:"application/json"}), docNameVal()+".ugomemo");
+}
+document.getElementById("btnSave").onclick = ()=>{
+  dl(new Blob([JSON.stringify(docData())], {type:"application/json"}), docNameVal()+".ugomemo");
 };
 document.getElementById("btnLoad").onclick = ()=> document.getElementById("openFile").click();
 document.getElementById("openFile").onchange = async e=>{
   const f = e.target.files[0]; if(!f) return;
-  const d = JSON.parse(await f.text());
+  await openDoc(JSON.parse(await f.text()), f.name.replace(/\.\w+$/,""));
+  e.target.value = "";
+  autoLater();
+};
+async function openDoc(d, fallbackName){
   W = d.w; H = d.h; paper = d.paper || "#ffffff";
-  document.getElementById("docName").value = d.name || f.name.replace(/\.\w+$/,"");
+  document.getElementById("docName").value = d.name || fallbackName || "memo";
   if(d.fps) document.getElementById("fps").value = d.fps;
   frames = await Promise.all(d.frames.map(async fr=>({
     layers: await Promise.all(fr.layers.map(async l=>{
@@ -1180,9 +1195,40 @@ document.getElementById("openFile").onchange = async e=>{
     }))
   })));
   cur = 0; curLayer = 0;
+  undoStack.length = 0; redoStack.length = 0;   // 開いたら 履歴を 区切る
   fitZoom(); buildLayers(); buildFrames(); redraw();
-  e.target.value = "";
-};
+}
+
+/* ---- 自動で しまう（IndexedDB）。次に 開いた とき 続きから ---- */
+const AUTO_KEY = "studio";
+let autoT = 0, autoBusy = false;
+function autoDB(){
+  return new Promise((res, rej)=>{
+    const q = indexedDB.open("anime-design-auto", 1);
+    q.onupgradeneeded = ()=> q.result.createObjectStore("doc");
+    q.onsuccess = ()=> res(q.result); q.onerror = ()=> rej(q.error);
+  });
+}
+function autoLater(){ clearTimeout(autoT); autoT = setTimeout(autoSave, 2500); }
+async function autoSave(){
+  if(autoBusy){ autoLater(); return; }
+  autoBusy = true;
+  try{
+    const db = await autoDB(), data = docData();
+    await new Promise((res, rej)=>{ const tx = db.transaction("doc", "readwrite"); tx.objectStore("doc").put(data, AUTO_KEY); tx.oncomplete = res; tx.onerror = ()=> rej(tx.error); });
+    db.close();
+  }catch(err){ console.warn("自動で しまえませんでした", err); }
+  autoBusy = false;
+}
+(async ()=>{
+  try{
+    const db = await autoDB();
+    const d = await new Promise(res=>{ const q = db.transaction("doc").objectStore("doc").get(AUTO_KEY); q.onsuccess = ()=> res(q.result); q.onerror = ()=> res(null); });
+    db.close();
+    if(d && d.frames && d.frames.length) await openDoc(d);
+  }catch(err){}
+})();
+for(const id of ["docName", "fps"]){ const el = document.getElementById(id); if(el) el.addEventListener("change", autoLater); }
 function frameBlob(i){
   const off = newLayerCanvas();
   compose(off.getContext("2d"), frames[i], true);

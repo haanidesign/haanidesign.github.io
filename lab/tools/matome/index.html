@@ -44,6 +44,10 @@ body.over #cv{outline:4px dashed var(--ink);outline-offset:4px}
 #sel{position:absolute;pointer-events:none;outline:4px solid var(--main);border:2.5px solid var(--ink)}
 .grp.off{opacity:.45}.grp.off .btn{pointer-events:none}
 #oSz{min-width:3em}
+/* 指で 押す ときは 大きめに */
+@media (pointer:coarse){
+  button,select,input[type=number],input[type=text]{min-height:36px}
+}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../skin/soft.css?v=11">
@@ -588,5 +592,6 @@ build();
 </script>
 <script type="module" src="../skin/rslider-auto.js"></script>
 <script src="../../tana.js" data-dock data-tool="画像まとめ" data-in="#fIn:絵,#fAu:音"></script>
+<script src="../skin/oboeru.js" data-key="matome" data-undo="off"></script>
 </body>
 </html>

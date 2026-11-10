@@ -185,6 +185,11 @@
 
   .bar .btn.go{color:var(--main)}
   .btn:disabled{transform:none}
+/* 指で 押す ときは 大きめに */
+@media (pointer:coarse){
+  .btn,.chip,select,input[type=number],input[type=text]{min-height:36px}
+  #layerlist .row input[type=checkbox]{width:22px;height:22px}
+}
 </style>
 <!-- 共通の 見た目で つかう 字 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
