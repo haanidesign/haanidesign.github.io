@@ -28,6 +28,7 @@ body{
 }
 .bar h1{margin:0; font-size:.86rem; white-space:nowrap;}
 .bar .grow{flex:1;}
+@media(max-width:600px){ .bar{flex-wrap:wrap;} .bar .grow{display:none;} .bar .chip{order:1; flex:1 1 100%;} }
 .chip{
   font-size:.56rem; background:var(--cream); border:2px solid var(--ink);
   border-radius:100px; padding:.08rem .45rem; white-space:nowrap;
@@ -1741,5 +1742,6 @@ const PALETTE = ['#1E1C14','#FFFFFF','#E1DD60','#F2A0B8','#7FBF6A','#5B8FD9','#C
   };
 })();
 </script>
+<script type="module" src="../skin/rslider-auto.js"></script>
 </body>
 </html>
