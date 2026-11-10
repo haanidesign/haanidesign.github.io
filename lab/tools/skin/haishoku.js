@@ -54,6 +54,25 @@ export const HAISHOKU_CATS = [...new Set(RAW.map(r => r[1]))];
 
 let lastCat = HAISHOKU_CATS[0];  // 作りなおしても 同じ なかまを 出す
 
+/* 配色帳（素材の棚に 置いた 配色）。棚が 動いて いる ときだけ「じぶんの」に 出る。
+   色の 並びは 見本と 同じ: 背景3・かざり3・文字・ふち。足りない 分は 頭から くり返す */
+const MINE = 'じぶんの';
+let mine = [], mineP = null;
+function loadMine() {
+  const T = window.HaaniTana;
+  if (!T) return Promise.resolve();
+  if (!mineP) {
+    mineP = T.ready().then(ok => ok ? T.palettes() : []).then(list => {
+      mine = list.filter(p => p.colors.length).map(p => {
+        const at = i => p.colors[i % p.colors.length];
+        return { name: p.name, cat: MINE, bg: [at(0), at(1), at(2)], acc: [at(3), at(4), at(5)], text: at(6), stroke: at(7) };
+      });
+    }).catch(() => {});
+    mineP.then(() => setTimeout(() => { mineP = null; }, 3000));   // 棚で 直した 分を つぎに 開いた ときに 拾う
+  }
+  return mineP;
+}
+
 /* 見本帳の 部品。えらぶと onPick(配色) */
 export function haishokuPicker(onPick) {
   if (!document.getElementById('hs-css')) {
@@ -75,18 +94,21 @@ export function haishokuPicker(onPick) {
   let cur = lastCat;
   const draw = () => {
     cats.innerHTML = ''; list.innerHTML = '';
-    for (const c of HAISHOKU_CATS) {
+    for (const c of HAISHOKU_CATS.concat(mine.length ? [MINE] : [])) {
       const b = document.createElement('button'); b.type = 'button';
       b.className = 'hs-cat' + (c === cur ? ' on' : ''); b.textContent = c;
       b.onclick = () => { cur = lastCat = c; draw(); }; cats.append(b);
     }
-    for (const p of HAISHOKU.filter(p => p.cat === cur)) {
+    for (const p of (cur === MINE ? mine : HAISHOKU).filter(p => p.cat === cur)) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'hs-p'; b.title = p.name;
       b.innerHTML = '<span class="hs-sw">' + [...p.bg.slice(0, 2), ...p.acc].map(c => `<i style="background:${c}"></i>`).join('') +
-        `</span><b>${p.name}</b>`;
+        '</span><b></b>';
+      b.lastChild.textContent = p.name;
       b.onclick = () => onPick(p); list.append(b);
     }
   };
   draw(); box.append(cats, list);
+  const had = mine.length;
+  loadMine().then(() => { if (cur === MINE && !mine.length) cur = lastCat = HAISHOKU_CATS[0]; if (mine.length || had) draw(); });
   return box;
 }

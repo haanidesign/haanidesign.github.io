@@ -6,6 +6,7 @@
    - もとの input は かくして のこし、value と input / change の できごとは そのまま
    - 触った だけでは 色は 変わらない。数 px 動かして はじめて 動く（タブレットで うっかり 変えない）
    お気に入り・四角/三角・最近の色 は localStorage に 残す（同じ サイトの ツールで 共通）。
+   - 素材の棚（手元の サーバー）が 動いて いれば「配色帳」も 出る。棚に 置いた 配色を どの ツールでも 使える
    使い方: import { watchColors } from '../../haani-color.js'; watchColors(); */
 
 const KEY = 'haani-color';
@@ -44,7 +45,7 @@ const CSS = `
 .hc-btn{appearance:none;width:40px;height:32px;padding:3px;border:2px solid #1E1C14;border-radius:9px;background:#FFFEF7;cursor:pointer;flex:none;vertical-align:middle}
 .hc-btn i{display:block;width:100%;height:100%;border-radius:5px;border:1.5px solid rgba(30,28,20,.35)}
 .hc-btn:hover{background:#E1DD60}
-.hc-pop{position:fixed;z-index:9999;width:292px;background:#FFFEF7;color:#1E1C14;border:2.5px solid #1E1C14;border-radius:12px;padding:10px;max-height:calc(100vh - 16px);overflow:auto;
+.hc-pop{position:fixed;z-index:9999;width:292px;background:#FFFEF7;color:#1E1C14;border:2.5px solid #1E1C14;border-radius:12px;padding:10px;max-height:calc(100vh - 16px);overflow:hidden auto;scrollbar-width:thin;
   font:500 14px/1.4 'M PLUS Rounded 1c',system-ui,sans-serif;user-select:none;-webkit-user-select:none}
 .hc-pop canvas{display:block;touch-action:none}
 .hc-wheel{position:relative;width:268px;height:268px;margin:0 auto}
@@ -66,6 +67,8 @@ const CSS = `
 .hc-sw .add:hover{background:#E1DD60}
 .hc-h{font-size:12px;font-weight:800;margin-top:8px;display:flex;justify-content:space-between;color:#1E1C14}
 .hc-h small{font-weight:500;color:#6E6857}
+.hc-pop select{font:inherit;font-size:12px;font-weight:700;color:#1E1C14;border:2px solid #1E1C14;border-radius:8px;background:#FFFEF7;padding:1px 4px;max-width:176px}
+.hc-book .hc-row{margin-top:6px}
 @media (max-width:520px){.hc-pop{left:8px!important;right:8px;width:auto;bottom:8px;top:auto!important}}
 `;
 function injectCss() {
@@ -94,7 +97,12 @@ function build() {
     <div class="hc-h">お気に入り <small>右クリック・長押しで けす</small></div>
     <div class="hc-sw hc-fav"></div>
     <div class="hc-h">最近</div>
-    <div class="hc-sw hc-rec"></div>`;
+    <div class="hc-sw hc-rec"></div>
+    <div class="hc-book" hidden>
+      <div class="hc-h">配色帳 <select class="hc-pal" aria-label="配色を えらぶ"></select></div>
+      <div class="hc-sw hc-palsw"></div>
+      <div class="hc-row"><button type="button" class="hc-tbtn hc-palnew">お気に入りを 配色帳へ</button></div>
+    </div>`;
   document.body.append(pop);
   const dpr = Math.min(2, devicePixelRatio || 1);
   for (const cv of pop.querySelectorAll('canvas')) { cv.width = cv.height = SZ * dpr; cv.style.width = cv.style.height = SZ + 'px'; cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0); }
@@ -269,6 +277,61 @@ function swatches() {
   mk(pop.querySelector('.hc-rec'), mem.recent, false);
 }
 
+/* ---------- 配色帳（素材の棚が 動いて いる ときだけ） ---------- */
+let book = [], tanaP = null;
+function tana() {
+  if (!tanaP) tanaP = new Promise(res => {
+    const use = () => { const T = window.HaaniTana; T ? T.ready().then(ok => res(ok ? T : null)) : res(null); };
+    if (window.HaaniTana) return use();
+    if (location.protocol !== 'http:') return res(null);   // 公開サイトでは 何も しない
+    const sc = document.createElement('script'); sc.src = new URL('tana.js', import.meta.url).href;
+    sc.onload = use; sc.onerror = () => res(null); document.head.append(sc);
+  });
+  return tanaP;
+}
+async function loadBook() {
+  const T = await tana(); if (!T || !pop) return;
+  try { book = await T.palettes(); } catch (_) { return; }
+  drawBook();
+  if (cur) place();
+}
+function drawBook() {
+  const box = pop.querySelector('.hc-book'), sel = box.querySelector('.hc-pal'), sw = box.querySelector('.hc-palsw');
+  box.hidden = false;
+  if (!book.some(p => p.id === mem.book)) mem.book = book.length ? book[0].id : '';
+  sel.innerHTML = ''; sel.hidden = !book.length;
+  for (const p of book) { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; o.selected = p.id === mem.book; sel.append(o); }
+  sel.onchange = () => { mem.book = sel.value; store(mem); drawBook(); };
+  const pal = book.find(p => p.id === mem.book);
+  const save = colors => window.HaaniTana.savePalette({ ...pal, colors }).then(loadBook, () => {});
+  sw.innerHTML = '';
+  if (!pal) { sw.textContent = 'まだ ない。下の ボタンで 作れる'; sw.style.fontSize = '12px'; }
+  else {
+    sw.style.fontSize = '';
+    pal.colors.forEach((hex, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.style.background = hex; b.title = hex.toUpperCase();
+      b.onclick = () => { [cur.h, cur.s, cur.v] = rgbToHsv(...parseHex(hex)); drawInner(); paint(true); commit(); };
+      const del = () => { if (pal.colors.length > 1) save(pal.colors.filter((_, j) => j !== i)); };
+      b.oncontextmenu = e => { e.preventDefault(); del(); };
+      let t; b.onpointerdown = () => { t = setTimeout(() => { t = 'done'; del(); }, 600); };
+      b.onpointerup = b.onpointerleave = () => { if (t !== 'done') clearTimeout(t); };
+      sw.append(b);
+    });
+    const add = document.createElement('button'); add.type = 'button'; add.className = 'add'; add.textContent = '＋'; add.title = '今の 色を この 配色に 足す';
+    add.onclick = () => { const h = hexNow(); if (!pal.colors.includes(h) && pal.colors.length < 32) save(pal.colors.concat(h)); };
+    sw.append(add);
+  }
+  const mk = box.querySelector('.hc-palnew');
+  mk.disabled = !mem.fav.length; mk.style.opacity = mem.fav.length ? '' : '.55';
+  mk.onclick = async () => {
+    const name = prompt('配色の 名前', 'お気に入り'); if (!name || !name.trim()) return;
+    try {
+      const p = await window.HaaniTana.savePalette({ name: name.trim(), colors: mem.fav.slice(0, 32), tool: document.title });
+      mem.book = p.id; store(mem); window.HaaniTana.toast('配色帳に 入れた'); loadBook();
+    } catch (e) { window.HaaniTana.toast('入りませんでした。' + e.message); }
+  };
+}
+
 function place() {
   const r = cur.btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
   let x = r.left, y = r.bottom + 6;
@@ -283,6 +346,7 @@ function open(inp, btn) {
   const rgb = parseHex(desc.get.call(inp)) || [0, 0, 0], hsv = rgbToHsv(...rgb);
   cur = { inp, btn, h: hsv[0], s: hsv[1], v: hsv[2], before: hsv };
   pop.hidden = false; drawInner(); paint(); swatches(); place();
+  loadBook();
 }
 function close() { if (pop) pop.hidden = true; cur = null; }
 
