@@ -1,17 +1,17 @@
 /* タイムライン。レイヤーが上から並び、右にキーフレームが置かれる。
    時間軸は全体（0〜長さ）を横幅にぴったり収める。指1本でどこでも触れる。 */
 
-import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=424';
-import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=424';
+import { isTalk, talkStart, talkEnd, talkOut } from '../engine/talk.js?v=426';
+import { S, onChange, edit, beginEdit, commitEdit, frameAsset } from '../state.js?v=426';
 import { isFolder, treeRows, membersOf, removeLayers, willRemove, isDescendant,
-         nearestFolder, setParent } from '../engine/layer.js?v=424';
+         nearestFolder, setParent } from '../engine/layer.js?v=426';
 import { CHANNELS, STEP_CHANNELS, ALL_CHANNELS, pinTimes, hasPins, setPin, removePin, movePin, movePinRipple,
          scaleRange,
          setCurveAt, isHoldAt, easeAt, easeShapeAt, channelValue, framePinTimes, valuesAt,
-         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=424';
-import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=424';
-import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=424';
-import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=424';
+         pinChX, pinChY, channelsOf, fmtTime } from '../engine/anim.js?v=426';
+import { isPano, PANO_CHANNELS } from '../engine/pano.js?v=426';
+import { isCam, is3D, camOf, CAM_CHANNELS } from '../engine/camera.js?v=426';
+import { A as AUD, hasAudio, speechSpans } from '../io/audio.js?v=426';
 
 const HIT = 14;   // キーフレームをつかめる範囲（px）
 
@@ -1214,6 +1214,11 @@ export function createTimeline(root, opts = {}){
     });
   }
 
+  /* 行を 作りなおさない しるし（S._tlHold）が、指を はなした 知らせを 取りこぼして
+     のこって しまっても、つぎに どこかを さわった ときに 外す */
+  window.addEventListener('pointerdown', (e) => { if(e.isPrimary && S._tlHold){ S._tlHold = false; S._tlMove = null; } }, true);
+  window.addEventListener('blur', () => { S._tlHold = false; S._tlMove = null; });
+
   /* ---------- 🎞 レイヤーの 帯 ---------- */
   function layerBar(track, l){
     const bar = document.createElement('div');
@@ -1242,8 +1247,27 @@ export function createTimeline(root, opts = {}){
       let applied = 0, moved = false;
       S._tlHold = true;
       S.sel = l.id;
+      S.playing = false;
       beginEdit(mode === 'M' ? 'タイミングを ずらす' : '出る 長さを かえる');
+      /* 帯の まん中は、長おしで「持ち上げて」から ずらす。
+         すぐ 引っぱった ときは 今までどおり 時間（再生位置）が 動く だけ。
+         うっかり さわって レイヤーが ずれない ように。はしの つまみは すぐ 動く */
+      let lifted = mode !== 'M', scrub = false;
+      const lp = mode === 'M' ? setTimeout(() => {
+        if(scrub) return;
+        lifted = true;
+        bar.classList.add('drag');
+        lab.textContent = '⏱ よこに 引っぱる';
+        if(navigator.vibrate) navigator.vibrate(15);
+      }, 400) : 0;
       const move = (ev) => {
+        if(!lifted){
+          if(!scrub && Math.abs(ev.clientX - x0) < 12) return;
+          scrub = true; clearTimeout(lp); moved = true;
+          S.time = snap(x2t(ev.clientX - rect.left));
+          onChange();
+          return;
+        }
         if(!moved && Math.abs(ev.clientX - x0) < 4) return;
         moved = true;
         const dt = snap(x2t(ev.clientX - rect.left)) - snap(x2t(x0 - rect.left));
@@ -1271,11 +1295,12 @@ export function createTimeline(root, opts = {}){
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
         window.removeEventListener('pointercancel', up);
+        clearTimeout(lp);
         S._tlHold = false;
         commitEdit();
-        /* うごかさずに はなした … ふつうに その 時こくへ */
-        if(!moved){ S.time = snap(x2t(x0 - rect.left)); S.playing = false; }
-        if(moved && mode === 'M') toast((applied >= 0 ? '+' : '') + applied.toFixed(2) + '秒 ずらしました');
+        /* うごかさずに はなした … ふつうに その 時こくへ（持ち上げた だけ の ときは そのまま） */
+        if(!moved && !(mode === 'M' && lifted)){ S.time = snap(x2t(x0 - rect.left)); S.playing = false; }
+        if(moved && mode === 'M' && lifted && !scrub) toast((applied >= 0 ? '+' : '') + applied.toFixed(2) + '秒 ずらしました');
         onChange();
       };
       window.addEventListener('pointermove', move);
