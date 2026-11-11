@@ -32,7 +32,8 @@ export const A = {
   raw: null,       // 高さを かえる まえの 音（いつも ここから 作り直す）
   rawBytes: null,
   semi: 0,         // いまの 高さ（半音）
-  keepLen: true    // 長さを そのままに するか
+  keepLen: true,   // 長さを そのままに するか
+  lag: (() => { try{ return +localStorage.getItem('sougou-kobo.lag') || 0; }catch(_){ return 0; } })()   // 再生の ずれ直し（秒）
 };
 
 export const hasAudio = () => !!A.buf;
@@ -322,13 +323,14 @@ export function play(from, volume, off){
   if(t < 0){
     // まだ はじまって いない。その ぶん 待ってから 鳴らす
     node.start(c.currentTime + (-t), 0);
-    startedAt = c.currentTime + t;               // 時こくの ものさしは そろえて おく
-    startedFrom = 0;
   } else {
     node.start(0, t);
-    startedAt = c.currentTime;
-    startedFrom = t;
   }
+  /* 時計は「さくひんの 時こく」で もつ。
+     前は おとの 中の 時こく で もって いて、ずらし（off）が ある と
+     その ぶん 絵と 歌詞が 音から ずれて いた */
+  startedAt = c.currentTime;
+  startedFrom = from || 0;
 }
 
 export function stop(){
@@ -340,7 +342,11 @@ export const isPlaying = () => !!node;
 /** 鳴っている音の いまの時刻。絵を 音に合わせるのに つかう */
 export function currentTime(){
   if(!node) return null;
-  return startedFrom + (audioCtx().currentTime - startedAt);
+  /* スピーカー・イヤホンに とどく までの おくれ（Bluetooth だと 0.1〜0.3秒）を ひく。
+     そう しないと 絵と 歌詞が 聞こえる 音より 先に 進む */
+  const c = audioCtx();
+  const lag = (c.outputLatency || 0) + (c.baseLatency || 0) + (A.lag || 0);
+  return Math.max(0, startedFrom + (c.currentTime - startedAt) - lag);
 }
 
 

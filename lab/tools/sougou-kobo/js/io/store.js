@@ -12,7 +12,7 @@
 
 const DB = 'sougou-kobo';
 const STORE = 'doc';      // むかしの ひとつだけの ほぞん（読みこむだけ）
-import { plain } from '../state.js?v=426';
+import { plain } from '../state.js?v=427';
 
 const DOCS = 'docs';      // いまの ほぞん。さくひんごとに 1件
 const KEY = 'last';
