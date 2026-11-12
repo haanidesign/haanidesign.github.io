@@ -40,7 +40,7 @@ let img = null;          // 元の 絵（canvas）
 let depC = null;         // 深度（canvas）
 let depPx = null;        // 深度の 中身（タップ用）
 let depSrc = '';         // 'ai' | 'file' | 'kari'
-let hold = false, off = [0, 0], recT = -1, aiBusy = false;
+let hold = false, off = [0, 0], recT = -1, aiBusy = false, aiErr = '';
 
 function toast(t) {
   const el = $('#toast'); el.textContent = t; el.classList.add('on');
@@ -109,18 +109,23 @@ async function openPhoto(blob, keepDepth) {
 async function runAI() {
   if (!img || aiBusy) return;
   aiBusy = true; status();
+  aiErr = '';
   const bar = $('#prog'); bar.hidden = false; bar.firstElementChild.style.width = '0%';
+  const ov = (t, r) => { $('#busyT').textContent = t; if (r != null) $('#busyBar').style.width = (r * 100).toFixed(0) + '%'; };
+  ov('AI が 奥行きを 読みとる 準備中…', 0);
   try {
     const { estimate } = await import('./ai.js?v=1');
     const out = await estimate(img, (r, total) => {
       bar.firstElementChild.style.width = (r * 100).toFixed(0) + '%';
       $('#stat').textContent = `AIモデルを 読みこみ中 ${(r * total / 1048576).toFixed(0)} / ${(total / 1048576).toFixed(0)}MB`;
+      ov(r < 1 ? `AI を 読みこみ中（はじめの 1回だけ）${(r * 100).toFixed(0)}%` : 'AI が 奥行きを 読みとって います…', r);
     });
     $('#stat').textContent = '深度を 推定中…';
     setDepth(out, 'ai'); save();
     toast('深度を 出した');
   } catch (e) {
-    console.error(e); toast('AI が 使えなかった。深度マップを 読みこんでも つかえる');
+    console.error(e); aiErr = String(e && e.message || e).slice(0, 120);
+    toast('AI が 使えなかった');
   }
   aiBusy = false; bar.hidden = true; status();
 }
@@ -134,6 +139,14 @@ function status() {
   if (!aiBusy || !$('#stat').textContent.includes('MB')) $('#stat').textContent = t;
   $('#lamp').className = 'lamp ' + (aiBusy ? 'busy' : depSrc === 'ai' || depSrc === 'file' ? 'ok' : '');
   $('#bAI').disabled = !img || aiBusy;
+  /* 写真の 上の 案内: 読みとり中・まだ・失敗 */
+  const need = img && (aiBusy || depSrc === 'kari');
+  $('#busy').hidden = !need;
+  if (need && !aiBusy) {
+    $('#busyT').textContent = aiErr ? 'AI を 読みこめませんでした。通信を たしかめて、もう一度 おして ください。' : 'まだ 奥行きを 読みとって いません';
+    $('#busyE').textContent = aiErr; $('#busyBar').style.width = '0%';
+  }
+  $('#busyGo').hidden = aiBusy; $('#busyBox').hidden = !aiBusy; if (aiBusy) $('#busyE').textContent = '';
   for (const id of ['#bDepIn', '#bInv', '#bDepOut', '#bSave']) $(id).disabled = !img;
 }
 
@@ -418,6 +431,7 @@ const pick = (accept, fn) => { want = fn; const f = $('#file'); f.accept = accep
 $('#bOpen').onclick = () => pick('image/*', b => openPhoto(b));
 $('#drop').onclick = $('#bOpen').onclick;
 $('#bAI').onclick = runAI;
+$('#busyGo').onclick = e => { e.stopPropagation(); runAI(); };
 $('#bDepIn').onclick = () => pick('image/*', async b => {
   try { setDepth(await loadImg(b), 'file'); save(); toast('深度マップを 読みこんだ'); } catch (_) { toast('読めなかった'); }
 });
