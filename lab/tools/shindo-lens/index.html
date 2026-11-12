@@ -170,7 +170,7 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
         <button class="btn" id="bInv" type="button" disabled>🔄 白黒を 反転</button>
       </div>
       <button class="btn wide" id="bDepOut" type="button" disabled>⬇ 深度マップを 保存（PNG）</button>
-      <p class="small">AIモデルは 初回だけ 約50MB を 読みこむ。写真は 端末の 中で 処理して、外へは 送らない。深度マップは 白が 手前・黒が 奥。</p>
+      <p class="small">AIモデルは 初回だけ 30〜100MB ほど 読みこむ。写真は 端末の 中で 処理して、外へは 送らない。深度マップは 白が 手前・黒が 奥。</p>
     </div>
     <div class="card" id="sheet"></div>
     <div class="card">
@@ -195,7 +195,7 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
 <div id="toast" role="status"></div>
 
 <script src="../skin/oboeru.js"></script>
-<script type="module" src="js/app.js?v=2"></script>
+<script type="module" src="js/app.js?v=3"></script>
 <script type="module" src="../skin/icons.js?v=8"></script>
 <script src="../../tana.js" data-dock data-tool="深度レンズ" data-in="#file"></script>
 <script>

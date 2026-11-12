@@ -18,8 +18,11 @@ async function load(onProg) {
     }
   };
   const tries = [];
-  if (navigator.gpu) tries.push({ device: 'webgpu', dtype: 'fp16' });
-  tries.push({ device: 'wasm', dtype: 'fp16' }, { device: 'wasm', dtype: 'q8' });
+  /* WebGPU は fp16 が 使える 機械 だけ fp16、ほかは fp32。だめなら CPU（wasm）で 軽い q8 */
+  let ad = null;
+  try { ad = navigator.gpu && await navigator.gpu.requestAdapter(); } catch (_) {}
+  if (ad) tries.push({ device: 'webgpu', dtype: ad.features.has('shader-f16') ? 'fp16' : 'fp32' });
+  tries.push({ device: 'wasm', dtype: 'q8' });
   let err;
   for (const t of tries) {
     try { return { T, p: await T.pipeline('depth-estimation', MODEL, { ...t, progress_callback }) }; }
@@ -40,13 +43,12 @@ export async function estimate(src, onProg) {
   c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
   c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
-  const url = URL.createObjectURL(blob);
-  try {
-    const out = await pipe.p(url);
+  {
+    const out = await pipe.p(await pipe.T.RawImage.fromBlob(blob));
     const dc = out.depth.toCanvas();
     const o = document.createElement('canvas'); o.width = src.width; o.height = src.height;
     const g = o.getContext('2d'); g.imageSmoothingQuality = 'high';
     g.drawImage(dc, 0, 0, o.width, o.height);
     return o;
-  } finally { URL.revokeObjectURL(url); }
+  }
 }
