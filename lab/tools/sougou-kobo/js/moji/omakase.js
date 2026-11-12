@@ -6,11 +6,11 @@
      ぜんたい … 動く背景・画面の 仕上げ
    同じ たね（seed）なら いつも 同じ ものが 出る。🎲 で 引きなおす。
    まえに おまかせで 作った ものは けしてから 作りなおす（ほかの レイヤーは さわらない）。 */
-import { newMojiLayer } from './moji.js?v=430';
-import { FX_IN, FX_LOOP, FX_OUT, fontList } from './text.js?v=430';
-import { TRANS_LIST } from '../render/trans.js?v=430';
-import { FX_LOOKS } from '../render/fx.js?v=430';
-import { PRESETS as UG, newUgokuLayer } from '../engine/ugoku.js?v=430';
+import { newMojiLayer } from './moji.js?v=431';
+import { FX_IN, FX_LOOP, FX_OUT, fontList } from './text.js?v=431';
+import { TRANS_LIST } from '../render/trans.js?v=431';
+import { FX_LOOKS } from '../render/fx.js?v=431';
+import { PRESETS as UG, newUgokuLayer } from '../engine/ugoku.js?v=431';
 
 function rng(seed){
   let a = (seed >>> 0) || 1;

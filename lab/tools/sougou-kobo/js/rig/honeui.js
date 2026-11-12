@@ -12,14 +12,14 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=430';
-import { computeAll } from '../engine/layer.js?v=430';
-import { setPin } from '../engine/anim.js?v=430';
-import { M } from './core.js?v=430';
-import { paintWeight } from './core.js?v=430';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=431';
+import { computeAll } from '../engine/layer.js?v=431';
+import { setPin } from '../engine/anim.js?v=431';
+import { M } from './core.js?v=431';
+import { paintWeight } from './core.js?v=431';
 import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
-         addIK, autoBonesFromNames, autoBonesFromPose, setupCanvas, SOFT } from './hone.js?v=430';
-import { openHoneMap } from './honemap.js?v=430';
+         addIK, autoBonesFromNames, autoBonesFromPose, setupCanvas, SOFT } from './hone.js?v=431';
+import { openHoneMap } from './honemap.js?v=431';
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -407,7 +407,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     aiBusy = true; aiJoint.disabled = true;
     toast('AI で 関節を さがして います…');
     try {
-      const { findJoints } = await import('./pose.js?v=430');
+      const { findJoints } = await import('./pose.js?v=431');
       const full = setupCanvas(l, S.proj);
       /* 絵の ある ところだけ 切りぬいて、白い 紙に のせて 見せる */
       const W = full.width, H = full.height, d = full.getContext('2d').getImageData(0, 0, W, H).data;
