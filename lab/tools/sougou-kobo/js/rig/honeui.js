@@ -12,14 +12,14 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=428';
-import { computeAll } from '../engine/layer.js?v=428';
-import { setPin } from '../engine/anim.js?v=428';
-import { M } from './core.js?v=428';
-import { paintWeight } from './core.js?v=428';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=429';
+import { computeAll } from '../engine/layer.js?v=429';
+import { setPin } from '../engine/anim.js?v=429';
+import { M } from './core.js?v=429';
+import { paintWeight } from './core.js?v=429';
 import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
-         addIK, autoBonesFromNames, SOFT } from './hone.js?v=428';
-import { openHoneMap } from './honemap.js?v=428';
+         addIK, autoBonesFromNames, autoBonesFromPose, setupCanvas, SOFT } from './hone.js?v=429';
+import { openHoneMap } from './honemap.js?v=429';
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -398,6 +398,46 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     toast(n ? n + '本の 骨を 組みました（髪・しっぽは ばね つき）' : '名前から わかる パーツが ありませんでした（体・頭・腕・脚・髪 …）');
     onChange();
   });
+  /* 🦴 AI で 関節: 組み立ての 姿を AI に 見せて、肩・ひじ・ひざ に 骨を 立てる */
+  let aiBusy = false;
+  const aiJoint = mk('🦴 AIで関節', '絵を AI に 見せて、肩・ひじ・手首・腰・ひざ に 骨を 立てる（初回だけ 約90MB 読みこむ）', async () => {
+    const l = layer(); if(!l || aiBusy) return;
+    if(!l.hone.slots.length) return toast('先に 絵を 入れてね');
+    if(l.hone.bones.length > 1 && !confirm('いまの 骨を けして、AI が 見つけた 関節で 組みなおします（もどす で 戻せます）')) return;
+    aiBusy = true; aiJoint.disabled = true;
+    toast('AI で 関節を さがして います…');
+    try {
+      const { findJoints } = await import('./pose.js?v=429');
+      const full = setupCanvas(l, S.proj);
+      /* 絵の ある ところだけ 切りぬいて、白い 紙に のせて 見せる */
+      const W = full.width, H = full.height, d = full.getContext('2d').getImageData(0, 0, W, H).data;
+      let x0 = W, y0 = H, x1 = 0, y1 = 0;
+      for(let y = 0; y < H; y += 2) for(let x = 0; x < W; x += 2) if(d[(y * W + x) * 4 + 3] > 16){
+        if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      }
+      if(x1 <= x0 || y1 <= y0){ x0 = 0; y0 = 0; x1 = W; y1 = H; }
+      const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.06);
+      x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W, x1 + pad); y1 = Math.min(H, y1 + pad);
+      const c = document.createElement('canvas'); c.width = x1 - x0; c.height = y1 - y0;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(full, -x0, -y0);
+      let last = -1;
+      const kp = await findJoints(c, r => {
+        const p = Math.floor(r * 10) * 10;
+        if(p !== last){ last = p; toast('AI を 読みこみ中（はじめの 1回だけ）' + p + '%'); }
+      });
+      kp.pts = kp.pts.map(([x, y]) => [x + x0, y + y0]);
+      let n = 0;
+      edit('AIで 関節', () => { n = autoBonesFromPose(l, kp); });
+      selBone = 'root';
+      toast(n ? n + '本の 骨を 組みました。ずれて いる 骨は 📐 組み立て で 直せます' : '人の 形が 見つかりませんでした（肩が 見える 絵で ためしてね）');
+      onChange();
+    } catch(e){
+      console.error(e);
+      toast('AI を 読みこめませんでした。通信を たしかめて もう一度');
+    }
+    aiBusy = false; aiJoint.disabled = false;
+  });
   /* 🗺 つながり図（ミニSpine と 同じ） */
   const map = mk('🗺 つながり図', '骨と パーツの つながりを 図で 見る。ドラッグで つけかえ', () => {
     const l = layer(); if(!l) return;
@@ -423,7 +463,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     tabAnim.classList.toggle('on', p === 'anim');
     tools.innerHTML = '';
     if(p === 'setup'){
-      tools.append(map, btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, spring, auto, face, rename, del);
+      tools.append(map, btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, spring, aiJoint, auto, face, rename, del);
       const l = layer();
       setTool(l && l.hone.bones.length < 2 ? 'add' : 'setup', quiet);
     } else {

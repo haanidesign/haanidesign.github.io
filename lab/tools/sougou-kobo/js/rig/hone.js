@@ -14,10 +14,10 @@
      'H:<骨のid>:sx/sy' … 大きさ（1 が そのまま）
    キーの ならびは ほかの キーと 同じ なので、ずらす・けす・イージングも そのまま きく。 */
 import { M, CH, computePose, applyIKs, invCache, bindSlot, deformSlot, buildGridMesh, drawSlot,
-         autoWeights, uid, topoBones, applySprings } from './core.js?v=428';
-import { sample, mapTime, remapTime } from '../engine/anim.js?v=428';
-import { newLayer } from '../engine/layer.js?v=428';
-import { S, undoDepth } from '../state.js?v=428';
+         autoWeights, uid, topoBones, applySprings } from './core.js?v=429';
+import { sample, mapTime, remapTime } from '../engine/anim.js?v=429';
+import { newLayer } from '../engine/layer.js?v=429';
+import { S, undoDepth } from '../state.js?v=429';
 
 export const boneCh = (id, ch) => 'H:' + id + ':' + ch;
 export const isBoneCh = (c) => /^H:.+:(rot|x|y|sx|sy|shear)$/.test(c);
@@ -364,3 +364,147 @@ export function slotShown(l, s, t){
 }
 
 export { topoBones };
+
+/* ================= 🦴 AI の 関節から 骨を 組む =================
+   pose.js が 見つけた 17点（作品ざひょう）から、人の 形の 骨を 立てる。
+     根もと（腰の まん中）─ 体 ─ 頭
+                         ├ 右腕 ─ 右前腕 ─ 右手 （左も 同じ）
+     根もと ─ 右もも ─ 右すね（足首まで 見えたら IK つき）
+   自信の ひくい 点は つかわない（その 先の 骨は 立てない）。
+   パーツの 名前が 髪・しっぽ・目・口 などなら、名前から 骨と 同じ ように あつかう。
+   ほかの パーツは 近くの 骨に あわせて しなる（自動ウェイト）。 */
+const TH = 0.2;
+
+/** 組み立ての 姿を 作品と 同じ 大きさの 紙に 描く（AI に 見せる 用） */
+export function setupCanvas(l, project){
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, project.w); c.height = Math.max(1, project.h);
+  const g = c.getContext('2d');
+  const H = l.hone, pose = setupPose(H);
+  for(const s of H.slots){
+    if(s.visible === false) continue;
+    const img = S.imgs[s.asset];
+    if(!img || !(img.naturalWidth || img.width)) continue;
+    if(!s.verts.length || !s.verts[0].bind) rebind(l);
+    const xy = new Float32Array(s.verts.length * 2);
+    deformSlot(s, pose, xy);
+    drawSlot(g, s, img, xy);
+  }
+  return c;
+}
+
+/* あみが あらい（1ますが 大きい）パーツは こまかく しなおす。腕を 曲げた ときに きれいに 曲がる ように */
+function densify(s, cell){
+  const img = S.imgs[s.asset];
+  if(!img || s.verts.length < 3) return;
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  /* u,v → x,y の 行列を 3点から もとめる */
+  const v = s.verts;
+  let a = v[0], b = null, c = null;
+  for(const q of v){ if(!b && (q.u !== a.u || q.v !== a.v)) b = q; }
+  if(!b) return;
+  for(const q of v){
+    const cr = (b.u - a.u) * (q.v - a.v) - (b.v - a.v) * (q.u - a.u);
+    if(Math.abs(cr) > 1e-6){ c = q; break; }
+  }
+  if(!c) return;
+  const du1 = b.u - a.u, dv1 = b.v - a.v, du2 = c.u - a.u, dv2 = c.v - a.v;
+  const det = du1 * dv2 - du2 * dv1;
+  const ma = ((b.x - a.x) * dv2 - (c.x - a.x) * dv1) / det, mc = ((c.x - a.x) * du1 - (b.x - a.x) * du2) / det;
+  const mb = ((b.y - a.y) * dv2 - (c.y - a.y) * dv1) / det, md = ((c.y - a.y) * du1 - (b.y - a.y) * du2) / det;
+  const place = { a: ma, b: mb, c: mc, d: md, tx: a.x - ma * a.u - mc * a.v, ty: a.y - mb * a.u - md * a.v };
+  const sx = Math.hypot(ma, mb), sy = Math.hypot(mc, md);
+  const cols = Math.max(2, Math.min(40, Math.round(w * sx / cell))), rows = Math.max(2, Math.min(40, Math.round(h * sy / cell)));
+  const old = Math.sqrt(v.length);
+  if(cols * rows <= old * old * 1.3) return;
+  const mesh = buildGridMesh(img, cols, rows, place);
+  mesh.verts.forEach(q => { q.w = [{ b: s.bone, w: 1 }]; });
+  s.verts = mesh.verts; s.tris = mesh.tris;
+}
+
+export function autoBonesFromPose(l, kp){
+  const h = l.hone, P = kp.pts, C = kp.sc;
+  const ok = i => C[i] >= TH;
+  const at = i => ({ x: P[i][0], y: P[i][1] });
+  const mid = (i, j) => ({ x: (P[i][0] + P[j][0]) / 2, y: (P[i][1] + P[j][1]) / 2 });
+  if(!ok(5) && !ok(6)) return 0;                       // 肩が ない と 人の 形に できない
+
+  const sh = ok(5) && ok(6) ? mid(5, 6) : at(ok(5) ? 5 : 6);
+  const shW = ok(5) && ok(6) ? Math.hypot(P[5][0] - P[6][0], P[5][1] - P[6][1]) : 80;
+  let hip;
+  if(ok(11) && ok(12)) hip = mid(11, 12);
+  else if(ok(11) || ok(12)) hip = at(ok(11) ? 11 : 12);
+  else hip = { x: sh.x, y: sh.y + shW * 1.4 };
+  const torso = Math.max(20, Math.hypot(hip.x - sh.x, hip.y - sh.y));
+
+  /* いまの 骨は 根もと だけに する */
+  h.bones = h.bones.filter(b => !b.parent);
+  h.iks = [];
+  Object.keys(l.tracks || {}).forEach(c => { if(/^H:/.test(c) && !c.startsWith('H:root:')) delete l.tracks[c]; });
+  const root = h.bones[0];
+  root.x = hip.x; root.y = hip.y; root.rot = -90; root.len = torso * 0.18; root.name = '根もと';
+  h.slots.forEach(s => { s.bone = 'root'; s.verts.forEach(v => { v.w = [{ b: 'root', w: 1 }]; }); });
+  rebind(l);
+
+  const bone = (par, a, b, name) => { const x = addBoneAt(l, par, a.x, a.y, b.x, b.y); x.name = name; return x; };
+  const body = bone('root', hip, sh, '体');
+
+  /* 頭: 顔の 点の まん中から、首と 反対へ のばした ところが てっぺん */
+  const face = [0, 1, 2, 3, 4].filter(ok);
+  let head = null;
+  if(face.length){
+    const fc = { x: face.reduce((a, i) => a + P[i][0], 0) / face.length, y: face.reduce((a, i) => a + P[i][1], 0) / face.length };
+    let dx = fc.x - sh.x, dy = fc.y - sh.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const top = { x: fc.x + dx / L * Math.max(L * 0.9, shW * 0.45), y: fc.y + dy / L * Math.max(L * 0.9, shW * 0.45) };
+    head = bone(body.id, sh, top, '頭');
+  }
+
+  /* 腕（人に とっての 右＝画面の 左） */
+  const limbs = [];
+  for(const [side, s, e, w] of [['右', 6, 8, 10], ['左', 5, 7, 9]]){
+    if(!ok(s)) continue;
+    let up = null;
+    if(ok(e)){
+      up = bone(body.id, at(s), at(e), side + '腕');
+      if(ok(w)){
+        const fo = bone(up.id, at(e), at(w), side + '前腕');
+        const d = { x: P[w][0] - P[e][0], y: P[w][1] - P[e][1] };
+        bone(fo.id, at(w), { x: P[w][0] + d.x * 0.35, y: P[w][1] + d.y * 0.35 }, side + '手');
+      }
+    } else if(ok(w)){
+      up = bone(body.id, at(s), at(w), side + '腕');
+    }
+    if(up) limbs.push(up.id);
+  }
+  /* 脚 */
+  const legIK = [];
+  for(const [side, s, k, a] of [['右', 12, 14, 16], ['左', 11, 13, 15]]){
+    if(!ok(s) || !ok(k)) continue;
+    const th = bone('root', at(s), at(k), side + 'もも');
+    if(ok(a)){ const sn = bone(th.id, at(k), at(a), side + 'すね'); legIK.push(sn.id); }
+  }
+
+  /* パーツを つける */
+  const sp = setupPose(h);
+  const isSpring = id => { const b = h.bones.find(x => x.id === id); return b && (b.spring || b.ikTarget); };
+  const roles = h.slots.map(s => ({ s, r: roleOfName(s.name), b: boxOf(s) }));
+  const rigid = (s, id) => { s.bone = id; s.verts.forEach(v => { v.w = [{ b: id, w: 1 }]; }); };
+  const hd = (head || body).id;
+  roles.forEach(({ s, r, b }) => {
+    if(r === 'eye' || r === 'mouth' || r === 'brow' || r === 'head'){ rigid(s, hd); return; }
+    if(r === 'hair' || r === 'ear' || r === 'tail'){
+      const nb = addBoneAt(l, r === 'tail' ? body.id : hd, b.cx, b.y0 + b.h * 0.05, b.cx, b.y1 - b.h * 0.1);
+      nb.name = s.name; nb.spring = true; Object.assign(nb, SOFT[r]);
+      rigid(s, nb.id); return;
+    }
+    /* 体や 1まい絵: こまかい あみに して、近くの 骨で しなる */
+    densify(s, Math.max(12, torso / 9));
+    const only = h.bones.filter(x => !isSpring(x.id) && x.id !== 'root').map(x => x.id);
+    autoWeights(h, s, setupPose(h), { maxBones: 2, falloff: 3, only });
+  });
+  rebind(l);
+  /* すねに IK（足を 地面に のこした まま 腰を 動かせる） */
+  legIK.forEach(id => { const t = addIK(l, id); if(t) t.name = 'まと（' + h.bones.find(b => b.id === id).name + '）'; });
+  return h.bones.filter(b => !b.ikTarget).length - 1;
+}
