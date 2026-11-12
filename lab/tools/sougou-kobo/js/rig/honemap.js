@@ -5,9 +5,9 @@
    ・パーツを ほかの 箱へ ドラッグ → その 骨に つけなおす
    ・箱を ほかの 箱へ ドラッグ → 骨の 親を つけかえる（見た目は そのまま）
    ・揺 … ゆれる 骨に する／もどす　✎ … 名前　× … けす */
-import { edit } from '../state.js?v=429';
-import { M } from './core.js?v=429';
-import { setupPose, rebind, removeBone, SOFT } from './hone.js?v=429';
+import { edit } from '../state.js?v=430';
+import { M } from './core.js?v=430';
+import { setupPose, rebind, removeBone, SOFT } from './hone.js?v=430';
 
 let ui = null;
 
