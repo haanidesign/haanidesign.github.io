@@ -53,6 +53,13 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
 #cvbox{flex:0 0 auto;position:relative;line-height:0;border:var(--bd);border-radius:6px;overflow:hidden;background:var(--paper);touch-action:none;max-width:100%}
 #cv{display:block;max-width:100%;max-height:calc(100dvh - 190px);width:auto;height:auto;cursor:crosshair}
 #marks{position:absolute;inset:0;pointer-events:none}
+#busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(251,250,236,.72);line-height:1.6;padding:1rem}
+.bz{background:var(--paper);border:var(--bd);border-radius:var(--r);padding:1rem 1.2rem;max-width:20rem;text-align:center;display:flex;flex-direction:column;gap:.7rem;align-items:center}
+.bz b{font-size:.95rem}
+.bz small{font-size:.7rem;color:var(--gray);word-break:break-all}
+.bz small:empty{display:none}
+#busyBox{width:100%;height:12px;border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--cream)}
+#busyBar{height:100%;width:0;background:var(--main);transition:width .2s}
 .mk{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:3px solid #fff;background:var(--c,#ff7a3a);
   box-shadow:0 0 0 2px var(--ink),0 0 18px var(--c);pointer-events:auto;cursor:grab;touch-action:none;opacity:.85}
 .mk::after{content:'';position:absolute;inset:7px;border-radius:50%;background:#fff}
@@ -98,6 +105,7 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
 .empty{margin:.4rem 0;font-size:.78rem;color:var(--ink2);line-height:1.7}
 .help{margin:0;padding-left:1.1rem;font-size:.76rem;color:var(--ink2);line-height:1.75}
 .help b{color:var(--ink)}
+.how{margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:2px dotted var(--line)}
 
 .rs{position:relative;height:30px;touch-action:none;cursor:ew-resize}
 .rs-track{position:absolute;left:9px;right:9px;top:10px;height:10px;border:2px solid var(--ink);border-radius:6px;background:var(--cream);overflow:hidden}
@@ -137,7 +145,13 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
       <p>ドロップ・クリック・貼りつけ（Ctrl+V）で 読みこむ。<br>写真は この 端末の 中だけで 処理する。</p>
     </div>
     <div id="stage" hidden>
-      <div id="cvbox"><canvas id="cv"></canvas><div id="marks"></div></div>
+      <div id="cvbox"><canvas id="cv"></canvas><div id="marks"></div>
+        <div id="busy" hidden><div class="bz">
+          <b id="busyT"></b>
+          <div id="busyBox"><div id="busyBar"></div></div>
+          <button class="btn btn-g" id="busyGo" type="button">🪄 AI で 奥行きを 読みとる</button>
+          <small id="busyE"></small>
+        </div></div></div>
       <div class="under">
         <div class="seg" id="views"><button type="button" class="on">加工後</button><button type="button">深度マップ</button></div>
         <button class="btn" id="bHold" type="button">押して いる 間 元画像</button>
@@ -160,6 +174,13 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
     </div>
     <div class="card" id="sheet"></div>
     <div class="card">
+      <ol class="help how">
+        <li><b>写真を えらぶ</b>（上の ボタン・ドロップ・貼りつけ）</li>
+        <li>AI が 奥行きを 読みとるまで 待つ（写真の 上に 進み具合が 出る）</li>
+        <li>左の タブを えらび、右上の チェックを 入れて つまみを 動かす</li>
+        <li>写真を タップすると、そこに ピントや ライトが 合う</li>
+        <li>上の「PNG で 保存」（立体は「動画で 保存」）</li>
+      </ol>
       <ul class="help">
         <li><b>ぼかし</b>：ポートレートの ように あとから ピントを 変える</li>
         <li><b>霧</b>：遠くに 遠近感や 朝もやの 空気を 足す</li>
@@ -174,7 +195,7 @@ body{background:var(--cream);color:var(--ink);font-family:'M PLUS Rounded 1c',sa
 <div id="toast" role="status"></div>
 
 <script src="../skin/oboeru.js"></script>
-<script type="module" src="js/app.js?v=1"></script>
+<script type="module" src="js/app.js?v=2"></script>
 <script type="module" src="../skin/icons.js?v=8"></script>
 <script src="../../tana.js" data-dock data-tool="深度レンズ" data-in="#file"></script>
 <script>
