@@ -114,7 +114,7 @@ async function runAI() {
   const ov = (t, r) => { $('#busyT').textContent = t; if (r != null) $('#busyBar').style.width = (r * 100).toFixed(0) + '%'; };
   ov('AI が 奥行きを 読みとる 準備中…', 0);
   try {
-    const { estimate } = await import('./ai.js?v=1');
+    const { estimate } = await import('./ai.js?v=2');
     const out = await estimate(img, (r, total) => {
       bar.firstElementChild.style.width = (r * 100).toFixed(0) + '%';
       $('#stat').textContent = `AIモデルを 読みこみ中 ${(r * total / 1048576).toFixed(0)} / ${(total / 1048576).toFixed(0)}MB`;
