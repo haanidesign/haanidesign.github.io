@@ -4,7 +4,7 @@
    ふだ（クリップ）に 歌詞と スタイルと たねを もたせて おいて、
    えがく ときに その場で 組み立てて 1コマ ぶんを 焼く。
    組み立てた もの（plan）は しまわない。たねが 同じなら いつも 同じ ものが 出る。 */
-import { S, toast } from './jzshim.js?v=427';
+import { S, toast } from './jzshim.js?v=428';
 
 const JZ = () => (typeof window !== 'undefined' ? window.J : null);
 export const ready = () => !!(JZ() && JZ().plan && JZ().Renderer);
@@ -25,7 +25,8 @@ let renderer = null;
 const keyOf = j => JSON.stringify([
   j.lyrics, j.style, j.seed, j.bpm, j.offset, j.W, j.H, j.fps,
   j.motion, j.glitch, j.chroma, j.decor, j.density, j.texture, j.koma, j.hud, j.bgSwitch,
-  j.extra, j.wa, j.lineScale, j.snap, j.tail, j.lineTimes, j.beatOffset, j.ov
+  j.extra, j.wa, j.lineScale, j.snap, j.tail, j.lineTimes, j.beatOffset, j.ov,
+  j.horror, j.typo, j.kinetic, j.extra2
 ]);
 
 /** ふだの 中身から JIZURA の project を 作る */
@@ -41,6 +42,8 @@ function projectOf(j) {
   pr.extra = j.extra !== false;
   pr.overrides = j.ov || {};   // 行ごと・カットごとの さしかえ
   pr.wa = j.wa !== false;
+  /* 本家 v0.12〜 の 部品の くくり（ホラー・文字PV系・キネティック・追加分2）。決めて いなければ 本家の きまり */
+  ['horror', 'typo', 'kinetic', 'extra2'].forEach(k => { if(typeof j[k] === 'boolean') pr[k] = j[k]; });
   pr.fx = Object.assign({}, pr.fx, {
     motion: num(j.motion, .7), glitch: num(j.glitch, .55), chroma: num(j.chroma, .7),
     decor: num(j.decor, .5), density: num(j.density, .55), texture: num(j.texture, .6),
