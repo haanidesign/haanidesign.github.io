@@ -331,6 +331,17 @@ const TOOLS = [
     thumb: "thumbs/thumb-check.svg",
     url: "tools/thumb-check/index.html",
     status: "live"
+  },
+  {
+    no: 31,
+    slug: "shindo-lens",
+    title: "深度レンズ",
+    desc: "写真の 奥行きを AI で 読みとって、距離で ぼかし・霧・色調・ライト・切り抜き・立体を かける。",
+    tags: ["写真", "深度", "ぼかし"],
+    cat: "other",
+    thumb: "thumbs/shindo-lens.svg",
+    url: "tools/shindo-lens/index.html",
+    status: "live"
   }
 ];
 
