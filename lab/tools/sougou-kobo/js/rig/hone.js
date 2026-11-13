@@ -14,10 +14,11 @@
      'H:<骨のid>:sx/sy' … 大きさ（1 が そのまま）
    キーの ならびは ほかの キーと 同じ なので、ずらす・けす・イージングも そのまま きく。 */
 import { M, CH, computePose, applyIKs, invCache, bindSlot, deformSlot, buildGridMesh, drawSlot,
-         autoWeights, uid, topoBones, applySprings } from './core.js?v=431';
-import { sample, mapTime, remapTime } from '../engine/anim.js?v=431';
-import { newLayer } from '../engine/layer.js?v=431';
-import { S, undoDepth } from '../state.js?v=431';
+         autoWeights, uid, topoBones, applySprings } from './core.js?v=434';
+import { sample, mapTime, remapTime } from '../engine/anim.js?v=434';
+import { newLayer } from '../engine/layer.js?v=434';
+import { S, undoDepth } from '../state.js?v=434';
+import { fitMesh, hairChain } from './rigplus.js?v=434';
 
 export const boneCh = (id, ch) => 'H:' + id + ':' + ch;
 export const isBoneCh = (c) => /^H:.+:(rot|x|y|sx|sy|shear)$/.test(c);
@@ -314,6 +315,9 @@ export function autoBonesFromNames(l){
     }
     if(r === 'hair' || r === 'ear' || r === 'tail'){
       const par = (r === 'tail' ? body : head || body).id;
+      /* 形に そった あみ ＋ 骨の 列 */
+      fitMesh(l, s); rebind(l);
+      if(hairChain(l, s, par)){ n++; return; }
       const nb = addBoneAt(l, par, b.cx, b.y0 + b.h * 0.05, b.cx, b.y1 - b.h * 0.1);
       nb.name = s.name; nb.spring = true;
       Object.assign(nb, SOFT[r]);
@@ -494,12 +498,16 @@ export function autoBonesFromPose(l, kp){
   roles.forEach(({ s, r, b }) => {
     if(r === 'eye' || r === 'mouth' || r === 'brow' || r === 'head'){ rigid(s, hd); return; }
     if(r === 'hair' || r === 'ear' || r === 'tail'){
+      /* 形に そった あみ ＋ 根もとから 毛先まで 骨の 列（Spine の 髪と 同じ） */
+      fitMesh(l, s, Math.max(10, torso / 10));
+      rebind(l);
+      if(hairChain(l, s, r === 'tail' ? body.id : hd)) return;
       const nb = addBoneAt(l, r === 'tail' ? body.id : hd, b.cx, b.y0 + b.h * 0.05, b.cx, b.y1 - b.h * 0.1);
       nb.name = s.name; nb.spring = true; Object.assign(nb, SOFT[r]);
       rigid(s, nb.id); return;
     }
-    /* 体や 1まい絵: こまかい あみに して、近くの 骨で しなる */
-    densify(s, Math.max(12, torso / 9));
+    /* 体や 1まい絵: 形に そった こまかい あみに して、近くの 骨で しなる */
+    if(!fitMesh(l, s, Math.max(12, torso / 9))) densify(s, Math.max(12, torso / 9));
     const only = h.bones.filter(x => !isSpring(x.id) && x.id !== 'root').map(x => x.id);
     autoWeights(h, s, setupPose(h), { maxBones: 2, falloff: 3, only });
   });

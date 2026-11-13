@@ -1121,3 +1121,15 @@ input[type=range].coarse{
 .hnd-l{ margin:3px 2px 0; padding:4px 8px; border-radius:8px; background:#F2F0BE; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hnd-l.sel{ background:#E1DD60; outline:2px solid #1E1C14; }
 .hmap-ghost{ position:fixed; z-index:400; transform:translate(-50%,-120%); background:#1E1C14; color:#FFFEF7; padding:4px 10px; border-radius:999px; font-weight:800; pointer-events:none; white-space:nowrap; }
+
+/* 👆 関節を おして 組む */
+.honejoints{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.honejoints b{ font-size:1rem; margin-right:4px; }
+
+/* 骨の 道具は 1列で よこに 送る（ボタンが ふえても 絵に かぶらない） */
+#honemode{ width:min(760px, calc(100% - 20px)); }
+#honemode .honetools{ flex-wrap:nowrap; justify-content:flex-start; overflow-x:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; scrollbar-width:thin; padding-bottom:4px; touch-action:pan-x; }
+#honemode .honetools > *{ flex:0 0 auto; white-space:nowrap; }
+#honemode .honejoints{ flex-wrap:nowrap; }
+#honemode > *{ min-width:0; max-width:100%; }
+#honemode .honetabs{ flex-wrap:wrap; }

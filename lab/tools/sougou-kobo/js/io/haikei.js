@@ -5,9 +5,9 @@
 
    AI は 端末の 中で 動く。絵は 外へ 送らない。初回だけ 約180MB を 読みこむ（ブラウザに のこる）。
    絵の 中身（assets）は 書きかえず、新しく 足す（もどす が 絵を 指して いる ため）。 */
-import { S, edit, addAsset } from '../state.js?v=431';
-import { loadImage } from './image.js?v=431';
-import { guardSlide } from '../ui/sheet.js?v=431';
+import { S, edit, addAsset } from '../state.js?v=434';
+import { loadImage } from './image.js?v=434';
+import { guardSlide } from '../ui/sheet.js?v=434';
 
 const ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
 const MODEL = 'https://huggingface.co/skytnt/anime-seg/resolve/main/isnetis.onnx';
