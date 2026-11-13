@@ -15,70 +15,87 @@
 </script>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=1">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=2">
 </head>
 <body>
 
+<div class="loader" aria-hidden="true"><span>HAANI</span><span>DESIGN</span></div>
+
 <header class="nav">
-  <div class="nav-in">
-    <a href="index.html" class="mark">はぁにデザイン工房</a>
-    <nav class="nav-links" aria-label="ページ内">
-      <a href="#works">作品</a>
-      <a href="#price">料金</a>
-      <a href="#flow">流れ</a>
-      <a href="#about">プロフィール</a>
-    </nav>
-    <a href="#contact" class="btn btn-g btn-sm">ご依頼</a>
-  </div>
+  <a href="#top" class="mark"><b>HAANI</b><small>はぁにデザイン工房</small></a>
+  <nav class="nav-links" aria-label="ページ内">
+    <a href="#works"><i>01</i>作品</a>
+    <a href="#price"><i>02</i>料金</a>
+    <a href="#flow"><i>03</i>流れ</a>
+    <a href="#about"><i>04</i>プロフィール</a>
+  </nav>
+  <a href="#contact" class="nav-cta">ご依頼<span>→</span></a>
 </header>
 
 <main id="top">
 
-  <!-- ヒーロー：キャラと吹き出し -->
   <section class="hero">
+    <div class="hero-bg" aria-hidden="true">HAANI<br>DESIGN</div>
     <div class="hero-in">
       <div class="hero-text">
-        <p class="status"><span class="lamp" aria-hidden="true"></span>ご依頼受付中</p>
-        <h1>ラブコメも ギャグも<br><mark>カラー漫画</mark>で描きます</h1>
-        <p class="lead">北海道を拠点に、オリジナル漫画から広告漫画、アニメーション制作まで承っています。</p>
+        <p class="status"><span class="lamp"></span>ご依頼受付中 — 2026</p>
+        <h1>
+          <span class="ln"><span>ラブコメも</span></span>
+          <span class="ln"><span>ギャグも</span></span>
+          <span class="ln"><span><em>カラー漫画</em>で。</span></span>
+        </h1>
+        <p class="lead">北海道を拠点に、オリジナル漫画から広告漫画、アニメーション制作まで。</p>
         <div class="cta">
-          <a href="#works" class="btn btn-y btn-lg">作品を見る</a>
-          <a href="#contact" class="btn btn-lg">相談する</a>
+          <a href="#works" class="btn btn-y">作品を見る<span class="arr">→</span></a>
+          <a href="#contact" class="btn btn-o">相談する</a>
         </div>
-        <ul class="kinds">
-          <li>漫画・コミック</li><li>イラスト・装丁</li><li>アニメーション</li>
-        </ul>
       </div>
-      <img src="hero_chara.png" alt="" class="hero-chara">
+      <div class="hero-visual">
+        <div class="ring" aria-hidden="true">
+          <svg viewBox="0 0 200 200"><defs><path id="c" d="M100,100 m-80,0 a80,80 0 1,1 160,0 a80,80 0 1,1 -160,0"/></defs>
+            <text><textPath href="#c">MANGA ・ ILLUSTRATION ・ ANIMATION ・ </textPath></text></svg>
+          <b>★</b>
+        </div>
+        <img src="hero_chara.png" alt="" class="hero-chara">
+      </div>
     </div>
+    <a href="#works" class="scroll" aria-label="下へ"><span>SCROLL</span></a>
   </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="mq-track">
+      <span>MANGA</span><i>✦</i><span>ILLUSTRATION</span><i>✦</i><span>ANIMATION</span><i>✦</i><span>漫画・広告漫画・キャラデザ</span><i>✦</i>
+      <span>MANGA</span><i>✦</i><span>ILLUSTRATION</span><i>✦</i><span>ANIMATION</span><i>✦</i><span>漫画・広告漫画・キャラデザ</span><i>✦</i>
+    </div>
+  </div>
 
   <!-- 作品 -->
   <section class="sec" id="works">
-    <div class="sec-head">
-      <h2>作品</h2>
-      <p>連載中の漫画、短いアニメ、広告まで。</p>
-    </div>
+    <header class="sh rv">
+      <span class="sh-no">01</span>
+      <h2 class="sh-en">Works</h2>
+      <p class="sh-ja">作品 — 連載中の漫画、短いアニメ、広告まで。</p>
+    </header>
 
-    <a href="https://www.pixiv.net/user/8184383/series/276382" target="_blank" rel="noopener" class="feature">
+    <a href="https://www.pixiv.net/user/8184383/series/276382" target="_blank" rel="noopener" class="feature rv">
       <div class="feature-img"><img src="akuyaku.jpg" alt="悪役令嬢、旅に出る。"></div>
       <div class="feature-info">
         <span class="tag">連載漫画</span>
-        <h3>悪役令嬢、旅に出る。</h3>
+        <h3>悪役令嬢、<br>旅に出る。</h3>
         <p>pixiv・ジャンプルーキーにて連載中のラブコメファンタジー。</p>
         <dl class="nums">
-          <div><dt>累計</dt><dd>100万PV</dd></div>
-          <div><dt>ウォッチ</dt><dd>6,000人以上</dd></div>
+          <div><dt>累計</dt><dd><b data-count="100">0</b>万PV</dd></div>
+          <div><dt>ウォッチ</dt><dd><b data-count="6000">0</b>人+</dd></div>
         </dl>
-        <span class="more">pixivで読む →</span>
+        <span class="more">pixivで読む <span class="arr">→</span></span>
       </div>
     </a>
 
     <div class="works">
-      <div class="wk">
+      <div class="wk rv">
         <div class="wk-img" data-carousel>
-          <span class="cnum dot"><b>1</b>/4</span>
+          <span class="cnum"><b>1</b>/4</span>
           <img src="manga/tachibanasenpai_01.jpg" class="cslide on" alt="橘先輩 1ページ目">
           <img src="manga/tachibanasenpai_02.jpg" class="cslide" alt="橘先輩 2ページ目" loading="lazy">
           <img src="manga/tachibanasenpai_03.jpg" class="cslide" alt="橘先輩 3ページ目" loading="lazy">
@@ -86,20 +103,20 @@
           <button class="cbtn cprev" aria-label="前のページ">‹</button>
           <button class="cbtn cnext" aria-label="次のページ">›</button>
         </div>
-        <div class="wk-info"><span class="tag">漫画</span><h3>笑顔を見せてよ、橘先輩</h3></div>
+        <div class="wk-info"><span class="wk-n">/01</span><h3>笑顔を見せてよ、橘先輩</h3><span class="tag">漫画</span></div>
       </div>
 
-      <div class="wk">
+      <div class="wk rv">
         <div class="wk-img">
           <video id="v-kotono" src="kotono.mp4" autoplay muted loop playsinline preload="metadata"></video>
           <button class="vbtn" data-vid="v-kotono">音を出す</button>
         </div>
-        <div class="wk-info"><span class="tag">アニメーション</span><h3>ことばの教科書</h3></div>
+        <div class="wk-info"><span class="wk-n">/02</span><h3>ことばの教科書</h3><span class="tag">アニメ</span></div>
       </div>
 
-      <div class="wk">
+      <div class="wk rv">
         <div class="wk-img" data-carousel>
-          <span class="cnum dot"><b>1</b>/5</span>
+          <span class="cnum"><b>1</b>/5</span>
           <img src="manga/fanart_01.jpg" class="cslide on" alt="ファンアート 1">
           <img src="manga/fanart_03.jpg" class="cslide" alt="ファンアート 2" loading="lazy">
           <img src="manga/fanart_04.jpg" class="cslide" alt="ファンアート 3" loading="lazy">
@@ -108,20 +125,20 @@
           <button class="cbtn cprev" aria-label="前へ">‹</button>
           <button class="cbtn cnext" aria-label="次へ">›</button>
         </div>
-        <div class="wk-info"><span class="tag">イラスト</span><h3>ファンアート</h3></div>
+        <div class="wk-info"><span class="wk-n">/03</span><h3>ファンアート</h3><span class="tag">イラスト</span></div>
       </div>
 
-      <div class="wk">
+      <div class="wk rv">
         <div class="wk-img">
           <video id="v-diy" src="diy.mp4" autoplay muted loop playsinline preload="metadata"></video>
           <button class="vbtn" data-vid="v-diy">音を出す</button>
         </div>
-        <div class="wk-info"><span class="tag">アニメーション</span><h3>ただいまDIY中</h3></div>
+        <div class="wk-info"><span class="wk-n">/04</span><h3>ただいまDIY中</h3><span class="tag">アニメ</span></div>
       </div>
 
-      <div class="wk">
+      <div class="wk rv">
         <div class="wk-img" data-carousel>
-          <span class="cnum dot"><b>1</b>/4</span>
+          <span class="cnum"><b>1</b>/4</span>
           <img src="host.jpg" class="cslide on" alt="WEB漫画 1ページ目">
           <img src="manga/host_02.jpg" class="cslide" alt="WEB漫画 2ページ目" loading="lazy">
           <img src="manga/host_03.jpg" class="cslide" alt="WEB漫画 3ページ目" loading="lazy">
@@ -129,79 +146,75 @@
           <button class="cbtn cprev" aria-label="前のページ">‹</button>
           <button class="cbtn cnext" aria-label="次のページ">›</button>
         </div>
-        <div class="wk-info"><span class="tag">漫画</span><h3>WEB漫画</h3></div>
+        <div class="wk-info"><span class="wk-n">/05</span><h3>WEB漫画</h3><span class="tag">漫画</span></div>
       </div>
 
-      <div class="wk">
+      <div class="wk rv">
         <div class="wk-img"><img src="webad.jpg" alt="WEB広告" loading="lazy"></div>
-        <div class="wk-info"><span class="tag">広告</span><h3>WEB広告</h3></div>
+        <div class="wk-info"><span class="wk-n">/06</span><h3>WEB広告</h3><span class="tag">広告</span></div>
       </div>
     </div>
   </section>
 
-  <!-- 料金：表で一覧 -->
-  <section class="sec" id="price">
-    <div class="sec-head">
-      <h2>料金</h2>
-      <p>目安です。内容に合わせてお見積もりします（無料）。</p>
+  <!-- 料金 -->
+  <section class="sec dark" id="price">
+    <div class="sec-in">
+      <header class="sh rv">
+        <span class="sh-no">02</span>
+        <h2 class="sh-en">Price</h2>
+        <p class="sh-ja">料金 — 目安です。お見積もりは無料。</p>
+      </header>
+      <div class="ptable">
+        <div class="prow rv">
+          <span class="p-n">A</span>
+          <div><h3>漫画制作 <span class="badge">得意</span></h3>
+            <p>表情芝居に強いカラー漫画。ネームから仕上げまで。広告・PR漫画／4コマ／SNS用ショート漫画</p></div>
+          <span class="yen">¥8,000<small>〜</small></span>
+        </div>
+        <div class="prow rv">
+          <span class="p-n">B</span>
+          <div><h3>イラスト</h3><p>アイコン／立ち絵／キャラクターデザイン・装丁</p></div>
+          <span class="yen">¥10,000<small>〜</small></span>
+        </div>
+        <div class="prow rv">
+          <span class="p-n">C</span>
+          <div><h3>アニメーション</h3><p>10秒アニメ／ショートアニメ／キャラクターPR動画</p></div>
+          <span class="yen">¥10,000<small>〜</small></span>
+        </div>
+      </div>
+      <a href="price.html" class="textlink">くわしい料金表 <span class="arr">→</span></a>
     </div>
-    <div class="ptable">
-      <div class="prow main">
-        <div>
-          <h3>漫画制作 <span class="badge">得意</span></h3>
-          <p>表情芝居に強いカラー漫画。ネームから仕上げまで。広告・PR漫画／4コマ／SNS用ショート漫画</p>
-        </div>
-        <span class="yen">¥8,000〜</span>
-      </div>
-      <div class="prow">
-        <div>
-          <h3>イラスト</h3>
-          <p>アイコン／立ち絵／キャラクターデザイン・装丁</p>
-        </div>
-        <span class="yen">¥10,000〜</span>
-      </div>
-      <div class="prow">
-        <div>
-          <h3>アニメーション</h3>
-          <p>10秒アニメ／ショートアニメ／キャラクターPR動画</p>
-        </div>
-        <span class="yen">¥10,000〜</span>
-      </div>
-    </div>
-    <a href="price.html" class="textlink">くわしい料金表 →</a>
   </section>
 
-  <!-- 流れ：横に3つ -->
+  <!-- 流れ -->
   <section class="sec" id="flow">
-    <div class="sec-head">
-      <h2>ご依頼の流れ</h2>
-    </div>
+    <header class="sh rv">
+      <span class="sh-no">03</span>
+      <h2 class="sh-en">Flow</h2>
+      <p class="sh-ja">ご依頼の流れ</p>
+    </header>
     <ol class="steps">
-      <li>
-        <span class="step-no dot">1</span>
-        <h3>お問い合わせ</h3>
-        <p>フォームからご連絡ください。お見積もりは無料、2〜3営業日でご返信します。</p>
-      </li>
-      <li>
-        <span class="step-no dot">2</span>
-        <h3>ラフ・修正</h3>
-        <p>ラフ段階での修正は3回まで無料。ここで方向性を固めます。</p>
-      </li>
-      <li>
-        <span class="step-no dot">3</span>
-        <h3>完成・納品</h3>
-        <p>形式・解像度はご指定いただけます。psd・png・jpg・mp4 など。</p>
-      </li>
+      <li class="rv"><span class="step-no">01</span><h3>お問い合わせ</h3>
+        <p>フォームからご連絡ください。お見積もりは無料、2〜3営業日でご返信します。</p></li>
+      <li class="rv"><span class="step-no">02</span><h3>ラフ・修正</h3>
+        <p>ラフ段階での修正は3回まで無料。ここで方向性を固めます。</p></li>
+      <li class="rv"><span class="step-no">03</span><h3>完成・納品</h3>
+        <p>形式・解像度はご指定いただけます。psd・png・jpg・mp4 など。</p></li>
     </ol>
-    <a href="flow.html" class="textlink">くわしい流れ →</a>
+    <a href="flow.html" class="textlink">くわしい流れ <span class="arr">→</span></a>
   </section>
 
-  <!-- プロフィールとお知らせ：2段組 -->
-  <section class="sec two" id="about">
-    <div class="prof">
-      <img src="ai.jpg" alt="はぁに" class="prof-ava">
-      <div>
-        <h2>はぁに</h2>
+  <!-- プロフィール・お知らせ -->
+  <section class="sec" id="about">
+    <header class="sh rv">
+      <span class="sh-no">04</span>
+      <h2 class="sh-en">About</h2>
+      <p class="sh-ja">プロフィール・お知らせ</p>
+    </header>
+    <div class="two">
+      <div class="prof rv">
+        <div class="prof-ava"><img src="ai.jpg" alt="はぁに"></div>
+        <h3>はぁに<small>HAANI</small></h3>
         <p class="role">漫画家 / イラストレーター / アニメーター</p>
         <p>北海道を拠点に活動するクリエイター。ラブコメ・ギャグのオリジナル漫画制作やアニメ制作、広告漫画制作を行っています。表情豊かなカラー漫画が得意です。</p>
         <ul class="sns">
@@ -213,128 +226,66 @@
           <li><a href="https://www.chatwork.com/ha_ni" target="_blank" rel="noopener">Chatwork</a></li>
         </ul>
       </div>
-    </div>
-
-    <div class="news" id="news">
-      <h2>お知らせ</h2>
-      <ul>
-        <li>
-          <time class="dot" datetime="2026-08-17">2026.08.17</time>
-          <p>WEBメディア「TRILL」で「悪役令嬢、旅に出る。」をご紹介いただきました。<a href="https://trilltrill.jp/articles/4790072" target="_blank" rel="noopener">記事を読む →</a></p>
-        </li>
-        <li>
-          <time class="dot" datetime="2026-08-06">2026.08.06</time>
-          <p>「悪役令嬢、旅に出る。」累計90万PVを突破しました。</p>
-        </li>
-        <li>
-          <time class="dot" datetime="2026-07-20">2026.07.20</time>
-          <p>ご依頼受付を再開しました。</p>
-        </li>
-        <li>
-          <time class="dot" datetime="2026-06-02">2026.06.02</time>
-          <p>YouTube・TikTokでショートアニメーションを公開しました。</p>
-        </li>
-      </ul>
+      <div class="news rv" id="news">
+        <h3 class="news-h">News</h3>
+        <ul>
+          <li><time datetime="2026-08-17">2026.08.17</time>
+            <p>WEBメディア「TRILL」で「悪役令嬢、旅に出る。」をご紹介いただきました。<a href="https://trilltrill.jp/articles/4790072" target="_blank" rel="noopener">記事を読む →</a></p></li>
+          <li><time datetime="2026-08-06">2026.08.06</time><p>「悪役令嬢、旅に出る。」累計90万PVを突破しました。</p></li>
+          <li><time datetime="2026-07-20">2026.07.20</time><p>ご依頼受付を再開しました。</p></li>
+          <li><time datetime="2026-06-02">2026.06.02</time><p>YouTube・TikTokでショートアニメーションを公開しました。</p></li>
+        </ul>
+      </div>
     </div>
   </section>
 
   <!-- お問い合わせ -->
-  <section class="sec contact" id="contact">
-    <div class="sec-head">
-      <h2>お仕事のご依頼</h2>
-      <p>通常2〜3営業日以内にご返信します。</p>
+  <section class="contact" id="contact">
+    <div class="contact-in">
+      <header class="sh rv">
+        <span class="sh-no">05</span>
+        <h2 class="sh-en">Contact</h2>
+        <p class="sh-ja">お仕事のご依頼 — 通常2〜3営業日以内にご返信します。</p>
+      </header>
+      <form class="form rv" id="cForm" action="https://formspree.io/f/mgoqavzy" method="POST">
+        <div class="f2">
+          <label class="fg"><span>お名前 *</span><input type="text" name="name" autocomplete="name" required></label>
+          <label class="fg"><span>メールアドレス *</span><input type="email" name="email" autocomplete="email" required></label>
+        </div>
+        <div class="f2">
+          <label class="fg"><span>ご依頼の種類</span>
+            <select name="type">
+              <option value="">選択してください</option>
+              <option>広告・PR漫画</option><option>WEB漫画・ショート漫画</option>
+              <option>キャラクターデザイン</option><option>装丁・表紙イラスト</option>
+              <option>アニメーション</option><option>その他</option>
+            </select></label>
+          <label class="fg"><span>ご予算</span>
+            <select name="budget">
+              <option value="">選択してください</option>
+              <option>〜3万円</option><option>3〜10万円</option>
+              <option>10〜20万円</option><option>20万円以上</option><option>相談したい</option>
+            </select></label>
+        </div>
+        <label class="fg"><span>ご依頼内容 *</span><textarea name="message" placeholder="内容・使用媒体・実績公開の可否など" required></textarea></label>
+        <button type="submit" class="btn btn-y btn-lg">送信する<span class="arr">→</span></button>
+        <p class="form-msg" id="formMsg" role="status"></p>
+      </form>
     </div>
-    <form class="form" id="cForm" action="https://formspree.io/f/mgoqavzy" method="POST">
-      <div class="f2">
-        <label class="fg"><span>お名前 *</span><input type="text" name="name" autocomplete="name" required></label>
-        <label class="fg"><span>メールアドレス *</span><input type="email" name="email" autocomplete="email" required></label>
-      </div>
-      <div class="f2">
-        <label class="fg"><span>ご依頼の種類</span>
-          <select name="type">
-            <option value="">選択してください</option>
-            <option>広告・PR漫画</option><option>WEB漫画・ショート漫画</option>
-            <option>キャラクターデザイン</option><option>装丁・表紙イラスト</option>
-            <option>アニメーション</option><option>その他</option>
-          </select>
-        </label>
-        <label class="fg"><span>ご予算</span>
-          <select name="budget">
-            <option value="">選択してください</option>
-            <option>〜3万円</option><option>3〜10万円</option>
-            <option>10〜20万円</option><option>20万円以上</option><option>相談したい</option>
-          </select>
-        </label>
-      </div>
-      <label class="fg"><span>ご依頼内容 *</span><textarea name="message" placeholder="内容・使用媒体・実績公開の可否など" required></textarea></label>
-      <button type="submit" class="btn btn-g btn-lg">送信する</button>
-      <p class="form-msg" id="formMsg" role="status"></p>
-    </form>
   </section>
 
 </main>
 
 <footer class="foot">
-  <span>© 2026 はぁにデザイン工房</span>
-  <a href="price.html">料金表</a>
-  <a href="flow.html">ご依頼の流れ</a>
+  <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
+  <div class="foot-row">
+    <span>© 2026 はぁにデザイン工房</span>
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+    <a href="#top">トップへ ↑</a>
+  </div>
 </footer>
 
-<script>
-  /* カルーセル */
-  document.querySelectorAll('[data-carousel]').forEach(box => {
-    const slides = [...box.querySelectorAll('.cslide')];
-    const numEl  = box.querySelector('.cnum b');
-    let cur = 0;
-    const go = n => {
-      cur = (n + slides.length) % slides.length;
-      slides.forEach((s,i) => s.classList.toggle('on', i === cur));
-      if(numEl) numEl.textContent = cur + 1;
-    };
-    box.querySelector('.cprev').addEventListener('click', () => go(cur - 1));
-    box.querySelector('.cnext').addEventListener('click', () => go(cur + 1));
-    let x0 = null;
-    box.addEventListener('touchstart', e => { x0 = e.changedTouches[0].clientX; }, {passive:true});
-    box.addEventListener('touchend', e => {
-      if(x0 === null) return;
-      const dx = e.changedTouches[0].clientX - x0;
-      if(Math.abs(dx) > 45) go(dx < 0 ? cur + 1 : cur - 1);
-      x0 = null;
-    }, {passive:true});
-  });
-
-  /* 動画の音 */
-  document.querySelectorAll('.vbtn').forEach(btn => {
-    const vid = document.getElementById(btn.dataset.vid);
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.vbtn').forEach(o => {
-        if(o === btn) return;
-        document.getElementById(o.dataset.vid).muted = true;
-        o.classList.remove('on'); o.textContent = '音を出す';
-      });
-      vid.muted = !vid.muted;
-      if(!vid.muted){ vid.volume = 0.7; if(vid.paused) vid.play(); }
-      btn.classList.toggle('on', !vid.muted);
-      btn.textContent = vid.muted ? '音を出す' : '音を消す';
-    });
-  });
-
-  /* フォーム送信 */
-  const form = document.getElementById('cForm');
-  const msg  = document.getElementById('formMsg');
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = form.querySelector('button[type=submit]');
-    btn.disabled = true; btn.textContent = '送信中…'; msg.textContent = '';
-    try{
-      const res = await fetch(form.action, { method:'POST', body:new FormData(form), headers:{Accept:'application/json'} });
-      if(!res.ok) throw 0;
-      form.innerHTML = '<p class="form-done">お問い合わせありがとうございます。内容を確認のうえ、ご返信いたします。</p>';
-    }catch{
-      btn.disabled = false; btn.textContent = '送信する';
-      msg.textContent = '送れませんでした。時間をおいてもう一度お試しください。';
-    }
-  });
-</script>
+<script src="site.js?v=2"></script>
 </body>
 </html>

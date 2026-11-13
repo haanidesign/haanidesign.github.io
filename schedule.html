@@ -15,8 +15,8 @@
 </script>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=1">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=2">
 <style>
 /* ============ スケジュール専用（見た目は style.css に合わせる） ============ */
 .sch-head{
@@ -278,23 +278,25 @@
 <body>
 
 <header class="nav">
-  <div class="nav-in">
-    <a href="index.html" class="mark">はぁにデザイン工房</a>
-    <nav class="nav-links" aria-label="サイト内">
-      <a href="index.html#works">作品</a>
-      <a href="price.html">料金</a>
-      <a href="flow.html">流れ</a>
-      <a href="index.html#about">プロフィール</a>
-    </nav>
-    <a href="index.html#contact" class="btn btn-g btn-sm">ご依頼</a>
-  </div>
+  <a href="index.html" class="mark"><b>HAANI</b><small>はぁにデザイン工房</small></a>
+  <nav class="nav-links" aria-label="サイト内">
+    <a href="index.html#works"><i>01</i>作品</a>
+    <a href="price.html"><i>02</i>料金</a>
+    <a href="flow.html"><i>03</i>流れ</a>
+    <a href="index.html#about"><i>04</i>プロフィール</a>
+  </nav>
+  <a href="index.html#contact" class="nav-cta">ご依頼<span>→</span></a>
 </header>
 <main class="sub">
-<div class="page-head">
+<header class="page-head">
+<div class="ph-bg" aria-hidden="true">Schedule</div>
+<div class="page-head-in">
   <p class="crumb"><a href="index.html">TOP</a> ／ スケジュール</p>
+  <p class="ph-en" aria-hidden="true">Schedule</p>
   <h1>スケジュール</h1>
   <p>更新日とお休み（土日祝）。</p>
 </div>
+</header>
 
 <!-- ================= カレンダー ================= -->
 <section class="sec">
@@ -341,10 +343,13 @@
 </main>
 
 <footer class="foot">
-  <span>© 2026 はぁにデザイン工房</span>
-  <a href="index.html">TOP</a>
-  <a href="price.html">料金表</a>
-  <a href="flow.html">ご依頼の流れ</a>
+  <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
+  <div class="foot-row">
+    <span>© 2026 はぁにデザイン工房</span>
+    <a href="index.html">TOP</a>
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+  </div>
 </footer>
 
 <div class="pic" id="pic">

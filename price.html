@@ -15,29 +15,31 @@
 </script>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=1">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=2">
 </head>
 <body>
 
 <header class="nav">
-  <div class="nav-in">
-    <a href="index.html" class="mark">はぁにデザイン工房</a>
-    <nav class="nav-links" aria-label="サイト内">
-      <a href="index.html#works">作品</a>
-      <a href="price.html" class="on">料金</a>
-      <a href="flow.html">流れ</a>
-      <a href="index.html#about">プロフィール</a>
-    </nav>
-    <a href="index.html#contact" class="btn btn-g btn-sm">ご依頼</a>
-  </div>
+  <a href="index.html" class="mark"><b>HAANI</b><small>はぁにデザイン工房</small></a>
+  <nav class="nav-links" aria-label="サイト内">
+    <a href="index.html#works"><i>01</i>作品</a>
+    <a href="price.html" class="on"><i>02</i>料金</a>
+    <a href="flow.html"><i>03</i>流れ</a>
+    <a href="index.html#about"><i>04</i>プロフィール</a>
+  </nav>
+  <a href="index.html#contact" class="nav-cta">ご依頼<span>→</span></a>
 </header>
 <main class="sub">
-<div class="page-head">
+<header class="page-head">
+<div class="ph-bg" aria-hidden="true">Price</div>
+<div class="page-head-in">
   <p class="crumb"><a href="index.html">TOP</a> ／ 料金表</p>
+  <p class="ph-en" aria-hidden="true">Price</p>
   <h1>料金表</h1>
   <p>表示はすべて税込・最低価格です。お見積もりは無料。</p>
 </div>
+</header>
 
 <!-- ================= 料金について ================= -->
 <section class="sec">
@@ -60,7 +62,7 @@
 <!-- ================= 01 漫画 ================= -->
 <section class="sec">
   <div class="sec-head">
-    <h2>01 漫画制作</h2>
+    <h2><span class="n">01</span>漫画制作</h2>
     <p>得意分野・カラー漫画</p>
   </div>
   <div class="sec-body">
@@ -110,7 +112,7 @@
 <!-- ================= 02 イラスト ================= -->
 <section class="sec">
   <div class="sec-head">
-    <h2>02 イラスト制作</h2>
+    <h2><span class="n">02</span>イラスト制作</h2>
     <p>キャラクター・装丁</p>
   </div>
   <div class="sec-body">
@@ -160,7 +162,7 @@
 <!-- ================= 03 アニメーション ================= -->
 <section class="sec">
   <div class="sec-head">
-    <h2>03 アニメーション制作</h2>
+    <h2><span class="n">03</span>アニメーション制作</h2>
     <p>企画から納品まで</p>
   </div>
   <div class="sec-body">
@@ -200,7 +202,7 @@
 <!-- ================= 04 オプション ================= -->
 <section class="sec">
   <div class="sec-head">
-    <h2>04 オプション</h2>
+    <h2><span class="n">04</span>オプション</h2>
     <p>必要な場合のみ</p>
   </div>
   <div class="sec-body">
@@ -282,21 +284,18 @@
 </main>
 
 <footer class="foot">
-  <span>© 2026 はぁにデザイン工房</span>
-  <a href="index.html">TOP</a>
-  <a href="price.html">料金表</a>
-  <a href="flow.html">ご依頼の流れ</a>
+  <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
+  <div class="foot-row">
+    <span>© 2026 はぁにデザイン工房</span>
+    <a href="index.html">TOP</a>
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+  </div>
 </footer>
 
 <button class="totop" id="toTop" aria-label="ページ上部へ戻る"><svg class="hi" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17.9998 15C17.9998 15 13.5809 9.00001 11.9998 9C10.4187 8.99999 5.99985 15 5.99985 15" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 
-<script>
-  const toTop = document.getElementById('toTop');
-  const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
-  window.addEventListener('scroll', onScroll, {passive:true});
-  onScroll();
-  toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-</script>
+<script src="site.js?v=2"></script>
 
 </body>
 </html>

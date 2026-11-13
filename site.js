@@ -1,8 +1,12 @@
+(() => {
 /* 読み込み後に幕を上げる */
 const ready = () => document.body.classList.add('ready');
 if (document.readyState === 'complete') setTimeout(ready, 300);
 else window.addEventListener('load', () => setTimeout(ready, 300));
 setTimeout(ready, 2500);
+
+/* 下層ページは 区画ごとに ふわっと出す */
+document.querySelectorAll('.sub .sec, .sub .page-head-in').forEach(el => el.classList.add('rv'));
 
 /* スクロールで出す */
 const io = new IntersectionObserver(es => es.forEach(e => {
@@ -71,7 +75,7 @@ document.querySelectorAll('.vbtn').forEach(btn => {
 /* フォーム送信 */
 const form = document.getElementById('cForm');
 const msg = document.getElementById('formMsg');
-form.addEventListener('submit', async e => {
+if (form) form.addEventListener('submit', async e => {
   e.preventDefault();
   const btn = form.querySelector('button[type=submit]');
   btn.disabled = true; btn.textContent = '送信中…'; msg.textContent = '';
@@ -84,3 +88,12 @@ form.addEventListener('submit', async e => {
     msg.textContent = '送れませんでした。時間をおいてもう一度お試しください。';
   }
 });
+
+/* 上へ戻る */
+const toTop = document.getElementById('toTop');
+if (toTop){
+  const onScroll = () => toTop.classList.toggle('show', scrollY > 400);
+  addEventListener('scroll', onScroll, {passive:true}); onScroll();
+  toTop.addEventListener('click', () => scrollTo({top:0, behavior:'smooth'}));
+}
+})();

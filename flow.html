@@ -15,29 +15,31 @@
 </script>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=1">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&family=DotGothic16&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=2">
 </head>
 <body>
 
 <header class="nav">
-  <div class="nav-in">
-    <a href="index.html" class="mark">はぁにデザイン工房</a>
-    <nav class="nav-links" aria-label="サイト内">
-      <a href="index.html#works">作品</a>
-      <a href="price.html">料金</a>
-      <a href="flow.html" class="on">流れ</a>
-      <a href="index.html#about">プロフィール</a>
-    </nav>
-    <a href="index.html#contact" class="btn btn-g btn-sm">ご依頼</a>
-  </div>
+  <a href="index.html" class="mark"><b>HAANI</b><small>はぁにデザイン工房</small></a>
+  <nav class="nav-links" aria-label="サイト内">
+    <a href="index.html#works"><i>01</i>作品</a>
+    <a href="price.html"><i>02</i>料金</a>
+    <a href="flow.html" class="on"><i>03</i>流れ</a>
+    <a href="index.html#about"><i>04</i>プロフィール</a>
+  </nav>
+  <a href="index.html#contact" class="nav-cta">ご依頼<span>→</span></a>
 </header>
 <main class="sub">
-<div class="page-head">
+<header class="page-head">
+<div class="ph-bg" aria-hidden="true">Flow</div>
+<div class="page-head-in">
   <p class="crumb"><a href="index.html">TOP</a> ／ ご依頼の流れ</p>
+  <p class="ph-en" aria-hidden="true">Flow</p>
   <h1>ご依頼の流れ</h1>
   <p>お問い合わせから納品まで。</p>
 </div>
+</header>
 
 <!-- ================= 制作フロー ================= -->
 <section class="sec">
@@ -220,21 +222,18 @@
 </main>
 
 <footer class="foot">
-  <span>© 2026 はぁにデザイン工房</span>
-  <a href="index.html">TOP</a>
-  <a href="price.html">料金表</a>
-  <a href="flow.html">ご依頼の流れ</a>
+  <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
+  <div class="foot-row">
+    <span>© 2026 はぁにデザイン工房</span>
+    <a href="index.html">TOP</a>
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+  </div>
 </footer>
 
 <button class="totop" id="toTop" aria-label="ページ上部へ戻る"><svg class="hi" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17.9998 15C17.9998 15 13.5809 9.00001 11.9998 9C10.4187 8.99999 5.99985 15 5.99985 15" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 
-<script>
-  const toTop = document.getElementById('toTop');
-  const onScroll = () => toTop.classList.toggle('show', window.scrollY > 400);
-  window.addEventListener('scroll', onScroll, {passive:true});
-  onScroll();
-  toTop.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-</script>
+<script src="site.js?v=2"></script>
 
 </body>
 </html>
