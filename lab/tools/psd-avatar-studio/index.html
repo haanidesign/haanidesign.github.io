@@ -350,6 +350,7 @@ const TOGGLES = [
   {id:"autoBlink",  label:"自動まばたき", def:true},
   {id:"randomMotion",label:"ランダム動作",def:false, live:true},
   {id:"randomLip",  label:"ランダムリップ",def:false, live:true},
+  {id:"idleMoves",  label:"ときどき仕草", def:true,  live:true},
   {id:"mouseTrack", label:"マウス追従",   def:false, live:true},
   {id:"micLip",     label:"マイクリップ", def:false, live:true},
   {id:"hairPhys",   label:"髪の物理",     def:true},
@@ -450,6 +451,185 @@ function motionAt(m, ph){
   });
   return out;
 }
+
+/* ---------------- 生きている感じ ----------------
+   ときどき出る仕草・ボタンで出す動作・しゃべるときの頭の動き。
+   livliv-dev/player (Apache-2.0) の考え方と数値。角度は度で書いて addLv で換算する。
+   ループ確認・書き出しでは使わない(毎回ちがう動きになるため)。 */
+const sstep = (a, b, x)=>{ const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u*u*(3 - 2*u); };
+// なめらかなノイズ(-1..1)。sin の足し算だと周期が見えてくり返しに気づかれる
+function vnoise(t, seed){
+  const h = n=>{ const x = Math.sin(n*127.1 + seed*311.7) * 43758.5453; return x - Math.floor(x); };
+  const i = Math.floor(t), f = t - i, u = f*f*(3 - 2*f);
+  return (h(i)*(1 - u) + h(i + 1)*u) * 2 - 1;
+}
+const fbm = (t, seed)=> vnoise(t, seed)*0.7 + vnoise(t*2.3, seed + 17)*0.3;
+// [[秒, 値], ...] をなめらかにつなぐ(端は平ら)
+function sampleTrack(k, t){
+  if(t <= k[0][0]) return k[0][1];
+  const n = k.length - 1;
+  if(t >= k[n][0]) return k[n][1];
+  let i = 0; while(t > k[i+1][0]) i++;
+  const sl = j=> (j <= 0 || j >= n) ? 0 : (k[j+1][1] - k[j-1][1]) / (k[j+1][0] - k[j-1][0]);
+  const h = k[i+1][0] - k[i][0], u = (t - k[i][0]) / h, u2 = u*u, u3 = u2*u;
+  return (2*u3 - 3*u2 + 1)*k[i][1] + (u3 - 2*u2 + u)*sl(i)*h + (-2*u3 + 3*u2)*k[i+1][1] + (u3 - u2)*sl(i+1)*h;
+}
+// 度などの値を、この道具のパラメータに足す(頭X/Yは±1≒25°、かしげ±1≒15°、体±1≒6°)
+function addLv(o, k, v){
+  switch(k){
+    case "angleX": o.hx += v/25; break;
+    case "angleY": o.hy -= v/25; break;   // livliv は上が+、ここは下が+
+    case "angleZ": o.hz += v/15; break;
+    case "bodyX":  o.tilt += v/20; break;
+    case "bodyZ":  o.tilt += v/6; break;
+    case "eyeBallX": o.gx += v; break;
+    case "eyeBallY": o.gy -= v; break;
+    case "brow": o.brow += v; break;
+    case "y": o.bob -= v * psdH * 0.5; break;  // 絵の高さに対する割合、上が+
+  }
+}
+const LV_MIRROR = new Set(["angleX","angleZ","bodyX","bodyZ","eyeBallX"]);
+// ときどき出る仕草(待機中に 10〜20 秒おき、左右はランダムに反転)
+const IDLE_MOVES = {
+  // よそ見: 目が先に横へ、頭があとから
+  glance: {dur:4.0, tracks:{
+    eyeBallX:[[0,0],[0.15,0.8],[2.5,0.75],[2.8,0]], eyeBallY:[[0,0],[0.15,0.25],[2.5,0.2],[2.8,0]],
+    angleX:[[0,0],[0.6,11],[2.5,10],[3.4,0]], angleY:[[0,0],[0.6,4],[2.5,3],[3.4,0]], angleZ:[[0,0],[0.7,-4],[2.5,-3],[3.4,0]],
+    bodyX:[[0,0],[1.0,2],[2.6,1.5],[3.8,0]], brow:[[0,0],[0.4,0.25],[2.5,0.2],[3.2,0]]}},
+  // 見回す: 片側、それから反対側
+  lookAround: {dur:5.0, tracks:{
+    eyeBallX:[[0,0],[0.2,-0.8],[1.4,-0.75],[1.7,0.1],[2.0,0.8],[3.2,0.75],[3.5,0]],
+    angleX:[[0,0],[0.7,-15],[1.5,-14],[2.4,15],[3.3,14],[4.2,0]], angleY:[[0,0],[0.8,3],[2.4,3],[4.2,0]],
+    angleZ:[[0,0],[0.8,3],[1.7,0],[2.5,-3],[4.2,0]], bodyX:[[0,0],[1.0,-3],[2.7,3],[4.4,0]],
+    brow:[[0,0],[0.5,0.3],[3.4,0.25],[4.2,0]]}},
+  // ゆらゆら: 体ごとゆっくり左右に
+  sway: {dur:6.0, tracks:{
+    bodyZ:[[0,0],[1.5,3.5],[3.0,-3.5],[4.5,3],[6.0,0]], bodyX:[[0,0],[1.5,2],[3.0,-2],[4.5,1.5],[6.0,0]],
+    angleZ:[[0,0],[1.6,-7],[3.1,7],[4.6,-6],[6.0,0]], angleX:[[0,0],[1.6,4],[3.1,-4],[4.6,3],[6.0,0]],
+    eyeBallX:[[0,0],[1.6,-0.25],[3.1,0.25],[4.6,-0.2],[6.0,0]], eye:[[0,1],[0.8,0.88],[5.2,0.88],[6.0,1]]}},
+  // 考える: 目は上と横、首をかしげて眉を上げる
+  think: {dur:4.4, tracks:{
+    eyeBallX:[[0,0],[0.3,-0.6],[3.4,-0.55],[3.8,0]], eyeBallY:[[0,0],[0.3,0.6],[3.4,0.55],[3.8,0]],
+    angleX:[[0,0],[0.8,-9],[3.4,-8],[4.2,0]], angleY:[[0,0],[0.8,6],[3.4,5],[4.2,0]], angleZ:[[0,0],[0.9,6],[3.4,5],[4.2,0]],
+    brow:[[0,0],[0.6,0.35],[3.4,0.3],[4.2,0]], eye:[[0,1],[0.6,0.92],[3.4,0.92],[4.0,1]]}},
+  // ちらっと下を見て戻る
+  lookDown: {dur:2.4, tracks:{
+    eyeBallY:[[0,0],[0.2,-0.85],[1.4,-0.8],[1.65,0]], eyeBallX:[[0,0],[0.2,-0.1],[1.4,-0.1],[1.65,0]],
+    angleY:[[0,0],[0.45,-8],[1.4,-7],[1.9,1],[2.4,0]], angleZ:[[0,0],[0.5,2],[1.5,2],[2.4,0]],
+    eye:[[0,1],[0.3,0.8],[1.4,0.8],[1.65,1]]}},
+};
+// ボタンで出す動作。入り 0.18 秒・抜け 0.22 秒。押し直すと前のものは 0.15 秒で消える
+const ACTIONS = [
+  {id:"nod",   label:"うなずく"},
+  {id:"shake", label:"首をふる"},
+  {id:"tilt",  label:"かしげる"},
+  {id:"hop",   label:"はねる"},
+  {id:"shy",   label:"てれる"},
+  {id:"away",  label:"離席"},
+];
+const ACT_DUR = {nod:0.95, shake:1.05, tilt:1.8, hop:0.65, shy:2.4};
+function actCurve(id, t){
+  const d = ACT_DUR[id], e = sstep(0, 0.18, t) * (1 - sstep(d - 0.22, d, t)), o = {};
+  if(id === "nod") o.angleY = -(t < 0.45 ? 11*Math.sin(Math.PI*t/0.45) : 6*Math.sin(Math.PI*Math.min(t - 0.45, 0.45)/0.45)) * e;
+  if(id === "shake"){ o.angleX = 13*Math.sin(2*Math.PI*t/0.5) * e; o.bodyX = o.angleX*0.15; }
+  if(id === "tilt"){ o.angleZ = 11*e; o.angleX = 3*e; o.angleY = 2*e; }
+  if(id === "hop"){  // しゃがんでから浮く
+    o.y = t < 0.2 ? -0.025*Math.sin(Math.PI*t/0.2) : t < 0.6 ? 0.04*Math.sin(Math.PI*(t - 0.2)/0.4) : 0;
+    o.angleY = t > 0.2 && t < 0.6 ? 5*Math.sin(Math.PI*(t - 0.2)/0.4)*e : 0;
+  }
+  if(id === "shy"){ o.angleY = -12*e; o.angleX = 9*e; o.angleZ = -4*e; o.eyeBallX = 0.7*e; o.eyeBallY = -0.5*e; }
+  return o;
+}
+const lively = {
+  move:null, nextMove:8, last:"", acts:[], away:false, awayW:0,
+  talk:{act:0, quiet:10, armed:true, valley:0, peak:0, sinceNod:10, sinceBrow:10, browAge:10,
+        nod:{x:0, v:0}, dir:{x:0, y:0}, aim:{x:0, y:0}, ph:[Math.random()*9, Math.random()*9, Math.random()*9], pauseBlink:false},
+};
+const actBtns = {};
+function syncActBtns(){ if(actBtns.away) actBtns.away.classList.toggle("on", lively.away); }
+function playAction(id){
+  if(id === "away"){ lively.away = !lively.away; syncActBtns(); return; }
+  lively.acts.forEach(a=>{ if(a.id === id && a.out < 0) a.out = 0; });
+  lively.acts.push({id, t:0, out:-1});
+}
+/* しゃべるときの頭の動き。口だけ動くと吹き替えっぽく見える。
+   音節の出だしでうなずき、言い始めごとに頭の向きを変え、ときどき眉を上げる */
+function talkStep(o, level, t, dt){
+  const s = lively.talk;
+  s.quiet += dt; s.sinceNod += dt; s.sinceBrow += dt; s.browAge += dt; s.pauseBlink = false;
+  const was = s.act;
+  if(level > 0.2) s.quiet = 0;
+  const talking = s.quiet < 0.35;
+  s.act += ((talking ? 1 : 0) - s.act) * Math.min(1, dt * (talking ? 6 : 1.2));
+  if(was > 0.6 && s.act <= 0.6 && s.quiet > 0.4) s.pauseBlink = true;   // 話し終わりにまばたき
+  if(!s.armed){
+    s.peak = Math.max(s.peak, level);
+    if(level < s.peak - 0.15){ s.armed = true; s.valley = level; }
+  } else {
+    s.valley = Math.min(s.valley, level);
+    if(level - s.valley > 0.25 && level > 0.35){
+      s.armed = false; s.peak = level;
+      const phrase = s.act < 0.3;   // 間のあとの最初の音節
+      if(phrase) s.aim = {x:(Math.random()*2 - 1)*5, y:(Math.random() - 0.3)*2.5};
+      if(s.sinceNod > 0.35 && (phrase || Math.random() < 0.35)){ s.nod.v -= phrase ? 70 : 35 + Math.random()*30; s.sinceNod = 0; }
+      if(s.sinceBrow > 1.2 && Math.random() < (phrase ? 0.5 : 0.18)){ s.browAge = 0; s.sinceBrow = 0; }
+    }
+  }
+  const n = Math.max(1, Math.ceil(dt * 120)), h = dt / n;
+  for(let i = 0; i < n; i++){ s.nod.v += (-150*s.nod.x - 15*s.nod.v) * h; s.nod.x += s.nod.v * h; }
+  const back = Math.min(1, dt * (talking ? 3 : 0.45));
+  s.dir.x += ((talking ? s.aim.x : 0) - s.dir.x) * back;
+  s.dir.y += ((talking ? s.aim.y : 0) - s.dir.y) * back;
+  const a = s.act, ph = s.ph;
+  const driftX = (Math.sin(t*0.9 + ph[0])*0.6 + Math.sin(t*1.7 + ph[1])*0.4) * 3.5 * a;
+  const driftZ = (Math.sin(t*0.7 + ph[2])*0.6 + Math.sin(t*1.3 + ph[0])*0.4) * 2.5 * a;
+  addLv(o, "angleX", s.dir.x + driftX);
+  addLv(o, "angleY", s.nod.x + s.dir.y);
+  addLv(o, "angleZ", driftZ);
+  addLv(o, "bodyX", (s.dir.x + driftX) * 0.15);
+  o.brow += sstep(0, 0.12, s.browAge) * (1 - sstep(0.3, 0.65, s.browAge)) * 0.55;
+  o.gazeBack = s.act * 0.7;   // しゃべっている間は見ている人に視線を戻す
+}
+/** 1 フレーム分の「生きている感じ」の足し分 */
+function livelyStep(t, dt, movesOn, voice){
+  const o = {hx:0, hy:0, hz:0, tilt:0, gx:0, gy:0, eye:1, brow:0, bob:0, gazeBack:0};
+  const L = lively;
+  const busy = L.acts.length > 0 || L.talk.act > 0.3 || L.away;
+  // ときどき仕草: しゃべったり動作を出したりしたら 0.4 秒で消す
+  if(L.move){
+    L.move.t += dt;
+    if(busy) L.move.fade = Math.max(0, L.move.fade - dt/0.4);
+    if(L.move.t >= IDLE_MOVES[L.move.id].dur || L.move.fade <= 0) L.move = null;
+  } else if(busy || !movesOn) L.nextMove = Math.max(L.nextMove, t + 3);
+  else if(t > L.nextMove){
+    const ids = Object.keys(IDLE_MOVES).filter(k=> k !== L.last);
+    const id = ids[Math.floor(Math.random()*ids.length)];
+    L.move = {id, t:0, side: Math.random() < 0.5 ? -1 : 1, fade:1};
+    L.last = id;
+    L.nextMove = t + IDLE_MOVES[id].dur + 10 + Math.random()*10;
+  }
+  if(L.move){
+    const m = L.move, M = IDLE_MOVES[m.id];
+    const w = m.fade * sstep(0, 0.15, m.t) * (1 - sstep(M.dur - 0.25, M.dur, m.t));
+    for(const [k, tr] of Object.entries(M.tracks)){
+      const v = sampleTrack(tr, m.t) * (LV_MIRROR.has(k) ? m.side : 1);
+      if(k === "eye") o.eye *= 1 + (v - 1)*w; else addLv(o, k, v*w);
+    }
+  }
+  // ボタンで出す動作
+  for(const a of L.acts){
+    a.t += dt; if(a.out >= 0) a.out += dt;
+    const f = a.out < 0 ? 1 : 1 - sstep(0, 0.15, a.out);
+    const c = actCurve(a.id, Math.min(a.t, ACT_DUR[a.id]));
+    for(const k in c) addLv(o, k, c[k]*f);
+  }
+  L.acts = L.acts.filter(a=> a.t < ACT_DUR[a.id] && a.out < 0.15);
+  // 離席: 目を閉じてうつむく
+  L.awayW += ((L.away ? 1 : 0) - L.awayW) * Math.min(1, dt * (L.away ? 2.2 : 4));
+  if(!L.away && L.awayW < 0.002) L.awayW = 0;
+  talkStep(o, voice, t, dt);
+  return o;
+}
 const ROLES = ["auto","body","head","frontHair","backHair","chest","arm",
                "eyeWhite","iris","eyelash","eyeClose","brow",
                "mouth","mouthClose","mouthOpen","hide"];
@@ -510,6 +690,17 @@ const controlsEl = $("controls");
     try{ localStorage.setItem("psdMotion", JSON.stringify(motion)); }catch(e){} };
   row2.append(lab2, inp, val);
   controlsEl.append(row, row2);
+}
+{
+  const h = document.createElement("h3"); h.textContent = "ひとこま動作";
+  controlsEl.appendChild(h);
+  const bd = document.createElement("div"); bd.className = "btns";
+  ACTIONS.forEach(a=>{
+    const b = document.createElement("button"); b.className = "btn"; b.textContent = a.label;
+    b.onclick = ()=> playAction(a.id);
+    bd.appendChild(b); actBtns[a.id] = b;
+  });
+  controlsEl.appendChild(bd);
 }
 const sliderEls = {};
 PARAM_DEFS.forEach(d=>{
@@ -1119,6 +1310,8 @@ let blink = 0, blinkTimer = 2.5;   // 0=開 1=閉
 let prevHead = {x:0, y:0, b:0};
 let P_mouth = null;   // モーションが口の開きを決めているときの値
 let lipPhase = 0;
+let dblBlink = false;
+const breathSt = {ph:0, per:3.8};
 
 function smooth(cur, tgt, dt, speed){ return cur + (tgt - cur) * Math.min(1, dt*speed); }
 
@@ -1153,11 +1346,17 @@ function step(t, dt, loop){
 
   let headX = P.headX, headY = P.headY, headZ = P.headZ, bodyTilt = P.bodyTilt;
   let gazeX = P.gazeX, gazeY = P.gazeY;
-  if(T.idle){
+  if(T.idle && loop){
     headX += Math.sin(t*W(0.55,loop))*0.045 + Math.sin(t*W(1.31,loop))*0.02;
     headY += Math.sin(t*W(0.42,loop)+1)*0.035;
     headZ += Math.sin(t*W(0.35,loop)+2)*0.03;
     bodyTilt += Math.sin(t*W(0.3,loop))*0.02;
+  } else if(T.idle){
+    // ふだんはノイズでふらつかせる(sin だと周期が見えてくる)
+    headX += fbm(t*0.17, 1)*0.07;
+    headY += fbm(t*0.13, 2)*0.045;
+    headZ += fbm(t*0.11, 3)*0.05;
+    bodyTilt += fbm(t*0.09, 4)*0.035;
   }
   if(T.randomMotion && !loop){
     headX += Math.sin(t*0.9)*0.25 + Math.sin(t*0.23+4)*0.2;
@@ -1200,7 +1399,15 @@ function step(t, dt, loop){
   } else P_mouth = null;
   eyeLv *= 1 - winkL; eyeRv *= 1 - winkR;
   if(T.mouseTrack && !loop) bob += mouse.y * 10 * (psdH / 768);
-  const breath = T.idle ? Math.sin(t*W(1.9,loop))*0.5+0.5 : 0;
+  let breath = 0;
+  if(T.idle && loop) breath = Math.sin(t*W(1.9,loop))*0.5+0.5;
+  else if(T.idle){
+    // 呼吸はふぞろい: 吸う 40%・吐く 48%・止まる、1 回 3.2〜4.6 秒
+    breathSt.ph += dt / breathSt.per;
+    if(breathSt.ph >= 1){ breathSt.ph -= 1; breathSt.per = 3.2 + Math.random()*1.4; }
+    const x = breathSt.ph;
+    breath = x < 0.4 ? sstep(0, 0.4, x) : x < 0.88 ? 1 - sstep(0.4, 0.88, x) : 0;
+  }
 
   // まばたき: ループ時は等間隔、通常時はランダム間隔
   if(T.autoBlink){
@@ -1211,7 +1418,11 @@ function step(t, dt, loop){
       blink = tp < 0.28 ? blinkShape(tp/0.28) : 0;
     } else {
       blinkTimer -= dt;
-      if(blinkTimer <= 0){ blinkTimer = 1.8 + Math.random()*3.5; }
+      if(blinkTimer <= 0){
+        // 6 回に 1 回くらい二度まばたき
+        if(!dblBlink && Math.random() < 0.18){ dblBlink = true; blinkTimer = 0.36; }
+        else { dblBlink = false; blinkTimer = 1.8 + Math.random()*3.8; }
+      }
       blink = (blinkTimer > 0 && blinkTimer < 0.28) ? blinkShape(1 - blinkTimer/0.28) : 0;
     }
   } else blink = 0;
@@ -1229,6 +1440,27 @@ function step(t, dt, loop){
     mouthOpen = Math.max(mouthOpen, (Math.sin(lipPhase)*0.5+0.5) * (Math.sin(t*0.47)*0.5+0.5) * 0.9);
   }
   if(T.micLip && !loop) mouthOpen = Math.max(mouthOpen, micLevel);
+
+  // 生きている感じ: ときどき仕草・ひとこま動作・しゃべるときの頭の動き・離席
+  if(!loop){
+    const voice = (T.micLip || T.randomLip) ? mouthOpen : 0;
+    const lv = livelyStep(t, dt, T.idleMoves && T.idle && !MO, voice);
+    headX += lv.hx; headY += lv.hy; headZ += lv.hz; bodyTilt += lv.tilt;
+    gazeX = Math.max(-1, Math.min(1, gazeX * (1 - lv.gazeBack) + lv.gx));
+    gazeY = Math.max(-1, Math.min(1, gazeY * (1 - lv.gazeBack) + lv.gy));
+    eyeLv *= lv.eye; eyeRv *= lv.eye;
+    browY += lv.brow; bob += lv.bob;
+    if(lively.talk.pauseBlink && T.autoBlink && !(blinkTimer > 0 && blinkTimer < 0.28)) blinkTimer = 0.28;
+    const aw = lively.awayW;
+    if(aw > 0){
+      eyeLv *= 1 - aw; eyeRv *= 1 - aw;
+      headY += aw * 11/25; headZ += aw * 5/15;
+      mouthOpen *= 1 - aw; smile *= 1 - aw;
+      gazeX *= 1 - aw; gazeY *= 1 - aw;
+    }
+  }
+  // まばたきのとき眉が少し下がる
+  browY -= blink * 0.15;
 
   // 物理入力: 頭の移動速度を揺れ物へ伝える
   const hx = headX*30, hy = headY*20;
@@ -2420,6 +2652,7 @@ $("resetBtn").onclick = ()=>{
   if(adjTarget.layer) endAdj();
   PARAM_DEFS.filter(d=>d.id).forEach(d=>{ P[d.id] = d.def; target[d.id] = null; });
   TOGGLES.forEach(t=> T[t.id] = t.def);
+  lively.away = false; lively.acts = []; lively.move = null; syncActBtns();
   $("dur").value = 3; $("fps").value = 30; $("bi").value = 2.5;
   $("motionGain").value = 1; $("motionGain").oninput(); setMotion("なし", false);
   $("fmt").value = "webm"; $("gifW").value = "480";
