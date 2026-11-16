@@ -73,18 +73,42 @@ function setDepth(c, src, invert) {
   const g = o.getContext('2d', { willReadFrequently: true }); g.imageSmoothingQuality = 'high';
   g.drawImage(c, 0, 0, o.width, o.height);
   const d = g.getImageData(0, 0, o.width, o.height), p = d.data;
-  let lo = 255, hi = 0;
-  for (let i = 0; i < p.length; i += 4) { const v = (p[i] * 3 + p[i + 1] * 6 + p[i + 2]) / 10; p[i] = v; if (v < lo) lo = v; if (v > hi) hi = v; }
-  const k = hi > lo ? 255 / (hi - lo) : 1;
+  /* のばし方: いちばん 手前・いちばん 奥の 1% は 見ない（手など 1か所に 引っぱられない）。
+     さらに 半分は「よく ある 深さ ほど 広く」のばして、顔と 背景の 差を つける */
+  const n = p.length / 4, hist = new Float64Array(256);
+  for (let i = 0; i < p.length; i += 4) { const v = Math.round((p[i] * 3 + p[i + 1] * 6 + p[i + 2]) / 10); p[i] = v; hist[v]++; }
+  const cdf = new Float64Array(256); let acc = 0;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; cdf[v] = acc / n; }
+  let lo = 0, hi = 255;
+  while (lo < 255 && cdf[lo] < 0.01) lo++;
+  while (hi > lo && cdf[hi - 1] > 0.99) hi--;
+  const eq = src === 'kari' ? 0 : 0.5;
+  const map = new Uint8Array(256);
+  for (let v = 0; v < 256; v++) {
+    const lin = hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : v / 255;
+    map[v] = Math.round(((1 - eq) * lin + eq * cdf[v]) * 255);
+  }
   depPx = new Uint8Array(o.width * o.height);
   for (let i = 0, j = 0; i < p.length; i += 4, j++) {
-    let v = (p[i] - lo) * k; if (invert) v = 255 - v;
+    let v = map[p[i]]; if (invert) v = 255 - v;
     p[i] = p[i + 1] = p[i + 2] = v; p[i + 3] = 255; depPx[j] = v;
   }
   g.putImageData(d, 0, 0);
   depC = o; depSrc = src;
   G && G.setDepth(o);
   status(); req();
+}
+/* 人物に ピントを 合わせる: 絵の まん中あたりの 深さの まん中の 値 */
+function autoFocus() {
+  if (!depPx || !img) return;
+  const W = img.width, H = img.height, v = [];
+  for (let y = Math.round(H * 0.2); y < H * 0.6; y += 4) for (let x = Math.round(W * 0.3); x < W * 0.7; x += 4) v.push(depPx[y * W + x]);
+  v.sort((a, b) => a - b);
+  const f = Math.round(v[v.length >> 1] / 255 * 100);
+  S.blur.focus = f;
+  S.tone.split = Math.max(0, f - 15);
+  S.cut.far = Math.max(0, f - 15);
+  sheet();
 }
 function depthAt(x, y) {
   if (!depPx || !img) return 0.5;
@@ -121,7 +145,7 @@ async function runAI() {
       ov(r < 1 ? `AI を 読みこみ中（はじめの 1回だけ）${(r * 100).toFixed(0)}%` : 'AI が 奥行きを 読みとって います…', r);
     });
     $('#stat').textContent = '深度を 推定中…';
-    setDepth(out, 'ai'); save();
+    setDepth(out, 'ai'); autoFocus(); req(); save();
     toast('深度を 出した');
   } catch (e) {
     console.error(e); aiErr = String(e && e.message || e).slice(0, 120);
@@ -433,7 +457,7 @@ $('#drop').onclick = $('#bOpen').onclick;
 $('#bAI').onclick = runAI;
 $('#busyGo').onclick = e => { e.stopPropagation(); runAI(); };
 $('#bDepIn').onclick = () => pick('image/*', async b => {
-  try { setDepth(await loadImg(b), 'file'); save(); toast('深度マップを 読みこんだ'); } catch (_) { toast('読めなかった'); }
+  try { setDepth(await loadImg(b), 'file'); autoFocus(); req(); save(); toast('深度マップを 読みこんだ'); } catch (_) { toast('読めなかった'); }
 });
 $('#bInv').onclick = () => { if (depC) { setDepth(depC, depSrc, true); save(); } };
 $('#bDepOut').onclick = () => { if (depC) depC.toBlob(b => dl(b, 'shindo.png'), 'image/png'); };
