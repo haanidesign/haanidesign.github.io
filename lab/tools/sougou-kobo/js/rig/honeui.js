@@ -12,14 +12,20 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=424';
-import { computeAll } from '../engine/layer.js?v=424';
-import { setPin } from '../engine/anim.js?v=424';
-import { M } from './core.js?v=424';
-import { paintWeight } from './core.js?v=424';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=434';
+import { computeAll } from '../engine/layer.js?v=434';
+import { setPin } from '../engine/anim.js?v=434';
+import { M } from './core.js?v=434';
+import { paintWeight } from './core.js?v=434';
 import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
-         addIK, autoBonesFromNames, SOFT } from './hone.js?v=424';
-import { openHoneMap } from './honemap.js?v=424';
+         addIK, autoBonesFromNames, autoBonesFromPose, setupCanvas, SOFT } from './hone.js?v=434';
+import { openHoneMap } from './honemap.js?v=434';
+import { fitMesh, hairChain, HAIR_RX } from './rigplus.js?v=434';
+
+/* 👆 関節を おして 組む ときの じゅんばん（[COCO の 番号, 名前]）。人に とっての 右 ＝ 画面の 左 */
+const JOINTS = [[0, '顔の まん中（はな）'], [6, '右肩（画面の 左がわ）'], [8, '右ひじ'], [10, '右手首'],
+  [5, '左肩（画面の 右がわ）'], [7, '左ひじ'], [9, '左手首'], [12, '右の 腰（足の つけね）'], [14, '右ひざ'], [16, '右足首'],
+  [11, '左の 腰（足の つけね）'], [13, '左ひざ'], [15, '左足首']];
 
 const INK = '#1E1C14', YEL = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -102,6 +108,12 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     if(!l) return;
     const p = toHone(l, e);
     if(!p) return;
+    if(tool === 'joints'){
+      grab(e);
+      if(jt.i < JOINTS.length){ jt.pts[JOINTS[jt.i][0]] = [p.x, p.y]; jt.i++; }
+      jointNext();
+      return;
+    }
     if(tool === 'add'){
       grab(e);
       const sp = setupPose(l.hone)[selBone];
@@ -311,6 +323,16 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
       ctx.beginPath(); ctx.arc(t.x, t.y, 6 * k, 0, Math.PI * 2);
       ctx.fillStyle = b.id === selBone ? YEL : PAPER; ctx.fill(); ctx.lineWidth = 2 * k; ctx.stroke();
     }
+    if(tool === 'joints'){
+      ctx.font = 'bold ' + Math.round(13 * k) + "px 'M PLUS Rounded 1c', sans-serif";
+      JOINTS.forEach(([ci, name], n) => {
+        const q0 = jt.pts[ci]; if(!q0) return;
+        const q = P(q0[0], q0[1]);
+        ctx.beginPath(); ctx.arc(q.x, q.y, 8 * k, 0, Math.PI * 2);
+        ctx.fillStyle = YEL; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 2.5 * k; ctx.stroke();
+        ctx.fillStyle = INK; ctx.fillText(name.replace(/（.*）/, ''), q.x + 11 * k, q.y - 9 * k);
+      });
+    }
     if(preview){
       const a = P(preview.a.x, preview.a.y), b = P(preview.b.x, preview.b.y);
       ctx.setLineDash([8 * k, 6 * k]);
@@ -398,6 +420,120 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     toast(n ? n + '本の 骨を 組みました（髪・しっぽは ばね つき）' : '名前から わかる パーツが ありませんでした（体・頭・腕・脚・髪 …）');
     onChange();
   });
+  /* 🦴 AI で 関節: 組み立ての 姿を AI に 見せて、肩・ひじ・ひざ に 骨を 立てる */
+  let aiBusy = false;
+  const aiJoint = mk('🦴 AIで関節', '絵を AI に 見せて、肩・ひじ・手首・腰・ひざ に 骨を 立てる（初回だけ 約90MB 読みこむ）', async () => {
+    const l = layer(); if(!l || aiBusy) return;
+    if(!l.hone.slots.length) return toast('先に 絵を 入れてね');
+    if(l.hone.bones.length > 1 && !confirm('いまの 骨を けして、AI が 見つけた 関節で 組みなおします（もどす で 戻せます）')) return;
+    aiBusy = true; aiJoint.disabled = true;
+    toast('AI で 関節を さがして います…');
+    try {
+      const { findJoints } = await import('./pose.js?v=434');
+      const full = setupCanvas(l, S.proj);
+      /* 絵の ある ところだけ 切りぬいて、白い 紙に のせて 見せる */
+      const W = full.width, H = full.height, d = full.getContext('2d').getImageData(0, 0, W, H).data;
+      let x0 = W, y0 = H, x1 = 0, y1 = 0;
+      for(let y = 0; y < H; y += 2) for(let x = 0; x < W; x += 2) if(d[(y * W + x) * 4 + 3] > 16){
+        if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+      }
+      if(x1 <= x0 || y1 <= y0){ x0 = 0; y0 = 0; x1 = W; y1 = H; }
+      const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.06);
+      x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W, x1 + pad); y1 = Math.min(H, y1 + pad);
+      const c = document.createElement('canvas'); c.width = x1 - x0; c.height = y1 - y0;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(full, -x0, -y0);
+      let last = -1;
+      const kp = await findJoints(c, r => {
+        const p = Math.floor(r * 10) * 10;
+        if(p !== last){ last = p; toast('AI を 読みこみ中（はじめの 1回だけ）' + p + '%'); }
+      });
+      kp.pts = kp.pts.map(([x, y]) => [x + x0, y + y0]);
+      let n = 0;
+      edit('AIで 関節', () => { n = autoBonesFromPose(l, kp); });
+      selBone = 'root';
+      toast(n ? n + '本の 骨を 組みました。ずれて いる 骨は 📐 組み立て で 直せます' : '人の 形が 見つかりませんでした（肩が 見える 絵で ためしてね）');
+      onChange();
+    } catch(e){
+      console.error(e);
+      toast('AI を 読みこめませんでした。通信を たしかめて もう一度');
+    }
+    aiBusy = false; aiJoint.disabled = false;
+  });
+  /* 👆 関節を じゅんばんに おして、全身の 骨を 組む（AI を つかわない） */
+  const jt = { i: 0, pts: {} };
+  const jbar = document.createElement('span');
+  jbar.className = 'honejoints';
+  const jnote = document.createElement('b');
+  const jskip = mk('とばす', '見えて いない 関節は とばす', () => { if(jt.i < JOINTS.length){ jt.i++; jointNext(); } });
+  const jback = mk('1つ もどる', '', () => { if(jt.i > 0){ jt.i--; delete jt.pts[JOINTS[jt.i][0]]; jointNext(true); } });
+  const jdone = mk('✅ できた', 'ここまでで 骨を 組む', () => jointBuild());
+  const jstop = mk('やめる', '', () => { jt.i = 0; jt.pts = {}; setTool('setup'); setPhase('setup', true); });
+  jbar.append(jnote, jskip, jback, jdone, jstop);
+  function jointNext(quiet){
+    if(jt.i >= JOINTS.length){ jointBuild(); return; }
+    jnote.textContent = '（' + (jt.i + 1) + '/' + JOINTS.length + '）つぎ：' + JOINTS[jt.i][1];
+    if(!quiet) toast('つぎは「' + JOINTS[jt.i][1] + '」を おしてね');
+    redraw();
+  }
+  function jointBuild(){
+    const l = layer(); if(!l) return;
+    const pts = [], sc = [];
+    for(let i = 0; i < 17; i++){ const q = jt.pts[i]; pts.push(q || [0, 0]); sc.push(q ? 1 : 0); }
+    if(!jt.pts[5] && !jt.pts[6]){ toast('肩を 1つは おしてね'); return; }
+    let n = 0;
+    edit('関節から 骨', () => { n = autoBonesFromPose(l, { pts, sc }); });
+    jt.i = 0; jt.pts = {};
+    selBone = 'root';
+    setPhase('setup', true);
+    setTool('setup', true);
+    toast(n + '本の 骨を 組みました（髪は 骨の 列、あみは 形に そって）。ずれは 📐 組み立て で 直せます');
+    onChange();
+  }
+  const joints = mk('👆 関節を おして 組む', '肩・ひじ・手首・腰・ひざ・足首 を じゅんばんに おすと、全身の 骨が できる', () => {
+    const l = layer(); if(!l) return;
+    if(!l.hone.slots.length) return toast('先に 絵を 入れてね');
+    if(l.hone.bones.length > 1 && !confirm('いまの 骨を けして、おした 関節で 組みなおします（もどす で 戻せます）')) return;
+    jt.i = 0; jt.pts = {};
+    tool = 'joints';
+    tools.innerHTML = '';
+    tools.append(jbar);
+    ['add', 'setup', 'bind', 'pose', 'ik', 'weight', 'unweight'].forEach(x => btn[x].classList.remove('on'));
+    jointNext();
+  });
+  /* 💇 髪を 骨の 列に（えらんだ パーツ、なければ 名前に 髪 が つく パーツ ぜんぶ） */
+  const hair = mk('💇 髪を 骨の列に', '髪 1房に 根もとから 毛先まで 骨を つなげる（ゆれる 骨）', () => {
+    const l = layer(); if(!l) return;
+    const h = l.hone;
+    const list = selSlot ? h.slots.filter(x => x.id === selSlot) : h.slots.filter(x => HAIR_RX.test(x.name || ''));
+    if(!list.length) return toast('髪の パーツを 🔗 つける で えらぶか、パーツの 名前に「髪」を 入れてね');
+    const head = h.bones.find(b => /^頭/.test(b.name)) || h.bones.find(b => b.id === selBone) || h.bones[0];
+    let n = 0;
+    edit('髪を 骨の 列に', () => {
+      list.forEach(s => {
+        /* 前に 作った その 房の 骨は けして から */
+        h.bones.filter(b => b.spring && b.name && b.name.startsWith(s.name) && b.id !== head.id).map(b => b.id).reverse().forEach(id => removeBone(l, id));
+        fitMesh(l, s); rebind(l);
+        n += hairChain(l, s, head.id);
+      });
+    });
+    toast(list.length + '房に ' + n + '本の 骨を つなげました（「' + head.name + '」から）');
+    onChange();
+  });
+  /* ✂ 形に そった あみ（えらんだ パーツ、なければ ぜんぶ） */
+  const fit = mk('✂ 形に そった あみ', 'パーツの ふちに そって あみを はりなおす（曲げた ときに きれい）', () => {
+    const l = layer(); if(!l) return;
+    const h = l.hone;
+    const list = selSlot ? h.slots.filter(x => x.id === selSlot) : h.slots;
+    let n = 0;
+    edit('形に そった あみ', () => {
+      list.forEach(s => { if(fitMesh(l, s)){ n++; } });
+      rebind(l);
+      if(h.bones.length > 1) list.forEach(s => autoWeigh(l, s));
+    });
+    toast(n + 'まいの パーツの あみを 形に そって はりなおしました');
+    onChange();
+  });
   /* 🗺 つながり図（ミニSpine と 同じ） */
   const map = mk('🗺 つながり図', '骨と パーツの つながりを 図で 見る。ドラッグで つけかえ', () => {
     const l = layer(); if(!l) return;
@@ -423,7 +559,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     tabAnim.classList.toggle('on', p === 'anim');
     tools.innerHTML = '';
     if(p === 'setup'){
-      tools.append(map, btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, spring, auto, face, rename, del);
+      tools.append(map, joints, btn.add, btn.setup, btn.bind, btn.ik, btn.weight, btn.unweight, weigh, fit, hair, spring, aiJoint, auto, face, rename, del);
       const l = layer();
       setTool(l && l.hone.bones.length < 2 ? 'add' : 'setup', quiet);
     } else {

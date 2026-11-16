@@ -3,139 +3,151 @@
 新しくツールやページを作るときは「**はぁにデザインで**」と言えばこれ。
 Claude Code にはこのファイルのパスを渡せば伝わる → `C:/ai/haanidesign.github.io/DESIGN.md`
 
-実物のお手本: サイトのトップ `index.html` と `site.css`（2026-10 版）。迷ったらこれを見る。
+実物のお手本: サイトの `index.html`・`price.html` と `site.css`・`site.js`（2026-11 版）。迷ったらこれを見る。
 
 ## ひとことで言うと
 
-**生成りの紙にドットを敷いて、黒い太縁で囲んで、黄色を差す。影も押し込みもなし。文字は大きく読みやすく。**
-文房具っぽい・角が丸い・平ら。飾りより「読める」を優先する。
+**黄色と黒の2色で強く。大きな英字と丸い日本語を組み合わせて、細い線で区切る。動きはなめらかに少しだけ。**
+雑誌っぽい・余白が広い・角は丸い。それでも「読める」を優先する。
 
 ## トークン（そのまま貼る）
 
 ```css
 :root{
-  --main:      #E1DD60;   /* メインの黄色。ナビ・ヒーロー・強調 */
-  --main-deep: #B8B43F;   /* 濃いめ。hover・リンクの下線 */
-  --main-soft: #F2F0BE;   /* 淡い。行のhover・入力中の欄 */
+  --main:      #E1DD60;   /* メインの黄色。ヒーロー・強調・ボタンの文字 */
+  --main-deep: #B8B43F;   /* 濃いめ。黄色の上での強調 */
+  --main-soft: #F2F0BE;   /* 淡い。行の hover・開閉の hover */
   --cream:     #FBFAEC;   /* 下地 */
-  --paper:     #FFFEF7;   /* いちばん明るい面（カード・入力欄） */
-  --ink:       #1E1C14;   /* 黒。縁と文字 */
-  --ink-2:     #4F4A3B;   /* 本文の説明文 */
+  --paper:     #FFFEF7;   /* いちばん明るい面（入力欄・浮いたナビ） */
+  --ink:       #1E1C14;   /* 黒。文字・主ボタン・黒い区画 */
+  --ink-2:     #4F4A3B;   /* 説明文 */
   --gray:      #6E6857;   /* 小さい注記・日付（これより薄くしない） */
-  --pink:      #F2A0B8;   /* 差し色。バッジ・注意・第2状態 */
-  --rule:      rgba(30,28,20,.22);  /* 点線の区切り */
-  --bd: 2.5px solid var(--ink);
-  --r: 12px;
-  --wrap: 1080px;
+  --pink:      #F2A0B8;   /* 差し色。バッジ・帯の飾り */
+  --line:      rgba(30,28,20,.16);   /* 行の区切り（細線） */
+  --en: 'Unbounded', sans-serif;                       /* 英字・数字 */
+  --ja: 'Zen Maru Gothic', 'M PLUS Rounded 1c', sans-serif;  /* 日本語 */
+  --wrap: 1200px;
+  --ease: cubic-bezier(.2,.8,.2,1);
 }
 ```
 
+Google Fonts:
+`https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap`
+
 ## 守ること
 
-1. **フォント** — `'M PLUS Rounded 1c'`（Google Fonts）。本文 500、見出し 800、ボタン・ラベル 700。
-   数字の飾りだけ `'DotGothic16'`（`.dot`）。
-2. **文字の大きさ** — 本文 `1rem`（16px）、行間 1.85。説明文も 0.95rem より小さくしない。
-   注記でも 0.8rem まで。見出しは `clamp()` で大きく（ページ見出し 2〜2.8rem、区画見出し 1.6〜2.1rem）。
-3. **縁** — 線はぜんぶ `--ink`、`2.5px`（小物は `2px`）。細い灰色の線は使わない。
-   表や一覧の区切りは `2.5px dotted var(--rule)`、表の上下の端だけ実線。
-4. **影なし・押し込みなし** — `box-shadow` も `:active` で沈む動きも使わない。
-   hover は背景色を変えるだけ（`--main` / `--main-deep` / `--main-soft`）。
-5. **角丸** — 12px 前後。ピル（`100px`）はタグ・バッジ・状態表示に。
-6. **下地はドット** — `radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px)` を `16px 16px` で。
-7. **数字** — 料金・PV・日付は `font-variant-numeric:tabular-nums`。大事な数字は大きく太く。
+1. **フォント** — 日本語は Zen Maru Gothic（本文 500、ラベル 700、見出し 900）。
+   英字の見出し・番号・値段・日付は Unbounded（800〜900）。日本語の文を Unbounded にしない。
+2. **文字の大きさ** — 本文 `1rem`、行間 1.9。説明文も 0.95rem より小さくしない。注記でも 0.75rem まで。
+   英字の見出しは思い切り大きく（`clamp(3.2rem,10vw,8rem)`、行間 .9、字間 -.045em）。
+3. **線** — 区画の頭は `1.5px solid var(--ink)`、行の区切りは `1px solid var(--line)`。
+   太い黒縁（2.5px）や点線の区切りは使わない。
+4. **影なし** — `box-shadow` で浮かせない（入力欄のフォーカスの輪だけ例外）。
+   hover は色の入れかえ（黒⇄黄）・少し右へずらす・画像を 1.04〜1.05 倍、のどれか。
+5. **角丸** — ボタン・タグ・ナビはピル（`100px`）。画像は 16〜20px。大きな区画のふちは 40px（スマホ 28px）。
+6. **下地** — `--cream` に紙のざらつき（SVG のノイズを `opacity:.07` で全面に）。ドット柄は使わない。
+7. **数字** — 料金・PV・日付は Unbounded ＋ `tabular-nums`。単位（〜・／1P）は日本語で小さく。
+8. **動き** — `--ease` で 0.3〜1 秒。スクロールで下から 40px ふわっと出す（`.rv` → `.in`）。
+   `prefers-reduced-motion` のときは全部止める。
 
 ## ページの組み方
 
-- 上に固定のナビ 1 本（`--main` の帯＋下に黒線）。左にサイト名、右にリンク数個と「ご依頼」ボタン。スマホではリンクを消してボタンだけ。
-- 中身は幅 `1080px` の中に。区画の間は 4.5rem 前後あけて、窓枠で囲まない。
-- 区画の見出しは大きい h2 ＋横に一言の説明。見出しの上に小さい英語ラベル（Works など）を付けない。
-- **区画ごとに形を変える**。同じカードを並べ続けない。
-  - 作品: 一番の作品を大きく 1 つ → 残りは 3 列
-  - 料金: 表（名前と説明が左、値段が右）
-  - 流れ: 番号つきの段を横に 3 つ（スマホは縦）
-  - プロフィールとお知らせ: 横 2 段
-- 下層ページ: ナビ → パンくず＋大きい h1 ＋一言 → 区画が続く → 黒いフッター。
+- ナビは上に浮いたピル（すりガラス `rgba(255,254,247,.72)`＋`backdrop-filter:blur(14px)`）。
+  左に「**HAANI** はぁにデザイン工房」、右にリンク（頭に小さい番号 01〜）と黒い「ご依頼 →」。スマホはリンクを消す。
+- 区画の見出しは「丸枠の番号（01）＋大きい英字（Works）＋下に日本語の一言」、下に黒線。
+- **区画ごとに形と地の色を変える**。
+  - ヒーロー: 黄色の全画面。大きな見出しを1行ずつせり上げる。背景に縁取りだけの巨大英字
+  - 黒い帯: 少し傾けて英字を横に流す（marquee）
+  - 作品: 一番の作品を大きく 1 つ → 残りは 3 列を段違い（2列目 4rem、3列目 8rem 下げる）
+  - 料金: 黒地の区画。値段は黄色の大きい英字
+  - 流れ: 縁取りだけの大きい番号（01 02 03）を横に 3 つ
+  - お問い合わせ: 黄色地の区画
+- 大きな区画は上の角だけ丸めて重ねる（`border-radius:40px 40px 0 0`）。
+- フッターは黒地に画面幅いっぱいの「HAANI DESIGN」（黄色）。
+- 下層ページ: ナビ → 黄色の頭（パンくず＋大きい英字＋日本語の h1＋一言、下の角を丸める）→ 区画 → フッター。
 
 ## 部品
 
 ```css
-/* ボタン（影なし） */
+/* ボタン */
 .btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
-  background:var(--paper);color:var(--ink);text-decoration:none;
-  border:var(--bd);border-radius:var(--r);
-  padding:.6rem 1.15rem;font:inherit;font-weight:700;font-size:.95rem;
-  cursor:pointer;transition:background-color .15s;white-space:nowrap;
+  display:inline-flex;align-items:center;justify-content:center;gap:.6rem;
+  font:inherit;font-weight:700;text-decoration:none;cursor:pointer;
+  padding:.85rem 1.6rem;border-radius:100px;border:2px solid var(--ink);
+  background:var(--paper);color:var(--ink);transition:background-color .25s,color .25s;
 }
-.btn:hover{background:var(--main);}
-.btn:disabled{opacity:.55;cursor:default;}
-.btn-y{background:var(--main);}            /* 主ボタン */
-.btn-y:hover{background:var(--main-deep);}
-.btn-g{background:var(--ink);color:var(--main);}  /* 反転。いちばん強い */
-.btn-g:hover{color:var(--paper);}
+.btn-y{background:var(--ink);color:var(--main);}   /* 主ボタン */
+.btn-y:hover{background:var(--main);color:var(--ink);}
+.btn-o{background:transparent;}                     /* 枠だけ */
+.btn-o:hover{background:var(--ink);color:var(--paper);}
+
+/* 矢印は hover で右へ */
+.arr{display:inline-block;transition:transform .35s var(--ease);}
+a:hover .arr,button:hover .arr{transform:translateX(5px);}
 
 /* タグ */
-.tag{
-  display:inline-block;font-size:.75rem;font-weight:700;
-  background:var(--main);border:2px solid var(--ink);border-radius:100px;padding:0 .65rem;
-}
+.tag{font-size:.72rem;font-weight:700;border:1.5px solid currentColor;border-radius:100px;padding:0 .7rem;}
 
-/* カード */
-.card{background:var(--paper);border:var(--bd);border-radius:var(--r);}
+/* 区画の見出し */
+.sh{display:grid;grid-template-columns:auto 1fr;align-items:end;column-gap:1.2rem;
+  border-bottom:1.5px solid var(--ink);padding-bottom:1.2rem;margin-bottom:3rem;}
+.sh-no{font-family:var(--en);font-weight:800;font-size:.85rem;border:1.5px solid currentColor;border-radius:100px;padding:.1rem .7rem;}
+.sh-en{font-family:var(--en);font-weight:900;font-size:clamp(3.2rem,10vw,8rem);line-height:.9;letter-spacing:-.045em;}
 
-/* 文字リンク（ボタンにしない「くわしく →」） */
-.textlink{
-  font-weight:700;text-decoration:underline;text-decoration-thickness:2.5px;
-  text-underline-offset:.3em;text-decoration-color:var(--main-deep);
-}
-.textlink:hover{text-decoration-color:var(--ink);}
+/* ナビのリンク：下線が左から伸びる */
+.nav-links a::after{content:'';position:absolute;left:0;right:0;bottom:-2px;height:2px;background:var(--ink);
+  transform:scaleX(0);transform-origin:right;transition:transform .35s var(--ease);}
+.nav-links a:hover::after{transform:scaleX(1);transform-origin:left;}
 
-/* 箇条書き：黄色い四角 */
-.nlist li{position:relative;padding-left:1.3rem;color:var(--ink-2);}
-.nlist li::before{
-  content:'';position:absolute;left:0;top:.95em;width:.55rem;height:.55rem;
-  background:var(--main);border:2px solid var(--ink);border-radius:2px;
-}
+/* 箇条書き：細い横棒＋太字に黄色マーカー */
+.nlist li{position:relative;padding:.9rem 0 .9rem 1.8rem;border-bottom:1px solid var(--line);}
+.nlist li::before{content:'';position:absolute;left:0;top:1.85em;width:.9rem;height:1.5px;background:var(--ink);}
+.nlist li b{background:linear-gradient(transparent 62%, var(--main) 62%);}
 
-/* キーボード操作の枠・選択色 */
+/* 縁取りだけの数字 */
+.outline-num{font-family:var(--en);font-weight:900;color:transparent;-webkit-text-stroke:1.5px var(--ink);}
+
 :focus-visible{outline:3px solid var(--ink);outline-offset:3px;}
 ::selection{background:var(--main);color:var(--ink);}
 ```
 
 ## ツールを作るときの定番レイアウト
 
-アプリ画面（ツール）は 4 区画に寄せると迷わない。色・縁・影なしのルールは上と同じ。
+アプリ画面（ツール）は 4 区画に寄せると迷わない。色・線・影なしのルールは上と同じ。
 
 ```
 ┌──────────────────────────────────────┐
-│ タイトルバー（--main／黒縁下線／右にボタン群） │
+│ タイトルバー（黒地／左に英字のツール名・右にピルのボタン群） │
 ├────┬─────┬──────────────┬────────┤
 │ツール│レイヤー│  キャンバス   │プロパティ│
-│レール│パネル  │（ドット下地）  │パネル   │
+│レール│パネル  │（--cream 下地）│パネル   │
 ├────┴─────┴──────────────┴────────┤
 │ タイムライン／下部の帯                      │
 └──────────────────────────────────────┘
 ```
 
-前の版（影あり・押し込みあり）で作ったツールは、そのままでよい。直すときに合わせる。
-実装例: `lab/tools/mini-spine/`（影ありの旧版）
+- パネルの区切りは `1px solid var(--line)`、パネルの見出しは小さい Unbounded（.7rem・字間 .1em）
+- 選んでいる道具・タブは黒地に黄色の文字
+- アニメ工房・動画工房の定型（`lab/tools/skin/TEIKEI.md`）がある道具は、そちらを優先する
+
+前の版（黒い太縁・ドット下地）で作ったツールは、そのままでよい。直すときに合わせる。
 
 ## やらないこと
 
 - 影（ぼかしも、真下のベタ影も）、押すと沈む動き、跳ねる動き
-- 灰色の細い境界線、グラデーション
+- 黒い太縁で全部を囲む、ドット柄の下地、点線の区切り
 - 青系・紫系のアクセント（差し色はピンクだけ）
-- 小さすぎる文字（0.8rem 未満）、薄すぎる灰色の文字
-- 見出しの斜体、見出し上の小さい英語ラベル
-- 全部の区画を同じ窓枠・同じカードで囲む
+- 小さすぎる文字（0.75rem 未満）、薄すぎる灰色の文字
+- 見出しの斜体、日本語の文に英字フォント
+- 全部の区画を同じカードで囲む
 - 作っていない数字（実績の数は本物だけ）
-- ダークテーマ
+- 止まらない動きの入れすぎ（流れる帯・回るロゴは 1 画面に 1 つまで）
 
 ## キャンバス内（Canvas 2D）に描くとき
 
 DOM だけでなく `<canvas>` の中身も同じ色で塗る。
-- アートボードの下地にも同じドットを `createPattern` で敷く
-- 図形は必ず `--ink` で縁取る（塗りだけの図形を置かない）
+- アートボードの下地は `--cream`、外側は `--ink` で暗く
+- 図形の縁は `--ink`、1.5px
 - 状態の塗り分け: 選択=`--main` / 第2状態=`--pink` / 通常=`rgba(225,221,96,.5)`
 
 ## タブレット・スマホの つまみ
@@ -146,5 +158,6 @@ DOM だけでなく `<canvas>` の中身も同じ色で塗る。
 ## スマホ
 
 - 横にはみ出さない（`html,body{overflow-x:clip}`）。320 / 375 / 768px で確かめる
-- グリッドは `minmax(0,1fr)`。2 列以上はスマホで 1 列に
+- グリッドは `minmax(0,1fr)`。2 列以上はスマホで 1 列に（作品は 2 列で段違い）
+- 巨大な英字は `vw` で縮める。はみ出していないか必ず見る
 - ボタン・リンクの文字は 2 行に折らない
