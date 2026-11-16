@@ -146,9 +146,9 @@ function outline(src, r){
   return c;
 }
 
-async function renderFrames(id, D, N){
+async function renderFrames(id, D, N, textArg){
   if(!layers.length) throw new Error("先に PSD か PNG を読み込んでください。");
-  const text = $("stText").value.trim();
+  const text = textArg !== undefined ? textArg : $("stText").value.trim();
   const [fill, stroke] = $("stCol").value.split("|");
   const top = $("stPos").value === "top";
   const edge = $("stEdge").checked;
@@ -234,24 +234,29 @@ function fitFrames(frames, maxW, maxH, exact){
   });
 }
 
-async function build(maxW, maxH, exact){
-  const id = sel.value;
-  if(id === "motion" && !MOTIONS[motion.name]) throw new Error("「モーション」で動きを選んでから使ってください。");
-  const D = +$("stDur").value || autoDur(id);
-  const N = Math.max(5, Math.min(20, Math.round(D * 10)));
-  const loops = Math.max(1, Math.min(4, Math.floor(4 / D)));
-  const big = await renderFrames(id, D, N);
-  const fr = fitFrames(big, maxW, maxH, exact);
+async function encode(fr, D, N, loops){
   const w = fr[0].width, h = fr[0].height;
-  let blob = null, colors = 256;
-  for(; colors >= 32; colors >>= 1){
-    $("stInfo").textContent = `色をまとめています(${colors}色)…`;
-    await new Promise(r=> setTimeout(r, 0));
+  let blob = null;
+  for(let colors = 256; colors >= 32; colors >>= 1){
     const {pal, idx} = quantize(fr.map(c=> c.getContext("2d").getImageData(0,0,w,h)), colors);
     blob = await apng(idx, pal, w, h, Math.round(D*1000/N), loops);
     if(blob.size < 1000*1024) break;
   }
   return {blob, w, h, N, D, loops, first: fr[0]};
+}
+/* opt: {id, text}。なければ 上の 欄の 値 */
+async function build(maxW, maxH, exact, opt){
+  const id = (opt && opt.id) || sel.value;
+  if(id === "motion" && !MOTIONS[motion.name]) throw new Error("「モーション」で動きを選んでから使ってください。");
+  const D = +$("stDur").value || autoDur(id);
+  const N = Math.max(5, Math.min(20, Math.round(D * 10)));
+  const loops = Math.max(1, Math.min(4, Math.floor(4 / D)));
+  const big = await renderFrames(id, D, N, opt ? opt.text : undefined);
+  $("stInfo").textContent = "色をまとめています…";
+  await new Promise(r=> setTimeout(r, 0));
+  const r = await encode(fitFrames(big, maxW, maxH, exact), D, N, loops);
+  r.big = big;
+  return r;
 }
 
 function show(r, name){
@@ -292,5 +297,92 @@ $("stTab").onclick = ()=> run($("stTab"), async ()=>{
   const blob = await new Promise(res=> r.first.toBlob(res, "image/png"));
   save(blob, "tab.png");
   $("stInfo").textContent = "tab.png を保存しました(96×74・止まった絵)。";
+});
+
+/* ---- まとめて作る(8・16・24 個) ----
+   1 行 = 1 個(動き＋ことば)。1 行めの 絵で メイン画像と タブ画像も 作る。zip に 入れて 1 つで 保存 */
+const SET_KEY = "psdStampSet";
+const SET_DEF = [
+  ["nod","ありがとう"], ["hop","やったー"], ["shy","えへへ"], ["tilt","なんで？"],
+  ["shake","ちがうよ"], ["talk","おつかれさま"], ["blink","おはよう"], ["nod","りょうかい"],
+  ["hop","おめでとう"], ["shy","ごめんね"], ["talk","おやすみ"], ["tilt","どうしよう"],
+  ["nod","いいね"], ["shake","むりー"], ["blink","じー"], ["hop","わーい"],
+  ["talk","よろしく"], ["shy","すき"], ["tilt","はてな"], ["nod","OK"],
+  ["blink","まって"], ["shake","いやいや"], ["hop","がんばれ"], ["talk","またね"],
+];
+let setRows;
+try{ setRows = JSON.parse(localStorage.getItem(SET_KEY) || "null"); }catch(e){}
+if(!Array.isArray(setRows) || ![8,16,24].includes(setRows.length)) setRows = SET_DEF.slice(0, 8).map(r=> [...r]);
+const keepSet = ()=>{ try{ localStorage.setItem(SET_KEY, JSON.stringify(setRows)); }catch(e){} };
+
+function drawSet(){
+  const box = $("stSet");
+  box.innerHTML = "";
+  setRows.forEach((r, i)=>{
+    const row = document.createElement("div"); row.className = "strow";
+    const n = document.createElement("b"); n.textContent = pad2(i + 1);
+    const s = document.createElement("select");
+    STAMP_ACTS.filter(a=> a.id !== "motion").forEach(a=>{ const o = document.createElement("option"); o.value = a.id; o.textContent = a.label; s.appendChild(o); });
+    s.value = r[0];
+    s.onchange = ()=>{ r[0] = s.value; keepSet(); };
+    const t = document.createElement("input"); t.type = "text"; t.maxLength = 16; t.value = r[1]; t.placeholder = "ことば";
+    t.oninput = ()=>{ r[1] = t.value; keepSet(); };
+    row.append(n, s, t);
+    box.appendChild(row);
+  });
+  $("stCount").textContent = setRows.length + " こ";
+  $("stLess").disabled = setRows.length <= 8;
+  $("stMore").disabled = setRows.length >= 24;
+}
+$("stMore").onclick = ()=>{ const n = setRows.length; setRows.push(...SET_DEF.slice(n, n + 8).map(r=> [...r])); keepSet(); drawSet(); };
+$("stLess").onclick = ()=>{ setRows.length = Math.max(8, setRows.length - 8); keepSet(); drawSet(); };
+drawSet();
+
+/* 圧縮なしの zip(PNG は もう 縮んで いるので これで 十分) */
+async function makeZip(files){
+  const enc = new TextEncoder(), parts = [], cen = [];
+  let off = 0;
+  const le16 = v=> [v & 255, (v >> 8) & 255], le32 = v=> [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+  const d = new Date(), time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for(const f of files){
+    const data = new Uint8Array(await f.blob.arrayBuffer()), name = enc.encode(f.name), c = crc(data);
+    const head = [...le32(0x04034b50), ...le16(20), ...le16(0x0800), ...le16(0), ...le16(time), ...le16(date),
+      ...le32(c), ...le32(data.length), ...le32(data.length), ...le16(name.length), ...le16(0)];
+    parts.push(new Uint8Array(head), name, data);
+    cen.push(new Uint8Array([...le32(0x02014b50), ...le16(20), ...le16(20), ...le16(0x0800), ...le16(0), ...le16(time), ...le16(date),
+      ...le32(c), ...le32(data.length), ...le32(data.length), ...le16(name.length), ...le16(0), ...le16(0), ...le16(0), ...le16(0),
+      ...le32(0), ...le32(off)]), name);
+    off += head.length + name.length + data.length;
+  }
+  const cenSize = cen.reduce((a, b)=> a + b.length, 0);
+  const end = new Uint8Array([...le32(0x06054b50), ...le16(0), ...le16(0), ...le16(files.length), ...le16(files.length),
+    ...le32(cenSize), ...le32(off), ...le16(0)]);
+  return new Blob([...parts, ...cen, end], {type:"application/zip"});
+}
+
+$("stAll").onclick = ()=> run($("stAll"), async ()=>{
+  if(!layers.length) throw new Error("先に PSD か PNG を読み込んでください。");
+  const files = [], total = setRows.length;
+  let first = null;
+  for(let i=0;i<total;i++){
+    const [id, text] = setRows[i];
+    const r = await build(320, 270, false, {id, text: text.trim()});
+    files.push({name: pad2(i + 1) + ".png", blob: r.blob, kb: Math.ceil(r.blob.size/1024)});
+    if(i === 0) first = r;
+    $("stInfo").textContent = `${i + 1} / ${total} こ できました`;
+    await new Promise(r=> setTimeout(r, 0));
+  }
+  // メイン画像(240×240・動く)と タブ画像(96×74・止まった絵)は 1 こめの 絵から
+  const main = await encode(fitFrames(first.big, 240, 240, true), first.D, first.N, first.loops);
+  files.push({name:"main.png", blob: main.blob});
+  const tab = fitFrames([first.big[0]], 96, 74, true)[0];
+  files.push({name:"tab.png", blob: await new Promise(res=> tab.toBlob(res, "image/png"))});
+  const zip = await makeZip(files);
+  save(zip, "line_stamp_" + total + ".zip");
+  show(first, "line_stamp_" + total + ".zip");
+  const big = files.filter(f=> f.kb > 1000).map(f=> f.name);
+  $("stInfo").lastChild.textContent = `line_stamp_${total}.zip を保存しました(スタンプ ${total} こ＋main.png＋tab.png)。` +
+    (big.length ? ` ${big.join("・")} が 1MB を こえています。` : "") + " 上は 1 こめの 見本です。";
 });
 })();
