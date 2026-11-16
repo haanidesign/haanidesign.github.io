@@ -7,71 +7,92 @@
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=DotGothic16&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=17">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css?v=3">
 <style>
 /* ===== 一覧 ===== */
-.bs-wrap{max-width:1240px;margin:1rem auto;border:var(--bd);border-radius:18px;
-  background:var(--paper);box-shadow:0 6px 0 var(--ink);overflow:hidden;}
-.bs-bar{display:flex;align-items:center;gap:.7rem;
-  padding:.7rem 1rem;background:var(--main);border-bottom:var(--bd);}
-.bs-bar h1{font-size:1rem;}
-.bs-bar .sp{margin-left:auto;}
-
-.bs-grid{display:grid;gap:4px;padding:4px;
-  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
-.bs-cell{display:block;position:relative;aspect-ratio:1/1;
-  background:var(--main-soft);cursor:zoom-in;overflow:hidden;}
-.bs-cell img,.bs-cell video{width:100%;height:100%;object-fit:cover;
-  transition:transform .25s ease, opacity .25s ease;}
+.bs-grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));}
+.bs-cell{display:block;position:relative;aspect-ratio:1/1;border-radius:16px;
+  background:var(--ink);cursor:zoom-in;overflow:hidden;}
+.bs-cell img,.bs-cell video{width:100%;height:100%;object-fit:cover;transition:transform 1s var(--ease);}
 .bs-cell video{pointer-events:none;}
-.bs-cell:hover img,.bs-cell:hover video{transform:scale(1.04);opacity:.88;}
-
-.bs-msg{padding:2.5rem 1rem;text-align:center;font-size:.85rem;color:var(--gray);}
-.bs-more{display:flex;justify-content:center;padding:1.1rem 0 1.3rem;}
+.bs-cell:hover img,.bs-cell:hover video{transform:scale(1.05);}
+.bs-msg{padding:3rem 1rem;text-align:center;font-weight:700;color:var(--gray);}
+.bs-msg:empty{display:none;}
+.bs-more{display:flex;justify-content:center;padding:2.5rem 0 0;}
 
 /* ===== 拡大 ===== */
-.bs-box{position:fixed;inset:0;z-index:99;display:none;
-  align-items:center;justify-content:center;padding:1.5rem;
-  background:rgba(30,28,20,.85);}
+.bs-box{position:fixed;inset:0;z-index:99;display:none;align-items:center;justify-content:center;
+  padding:4.5rem 1.5rem 3.5rem;background:rgba(30,28,20,.92);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
 .bs-box.on{display:flex;}
-.bs-box img,.bs-box video{max-width:100%;max-height:84vh;
-  border:var(--bd);border-radius:var(--r);background:var(--paper);}
+.bs-box img,.bs-box video{max-width:100%;max-height:100%;border-radius:16px;background:var(--paper);}
 .bs-box [hidden]{display:none;}
+.bs-box .btn{background:var(--paper);border-color:var(--paper);width:3rem;height:3rem;padding:0;font-size:1.3rem;}
+.bs-box .btn:hover{background:var(--main);border-color:var(--main);}
 .bs-x{position:absolute;right:1rem;top:1rem;}
 .bs-arrow{position:absolute;top:50%;transform:translateY(-50%);}
 .bs-prev{left:1rem;} .bs-next{right:1rem;}
-.bs-cap{position:absolute;left:0;right:0;bottom:.4rem;
-  text-align:center;color:var(--main);font-size:.75rem;}
-.bs-cap a{color:var(--main);text-decoration:underline;margin-left:.6rem;}
+.bs-cap{position:absolute;left:0;right:0;bottom:1rem;text-align:center;color:var(--main);
+  font-family:var(--en);font-size:.75rem;font-weight:500;}
+.bs-cap a{color:var(--main);margin-left:.6rem;}
 
 @media(max-width:700px){
-  .bs-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:3px;padding:3px;}
-  .bs-wrap{margin:.5rem;border-radius:14px;}
+  .bs-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;}
+  .bs-cell{border-radius:12px;}
+  .bs-box{padding:4.5rem .6rem 3.5rem;}
+  .bs-arrow{top:auto;bottom:.6rem;transform:none;}
+  .bs-cap{bottom:4.2rem;}
 }
 </style>
 </head>
 <body>
 
-<div class="bs-wrap">
-  <div class="bs-bar">
-    <h1>ギャラリー</h1>
-    <span class="sp"></span>
-    <a href="index.html" class="btn btn-sm">もどる</a>
-  </div>
+<header class="nav">
+  <a href="index.html" class="mark"><b>HAANI</b><small>はぁにデザイン工房</small></a>
+  <nav class="nav-links" aria-label="サイト内">
+    <a href="index.html#works"><i>01</i>作品</a>
+    <a href="price.html"><i>02</i>料金</a>
+    <a href="flow.html"><i>03</i>流れ</a>
+    <a href="index.html#about"><i>04</i>プロフィール</a>
+  </nav>
+  <a href="index.html#contact" class="nav-cta">ご依頼<span>→</span></a>
+</header>
 
+<main class="sub">
+<header class="page-head">
+<div class="ph-bg" aria-hidden="true">Gallery</div>
+<div class="page-head-in">
+  <p class="crumb"><a href="index.html">TOP</a> ／ ギャラリー</p>
+  <p class="ph-en" aria-hidden="true">Gallery</p>
+  <h1>ギャラリー</h1>
+  <p>Blueskyに投稿したイラストと動画。</p>
+</div>
+</header>
+
+<section class="sec">
   <div id="bs-grid" class="bs-grid"></div>
   <div id="bs-msg" class="bs-msg">読み込み中…</div>
-  <div class="bs-more"><button id="bs-more" class="btn" hidden>もっと見る</button></div>
-</div>
+  <div class="bs-more"><button id="bs-more" class="btn btn-y" hidden>もっと見る</button></div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
+  <div class="foot-row">
+    <span>© 2026 はぁにデザイン工房</span>
+    <a href="index.html">TOP</a>
+    <a href="price.html">料金表</a>
+    <a href="flow.html">ご依頼の流れ</a>
+  </div>
+</footer>
 
 <div id="bs-box" class="bs-box">
-  <button class="btn btn-sm bs-x" data-act="close">✕</button>
-  <button class="btn btn-sm bs-arrow bs-prev" data-act="prev">‹</button>
-  <button class="btn btn-sm bs-arrow bs-next" data-act="next">›</button>
+  <button class="btn bs-x" data-act="close" aria-label="閉じる">✕</button>
+  <button class="btn bs-arrow bs-prev" data-act="prev" aria-label="前へ">‹</button>
+  <button class="btn bs-arrow bs-next" data-act="next" aria-label="次へ">›</button>
   <img id="bs-box-img" alt="">
   <video id="bs-box-vid" controls loop playsinline hidden></video>
-  <div id="bs-cap" class="bs-cap dot"></div>
+  <div id="bs-cap" class="bs-cap"></div>
 </div>
 
 <script>
@@ -345,6 +366,7 @@
   load();
 })();
 </script>
+<script src="site.js?v=2"></script>
 
 </body>
 </html>
