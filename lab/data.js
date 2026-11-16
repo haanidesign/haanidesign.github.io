@@ -141,7 +141,7 @@ const TOOLS = [
     desc: "スマホで恋愛ゲームの一場面を作る台。なまえとセリフを打って、背景とキャラのPNGを選ぶだけ。画面をタップすると文字がぽぽぽっと出て、長い文は自動で次のページへ送られる。立ちいちは ひだり／まんなか／みぎ、背景が変わるところだけ暗転が入る。作ったものはJSONで持ち出せる。",
     tags: ["スマホ", "ノベルゲーム", "立ち絵", "文字送り"],
     cat: "game",
-    thumb: "thumbs/koi-scene.svg",
+    thumb: "thumbs/koi-scene.png",
     url: "tools/koi-scene/index.html",
     status: "live"
   },
@@ -174,7 +174,7 @@ const TOOLS = [
     desc: "1枚の紙に、文字も写真も手書きも重ねて残せるノート。写真は貼り付け・ドラッグ・えらぶの3通りで入り、ペンは写真の上にも引ける。紙の右はしに見出しシールが並び、押すとその束へめくれる。1ページ＝1か月の予定表も同じ束に置けて、枡をさわればそのまま書ける。中の文字は束をまたいで探せて、新しい順・古い順・名前順に並べかえられる。書いたURLはそのまま押して飛べる。ゆびで紙を横にはらうとめくれ、はなした勢いで行き先が決まる。大きさは＋−でいつでも変えられ、どの画面でも同じ寸法で組まれる。読むだけの公開ページ（view.html）つき。",
     tags: ["手帳", "メモ", "手書き", "予定表", "検索", "スマホ", "公開ページ"],
     cat: "other",
-    thumb: "thumbs/techo.svg",
+    thumb: "thumbs/techo.png",
     url: "tools/techo/index.html",
     status: "live"
   },
@@ -185,7 +185,7 @@ const TOOLS = [
     desc: "ネームのはじめに使うコマ割りのひな型を、いくらでも作れる台。段とコマ数と傾きを決めると、右上から左下へ番号のふられたコマ割りが何枚も出てくる。ただの枠ではなく、そのコマの形に合った大きさで素体（ミニキャラ／頭身あり）がすでに入っているので、絵の大きさに迷わない。コマを押せば下にひきだしが開き、だれ・顔（18種）・ポーズ（12種）・大きさ（顔アップ〜全身）・左右・2人目を選んでセリフを打てる。セリフは1行＝1コマでまとめて流しこめて、そのまま簡易マンガになる。ページごとPNG・表ぜんぶPNG・印刷、作りかけはJSONで保存できる。",
     tags: ["ネーム", "コマ割り", "素体", "ミニキャラ", "PNG書き出し", "印刷"],
     cat: "manga",
-    thumb: "thumbs/koma-wari.svg",
+    thumb: "thumbs/koma-wari.png",
     url: "tools/koma-wari/index.html",
     status: "live"
   },
@@ -196,7 +196,7 @@ const TOOLS = [
     desc: "キャラの動きと表情を確かめる台。3Dのモデルは外から読まず、ページの中で組み立てている。",
     tags: ["3D", "モデル", "モーション", "表情", "リップシンク"],
     cat: "anime",
-    thumb: "thumbs/chara-kobo.svg",
+    thumb: "thumbs/chara-kobo.png",
     url: "tools/chara-kobo/index.html",
     status: "live"
   },
@@ -207,7 +207,7 @@ const TOOLS = [
     desc: "閉じている間も進む放置ゲーム。昼はドームの畑・発電・植物園・ろ過装置が自動で回り、手伝うとミニゲームが始まって一気に増える。夜だけ外に出られて、灰そうじと発掘。掘ると昔の道具が出てきてドームが強くなる。なかまは5人、それぞれ得意な仕事がある。",
     tags: ["放置ゲーム", "ミニゲーム", "スマホ", "こども"],
     cat: "game",
-    thumb: "thumbs/project-guardian.svg",
+    thumb: "thumbs/project-guardian.png",
     url: "tools/project-guardian/index.html",
     status: "live"
   },
@@ -218,7 +218,7 @@ const TOOLS = [
     desc: "ブリスターパック風キーホルダー（1mm＋3mm＋3mmの3層アクリル）の版下を組む台。台紙の絵と文字、中身パーツ、ビス穴の位置を決めると、パーツの透過PNGから輪郭をひろって白フチ付きのカット線と2枚目の窓を作る。フチの余白・穴とのあき・細い所の太さ・解像度を見て直す所を出す。台紙PNG、パーツPNG、原寸のカット線SVG、仕様メモを書き出せる。",
     tags: ["アクリル", "グッズ", "版下", "カット線", "SVG書き出し"],
     cat: "other",
-    thumb: "thumbs/blister-design.svg",
+    thumb: "thumbs/blister-design.png",
     url: "tools/blister-design/index.html",
     status: "live"
   },
@@ -229,7 +229,7 @@ const TOOLS = [
     desc: "打ったキーの横の位置に合わせて、左右の手が動くキャラクターの台。タブレットモードでは、ペンを持った手の絵がマウスについてくる。しばらく何もしないと待機の絵1枚にかわる。PSDを落とすとレイヤー名で振り分け、非表示の差分も名前が合えば使う。位置はステージの上で絵をつかんで合わせる。ひな形のPSDつき。",
     tags: ["配信", "オーバーレイ", "キーボード", "PSD", "差し替え"],
     cat: "other",
-    thumb: "thumbs/bongo.svg",
+    thumb: "thumbs/bongo.png",
     url: "tools/bongo/index.html",
     status: "live"
   },
@@ -251,7 +251,7 @@ const TOOLS = [
     desc: "公開ページのスケジュールと同じ並び・同じ見た目で、Notion から取り込んだ予定を月ごとに見る台。画像のある予定はそのまま絵で出る。土日祝はお休みとして色を変え、祝日の名前も添える。ちがうのは書ける所で、日付を右クリックすればその場で予定を足せて、予定をつつけば時こくと画像を差し替えられる。足した分はこの端末の中だけに持つ。月ごと1枚のPNGに書き出せる。",
     tags: ["Notion", "予定", "カレンダー", "画像書き出し"],
     cat: "other",
-    thumb: "thumbs/task-calendar.svg",
+    thumb: "thumbs/task-calendar.png",
     url: "tools/task-calendar/index.html",
     status: "live"
   },
@@ -262,7 +262,7 @@ const TOOLS = [
     desc: "GB・BBの動画から背景を抜いて、素材ごとに分け、同じ絵に戻る区間をループにする。切り出す範囲とコマごとの表示時間も出す。APNG・連番PNG・スプライトシート・WebMで書き出せる。",
     tags: ["GB素材", "クロマキー", "ループ素材", "APNG"],
     cat: "anime",
-    thumb: "thumbs/gb-loop.svg",
+    thumb: "thumbs/gb-loop.png",
     url: "tools/gb-loop/index.html",
     status: "live"
   },
@@ -284,7 +284,7 @@ const TOOLS = [
     desc: "写真の中から 残す色を 1つ えらび、ほかを モノクロに する。色の はばと ぼかし、効かせる 範囲（円・四角・囲む・塗る）、モノクロの トーンを 決められる。カメラの 映像に かけながら 撮ることも できる。フレーム・色見本・カラーコード付きで、比率を えらんで 書き出す。",
     tags: ["写真", "色", "モノクロ", "スマホ"],
     cat: "other",
-    thumb: "thumbs/nokoshi-iro.svg",
+    thumb: "thumbs/nokoshi-iro.png",
     url: "tools/nokoshi-iro/index.html",
     status: "live"
   },
