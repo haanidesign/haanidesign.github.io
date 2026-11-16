@@ -331,6 +331,17 @@ const TOOLS = [
     thumb: "thumbs/thumb-check.svg",
     url: "tools/thumb-check/index.html",
     status: "live"
+  },
+  {
+    no: 31,
+    slug: "yureru-rakugaki",
+    title: "ゆれる落書き",
+    desc: "描いた 線を 手描きアニメの ように ゆらして、ループの GIF・APNG で 書き出す。",
+    tags: ["落書き", "線のゆれ", "GIF"],
+    cat: "anime",
+    thumb: "thumbs/yureru-rakugaki.svg",
+    url: "tools/yureru-rakugaki/index.html",
+    status: "live"
   }
 ];
 

@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ゆれる落書き</title>
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --ink-2:#4F4A3B; --gray:#6E6857; --pink:#F2A0B8;
+  --rule:rgba(30,28,20,.22); --bd:2.5px solid var(--ink); --r:12px;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html,body{height:100%; overflow:hidden}
+body{background:var(--cream); color:var(--ink); font-family:'M PLUS Rounded 1c',sans-serif; font-weight:500; font-size:1rem; line-height:1.6;
+  display:grid; grid-template-rows:auto minmax(0,1fr); -webkit-font-smoothing:antialiased}
+::selection{background:var(--main); color:var(--ink)}
+:focus-visible{outline:3px solid var(--ink); outline-offset:2px}
+button,select,input{font:inherit}
+
+#top{display:flex; align-items:center; gap:10px; padding:8px 14px; background:var(--main); border-bottom:var(--bd); flex-wrap:wrap}
+#top h1{font-size:1.15rem; font-weight:800; margin-right:auto; display:flex; align-items:center; gap:10px}
+#top h1 a{font-size:.85rem; font-weight:700; color:var(--ink); text-decoration:none; background:var(--paper); border:2px solid var(--ink); border-radius:100px; padding:1px 10px}
+#top h1 a:hover{background:var(--main-soft)}
+#top h1 .dirty{color:var(--ink); font-size:.9rem}
+
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:.35rem; min-height:40px; padding:.35rem .9rem;
+  background:var(--paper); color:var(--ink); border:var(--bd); border-radius:var(--r); font-weight:700; font-size:.95rem; cursor:pointer;
+  white-space:nowrap; transition:background-color .15s}
+.btn:hover{background:var(--main-soft)}
+.btn.on{background:var(--main)}
+.btn.y{background:var(--ink); color:var(--main)}
+.btn.y:hover{color:var(--paper)}
+.btn:disabled{opacity:.55; cursor:default}
+
+main{display:grid; grid-template-columns:auto minmax(0,1fr) 300px; min-height:0}
+#rail{display:flex; flex-direction:column; gap:10px; padding:12px 10px; border-right:var(--bd); background:var(--paper); overflow:auto}
+#rail .btn{flex-direction:column; width:80px; min-height:66px; font-size:.85rem; padding:6px 4px; gap:2px}
+#rail .btn b{font-size:1.35rem; line-height:1}
+
+#stage{position:relative; display:flex; align-items:center; justify-content:center; min-width:0; min-height:0; padding:16px;
+  background-image:radial-gradient(circle, rgba(30,28,20,.13) 1.5px, transparent 1.6px); background-size:16px 16px}
+#board{position:relative; border:var(--bd); border-radius:6px; overflow:hidden; background:var(--paper); touch-action:none}
+#board.clear{background:conic-gradient(#E8E5D0 0 25%,#FFFEF7 0 50%,#E8E5D0 0 75%,#FFFEF7 0) 0 0/24px 24px}
+#board.white{background:#fff}
+#board img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; opacity:.35}
+#cv{position:relative; display:block; width:100%; height:100%; cursor:crosshair}
+
+#side{border-left:var(--bd); background:var(--paper); overflow:auto; padding:12px 14px 90px}
+#side h2{display:inline-block; font-size:.9rem; font-weight:800; background:var(--ink); color:var(--main); border-radius:100px; padding:1px 12px; margin:14px 0 8px}
+#side h2:first-child{margin-top:0}
+.sw{display:flex; flex-wrap:wrap; gap:8px}
+.sw button{width:40px; height:40px; border-radius:50%; border:var(--bd); cursor:pointer; padding:0}
+.sw button.on{outline:3px solid var(--ink); outline-offset:3px}
+.sw label{width:40px; height:40px; border-radius:50%; border:var(--bd); display:grid; place-items:center; cursor:pointer; font-weight:800;
+  background:conic-gradient(#ff6f91,#ffd166,#56d68a,#5ccfff,#b79cff,#ff6f91)}
+.sw input{position:absolute; opacity:0; width:1px; height:1px}
+.row{display:flex; align-items:center; gap:10px; margin:6px 0}
+.row > span:first-child{width:4.6rem; flex-shrink:0; font-weight:700; font-size:.9rem}
+.row input[type=range]{flex:1; min-width:0}
+.row .v{width:2.6rem; text-align:right; font-size:.9rem; font-variant-numeric:tabular-nums}
+.seg{display:flex; flex-wrap:wrap; gap:6px}
+.seg .btn{padding:.3rem .7rem; font-size:.9rem}
+.note{color:var(--ink-2); font-size:.85rem; margin-top:8px; line-height:1.7}
+#msg{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); background:var(--ink); color:var(--main); border-radius:100px; padding:6px 16px;
+  font-weight:700; font-size:.95rem; pointer-events:none; opacity:0; transition:opacity .2s; z-index:50}
+#msg.on{opacity:1}
+
+@media (pointer:coarse){ .btn{min-height:44px} }
+@media (max-width:860px){
+  main{grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) 38%}
+  #rail{flex-direction:row; border-right:0; border-bottom:var(--bd); padding:8px}
+  #rail .btn{width:auto; min-height:44px; flex-direction:row; padding:4px 12px}
+  #rail .btn b{font-size:1.1rem}
+  #side{border-left:0; border-top:var(--bd)}
+  #top{gap:6px; padding:6px 10px}
+  #top .btn{padding:.25rem .6rem; font-size:.85rem}
+}
+</style>
+</head>
+<body>
+<div id="top">
+  <h1><a href="../../index.html">← LAB</a>ゆれる落書き<span class="dirty" id="dirty"></span></h1>
+  <button class="btn" id="newBtn">新規</button>
+  <button class="btn" id="saveBtn">作品を保存</button>
+  <button class="btn" id="openBtn">作品を開く</button>
+  <button class="btn y" id="gifBtn">GIF で書き出す</button>
+  <button class="btn y" id="apngBtn">APNG で書き出す</button>
+</div>
+<main>
+  <div id="rail">
+    <button class="btn on" data-tool="pen"><b>✎</b>ペン</button>
+    <button class="btn" data-tool="erase"><b>⌫</b>線を消す</button>
+    <button class="btn" id="shitaeBtn"><b>▣</b>下絵</button>
+  </div>
+  <div id="stage">
+    <div id="board"><img id="shitaeImg" alt="" hidden><canvas id="cv"></canvas></div>
+  </div>
+  <div id="side">
+    <h2>色</h2>
+    <div class="sw" id="colors"></div>
+    <div class="row"><span>太さ</span><input type="range" id="width" min="2" max="30" step="1" value="7"><span class="v" id="widthV">7</span></div>
+
+    <h2>ゆれ方</h2>
+    <div class="seg" id="mode">
+      <button class="btn on" data-v="boil">ぷるぷる</button>
+      <button class="btn" data-v="wave">ふわふわ</button>
+      <button class="btn" data-v="both">りょうほう</button>
+    </div>
+    <div class="row"><span>ゆれの量</span><input type="range" id="amp" min="0.5" max="6" step="0.1" value="2"><span class="v" id="ampV">2.0</span></div>
+    <div class="row"><span>速さ</span><input type="range" id="fps" min="4" max="16" step="1" value="8"><span class="v" id="fpsV">8</span></div>
+    <p class="note">ぷるぷるは 線が 少しずつ ちがう 4 まいを くり返します。ふわふわは 線が 波のように ゆれます。</p>
+
+    <h2>下地</h2>
+    <div class="seg" id="bg">
+      <button class="btn on" data-v="paper">紙</button>
+      <button class="btn" data-v="white">白</button>
+      <button class="btn" data-v="clear">透明</button>
+    </div>
+
+    <h2>大きさ</h2>
+    <div class="seg" id="size">
+      <button class="btn on" data-v="800x800">正方形</button>
+      <button class="btn" data-v="1280x720">横長</button>
+      <button class="btn" data-v="720x1280">縦長</button>
+    </div>
+    <div class="row"><span>書き出し</span>
+      <select id="scale" style="flex:1;min-height:40px;border:var(--bd);border-radius:10px;background:var(--paper);padding:0 8px">
+        <option value="1">原寸</option><option value="0.5" selected>半分</option><option value="0.3">小さめ</option>
+      </select>
+    </div>
+    <p class="note" id="info">指や ペンで 描くと、描いた 線が そのまま ゆれます。下絵は 書き出しに 入りません。</p>
+  </div>
+</main>
+<div id="msg" role="status"></div>
+<input type="file" id="shitae" accept="image/*" hidden>
+<input type="file" id="openFile" accept=".json,application/json" hidden>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const COLORS = ["#1E1C14","#FFFFFF","#E8455B","#FF8A4A","#F2C53D","#4BB86B","#3D8BFF","#9B6BE0","#F2A0B8","#8A5A3B"];
+
+/* 作品の中身。線は点の並び(下絵は別に IndexedDB) */
+const S = {name:"", W:800, H:800, strokes:[], color:"#1E1C14", width:7, mode:"boil", amp:2, fps:8, bg:"paper", scale:"0.5"};
+let tool = "pen", dirty = false, frameI = 0;
+const setDirty = v =>{ dirty = v; $("dirty").textContent = v ? "●" : ""; };
+const toast = t =>{ const m = $("msg"); m.textContent = t; m.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(()=> m.classList.remove("on"), 1800); };
+
+/* ---- ゆれ ---- */
+function hash(n){ const x = Math.sin(n*127.1)*43758.5453; return x - Math.floor(x); }
+function vnoise(t, seed){
+  const i = Math.floor(t), f = t - i, u = f*f*(3 - 2*f);
+  return (hash(i + seed*57.3)*(1 - u) + hash(i + 1 + seed*57.3)*u)*2 - 1;
+}
+const BOIL = 4;
+function loopFrames(){ return S.mode === "boil" ? BOIL : 16; }
+/* 1 本の線を、frame 番めの ゆれで 描く */
+function strokePath(g, st, si, frame, nFrames, k){
+  const p = st.p, n = p.length/2;
+  const A = S.amp * k;
+  const boil = S.mode !== "wave", wave = S.mode !== "boil";
+  const b = frame % BOIL, ph = frame / nFrames * Math.PI * 2;
+  const pts = new Float32Array(p.length);
+  let arc = 0;
+  for(let i=0;i<n;i++){
+    const x = p[2*i], y = p[2*i+1];
+    if(i) arc += Math.hypot(x - p[2*i-2], y - p[2*i-1]);
+    let dx = 0, dy = 0;
+    if(boil){ const s = si*13.7 + b*101.3; dx += vnoise(arc/26, s)*A; dy += vnoise(arc/26, s + 7.7)*A; }
+    if(wave){ const q = (x + y)*0.012 + si*0.9; dx += Math.sin(ph + q)*A*1.3; dy += Math.cos(ph*1 + q*1.3)*A*1.1; }
+    pts[2*i] = x + dx; pts[2*i+1] = y + dy;
+  }
+  g.beginPath();
+  if(n === 1){ g.arc(pts[0], pts[1], st.w/2, 0, Math.PI*2); g.fillStyle = st.c; g.fill(); return; }
+  g.moveTo(pts[0], pts[1]);
+  for(let i=1;i<n-1;i++){
+    const mx = (pts[2*i] + pts[2*i+2])/2, my = (pts[2*i+1] + pts[2*i+3])/2;
+    g.quadraticCurveTo(pts[2*i], pts[2*i+1], mx, my);
+  }
+  g.lineTo(pts[2*n-2], pts[2*n-1]);
+  const wj = boil ? 1 + vnoise(b*3.1, si)*0.12 : 1;
+  g.lineWidth = st.w * wj; g.strokeStyle = st.c; g.lineCap = "round"; g.lineJoin = "round";
+  g.stroke();
+}
+function render(g, frame, scale, bgFill){
+  const nF = loopFrames();
+  g.save();
+  g.setTransform(scale, 0, 0, scale, 0, 0);
+  g.clearRect(0, 0, S.W, S.H);
+  if(bgFill){ g.fillStyle = bgFill; g.fillRect(0, 0, S.W, S.H); }
+  S.strokes.forEach((st, i)=> strokePath(g, st, i, frame, nF, 1));
+  g.restore();
+}
+
+/* ---- 画面 ---- */
+let dpr = 1;
+function fit(){
+  const st = $("stage"), aw = st.clientWidth - 32, ah = st.clientHeight - 32;
+  const s = Math.min(aw / S.W, ah / S.H);
+  const w = Math.max(50, Math.floor(S.W*s)), h = Math.max(50, Math.floor(S.H*s));
+  $("board").style.width = w + "px"; $("board").style.height = h + "px";
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+}
+addEventListener("resize", fit);
+let lastT = 0, acc = 0, cur = null;
+function tick(now){
+  const dt = Math.min(0.1, (now - lastT)/1000); lastT = now;
+  acc += dt;
+  if(acc >= 1/S.fps){ acc = 0; frameI = (frameI + 1) % loopFrames(); }
+  const k = cv.width / S.W;
+  render(ctx, frameI, k, null);
+  if(cur){
+    ctx.save(); ctx.setTransform(k, 0, 0, k, 0, 0);
+    const p = cur.p; ctx.beginPath(); ctx.moveTo(p[0], p[1]);
+    for(let i=2;i<p.length;i+=2) ctx.lineTo(p[i], p[i+1]);
+    if(p.length === 2) ctx.lineTo(p[0] + 0.1, p[1]);
+    ctx.lineWidth = cur.w; ctx.strokeStyle = cur.c; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke();
+    ctx.restore();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ---- 描く・消す ---- */
+const touches = new Set();
+function toDoc(e){ const r = cv.getBoundingClientRect(); return [(e.clientX - r.left)/r.width*S.W, (e.clientY - r.top)/r.height*S.H]; }
+function eraseAt(x, y){
+  const r = Math.max(10, S.width);
+  const before = S.strokes.length;
+  S.strokes = S.strokes.filter(st=>{
+    const p = st.p;
+    for(let i=0;i<p.length;i+=2) if(Math.hypot(p[i]-x, p[i+1]-y) < r + st.w/2) return false;
+    return true;
+  });
+  if(S.strokes.length !== before) setDirty(true);
+}
+cv.addEventListener("pointerdown", e=>{
+  if(e.pointerType === "touch"){ touches.add(e.pointerId); if(touches.size > 1){ cur = null; return; } }
+  cv.setPointerCapture(e.pointerId);
+  const [x, y] = toDoc(e);
+  if(tool === "erase"){ cur = {erase:true}; eraseAt(x, y); return; }
+  cur = {c:S.color, w:S.width, p:[x, y]};
+});
+cv.addEventListener("pointermove", e=>{
+  if(!cur) return;
+  const co = e.getCoalescedEvents ? e.getCoalescedEvents() : [], evs = co.length ? co : [e];
+  for(const ev of evs){
+    const [x, y] = toDoc(ev);
+    if(cur.erase){ eraseAt(x, y); continue; }
+    const p = cur.p, lx = p[p.length-2], ly = p[p.length-1];
+    if(Math.hypot(x - lx, y - ly) >= 2.5) p.push(+x.toFixed(1), +y.toFixed(1));
+  }
+});
+function endStroke(e){
+  if(e.pointerType === "touch") touches.delete(e.pointerId);
+  if(!cur) return;
+  if(!cur.erase && touches.size === 0){ S.strokes.push(cur); setDirty(true); }
+  cur = null;
+}
+cv.addEventListener("pointerup", endStroke);
+cv.addEventListener("pointercancel", e=>{ if(e.pointerType === "touch") touches.delete(e.pointerId); cur = null; });
+
+/* ---- 右の欄 ---- */
+function segOn(box, v){ [...$(box).children].forEach(b=> b.classList.toggle("on", b.dataset.v === v)); }
+function syncUI(){
+  [...$("colors").querySelectorAll("button")].forEach(b=> b.classList.toggle("on", b.dataset.c === S.color));
+  $("width").value = S.width; $("widthV").textContent = S.width;
+  $("amp").value = S.amp; $("ampV").textContent = (+S.amp).toFixed(1);
+  $("fps").value = S.fps; $("fpsV").textContent = S.fps;
+  $("scale").value = S.scale;
+  segOn("mode", S.mode); segOn("bg", S.bg); segOn("size", S.W + "x" + S.H);
+  $("board").className = S.bg === "paper" ? "" : S.bg;
+  fit();
+}
+COLORS.forEach(c=>{
+  const b = document.createElement("button"); b.dataset.c = c; b.style.background = c; b.title = c; b.setAttribute("aria-label", "色 " + c);
+  b.onclick = ()=>{ S.color = c; syncUI(); };
+  $("colors").appendChild(b);
+});
+{
+  const l = document.createElement("label"); l.title = "ほかの色";
+  const i = document.createElement("input"); i.type = "color"; i.dataset.oboeru = "off";
+  i.oninput = ()=>{ S.color = i.value; syncUI(); };
+  l.append(i, "+"); $("colors").appendChild(l);
+}
+$("width").oninput = e=>{ S.width = +e.target.value; $("widthV").textContent = S.width; };
+$("amp").oninput = e=>{ S.amp = +e.target.value; $("ampV").textContent = S.amp.toFixed(1); setDirty(true); };
+$("fps").oninput = e=>{ S.fps = +e.target.value; $("fpsV").textContent = S.fps; setDirty(true); };
+$("scale").onchange = e=>{ S.scale = e.target.value; };
+$("mode").onclick = e=>{ const b = e.target.closest("[data-v]"); if(!b) return; S.mode = b.dataset.v; frameI = 0; setDirty(true); syncUI(); };
+$("bg").onclick = e=>{ const b = e.target.closest("[data-v]"); if(!b) return; S.bg = b.dataset.v; setDirty(true); syncUI(); };
+$("size").onclick = e=>{
+  const b = e.target.closest("[data-v]"); if(!b) return;
+  const [w, h] = b.dataset.v.split("x").map(Number);
+  // 絵は まんなかに 寄せたまま 大きさだけ かえる
+  const dx = (w - S.W)/2, dy = (h - S.H)/2;
+  S.strokes.forEach(st=>{ for(let i=0;i<st.p.length;i+=2){ st.p[i] += dx; st.p[i+1] += dy; } });
+  S.W = w; S.H = h; setDirty(true); syncUI();
+};
+document.querySelectorAll("#rail [data-tool]").forEach(b=> b.onclick = ()=>{
+  tool = b.dataset.tool;
+  document.querySelectorAll("#rail [data-tool]").forEach(x=> x.classList.toggle("on", x === b));
+});
+
+/* ---- 下絵(IndexedDB にしまう) ---- */
+function idb(){ return new Promise((res, rej)=>{ const r = indexedDB.open("yureru-rakugaki", 1);
+  r.onupgradeneeded = ()=> r.result.createObjectStore("kv"); r.onsuccess = ()=> res(r.result); r.onerror = ()=> rej(r.error); }); }
+async function kv(key, val){
+  const db = await idb();
+  return new Promise((res, rej)=>{
+    const tx = db.transaction("kv", val === undefined ? "readonly" : "readwrite"), st = tx.objectStore("kv");
+    const r = val === undefined ? st.get(key) : val === null ? st.delete(key) : st.put(val, key);
+    r.onsuccess = ()=> res(r.result); r.onerror = ()=> rej(r.error);
+  });
+}
+function showShitae(blob){
+  const img = $("shitaeImg");
+  if(!blob){ img.hidden = true; img.removeAttribute("src"); $("shitaeBtn").classList.remove("on"); return; }
+  img.src = URL.createObjectURL(blob); img.hidden = false; $("shitaeBtn").classList.add("on");
+}
+$("shitaeBtn").onclick = async ()=>{
+  if(!$("shitaeImg").hidden){ showShitae(null); try{ await kv("shitae", null); }catch(e){} toast("下絵を はずしました"); return; }
+  $("shitae").click();
+};
+$("shitae").onchange = async e=>{
+  const f = e.target.files[0]; e.target.value = "";
+  if(!f) return;
+  showShitae(f);
+  try{ await kv("shitae", f); }catch(err){}
+  toast("下絵を しきました(書き出しには 入りません)");
+};
+
+/* ---- 作品 ---- */
+const pack = ()=>({app:"yureru-rakugaki", v:1, ...S});
+function unpack(d){
+  if(!d || !Array.isArray(d.strokes)) throw new Error("この ファイルは 読めません");
+  Object.assign(S, {W:800, H:800, mode:"boil", amp:2, fps:8, bg:"paper", scale:"0.5"}, d);
+  delete S.app; delete S.v;
+  frameI = 0; syncUI();
+}
+$("newBtn").onclick = ()=>{
+  if(S.strokes.length && dirty && !confirm("いまの 絵を 消して 新しく はじめますか？")) return;
+  S.strokes = []; S.name = ""; setDirty(false);
+  if(window.Oboeru) Oboeru.cut();
+  toast("新しく はじめました");
+};
+$("saveBtn").onclick = ()=>{
+  let name = S.name;
+  if(!name){ name = prompt("作品の 名前", "らくがき"); if(!name) return; S.name = name; }
+  save(new Blob([JSON.stringify(pack())], {type:"application/json"}), name + ".json");
+  setDirty(false);
+};
+$("openBtn").onclick = ()=>{
+  if(S.strokes.length && dirty && !confirm("保存していない 線が あります。開きますか？")) return;
+  $("openFile").click();
+};
+$("openFile").onchange = async e=>{
+  const f = e.target.files[0]; e.target.value = "";
+  if(!f) return;
+  try{ unpack(JSON.parse(await f.text())); S.name = f.name.replace(/\.json$/i, ""); setDirty(false); if(window.Oboeru) setTimeout(()=> Oboeru.cut(), 50); toast("開きました"); }
+  catch(err){ toast(err.message || "読めませんでした"); }
+};
+addEventListener("keydown", e=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s"){ e.preventDefault(); if(e.shiftKey) S.name = ""; $("saveBtn").click(); }
+});
+addEventListener("beforeunload", e=>{ if(dirty && S.strokes.length){ e.preventDefault(); e.returnValue = ""; } });
+
+function save(blob, name){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ---- 書き出し: コマを作る ---- */
+function frames(){
+  const sc = +S.scale, w = Math.max(16, Math.round(S.W*sc)), h = Math.max(16, Math.round(S.H*sc));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d", {willReadFrequently:true});
+  const fill = S.bg === "paper" ? "#FFFEF7" : S.bg === "white" ? "#FFFFFF" : null;
+  const out = [];
+  for(let i=0;i<loopFrames();i++){ render(g, i, sc, fill); out.push(g.getImageData(0, 0, w, h)); }
+  return {out, w, h};
+}
+/* 中央値分割で 色を まとめる(RGBA) */
+function cut(px, n, ch){
+  let boxes = [px];
+  const span = b=>{ const mn = Array(ch).fill(255), mx = Array(ch).fill(0);
+    for(const p of b) for(let i=0;i<ch;i++){ if(p[i]<mn[i]) mn[i]=p[i]; if(p[i]>mx[i]) mx[i]=p[i]; }
+    return mx.map((v, i)=> v - mn[i]); };
+  while(boxes.length < n){
+    let bi = -1, best = 0, c = 0;
+    boxes.forEach((b, i)=>{ if(b.length < 2) return; const s = span(b), m = Math.max(...s); if(m > best){ best = m; bi = i; c = s.indexOf(m); } });
+    if(bi < 0) break;
+    const b = boxes.splice(bi, 1)[0]; b.sort((x, y)=> x[c] - y[c]);
+    const m = b.length >> 1; boxes.push(b.slice(0, m), b.slice(m));
+  }
+  return boxes.map(b=>{ const s = Array(ch).fill(0); for(const p of b) for(let i=0;i<ch;i++) s[i] += p[i]; return s.map(v=> Math.round(v/b.length)); });
+}
+function quantize(fr, n, alpha){
+  const smp = []; let k = 0;
+  const every = Math.max(1, Math.floor(fr.length*fr[0].data.length/4/60000));
+  for(const f of fr){ const d = f.data;
+    for(let i=0;i<d.length;i+=4){ if(alpha && d[i+3] < 8) continue; if(!alpha && d[i+3] < 128) continue;
+      if((k++ % every) === 0) smp.push(alpha ? [d[i],d[i+1],d[i+2],d[i+3]] : [d[i],d[i+1],d[i+2]]); } }
+  const ch = alpha ? 4 : 3;
+  const pal = smp.length ? cut(smp, n, ch) : [[0,0,0,255]];
+  const cache = new Map();
+  const near = (r, g, b, a)=>{
+    const key = ((r>>2)<<18)|((g>>2)<<12)|((b>>2)<<6)|(alpha ? a>>2 : 0);
+    let v = cache.get(key); if(v !== undefined) return v;
+    let bd = 1e12; v = 0;
+    for(let i=0;i<pal.length;i++){ const p = pal[i];
+      const dd = (r-p[0])**2 + (g-p[1])**2 + (b-p[2])**2 + (alpha ? (a-p[3])**2*1.5 : 0);
+      if(dd < bd){ bd = dd; v = i; } }
+    cache.set(key, v); return v;
+  };
+  return {pal, near};
+}
+
+/* GIF: 背景が透明なら 1 色を すき間に つかう */
+function lzw(idx, min){
+  const out = []; let cur = 0, bits = 0; const chunk = [];
+  const flush = ()=>{ if(!chunk.length) return; out.push(chunk.length, ...chunk); chunk.length = 0; };
+  const put = (code, len)=>{ cur |= code << bits; bits += len; while(bits >= 8){ chunk.push(cur & 255); cur >>= 8; bits -= 8; if(chunk.length === 255) flush(); } };
+  const clr = 1 << min, eoi = clr + 1;
+  let dict, next, size;
+  const reset = ()=>{ dict = new Map(); next = eoi + 1; size = min + 1; };
+  reset(); put(clr, size);
+  let pre = idx[0];
+  for(let i=1;i<idx.length;i++){
+    const k = idx[i], key = pre*4096 + k;
+    if(dict.has(key)){ pre = dict.get(key); continue; }
+    put(pre, size); dict.set(key, next++);
+    if(next - 1 === (1 << size) && size < 12) size++;
+    if(next > 4095){ put(clr, size); reset(); }
+    pre = k;
+  }
+  put(pre, size); put(eoi, size);
+  if(bits > 0) chunk.push(cur & 255);
+  flush(); out.push(0);
+  return out;
+}
+function makeGif(){
+  const {out, w, h} = frames(), clear = S.bg === "clear";
+  const {pal, near} = quantize(out, clear ? 255 : 256, false);
+  const tr = clear ? pal.length : -1;
+  if(clear) pal.push([0,0,0]);
+  let bits = 1; while((1 << bits) < pal.length) bits++;
+  const B = [], u8 = v=> B.push(v & 255), u16 = v=> B.push(v & 255, (v >> 8) & 255), str = s=>{ for(const c of s) B.push(c.charCodeAt(0)); };
+  str("GIF89a"); u16(w); u16(h); u8(0x80 | ((bits-1) << 4) | (bits-1)); u8(0); u8(0);
+  for(let i=0;i<(1 << bits);i++){ const c = pal[i] || [0,0,0]; u8(c[0]); u8(c[1]); u8(c[2]); }
+  u8(0x21); u8(0xFF); u8(0x0B); str("NETSCAPE2.0"); u8(3); u8(1); u16(0); u8(0);
+  const delay = Math.max(2, Math.round(100 / S.fps));
+  for(const f of out){
+    const d = f.data, idx = new Uint8Array(w*h);
+    for(let i=0, j=0; j<idx.length; i+=4, j++) idx[j] = (clear && d[i+3] < 128) ? tr : near(d[i], d[i+1], d[i+2], 255);
+    u8(0x21); u8(0xF9); u8(4); u8(((clear ? 2 : 1) << 2) | (clear ? 1 : 0)); u16(delay); u8(clear ? tr : 0); u8(0);
+    u8(0x2C); u16(0); u16(0); u16(w); u16(h); u8(0);
+    const min = Math.max(2, bits); u8(min);
+    for(const b of lzw(idx, min)) B.push(b);
+  }
+  u8(0x3B);
+  return new Blob([new Uint8Array(B)], {type:"image/gif"});
+}
+
+/* APNG: ふちの 半透明も そのまま 残る */
+const CRC = (()=>{ const t = new Uint32Array(256); for(let n=0;n<256;n++){ let c = n; for(let k=0;k<8;k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc = b=>{ let c = 0xFFFFFFFF; for(const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+const be32 = v=> [(v>>>24)&255, (v>>>16)&255, (v>>>8)&255, v&255], be16 = v=> [(v>>>8)&255, v&255];
+function chunk(type, data){
+  const td = new Uint8Array(4 + data.length); for(let i=0;i<4;i++) td[i] = type.charCodeAt(i); td.set(data, 4);
+  const o = new Uint8Array(12 + data.length); o.set(be32(data.length), 0); o.set(td, 4); o.set(be32(crc(td)), 8 + data.length); return o;
+}
+async function zlib(raw){ return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer()); }
+async function makeApng(){
+  const {out, w, h} = frames();
+  const {pal, near} = quantize(out, 256, true);
+  const parts = [new Uint8Array([137,80,78,71,13,10,26,10]),
+    chunk("IHDR", new Uint8Array([...be32(w), ...be32(h), 8, 3, 0, 0, 0])),
+    chunk("acTL", new Uint8Array([...be32(out.length), ...be32(0)])),
+    chunk("PLTE", new Uint8Array(pal.flatMap(p=> [p[0], p[1], p[2]]))),
+    chunk("tRNS", new Uint8Array(pal.map(p=> p[3])))];
+  let seq = 0;
+  const delay = Math.round(1000 / S.fps);
+  for(let f=0; f<out.length; f++){
+    parts.push(chunk("fcTL", new Uint8Array([...be32(seq++), ...be32(w), ...be32(h), ...be32(0), ...be32(0), ...be16(delay), ...be16(1000), 0, 0])));
+    const d = out[f].data, raw = new Uint8Array((w + 1)*h);
+    for(let y=0;y<h;y++){ raw[y*(w+1)] = 0; for(let x=0;x<w;x++){ const i = (y*w + x)*4; raw[y*(w+1) + 1 + x] = near(d[i], d[i+1], d[i+2], d[i+3]); } }
+    const z = await zlib(raw);
+    if(f === 0) parts.push(chunk("IDAT", z));
+    else { const dd = new Uint8Array(4 + z.length); dd.set(be32(seq++), 0); dd.set(z, 4); parts.push(chunk("fdAT", dd)); }
+  }
+  parts.push(chunk("IEND", new Uint8Array(0)));
+  return new Blob(parts, {type:"image/png"});
+}
+async function exportAs(kind){
+  if(!S.strokes.length){ toast("まず 何か 描いてください"); return; }
+  const btn = $(kind + "Btn"); btn.disabled = true; toast("書き出しています…");
+  await new Promise(r=> setTimeout(r, 30));
+  try{
+    const blob = kind === "gif" ? makeGif() : await makeApng();
+    const name = (S.name || "rakugaki") + (kind === "gif" ? ".gif" : ".png");
+    save(blob, name);
+    $("info").textContent = `${name} を 保存しました(${loopFrames()} コマ・${Math.ceil(blob.size/1024)}KB)。`;
+    toast("保存しました");
+  }catch(err){ toast("書き出せませんでした: " + (err.message || err)); }
+  finally{ btn.disabled = false; }
+}
+$("gifBtn").onclick = ()=> exportAs("gif");
+$("apngBtn").onclick = ()=> exportAs("apng");
+
+/* ---- はじまり ---- */
+syncUI();
+requestAnimationFrame(t=>{ lastT = t; tick(t); });
+kv("shitae").then(b=>{ if(b) showShitae(b); }).catch(()=>{});
+window.addEventListener("load", ()=>{
+  if(!window.Oboeru) return;
+  // ↶↷ は はじめ 左の はしらの 下に 置く(キャンバスに かぶらない)。つまんで 動かせば そこを 覚える
+  try{
+    const K = "oboeru-pos:yureru-rakugaki";
+    if(!localStorage.getItem(K) && innerWidth > 860){
+      const r = $("rail").getBoundingClientRect();
+      localStorage.setItem(K, JSON.stringify({x:(r.left + 4)/innerWidth, y:(innerHeight - 56)/innerHeight}));
+    }
+  }catch(e){}
+  Oboeru.start({key:"yureru-rakugaki",
+    get: ()=>({...S}),
+    set: d=>{ Object.assign(S, d); frameI = 0; syncUI(); setDirty(true); }});
+  setDirty(false);
+});
+</script>
+<script src="../skin/oboeru.js"></script>
+<script type="module" src="../skin/rslider-auto.js"></script>
+<script src="../../tana.js" data-dock data-tool="ゆれる落書き" data-in="#shitae:下絵"></script>
+</body>
+</html>

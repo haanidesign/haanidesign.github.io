@@ -182,6 +182,14 @@
   }
   #psdBox:hover, #psdBox.dragging{border-color:var(--main); color:var(--ink); background:#F2F0BE}
   #psdInfo{margin-top:5px; font-size:11px; color:var(--ink); word-break:break-all}
+  .iropal{display:flex; gap:6px; flex-wrap:wrap; margin:8px 0}
+  .iropal i{width:34px; height:34px; border-radius:50%; border:var(--bd); display:block}
+  .iropart{display:flex; align-items:center; gap:8px; margin:5px 0}
+  .iropart b{width:88px; font-size:12px}
+  .iropart button{width:40px; height:40px; border-radius:50%; border:var(--bd); cursor:pointer; padding:0;
+    background:repeating-linear-gradient(45deg,#FFFEF7 0 5px,#E8E5D0 5px 10px)}
+  .iropart span{color:var(--dim); font-size:11px; font-weight:500}
+  input[type=text]{background:#fff; border:var(--bd); border-radius:8px; padding:4px 8px; font:inherit; color:var(--ink)}
   .hint{color:var(--dim); font-size:11px; font-weight:500; line-height:1.7; margin-top:7px}
 
   .bar .btn.go{color:var(--main)}
@@ -269,6 +277,80 @@
     <button class="btn go" id="recBtn">書き出す</button>
   </div>
   <div class="hint">書き出し中はマウス追従・マイク・ランダム動作が自動でオフになり、揺れが落ち着いてから録画されるので、先頭と末尾が繋がります。<span id="fmtHint"></span></div>
+
+  <h3>音に合わせる</h3>
+  <div class="btns">
+    <button class="btn" id="otoLoad">曲をえらぶ</button>
+    <button class="btn" id="otoPlay" disabled>▶ 流す</button>
+  </div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">ノリ方</label>
+    <select id="otoStyle" style="flex:1">
+      <option value="mix">おまかせ</option>
+      <option value="nod">うなずく</option>
+      <option value="hop">はねる</option>
+      <option value="sway">ゆらゆら</option>
+    </select>
+  </div>
+  <div class="row"><label>強さ</label><input type="range" id="otoAmp" min="0.2" max="2" step="0.05" value="1"><span class="val" id="otoAmpV">1.0</span></div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">長さ</label>
+    <select id="otoLen"><option value="15">15秒</option><option value="30" selected>30秒</option><option value="60">60秒</option><option value="0">曲ぜんぶ</option></select>
+    <label style="width:auto">うしろ</label>
+    <select id="otoBg"><option value="#FFFFFF">白</option><option value="#00b140">GB</option><option value="cur">いまの背景</option></select>
+  </div>
+  <div class="btns"><button class="btn go" id="otoRec" disabled>音つきで書き出す</button></div>
+  <div class="hint" id="otoInfo">曲を入れると、拍を見つけて体でリズムをとります。</div>
+  <input type="file" id="otoFile" accept="audio/*,video/*" hidden>
+
+  <h3>LINE スタンプ</h3>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">動き</label>
+    <select id="stAct" style="flex:1"></select>
+  </div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">ことば</label>
+    <input type="text" id="stText" maxlength="16" placeholder="ありがとう" style="flex:1;min-width:0">
+  </div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">ことばの場所</label>
+    <select id="stPos"><option value="bottom">下</option><option value="top">上</option></select>
+    <label style="width:auto">色</label>
+    <select id="stCol">
+      <option value="#FFFFFF|#1E1C14">白</option>
+      <option value="#1E1C14|#FFFFFF">黒</option>
+      <option value="#FF6F91|#FFFFFF">ピンク</option>
+      <option value="#3D8BFF|#FFFFFF">青</option>
+      <option value="#E1DD60|#1E1C14">黄</option>
+    </select>
+  </div>
+  <div class="row" style="gap:6px">
+    <label style="width:auto">長さ</label>
+    <select id="stDur"><option value="0">おまかせ</option><option value="1">1秒</option><option value="2">2秒</option><option value="3">3秒</option><option value="4">4秒</option></select>
+    <label class="rootchk" style="width:auto"><input type="checkbox" id="stEdge" checked>白いふち</label>
+  </div>
+  <div class="btns">
+    <button class="btn" id="stPrev">ためす</button>
+    <button class="btn go" id="stGo">スタンプを書き出す</button>
+    <button class="btn" id="stMain">メイン画像</button>
+    <button class="btn" id="stTab">タブ画像</button>
+  </div>
+  <div class="hint" id="stInfo">LINE の決まり(320×270 以内・5〜20コマ・4秒まで・透過の APNG)で書き出します。枠で切り取っていれば、その中だけを使います。</div>
+
+  <h3>色ちがい</h3>
+  <div class="btns">
+    <button class="btn" id="iroPhoto">写真から色をもらう</button>
+    <button class="btn" id="iroBook">配色帳から</button>
+  </div>
+  <div id="iroPal" class="iropal"></div>
+  <div id="iroParts"></div>
+  <div class="btns" style="margin-top:6px">
+    <button class="btn" id="iroShuffle">入れかえる</button>
+    <button class="btn" id="iroReset">もとの色</button>
+  </div>
+  <div id="iroBookBox"></div>
+  <div class="hint" id="iroInfo">色の丸をおすと、その部分の色が順にかわります。線・白・肌の色はそのままです。</div>
+  <input type="file" id="iroFile" accept="image/*" hidden>
 
   <h3>出力の枠</h3>
   <div class="row" style="gap:6px">
@@ -919,6 +1001,7 @@ function finishLoad(){
   $("note").textContent = hasChest
     ? "胸レイヤー検出: 物理演算が有効です"
     : "胸レイヤー未検出 — レイヤー名に chest / 胸 を含めるか、下のリストで役割を「胸」にすると揺れ物理が有効になります";
+  if(window.iroAfterLoad) window.iroAfterLoad();
 }
 
 /* PSDが持つレイヤー矩形は、絵の実寸とは限らない。Live2D用テンプレートなどでは
@@ -1316,7 +1399,9 @@ const breathSt = {ph:0, per:3.8};
 function smooth(cur, tgt, dt, speed){ return cur + (tgt - cur) * Math.min(1, dt*speed); }
 
 // ループモード用: 角速度を「尺の整数分の1周」に丸め、先頭と末尾を必ず一致させる
-const durVal = ()=> Math.max(1, +$("dur").value || 3);
+/* 外から足す動き(LINE スタンプ・音に合わせる)。poseHook(t, dt, loop) が足し分を返す */
+let durOverride = 0, poseHook = null;
+const durVal = ()=> durOverride || Math.max(1, +$("dur").value || 3);
 function W(w, loop){
   if(!loop) return w;
   const D = durVal();
@@ -1411,7 +1496,9 @@ function step(t, dt, loop){
 
   // まばたき: ループ時は等間隔、通常時はランダム間隔
   if(T.autoBlink){
-    if(loop){
+    if(loop && poseHook && poseHook.blinkAt){
+      blink = poseHook.blinkAt(t);
+    } else if(loop){
       const D = durVal();
       const per = D / Math.max(1, Math.round(D / Math.max(0.5, +$("bi").value || 2.5)));
       const tp = t % per;
@@ -1457,6 +1544,18 @@ function step(t, dt, loop){
       headY += aw * 11/25; headZ += aw * 5/15;
       mouthOpen *= 1 - aw; smile *= 1 - aw;
       gazeX *= 1 - aw; gazeY *= 1 - aw;
+    }
+  }
+  if(poseHook){
+    const o = poseHook(t, dt, loop);
+    if(o){
+      headX += o.hx||0; headY += o.hy||0; headZ += o.hz||0; bodyTilt += o.tilt||0;
+      gazeX = Math.max(-1, Math.min(1, gazeX + (o.gx||0)));
+      gazeY = Math.max(-1, Math.min(1, gazeY + (o.gy||0)));
+      browY += o.brow||0; bob += o.bob||0;
+      if(o.eye !== undefined){ eyeLv *= o.eye; eyeRv *= o.eye; }
+      if(o.mouth) mouthOpen = Math.max(mouthOpen, o.mouth);
+      if(o.smile) smile = Math.max(-1, Math.min(1, smile + o.smile));
     }
   }
   // まばたきのとき眉が少し下がる
@@ -2686,6 +2785,10 @@ let rafAlive = false;
 (function loop(now){ rafAlive = true; realtimeFrame(now); requestAnimationFrame(loop); })(performance.now());
 setInterval(()=>{ if(!rafAlive) realtimeFrame(performance.now()); rafAlive = false; }, 33);
 </script>
+<script src="lib/mp4-muxer.js"></script>
+<script src="iro.js"></script>
+<script src="stamp.js"></script>
+<script src="oto.js"></script>
 <script type="module" src="../skin/rslider-auto.js"></script>
 <script src="../../tana.js" data-dock data-tool="PSD アバタースタジオ" data-in="#fileInput"></script>
 </body>
