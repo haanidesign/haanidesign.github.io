@@ -20,12 +20,13 @@
 <meta name="robots" content="noindex">
 <style>
 .hero{padding-bottom:0;align-items:stretch}
-.hero-in{align-items:end}
+.hero-in{align-items:end;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
 .hero-text{align-self:center;padding-bottom:3rem}
 .hero-visual{align-self:end;margin-bottom:1.2rem}
 .hero-chara{max-height:min(80svh,680px)}
-.ring{left:auto;right:-8%;top:-4%;bottom:auto}
-@media (max-width:860px){.hero-visual{margin-bottom:0}.hero-chara{max-height:40svh}.ring{left:-2%;top:auto;bottom:4%}}
+.hero-chara.wide{width:min(50vw,820px);max-width:none;max-height:none;margin-right:-2vw}
+.ring-wide{left:auto!important;right:-2%!important;top:4%!important;bottom:auto!important}
+@media (max-width:860px){.hero-in{grid-template-columns:1fr}.hero-visual{margin-bottom:0}.hero-chara{max-height:40svh}.hero-chara.wide{width:100%;max-height:none;margin-right:0}.ring-wide{left:-2%!important;top:auto!important;bottom:4%!important}}
 </style>
 </head>
 <body>
@@ -67,7 +68,15 @@
             <text textLength="477" lengthAdjust="spacing"><textPath href="#c" textLength="477" lengthAdjust="spacing">MANGA ・ ILLUSTRATION ・ ANIMATION ・ </textPath></text></svg>
           <b>★</b>
         </div>
-        <img src="../hero_chara2.png" alt="" class="hero-chara">
+        <img src="../hero_chara.png" alt="" class="hero-chara" id="heroChara">
+        <script>
+          (function(){ /* 開くたびに トップ画を 選ぶ */
+            var list=[['../hero_chara.png',''],['../hero_chara2.png','wide']];
+            var c=list[Math.floor(Math.random()*list.length)], im=document.getElementById('heroChara');
+            im.src=c[0]; if(c[1]) im.classList.add(c[1]);
+            var r=document.querySelector('.ring'); if(r && c[1]) r.classList.add('ring-'+c[1]);
+          })();
+        </script>
       </div>
     </div>
     <a href="#works" class="scroll" aria-label="下へ"><span>SCROLL</span></a>
