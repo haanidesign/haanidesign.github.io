@@ -36,7 +36,15 @@ let dirty = false;
 const toast = t => { const m = $("msg"); m.textContent = t; m.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(()=> m.classList.remove("on"), 2000); };
 const cur = () => P.stamps[P.sel];
 const selLayer = () => cur().layers[P.selL];
-const isEmpty = st => !st.layers.length && !st.strokes.length && !(st.fills || []).length;
+/* コマ撮り: st.koma は コマの ならび。いま 描いて いる コマ(st.fi)の 中身は st.layers / strokes / fills に あり、
+   st.koma[st.fi] は 空(null)。ほかの コマは st.koma[k] = {layers, strokes, fills} */
+const MAX_KOMA = 20;
+let onion = true;   // 前の コマを うすく 見せる
+const komaN = st => (st.koma && st.koma.length) || 1;
+const frameData = (st, k) => (!st.koma || k === (st.fi || 0) || !st.koma[k]) ? {layers:st.layers, strokes:st.strokes, fills:st.fills || []} : st.koma[k];
+const frameEmpty = d => !d.layers.length && !d.strokes.length && !(d.fills || []).length;
+const isEmpty = st => { for(let k=0;k<komaN(st);k++) if(!frameEmpty(frameData(st, k))) return false; return true; };
+const clone = o => JSON.parse(JSON.stringify(o));
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 const sstep = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u*u*(3 - 2*u); };
 function setDirty(v){ dirty = v; $("workName").textContent = (P.name || "名前なし") + (v ? " ●" : ""); }
@@ -118,7 +126,11 @@ function drawLayer(g, L){
   g.restore();
 }
 /* 1 枚 描く。fx は 動き(target に よって 絵だけ・文字だけ にも かかる) */
-function renderContent(g, st, t){
+/* k を 渡すと その コマ。渡さなければ、動く スタンプでは t の ところの コマ、止まる スタンプでは 1 コマめ */
+function renderContent(g, st, t, k){
+  const n = komaN(st);
+  if(k === undefined) k = P.mode === "anim" && n > 1 ? Math.floor((((t % 1) + 1) % 1) * n) % n : 0;
+  const fd = frameData(st, Math.min(k, n - 1));
   const f = st.fx !== "none" && P.mode === "anim" ? fxAt(st.fx, t) : null;
   BOIL = st.boil && P.mode === "anim" ? {b: Math.floor(t * st.dur * 8) % 4, A: (st.boilA || 2.5) * 2} : null;
   const apply = (fn, on)=>{
@@ -132,18 +144,18 @@ function renderContent(g, st, t){
   };
   const onImg = st.fxT !== "text", onText = st.fxT !== "img";
   apply(()=>{
-    st.layers.forEach((L, i)=>{ if(L.t === "img"){ g.save(); boilShake(g, i); drawLayer(g, L); g.restore(); } });
-    (st.fills || []).forEach((f, i)=>{ const A = ASSETS.get(f.a); if(!A) return;
+    fd.layers.forEach((L, i)=>{ if(L.t === "img"){ g.save(); boilShake(g, i); drawLayer(g, L); g.restore(); } });
+    (fd.fills || []).forEach((f, i)=>{ const A = ASSETS.get(f.a); if(!A) return;
       g.save(); boilShake(g, 50 + i); g.drawImage(A.img, f.x - A.img.width/2, f.y - A.img.height/2); g.restore(); });   // 塗りは 線の 下
-    st.strokes.forEach((s, i)=> drawStroke(g, s, i));
+    fd.strokes.forEach((s, i)=> drawStroke(g, s, i));
   }, onImg);
-  apply(()=>{ st.layers.forEach((L, i)=>{ if(L.t === "text"){ g.save(); boilShake(g, 100 + i); drawLayer(g, L); g.restore(); } }); }, onText);
+  apply(()=>{ fd.layers.forEach((L, i)=>{ if(L.t === "text"){ g.save(); boilShake(g, 100 + i); drawLayer(g, L); g.restore(); } }); }, onText);
   BOIL = null;
 }
 /* 白い ふちまで つけた 1 枚(740×640) */
-function renderFull(st, t){
+function renderFull(st, t, k){
   const c = document.createElement("canvas"); c.width = DW; c.height = DH;
-  const g = c.getContext("2d"); renderContent(g, st, t);
+  const g = c.getContext("2d"); renderContent(g, st, t, k);
   return P.edge > 0 ? LS.outline(c, P.edge * 2) : c;
 }
 
@@ -151,7 +163,7 @@ function renderFull(st, t){
 const cv = $("cv"), ctx = cv.getContext("2d");
 cv.width = DW; cv.height = DH;
 function fit(){
-  const st = $("stage"), aw = st.clientWidth - 200, ah = st.clientHeight - 40;
+  const st = $("stage"), aw = st.clientWidth - 200, ah = st.clientHeight - (P.mode === "anim" ? 190 : 110);
   const s = Math.max(.2, Math.min(aw / DW, ah / DH));
   cv.style.width = Math.round(DW * s) + "px"; cv.style.height = Math.round(DH * s) + "px";
 }
@@ -165,7 +177,10 @@ function paint(){
   ctx.clearRect(0,0,DW,DH);
   pat = pat || ctx.createPattern(checker, "repeat");
   ctx.fillStyle = pat; ctx.fillRect(0,0,DW,DH);
-  ctx.drawImage(renderFull(st, t), 0, 0);
+  if(!playing && komaN(st) > 1 && (st.fi || 0) > 0 && onion){
+    ctx.save(); ctx.globalAlpha = .28; ctx.drawImage(renderFull(st, 0, st.fi - 1), 0, 0); ctx.restore();
+  }
+  ctx.drawImage(renderFull(st, t, playing ? undefined : (st.fi || 0)), 0, 0);
   // えらんで いる もの の わく
   const L = selLayer();
   if(L && !playing && tool === "move"){
@@ -219,7 +234,7 @@ function drawThumbs(only){
   });
 }
 let thumbT = 0;
-const thumbSoon = () => { clearTimeout(thumbT); thumbT = setTimeout(()=> drawThumbs(P.sel), 250); };
+const thumbSoon = () => { clearTimeout(thumbT); thumbT = setTimeout(()=>{ drawThumbs(P.sel); if(typeof drawKoma === "function") drawKoma(); }, 250); };
 
 /* 右の 欄 */
 function syncSide(){
@@ -281,7 +296,7 @@ function syncTop(){
   setDirty(dirty);
 }
 function fixStamps(){ while(P.stamps.length < 40) P.stamps.push(newStamp()); P.stamps.forEach(st=>{ if(!st.fills) st.fills = []; }); if(!P.view) P.view = {z:1, r:0, x:0, y:0}; }
-function syncAll(){ fixStamps(); syncTop(); drawThumbs(); syncSide(); syncTools(); applyView(); redraw(); }
+function syncAll(){ fixStamps(); syncTop(); drawThumbs(); syncSide(); syncTools(); applyView(); fit(); drawKoma(); redraw(); }
 function changed(){ setDirty(true); redraw(); thumbSoon(); autosaveSoon(); }
 
 /* ---------------- 画像を 入れる ---------------- */
@@ -390,7 +405,7 @@ async function fillAt(x, y){
   const st = cur();
   const c = document.createElement("canvas"); c.width = DW; c.height = DH;
   const g = c.getContext("2d", {willReadFrequently:true});
-  const keep = P.mode; P.mode = "static"; renderContent(g, st, 0); P.mode = keep;   // 動きは かけずに
+  const keep = P.mode; P.mode = "static"; renderContent(g, st, 0, st.fi || 0); P.mode = keep;   // 動きは かけずに
   const im = g.getImageData(0, 0, DW, DH).data;
   const sx = Math.round(x), sy = Math.round(y);
   if(sx < 0 || sy < 0 || sx >= DW || sy >= DH) return;
@@ -645,11 +660,19 @@ async function buildStamp(st){
     if(blob.size > 1024*1024) errs.push("1MB を こえて います");
     return {blob, w:c.width, h:c.height, errs, frames:[full], box:b};
   }
-  const D = st.dur, N = Math.max(5, Math.min(20, Math.round(D * 10))), loops = Math.max(1, Math.min(4, Math.floor(4 / D)));
+  const D = st.dur, n = komaN(st), loops = Math.max(1, Math.min(4, Math.floor(4 / D)));
+  let N = Math.max(5, Math.min(20, Math.round(D * 10)));
+  if(n > 1){
+    // コマ撮りは 1 コマずつ 同じ 長さに なるよう、コマ数の 倍数に する
+    const moving = st.fx !== "none" || st.boil;
+    let m = moving ? Math.max(1, Math.floor(Math.min(20, Math.round(D * 10)) / n)) : 1;
+    while(n * m < 5) m++;
+    N = Math.min(20, n * m);
+  }
   const frames = Array.from({length:N}, (_, i)=> renderFull(st, i / N));
   const b = LS.bbox(frames);
   if(!b) return {errs:["絵が 見えません(キャンバスの 外かも)"]};
-  if(st.fx === "none" && !st.boil) errs.push("動きが ついて いません(ぜんぶ 同じ 絵だと 申請で はじかれます)");
+  if(st.fx === "none" && !st.boil && komaN(st) < 2) errs.push("動きが ついて いません(ぜんぶ 同じ 絵だと 申請で はじかれます)");
   const pad = 2;
   const s = Math.min(320 / (b.w + pad*2), 270 / (b.h + pad*2));
   const w = Math.min(320, Math.round((b.w + pad*2) * s)), h = Math.min(270, Math.round((b.h + pad*2) * s));
@@ -752,7 +775,8 @@ async function db(store, mode, fn){
 }
 function usedAssets(){
   const ids = new Set();
-  P.stamps.forEach(st=>{ st.layers.forEach(L=>{ if(L.t === "img") ids.add(L.a); }); (st.fills || []).forEach(f=> ids.add(f.a)); });
+  P.stamps.forEach(st=>{ for(let k=0;k<komaN(st);k++){ const d = frameData(st, k);
+    d.layers.forEach(L=>{ if(L.t === "img") ids.add(L.a); }); (d.fills || []).forEach(f=> ids.add(f.a)); } });
   const out = {}; ids.forEach(id=>{ const A = ASSETS.get(id); if(A) out[id] = A.url; });
   return out;
 }
@@ -836,3 +860,67 @@ addEventListener("beforeunload", e=>{ if(dirty){ e.preventDefault(); e.returnVal
   };
   if(document.readyState === "complete") setTimeout(go, 0); else addEventListener("load", ()=> setTimeout(go, 0));
 })();
+
+
+/* ---------------- コマ撮り ---------------- */
+function goFrame(k){
+  const st = cur(), n = komaN(st);
+  if(!st.koma || k === st.fi || k < 0 || k >= n) return;
+  st.koma[st.fi] = {layers:st.layers, strokes:st.strokes, fills:st.fills || []};
+  const d = st.koma[k];
+  st.layers = d.layers; st.strokes = d.strokes; st.fills = d.fills || [];
+  st.koma[k] = null; st.fi = k; P.selL = -1;
+}
+function addFrame(copy){
+  const st = cur();
+  if(!st.koma){ st.koma = [null]; st.fi = 0; }
+  if(st.koma.length >= MAX_KOMA){ toast("コマは " + MAX_KOMA + " まいまで です(LINE の 決まり)"); return; }
+  const d = copy ? clone({layers:st.layers, strokes:st.strokes, fills:st.fills || []}) : {layers:[], strokes:[], fills:[]};
+  st.koma.splice(st.fi + 1, 0, d);
+  goFrame(st.fi + 1);
+  komaChanged();
+}
+function delFrame(){
+  const st = cur(), n = komaN(st);
+  if(n <= 1) return;
+  if(!frameEmpty(frameData(st, st.fi)) && !confirm("この コマを 消しますか？")) return;
+  const gone = st.fi, to = gone > 0 ? gone - 1 : 1;
+  goFrame(to);                       // となりへ 移ってから、もとの コマを ぬく
+  st.koma.splice(gone, 1);
+  if(to > gone) st.fi = to - 1;
+  if(st.koma.length <= 1){ delete st.koma; st.fi = 0; }
+  komaChanged();
+}
+function moveFrame(dir){
+  const st = cur(), n = komaN(st), to = (st.fi || 0) + dir;
+  if(n <= 1 || to < 0 || to >= n) return;
+  [st.koma[st.fi], st.koma[to]] = [st.koma[to], st.koma[st.fi]];
+  st.fi = to;
+  komaChanged();
+}
+function komaChanged(){ syncSide(); drawKoma(); changed(); window.Oboeru && Oboeru.check(); }
+function drawKoma(){
+  const bar = $("koma");
+  const st = cur(), n = komaN(st);
+  bar.style.display = P.mode === "anim" ? "" : "none";
+  if(P.mode !== "anim") return;
+  const box = $("komaList"); box.innerHTML = "";
+  for(let k=0;k<n;k++){
+    const b = document.createElement("button");
+    b.className = "kb" + (k === (st.fi || 0) ? " on" : "");
+    b.innerHTML = '<canvas width="74" height="64"></canvas><i>' + (k + 1) + '</i>';
+    const g = b.firstChild.getContext("2d");
+    if(!frameEmpty(frameData(st, k))) g.drawImage(renderFull(st, 0, k), 0, 0, 74, 64);
+    b.onclick = ()=>{ playing = false; goFrame(k); komaChanged(); };
+    box.appendChild(b);
+  }
+  $("komaN").textContent = n + " / " + MAX_KOMA;
+  $("kDel").disabled = n <= 1; $("kL").disabled = !(st.fi > 0); $("kR").disabled = !(n > 1 && st.fi < n - 1);
+  $("kOnion").classList.toggle("on", onion);
+}
+$("kCopy").onclick = ()=> addFrame(true);
+$("kBlank").onclick = ()=> addFrame(false);
+$("kDel").onclick = delFrame;
+$("kL").onclick = ()=> moveFrame(-1);
+$("kR").onclick = ()=> moveFrame(1);
+$("kOnion").onclick = ()=>{ onion = !onion; drawKoma(); redraw(); };
