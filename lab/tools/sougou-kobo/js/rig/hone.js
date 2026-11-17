@@ -14,11 +14,11 @@
      'H:<骨のid>:sx/sy' … 大きさ（1 が そのまま）
    キーの ならびは ほかの キーと 同じ なので、ずらす・けす・イージングも そのまま きく。 */
 import { M, CH, computePose, applyIKs, invCache, bindSlot, deformSlot, buildGridMesh, drawSlot,
-         autoWeights, uid, topoBones, applySprings } from './core.js?v=434';
-import { sample, mapTime, remapTime } from '../engine/anim.js?v=434';
-import { newLayer } from '../engine/layer.js?v=434';
-import { S, undoDepth } from '../state.js?v=434';
-import { fitMesh, hairChain } from './rigplus.js?v=434';
+         autoWeights, uid, topoBones, applySprings } from './core.js?v=436';
+import { sample, mapTime, remapTime } from '../engine/anim.js?v=436';
+import { newLayer } from '../engine/layer.js?v=436';
+import { S, undoDepth } from '../state.js?v=436';
+import { fitMesh, hairChain } from './rigplus.js?v=436';
 
 export const boneCh = (id, ch) => 'H:' + id + ':' + ch;
 export const isBoneCh = (c) => /^H:.+:(rot|x|y|sx|sy|shear)$/.test(c);

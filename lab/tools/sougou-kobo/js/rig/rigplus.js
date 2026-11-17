@@ -2,9 +2,9 @@
      ・形に そった あみ … パーツの ふちに そって 点を ならべ、中にも 点を まいて 三角に わける
                           （四角い ます目より、曲げた ときに ふちが きれい）
      ・髪の 骨の 列     … 髪 1房に、根もとから 毛先まで 骨を いくつも つなげる（ゆれる 骨） */
-import { setupPose, rebind, addBoneAt, SOFT } from './hone.js?v=434';
-import { M, autoWeights } from './core.js?v=434';
-import { S } from '../state.js?v=434';
+import { setupPose, rebind, addBoneAt, SOFT } from './hone.js?v=436';
+import { M, autoWeights } from './core.js?v=436';
+import { S } from '../state.js?v=436';
 
 /* ---------- パーツの 絵 → 組み立ての 場所 の 行列（あみの 3点から 出す） ---------- */
 export function placeOf(s){

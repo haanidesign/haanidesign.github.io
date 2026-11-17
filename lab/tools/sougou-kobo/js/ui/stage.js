@@ -1,28 +1,28 @@
 /* ステージ。絵を見せて、指で直接さわれるようにするところ。 */
 
-import { kataStep, kataDone } from '../engine/bonekata.js?v=434';
-import { newSway as newSwayK } from '../engine/puppet.js?v=434';
-import { M, clamp } from '../engine/math.js?v=434';
-import { cleanPath } from '../engine/path.js?v=434';
+import { kataStep, kataDone } from '../engine/bonekata.js?v=436';
+import { newSway as newSwayK } from '../engine/puppet.js?v=436';
+import { M, clamp } from '../engine/math.js?v=436';
+import { cleanPath } from '../engine/path.js?v=436';
 import { computeAll, pickLayer, hitsLayer, isFolder, membersOf,
-         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=434';
-import { liveMasks } from '../engine/mask.js?v=434';
-import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=434';
-import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=434';
+         keepChildren, moveAnchorKeepAll, cornersOf } from '../engine/layer.js?v=436';
+import { liveMasks } from '../engine/mask.js?v=436';
+import { S, beginEdit, commitEdit, edit, onChange, selected, frameAsset, frameImage } from '../state.js?v=436';
+import { hasPins, setPin, valuesAt, pinChX, pinChY, shiftTrack } from '../engine/anim.js?v=436';
 import { buildMesh, buildMeshRect, meshSizeFor, newPin, precompute, needsPrecompute, deform, strokeMesh,
-         bendChain } from '../engine/puppet.js?v=434';
-import { createRenderer } from '../render/renderer.js?v=434';
-import { attachInput } from './input.js?v=434';
-import { bubbleGeom } from '../engine/talk.js?v=434';
-import { newStroke, paintDirty } from '../engine/paint.js?v=434';
+         bendChain } from '../engine/puppet.js?v=436';
+import { createRenderer } from '../render/renderer.js?v=436';
+import { attachInput } from './input.js?v=436';
+import { bubbleGeom } from '../engine/talk.js?v=436';
+import { newStroke, paintDirty } from '../engine/paint.js?v=436';
 import { newCage, idxAt, restAt, movePoint, quadOf, setQuad,
          resetCage, cageFlat, cageHasKeys, cageKeys,
          cageToTime, paintLock, hasLock, transformLock,
-         copyPts, setPts } from '../engine/warp.js?v=434';
+         copyPts, setPts } from '../engine/warp.js?v=436';
 
-import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=434';
-import { inCamView } from '../render/camview.js?v=434';
-import { ORBIT_MAX } from '../engine/camera.js?v=434';
+import { camOf, camMatrix, depthLen, isCam, withShake } from '../engine/camera.js?v=436';
+import { inCamView } from '../render/camview.js?v=436';
+import { ORBIT_MAX } from '../engine/camera.js?v=436';
 
 /* ---- 作業中の 画質 ----
    絵を のせると、毎コマ ぜんぶ 描き直すのが おもい。
@@ -861,6 +861,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
   const input = attachInput(canvas, {
     onDown(p){
       const cp = toCanvas(p);
+      if(S._lensTap) return;              // 🔭 深度レンズの タップ待ち
       if(S.traceMode) return;             // なぞり中は 選択を 変えない
       if(S.pinMode) return;               // ピンモード中は選択を変えない
       if(S.paintMode) return;             // ペイント中も 変えない
@@ -878,6 +879,13 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
 
     onTap(p){
       const cp = toCanvas(p);
+      if(S._lensTap){                     // 🔭 深度レンズ: 絵の 中の 場所を わたす
+        const T = S._lensTap; S._lensTap = null;
+        const l = S.proj.layers.find(x => x.id === T.id), pose = l && livePoses()[l.id];
+        const a = l && pose && frameAsset(l, pose.v.frame), ip = a && toImage(l, pose, cp);
+        if(!ip || ip.x < 0 || ip.y < 0 || ip.x > a.w || ip.y > a.h){ toast('絵の 外でした'); return; }
+        T.fn(ip.x / a.w, ip.y / a.h); return;
+      }
       if(S.traceMode) return;
       if(S.paintMode) return;
       if(S.warpMode) return;
@@ -889,6 +897,7 @@ export function createStage(canvas, host, toast, onTraced, onGesture){
 
     onDragStart(p, byLongPress){
       const cp = toCanvas(p);
+      if(S._lensTap) return;
       const l = selected();
       const P = livePoses();
 

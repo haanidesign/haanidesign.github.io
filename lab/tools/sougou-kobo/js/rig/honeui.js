@@ -12,15 +12,15 @@
    骨の 上・先の まる を おした ときだけ ここで うけとる。
    それ以外（2本指の ズーム など）は ステージに そのまま 通す。
    ➕ と 🔗 の ときは 1本指は ぜんぶ ここで うけとる。 */
-import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=434';
-import { computeAll } from '../engine/layer.js?v=434';
-import { setPin } from '../engine/anim.js?v=434';
-import { M } from './core.js?v=434';
-import { paintWeight } from './core.js?v=434';
+import { S, edit, beginEdit, commitEdit, onChange, selected } from '../state.js?v=436';
+import { computeAll } from '../engine/layer.js?v=436';
+import { setPin } from '../engine/anim.js?v=436';
+import { M } from './core.js?v=436';
+import { paintWeight } from './core.js?v=436';
 import { isHone, setupPose, honePose, honePoseLive, rebind, addBoneAt, removeBone, autoWeigh, boneCh, keyedValue,
-         addIK, autoBonesFromNames, autoBonesFromPose, setupCanvas, SOFT } from './hone.js?v=434';
-import { openHoneMap } from './honemap.js?v=434';
-import { fitMesh, hairChain, HAIR_RX } from './rigplus.js?v=434';
+         addIK, autoBonesFromNames, autoBonesFromPose, setupCanvas, SOFT } from './hone.js?v=436';
+import { openHoneMap } from './honemap.js?v=436';
+import { fitMesh, hairChain, HAIR_RX } from './rigplus.js?v=436';
 
 /* 👆 関節を おして 組む ときの じゅんばん（[COCO の 番号, 名前]）。人に とっての 右 ＝ 画面の 左 */
 const JOINTS = [[0, '顔の まん中（はな）'], [6, '右肩（画面の 左がわ）'], [8, '右ひじ'], [10, '右手首'],
@@ -429,7 +429,7 @@ export function createHoneUI({ canvas, bar, toast, redraw }){
     aiBusy = true; aiJoint.disabled = true;
     toast('AI で 関節を さがして います…');
     try {
-      const { findJoints } = await import('./pose.js?v=434');
+      const { findJoints } = await import('./pose.js?v=436');
       const full = setupCanvas(l, S.proj);
       /* 絵の ある ところだけ 切りぬいて、白い 紙に のせて 見せる */
       const W = full.width, H = full.height, d = full.getContext('2d').getImageData(0, 0, W, H).data;

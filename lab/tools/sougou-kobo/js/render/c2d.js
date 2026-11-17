@@ -3,30 +3,31 @@
    renderer.js の中身だけを変えれば済むようにしてある。 */
 
 import { computeAll, cornersOf, drawOrder, isFolder, isAdjust, membersOf,
-         nearestFolder } from '../engine/layer.js?v=434';
-import { camOf, fishK, fishMap } from '../engine/camera.js?v=434';
-import { liveMasks } from '../engine/mask.js?v=434';
-import { valuesAt } from '../engine/anim.js?v=434';
-import { S, frameAsset, frameImage, isDraft } from '../state.js?v=434';
+         nearestFolder } from '../engine/layer.js?v=436';
+import { camOf, fishK, fishMap } from '../engine/camera.js?v=436';
+import { liveMasks } from '../engine/mask.js?v=436';
+import { valuesAt } from '../engine/anim.js?v=436';
+import { S, frameAsset, frameImage, isDraft } from '../state.js?v=436';
 import { deform, drawDeformed, precompute, needsPrecompute, buildMesh, buildMeshRect,
-         meshSizeFor } from '../engine/puppet.js?v=434';
-import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=434';
-import { paintCanvas } from '../engine/paint.js?v=434';
-import { panoCanvas } from '../engine/pano.js?v=434';
-import { ballOn, ballCanvas } from '../engine/ball.js?v=434';
-import { roomCanvas } from '../engine/room.js?v=434';
-import { talkCanvas } from '../engine/talk.js?v=434';
-import { applyFx, drawCine } from './fx.js?v=434';
-import { drawTrans, swingE } from './trans.js?v=434';
-import { mojiCanvas } from '../moji/moji.js?v=434';
-import { ugokuCanvas } from '../engine/ugoku.js?v=434';
-import { jzCanvas } from '../moji/jizura.js?v=434';
-import { telopCanvas } from '../moji/telop.js?v=434';
-import { michiCanvas } from '../moji/michi.js?v=434';
-import { honeCanvas } from '../rig/hone.js?v=434';
-import { homography, applyH } from '../engine/warp.js?v=434';
-import { drawCamView } from './camview.js?v=434';
-import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=434';
+         meshSizeFor } from '../engine/puppet.js?v=436';
+import { handOn, handFrame, handMeshSize, boil, boilPx, handShift } from '../engine/hand.js?v=436';
+import { paintCanvas } from '../engine/paint.js?v=436';
+import { panoCanvas } from '../engine/pano.js?v=436';
+import { ballOn, ballCanvas } from '../engine/ball.js?v=436';
+import { roomCanvas } from '../engine/room.js?v=436';
+import { talkCanvas } from '../engine/talk.js?v=436';
+import { applyFx, drawCine } from './fx.js?v=436';
+import { drawTrans, swingE } from './trans.js?v=436';
+import { mojiCanvas } from '../moji/moji.js?v=436';
+import { ugokuCanvas } from '../engine/ugoku.js?v=436';
+import { jzCanvas } from '../moji/jizura.js?v=436';
+import { telopCanvas } from '../moji/telop.js?v=436';
+import { lensCanvas as depthLens } from '../depth/lens.js?v=436';
+import { michiCanvas } from '../moji/michi.js?v=436';
+import { honeCanvas } from '../rig/hone.js?v=436';
+import { homography, applyH } from '../engine/warp.js?v=436';
+import { drawCamView } from './camview.js?v=436';
+import { cageMesh, cageXY, cageFlat, cagePoint } from '../engine/warp.js?v=436';
 
 const INK = '#1E1C14', MAIN = '#E1DD60', PAPER = '#FFFEF7', PINK = '#F2A0B8';
 
@@ -671,6 +672,8 @@ function flatMesh(w, h){
     if(!asset || !img0 || !img0.complete || !img0.naturalWidth) return;
     /* 🔮 球に はって いる ときは、まるめた 1まいに 入れかえる。
        大きさは もとの 絵の まま なので、場所も 大きさも そのまま きく。 */
+    /* 🔭 深度レンズ（ぼかし・霧・色調・ライト・切り抜き・立体） */
+    if(l.dlens && l.dlens.on){ const lc = depthLens(l, img0, curT); if(lc) img0 = lc; }
     if(ballOn(l)) img0 = ballCanvas(l, pose.v, img0, asset.id || asset.name);
     /* ✂ マスクは 絵そのものを 先に ぬく。
        こうすると ゆがみ・ピン・立体の あとにも ついて まわる。 */
