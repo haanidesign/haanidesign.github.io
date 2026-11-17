@@ -2,26 +2,21 @@
    モデルは 初回だけ 取りに 行き、あとは ブラウザが ためて おく。
    写真は 端末の 中で 処理して、外へは 送らない。
 
-   動かし方は じゅんばんに ためす:
-     GPU（WebGPU・fp32）→ CPU（wasm・q8）
-   GPU の fp16 は 機械に よって 計算が こわれて 深度が まっ平ら（ぜんぶ 青）に なるので 使わない。
-   出てきた 深度も しらべて、こわれて いたら 次の 動かし方で やり直す。
-   だめだった 動かし方は 覚えて おいて、次から とばす。 */
+   CPU（wasm・q8）で 動かす。
+   GPU（WebGPU）は 端末に よって 計算が こわれて、深度が まっ平ら（ぜんぶ 青）や
+   ノイズの 模様に なる（Android の タブレットで 起きた）ので 使わない。
+   出てきた 深度が まっ平らなら、こわれた と みて やり直す。 */
 
 const LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 const MODEL = 'onnx-community/depth-anything-v2-small';
-const BAD = 'shindo-lens:bad-ai';
+const BAD = 'shindo-lens:bad-ai2';
 let T = null, pipe = null, cur = null;
 
 const badList = () => { try { return JSON.parse(localStorage.getItem(BAD)) || []; } catch (_) { return []; } };
 const markBad = k => { try { const b = badList(); if (!b.includes(k)) b.push(k); localStorage.setItem(BAD, JSON.stringify(b)); } catch (_) {} };
 
 async function plans() {
-  const list = [];
-  let ad = null;
-  try { ad = navigator.gpu && await navigator.gpu.requestAdapter(); } catch (_) {}
-  if (ad) list.push({ device: 'webgpu', dtype: 'fp32' });
-  list.push({ device: 'wasm', dtype: 'q8' });
+  const list = [{ device: 'wasm', dtype: 'q8' }, { device: 'wasm', dtype: 'fp32' }];
   const bad = badList();
   const ok = list.filter(t => !bad.includes(t.device + '/' + t.dtype));
   return ok.length ? ok : [{ device: 'wasm', dtype: 'q8' }];
