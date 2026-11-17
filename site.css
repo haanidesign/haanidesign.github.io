@@ -397,3 +397,16 @@ body.ready .hero-chara{opacity:1;transform:none;transition-delay:.9s;}
   .fstep2{grid-template-columns:3.6rem minmax(0,1fr);gap:1rem;}
   .fnum2{font-size:2.4rem;}
 }
+
+/* ===== トップ画（2026-11） ===== */
+.ring svg{display:block;position:absolute;inset:0;transform-origin:50% 50%}
+.ring text{font-size:13px;font-weight:800}
+.ring b{inset:24%;background:transparent;border:1.5px solid var(--main);color:var(--main);font-size:1.3rem}
+.hero{padding-bottom:0;align-items:stretch}
+.hero-in{align-items:end;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.hero-text{align-self:center;padding-bottom:3rem}
+.hero-visual{align-self:end;margin-bottom:1.2rem}
+.hero-chara{max-height:min(80svh,680px)}
+.hero-chara.wide{width:min(50vw,820px);max-width:none;max-height:none;margin-right:-2vw}
+.ring-wide{left:auto!important;right:-2%!important;top:4%!important;bottom:auto!important}
+@media (max-width:860px){.hero-in{grid-template-columns:1fr}.hero-visual{margin-bottom:0}.hero-chara{max-height:40svh}.hero-chara.wide{width:100%;max-height:none;margin-right:0}.ring-wide{left:-2%!important;top:auto!important;bottom:4%!important}}
