@@ -23,8 +23,8 @@ const FX = [
 ];
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const newStamp = () => ({layers:[], strokes:[], fx:"none", fxT:"all", dur:2});
-const newProject = () => ({id:uid(), name:"", mode:"static", count:8, sel:0, main:0, edge:6, selL:-1,
+const newStamp = () => ({layers:[], strokes:[], fills:[], fx:"none", fxT:"all", dur:2});
+const newProject = () => ({id:uid(), name:"", mode:"static", count:8, sel:0, main:0, edge:6, selL:-1, view:{z:1, r:0, x:0, y:0},
   stamps:Array.from({length:40}, newStamp),
   meta:{titleJa:"", titleEn:"", descJa:"", descEn:"", creator:"", copy:""}});
 let P = newProject();
@@ -36,7 +36,7 @@ let dirty = false;
 const toast = t => { const m = $("msg"); m.textContent = t; m.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(()=> m.classList.remove("on"), 2000); };
 const cur = () => P.stamps[P.sel];
 const selLayer = () => cur().layers[P.selL];
-const isEmpty = st => !st.layers.length && !st.strokes.length;
+const isEmpty = st => !st.layers.length && !st.strokes.length && !(st.fills || []).length;
 const even = n => Math.max(2, Math.round(n / 2) * 2);
 const sstep = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u*u*(3 - 2*u); };
 function setDirty(v){ dirty = v; $("workName").textContent = (P.name || "名前なし") + (v ? " ●" : ""); }
@@ -108,7 +108,11 @@ function renderContent(g, st, t){
     fn(); g.restore();
   };
   const onImg = st.fxT !== "text", onText = st.fxT !== "img";
-  apply(()=>{ st.layers.forEach(L=>{ if(L.t === "img") drawLayer(g, L); }); st.strokes.forEach(s=> drawStroke(g, s)); }, onImg);
+  apply(()=>{
+    st.layers.forEach(L=>{ if(L.t === "img") drawLayer(g, L); });
+    (st.fills || []).forEach(f=>{ const A = ASSETS.get(f.a); if(A) g.drawImage(A.img, f.x - A.img.width/2, f.y - A.img.height/2); });   // 塗りは 線の 下
+    st.strokes.forEach(s=> drawStroke(g, s));
+  }, onImg);
   apply(()=>{ st.layers.forEach(L=>{ if(L.t === "text") drawLayer(g, L); }); }, onText);
 }
 /* 白い ふちまで つけた 1 枚(740×640) */
@@ -234,8 +238,9 @@ function swSync(id, v){ [...$(id).children].forEach(b=> b.classList.toggle("on",
 function syncTools(){
   document.querySelectorAll("#tools [data-tool]").forEach(b=> b.classList.toggle("on", b.dataset.tool === tool));
   $("hintS").textContent = tool === "move" ? "絵や 文字を おして えらび、ドラッグで 動かす。指 2 本で 大きさ・回転"
-    : tool === "pen" ? "ドラッグで 描く" : "描いた 線の 上を なぞると 消える";
-  cv.style.cursor = tool === "move" ? "move" : "crosshair";
+    : tool === "pen" ? "ドラッグで 描く" : tool === "fill" ? "押した 所と つながった 同じ 色を、ペンの 色で 塗る"
+    : "描いた 線・塗りの 上を なぞると 消える";
+  cv.style.cursor = tool === "move" ? "move" : tool === "fill" ? "cell" : "crosshair";
 }
 function syncTop(){
   segOn("mode", P.mode);
@@ -248,7 +253,8 @@ function syncTop(){
   if(P.main >= P.count) P.main = 0;
   setDirty(dirty);
 }
-function syncAll(){ syncTop(); drawThumbs(); syncSide(); syncTools(); redraw(); }
+function fixStamps(){ while(P.stamps.length < 40) P.stamps.push(newStamp()); P.stamps.forEach(st=>{ if(!st.fills) st.fills = []; }); if(!P.view) P.view = {z:1, r:0, x:0, y:0}; }
+function syncAll(){ fixStamps(); syncTop(); drawThumbs(); syncSide(); syncTools(); applyView(); redraw(); }
 function changed(){ setDirty(true); redraw(); thumbSoon(); autosaveSoon(); }
 
 /* ---------------- 画像を 入れる ---------------- */
@@ -310,8 +316,23 @@ $("stage").addEventListener("drop", e=>{ e.preventDefault(); addImages(e.dataTra
 
 /* ---------------- キャンバスの 操作 ---------------- */
 const pts = new Map();
-let drag = null, pinch = null, curStroke = null;
-function toDoc(e){ const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * DW, (e.clientY - r.top) / r.height * DH]; }
+let drag = null, pinch = null, vpinch = null, curStroke = null;
+/* 画面の 見かた(拡大・回転・ずらし)。作品と いっしょに 覚えて、↶ で もどせる */
+const V = () => P.view || (P.view = {z:1, r:0, x:0, y:0});
+function applyView(){
+  const v = V();
+  $("board").style.transform = `translate(${v.x}px, ${v.y}px) rotate(${v.r}deg) scale(${v.z})`;
+  $("vz").textContent = Math.round(v.z * 100) + "%";
+}
+function viewChanged(){ applyView(); autosaveSoon(); clearTimeout(viewChanged.t); viewChanged.t = setTimeout(()=> window.Oboeru && Oboeru.check(), 400); }
+function toDoc(e){
+  // 回して いても 正しい 場所に なるよう、ボードの まんなかから 逆に たどる
+  const sr = $("stage").getBoundingClientRect(), v = V();
+  const cx = sr.left + sr.width/2 + v.x, cy = sr.top + sr.height/2 + v.y;
+  const a = -v.r * Math.PI/180, dx = e.clientX - cx, dy = e.clientY - cy;
+  const k = v.z * (parseFloat(cv.style.width) || DW) / DW;
+  return [DW/2 + (dx*Math.cos(a) - dy*Math.sin(a)) / k, DH/2 + (dx*Math.sin(a) + dy*Math.cos(a)) / k];
+}
 function hit(x, y){
   const st = cur();
   for(let i=st.layers.length-1;i>=0;i--){
@@ -321,22 +342,95 @@ function hit(x, y){
   }
   return -1;
 }
-function eraseAt(x, y){
-  const st = cur(), n = st.strokes.length;
-  st.strokes = st.strokes.filter(s=>{ for(let i=0;i<s.p.length;i+=2) if(Math.hypot(s.p[i]-x, s.p[i+1]-y) < penW + s.w/2) return false; return true; });
-  if(st.strokes.length !== n) changed();
+function fillHit(f, x, y){
+  const A = ASSETS.get(f.a); if(!A) return false;
+  const px = Math.round(x - (f.x - A.img.width/2)), py = Math.round(y - (f.y - A.img.height/2));
+  if(px < 0 || py < 0 || px >= A.img.width || py >= A.img.height) return false;
+  if(!A.px){ const c = document.createElement("canvas"); c.width = A.img.width; c.height = A.img.height;
+    const g = c.getContext("2d", {willReadFrequently:true}); g.drawImage(A.img, 0, 0); A.px = g; }
+  return A.px.getImageData(px, py, 1, 1).data[3] > 20;
 }
+function eraseAt(x, y){
+  const st = cur(), n = st.strokes.length, nf = st.fills.length;
+  st.strokes = st.strokes.filter(s=>{ for(let i=0;i<s.p.length;i+=2) if(Math.hypot(s.p[i]-x, s.p[i+1]-y) < penW + s.w/2) return false; return true; });
+  if(st.strokes.length === n) st.fills = st.fills.filter(f=> !fillHit(f, x, y));   // 線が なければ 塗りを 消す
+  if(st.strokes.length !== n || st.fills.length !== nf) changed();
+}
+
+/* バケツ塗り: 見えて いる 絵(絵・塗り・線・文字)を もとに、押した 所と つながった 似た 色を 塗る。
+   塗りは 線の 下に 入る(線画の 中を 塗る ため)。すき間が 出ない よう 2px 広げる */
+async function fillAt(x, y){
+  const st = cur();
+  const c = document.createElement("canvas"); c.width = DW; c.height = DH;
+  const g = c.getContext("2d", {willReadFrequently:true});
+  const keep = P.mode; P.mode = "static"; renderContent(g, st, 0); P.mode = keep;   // 動きは かけずに
+  const im = g.getImageData(0, 0, DW, DH).data;
+  const sx = Math.round(x), sy = Math.round(y);
+  if(sx < 0 || sy < 0 || sx >= DW || sy >= DH) return;
+  const s0 = (sy*DW + sx)*4, tol = +$("fillTol").value * 3;
+  const c0 = [im[s0], im[s0+1], im[s0+2], im[s0+3]];
+  const like = i=>{ const o = i*4;
+    if(c0[3] < 20) return im[o+3] < 20 + tol/3;          // 透明な ところから なら 透明な ところだけ
+    return Math.abs(im[o]-c0[0]) + Math.abs(im[o+1]-c0[1]) + Math.abs(im[o+2]-c0[2]) + Math.abs(im[o+3]-c0[3]) <= tol; };
+  const mask = new Uint8Array(DW*DH), stack = [sx, sy];
+  let n = 0, edge = false;
+  while(stack.length){
+    let yy = stack.pop(), xx = stack.pop();
+    let i = yy*DW + xx;
+    while(xx >= 0 && !mask[i] && like(i)){ xx--; i--; }
+    xx++; i++;
+    let up = false, dn = false;
+    while(xx < DW && !mask[i] && like(i)){
+      mask[i] = 1; n++;
+      if(xx === 0 || xx === DW-1 || yy === 0 || yy === DH-1) edge = true;
+      if(yy > 0){ const j = i - DW; if(!mask[j] && like(j)){ if(!up){ stack.push(xx, yy-1); up = true; } } else up = false; }
+      if(yy < DH-1){ const j = i + DW; if(!mask[j] && like(j)){ if(!dn){ stack.push(xx, yy+1); dn = true; } } else dn = false; }
+      xx++; i++;
+    }
+  }
+  if(!n) return;
+  // 2px 広げる(線の ふちとの すき間を うめる)
+  let m = mask;
+  for(let k=0;k<2;k++){
+    const o = m.slice();
+    for(let yy=1;yy<DH-1;yy++) for(let xx=1;xx<DW-1;xx++){ const i = yy*DW + xx;
+      if(!m[i] && (m[i-1] || m[i+1] || m[i-DW] || m[i+DW])) o[i] = 1; }
+    m = o;
+  }
+  let x0 = DW, y0 = DH, x1 = -1, y1 = -1;
+  for(let yy=0;yy<DH;yy++) for(let xx=0;xx<DW;xx++) if(m[yy*DW + xx]){ if(xx<x0)x0=xx; if(xx>x1)x1=xx; if(yy<y0)y0=yy; if(yy>y1)y1=yy; }
+  const w = x1-x0+1, h = y1-y0+1;
+  const out = document.createElement("canvas"); out.width = w; out.height = h;
+  const og = out.getContext("2d"), od = og.createImageData(w, h);
+  const col = [1,3,5].map(k=> parseInt(penCol.slice(k, k+2), 16));
+  for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){
+    if(!m[(yy+y0)*DW + xx + x0]) continue;
+    const o = (yy*w + xx)*4; od.data[o] = col[0]; od.data[o+1] = col[1]; od.data[o+2] = col[2]; od.data[o+3] = 255;
+  }
+  og.putImageData(od, 0, 0);
+  const id = await addAssetFromCanvas(out);
+  st.fills.push({a:id, x:x0 + w/2, y:y0 + h/2});
+  changed();
+  if(edge && n > DW*DH*.4) toast("外がわまで 塗りました。↶ で もどせます");
+  window.Oboeru && Oboeru.check();
+}
+
 cv.addEventListener("pointerdown", e=>{
   cv.setPointerCapture(e.pointerId);
   const [x, y] = toDoc(e);
-  pts.set(e.pointerId, {x, y});
+  pts.set(e.pointerId, {x, y, cx:e.clientX, cy:e.clientY});
   playing = false;
   if(pts.size === 2){
-    curStroke = null; drag = null;
+    // 描きかけの 線は 取り消す(2 本めの 指は 画面を 動かす ため)
+    if(curStroke){ const s = cur().strokes; if(s[s.length-1] === curStroke) s.pop(); curStroke = null; redraw(); }
+    drag = null;
+    const [a, b] = [...pts.values()];
     const L = selLayer();
     if(L && tool === "move"){
-      const [a, b] = [...pts.values()];
       pinch = {d:Math.hypot(b.x-a.x, b.y-a.y), ang:Math.atan2(b.y-a.y, b.x-a.x), s:L.t === "img" ? L.s : L.size, r:L.r || 0};
+    } else {
+      const v = V();
+      vpinch = {d:Math.hypot(b.cx-a.cx, b.cy-a.cy), ang:Math.atan2(b.cy-a.cy, b.cx-a.cx), mx:(a.cx+b.cx)/2, my:(a.cy+b.cy)/2, z:v.z, r:v.r, x:v.x, y:v.y};
     }
     return;
   }
@@ -345,24 +439,35 @@ cv.addEventListener("pointerdown", e=>{
     P.selL = hit(x, y); syncSide();
     const L = selLayer();
     if(L) drag = {x, y, lx:L.x, ly:L.y};
+    else { const v = V(); drag = {view:true, cx:e.clientX, cy:e.clientY, vx:v.x, vy:v.y}; }   // 何も ない 所は 画面を ずらす
     redraw();
   } else if(tool === "pen"){
     curStroke = {c:penCol, w:penW * 2, p:[+x.toFixed(1), +y.toFixed(1)]};
     cur().strokes.push(curStroke); redraw();
+  } else if(tool === "fill"){
+    fillAt(x, y);
   } else eraseAt(x, y);
 });
 cv.addEventListener("pointermove", e=>{
   if(!pts.has(e.pointerId)) return;
   const [x, y] = toDoc(e);
-  pts.set(e.pointerId, {x, y});
-  if(pinch && pts.size === 2){
-    const L = selLayer(); if(!L) return;
+  pts.set(e.pointerId, {x, y, cx:e.clientX, cy:e.clientY});
+  if(pts.size === 2 && (pinch || vpinch)){
     const [a, b] = [...pts.values()];
-    const k = Math.hypot(b.x-a.x, b.y-a.y) / Math.max(1, pinch.d);
-    if(L.t === "img") L.s = Math.max(.05, pinch.s * k); else L.size = Math.max(16, Math.min(260, Math.round(pinch.s * k)));
-    L.r = Math.round(pinch.r + (Math.atan2(b.y-a.y, b.x-a.x) - pinch.ang) * 180/Math.PI);
-    syncSide(); changed(); return;
+    if(pinch){
+      const L = selLayer(); if(!L) return;
+      const k = Math.hypot(b.x-a.x, b.y-a.y) / Math.max(1, pinch.d);
+      if(L.t === "img") L.s = Math.max(.05, pinch.s * k); else L.size = Math.max(16, Math.min(260, Math.round(pinch.s * k)));
+      L.r = Math.round(pinch.r + (Math.atan2(b.y-a.y, b.x-a.x) - pinch.ang) * 180/Math.PI);
+      syncSide(); changed(); return;
+    }
+    const v = V(), k = Math.hypot(b.cx-a.cx, b.cy-a.cy) / Math.max(1, vpinch.d);
+    v.z = Math.max(.2, Math.min(6, vpinch.z * k));
+    v.r = Math.round((vpinch.r + (Math.atan2(b.cy-a.cy, b.cx-a.cx) - vpinch.ang) * 180/Math.PI) * 10) / 10;
+    v.x = vpinch.x + (a.cx+b.cx)/2 - vpinch.mx; v.y = vpinch.y + (a.cy+b.cy)/2 - vpinch.my;
+    applyView(); return;
   }
+  if(drag && drag.view){ const v = V(); v.x = drag.vx + e.clientX - drag.cx; v.y = drag.vy + e.clientY - drag.cy; applyView(); return; }
   if(drag){ const L = selLayer(); L.x = drag.lx + x - drag.x; L.y = drag.ly + y - drag.y; changed(); return; }
   if(curStroke){
     const co = e.getCoalescedEvents ? e.getCoalescedEvents() : [], evs = co.length ? co : [e];
@@ -374,20 +479,37 @@ cv.addEventListener("pointermove", e=>{
 });
 function up(e){
   pts.delete(e.pointerId);
-  if(pts.size < 2) pinch = null;
-  if(!pts.size){ if(curStroke || drag) changed(); curStroke = null; drag = null; }
+  if(pts.size < 2){ if(vpinch) viewChanged(); pinch = null; vpinch = null; }
+  if(!pts.size){
+    if(drag && drag.view) viewChanged();
+    else if(curStroke || drag) changed();
+    curStroke = null; drag = null;
+  }
 }
 cv.addEventListener("pointerup", up);
 cv.addEventListener("pointercancel", up);
 cv.addEventListener("wheel", e=>{
-  const L = selLayer(); if(!L) return;
   e.preventDefault();
+  const L = selLayer();
   const k = Math.exp(-e.deltaY * .0015);
-  if(e.shiftKey) L.r = Math.round((L.r || 0) + e.deltaY * .1);
-  else if(L.t === "img") L.s = Math.max(.05, L.s * k); else L.size = Math.max(16, Math.min(260, Math.round(L.size * k)));
-  syncSide(); changed();
-  clearTimeout(cv.wt); cv.wt = setTimeout(()=> window.Oboeru && Oboeru.check(), 300);
+  if(L && tool === "move" && !e.ctrlKey){
+    if(e.shiftKey) L.r = Math.round((L.r || 0) + e.deltaY * .1);
+    else if(L.t === "img") L.s = Math.max(.05, L.s * k); else L.size = Math.max(16, Math.min(260, Math.round(L.size * k)));
+    syncSide(); changed();
+    clearTimeout(cv.wt); cv.wt = setTimeout(()=> window.Oboeru && Oboeru.check(), 300);
+    return;
+  }
+  // 何も 選んで いない とき(か Ctrl): 画面を 拡大・縮小、Shift で 回転
+  const v = V();
+  if(e.shiftKey) v.r = Math.round(v.r + e.deltaY * .05); else v.z = Math.max(.2, Math.min(6, v.z * k));
+  viewChanged();
 }, {passive:false});
+$("stage").addEventListener("wheel", e=>{ if(e.target === $("stage")){ e.preventDefault(); const v = V(); v.z = Math.max(.2, Math.min(6, v.z * Math.exp(-e.deltaY * .0015))); viewChanged(); } }, {passive:false});
+$("vPlus").onclick = ()=>{ const v = V(); v.z = Math.min(6, v.z * 1.25); viewChanged(); };
+$("vMinus").onclick = ()=>{ const v = V(); v.z = Math.max(.2, v.z / 1.25); viewChanged(); };
+$("vRotL").onclick = ()=>{ const v = V(); v.r = Math.round(v.r - 15); viewChanged(); };
+$("vRotR").onclick = ()=>{ const v = V(); v.r = Math.round(v.r + 15); viewChanged(); };
+$("vReset").onclick = ()=>{ P.view = {z:1, r:0, x:0, y:0}; viewChanged(); };
 document.querySelectorAll("#tools [data-tool]").forEach(b=> b.onclick = ()=>{ tool = b.dataset.tool; playing = false; syncTools(); redraw(); });
 addEventListener("keydown", e=>{
   if(e.target.matches("input,textarea,select")) return;
@@ -428,6 +550,8 @@ makeSw("tCol", TEXT_COLS, c=>{ tCol = c; const L = selLayer(); if(L && L.t === "
 makeSw("tSt", ST_COLS, c=>{ tSt = c; const L = selLayer(); if(L && L.t === "text"){ L.stroke = c; changed(); } });
 $("penW").oninput = e=>{ penW = +e.target.value; $("penWV").textContent = penW; };
 $("clearDraw").onclick = ()=>{ cur().strokes = []; changed(); };
+$("clearFill").onclick = ()=>{ cur().fills = []; changed(); };
+$("fillTol").oninput = e=> $("fillTolV").textContent = e.target.value;
 const textL = () => { const L = selLayer(); return L && L.t === "text" ? L : null; };
 $("tText").oninput = e=>{ const L = textL(); if(L){ L.text = e.target.value || " "; syncLayerName(); changed(); } };
 function syncLayerName(){ const d = $("layers").querySelector(".on span"); const L = selLayer(); if(d && L) d.textContent = L.t === "img" ? "画像" : L.text; }
@@ -460,6 +584,7 @@ $("tabs").onclick = e=>{ const b = e.target.closest("[data-p]"); if(!b) return;
   [...$("tabs").children].forEach(x=> x.classList.toggle("on", x === b));
   document.querySelectorAll(".pane").forEach(p=> p.classList.toggle("on", p.id === b.dataset.p));
   if(b.dataset.p === "pD" && tool === "move"){ tool = "pen"; syncTools(); }
+  if(b.dataset.p !== "pD" && (tool === "pen" || tool === "fill" || tool === "erase") && b.dataset.p === "pE"){ tool = "move"; syncTools(); }
 };
 $("mode").onclick = e=>{ const b = e.target.closest("[data-v]"); if(!b || b.dataset.v === P.mode) return;
   P.mode = b.dataset.v; playing = false; syncAll(); changed(); };
@@ -595,7 +720,7 @@ async function db(store, mode, fn){
 }
 function usedAssets(){
   const ids = new Set();
-  P.stamps.forEach(st=> st.layers.forEach(L=>{ if(L.t === "img") ids.add(L.a); }));
+  P.stamps.forEach(st=>{ st.layers.forEach(L=>{ if(L.t === "img") ids.add(L.a); }); (st.fills || []).forEach(f=> ids.add(f.a)); });
   const out = {}; ids.forEach(id=>{ const A = ASSETS.get(id); if(A) out[id] = A.url; });
   return out;
 }

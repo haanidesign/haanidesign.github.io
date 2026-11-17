@@ -73,6 +73,12 @@ main{display:grid;grid-template-columns:168px minmax(0,1fr) 320px;min-height:0;}
 #tools .btn{width:76px;flex-direction:column;gap:0;min-height:58px;padding:.25rem;font-size:.8rem;border-radius:16px;}
 #tools .btn b{font-size:1.2rem;line-height:1.2;}
 #play{position:absolute;right:14px;top:14px;z-index:2;}
+#view{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);z-index:2;display:flex;align-items:center;gap:.3rem;
+  background:var(--paper);border:1px solid var(--line);border-radius:100px;padding:.25rem .4rem;}
+#view .btn{min-width:40px;padding:.15rem .6rem;}
+#vz{font-family:var(--en);font-weight:800;font-size:.75rem;min-width:3.2em;text-align:center;}
+#board{transform-origin:50% 50%;}
+#stage{overflow:hidden;}
 #hintS{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:.85rem;color:var(--ink-2);pointer-events:none;}
 
 /* 右: 設定 */
@@ -174,11 +180,17 @@ textarea{resize:vertical;min-height:4.5rem;}
     <div id="tools">
       <button class="btn on" data-tool="move"><b>✥</b>うごかす</button>
       <button class="btn" data-tool="pen"><b>✎</b>描く</button>
+      <button class="btn" data-tool="fill"><b>◉</b>塗る</button>
       <button class="btn" data-tool="erase"><b>⌫</b>消す</button>
     </div>
     <button class="btn" id="play">▶ 動きを見る</button>
     <div id="board"><canvas id="cv"></canvas></div>
     <div id="hintS"></div>
+    <div id="view">
+      <button class="btn sm" id="vMinus" title="小さく">−</button><span id="vz">100%</span><button class="btn sm" id="vPlus" title="大きく">＋</button>
+      <button class="btn sm" id="vRotL" title="左に 回す">⟲</button><button class="btn sm" id="vRotR" title="右に 回す">⟳</button>
+      <button class="btn sm" id="vReset">もとの 向き</button>
+    </div>
   </div>
   <div id="side">
     <div class="tabs" id="tabs">
@@ -208,8 +220,11 @@ textarea{resize:vertical;min-height:4.5rem;}
       <div class="ph">ペン</div>
       <div class="sw" id="penCol"></div>
       <div class="row"><span>太さ</span><input type="range" id="penW" min="2" max="40" step="1" value="10"><span class="v" id="penWV">10</span></div>
-      <p class="note">左の「描く」を 選んで キャンバスに 描きます。「消す」は 描いた 線だけを 消します。</p>
-      <div class="wrapb"><button class="btn sm" id="clearDraw">描いた 線を ぜんぶ 消す</button></div>
+      <p class="note">左の「描く」を 選んで キャンバスに 描きます。「消す」は 描いた 線と 塗りを 消します(絵や 文字は 消えません)。</p>
+      <div class="ph">バケツ塗り</div>
+      <div class="row"><span>すき間</span><input type="range" id="fillTol" min="0" max="80" step="1" value="24"><span class="v" id="fillTolV">24</span></div>
+      <p class="note">左の「塗る」を 選んで、塗りたい 所を 押します。色は ペンの 色。線や 絵の ふちで 止まり、塗りは 線の 下に 入ります。色の ちがいが 少しでも 止めたい ときは「すき間」を 小さく。</p>
+      <div class="wrapb"><button class="btn sm" id="clearDraw">描いた 線を ぜんぶ 消す</button><button class="btn sm" id="clearFill">塗りを ぜんぶ 消す</button></div>
     </div>
 
     <div class="pane" id="pT">
