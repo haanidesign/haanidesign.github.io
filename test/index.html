@@ -19,6 +19,9 @@
 <link rel="stylesheet" href="../site.css?v=3">
 <meta name="robots" content="noindex">
 <style>
+.ring svg{display:block;position:absolute;inset:0;transform-origin:50% 50%}
+.ring text{font-size:13px;font-weight:800}
+.ring b{inset:24%;background:transparent;border:1.5px solid var(--main);color:var(--main);font-size:1.3rem}
 .hero{padding-bottom:0;align-items:stretch}
 .hero-in{align-items:end;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
 .hero-text{align-self:center;padding-bottom:3rem}
@@ -71,7 +74,7 @@
         <img src="../hero_chara.png" alt="" class="hero-chara" id="heroChara">
         <script>
           (function(){ /* 開くたびに トップ画を 選ぶ */
-            var list=[['../hero_chara.png',''],['../hero_chara2.png','wide']];
+            var list=[['../hero_chara2.png','wide']];
             var c=list[Math.floor(Math.random()*list.length)], im=document.getElementById('heroChara');
             im.src=c[0]; if(c[1]) im.classList.add(c[1]);
             var r=document.querySelector('.ring'); if(r && c[1]) r.classList.add('ring-'+c[1]);
