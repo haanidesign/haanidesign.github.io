@@ -283,6 +283,7 @@ function syncTools(){
     : tool === "pen" ? "ドラッグで 描く" : tool === "fill" ? "押した 所と つながった 同じ 色を、ペンの 色で 塗る"
     : "描いた 線・塗りの 上を なぞると 消える";
   cv.style.cursor = tool === "move" ? "move" : tool === "fill" ? "cell" : "crosshair";
+  $("stage").style.cursor = cv.style.cursor;
 }
 function syncTop(){
   segOn("mode", P.mode);
@@ -457,8 +458,13 @@ async function fillAt(x, y){
   window.Oboeru && Oboeru.check();
 }
 
-cv.addEventListener("pointerdown", e=>{
-  cv.setPointerCapture(e.pointerId);
+/* 真ん中の 画面 ぜんたいで 受ける(枠の 外から 描きはじめても 線が 引ける)。ボタンの 上は のぞく */
+const surf = $("stage");
+const onUI = e => !!e.target.closest("button, #tools, #view, #koma, #play, input, select");
+surf.addEventListener("pointerdown", e=>{
+  if(onUI(e)) return;
+  e.preventDefault();
+  try{ surf.setPointerCapture(e.pointerId); }catch(err){}
   const [x, y] = toDoc(e);
   pts.set(e.pointerId, {x, y, cx:e.clientX, cy:e.clientY});
   playing = false;
@@ -490,7 +496,7 @@ cv.addEventListener("pointerdown", e=>{
     fillAt(x, y);
   } else eraseAt(x, y);
 });
-cv.addEventListener("pointermove", e=>{
+surf.addEventListener("pointermove", e=>{
   if(!pts.has(e.pointerId)) return;
   const [x, y] = toDoc(e);
   pts.set(e.pointerId, {x, y, cx:e.clientX, cy:e.clientY});
@@ -528,9 +534,10 @@ function up(e){
     curStroke = null; drag = null;
   }
 }
-cv.addEventListener("pointerup", up);
-cv.addEventListener("pointercancel", up);
-cv.addEventListener("wheel", e=>{
+surf.addEventListener("pointerup", up);
+surf.addEventListener("pointercancel", up);
+surf.addEventListener("wheel", e=>{
+  if(onUI(e)) return;
   e.preventDefault();
   const L = selLayer();
   const k = Math.exp(-e.deltaY * .0015);
@@ -546,7 +553,6 @@ cv.addEventListener("wheel", e=>{
   if(e.shiftKey) v.r = Math.round(v.r + e.deltaY * .05); else v.z = Math.max(.2, Math.min(6, v.z * k));
   viewChanged();
 }, {passive:false});
-$("stage").addEventListener("wheel", e=>{ if(e.target === $("stage")){ e.preventDefault(); const v = V(); v.z = Math.max(.2, Math.min(6, v.z * Math.exp(-e.deltaY * .0015))); viewChanged(); } }, {passive:false});
 $("vPlus").onclick = ()=>{ const v = V(); v.z = Math.min(6, v.z * 1.25); viewChanged(); };
 $("vMinus").onclick = ()=>{ const v = V(); v.z = Math.max(.2, v.z / 1.25); viewChanged(); };
 $("vRotL").onclick = ()=>{ const v = V(); v.r = Math.round(v.r - 15); viewChanged(); };
