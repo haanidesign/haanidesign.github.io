@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LINE スタンプ工房</title>
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=Zen+Maru+Gothic:wght@500;700;900&family=M+PLUS+Rounded+1c:wght@800&family=Dela+Gothic+One&family=Yusei+Magic&display=swap" rel="stylesheet">
+<style>
+/* はぁにデザイン 2026-11 版。黒い 面は 使わない(黄色・生成り)。黒は 線と 文字だけ */
+:root{
+  --main:#E1DD60; --main-deep:#B8B43F; --main-soft:#F2F0BE;
+  --cream:#FBFAEC; --paper:#FFFEF7; --ink:#1E1C14; --ink-2:#4F4A3B; --gray:#6E6857; --pink:#F2A0B8;
+  --line:rgba(30,28,20,.16); --ok:#3E9B47;
+  --en:'Unbounded', sans-serif; --ja:'Zen Maru Gothic', 'M PLUS Rounded 1c', sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--cream);color:var(--ink);font-family:var(--ja);font-weight:500;font-size:1rem;line-height:1.7;
+  display:grid;grid-template-rows:auto minmax(0,1fr);-webkit-font-smoothing:antialiased;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.07;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+::selection{background:var(--main);color:var(--ink);}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:6px;}
+button,select,input,textarea{font:inherit;color:inherit;}
+
+/* 上の 帯 */
+#top{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;padding:.55rem 1rem;background:var(--main);border-bottom:1.5px solid var(--ink);}
+#top h1{display:flex;align-items:baseline;gap:.5rem;margin-right:auto;font-family:var(--en);font-weight:900;font-size:1.05rem;letter-spacing:-.02em;white-space:nowrap;}
+#top h1 small{font-family:var(--ja);font-size:.82rem;font-weight:700;color:var(--ink-2);letter-spacing:0;}
+#top h1 a{font-family:var(--ja);font-size:.8rem;font-weight:700;color:var(--ink);text-decoration:none;border:1.5px solid var(--ink);border-radius:100px;padding:0 .7rem;align-self:center;}
+#top h1 a:hover{background:var(--paper);}
+#workName{font-family:var(--ja);font-size:.9rem;font-weight:700;letter-spacing:0;max-width:11em;overflow:hidden;text-overflow:ellipsis;}
+@media (max-width:1300px){ #top h1 small{display:none;} }
+#top{row-gap:.4rem;}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:100px;overflow:hidden;background:var(--paper);}
+.seg button{border:0;background:transparent;padding:.3rem .85rem;min-height:38px;font-weight:700;font-size:.9rem;cursor:pointer;}
+.seg button.on{background:var(--ink);color:var(--paper);}
+#top .seg button.on{background:var(--main-soft);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink);}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-height:40px;padding:.35rem .95rem;
+  background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:100px;font-weight:700;font-size:.92rem;
+  cursor:pointer;white-space:nowrap;transition:background-color .2s;text-decoration:none;}
+.btn:hover{background:var(--main-soft);}
+.btn.y{background:var(--main);}
+.btn.y:hover{background:var(--main-deep);}
+.btn.on{background:var(--main);}
+.btn:disabled{opacity:.45;cursor:default;}
+.btn.sm{min-height:36px;padding:.2rem .75rem;font-size:.85rem;}
+select{border:1.5px solid var(--ink);border-radius:100px;background:var(--paper);padding:0 .7rem;min-height:38px;font-weight:700;}
+
+main{display:grid;grid-template-columns:168px minmax(0,1fr) 320px;min-height:0;}
+/* 左: スタンプの ならび */
+#list{border-right:1px solid var(--line);background:var(--paper);overflow:auto;padding:.7rem .6rem 5rem;}
+.lh{font-family:var(--en);font-weight:800;font-size:.68rem;letter-spacing:.1em;color:var(--gray);margin:.2rem .2rem .45rem;}
+#thumbs{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;}
+.th{position:relative;aspect-ratio:37/32;border:1px solid var(--line);border-radius:12px;cursor:pointer;overflow:hidden;
+  background:conic-gradient(#EFEDDA 0 25%,var(--paper) 0 50%,#EFEDDA 0 75%,var(--paper) 0) 0 0/12px 12px;}
+.th canvas{width:100%;height:100%;display:block;}
+.th b{position:absolute;left:5px;top:3px;font-family:var(--en);font-weight:800;font-size:.66rem;background:var(--paper);border-radius:100px;padding:0 .35rem;}
+.th.on{border:2.5px solid var(--ink);}
+.th.main::after{content:'MAIN';position:absolute;right:4px;bottom:3px;font-family:var(--en);font-weight:800;font-size:.55rem;background:var(--main);border-radius:100px;padding:0 .35rem;}
+.th.empty b{color:var(--gray);}
+
+/* まんなか: 描く ところ */
+#stage{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;padding:14px;}
+#board{position:relative;touch-action:none;}
+#cv{display:block;border-radius:16px;}
+#tools{position:absolute;left:14px;top:14px;display:flex;flex-direction:column;gap:.4rem;z-index:2;}
+#tools .btn{width:76px;flex-direction:column;gap:0;min-height:58px;padding:.25rem;font-size:.8rem;border-radius:16px;}
+#tools .btn b{font-size:1.2rem;line-height:1.2;}
+#play{position:absolute;right:14px;top:14px;z-index:2;}
+#hintS{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:.85rem;color:var(--ink-2);pointer-events:none;}
+
+/* 右: 設定 */
+#side{border-left:1px solid var(--line);background:var(--paper);overflow:auto;padding:.4rem .9rem 6rem;}
+.tabs{display:flex;gap:.3rem;flex-wrap:wrap;position:sticky;top:0;background:var(--paper);padding:.5rem 0 .6rem;z-index:3;border-bottom:1px solid var(--line);margin-bottom:.4rem;}
+.tabs button{border:1.5px solid var(--ink);border-radius:100px;background:transparent;padding:.15rem .8rem;min-height:38px;font-weight:700;font-size:.9rem;cursor:pointer;}
+.tabs button.on{background:var(--main);}
+.pane{display:none;}
+.pane.on{display:block;}
+.ph{display:flex;align-items:center;gap:.5rem;font-weight:900;font-size:1rem;margin:.9rem 0 .45rem;padding-top:.6rem;border-top:1px solid var(--line);}
+.ph:first-child{border-top:0;margin-top:.2rem;}
+.ph i{font-style:normal;font-family:var(--en);font-weight:800;font-size:.66rem;border:1.5px solid currentColor;border-radius:100px;padding:0 .45rem;}
+.row{display:flex;align-items:center;gap:.6rem;margin:.4rem 0;}
+.row > span:first-child{width:4.3rem;flex-shrink:0;font-weight:700;font-size:.9rem;}
+.row input[type=range]{flex:1;min-width:0;}
+.row .v{width:2.6rem;text-align:right;font-size:.85rem;font-variant-numeric:tabular-nums;}
+.wrapb{display:flex;flex-wrap:wrap;gap:.35rem;}
+.note{font-size:.88rem;color:var(--ink-2);line-height:1.75;margin-top:.4rem;}
+.sw{display:flex;flex-wrap:wrap;gap:.4rem;}
+.sw button{width:36px;height:36px;border-radius:50%;border:1.5px solid var(--ink);cursor:pointer;}
+.sw button.on{outline:3px solid var(--ink);outline-offset:2px;}
+input[type=text],textarea{width:100%;border:1.5px solid var(--ink);border-radius:14px;background:#fff;padding:.45rem .8rem;font-size:1rem;}
+textarea{resize:vertical;min-height:4.5rem;}
+.fx{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;}
+.fx button{border:1px solid var(--line);border-radius:14px;background:var(--cream);padding:.35rem .2rem;min-height:44px;font-weight:700;font-size:.85rem;cursor:pointer;}
+.fx button.on{background:var(--main);border:1.5px solid var(--ink);}
+.lay{display:flex;flex-direction:column;gap:.3rem;}
+.lay div{display:flex;align-items:center;gap:.4rem;border:1px solid var(--line);border-radius:12px;padding:.25rem .5rem;cursor:pointer;min-height:42px;}
+.lay div.on{border:1.5px solid var(--ink);background:var(--main-soft);}
+.lay div span{flex:1;min-width:0;font-weight:700;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* 申請の 画面 */
+#apply{position:fixed;inset:0;z-index:50;background:var(--cream);overflow:auto;display:none;}
+#apply.on{display:block;}
+#apply .in{max-width:1100px;margin:0 auto;padding:1.4rem 1.4rem 5rem;}
+.sh{display:flex;align-items:flex-end;flex-wrap:wrap;column-gap:1rem;border-bottom:1.5px solid var(--ink);padding-bottom:.6rem;margin:2rem 0 1rem;}
+.sh:first-of-type{margin-top:.5rem;}
+.sh-no{font-family:var(--en);font-weight:800;font-size:.8rem;border:1.5px solid currentColor;border-radius:100px;padding:0 .6rem;align-self:center;}
+.sh-en{font-family:var(--en);font-weight:900;font-size:clamp(1.9rem,4vw,3rem);line-height:.9;letter-spacing:-.045em;}
+.sh-ja{font-weight:700;color:var(--ink-2);}
+.chk{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem;}
+.ck{border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:.5rem;}
+.ck .im{position:relative;aspect-ratio:37/32;border-radius:10px;overflow:hidden;
+  background:conic-gradient(#EFEDDA 0 25%,var(--paper) 0 50%,#EFEDDA 0 75%,var(--paper) 0) 0 0/12px 12px;}
+.ck .im img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+.ck p{font-size:.8rem;line-height:1.5;margin-top:.3rem;}
+.ck.ng{border:1.5px solid var(--pink);background:#FFF5F8;}
+.ok{color:var(--ok);font-weight:900;} .ng b{color:#B23A5E;}
+.meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.8rem 1.2rem;}
+.meta label{display:flex;flex-direction:column;gap:.25rem;font-weight:700;font-size:.92rem;}
+.meta label small{font-weight:500;color:var(--ink-2);}
+.cnt{font-family:var(--en);font-weight:800;font-size:.72rem;}
+.cnt.ng{color:#B23A5E;}
+.steps{counter-reset:s;list-style:none;display:flex;flex-direction:column;gap:.5rem;}
+.steps li{counter-increment:s;display:flex;gap:.8rem;align-items:flex-start;border-bottom:1px solid var(--line);padding:.6rem 0;}
+.steps li::before{content:counter(s, decimal-leading-zero);font-family:var(--en);font-weight:900;font-size:1.3rem;color:transparent;-webkit-text-stroke:1.2px var(--ink);min-width:2.4rem;line-height:1.3;}
+.steps li div{flex:1;}
+.steps a{color:var(--ink);font-weight:700;}
+
+#works{position:fixed;inset:0;z-index:60;background:rgba(30,28,20,.35);display:none;align-items:center;justify-content:center;}
+#works.on{display:flex;}
+#works .box{background:var(--paper);border:1.5px solid var(--ink);border-radius:24px;width:min(760px,94vw);max-height:86vh;overflow:auto;padding:1.1rem 1.2rem;}
+#wlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.6rem;margin-top:.8rem;}
+.wk{position:relative;border:1px solid var(--line);border-radius:16px;padding:.45rem;cursor:pointer;}
+.wk:hover{border-color:var(--ink);}
+.wk img{width:100%;aspect-ratio:37/32;object-fit:contain;border-radius:10px;background:var(--cream);}
+.wk b{display:block;font-size:.88rem;margin-top:.2rem;}
+.wk small{font-size:.75rem;color:var(--ink-2);}
+.wk button{position:absolute;right:6px;top:6px;width:32px;height:32px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);cursor:pointer;}
+
+#msg{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--main);color:var(--ink);border:1.5px solid var(--ink);border-radius:100px;
+  padding:.45rem 1.2rem;font-weight:700;font-size:.92rem;pointer-events:none;opacity:0;transition:opacity .2s;z-index:120;}
+#msg.on{opacity:1;}
+@media (pointer:coarse){ .btn{min-height:44px;} }
+@media (max-width:900px){
+  main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 42%;}
+  #list{border-right:0;border-bottom:1px solid var(--line);padding:.4rem;}
+  #thumbs{grid-template-columns:repeat(8,74px);overflow-x:auto;}
+  #side{border-left:0;border-top:1px solid var(--line);}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+<div id="top">
+  <h1><a href="../../index.html">← LAB</a>LINE STAMP<small>LINE スタンプ工房</small><span id="workName"></span></h1>
+  <div class="seg" id="mode"><button data-v="static" class="on">止まる</button><button data-v="anim">動く</button></div>
+  <select id="count" title="スタンプの数"></select>
+  <button class="btn sm" id="newBtn">新規</button>
+  <button class="btn sm" id="saveBtn">保存</button>
+  <button class="btn sm" id="saveAsBtn">別名で保存</button>
+  <button class="btn sm" id="worksBtn">作品一覧</button>
+  <button class="btn y sm" id="applyBtn">点検・申請の準備 →</button>
+</div>
+<main>
+  <div id="list"><div class="lh">STAMPS</div><div id="thumbs"></div>
+    <p class="note" style="font-size:.8rem">MAIN の しるしが ついた スタンプから メイン画像と タブ画像を 作ります。</p></div>
+  <div id="stage">
+    <div id="tools">
+      <button class="btn on" data-tool="move"><b>✥</b>うごかす</button>
+      <button class="btn" data-tool="pen"><b>✎</b>描く</button>
+      <button class="btn" data-tool="erase"><b>⌫</b>消す</button>
+    </div>
+    <button class="btn" id="play">▶ 動きを見る</button>
+    <div id="board"><canvas id="cv"></canvas></div>
+    <div id="hintS"></div>
+  </div>
+  <div id="side">
+    <div class="tabs" id="tabs">
+      <button data-p="pE" class="on">絵</button><button data-p="pD">描く</button><button data-p="pT">文字</button><button data-p="pM">動き</button><button data-p="pF">しあげ</button>
+    </div>
+
+    <div class="pane on" id="pE">
+      <div class="ph">絵を入れる</div>
+      <div class="wrapb"><button class="btn y" id="addImg">画像を入れる</button><button class="btn" id="addImgAll">まとめて入れる</button></div>
+      <label class="row" style="cursor:pointer"><input type="checkbox" id="autoBg" checked style="width:22px;height:22px;accent-color:var(--ink)"><b style="font-size:.9rem">入れるときに 背景の 色を 消す</b></label>
+      <p class="note">「まとめて入れる」は 選んだ 画像を 1 枚ずつ、空いて いる スタンプに 入れます。キャンバスに 落としても 入ります。</p>
+      <div class="ph">いま 選んで いる 絵・文字</div>
+      <div class="lay" id="layers"></div>
+      <div class="row"><span>大きさ</span><input type="range" id="lsz" min="0.1" max="3" step="0.01"><span class="v" id="lszV"></span></div>
+      <div class="row"><span>回転</span><input type="range" id="lrot" min="-180" max="180" step="1"><span class="v" id="lrotV"></span></div>
+      <div class="wrapb">
+        <button class="btn sm" id="bgCut">まわりの色を消す</button>
+        <button class="btn sm" id="flip">左右反転</button>
+        <button class="btn sm" id="up">前へ</button><button class="btn sm" id="down">後ろへ</button>
+        <button class="btn sm" id="del">消す</button>
+      </div>
+      <div class="row"><span>消す強さ</span><input type="range" id="tol" min="5" max="90" step="1" value="32"><span class="v" id="tolV">32</span></div>
+      <p class="note">白い 背景の 絵や 写真は「まわりの色を消す」で 透明に できます。指 2 本で 大きさと 回転も かえられます。</p>
+    </div>
+
+    <div class="pane" id="pD">
+      <div class="ph">ペン</div>
+      <div class="sw" id="penCol"></div>
+      <div class="row"><span>太さ</span><input type="range" id="penW" min="2" max="40" step="1" value="10"><span class="v" id="penWV">10</span></div>
+      <p class="note">左の「描く」を 選んで キャンバスに 描きます。「消す」は 描いた 線だけを 消します。</p>
+      <div class="wrapb"><button class="btn sm" id="clearDraw">描いた 線を ぜんぶ 消す</button></div>
+    </div>
+
+    <div class="pane" id="pT">
+      <div class="ph">ことば</div>
+      <input type="text" id="tText" maxlength="20" placeholder="ありがとう">
+      <div class="wrapb" style="margin-top:.5rem"><button class="btn y sm" id="tAdd">文字を 足す</button>
+        <button class="btn sm" data-tp="top">上へ</button><button class="btn sm" data-tp="bottom">下へ</button></div>
+      <div class="ph">文字の 見た目</div>
+      <div class="row"><span>字体</span><select id="tFont" style="flex:1">
+        <option value="zen">まる</option><option value="pop">ぽっぷ</option><option value="hand">てがき</option><option value="futo">ふと</option></select></div>
+      <div class="row"><span>文字の色</span><div class="sw" id="tCol"></div></div>
+      <div class="row"><span>ふちの色</span><div class="sw" id="tSt"></div></div>
+      <div class="row"><span>大きさ</span><input type="range" id="tSize" min="20" max="200" step="1" value="90"><span class="v" id="tSizeV">90</span></div>
+      <div class="row"><span>ふち</span><input type="range" id="tSw" min="0" max="30" step="1" value="12"><span class="v" id="tSwV">12</span></div>
+      <p class="note">文字を 選んで いる ときは、ここで 変えると その文字が 変わります。</p>
+    </div>
+
+    <div class="pane" id="pM">
+      <div class="ph">動き <i>動くスタンプ</i></div>
+      <div class="fx" id="fx"></div>
+      <div class="row"><span>動かす</span><div class="seg" id="fxT"><button data-v="all" class="on">ぜんぶ</button><button data-v="img">絵だけ</button><button data-v="text">文字だけ</button></div></div>
+      <div class="row"><span>長さ</span><div class="seg" id="dur"><button data-v="1">1秒</button><button data-v="2" class="on">2秒</button><button data-v="3">3秒</button><button data-v="4">4秒</button></div></div>
+      <p class="note" id="fxNote">上の「動く」に すると 使えます。1 コマめが 売り場の 止まった 絵に なるので、はじめは 止まった 形から 始まります。</p>
+    </div>
+
+    <div class="pane" id="pF">
+      <div class="ph">白い ふち</div>
+      <div class="row"><span>ふち</span><input type="range" id="edge" min="0" max="16" step="1" value="6"><span class="v" id="edgeV">6</span></div>
+      <p class="note">LINE の スタンプは 背景が いろいろな 色に なるので、白い ふちが あると 見やすく なります。ぜんぶの スタンプに かかります。</p>
+      <div class="ph">この スタンプ</div>
+      <div class="wrapb"><button class="btn sm" id="setMain">メイン画像に する</button><button class="btn sm" id="dupS">となりに 写す</button><button class="btn sm" id="clrS">この スタンプを 空に</button></div>
+      <p class="note">書き出す ときに、まわりの すき間を 切って、LINE の 大きさ(偶数・まわり 10px)に 自動で そろえます。</p>
+    </div>
+  </div>
+</main>
+
+<div id="apply"><div class="in">
+  <div class="wrapb" style="justify-content:space-between;align-items:center"><button class="btn" id="applyBack">← 作る 画面へ</button><span id="applyInfo" class="note"></span></div>
+  <div class="sh"><span class="sh-no">01</span><span class="sh-en">Check</span><span class="sh-ja">スタンプの 点検</span></div>
+  <div id="chk" class="chk"></div>
+  <div class="sh"><span class="sh-no">02</span><span class="sh-en">Info</span><span class="sh-ja">申請に 書く こと</span></div>
+  <div class="meta">
+    <label>スタンプの タイトル(日本語)<input type="text" id="mTitleJa" data-max="40"><small><span class="cnt"></span></small></label>
+    <label>タイトル(英語)<input type="text" id="mTitleEn" data-max="40"><small><span class="cnt"></span> 英語の 欄も 申請に 要ります</small></label>
+    <label>説明文(日本語)<textarea id="mDescJa" data-max="160"></textarea><small><span class="cnt"></span></small></label>
+    <label>説明文(英語)<textarea id="mDescEn" data-max="160"></textarea><small><span class="cnt"></span></small></label>
+    <label>クリエイター名<input type="text" id="mCreator" data-max="50"><small><span class="cnt"></span></small></label>
+    <label>コピーライト<input type="text" id="mCopy" data-max="50" data-ascii="1" placeholder="(C) 2026 haanidesign"><small><span class="cnt"></span> 英数字だけ</small></label>
+  </div>
+  <div class="wrapb" style="margin-top:.8rem"><button class="btn" id="copyMeta">ぜんぶ コピー</button></div>
+  <div class="sh"><span class="sh-no">03</span><span class="sh-en">Export</span><span class="sh-ja">申請用の zip</span></div>
+  <div class="wrapb"><button class="btn y" id="zipBtn">zip を 作って 保存</button></div>
+  <p class="note" id="zipInfo">中身: 01.png 〜 と main.png・tab.png。LINE の「ZIPファイルでアップロード」に そのまま 入れられます。</p>
+  <div class="sh"><span class="sh-no">04</span><span class="sh-en">Apply</span><span class="sh-ja">申請の しかた</span></div>
+  <ol class="steps">
+    <li><div><a href="https://creator.line.me/ja/" target="_blank" rel="noopener">LINE Creators Market</a> を 開いて、ログインする。</div></li>
+    <li><div>「新規登録」→ <b id="stKind">スタンプ</b> を 選ぶ。</div></li>
+    <li><div>「表示情報」に、上の 02 の 文字を 貼る(コピーボタンが べんり)。</div></li>
+    <li><div>「スタンプ画像」で 数を <b id="stCount">8</b> 個に して、「ZIPファイルでアップロード」から 03 の zip を 入れる。</div></li>
+    <li><div>「販売情報」で 値段と 公開の しかたを 決めて 保存する。</div></li>
+    <li><div>「リクエスト」で 審査に 出す。ログインと この ボタンは、本人が 押して ください。</div></li>
+  </ol>
+  <p class="note">決まりは LINE の <a href="https://creator.line.me/ja/guideline/sticker/" target="_blank" rel="noopener">スタンプの ガイドライン</a> と <a href="https://creator.line.me/ja/guideline/animationsticker/" target="_blank" rel="noopener">動くスタンプの ガイドライン</a> を もとに しています。</p>
+</div></div>
+
+<div id="works"><div class="box">
+  <div class="wrapb" style="justify-content:space-between;align-items:center"><b style="font-size:1.15rem">作品一覧</b><button class="btn sm" id="worksClose">とじる</button></div>
+  <div id="wlist"></div>
+</div></div>
+
+<div id="msg" role="status"></div>
+<input type="file" id="fImg" accept="image/*" hidden>
+<input type="file" id="fImgs" accept="image/*" multiple hidden>
+
+<script src="lib.js"></script>
+<script src="app.js"></script>
+<script src="../skin/oboeru.js"></script>
+<script type="module" src="../skin/rslider-auto.js"></script>
+<script src="../../tana.js" data-dock data-tool="LINE スタンプ工房" data-in="#fImg:絵"></script>
+</body>
+</html>

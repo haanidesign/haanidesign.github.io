@@ -353,6 +353,17 @@ const TOOLS = [
     thumb: "thumbs/yureru-rakugaki.svg",
     url: "tools/yureru-rakugaki/index.html",
     status: "live"
+  },
+  {
+    no: 33,
+    slug: "line-stamp-kobo",
+    title: "LINE スタンプ工房",
+    desc: "画像を 入れたり 描いたり して LINE スタンプを 作り、決まりの 大きさに そろえて 申請用の zip に する。",
+    tags: ["LINEスタンプ", "APNG", "申請"],
+    cat: "other",
+    thumb: "thumbs/line-stamp-kobo.svg",
+    url: "tools/line-stamp-kobo/index.html",
+    status: "live"
   }
 ];
 
