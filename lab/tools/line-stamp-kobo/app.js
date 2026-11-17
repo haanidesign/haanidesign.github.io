@@ -64,10 +64,32 @@ function fxAt(id, t){
 }
 
 /* ---------------- 描く ---------------- */
-function drawStroke(g, s){
-  const p = s.p;
+/* ゆれる落書き: 線の 形を 4 まいの ちがう ゆれで くり返す(手描きアニメの 線の ふるえ)。
+   BOIL = {b: いま 何まいめ, A: ゆれの 量}。動くスタンプで「ゆれる落書き」が オンの ときだけ */
+let BOIL = null;
+const hash = n=>{ const x = Math.sin(n*127.1)*43758.5453; return x - Math.floor(x); };
+function vnoise(t, seed){ const i = Math.floor(t), f = t - i, u = f*f*(3 - 2*f);
+  return (hash(i + seed*57.3)*(1 - u) + hash(i + 1 + seed*57.3)*u)*2 - 1; }
+function boilPts(p, si){
+  if(!BOIL) return p;
+  const q = new Array(p.length), A = BOIL.A, sd = si*13.7 + BOIL.b*101.3;
+  let arc = 0;
+  for(let i=0;i<p.length;i+=2){
+    if(i) arc += Math.hypot(p[i]-p[i-2], p[i+1]-p[i-1]);
+    q[i] = p[i] + vnoise(arc/26, sd)*A; q[i+1] = p[i+1] + vnoise(arc/26, sd + 7.7)*A;
+  }
+  return q;
+}
+/* 絵・塗り・文字は 形を 変えずに 少しだけ ずらして 回す */
+function boilShake(g, k){
+  if(!BOIL) return;
+  const sd = k*31.7 + BOIL.b*17.3;
+  g.translate((hash(sd) - .5)*BOIL.A*.9, (hash(sd + 3.1) - .5)*BOIL.A*.9);
+}
+function drawStroke(g, s, si){
+  const p = boilPts(s.p, si || 0);
   g.save();
-  g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = s.w; g.strokeStyle = s.c;
+  g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = BOIL ? s.w*(1 + vnoise(BOIL.b*3.1, si || 0)*.12) : s.w; g.strokeStyle = s.c;
   g.beginPath();
   if(p.length === 2){ g.arc(p[0], p[1], s.w/2, 0, Math.PI*2); g.fillStyle = s.c; g.fill(); g.restore(); return; }
   g.moveTo(p[0], p[1]);
@@ -98,6 +120,7 @@ function drawLayer(g, L){
 /* 1 枚 描く。fx は 動き(target に よって 絵だけ・文字だけ にも かかる) */
 function renderContent(g, st, t){
   const f = st.fx !== "none" && P.mode === "anim" ? fxAt(st.fx, t) : null;
+  BOIL = st.boil && P.mode === "anim" ? {b: Math.floor(t * st.dur * 8) % 4, A: (st.boilA || 2.5) * 2} : null;
   const apply = (fn, on)=>{
     g.save();
     if(f && on){
@@ -109,11 +132,13 @@ function renderContent(g, st, t){
   };
   const onImg = st.fxT !== "text", onText = st.fxT !== "img";
   apply(()=>{
-    st.layers.forEach(L=>{ if(L.t === "img") drawLayer(g, L); });
-    (st.fills || []).forEach(f=>{ const A = ASSETS.get(f.a); if(A) g.drawImage(A.img, f.x - A.img.width/2, f.y - A.img.height/2); });   // 塗りは 線の 下
-    st.strokes.forEach(s=> drawStroke(g, s));
+    st.layers.forEach((L, i)=>{ if(L.t === "img"){ g.save(); boilShake(g, i); drawLayer(g, L); g.restore(); } });
+    (st.fills || []).forEach((f, i)=>{ const A = ASSETS.get(f.a); if(!A) return;
+      g.save(); boilShake(g, 50 + i); g.drawImage(A.img, f.x - A.img.width/2, f.y - A.img.height/2); g.restore(); });   // 塗りは 線の 下
+    st.strokes.forEach((s, i)=> drawStroke(g, s, i));
   }, onImg);
-  apply(()=>{ st.layers.forEach(L=>{ if(L.t === "text") drawLayer(g, L); }); }, onText);
+  apply(()=>{ st.layers.forEach((L, i)=>{ if(L.t === "text"){ g.save(); boilShake(g, 100 + i); drawLayer(g, L); g.restore(); } }); }, onText);
+  BOIL = null;
 }
 /* 白い ふちまで つけた 1 枚(740×640) */
 function renderFull(st, t){
@@ -229,6 +254,8 @@ function syncSide(){
   // 動き
   [...$("fx").children].forEach(b=> b.classList.toggle("on", b.dataset.v === st.fx));
   segOn("fxT", st.fxT); segOn("dur", String(st.dur));
+  $("boil").classList.toggle("on", !!st.boil); $("boil").textContent = st.boil ? "ゆれる落書き: オン" : "ゆれる落書き: オフ";
+  $("boilA").value = st.boilA || 2.5; $("boilAV").textContent = (+(st.boilA || 2.5)).toFixed(1);
   $("fx").style.opacity = P.mode === "anim" ? 1 : .45;
   $("play").style.display = P.mode === "anim" ? "" : "none";
   $("edge").value = P.edge; $("edgeV").textContent = P.edge;
@@ -573,6 +600,11 @@ FX.forEach(([v, label])=>{ const b = document.createElement("button"); b.dataset
     cur().fx = v; syncSide(); changed(); playing = v !== "none"; playT0 = performance.now(); };
   $("fx").appendChild(b); });
 $("fxT").onclick = e=>{ const b = e.target.closest("[data-v]"); if(!b) return; cur().fxT = b.dataset.v; syncSide(); changed(); };
+$("boil").onclick = ()=>{
+  if(P.mode !== "anim"){ toast("上の「動く」に すると 使えます"); return; }
+  const st = cur(); st.boil = !st.boil; syncSide(); changed(); playing = st.boil || st.fx !== "none"; playT0 = performance.now();
+};
+$("boilA").oninput = e=>{ cur().boilA = +e.target.value; $("boilAV").textContent = (+e.target.value).toFixed(1); changed(); };
 $("dur").onclick = e=>{ const b = e.target.closest("[data-v]"); if(!b) return; cur().dur = +b.dataset.v; syncSide(); changed(); };
 $("play").onclick = ()=>{ playing = !playing; playT0 = performance.now(); $("play").textContent = playing ? "■ 止める" : "▶ 動きを見る"; redraw(); };
 $("edge").oninput = e=>{ P.edge = +e.target.value; $("edgeV").textContent = P.edge; changed(); clearTimeout(thumbT); thumbT = setTimeout(()=> drawThumbs(), 300); };
@@ -617,7 +649,7 @@ async function buildStamp(st){
   const frames = Array.from({length:N}, (_, i)=> renderFull(st, i / N));
   const b = LS.bbox(frames);
   if(!b) return {errs:["絵が 見えません(キャンバスの 外かも)"]};
-  if(st.fx === "none") errs.push("動きが ついて いません(ぜんぶ 同じ 絵だと 申請で はじかれます)");
+  if(st.fx === "none" && !st.boil) errs.push("動きが ついて いません(ぜんぶ 同じ 絵だと 申請で はじかれます)");
   const pad = 2;
   const s = Math.min(320 / (b.w + pad*2), 270 / (b.h + pad*2));
   const w = Math.min(320, Math.round((b.w + pad*2) * s)), h = Math.min(270, Math.round((b.h + pad*2) * s));

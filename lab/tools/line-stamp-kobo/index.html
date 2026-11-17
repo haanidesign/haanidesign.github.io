@@ -245,6 +245,11 @@ textarea{resize:vertical;min-height:4.5rem;}
     <div class="pane" id="pM">
       <div class="ph">動き <i>動くスタンプ</i></div>
       <div class="fx" id="fx"></div>
+      <div class="ph">ゆれる落書き</div>
+      <button class="btn" id="boil" style="width:100%">ゆれる落書き: オフ</button>
+      <div class="row"><span>ゆれの量</span><input type="range" id="boilA" min="0.5" max="6" step="0.1" value="2.5"><span class="v" id="boilAV">2.5</span></div>
+      <p class="note">描いた 線が 手描きアニメの ように ぷるぷる ふるえます。絵と 文字も 少しだけ ゆれます。上の 動きと いっしょに 使えます。</p>
+      <div class="ph">動きを かける もの</div>
       <div class="row"><span>動かす</span><div class="seg" id="fxT"><button data-v="all" class="on">ぜんぶ</button><button data-v="img">絵だけ</button><button data-v="text">文字だけ</button></div></div>
       <div class="row"><span>長さ</span><div class="seg" id="dur"><button data-v="1">1秒</button><button data-v="2" class="on">2秒</button><button data-v="3">3秒</button><button data-v="4">4秒</button></div></div>
       <p class="note" id="fxNote">上の「動く」に すると 使えます。1 コマめが 売り場の 止まった 絵に なるので、はじめは 止まった 形から 始まります。</p>
