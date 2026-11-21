@@ -29,3 +29,4 @@
 .f-yt b{display:block;font-size:1rem;}
 .f-yt small{font-size:.82rem;font-weight:700;color:var(--gray);}
 .f-yt:hover small{color:var(--ink);}
+.works .wk:nth-child(n){margin-top:0;}
