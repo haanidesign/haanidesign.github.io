@@ -21,8 +21,14 @@
 <style>
 .wk-bs .wk-img{cursor:pointer}
 .wk-bs h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.works-more{display:flex;justify-content:center;margin-top:3rem}
-.works-more[hidden]{display:none}
+.bs-shelf{margin:5rem 0 0}
+.bs-shelf[hidden]{display:none}
+.bs-shelf .bk{flex-basis:240px}
+.bs-shelf .bk-img{aspect-ratio:1;margin:0}
+.bs-nav{margin-left:auto;display:flex;gap:.5rem}
+.bs-btn{width:2.6rem;height:2.6rem;border-radius:50%;border:1.5px solid var(--ink);background:transparent;font-size:1.3rem;cursor:pointer;transition:background-color .2s,color .2s}
+.bs-btn:hover{background:var(--ink);color:var(--main)}
+@media (max-width:860px){.bs-shelf .bk{flex-basis:160px}.bs-nav{display:none}}
 </style>
 </head>
 <body>
@@ -164,7 +170,11 @@
         <div class="wk-info"><span class="wk-n">/06</span><h3>WEB広告</h3><span class="tag">広告</span></div>
       </div>
     </div>
-    <div class="works-more" id="bsMore" hidden><a href="../bsky.html" class="btn btn-y">ギャラリーをもっと見る <span class="arr">→</span></a></div>
+    <div class="shelf bs-shelf" id="bsShelf" hidden>
+      <div class="shelf-head"><h3>ギャラリー</h3><p>横にスライドして見られます。</p>
+        <span class="bs-nav"><button class="bs-btn" data-d="-1" aria-label="前へ">‹</button><button class="bs-btn" data-d="1" aria-label="次へ">›</button></span></div>
+      <div class="shelf-row" id="bsRow"></div>
+    </div>
   </section>
 
   <!-- 料金 -->
@@ -299,10 +309,11 @@
 
 <script src="../site.js?v=2"></script>
 <script>
-/* Bluesky の 絵を 作品一覧の うしろに 足す */
+/* Bluesky の 絵を 横に ならべる（端まで 来たら 続きを 読む） */
 (function(){
-  var N = 6, works = document.querySelector('.works'), more = document.getElementById('bsMore');
-  var url = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=haanidesign.bsky.social&limit=30&filter=posts_with_media';
+  var API = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=haanidesign.bsky.social&limit=40&filter=posts_with_media';
+  var shelf = document.getElementById('bsShelf'), row = document.getElementById('bsRow');
+  var cursor = null, done = false, busy = false;
   function media(e){
     if(!e) return [];
     if(e.$type === 'app.bsky.embed.images#view') return (e.images||[]).map(function(i){ return i.thumb || i.fullsize; });
@@ -310,27 +321,33 @@
     if(e.$type === 'app.bsky.embed.recordWithMedia#view') return media(e.media);
     return [];
   }
-  fetch(url).then(function(r){ return r.json(); }).then(function(d){
-    var n = works.children.length, made = 0;
-    (d.feed||[]).some(function(it){
-      var p = it.post; if(it.reason || !p) return false;
-      if(it.reply && !(it.reply.parent && it.reply.parent.author && p.author && it.reply.parent.author.did === p.author.did)) return false;
-      var src = media(p.embed)[0]; if(!src) return false;
-      var text = ((p.record && p.record.text) || '').split('\n')[0].trim() || 'イラスト';
-      var link = 'https://bsky.app/profile/' + p.author.handle + '/post/' + String(p.uri).split('/').pop();
-      n++; made++;
-      var a = document.createElement('a');
-      a.className = 'wk wk-bs rv'; a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.style.textDecoration = 'none';
-      a.innerHTML = '<div class="wk-img"><img loading="lazy" alt=""></div><div class="wk-info"><span class="wk-n"></span><h3></h3><span class="tag">イラスト</span></div>';
-      a.querySelector('img').src = src;
-      a.querySelector('.wk-n').textContent = '/' + String(n).padStart(2,'0');
-      a.querySelector('h3').textContent = text;
-      works.appendChild(a);
-      requestAnimationFrame(function(){ a.classList.add('in'); });
-      return made >= N;
-    });
-    if(made) more.hidden = false;
-  }).catch(function(){});
+  function load(){
+    if(busy || done) return; busy = true;
+    fetch(API + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '')).then(function(r){ return r.json(); }).then(function(d){
+      cursor = d.cursor || null; if(!cursor) done = true;
+      (d.feed||[]).forEach(function(it){
+        var p = it.post; if(it.reason || !p) return;
+        if(it.reply && !(it.reply.parent && it.reply.parent.author && p.author && it.reply.parent.author.did === p.author.did)) return;
+        var link = 'https://bsky.app/profile/' + p.author.handle + '/post/' + String(p.uri).split('/').pop();
+        media(p.embed).forEach(function(src){
+          var a = document.createElement('a');
+          a.className = 'bk'; a.href = link; a.target = '_blank'; a.rel = 'noopener';
+          a.innerHTML = '<div class="bk-img"><img loading="lazy" alt=""></div>';
+          a.querySelector('img').src = src;
+          row.appendChild(a);
+        });
+      });
+      if(row.children.length) shelf.hidden = false;
+      busy = false;
+    }).catch(function(){ busy = false; });
+  }
+  row.addEventListener('scroll', function(){
+    if(row.scrollLeft + row.clientWidth > row.scrollWidth - 600) load();
+  }, {passive:true});
+  shelf.querySelectorAll('.bs-btn').forEach(function(b){
+    b.addEventListener('click', function(){ row.scrollBy({left: +b.dataset.d * row.clientWidth * .8, behavior:'smooth'}); });
+  });
+  load();
 })();
 </script>
 
