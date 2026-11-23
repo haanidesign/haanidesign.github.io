@@ -25,6 +25,7 @@
 .bs-shelf[hidden]{display:none}
 .bs-shelf .bk{flex-basis:240px}
 .bs-shelf .bk-img{aspect-ratio:1;margin:0}
+.bs-shelf video{pointer-events:none}
 .bs-nav{margin-left:auto;display:flex;gap:.5rem}
 .bs-btn{width:2.6rem;height:2.6rem;border-radius:50%;border:1.5px solid var(--ink);background:transparent;font-size:1.3rem;cursor:pointer;transition:background-color .2s,color .2s}
 .bs-btn:hover{background:var(--ink);color:var(--main)}
@@ -316,11 +317,44 @@
   var cursor = null, done = false, busy = false;
   function media(e){
     if(!e) return [];
-    if(e.$type === 'app.bsky.embed.images#view') return (e.images||[]).map(function(i){ return i.thumb || i.fullsize; });
-    if(e.$type === 'app.bsky.embed.video#view') return e.thumbnail ? [e.thumbnail] : [];
+    if(e.$type === 'app.bsky.embed.images#view') return (e.images||[]).map(function(i){ return {src: i.thumb || i.fullsize}; });
+    if(e.$type === 'app.bsky.embed.video#view') return [{src: e.thumbnail || '', playlist: e.playlist || ''}];
     if(e.$type === 'app.bsky.embed.recordWithMedia#view') return media(e.media);
     return [];
   }
+  /* 動画は ギャラリーと 同じく、画面に 入った ものだけ 流す */
+  var hlsReady = null;
+  function loadHls(){
+    if(hlsReady) return hlsReady;
+    hlsReady = new Promise(function(ok, ng){
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+      sc.onload = ok; sc.onerror = ng; document.head.appendChild(sc);
+    });
+    return hlsReady;
+  }
+  function nativeHls(v){ return !!v.canPlayType('application/vnd.apple.mpegurl'); }
+  function attach(v, pl){
+    var h = null, dead = false;
+    loadHls().then(function(){
+      if(dead) return;
+      if(window.Hls && window.Hls.isSupported()){
+        h = new window.Hls({ enableWorker:true, maxBufferLength:10 });
+        h.loadSource(pl); h.attachMedia(v);
+      }else if(nativeHls(v)){ v.src = pl; }
+      v.play().catch(function(){});
+    }).catch(function(){
+      if(!dead && nativeHls(v)){ v.src = pl; v.play().catch(function(){}); }
+    });
+    return function(){ dead = true; if(h){ h.destroy(); h = null; } v.pause(); v.removeAttribute('src'); v.load(); };
+  }
+  var watcher = ('IntersectionObserver' in window) ? new IntersectionObserver(function(list){
+    list.forEach(function(en){
+      var v = en.target;
+      if(en.isIntersecting){ if(!v._off) v._off = attach(v, v.dataset.playlist); }
+      else if(v._off){ v._off(); v._off = null; }
+    });
+  }, { root: row, rootMargin: '0px 200px' }) : null;
   function load(){
     if(busy || done) return; busy = true;
     fetch(API + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '')).then(function(r){ return r.json(); }).then(function(d){
@@ -329,11 +363,22 @@
         var p = it.post; if(it.reason || !p) return;
         if(it.reply && !(it.reply.parent && it.reply.parent.author && p.author && it.reply.parent.author.did === p.author.did)) return;
         var link = 'https://bsky.app/profile/' + p.author.handle + '/post/' + String(p.uri).split('/').pop();
-        media(p.embed).forEach(function(src){
+        media(p.embed).forEach(function(m){
+          if(!m.src && !m.playlist) return;
           var a = document.createElement('a');
           a.className = 'bk'; a.href = link; a.target = '_blank'; a.rel = 'noopener';
-          a.innerHTML = '<div class="bk-img"><img loading="lazy" alt=""></div>';
-          a.querySelector('img').src = src;
+          var box = document.createElement('div'); box.className = 'bk-img'; a.appendChild(box);
+          if(m.playlist){
+            var v = document.createElement('video');
+            v.muted = true; v.loop = true; v.playsInline = true;
+            v.setAttribute('muted',''); v.setAttribute('playsinline','');
+            v.preload = 'none'; v.poster = m.src; v.dataset.playlist = m.playlist;
+            box.appendChild(v);
+            if(watcher) watcher.observe(v); else v._off = attach(v, m.playlist);
+          }else{
+            var img = document.createElement('img'); img.loading = 'lazy'; img.alt = ''; img.src = m.src;
+            box.appendChild(img);
+          }
           row.appendChild(a);
         });
       });
