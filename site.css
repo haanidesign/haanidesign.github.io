@@ -444,3 +444,14 @@ body.ready .hero-chara{opacity:1;transform:none;transition-delay:.9s;}
 .f-yt small{font-size:.82rem;font-weight:700;color:var(--gray);}
 .f-yt:hover small{color:var(--ink);}
 .works .wk:nth-child(n){margin-top:0;}
+
+/* タブレット縦：絵を上、文字を下に 積む */
+@media (min-width:861px) and (max-width:1366px) and (orientation:portrait){
+  .hero{min-height:auto;padding-top:7rem;}
+  .hero-in{grid-template-columns:1fr;gap:1.5rem;}
+  .hero-visual{order:-1;justify-self:center;margin-bottom:0;}
+  .hero-chara.wide{width:min(82vw,900px);margin-right:0;}
+  .hero-text{padding-bottom:4.5rem;}
+  .ring-wide{left:auto!important;right:-4%!important;top:2%!important;bottom:auto!important;}
+  .scroll{display:none;}
+}
