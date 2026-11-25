@@ -342,6 +342,17 @@ const TOOLS = [
     thumb: "thumbs/shindo-lens.svg",
     url: "tools/shindo-lens/index.html",
     status: "live"
+  },
+  {
+    no: 32,
+    slug: "akuyaku-soukanzu",
+    title: "悪役令嬢 人物相関図",
+    desc: "漫画「悪役令嬢、旅に出る。」1〜37話の人物相関図と人物紹介。顔をタップすると、その人のつながりだけが光る。",
+    tags: ["漫画", "相関図", "人物紹介"],
+    cat: "manga",
+    thumb: "thumbs/akuyaku-soukanzu.jpg",
+    url: "tools/akuyaku-soukanzu/index.html",
+    status: "live"
   }
 ];
 
