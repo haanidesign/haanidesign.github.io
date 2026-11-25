@@ -386,7 +386,7 @@ svg.addEventListener('keydown', e=>{ const n=e.target.closest('.nd'); if(n && (e
 panel.addEventListener('click', e=>{ const b=e.target.closest('[data-go]'); if(b) select(b.dataset.go); });
 
 // ?sel=silva のように開くと、その人を選んだ状態で始まる
-const q=new URLSearchParams(location.search).get('sel'); if(q && INFO[q]) (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>select(q));
+const qsel=new URLSearchParams(location.search).get('sel'); if(qsel && INFO[qsel]) (document.fonts?document.fonts.ready:Promise.resolve()).then(()=>select(qsel));
 
 // スクロールでふわっと出す
 const rvs=[...document.querySelectorAll('.rv')];
