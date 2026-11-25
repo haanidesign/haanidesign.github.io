@@ -29,6 +29,44 @@
 .bs-btn{width:2.6rem;height:2.6rem;border-radius:50%;border:1.5px solid var(--ink);background:transparent;font-size:1.3rem;cursor:pointer;transition:background-color .2s,color .2s}
 .bs-btn:hover{background:var(--ink);color:var(--main)}
 @media (max-width:860px){.bs-shelf .bk{flex-basis:160px}.bs-nav{display:none}}
+.works3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2rem 1.6rem}
+.wk3{all:unset;display:block;cursor:pointer;text-decoration:none;color:inherit}
+.wk3:focus-visible{outline:3px solid var(--ink);outline-offset:4px;border-radius:14px}
+.wk3 .wk-img{display:block;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#fff}
+.wk3 .wk-img img,.wk3 .wk-img video{width:100%;height:100%;object-fit:cover;object-position:50% 0;transition:transform 1s var(--ease)}
+.wk3:hover .wk-img img,.wk3:hover .wk-img video{transform:scale(1.04)}
+.wk3 .wk-info{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;margin-top:1rem}
+.wk3 b{font-size:1.1rem;font-weight:900}
+.wk3 small{font-size:.85rem;font-weight:700;color:var(--gray)}
+.wk3:hover small{color:var(--ink)}
+.lb{position:fixed;inset:0;z-index:150;background:rgba(30,28,20,.94);display:flex;align-items:center;justify-content:center;padding:4rem 4.5rem}
+.lb[hidden]{display:none}
+.lb img{max-width:100%;max-height:100%;border-radius:12px;background:#fff}
+.lb button{position:absolute;width:3rem;height:3rem;border-radius:50%;border:none;background:var(--paper);font-size:1.3rem;cursor:pointer}
+.lb button:hover{background:var(--main)}
+.lb-x{top:1rem;right:1rem}.lb-p{left:1rem;top:50%;transform:translateY(-50%)}.lb-n{right:1rem;top:50%;transform:translateY(-50%)}
+.lb.one .lb-p,.lb.one .lb-n{display:none}
+.lb-c{pointer-events:none;position:absolute;bottom:1.2rem;left:0;right:0;text-align:center;color:var(--main);font-family:var(--en);font-size:.8rem}
+.works3>.wk3{width:auto}
+@media (max-width:860px){.works3{grid-template-columns:1fr;gap:1.4rem}.wk3{display:grid;grid-template-columns:42% 1fr;gap:1rem;align-items:center}.wk3 .wk-info{margin-top:0}.wk3 b{font-size:1rem;line-height:1.45}.lb{padding:4rem .6rem 5rem}.lb-p,.lb-n{top:auto;bottom:.8rem;transform:none}}
+</style>
+<style>
+.wk-info{flex-direction:column;align-items:flex-start;gap:.3rem}
+.wk-info .tag{order:-1}
+.wk-n{display:none}
+.cbtn{width:1.9rem;height:1.9rem;font-size:1rem}
+.cprev{right:2.9rem}
+.vbtn{font-size:.68rem;padding:.25rem .6rem}
+.wk-img{aspect-ratio:1;border-radius:14px}
+.f-yt-img{aspect-ratio:1;flex-basis:84px}
+.wk-info{margin-top:.8rem}
+.wk-info h3{font-size:.95rem;line-height:1.45}
+.bs-shelf{margin-top:5rem}
+.bs-shelf .shelf-row{gap:1rem}
+.bs-shelf .bk{flex-basis:calc((100% - 4rem)/5.4)}
+.bs-shelf .bk-img{border-radius:12px}
+.shelf-row{margin:0;padding:0 0 1rem}
+@media (max-width:860px){.bs-shelf .bk{flex-basis:38%}}
 </style>
 </head>
 <body>
@@ -108,68 +146,21 @@
       </div>
     </div>
 
-    <div class="works">
-      <div class="wk rv">
-        <div class="wk-img" data-carousel>
-          <span class="cnum"><b>1</b>/4</span>
-          <img src="manga/tachibanasenpai_01.jpg" class="cslide on" alt="橘先輩 1ページ目">
-          <img src="manga/tachibanasenpai_02.jpg" class="cslide" alt="橘先輩 2ページ目" loading="lazy">
-          <img src="manga/tachibanasenpai_03.jpg" class="cslide" alt="橘先輩 3ページ目" loading="lazy">
-          <img src="manga/tachibanasenpai_04.jpg" class="cslide" alt="橘先輩 4ページ目" loading="lazy">
-          <button class="cbtn cprev" aria-label="前のページ">‹</button>
-          <button class="cbtn cnext" aria-label="次のページ">›</button>
-        </div>
-        <div class="wk-info"><span class="wk-n">/01</span><h3>笑顔を見せてよ、橘先輩</h3><span class="tag">漫画</span></div>
-      </div>
-
-      <div class="wk rv">
-        <div class="wk-img">
-          <video id="v-kotono" src="kotono.mp4" autoplay muted loop playsinline preload="metadata"></video>
-          <button class="vbtn" data-vid="v-kotono">音を出す</button>
-        </div>
-        <div class="wk-info"><span class="wk-n">/02</span><h3>ことばの教科書</h3><span class="tag">アニメ</span><a class="wk-link" href="https://youtube.com/@haanianime" target="_blank" rel="noopener">YouTubeで見る <span class="arr">→</span></a></div>
-      </div>
-
-      <div class="wk rv">
-        <div class="wk-img" data-carousel>
-          <span class="cnum"><b>1</b>/5</span>
-          <img src="manga/fanart_01.jpg" class="cslide on" alt="ファンアート 1">
-          <img src="manga/fanart_03.jpg" class="cslide" alt="ファンアート 2" loading="lazy">
-          <img src="manga/fanart_04.jpg" class="cslide" alt="ファンアート 3" loading="lazy">
-          <img src="manga/fanart_05.jpg" class="cslide" alt="ファンアート 4" loading="lazy">
-          <img src="manga/fanart_02.jpg" class="cslide" alt="ファンアート 5" loading="lazy">
-          <button class="cbtn cprev" aria-label="前へ">‹</button>
-          <button class="cbtn cnext" aria-label="次へ">›</button>
-        </div>
-        <div class="wk-info"><span class="wk-n">/03</span><h3>ファンアート</h3><span class="tag">イラスト</span></div>
-      </div>
-
-      <div class="wk rv">
-        <div class="wk-img">
-          <video id="v-diy" src="diy.mp4" autoplay muted loop playsinline preload="metadata"></video>
-          <button class="vbtn" data-vid="v-diy">音を出す</button>
-        </div>
-        <div class="wk-info"><span class="wk-n">/04</span><h3>ただいまDIY中</h3><span class="tag">アニメ</span><a class="wk-link" href="https://youtube.com/@haanianime" target="_blank" rel="noopener">YouTubeで見る <span class="arr">→</span></a></div>
-      </div>
-
-      <div class="wk rv">
-        <div class="wk-img" data-carousel>
-          <span class="cnum"><b>1</b>/4</span>
-          <img src="host.jpg" class="cslide on" alt="WEB漫画 1ページ目">
-          <img src="manga/host_02.jpg" class="cslide" alt="WEB漫画 2ページ目" loading="lazy">
-          <img src="manga/host_03.jpg" class="cslide" alt="WEB漫画 3ページ目" loading="lazy">
-          <img src="manga/host_04.jpg" class="cslide" alt="WEB漫画 4ページ目" loading="lazy">
-          <button class="cbtn cprev" aria-label="前のページ">‹</button>
-          <button class="cbtn cnext" aria-label="次のページ">›</button>
-        </div>
-        <div class="wk-info"><span class="wk-n">/05</span><h3>WEB漫画</h3><span class="tag">漫画</span></div>
-      </div>
-
-      <div class="wk rv">
-        <div class="wk-img"><img src="webad.jpg" alt="WEB広告" loading="lazy"></div>
-        <div class="wk-info"><span class="wk-n">/06</span><h3>WEB広告</h3><span class="tag">広告</span></div>
-      </div>
+    <div class="works works3">
+      <button class="wk wk3" data-pages="manga/tachibanasenpai_01.jpg,manga/tachibanasenpai_02.jpg,manga/tachibanasenpai_03.jpg,manga/tachibanasenpai_04.jpg">
+        <span class="wk-img"><img src="manga/tachibanasenpai_01.jpg" alt="" loading="lazy"></span>
+        <span class="wk-info"><span class="tag">漫画</span><b>笑顔を見せてよ、橘先輩</b><small>4ページ読む →</small></span>
+      </button>
+      <a class="wk wk3" href="https://youtube.com/@haanianime" target="_blank" rel="noopener">
+        <span class="wk-img"><video src="kotono.mp4" autoplay muted loop playsinline preload="metadata"></video></span>
+        <span class="wk-info"><span class="tag">アニメ</span><b>ことばの教科書</b><small>YouTubeで見る →</small></span>
+      </a>
+      <button class="wk wk3" data-pages="webad.jpg">
+        <span class="wk-img"><img src="webad.jpg" alt="" loading="lazy"></span>
+        <span class="wk-info"><span class="tag">広告</span><b>WEB広告</b><small>大きく見る →</small></span>
+      </button>
     </div>
+
     <div class="shelf bs-shelf" id="bsShelf" hidden>
       <div class="shelf-head"><h3>ギャラリー</h3><p>横にスライドして見られます。</p>
         <span class="bs-nav"><button class="bs-btn" data-d="-1" aria-label="前へ">‹</button><button class="bs-btn" data-d="1" aria-label="次へ">›</button></span></div>
@@ -297,6 +288,12 @@
 
 </main>
 
+<div class="lb" id="lb" hidden>
+  <button class="lb-x" aria-label="閉じる">✕</button>
+  <button class="lb-p" aria-label="前へ">‹</button><button class="lb-n" aria-label="次へ">›</button>
+  <img alt=""><span class="lb-c"></span>
+</div>
+
 <footer class="foot">
   <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
   <div class="foot-row">
@@ -308,6 +305,24 @@
 </footer>
 
 <script src="site.js?v=2"></script>
+<script>
+/* 作品を 押したら 大きく 見る */
+(function(){
+  var lb=document.getElementById('lb'), img=lb.querySelector('img'), cap=lb.querySelector('.lb-c'), list=[], i=0;
+  function show(){ i=(i+list.length)%list.length; img.src=list[i]; cap.textContent=list.length>1?(i+1)+' / '+list.length:''; lb.classList.toggle('one',list.length<2); }
+  document.querySelectorAll('.wk3[data-pages]').forEach(function(b){
+    b.addEventListener('click',function(){ list=b.dataset.pages.split(','); i=0; show(); lb.hidden=false; });
+  });
+  function close(){ lb.hidden=true; img.removeAttribute('src'); }
+  lb.querySelector('.lb-x').onclick=close;
+  lb.querySelector('.lb-p').onclick=function(){ i--; show(); };
+  lb.querySelector('.lb-n').onclick=function(){ i++; show(); };
+  lb.addEventListener('click',function(e){ if(e.target===lb) close(); });
+  addEventListener('keydown',function(e){ if(lb.hidden) return; if(e.key==='Escape') close(); if(e.key==='ArrowLeft'){i--;show();} if(e.key==='ArrowRight'){i++;show();} });
+  var x0=null; lb.addEventListener('touchstart',function(e){x0=e.changedTouches[0].clientX},{passive:true});
+  lb.addEventListener('touchend',function(e){ if(x0===null) return; var d=e.changedTouches[0].clientX-x0; if(Math.abs(d)>45){ i+=d<0?1:-1; show(); } x0=null; },{passive:true});
+})();
+</script>
 <script>
 /* Bluesky の 絵を 横に ならべる（端まで 来たら 続きを 読む） */
 (function(){
