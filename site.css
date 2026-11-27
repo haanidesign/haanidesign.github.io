@@ -434,6 +434,9 @@ body.ready .hero-chara{opacity:1;transform:none;transition-delay:.9s;}
 @media (max-width:860px){.bk{flex-basis:150px}.shelf-row{margin:0 -1.5rem}}
 .feature .more{text-decoration:none;}
 .f-links{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.8rem;}
+button.more{border:0;font:inherit;font-weight:700;cursor:pointer;min-height:44px;align-items:center;}
+button.more.more-o{border:2px solid var(--ink);}
+.feature-info .textlink{margin-top:1rem;font-size:.95rem;}
 .more-o{background:transparent!important;color:var(--ink)!important;border:2px solid var(--ink);}
 .more-o:hover{background:var(--ink)!important;color:var(--main)!important;}
 .f-yt{display:flex;align-items:center;gap:1rem;margin-top:1.4rem;text-decoration:none;padding-top:1.4rem;border-top:1px solid var(--line);}

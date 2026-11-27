@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="site.css?v=6">
+<link rel="stylesheet" href="site.css?v=7">
 <style>
 .wk-bs .wk-img{cursor:pointer}
 .wk-bs h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -136,9 +136,10 @@
         <h3>悪役令嬢、<br>旅に出る。</h3>
         <p>pixiv等各種投稿サイトにて公開中。</p>
         <div class="f-links">
-          <a class="more" href="https://www.pixiv.net/artworks/128193329" target="_blank" rel="noopener">第1話を読む <span class="arr">→</span></a>
-          <a class="more more-o" href="https://www.pixiv.net/artworks/152009901" target="_blank" rel="noopener">最新話を読む <span class="arr">→</span></a>
+          <button type="button" class="more" data-pages="manga/akuyaku01_01.jpg,manga/akuyaku01_02.jpg,manga/akuyaku01_03.jpg,manga/akuyaku01_04.jpg,manga/akuyaku01_05.jpg,manga/akuyaku01_06.jpg,manga/akuyaku01_07.jpg,manga/akuyaku01_08.jpg,manga/akuyaku01_09.jpg,manga/akuyaku01_10.jpg,manga/akuyaku01_11.jpg">第1話を読む <span class="arr">→</span></button>
+          <button type="button" class="more more-o" data-pages="manga/akuyaku37_01.jpg,manga/akuyaku37_02.jpg,manga/akuyaku37_03.jpg,manga/akuyaku37_04.jpg,manga/akuyaku37_05.jpg,manga/akuyaku37_06.jpg,manga/akuyaku37_07.jpg,manga/akuyaku37_08.jpg,manga/akuyaku37_09.jpg,manga/akuyaku37_10.jpg,manga/akuyaku37_11.jpg">最新話（37話）を読む <span class="arr">→</span></button>
         </div>
+        <a class="textlink" href="https://www.pixiv.net/artworks/152009901" target="_blank" rel="noopener">pixivで続きを読む <span class="arr">→</span></a>
         <a class="f-yt" href="https://youtu.be/INjFfK7_pcI" target="_blank" rel="noopener">
           <span class="f-yt-img"><img src="https://i.ytimg.com/vi/INjFfK7_pcI/hqdefault.jpg" alt="" loading="lazy"><span class="bk-play">▶</span></span>
           <span><b>動画で見る</b><small>第1〜3話まとめ（YouTube）→</small></span>
@@ -310,7 +311,7 @@
 (function(){
   var lb=document.getElementById('lb'), img=lb.querySelector('img'), cap=lb.querySelector('.lb-c'), list=[], i=0;
   function show(){ i=(i+list.length)%list.length; img.src=list[i]; cap.textContent=list.length>1?(i+1)+' / '+list.length:''; lb.classList.toggle('one',list.length<2); }
-  document.querySelectorAll('.wk3[data-pages]').forEach(function(b){
+  document.querySelectorAll('[data-pages]').forEach(function(b){
     b.addEventListener('click',function(){ list=b.dataset.pages.split(','); i=0; show(); lb.hidden=false; });
   });
   function close(){ lb.hidden=true; img.removeAttribute('src'); }
