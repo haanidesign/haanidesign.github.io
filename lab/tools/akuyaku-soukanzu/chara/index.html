@@ -268,6 +268,8 @@ const D = {"people": [{"id": "irina", "name": "イリーナ・レイヴン", "su
   const pad = n => String(n).padStart(2, '0');
   const dark = c => { const n = parseInt(c.slice(1), 16); return ((n >> 16) * 299 + (n >> 8 & 255) * 587 + (n & 255) * 114) / 1000 < 130; };
   const short = n => n.split('・')[0];
+  // 「。」のあとで行を変える（かっこの中の「。」と、いちばん最後は変えない）
+  const br = h => h.replace(/。(?![」』）)\s]|$|<)/g, '。<br>');
   let cur = 0, view = 'intro';
   const VIEWS = [['intro', 'しょうかい'], ['prof', 'プロフィール'], ['memo', 'メモ'], ['rel', 'つながり']].concat(D.nas ? [['voice', '呼び方']] : []);
 
@@ -301,9 +303,9 @@ const D = {"people": [{"id": "irina", "name": "イリーナ・レイヴン", "su
       h = '<div class="stamp"><i>FIRST</i><b>' + pad(p.ep) + '</b><span>' + (p.met === '出発前' ? '旅に出る前' : esc(p.met) + 'のころ') + '</span></div>' +
           '<h1 class="name"><span>' + esc(p.name) + '</span></h1>' +
           '<div class="enn"><i>' + esc(p.en1 + ' ' + p.en2) + '</i><small>' + esc(p.sub) + '</small></div>' +
-          '<p class="say">' + esc(p.line) + '</p>' +
+          '<p class="say">' + br(esc(p.line)) + '</p>' +
           '<div class="tags">' + p.tags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') + '</div>' +
-          (p.bullets.length ? '<div class="pick"><i>MEMO</i>' + p.bullets[0] + '</div>' : '') +
+          (p.bullets.length ? '<div class="pick"><i>MEMO</i>' + br(p.bullets[0]) + '</div>' : '') +
           '<div class="trip"><p>旅のどこで出てきた？</p><ol>' + ['出発'].concat(D.route).map((r, k) =>
             '<li class="' + ((mi < 0 ? k === 0 : k === mi + 1) ? 'on' : '') + '"><span>' + esc(r) + '</span></li>').join('') + '</ol></div>';
     } else if (view === 'prof') {
@@ -311,10 +313,10 @@ const D = {"people": [{"id": "irina", "name": "イリーナ・レイヴン", "su
       h = '<div class="pass"><div class="pass-h"><img src="' + p.face + '" alt=""><div><i>PASSPORT ／ 旅券</i><b>' + esc(p.name) + '</b><small>' + esc(p.en1 + ' ' + p.en2) + '</small></div></div>' +
           '<dl>' + pr.rows.map(r => '<dt>' + esc(r.k) + '</dt><dd' + (r.empty ? ' class="empty">未記入' : '>' + esc(r.v) + (r.lore ? L : '')) + '</dd>').join('') + '</dl>' +
           '<p class="pass-mrz">P&lt;HOKKA' + esc((p.en2 + '<<' + p.en1).replace(/ /g, '<')) + '&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;' + pad(p.ep) + '&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</p></div>' +
-          (pr.seikaku ? '<div class="seikaku"><i>PERSONALITY ／ せいかく</i><p>' + esc(pr.seikaku) + (pr.seikaku_lore ? L : '') + '</p></div>' : '') +
+          (pr.seikaku ? '<div class="seikaku"><i>PERSONALITY ／ せいかく</i><p>' + br(esc(pr.seikaku)) + (pr.seikaku_lore ? L : '') + '</p></div>' : '') +
           (D.nas && pr.rows.some(r => r.empty) ? '<p class="fillme">「未記入」は、教えてもらえたら埋めます。</p>' : '');
     } else if (view === 'memo') {
-      h = p.bullets.length ? '<ul class="nlist">' + p.bullets.map(b => '<li>' + b + '</li>').join('') + '</ul>' : '<p class="none">まだありません。</p>';
+      h = p.bullets.length ? '<ul class="nlist">' + p.bullets.map(b => '<li>' + br(b) + '</li>').join('') + '</ul>' : '<p class="none">まだありません。</p>';
     } else if (view === 'rel') {
       h = p.rel.length ? '<ul class="rel">' + p.rel.map(r => { const o = byId[r.to]; return o ?
         '<li><button type="button" data-to="' + o.id + '"><img src="' + o.face + '" alt=""><span class="nm">' + esc(o.name) + '<small>' + esc(o.sub) + '</small></span><span class="lb">' + esc(r.label) + '</span></button></li>' : ''; }).join('') + '</ul>'
