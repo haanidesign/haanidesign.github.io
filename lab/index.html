@@ -187,7 +187,7 @@ a{color:inherit}
   <a href="../price.html" class="btn btn-sm">料金表</a>
 </footer>
 
-<script src="data.js"></script>
+<script>/* 一覧はいつも最新を読む（古いのが残って新しいカードが出ないのを防ぐ） */document.write('<script src="data.js?t='+Date.now()+'"><\/script>')</script>
 <script>
 const $ = s => document.querySelector(s);
 let cat = "all", q = "";
