@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>はぁにデザイン工房</title>
+<meta name="description" content="北海道を拠点に活動する漫画家・イラストレーター「はぁに」のポートフォリオ。ラブコメ・ギャグのカラー漫画、広告漫画、キャラクターデザイン、アニメーション制作を承っています。">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DS7M3F9ZWB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-DS7M3F9ZWB');
+</script>
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site.css?v=6">
+<style>
+.wk-bs .wk-img{cursor:pointer}
+.wk-bs h3{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.bs-shelf{margin:5rem 0 0}
+.bs-shelf[hidden]{display:none}
+.bs-shelf .bk{flex-basis:240px}
+.bs-shelf .bk-img{aspect-ratio:1;margin:0}
+.bs-shelf video{pointer-events:none}
+.bs-nav{margin-left:auto;display:flex;gap:.5rem}
+.bs-btn{width:2.6rem;height:2.6rem;border-radius:50%;border:1.5px solid var(--ink);background:transparent;font-size:1.3rem;cursor:pointer;transition:background-color .2s,color .2s}
+.bs-btn:hover{background:var(--ink);color:var(--main)}
+@media (max-width:860px){.bs-shelf .bk{flex-basis:160px}.bs-nav{display:none}}
+.works3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2rem 1.6rem}
+.wk3{all:unset;display:block;cursor:pointer;text-decoration:none;color:inherit}
+.wk3:focus-visible{outline:3px solid var(--ink);outline-offset:4px;border-radius:14px}
+.wk3 .wk-img{display:block;aspect-ratio:1;border-radius:16px;overflow:hidden;background:#fff}
+.wk3 .wk-img img,.wk3 .wk-img video{width:100%;height:100%;object-fit:cover;object-position:50% 0;transition:transform 1s var(--ease)}
+.wk3:hover .wk-img img,.wk3:hover .wk-img video{transform:scale(1.04)}
+.wk3 .wk-info{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;margin-top:1rem}
+.wk3 b{font-size:1.1rem;font-weight:900}
+.wk3 small{font-size:.85rem;font-weight:700;color:var(--gray)}
+.wk3:hover small{color:var(--ink)}
+.lb{position:fixed;inset:0;z-index:150;background:rgba(30,28,20,.94);display:flex;align-items:center;justify-content:center;padding:4rem 4.5rem}
+.lb[hidden]{display:none}
+.lb img{max-width:100%;max-height:100%;border-radius:12px;background:#fff}
+.lb button{position:absolute;width:3rem;height:3rem;border-radius:50%;border:none;background:var(--paper);font-size:1.3rem;cursor:pointer}
+.lb button:hover{background:var(--main)}
+.lb-x{top:1rem;right:1rem}.lb-p{left:1rem;top:50%;transform:translateY(-50%)}.lb-n{right:1rem;top:50%;transform:translateY(-50%)}
+.lb.one .lb-p,.lb.one .lb-n{display:none}
+.lb-c{pointer-events:none;position:absolute;bottom:1.2rem;left:0;right:0;text-align:center;color:var(--main);font-family:var(--en);font-size:.8rem}
+.works3>.wk3{width:auto}
+@media (max-width:860px){.works3{grid-template-columns:1fr;gap:1.4rem}.wk3{display:grid;grid-template-columns:42% 1fr;gap:1rem;align-items:center}.wk3 .wk-info{margin-top:0}.wk3 b{font-size:1rem;line-height:1.45}.lb{padding:4rem .6rem 5rem}.lb-p,.lb-n{top:auto;bottom:.8rem;transform:none}}
+</style>
+<style>
+.wk-info{flex-direction:column;align-items:flex-start;gap:.3rem}
+.wk-info .tag{order:-1}
+.wk-n{display:none}
+.cbtn{width:1.9rem;height:1.9rem;font-size:1rem}
+.cprev{right:2.9rem}
+.vbtn{font-size:.68rem;padding:.25rem .6rem}
+.wk-img{aspect-ratio:1;border-radius:14px}
+.f-yt-img{aspect-ratio:1;flex-basis:84px}
+.wk-info{margin-top:.8rem}
+.wk-info h3{font-size:.95rem;line-height:1.45}
+.bs-shelf{margin-top:5rem}
+.bs-shelf .shelf-row{gap:1rem}
+.bs-shelf .bk{flex-basis:calc((100% - 4rem)/5.4)}
+.bs-shelf .bk-img{border-radius:12px}
+.shelf-row{margin:0;padding:0 0 1rem}
+@media (max-width:860px){.bs-shelf .bk{flex-basis:38%}}
+</style>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="book.css">
+</head>
+<body>
+
+<div class="loader" aria-hidden="true"><span>HAANI</span><span>DESIGN</span></div>
+
+<header class="nav">
+  <a href="#top" class="mark"><b>HAANI</b><small>はぁにデザイン工房</small></a>
+  <nav class="nav-links" aria-label="ページ内">
+    <a href="#works"><i>01</i>作品</a>
+    <a href="#price"><i>02</i>料金</a>
+    <a href="#flow"><i>03</i>流れ</a>
+    <a href="#about"><i>04</i>プロフィール</a>
+  </nav>
+  <a href="#contact" class="nav-cta">ご依頼<span>→</span></a>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true">HAANI<br>DESIGN</div>
+    <div class="hero-in">
+      <div class="hero-text">
+        <p class="status"><span class="lamp"></span>ご依頼受付中 — 2026</p>
+        <h1>
+          <span class="ln"><span>ラブコメも</span></span>
+          <span class="ln"><span>ギャグも</span></span>
+          <span class="ln"><span><em>カラー漫画</em>で。</span></span>
+        </h1>
+        <p class="lead">北海道を拠点に、オリジナル漫画から広告漫画、アニメーション制作まで。</p>
+        <div class="cta">
+          <a href="#works" class="btn btn-y">作品を見る<span class="arr">→</span></a>
+          <a href="#contact" class="btn btn-o">相談する</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="ring ring-wide" aria-hidden="true">
+          <svg viewBox="0 0 200 200"><defs><path id="c" d="M100,100 m-76,0 a76,76 0 1,1 152,0 a76,76 0 1,1 -152,0"/></defs>
+            <text textLength="477" lengthAdjust="spacing"><textPath href="#c" textLength="477" lengthAdjust="spacing">MANGA ・ ILLUSTRATION ・ ANIMATION ・ </textPath></text></svg>
+          <b>★</b>
+        </div>
+        <img src="../hero_chara2.png" alt="" class="hero-chara wide">
+      </div>
+    </div>
+    <a href="#works" class="scroll" aria-label="下へ"><span>SCROLL</span></a>
+  </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="mq-track">
+      <span>MANGA</span><i>✦</i><span>ILLUSTRATION</span><i>✦</i><span>ANIMATION</span><i>✦</i><span>漫画・広告漫画・キャラデザ</span><i>✦</i>
+      <span>MANGA</span><i>✦</i><span>ILLUSTRATION</span><i>✦</i><span>ANIMATION</span><i>✦</i><span>漫画・広告漫画・キャラデザ</span><i>✦</i>
+    </div>
+  </div>
+
+  <!-- 作品 -->
+  <section class="sec" id="works">
+    <header class="sh rv">
+      <span class="sh-no">01</span>
+      <h2 class="sh-en">Works</h2>
+      <p class="sh-ja">作品 — 連載中の漫画、短いアニメ、広告まで。</p>
+    </header>
+
+    <div class="shelf2 rv">
+      <div class="shelf2-books">
+        <button class="book3" data-title="悪役令嬢、旅に出る。 第1話" data-link="https://www.pixiv.net/artworks/128193329" data-pages="../manga/tachibanasenpai_01.jpg,../manga/tachibanasenpai_02.jpg,../manga/tachibanasenpai_03.jpg,../manga/tachibanasenpai_04.jpg">
+          <span class="b-spine"><i>悪役令嬢、旅に出る。</i><b>01</b></span>
+          <span class="b-cover"><img src="../akuyaku.jpg" alt=""><span class="b-band">第1話</span></span>
+        </button>
+        <button class="book3 b2" data-title="悪役令嬢、旅に出る。 最新話" data-link="https://www.pixiv.net/artworks/152009901" data-pages="../manga/tachibanasenpai_01.jpg,../manga/tachibanasenpai_02.jpg,../manga/tachibanasenpai_03.jpg,../manga/tachibanasenpai_04.jpg">
+          <span class="b-spine"><i>悪役令嬢、旅に出る。</i><b>NEW</b></span>
+          <span class="b-cover"><img src="../akuyaku.jpg" alt=""><span class="b-band">最新話</span></span>
+        </button>
+        <div class="shelf2-board" aria-hidden="true"></div>
+      </div>
+      <div class="feature-info">
+        <span class="tag">連載漫画</span>
+        <h3>悪役令嬢、<br>旅に出る。</h3>
+        <p>pixiv等各種投稿サイトにて公開中。<br>本を押すと、ここで読めます。</p>
+        <a class="f-yt" href="https://youtu.be/INjFfK7_pcI" target="_blank" rel="noopener">
+          <span class="f-yt-img"><img src="https://i.ytimg.com/vi/INjFfK7_pcI/hqdefault.jpg" alt="" loading="lazy"><span class="bk-play">▶</span></span>
+          <span><b>動画で見る</b><small>第1〜3話まとめ（YouTube）→</small></span>
+        </a>
+      </div>
+    </div>
+
+    <div class="works works3">
+      <button class="wk wk3" data-pages="../manga/tachibanasenpai_01.jpg,../manga/tachibanasenpai_02.jpg,../manga/tachibanasenpai_03.jpg,../manga/tachibanasenpai_04.jpg">
+        <span class="wk-img"><img src="../manga/tachibanasenpai_01.jpg" alt="" loading="lazy"></span>
+        <span class="wk-info"><span class="tag">漫画</span><b>笑顔を見せてよ、橘先輩</b><small>4ページ読む →</small></span>
+      </button>
+      <a class="wk wk3" href="https://youtube.com/@haanianime" target="_blank" rel="noopener">
+        <span class="wk-img"><video src="../kotono.mp4" autoplay muted loop playsinline preload="metadata"></video></span>
+        <span class="wk-info"><span class="tag">アニメ</span><b>ことばの教科書</b><small>YouTubeで見る →</small></span>
+      </a>
+      <button class="wk wk3" data-pages="../webad.jpg">
+        <span class="wk-img"><img src="../webad.jpg" alt="" loading="lazy"></span>
+        <span class="wk-info"><span class="tag">広告</span><b>WEB広告</b><small>大きく見る →</small></span>
+      </button>
+    </div>
+
+    <div class="shelf bs-shelf" id="bsShelf" hidden>
+      <div class="shelf-head"><h3>ギャラリー</h3><p>横にスライドして見られます。</p>
+        <span class="bs-nav"><button class="bs-btn" data-d="-1" aria-label="前へ">‹</button><button class="bs-btn" data-d="1" aria-label="次へ">›</button></span></div>
+      <div class="shelf-row" id="bsRow"></div>
+    </div>
+  </section>
+
+  <!-- 料金 -->
+  <section class="sec dark" id="price">
+    <div class="sec-in">
+      <header class="sh rv">
+        <span class="sh-no">02</span>
+        <h2 class="sh-en">Price</h2>
+        <p class="sh-ja">料金 — 目安です。お見積もりは無料。</p>
+      </header>
+      <div class="ptable">
+        <div class="prow rv">
+          <span class="p-n">A</span>
+          <div><h3>漫画制作 <span class="badge">得意</span></h3>
+            <p>表情芝居に強いカラー漫画。ネームから仕上げまで。広告・PR漫画／4コマ／SNS用ショート漫画</p></div>
+          <span class="yen">¥8,000<small>〜</small></span>
+        </div>
+        <div class="prow rv">
+          <span class="p-n">B</span>
+          <div><h3>イラスト</h3><p>アイコン／立ち絵／キャラクターデザイン・装丁</p></div>
+          <span class="yen">¥10,000<small>〜</small></span>
+        </div>
+        <div class="prow rv">
+          <span class="p-n">C</span>
+          <div><h3>アニメーション</h3><p>10秒アニメ／ショートアニメ／キャラクターPR動画</p></div>
+          <span class="yen">¥10,000<small>〜</small></span>
+        </div>
+      </div>
+      <a href="../price.html" class="textlink">くわしい料金表 <span class="arr">→</span></a>
+    </div>
+  </section>
+
+  <!-- 流れ -->
+  <section class="sec" id="flow">
+    <header class="sh rv">
+      <span class="sh-no">03</span>
+      <h2 class="sh-en">Flow</h2>
+      <p class="sh-ja">ご依頼の流れ</p>
+    </header>
+    <ol class="steps">
+      <li class="rv"><span class="step-no">01</span><h3>お問い合わせ</h3>
+        <p>フォームからご連絡ください。お見積もりは無料、2〜3営業日でご返信します。</p></li>
+      <li class="rv"><span class="step-no">02</span><h3>ラフ・修正</h3>
+        <p>ラフ段階での修正は3回まで無料。ここで方向性を固めます。</p></li>
+      <li class="rv"><span class="step-no">03</span><h3>完成・納品</h3>
+        <p>形式・解像度はご指定いただけます。psd・png・jpg・mp4 など。</p></li>
+    </ol>
+    <a href="../flow.html" class="textlink">くわしい流れ <span class="arr">→</span></a>
+  </section>
+
+  <!-- プロフィール・お知らせ -->
+  <section class="sec" id="about">
+    <header class="sh rv">
+      <span class="sh-no">04</span>
+      <h2 class="sh-en">About</h2>
+      <p class="sh-ja">プロフィール・お知らせ</p>
+    </header>
+    <div class="two">
+      <div class="prof rv">
+        <div class="prof-ava"><img src="../ai.jpg" alt="はぁに"></div>
+        <h3>はぁに<small>HAANI</small></h3>
+        <p class="role">漫画家 / イラストレーター / アニメーター</p>
+        <p>北海道を拠点に活動するクリエイター。ラブコメ・ギャグのオリジナル漫画制作やアニメ制作、広告漫画制作を行っています。表情豊かなカラー漫画が得意です。</p>
+        <ul class="sns">
+          <li><a href="https://x.com/haanidesign" target="_blank" rel="noopener">X</a></li>
+          <li><a href="https://www.pixiv.net/users/8184383" target="_blank" rel="noopener">pixiv</a></li>
+          <li><a href="https://rookie.shonenjump.com/users/1325423796296168200" target="_blank" rel="noopener">ジャンプルーキー</a></li>
+          <li><a href="https://youtube.com/@haanianime" target="_blank" rel="noopener">YouTube</a></li>
+          <li><a href="https://www.tiktok.com/@haanianime" target="_blank" rel="noopener">TikTok</a></li>
+          <li><a href="https://www.chatwork.com/ha_ni" target="_blank" rel="noopener">Chatwork</a></li>
+        </ul>
+      </div>
+      <div class="news rv" id="news">
+        <h3 class="news-h">News</h3>
+        <ul>
+          <li><time datetime="2026-08-17">2026.08.17</time>
+            <p>WEBメディア「TRILL」で「悪役令嬢、旅に出る。」をご紹介いただきました。<a href="https://trilltrill.jp/articles/4790072" target="_blank" rel="noopener">記事を読む →</a></p></li>
+          <li><time datetime="2026-08-06">2026.08.06</time><p>「悪役令嬢、旅に出る。」累計90万PVを突破しました。</p></li>
+          <li><time datetime="2026-07-20">2026.07.20</time><p>ご依頼受付を再開しました。</p></li>
+          <li><time datetime="2026-06-02">2026.06.02</time><p>YouTube・TikTokでショートアニメーションを公開しました。</p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- お問い合わせ -->
+  <section class="contact" id="contact">
+    <div class="contact-in">
+      <header class="sh rv">
+        <span class="sh-no">05</span>
+        <h2 class="sh-en">Contact</h2>
+        <p class="sh-ja">お仕事のご依頼 — 通常2〜3営業日以内にご返信します。</p>
+      </header>
+      <form class="form rv" id="cForm" action="https://formspree.io/f/mgoqavzy" method="POST">
+        <div class="f2">
+          <label class="fg"><span>お名前 *</span><input type="text" name="name" autocomplete="name" required></label>
+          <label class="fg"><span>メールアドレス *</span><input type="email" name="email" autocomplete="email" required></label>
+        </div>
+        <div class="f2">
+          <label class="fg"><span>ご依頼の種類</span>
+            <select name="type">
+              <option value="">選択してください</option>
+              <option>広告・PR漫画</option><option>WEB漫画・ショート漫画</option>
+              <option>キャラクターデザイン</option><option>装丁・表紙イラスト</option>
+              <option>アニメーション</option><option>その他</option>
+            </select></label>
+          <label class="fg"><span>ご予算</span>
+            <select name="budget">
+              <option value="">選択してください</option>
+              <option>〜3万円</option><option>3〜10万円</option>
+              <option>10〜20万円</option><option>20万円以上</option><option>相談したい</option>
+            </select></label>
+        </div>
+        <label class="fg"><span>ご依頼内容 *</span><textarea name="message" placeholder="内容・使用媒体・実績公開の可否など" required></textarea></label>
+        <button type="submit" class="btn btn-y btn-lg">送信する<span class="arr">→</span></button>
+        <p class="form-msg" id="formMsg" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<div class="lb" id="lb" hidden>
+  <button class="lb-x" aria-label="閉じる">✕</button>
+  <button class="lb-p" aria-label="前へ">‹</button><button class="lb-n" aria-label="次へ">›</button>
+  <img alt=""><span class="lb-c"></span>
+</div>
+
+<div class="reader" id="reader" hidden>
+  <div class="r-top"><b class="r-title"></b><a class="r-link" target="_blank" rel="noopener">pixivで読む →</a><button class="r-x" aria-label="閉じる">✕</button></div>
+  <div class="r-stage"><div class="r-book"></div></div>
+  <div class="r-bar"><button class="r-next" aria-label="次のページ">‹</button><span class="r-no"></span><button class="r-prev" aria-label="前のページ">›</button></div>
+</div>
+
+<footer class="foot">
+  <div class="foot-big" aria-hidden="true">HAANI DESIGN</div>
+  <div class="foot-row">
+    <span>© 2026 はぁにデザイン工房</span>
+    <a href="../price.html">料金表</a>
+    <a href="../flow.html">ご依頼の流れ</a>
+    <a href="#top">トップへ ↑</a>
+  </div>
+</footer>
+
+<script src="../site.js?v=2"></script>
+<script src="book.js"></script>
+<script>
+/* 作品を 押したら 大きく 見る */
+(function(){
+  var lb=document.getElementById('lb'), img=lb.querySelector('img'), cap=lb.querySelector('.lb-c'), list=[], i=0;
+  function show(){ i=(i+list.length)%list.length; img.src=list[i]; cap.textContent=list.length>1?(i+1)+' / '+list.length:''; lb.classList.toggle('one',list.length<2); }
+  document.querySelectorAll('.wk3[data-pages]').forEach(function(b){
+    b.addEventListener('click',function(){ list=b.dataset.pages.split(','); i=0; show(); lb.hidden=false; });
+  });
+  function close(){ lb.hidden=true; img.removeAttribute('src'); }
+  lb.querySelector('.lb-x').onclick=close;
+  lb.querySelector('.lb-p').onclick=function(){ i--; show(); };
+  lb.querySelector('.lb-n').onclick=function(){ i++; show(); };
+  lb.addEventListener('click',function(e){ if(e.target===lb) close(); });
+  addEventListener('keydown',function(e){ if(lb.hidden) return; if(e.key==='Escape') close(); if(e.key==='ArrowLeft'){i--;show();} if(e.key==='ArrowRight'){i++;show();} });
+  var x0=null; lb.addEventListener('touchstart',function(e){x0=e.changedTouches[0].clientX},{passive:true});
+  lb.addEventListener('touchend',function(e){ if(x0===null) return; var d=e.changedTouches[0].clientX-x0; if(Math.abs(d)>45){ i+=d<0?1:-1; show(); } x0=null; },{passive:true});
+})();
+</script>
+<script>
+/* Bluesky の 絵を 横に ならべる（端まで 来たら 続きを 読む） */
+(function(){
+  var API = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=haanidesign.bsky.social&limit=40&filter=posts_with_media';
+  var shelf = document.getElementById('bsShelf'), row = document.getElementById('bsRow');
+  var cursor = null, done = false, busy = false;
+  function media(e){
+    if(!e) return [];
+    if(e.$type === 'app.bsky.embed.images#view') return (e.images||[]).map(function(i){ return {src: i.thumb || i.fullsize}; });
+    if(e.$type === 'app.bsky.embed.video#view') return [{src: e.thumbnail || '', playlist: e.playlist || ''}];
+    if(e.$type === 'app.bsky.embed.recordWithMedia#view') return media(e.media);
+    return [];
+  }
+  /* 動画は ギャラリーと 同じく、画面に 入った ものだけ 流す */
+  var hlsReady = null;
+  function loadHls(){
+    if(hlsReady) return hlsReady;
+    hlsReady = new Promise(function(ok, ng){
+      var sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+      sc.onload = ok; sc.onerror = ng; document.head.appendChild(sc);
+    });
+    return hlsReady;
+  }
+  function nativeHls(v){ return !!v.canPlayType('application/vnd.apple.mpegurl'); }
+  function attach(v, pl){
+    var h = null, dead = false;
+    loadHls().then(function(){
+      if(dead) return;
+      if(window.Hls && window.Hls.isSupported()){
+        h = new window.Hls({ enableWorker:true, maxBufferLength:10 });
+        h.loadSource(pl); h.attachMedia(v);
+      }else if(nativeHls(v)){ v.src = pl; }
+      v.play().catch(function(){});
+    }).catch(function(){
+      if(!dead && nativeHls(v)){ v.src = pl; v.play().catch(function(){}); }
+    });
+    return function(){ dead = true; if(h){ h.destroy(); h = null; } v.pause(); v.removeAttribute('src'); v.load(); };
+  }
+  var watcher = ('IntersectionObserver' in window) ? new IntersectionObserver(function(list){
+    list.forEach(function(en){
+      var v = en.target;
+      if(en.isIntersecting){ if(!v._off) v._off = attach(v, v.dataset.playlist); }
+      else if(v._off){ v._off(); v._off = null; }
+    });
+  }, { root: row, rootMargin: '0px 200px' }) : null;
+  function load(){
+    if(busy || done) return; busy = true;
+    fetch(API + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '')).then(function(r){ return r.json(); }).then(function(d){
+      cursor = d.cursor || null; if(!cursor) done = true;
+      (d.feed||[]).forEach(function(it){
+        var p = it.post; if(it.reason || !p) return;
+        if(it.reply && !(it.reply.parent && it.reply.parent.author && p.author && it.reply.parent.author.did === p.author.did)) return;
+        var link = 'https://bsky.app/profile/' + p.author.handle + '/post/' + String(p.uri).split('/').pop();
+        media(p.embed).forEach(function(m){
+          if(!m.src && !m.playlist) return;
+          var a = document.createElement('a');
+          a.className = 'bk'; a.href = link; a.target = '_blank'; a.rel = 'noopener';
+          var box = document.createElement('div'); box.className = 'bk-img'; a.appendChild(box);
+          if(m.playlist){
+            var v = document.createElement('video');
+            v.muted = true; v.loop = true; v.playsInline = true;
+            v.setAttribute('muted',''); v.setAttribute('playsinline','');
+            v.preload = 'none'; v.poster = m.src; v.dataset.playlist = m.playlist;
+            box.appendChild(v);
+            if(watcher) watcher.observe(v); else v._off = attach(v, m.playlist);
+          }else{
+            var img = document.createElement('img'); img.loading = 'lazy'; img.alt = ''; img.src = m.src;
+            box.appendChild(img);
+          }
+          row.appendChild(a);
+        });
+      });
+      if(row.children.length) shelf.hidden = false;
+      busy = false;
+    }).catch(function(){ busy = false; });
+  }
+  row.addEventListener('scroll', function(){
+    if(row.scrollLeft + row.clientWidth > row.scrollWidth - 600) load();
+  }, {passive:true});
+  shelf.querySelectorAll('.bs-btn').forEach(function(b){
+    b.addEventListener('click', function(){ row.scrollBy({left: +b.dataset.d * row.clientWidth * .8, behavior:'smooth'}); });
+  });
+  load();
+})();
+</script>
+
+</body>
+</html>
