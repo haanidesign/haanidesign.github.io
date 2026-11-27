@@ -353,6 +353,17 @@ const TOOLS = [
     thumb: "thumbs/akuyaku-soukanzu.jpg",
     url: "tools/akuyaku-soukanzu/index.html",
     status: "live"
+  },
+  {
+    no: 33,
+    slug: "akuyaku-chara",
+    title: "悪役令嬢 キャラ紹介",
+    desc: "漫画「悪役令嬢、旅に出る。」の人物を、たびのしおりの見開きで1人ずつ。初登場の話数スタンプ、旅のどこで出てきたか、つながり。",
+    tags: ["漫画", "人物紹介", "たびのしおり"],
+    cat: "manga",
+    thumb: "thumbs/akuyaku-chara.jpg",
+    url: "tools/akuyaku-soukanzu/chara/index.html",
+    status: "live"
   }
 ];
 
